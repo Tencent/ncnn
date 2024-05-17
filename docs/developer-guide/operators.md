@@ -6,6 +6,7 @@
 * [BinaryOp](#binaryop)
 * [BNLL](#bnll)
 * [Cast](#cast)
+* [CELU](#celu)
 * [Clip](#clip)
 * [Concat](#concat)
 * [Convolution](#convolution)
@@ -14,21 +15,29 @@
 * [ConvolutionDepthWise](#convolutiondepthwise)
 * [ConvolutionDepthWise1D](#convolutiondepthwise1d)
 * [ConvolutionDepthWise3D](#convolutiondepthwise3d)
+* [CopyTo](#copyto)
 * [Crop](#crop)
+* [CumulativeSum](#cumulativesum)
 * [Deconvolution](#deconvolution)
 * [Deconvolution1D](#deconvolution1d)
 * [Deconvolution3D](#deconvolution3d)
 * [DeconvolutionDepthWise](#deconvolutiondepthwise)
 * [DeconvolutionDepthWise1D](#deconvolutiondepthwise1d)
 * [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
+* [DeformableConv2D](#deformableconv2d)
 * [Dequantize](#dequantize)
+* [Diag](#diag)
 * [Dropout](#dropout)
 * [Eltwise](#eltwise)
 * [ELU](#elu)
+* [Embed](#embed)
 * [Exp](#exp)
 * [Flatten](#flatten)
+* [Fold](#fold)
 * [GELU](#gelu)
+* [GLU](#glu)
 * [Gemm](#gemm)
+* [GridSample](#gridsample)
 * [GroupNorm](#groupnorm)
 * [GRU](#gru)
 * [HardSigmoid](#hardsigmoid)
@@ -65,6 +74,7 @@
 * [RNN](#rnn)
 * [Scale](#scale)
 * [SELU](#selu)
+* [Shrink](#shrink)
 * [ShuffleChannel](#shufflechannel)
 * [Sigmoid](#sigmoid)
 * [Slice](#slice)
@@ -76,6 +86,7 @@
 * [Threshold](#threshold)
 * [Tile](#tile)
 * [UnaryOp](#unaryop)
+* [Unfold](#unfold)
 
 # AbsVal
 ```
@@ -158,6 +169,9 @@ Operation type:
 - 6 = POW
 - 7 = RSUB
 - 8 = RDIV
+- 9 = RPOW
+- 10 = ATAN2
+- 11 = RATAN2
 
 # BNLL
 ```
@@ -187,6 +201,19 @@ Element type:
 - 2 = float16
 - 3 = int8
 - 4 = bfloat16
+
+# CELU
+```
+if x < 0    y = (exp(x / alpha) - 1.f) * alpha
+else        y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha         | float | 1.f       |                   |
 
 # Clip
 ```
@@ -423,6 +450,22 @@ y = activation(x3, act_type, act_params)
 | weight_data   | float/fp16/int8 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
 
+# CopyTo
+```
+self[offset] = src
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | woffset       | int   | 0         |                   |
+| 1         | hoffset       | int   | 0         |                   |
+| 13        | doffset       | int   | 0         |                   |
+| 2         | coffset       | int   | 0         |                   |
+| 9         | starts        | array | [ ]       |                   |
+| 11        | axes          | array | [ ]       |                   |
+
 # Crop
 ```
 y = crop(x)
@@ -434,16 +477,33 @@ y = crop(x)
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | woffset       | int   | 0         |                   |
 | 1         | hoffset       | int   | 0         |                   |
-| 2         | coffset       | int   | 1         |                   |
-| 3         | outw          | int   | 1         |                   |
+| 13        | doffset       | int   | 0         |                   |
+| 2         | coffset       | int   | 0         |                   |
+| 3         | outw          | int   | 0         |                   |
 | 4         | outh          | int   | 0         |                   |
+| 14        | outd          | int   | 0         |                   |
 | 5         | outc          | int   | 0         |                   |
 | 6         | woffset2      | int   | 0         |                   |
-| 7         | hoffset2      | int   | 1         |                   |
+| 7         | hoffset2      | int   | 0         |                   |
+| 15        | doffset2      | int   | 0         |                   |
 | 8         | coffset2      | int   | 0         |                   |
 | 9         | starts        | array | [ ]       |                   |
 | 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
+
+# CumulativeSum
+
+If axis < 0, we use axis = x.dims + axis
+
+It implements https://pytorch.org/docs/stable/generated/torch.cumsum.html
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axis          | int   | 0         |                   |
+
 
 # Deconvolution
 ```
@@ -475,6 +535,7 @@ y = activation(x3, act_type, act_params)
 | 19        | output_pad_bottom| int | output_pad_right |           |
 | 20        | output_w      | int   | 0         |                   |
 | 21        | output_h      | int   | output_w  |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -504,6 +565,7 @@ y = activation(x3, act_type, act_params)
 | 15        | pad_right     | int   | pad_left  |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 20        | output_w      | int   | 0         |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -584,6 +646,7 @@ y = activation(x3, act_type, act_params)
 | 19        | output_pad_bottom| int | output_pad_right |           |
 | 20        | output_w      | int   | 0         |                   |
 | 21        | output_h      | int   | output_w  |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -614,6 +677,7 @@ y = activation(x3, act_type, act_params)
 | 15        | pad_right     | int   | pad_left  |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 20        | output_w      | int   | 0         |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -664,6 +728,35 @@ y = activation(x3, act_type, act_params)
 | weight_data   | float/fp16 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
 
+# DeformableConv2D
+```
+x2 = deformableconv2d(x, offset, mask, weight, kernel, stride, dilation) + bias
+y = activation(x2, act_type, act_params)
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input, num_output] |
+| bias_data     | float | [num_output]          |
+
 # Dequantize
 ```
 y = x * scale + bias
@@ -681,6 +774,17 @@ y = x * scale + bias
 | ------------- | ----- | --------------------- |
 | scale_data    | float | [scale_data_size]     |
 | bias_data     | float | [bias_data_size]      |
+
+# Diag
+```
+y = diag(x, diagonal)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | diagonal      | int   | 0         |                   |
 
 # Dropout
 ```
@@ -721,6 +825,23 @@ else        y = x
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | alpha         | float | 0.1f      |                   |
 
+# Embed
+```
+y = embedding(x)
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | input_dim     | int   | 0         |                   |
+| 2         | bias_term     | int   | 0         |                   |
+| 3         | weight_data_size | int | 0        |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float | [weight_data_size]    |
+| bias_term     | float | [num_output]          |
+
 # Exp
 ```
 if base == -1   y = exp(shift + x * scale)
@@ -741,6 +862,29 @@ Reshape blob to 1 dimension
 
 * one_blob_only
 
+# Fold
+```
+y = fold(x)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+| 20        | output_w      | int   | 0         |                   |
+| 21        | output_h      | int   | output_w  |                   |
+
 # GELU
 ```
 if fast_gelu == 1   y = 0.5 * x * (1 + tanh(0.79788452 * (x + 0.044715 * x * x * x)));
@@ -754,12 +898,28 @@ else                y = 0.5 * x * erfc(-0.70710678 * x)
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | fast_gelu     | int   | 0         | use approximation |
 
+# GLU
+
+If axis < 0, we use axis = x.dims + axis
+
+GLU(a,b)=a⊗σ(b)
+
+where a is the first half of the input matrix and b is the second half.
+
+axis specifies the dimension to split the input
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axis          | int   | 0         |                   |
+
 # Gemm
 ```
 a = transA ? transpose(x0) : x0
 b = transb ? transpose(x1) : x1
 c = x2
-y = gemm(a, b) * alpha + c * beta
+y = (gemm(a, b) + c * beta) * alpha
 ```
 
 | param id  | name          | type  | default   | description       |
@@ -768,6 +928,55 @@ y = gemm(a, b) * alpha + c * beta
 | 1         | beta          | float | 1.f       |                   |
 | 2         | transA        | int   | 0         |                   |
 | 3         | transb        | int   | 0         |                   |
+| 4         | constantA     | int   | 0         |                   |
+| 5         | constantB     | int   | 0         |                   |
+| 6         | constantC     | int   | 0         |                   |
+| 7         | constantM     | int   | 0         |                   |
+| 8         | constantN     | int   | 0         |                   |
+| 9         | constantK     | int   | 0         |                   |
+| 10        | constant_broadcast_type_C | int | 0 |                 |
+| 11        | output_N1M    | int   | 0         |                   |
+| 12        | output_elempack | int | 0         |                   |
+| 13        | output_elemtype | int | 0         |                   |
+| 14        | output_transpose | int| 0         |                   |
+| 20        | constant_TILE_M | int | 0         |                   |
+| 21        | constant_TILE_N | int | 0         |                   |
+| 22        | constant_TILE_K | int | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| A_data        | float | [M, K] or [K, M]      |
+| B_data        | float | [N, K] or [K, N]      |
+| C_data        | float | [1], [M] or [N] or [1, M] or [N,1] or [N, M] |
+
+# GridSample
+```
+Given an input and a flow-field grid, computes the output using input values and pixel locations from grid.
+
+For each output location output[:, h2, w2], the size-2 vector grid[h2, w2, 2] specifies input pixel[:, h1, w1] locations x and y, 
+which are used to interpolate the output value output[:, h2, w2]
+
+This function is often used in conjunction with affine_grid() to build Spatial Transformer Networks .
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | sample_type   | int   | 1         |                   |
+| 1         | padding_mode  | int   | 1         |                   |
+| 2         | align_corner  | int   | 0         |                   |
+| 3         | permute_fusion| int   | 0         | fuse with permute |
+
+
+Sample type:
+- 1 = Nearest
+- 2 = Bilinear
+- 3 = Bicubic
+
+Padding mode:
+- 1 = zeros
+- 2 = border
+- 3 = reflection
+
 
 # GroupNorm
 ```
@@ -996,15 +1205,17 @@ y0, hidden y1, cell y2 = lstm(x0, hidden x1, cell x2)
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | num_output    | int   | 0         | hidden size of output |
+| 0         | num_output    | int   | 0         | output size of output |
 | 1         | weight_data_size| int | 0         | total size of IFOG weight matrix |
 | 2         | direction     | int   | 0         | 0=forward, 1=reverse, 2=bidirectional |
+| 3         | hidden_size   | int   | num_output| hidden size       |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| weight_xc_data| float/fp16/int8 | [input_size, num_output * 4, num_directions] |
-| bias_c_data   | float/fp16/int8 | [num_output, 4, num_directions] |
-| weight_hc_data| float/fp16/int8 | [num_output, num_output * 4, num_directions] |
+| weight_xc_data| float/fp16/int8 | [input_size, hidden_size * 4, num_directions] |
+| bias_c_data   | float/fp16/int8 | [hidden_size, 4, num_directions] |
+| weight_hc_data| float/fp16/int8 | [num_output, hidden_size * 4, num_directions] |
+| weight_hr_data| float/fp16/int8 | [hidden_size, num_output, num_directions] |
 
 Direction flag:
 - 0 = forward only
@@ -1022,6 +1233,7 @@ y = data
 | 1         | h             | int   | 0         |                   |
 | 11        | d             | int   | 0         |                   |
 | 2         | c             | int   | 0         |                   |
+| 21        | load_type     | int   | 1         | 1=fp32            |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1043,6 +1255,7 @@ for each num_head part
     xk = affine(k)
     xv = affine(v)
     xqk = xq * xk
+    xqk = xqk + attn_mask if attn_mask exists
     softmax_inplace(xqk)
     xqkv = xqk * xv
     merge xqkv to out
@@ -1052,16 +1265,19 @@ y = affine(out)
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | embed_dim     | int   | 0         |                   |
-| 1         | num_head      | int   | 1         |                   |
+| 1         | num_heads     | int   | 1         |                   |
 | 2         | weight_data_size| int | 0         |                   |
+| 3         | kdim          | int   | embed_dim |                   |
+| 4         | vdim          | int   | embed_dim |                   |
+| 5         | attn_mask     | int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | q_weight_data | float/fp16/int8 | [weight_data_size] |
 | q_bias_data   | float | [embed_dim]           |
-| k_weight_data | float/fp16/int8 | [weight_data_size] |
+| k_weight_data | float/fp16/int8 | [embed_dim * kdim] |
 | k_bias_data   | float | [embed_dim]           |
-| v_weight_data | float/fp16/int8 | [weight_data_size] |
+| v_weight_data | float/fp16/int8 | [embed_dim * vdim] |
 | v_bias_data   | float | [embed_dim]           |
 | out_weight_data| float/fp16/int8 | [weight_data_size] |
 | out_bias_data | float | [embed_dim]           |
@@ -1368,6 +1584,7 @@ y = reduce_op(x * coeff)
 | 2         | coeff         | float | 1.f       |                   |
 | 3         | axes          | array | [ ]       |                   |
 | 4         | keepdims      | int   | 0         |                   |
+| 5         | fixbug0       | int   | 0         | hack for bug fix, should be 1 |
 
 Operation type:
 - 0 = SUM
@@ -1512,6 +1729,21 @@ else        y = x * lambda
 | 0         | alpha         | float | 1.67326324f|                  |
 | 1         | lambda        | float | 1.050700987f|                 |
 
+# Shrink
+```
+if x < -lambd y = x + bias
+if x >  lambd y = x - bias
+else          y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | bias          | float | 0.0f      |                   |
+| 1         | lambd         | float | 0.5f      |                   |
+
 # ShuffleChannel
 ```
 if reverse == 0     y = shufflechannel(x) by group
@@ -1542,6 +1774,7 @@ split x along axis into slices, each part slice size is based on slices array
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | slices        | array | [ ]       |                   |
 | 1         | axis          | int   | 0         |                   |
+| 2         | indices       | array | [ ]       |                   |
 
 # Softmax
 ```
@@ -1641,3 +1874,27 @@ Operation type:
 - 14 = ATAN
 - 15 = RECIPROCAL
 - 16 = TANH
+- 17 = LOG10
+- 18 = ROUND
+- 19 = TRUNC
+
+# Unfold
+```
+y = unfold(x)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |

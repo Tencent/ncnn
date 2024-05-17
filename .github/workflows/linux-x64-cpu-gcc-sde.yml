@@ -1,0 +1,57 @@
+name: linux-x64-cpu-gcc-sde
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-cpu-gcc-sde.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-cpu-gcc-sde.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+concurrency:
+  group: linux-x64-cpu-gcc-sde-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-gcc-sde:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: update
+      run: sudo apt-get update
+    - name: gcc12
+      run: sudo apt-get install gcc-12 g++-12
+    - name: Setup SDE binaries
+      uses: petarpetrovt/setup-sde@v2.4
+    - name: build-avx512-spr
+      env:
+        CC: gcc-12
+        CXX: g++-12
+      run: |
+        mkdir build-avx512-spr && cd build-avx512-spr
+        cmake -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-avx512-spr
+      run: |
+        cd build-avx512-spr
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j $(nproc)

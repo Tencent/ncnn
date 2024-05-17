@@ -1,0 +1,67 @@
+name: linux-x64-cpu-gcc-musl
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-cpu-gcc-musl.yml'
+    - 'toolchains/host-c.gcc.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-cpu-gcc-musl.yml'
+    - 'toolchains/host-c.gcc.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+concurrency:
+  group: linux-x64-cpu-gcc-musl-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-gcc-musl:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: jirutka/setup-alpine@v1
+      with:
+        packages: >
+          cmake
+          clang
+          clang-dev
+          make
+          gcc
+          g++
+          libc-dev
+          linux-headers
+
+    - uses: actions/checkout@v4
+    - name: build
+      shell: alpine.sh {0}
+      run: |
+        mkdir build && cd build
+        cmake -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      shell: alpine.sh {0}
+      run: cd build && ctest --output-on-failure -j $(nproc)
+    - name: build-shared
+      run: |
+        mkdir build-shared && cd build-shared
+        cmake -DNCNN_SHARED_LIB=ON ..
+        cmake --build . -j $(nproc)

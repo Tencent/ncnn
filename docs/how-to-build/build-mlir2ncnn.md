@@ -8,7 +8,7 @@ https://github.com/llvm/llvm-project.git
 git checkout -b mlir <a_working_commit_id>
 ```
 Current working commit id is 74e6030bcbcc8e628f9a99a424342a0c656456f9:
-```
+```bash
 $ git log
 
 commit 74e6030bcbcc8e628f9a99a424342a0c656456f9 (HEAD -> main, origin/main, origin/HEAD)
@@ -49,6 +49,6 @@ See https://zhuanlan.zhihu.com/p/152535430
 
 **Usage mlir2ncnn**
 
-```
+```bash
 ./mlir2ncnn pix2pix.mlir pix2pix.param pix2pix.bin
 ```

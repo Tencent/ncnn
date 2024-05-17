@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -26,12 +27,12 @@ class Model(nn.Module):
         self.bn_1 = nn.BatchNorm1d(num_features=20)
         self.conv_2 = nn.Conv1d(in_channels=20, out_channels=24, kernel_size=3, stride=1, padding=4, dilation=1, groups=1, bias=False)
         self.bn_2 = nn.BatchNorm1d(num_features=24)
-        if torch.__version__ < '1.9':
+        if version.parse(torch.__version__) < version.parse('1.9'):
             self.conv_3 = nn.Conv1d(in_channels=24, out_channels=28, kernel_size=5, stride=1, padding=0, dilation=1, groups=4, bias=True)
         else:
             self.conv_3 = nn.Conv1d(in_channels=24, out_channels=28, kernel_size=5, stride=1, padding='valid', dilation=1, groups=4, bias=True)
         self.bn_3 = nn.BatchNorm1d(num_features=28)
-        if torch.__version__ < '1.9':
+        if version.parse(torch.__version__) < version.parse('1.9'):
             self.conv_4 = nn.Conv1d(in_channels=28, out_channels=32, kernel_size=3, stride=1, padding=1, dilation=2, groups=2, bias=False, padding_mode='zeros')
         else:
             self.conv_4 = nn.Conv1d(in_channels=28, out_channels=32, kernel_size=3, stride=1, padding='same', dilation=2, groups=2, bias=False, padding_mode='zeros')

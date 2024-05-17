@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class DeconvolutionDepthWise_riscv : virtual public DeconvolutionDepthWise
+class DeconvolutionDepthWise_riscv : public DeconvolutionDepthWise
 {
 public:
     DeconvolutionDepthWise_riscv();
@@ -28,6 +28,8 @@ public:
     virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
     int create_group_ops(const Option& opt);
@@ -40,11 +42,9 @@ protected:
 public:
     std::vector<ncnn::Layer*> group_ops;
 
-    // packing
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
 };
 

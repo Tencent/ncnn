@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ConvolutionDepthWise_riscv : virtual public ConvolutionDepthWise
+class ConvolutionDepthWise_riscv : public ConvolutionDepthWise
 {
 public:
     ConvolutionDepthWise_riscv();
@@ -43,11 +43,9 @@ public:
     Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
 
-    // packing
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
 };
 

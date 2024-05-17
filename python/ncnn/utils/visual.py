@@ -14,7 +14,6 @@
 
 import numpy as np
 import cv2
-from .objects import Detect_Object, Face_Object
 
 
 def draw_detection_objects(image, class_names, objects, min_prob=0.0):

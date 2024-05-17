@@ -84,7 +84,7 @@ static void qsort_descent_inplace(std::vector<Object>& faceobjects)
     qsort_descent_inplace(faceobjects, 0, faceobjects.size() - 1);
 }
 
-static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold, bool agnostic = false)
 {
     picked.clear();
 
@@ -104,6 +104,9 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
         for (int j = 0; j < (int)picked.size(); j++)
         {
             const Object& b = faceobjects[picked[j]];
+
+            if (!agnostic && a.label != b.label)
+                continue;
 
             // intersection over union
             float inter_area = intersection_area(a, b);
@@ -130,7 +133,9 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
 
     const int num_anchors = anchors.w / 2;
 
-    const int num_class = 80;
+    const int num_class = feat_blob.c / num_anchors - 5;
+
+    const int feat_offset = num_class + 5;
 
     for (int q = 0; q < num_anchors; q++)
     {
@@ -146,7 +151,7 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
                 float class_score = -FLT_MAX;
                 for (int k = 0; k < num_class; k++)
                 {
-                    float score = feat_blob.channel(q * 85 + 5 + k).row(i)[j];
+                    float score = feat_blob.channel(q * feat_offset + 5 + k).row(i)[j];
                     if (score > class_score)
                     {
                         class_index = k;
@@ -154,7 +159,7 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
                     }
                 }
 
-                float box_score = feat_blob.channel(q * 85 + 4).row(i)[j];
+                float box_score = feat_blob.channel(q * feat_offset + 4).row(i)[j];
 
                 float confidence = sigmoid(box_score) * sigmoid(class_score);
 
@@ -165,10 +170,10 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
                     // y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i].to(x[i].device)) * self.stride[i]  # xy
                     // y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
 
-                    float dx = sigmoid(feat_blob.channel(q * 85 + 0).row(i)[j]);
-                    float dy = sigmoid(feat_blob.channel(q * 85 + 1).row(i)[j]);
-                    float dw = sigmoid(feat_blob.channel(q * 85 + 2).row(i)[j]);
-                    float dh = sigmoid(feat_blob.channel(q * 85 + 3).row(i)[j]);
+                    float dx = sigmoid(feat_blob.channel(q * feat_offset + 0).row(i)[j]);
+                    float dy = sigmoid(feat_blob.channel(q * feat_offset + 1).row(i)[j]);
+                    float dw = sigmoid(feat_blob.channel(q * feat_offset + 2).row(i)[j]);
+                    float dh = sigmoid(feat_blob.channel(q * feat_offset + 3).row(i)[j]);
 
                     float pb_cx = (dx * 2.f - 0.5f + j) * stride;
                     float pb_cy = (dy * 2.f - 0.5f + i) * stride;
@@ -205,8 +210,10 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // original pretrained model from https://github.com/ultralytics/yolov5
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    yolov5.load_param("yolov5s.ncnn.param");
-    yolov5.load_model("yolov5s.ncnn.bin");
+    if (yolov5.load_param("yolov5s.ncnn.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s.ncnn.bin"))
+        exit(-1);
 
     const int target_size = 640;
     const float prob_threshold = 0.25f;

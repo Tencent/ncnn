@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Clip_mips : virtual public Clip
+class Clip_mips : public Clip
 {
 public:
     Clip_mips();

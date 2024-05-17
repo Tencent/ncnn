@@ -147,7 +147,7 @@ static inline v4f32 exp_ps(v4f32 x)
     tmp = __msa_ffint_s_w(__msa_ftint_s_w(fx));
 
     /* if greater, substract 1 */
-    v4i32_w mask = __msa_fslt_w(fx, tmp);
+    v4i32_w mask = __msa_fclt_w(fx, tmp);
     mask = (v4i32_w)__msa_and_v((v16u8)mask, (v16u8)one);
 
     fx = __msa_fsub_w(tmp, (v4f32)mask);
@@ -251,6 +251,20 @@ static inline v4f32 sigmoid_ps(v4f32 _v)
     _v = exp_ps(_v);
     _v = __msa_fadd_w(_v, _one);
     return __msa_fdiv_w(_one, _v);
+}
+
+static inline v4f32 atan2_ps(v4f32 a, v4f32 b)
+{
+    //TODO msa optimize
+    float tmpx[4];
+    float tmpy[4];
+    __msa_st_w((v4i32)a, tmpx, 0);
+    __msa_st_w((v4i32)b, tmpy, 0);
+    tmpx[0] = atan2(tmpx[0], tmpy[0]);
+    tmpx[1] = atan2(tmpx[1], tmpy[1]);
+    tmpx[2] = atan2(tmpx[2], tmpy[2]);
+    tmpx[3] = atan2(tmpx[3], tmpy[3]);
+    return (v4f32)__msa_ld_w(tmpx, 0);
 }
 
 #endif // MSA_MATHFUN_H

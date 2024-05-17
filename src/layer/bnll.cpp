@@ -14,8 +14,6 @@
 
 #include "bnll.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 BNLL::BNLL()
@@ -39,9 +37,9 @@ int BNLL::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i = 0; i < size; i++)
         {
             if (ptr[i] > 0)
-                ptr[i] = static_cast<float>(ptr[i] + log(1.f + exp(-ptr[i])));
+                ptr[i] = ptr[i] + logf(1.f + expf(-ptr[i]));
             else
-                ptr[i] = static_cast<float>(log(1.f + exp(ptr[i])));
+                ptr[i] = logf(1.f + expf(ptr[i]));
         }
     }
 

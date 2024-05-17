@@ -229,8 +229,10 @@ static int detect_scrfd(const cv::Mat& bgr, std::vector<FaceObject>& faceobjects
     // but I have one for detecing cat face, you can have a try here:
     // https://drive.google.com/file/d/1JogkKa0f_09HkENbCnXy9hRYxm35wKTn
 
-    scrfd.load_param("scrfd_crowdhuman.param");
-    scrfd.load_model("scrfd_crowdhuman.bin");
+    if (scrfd.load_param("scrfd_crowdhuman.param"))
+        exit(-1);
+    if (scrfd.load_model("scrfd_crowdhuman.bin"))
+        exit(-1);
 
     int width = bgr.cols;
     int height = bgr.rows;

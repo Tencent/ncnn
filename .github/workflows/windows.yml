@@ -1,0 +1,146 @@
+name: windows
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  windows-gpu:
+    name: ${{ matrix.vs-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - vs-version: vs2015
+            toolset-version: v140
+            os: windows-2019
+
+          - vs-version: vs2017
+            toolset-version: v141
+            os: windows-2019
+
+          - vs-version: vs2019
+            toolset-version: v142
+            os: windows-2022
+
+          - vs-version: vs2022
+            toolset-version: v143
+            os: windows-2022
+
+    env:
+      UseMultiToolTask: true
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: cache-protobuf
+      id: cache-protobuf
+      uses: actions/cache@v4
+      with:
+        path: "protobuf-install"
+        key: protobuf-${{ matrix.vs-version }}-x64-install-2
+    - name: protobuf
+      if: steps.cache-protobuf.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
+        7z x ./protobuf-3.11.2.zip
+        cd protobuf-3.11.2
+        mkdir build-${{ matrix.vs-version }}; cd build-${{ matrix.vs-version }}; cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DNCNN_BUILD_TESTS=ON ../cmake
+        cmake --build . --config Release -j 4
+        cmake --build . --config Release --target install
+    - name: cache-swiftshader
+      if: matrix.vs-version != 'vs2015'
+      id: cache-swiftshader
+      uses: actions/cache@v4
+      with:
+        path: swiftshader-install
+        key: swiftshader-${{ matrix.vs-version }}-x64-install-20230420
+    - name: checkout-swiftshader
+      if: matrix.vs-version != 'vs2015' && steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: google/swiftshader
+        path: swiftshader
+        ref: dd55e592406dc0bae219df11adec6363840aff4a
+    - name: checkout-swiftshader-submodules
+      if: matrix.vs-version != 'vs2015' && steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
+    - name: swiftshader
+      if: matrix.vs-version != 'vs2015' && steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        mkdir build-${{ matrix.vs-version }}; cd build-${{ matrix.vs-version }}
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --config Release -j 4
+        mkdir "$env:GITHUB_WORKSPACE/swiftshader-install"
+        Copy-Item -Path "Windows\*" -Destination "$env:GITHUB_WORKSPACE\swiftshader-install"
+
+    - name: x64
+      run: |
+        mkdir build-x64; cd build-x64
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . --config Release -j 4
+    - name: x64-test
+      if: matrix.vs-version != 'vs2015'
+      run: |
+        echo "[Processor]`nThreadCount=1`n" > build-x64/tests/Release/SwiftShader.ini
+        Copy-Item -Path "$env:GITHUB_WORKSPACE\swiftshader-install\vulkan-1.dll" -Destination 'build-x64\tests'
+        cd build-x64; ctest -C Release --output-on-failure -j 4
+
+    - name: x64-sse2
+      run: |
+        mkdir build-x64-sse2; cd build-x64-sse2
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . --config Release -j 4
+    - name: x64-sse2-test
+      run: cd build-x64-sse2; ctest -C Release --output-on-failure -j 4
+
+    - name: x64-avx
+      run: |
+        mkdir build-x64-avx; cd build-x64-avx
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=ON -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . --config Release -j 4
+    - name: x64-avx-test
+      run: cd build-x64-avx; ctest -C Release --output-on-failure -j 4
+
+    - name: x86
+      run: |
+        mkdir build-x86; cd build-x86
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A Win32 -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . --config Release -j 4
+    - name: x86-test
+      run: |
+        Copy-Item -Path "build-x86\src\Release\ncnn.dll" -Destination 'build-x86\tests'
+        cd build-x86; ctest -C Release --output-on-failure -j 4

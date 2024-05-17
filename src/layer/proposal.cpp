@@ -14,8 +14,6 @@
 
 #include "proposal.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Proposal::Proposal()
@@ -50,7 +48,7 @@ static Mat generate_anchors(int base_size, const Mat& ratios, const Mat& scales)
     {
         float ar = ratios[i];
 
-        int r_w = static_cast<int>(round(base_size / sqrt(ar)));
+        int r_w = static_cast<int>(round(base_size / sqrtf(ar)));
         int r_h = static_cast<int>(round(r_w * ar)); //round(base_size * sqrt(ar));
 
         for (int j = 0; j < num_scale; j++)
@@ -245,8 +243,8 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 float pb_cx = cx + anchor_w * dx;
                 float pb_cy = cy + anchor_h * dy;
 
-                float pb_w = static_cast<float>(anchor_w * exp(dw));
-                float pb_h = static_cast<float>(anchor_h * exp(dh));
+                float pb_w = anchor_w * expf(dw);
+                float pb_h = anchor_h * expf(dh);
 
                 pb[0] = pb_cx - pb_w * 0.5f;
                 pb[1] = pb_cy - pb_h * 0.5f;

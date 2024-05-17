@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class PriorBox_vulkan : virtual public PriorBox
+class PriorBox_vulkan : public PriorBox
 {
 public:
     PriorBox_vulkan();

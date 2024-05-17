@@ -14,8 +14,6 @@
 
 #include "normalize.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Normalize::Normalize()
@@ -84,15 +82,15 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float a;
         if (eps_mode == 0) // caffe/mxnet
         {
-            a = static_cast<float>(1.f / sqrt(ssum + eps));
+            a = 1.f / sqrtf(ssum + eps);
         }
         else if (eps_mode == 1) // pytorch
         {
-            a = 1.f / std::max((float)sqrt(ssum), eps);
+            a = 1.f / std::max(sqrtf(ssum), eps);
         }
         else //if (eps_mode == 2) // tensorflow
         {
-            a = static_cast<float>(1.f / sqrt(std::max(ssum, eps)));
+            a = 1.f / sqrt(std::max(ssum, eps));
         }
 
         if (channel_shared)
@@ -144,15 +142,15 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float a;
             if (eps_mode == 0) // caffe/mxnet
             {
-                a = static_cast<float>(1.f / sqrt(ssum + eps));
+                a = 1.f / sqrtf(ssum + eps);
             }
             else if (eps_mode == 1) // pytorch
             {
-                a = 1.f / std::max((float)sqrt(ssum), eps);
+                a = 1.f / std::max(sqrtf(ssum), eps);
             }
             else //if (eps_mode == 2) // tensorflow
             {
-                a = static_cast<float>(1.f / sqrt(std::max(ssum, eps)));
+                a = 1.f / sqrtf(std::max(ssum, eps));
             }
 
             float scale = a * (channel_shared ? scale_data[0] : scale_data[q]);
@@ -191,7 +189,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 float a;
                 if (eps_mode == 0) // caffe/mxnet
                 {
-                    a = static_cast<float>(1.f / sqrt(ssum + eps));
+                    a = 1.f / sqrtf(ssum + eps);
                 }
                 else if (eps_mode == 1) // pytorch
                 {
@@ -199,7 +197,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 }
                 else //if (eps_mode == 2) // tensorflow
                 {
-                    a = static_cast<float>(1.f / sqrt(std::max(ssum, eps)));
+                    a = 1.f / sqrtf(std::max(ssum, eps));
                 }
 
                 square_sum_blob[i] = a * scale;
@@ -231,15 +229,15 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 float a;
                 if (eps_mode == 0) // caffe/mxnet
                 {
-                    a = static_cast<float>(1.f / sqrt(ssum + eps));
+                    a = 1.f / sqrtf(ssum + eps);
                 }
                 else if (eps_mode == 1) // pytorch
                 {
-                    a = 1.f / std::max((float)sqrt(ssum), eps);
+                    a = 1.f / std::max(sqrtf(ssum), eps);
                 }
                 else //if (eps_mode == 2) // tensorflow
                 {
-                    a = static_cast<float>(1.f / sqrt(std::max(ssum, eps)));
+                    a = 1.f / sqrtf(std::max(ssum, eps));
                 }
 
                 square_sum_blob[i] = a;

@@ -42,7 +42,7 @@ void convert_attribute(Graph& graph)
         std::vector<int> new_shape;
         for (int i = 0; i < (int)data.shape.size(); i++)
         {
-            if (i == batch_index)
+            if (i == batch_index && data.shape[i] == 1)
                 continue;
 
             new_shape.push_back(data.shape[i]);
@@ -61,6 +61,11 @@ void convert_attribute(Graph& graph)
             }
         }
 
+        if (new_shape.size() == 0)
+        {
+            // scalar
+            op->params["0"] = 1;
+        }
         if (new_shape.size() == 1)
         {
             op->params["0"] = new_shape[0];
@@ -84,8 +89,11 @@ void convert_attribute(Graph& graph)
             op->params["2"] = new_shape[0];
         }
 
-        op->attrs["0"] = data;
-        op->attrs.erase(key);
+        if (key != "0")
+        {
+            op->attrs["0"] = data;
+            op->attrs.erase(key);
+        }
     }
 }
 

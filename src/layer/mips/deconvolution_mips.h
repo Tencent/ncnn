@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Deconvolution_mips : virtual public Deconvolution
+class Deconvolution_mips : public Deconvolution
 {
 public:
     Deconvolution_mips();
@@ -29,9 +29,10 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 public:
-    // packn
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 };
 
 } // namespace ncnn

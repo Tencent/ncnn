@@ -18,6 +18,7 @@
 #include <set>
 
 #include <torch/csrc/jit/passes/quantization/helper.h>
+#include <torch/csrc/api/include/torch/version.h>
 
 namespace pnnx {
 
@@ -26,7 +27,11 @@ static void inlineCallTo(torch::jit::Node* to_replace, torch::jit::Function* cal
     torch::jit::WithInsertPoint guard(to_replace);
 
     std::unordered_map<torch::jit::Value*, torch::jit::Value*> value_map;
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
+    std::vector<torch::jit::Value*> new_outputs = torch::jit::insertGraph(*to_replace->owningGraph(), *(toGraphFunction(*callee).graph()), to_replace->inputs(), value_map);
+#else
     std::vector<torch::jit::Value*> new_outputs = torch::jit::insertGraph(*to_replace->owningGraph(), *(callee->graph()), to_replace->inputs(), value_map);
+#endif
 
     const auto& old_outputs = to_replace->outputs();
     for (size_t i = 0; i < old_outputs.size(); ++i)
@@ -39,7 +44,7 @@ static void inlineCallTo(torch::jit::Node* to_replace, torch::jit::Function* cal
     to_replace->destroy();
 }
 
-static void inlineCalls(torch::jit::Block* block, const std::vector<std::string>& module_operators, std::set<std::string>& inlined_modules)
+static void inlineCalls(torch::jit::Block* block, const std::vector<std::string>& module_operators, std::set<std::string>& inlined_modules, bool inside_module_op = false)
 {
     for (auto it = block->nodes().begin(), end = block->nodes().end(); it != end;)
     {
@@ -51,7 +56,11 @@ static void inlineCalls(torch::jit::Block* block, const std::vector<std::string>
             if (!fun_type->function()->isGraphFunction())
                 continue;
 
-            inlineCalls(fun_type->function()->graph()->block(), module_operators, inlined_modules);
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
+            inlineCalls(toGraphFunction(*(fun_type->function())).graph()->block(), module_operators, inlined_modules, inside_module_op);
+#else
+            inlineCalls(fun_type->function()->graph()->block(), module_operators, inlined_modules, inside_module_op);
+#endif
 
             n->removeInput(0);
 
@@ -72,27 +81,40 @@ static void inlineCalls(torch::jit::Block* block, const std::vector<std::string>
 
             std::string class_type_str = torch::jit::removeTorchMangle(class_type->str());
 
-            bool skip_inline = false;
-            for (const auto& ow : get_global_pnnx_fuse_module_passes())
-            {
-                if (class_type_str == ow->match_type_str())
-                {
-                    skip_inline = true;
-                    break;
-                }
-            }
-
-            if (skip_inline)
-                continue;
-
             std::string class_type_str_no_torch_prefix = class_type_str.substr(10);
 
-            if (std::find(module_operators.begin(), module_operators.end(), class_type_str_no_torch_prefix) != module_operators.end())
+            if (!inside_module_op)
             {
-                continue;
+                if (std::find(module_operators.begin(), module_operators.end(), class_type_str_no_torch_prefix) != module_operators.end())
+                {
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
+                    inlineCalls(toGraphFunction(function).graph()->block(), module_operators, inlined_modules, true);
+#else
+                    inlineCalls(function.graph()->block(), module_operators, inlined_modules, true);
+#endif
+
+                    continue;
+                }
+
+                bool skip_inline = false;
+                for (const auto& ow : get_global_pnnx_fuse_module_passes())
+                {
+                    if (class_type_str == ow->match_type_str())
+                    {
+                        skip_inline = true;
+                        break;
+                    }
+                }
+
+                if (skip_inline)
+                    continue;
             }
 
-            inlineCalls(function.graph()->block(), module_operators, inlined_modules);
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
+            inlineCalls(toGraphFunction(function).graph()->block(), module_operators, inlined_modules, inside_module_op);
+#else
+            inlineCalls(function.graph()->block(), module_operators, inlined_modules, inside_module_op);
+#endif
 
             inlined_modules.insert(class_type_str_no_torch_prefix);
 
@@ -105,7 +127,7 @@ static void inlineCalls(torch::jit::Block* block, const std::vector<std::string>
         {
             for (auto b : n->blocks())
             {
-                inlineCalls(b, module_operators, inlined_modules);
+                inlineCalls(b, module_operators, inlined_modules, inside_module_op);
             }
         }
     }

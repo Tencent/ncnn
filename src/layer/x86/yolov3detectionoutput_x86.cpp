@@ -18,7 +18,6 @@
 #include "yolov3detectionoutput_x86.h"
 
 #include <float.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -28,7 +27,7 @@ Yolov3DetectionOutput_x86::Yolov3DetectionOutput_x86()
 
 static inline float sigmoid(float x)
 {
-    return static_cast<float>(1.f / (1.f + exp(-x)));
+    return 1.f / (1.f + expf(-x));
 }
 
 int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -77,9 +76,9 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
             Mat scores = bottom_top_blobs.channel_range(p + 5, num_class);
             //softmax->forward_inplace(scores, opt);
 
-            const int cs = scores.cstep;
+            const int cs = (int)scores.cstep;
 
-#if __AVX__
+#if __AVX2__
             const __m256i vi = _mm256_setr_epi32(
                                    0, cs * 1, cs * 2, cs * 3, cs * 4, cs * 5, cs * 6, cs * 7);
 #endif
@@ -144,14 +143,14 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
                     }
 #endif
                     //sigmoid(box_score) * sigmoid(class_score)
-                    float confidence = 1.f / ((1.f + exp(-box_score_ptr[0]) * (1.f + exp(-class_score))));
+                    float confidence = 1.f / ((1.f + expf(-box_score_ptr[0]) * (1.f + expf(-class_score))));
                     if (confidence >= confidence_threshold)
                     {
                         // region box
                         float bbox_cx = (j + sigmoid(xptr[0])) / w;
                         float bbox_cy = (i + sigmoid(yptr[0])) / h;
-                        float bbox_w = static_cast<float>(exp(wptr[0]) * bias_w / net_w);
-                        float bbox_h = static_cast<float>(exp(hptr[0]) * bias_h / net_h);
+                        float bbox_w = expf(wptr[0]) * bias_w / net_w;
+                        float bbox_h = expf(hptr[0]) * bias_h / net_h;
 
                         float bbox_xmin = bbox_cx - bbox_w * 0.5f;
                         float bbox_ymin = bbox_cy - bbox_h * 0.5f;
@@ -214,7 +213,7 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
         float score = r.score;
         float* outptr = top_blob.row(i);
 
-        outptr[0] = static_cast<float>(r.label + 1); // +1 for prepend background class
+        outptr[0] = r.label + 1.0f; // +1 for prepend background class
         outptr[1] = score;
         outptr[2] = r.xmin;
         outptr[3] = r.ymin;

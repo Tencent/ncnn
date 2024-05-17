@@ -40,6 +40,8 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "F.conv1d",
         "F.conv2d",
         "F.conv3d",
+        "F.embedding",
+        "F.fold",
         "F.grid_sample",
         "F.group_norm",
         "F.instance_norm",
@@ -54,6 +56,7 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "F.pixel_shuffle",
         "F.pixel_unshuffle",
         "F.prelu",
+        "F.unfold",
         "F.upsample_bilinear",
         "F.upsample_nearest",
         "F.upsample",
@@ -80,6 +83,8 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "nn.ConvTranspose1d",
         "nn.ConvTranspose2d",
         "nn.ConvTranspose3d",
+        "nn.Embedding",
+        "nn.Fold",
         "nn.GroupNorm",
         "nn.InstanceNorm1d",
         "nn.InstanceNorm2d",
@@ -98,6 +103,8 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "nn.ReplicationPad1d",
         "nn.ReplicationPad2d",
         "nn.ReplicationPad3d",
+        "nn.Softmax2d",
+        "nn.Unfold",
         "nn.Upsample",
         "nn.UpsamplingBilinear2d",
         "nn.UpsamplingNearest2d",
@@ -160,8 +167,39 @@ static void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
+        else if (op->type == "torch.transpose")
+        {
+            const int dim0 = op->params.at("dim0").i;
+            const int dim1 = op->params.at("dim1").i;
+
+            int batch_index_transposed = batch_index;
+            if (dim0 == batch_index)
+            {
+                batch_index_transposed = dim1;
+            }
+            else if (dim1 == batch_index)
+            {
+                batch_index_transposed = dim0;
+            }
+
+            for (Operand* r : op->outputs)
+            {
+                if (r->params.find("__batch_index") != r->params.end())
+                    continue;
+
+                r->params["__batch_index"] = batch_index_transposed;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
         else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
         {
+            if (op->params.find("shape") == op->params.end())
+            {
+                continue;
+            }
+
             const std::vector<int>& shape = op->params.at("shape").ai;
 
             if (shape[batch_index] == 1)
@@ -229,8 +267,39 @@ static void solve_batch_index_backward(Operand* operand)
             solve_batch_index_forward(r);
         }
     }
+    else if (op->type == "torch.transpose")
+    {
+        const int dim0 = op->params.at("dim0").i;
+        const int dim1 = op->params.at("dim1").i;
+
+        int batch_index_transposed = batch_index;
+        if (dim0 == batch_index)
+        {
+            batch_index_transposed = dim1;
+        }
+        else if (dim1 == batch_index)
+        {
+            batch_index_transposed = dim0;
+        }
+
+        for (Operand* r : op->inputs)
+        {
+            if (r->params.find("__batch_index") != r->params.end())
+                continue;
+
+            r->params["__batch_index"] = batch_index_transposed;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
     else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
     {
+        if (op->params.find("shape") == op->params.end())
+        {
+            return;
+        }
+
         const std::vector<int>& shape = op->params.at("shape").ai;
 
         if (shape[batch_index] == 1)
@@ -273,6 +342,11 @@ void solve_batch_index(Graph& graph)
     {
         if (is_known_operator_with_batch_index_0(op))
         {
+            if (op->type == std::string("F.grid_sample"))
+            {
+                op->inputs[1]->params["__batch_index"] = 0;
+            }
+
             op->inputs[0]->params["__batch_index"] = 0;
             op->outputs[0]->params["__batch_index"] = 0;
         }
@@ -290,6 +364,21 @@ void solve_batch_index(Graph& graph)
 
             for (size_t j = 1; j < op->inputs.size(); j++)
             {
+                if (op->type == "nn.MultiheadAttention")
+                {
+                    if (op->inputnames.size() == op->inputs.size() && op->inputnames[j] == "attn_mask")
+                    {
+                        // no batch for mha attn_mask
+                        op->inputs[j]->params["__batch_index"] = 233;
+                    }
+                    else
+                    {
+                        op->inputs[j]->params["__batch_index"] = batch_first ? 0 : 1;
+                    }
+
+                    continue;
+                }
+
                 op->inputs[j]->params["__batch_index"] = 1;
             }
 
@@ -311,6 +400,16 @@ void solve_batch_index(Graph& graph)
         for (Operand* r : op->outputs)
         {
             solve_batch_index_forward(r);
+        }
+    }
+
+    // always treat 1-dim tensor as no batch axis
+    for (Operand* r : graph.operands)
+    {
+        if (r->shape.size() == 1)
+        {
+            fprintf(stderr, "force batch axis 233 for operand %s\n", r->name.c_str());
+            r->params["__batch_index"] = 233;
         }
     }
 

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class AbsVal_arm : virtual public AbsVal
+class AbsVal_arm : public AbsVal
 {
 public:
     AbsVal_arm();

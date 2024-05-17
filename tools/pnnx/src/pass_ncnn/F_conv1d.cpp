@@ -18,254 +18,6 @@ namespace pnnx {
 
 namespace ncnn {
 
-class F_conv1d : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-F.conv1d                op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation groups=1
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "Convolution1D";
-    }
-
-    const char* name_str() const
-    {
-        return "conv1d";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-        }
-
-        op->params["0"] = weight.shape[0];
-        op->params["1"] = weight.shape[2];
-        op->params["2"] = captured_params.at("dilation").ai[0];
-        op->params["3"] = captured_params.at("stride").ai[0];
-        if (captured_params.at("padding").type == 4)
-        {
-            if (captured_params.at("padding").s == "same")
-                op->params["4"] = -233;
-            else if (captured_params.at("padding").s == "valid")
-                op->params["4"] = 0;
-        }
-        else
-        {
-            op->params["4"] = captured_params.at("padding").ai[0];
-        }
-        op->params["5"] = 0;
-        op->params["6"] = (int)(weight.data.size() / sizeof(float));
-
-        op->attrs["0"] = Attribute();
-        op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = weight;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv1d, 20)
-
-class F_conv1d_1 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
-F.conv1d                op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation groups=1
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "Convolution1D";
-    }
-
-    const char* name_str() const
-    {
-        return "conv1d";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["0"] = weight.shape[0];
-        op->params["1"] = weight.shape[2];
-        op->params["2"] = captured_params.at("dilation").ai[0];
-        op->params["3"] = captured_params.at("stride").ai[0];
-        if (captured_params.at("padding").type == 4)
-        {
-            if (captured_params.at("padding").s == "same")
-                op->params["4"] = -233;
-            else if (captured_params.at("padding").s == "valid")
-                op->params["4"] = 0;
-        }
-        else
-        {
-            op->params["4"] = captured_params.at("padding").ai[0];
-        }
-        op->params["5"] = 1;
-        op->params["6"] = (int)(weight.data.size() / sizeof(float));
-
-        op->attrs["0"] = Attribute();
-        op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = weight;
-        op->attrs["2"] = bias;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv1d_1, 20)
-
-class F_conv1d_2 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-F.conv1d                op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation groups=%groups
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "ConvolutionDepthWise1D";
-    }
-
-    const char* name_str() const
-    {
-        return "convdw1d";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-        }
-
-        op->params["0"] = weight.shape[0];
-        op->params["1"] = weight.shape[2];
-        op->params["2"] = captured_params.at("dilation").ai[0];
-        op->params["3"] = captured_params.at("stride").ai[0];
-        if (captured_params.at("padding").type == 4)
-        {
-            if (captured_params.at("padding").s == "same")
-                op->params["4"] = -233;
-            else if (captured_params.at("padding").s == "valid")
-                op->params["4"] = 0;
-        }
-        else
-        {
-            op->params["4"] = captured_params.at("padding").ai[0];
-        }
-        op->params["5"] = 0;
-        op->params["6"] = (int)(weight.data.size() / sizeof(float));
-        op->params["7"] = captured_params.at("groups");
-
-        op->attrs["0"] = Attribute();
-        op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = weight;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv1d_2, 21)
-
-class F_conv1d_3 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
-F.conv1d                op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation groups=%groups
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "ConvolutionDepthWise1D";
-    }
-
-    const char* name_str() const
-    {
-        return "convdw1d";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["0"] = weight.shape[0];
-        op->params["1"] = weight.shape[2];
-        op->params["2"] = captured_params.at("dilation").ai[0];
-        op->params["3"] = captured_params.at("stride").ai[0];
-        if (captured_params.at("padding").type == 4)
-        {
-            if (captured_params.at("padding").s == "same")
-                op->params["4"] = -233;
-            else if (captured_params.at("padding").s == "valid")
-                op->params["4"] = 0;
-        }
-        else
-        {
-            op->params["4"] = captured_params.at("padding").ai[0];
-        }
-        op->params["5"] = 1;
-        op->params["6"] = (int)(weight.data.size() / sizeof(float));
-        op->params["7"] = captured_params.at("groups");
-
-        op->attrs["0"] = Attribute();
-        op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = weight;
-        op->attrs["2"] = bias;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv1d_3, 21)
-
 class F_conv1d_4 : public GraphRewriterPass
 {
 public:
@@ -351,7 +103,7 @@ pnnx.Output             output      1 0 out
         std::vector<int> weight_shape = op->inputs[1]->shape;
         if (weight_shape.empty())
         {
-            weight_shape = {0, 0, 0, 0};
+            weight_shape = {0, 0, 0};
         }
 
         op->params["0"] = weight_shape[0];
@@ -406,7 +158,7 @@ pnnx.Output             output      1 0 out
         std::vector<int> weight_shape = op->inputs[1]->shape;
         if (weight_shape.empty())
         {
-            weight_shape = {0, 0, 0, 0};
+            weight_shape = {0, 0, 0};
         }
 
         op->params["0"] = weight_shape[0];
@@ -463,7 +215,7 @@ pnnx.Output             output      1 0 out
         std::vector<int> weight_shape = op->inputs[1]->shape;
         if (weight_shape.empty())
         {
-            weight_shape = {0, 0, 0, 0};
+            weight_shape = {0, 0, 0};
         }
 
         op->params["0"] = weight_shape[0];

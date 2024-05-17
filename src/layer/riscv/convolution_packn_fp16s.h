@@ -15,7 +15,7 @@
 static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -80,7 +80,10 @@ static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, c
                         {
                             float val = (float)*slptr++;
                             vfloat16m1_t _w0 = vle16_v_f16m1(kptr, vl);
-                            _sum = vfwmacc_vf_f32m2(_sum, val, _w0, vl);
+                            // _sum = vfwmacc_vf_f32m2(_sum, val, _w0, vl);
+
+                            vfloat32m2_t _qwq = vfwmul_vf_f32m2(_w0, val, vl);
+                            _sum = vfadd_vv_f32m2(_sum, _qwq, vl);
 
                             kptr += packn;
                         }
@@ -100,7 +103,7 @@ static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, c
 static void convolution_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int channels = bottom_blob.c;

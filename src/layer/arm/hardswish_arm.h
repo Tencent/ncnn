@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class HardSwish_arm : virtual public HardSwish
+class HardSwish_arm : public HardSwish
 {
 public:
     HardSwish_arm();
@@ -27,7 +27,7 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
     int forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const;
 #endif

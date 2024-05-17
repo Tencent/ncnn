@@ -17,21 +17,21 @@ set(CMAKE_FIND_ROOT_PATH "${RISCV_ROOT_PATH}/riscv64-unknown-linux-gnu")
 
 set(CMAKE_SYSROOT "${RISCV_ROOT_PATH}/sysroot")
 
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+if(NOT CMAKE_FIND_ROOT_PATH_MODE_PROGRAM)
+    set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+endif()
+if(NOT CMAKE_FIND_ROOT_PATH_MODE_LIBRARY)
+    set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+endif()
+if(NOT CMAKE_FIND_ROOT_PATH_MODE_INCLUDE)
+    set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+endif()
+if(NOT CMAKE_FIND_ROOT_PATH_MODE_PACKAGE)
+    set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+endif()
 
 set(CMAKE_C_FLAGS "-march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d -mtune=c906 -DC906=1 -static")
 set(CMAKE_CXX_FLAGS "-march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d -mtune=c906 -DC906=1 -static")
-
-# replace vfredsum_vs* with vfredusum_vs*
-add_definitions(-Dvfredsum_vs_f32m1_f32m1=vfredusum_vs_f32m1_f32m1)
-add_definitions(-Dvfredsum_vs_f32m2_f32m1=vfredusum_vs_f32m2_f32m1)
-add_definitions(-Dvfredsum_vs_f16m1_f16m1=vfredusum_vs_f16m1_f16m1)
-add_definitions(-Dvfredsum_vs_f32m8_f32m1=vfredusum_vs_f32m8_f32m1)
-add_definitions(-Dvfredsum_vs_f16m8_f16m1=vfredusum_vs_f16m8_f16m1)
-add_definitions(-Dvfredsum_vs_f16m4_f16m1=vfredusum_vs_f16m4_f16m1)
 
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")

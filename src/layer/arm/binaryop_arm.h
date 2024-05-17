@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BinaryOp_arm : virtual public BinaryOp
+class BinaryOp_arm : public BinaryOp
 {
 public:
     BinaryOp_arm();
@@ -29,7 +29,7 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif

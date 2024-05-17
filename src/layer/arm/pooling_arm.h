@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Pooling_arm : virtual public Pooling
+class Pooling_arm : public Pooling
 {
 public:
     Pooling_arm();
@@ -28,7 +28,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif

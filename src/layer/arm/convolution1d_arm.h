@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Convolution1D_arm : virtual public Convolution1D
+class Convolution1D_arm : public Convolution1D
 {
 public:
     Convolution1D_arm();
@@ -32,7 +32,7 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
@@ -43,17 +43,10 @@ protected:
 #endif
 
 public:
-    // pack4
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
-
-#if NCNN_BF16
-    // bf16
-    Mat weight_data_bf16;
-#endif
 };
 
 } // namespace ncnn

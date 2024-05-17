@@ -83,7 +83,7 @@ void main()
 
     afp min_size = buffer_ld1(min_sizes_data, gx);
 
-    afpvec4 variances = afpvec4(variances_0, variances_1, variances_2, variances_3);
+    afpvec4 variances = afpvec4(afp(variances_0), afp(variances_1), afp(variances_2), afp(variances_3));
 
     // min size box
     box_w = box_h = min_size;

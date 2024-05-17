@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/interp.h"
 #include "testutil.h"
 
 static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width)
@@ -26,7 +25,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width);
@@ -47,7 +46,7 @@ static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_heigh
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, as);
+    int ret = test_layer("Interp", pd, weights, as);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp_ref failed a.dims=%d a=(%d %d %d) resize_type=%d output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, output_height, output_width);
@@ -68,7 +67,7 @@ static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float h
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d align_corner=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width, align_corner);
@@ -88,7 +87,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float width_scale, i
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d width_scale=%f output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, width_scale, output_width);
@@ -109,7 +108,7 @@ static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_width
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, as);
+    int ret = test_layer("Interp", pd, weights, as);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp_ref failed a.dims=%d a=(%d %d %d) resize_type=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, output_width);
@@ -130,7 +129,7 @@ static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float w
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d width_scale=%f output_width=%d align_corner=%d\n", a.dims, a.w, a.h, a.c, resize_type, width_scale, output_width, align_corner);
@@ -143,7 +142,7 @@ static int test_interp_0()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
     ncnn::Mat b = RandomMat(14, 17, 12);
-    ncnn::Mat c = RandomMat(13, 14, 24);
+    ncnn::Mat c = RandomMat(13, 14, 32);
 
     return 0
            || test_interp(a, 1, 2.f, 2.f, 0, 0)
@@ -184,7 +183,7 @@ static int test_interp_1()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
     ncnn::Mat b = RandomMat(14, 17, 12);
-    ncnn::Mat c = RandomMat(13, 14, 24);
+    ncnn::Mat c = RandomMat(13, 14, 32);
 
     return 0
            || test_interp(a, 2, 2.f, 2.f, 0, 0)
@@ -246,7 +245,7 @@ static int test_interp_2()
 {
     ncnn::Mat a = RandomMat(16, 17, 13);
     ncnn::Mat b = RandomMat(18, 19, 12);
-    ncnn::Mat c = RandomMat(13, 14, 24);
+    ncnn::Mat c = RandomMat(13, 14, 32);
 
     return 0
            || test_interp(a, 3, 2.f, 2.f, 0, 0)
@@ -314,7 +313,7 @@ static int test_interp_3()
 {
     ncnn::Mat a = RandomMat(15, 7);
     ncnn::Mat b = RandomMat(14, 12);
-    ncnn::Mat c = RandomMat(13, 24);
+    ncnn::Mat c = RandomMat(13, 32);
 
     return 0
            || test_interp(a, 1, 2.f, 0)
@@ -355,7 +354,7 @@ static int test_interp_4()
 {
     ncnn::Mat a = RandomMat(15, 7);
     ncnn::Mat b = RandomMat(14, 12);
-    ncnn::Mat c = RandomMat(13, 24);
+    ncnn::Mat c = RandomMat(13, 32);
 
     return 0
            || test_interp(a, 2, 2.f, 0)
@@ -417,7 +416,7 @@ static int test_interp_5()
 {
     ncnn::Mat a = RandomMat(16, 13);
     ncnn::Mat b = RandomMat(18, 12);
-    ncnn::Mat c = RandomMat(13, 24);
+    ncnn::Mat c = RandomMat(13, 32);
 
     return 0
            || test_interp(a, 3, 2.f, 0)

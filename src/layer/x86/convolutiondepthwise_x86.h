@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ConvolutionDepthWise_x86 : virtual public ConvolutionDepthWise
+class ConvolutionDepthWise_x86 : public ConvolutionDepthWise
 {
 public:
     ConvolutionDepthWise_x86();
@@ -42,13 +42,7 @@ public:
     Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
 
-    // packing
-    Mat weight_data_packed;
-
-#if NCNN_INT8
-    // int8
-    Mat weight_data_int8;
-#endif
+    Mat weight_data_tm;
 };
 
 } // namespace ncnn

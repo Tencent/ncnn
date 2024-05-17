@@ -16,12 +16,10 @@
 #define LAYER_INNERPRODUCT_ARM_H
 
 #include "innerproduct.h"
-#include <cmath>
-#include <cstdlib>
 
 namespace ncnn {
 
-class InnerProduct_arm : virtual public InnerProduct
+class InnerProduct_arm : public InnerProduct
 {
 public:
     InnerProduct_arm();
@@ -32,9 +30,11 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_VFPV4
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+#if NCNN_ARM82
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif
 #if NCNN_BF16
@@ -48,21 +48,14 @@ protected:
 
 public:
     Layer* flatten;
-    Layer* activation;
+
+    Mat weight_data_tm;
 
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
 
-#if NCNN_BF16
-    // bf16
-    Mat weight_data_bf16;
-#endif
-
 #if NCNN_INT8
-    // int8
-    Mat weight_data_int8;
-    Mat scales_in;
+    Mat scale_in_data;
 #endif
 };
 

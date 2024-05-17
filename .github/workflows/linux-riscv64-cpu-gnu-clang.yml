@@ -1,0 +1,142 @@
+name: linux-riscv64-cpu-gnu-clang
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-riscv64-cpu-gnu-clang.yml'
+    - 'toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-riscv64-cpu-gnu-clang.yml'
+    - 'toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+concurrency:
+  group: linux-riscv64-cpu-gnu-clang-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-gcc-riscv64-rvv:
+    runs-on: [self-hosted, linux, centos]
+    steps:
+    - uses: actions/checkout@v4
+
+    #- name: cache-qemu
+      #id: cache-qemu
+      #uses: actions/cache@v3
+      #with:
+        #path: qemu-install
+        #key: qemu-riscv64-install-20220502-3
+    #- name: install-qemu-build-deps
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev ninja-build
+    #- name: checkout-qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v4
+      #with:
+        #repository: qemu/qemu
+        #path: qemu
+        #ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    #- name: qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #cd qemu
+        #wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        #patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        #./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        #make -j2
+        #make install
+
+    #- name: cache-riscv
+      #id: cache-riscv
+      #uses: actions/cache@v3
+      #with:
+        #path: rv64gcv-install-next
+        #key: rv64gcv-linux-install-20210504
+
+    #- name: install-riscv-build-deps
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+
+    #- name: checkout-riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v4
+      #with:
+        #repository: riscv/riscv-gnu-toolchain
+        #path: riscv-gnu-toolchain
+        #ref: da01ba455ce3802ffa84fdca3a089079996dbfc3
+    #- name: checkout-riscv-gnu-toolchain-submodules
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #git submodule update --init --recursive --depth 1 glibc
+        #git submodule update --init --recursive --depth 1 newlib
+        #git submodule update --init --recursive --depth 1 riscv-binutils
+        #git submodule update --init --recursive --depth 1 riscv-gcc
+        #git submodule update --init --recursive --depth 1 riscv-dejagnu
+        #git submodule update --init --recursive --depth 1 riscv-gdb
+    #- name: riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #sed -i '/__OBSOLETE_MATH/d' newlib/newlib/libm/common/math_errf.c
+        #./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install-next --with-arch=rv64gcv_zfh
+        #make linux
+
+    #- name: riscv-strip-install
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: find $GITHUB_WORKSPACE/rv64gcv-install-next -type f | xargs -i strip -g {} || true
+
+    # - name: install-clang
+    #   run: |
+    #     wget https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.1/llvm-project-15.0.1.src.tar.xz
+    #     tar -xf llvm-project-15.0.1.src.tar.xz
+    #     cd llvm-project-15.0.1.src
+    #     mkdir build
+    #     cd build
+    #     cmake -DCMAKE_INSTALL_PREFIX=install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DLLVM_ENABLE_PROJECTS="clang" -DLLVM_TARGETS_TO_BUILD="RISCV" -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF ../llvm/
+    #     make -j16
+    #     make install
+
+    - name: build
+      env:
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/rv64gcv-install-next
+        export PATH=/data/action/osd/llvm-project-15.0.1.src/build/install/bin:$PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 4
+
+    - name: test-vlen256
+      env:
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install-next/sysroot" ctest --output-on-failure -j 4
+
+    - name: test-vlen128
+      env:
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install-next/sysroot" ctest --output-on-failure -j 4

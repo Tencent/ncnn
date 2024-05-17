@@ -1,0 +1,86 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+#define FLT_MAX 3.402823466e+38
+
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 3) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
+#else
+layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int c;
+    int cstep;
+
+    int outw;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= 1 || gz >= psc(c))
+        return;
+
+    const int size_1 = psc(w) - 1;
+
+    const int v_offset = gz * psc(cstep);
+
+    afpvec8 res = afpvec8(afpvec4(-FLT_MAX), afpvec4(-FLT_MAX));
+
+    for (int ii = 0; ii < 8; ii++)
+    {
+        int i = min(gx + ii * psc(outw), size_1);
+
+#if NCNN_image_shader
+        afpvec8 v = image3d_ld8(bottom_blob, ivec3(i, 0, gz));
+#else
+        afpvec8 v = buffer_ld8(bottom_blob_data, v_offset + i);
+#endif
+        res[0] = max(res[0], v[0]);
+        res[1] = max(res[1], v[1]);
+    }
+
+#if NCNN_image_shader
+    image3d_st8(top_blob, ivec3(gx, 0, gz), res);
+#else
+    buffer_st8(top_blob_data, gz * psc(outcstep) + gx, res);
+#endif
+}

@@ -15,7 +15,7 @@
 static void deconvolution_packnto1_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_packnto1, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -91,7 +91,7 @@ static void deconvolution_packnto1_rvv(const Mat& bottom_blob, Mat& top_blob, co
                     kptr += maxk * packn;
                 }
 
-                sum = vfmv_f_s_f32m1_f32(vfredsum_vs_f32m1_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
+                sum = vfmv_f_s_f32m1_f32(vfredusum_vs_f32m1_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
 
                 sum = activation_ss(sum, activation_type, activation_params);
 

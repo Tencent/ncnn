@@ -24,10 +24,6 @@
 
 #include <stdlib.h>
 
-#if NCNN_VULKAN
-#include <vulkan/vulkan.h>
-#endif // NCNN_VULKAN
-
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
@@ -37,7 +33,9 @@
 namespace ncnn {
 
 // the alignment of all the allocated buffers
-#if NCNN_AVX
+#if NCNN_AVX512
+#define NCNN_MALLOC_ALIGN 64
+#elif NCNN_AVX
 #define NCNN_MALLOC_ALIGN 32
 #else
 #define NCNN_MALLOC_ALIGN 16
@@ -168,8 +166,12 @@ public:
     ~PoolAllocator();
 
     // ratio range 0 ~ 1
-    // default cr = 0.75
+    // default cr = 0
     void set_size_compare_ratio(float scr);
+
+    // budget drop threshold
+    // default threshold = 10
+    void set_size_drop_threshold(size_t);
 
     // release all budgets immediately
     void clear();
@@ -193,8 +195,12 @@ public:
     ~UnlockedPoolAllocator();
 
     // ratio range 0 ~ 1
-    // default cr = 0.75
+    // default cr = 0
     void set_size_compare_ratio(float scr);
+
+    // budget drop threshold
+    // default threshold = 10
+    void set_size_drop_threshold(size_t);
 
     // release all budgets immediately
     void clear();

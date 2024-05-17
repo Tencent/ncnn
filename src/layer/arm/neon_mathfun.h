@@ -30,35 +30,6 @@
 
 #include <arm_neon.h>
 
-#if (__ARM_FP & 2)
-static inline float32x4_t loadfp16(const void* ptr)
-{
-#if __ARM_FP16_FORMAT_IEEE
-    return vcvt_f32_f16(vld1_f16((const __fp16*)ptr));
-#else // __ARM_FP16_FORMAT_IEEE
-    float32x4_t v;
-#if __aarch64__
-    asm volatile(
-        "ld1    {v0.4h}, [%2]       \n"
-        "fcvtl  %0.4s, v0.4h        \n"
-        : "=w"(v) // %0
-        : "0"(v),
-        "r"(ptr) // %2
-        : "memory", "v0");
-#else
-    asm volatile(
-        "vld1.s16       {d0}, [%2]  \n"
-        "vcvt.f32.f16   %q0, d0     \n"
-        : "=w"(v) // %0
-        : "0"(v),
-        "r"(ptr) // %2
-        : "memory", "d0");
-#endif // __aarch64__
-    return v;
-#endif // __ARM_FP16_FORMAT_IEEE
-}
-#endif
-
 #define c_inv_mant_mask ~0x7f800000u
 #define c_cephes_SQRTHF 0.707106781186547524
 #define c_cephes_log_p0 7.0376836292E-2
@@ -305,9 +276,17 @@ static inline float32x4_t div_ps(float32x4_t a, float32x4_t b)
 #else
     float32x4_t reciprocal = vrecpeq_f32(b);
     reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
-    // reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
+    reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
     return vmulq_f32(a, reciprocal);
 #endif
+}
+
+static inline float32x4_t tan_ps(float32x4_t x)
+{
+    float32x4_t ysin, ycos;
+    sincos_ps(x, &ysin, &ycos);
+    float32x4_t ytan = div_ps(ysin, ycos);
+    return ytan;
 }
 
 static inline float32x4_t pow_ps(float32x4_t a, float32x4_t b)
@@ -323,8 +302,97 @@ static inline float32x4_t sigmoid_ps(float32x4_t _v)
     _v = exp_ps(_v);
     _v = vaddq_f32(_v, _one);
     float32x4_t _outp = vrecpeq_f32(_v);
-    // _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
+    _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
     return vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
+}
+
+static const float asinf_lut[7] = {
+    1.5707961728,
+    -0.2145852647,
+    0.0887556286,
+    -0.0488025043,
+    0.0268999482,
+    -0.0111462294,
+    0.0022959648
+};
+
+static inline void asincos_ps(float32x4_t x, float32x4_t* yasin, float32x4_t* yacos)
+{
+    int i = 0;
+    float32x4_t one = vdupq_n_f32(1);
+    float32x4_t negone = vdupq_n_f32(-1);
+    float32x4_t lut[7];
+    float32x4_t xv[5];
+    float32x4_t a0, a1, a2, a3;
+    float32x4_t phx;
+    float32x4_t arcsinx, arcnsinx;
+    float32x4_t sat = vdupq_n_f32(0.9999999f);
+    float32x4_t m_pi_2 = vdupq_n_f32(1.570796326);
+    for (i = 0; i <= 6; i++)
+    {
+        lut[i] = vdupq_n_f32(asinf_lut[i]);
+    }
+
+    uint32x4_t sign_mask_asin, saturate;
+    sign_mask_asin = vcltq_f32(x, vdupq_n_f32(0));
+    x = vabsq_f32(x);
+    saturate = vcgeq_f32(x, one);
+    x = vbslq_f32(saturate, sat, x);
+    float32x4_t y = vsubq_f32(one, x);
+
+#if __aarch64__
+    y = vsqrtq_f32(y);
+#else
+    float32x4_t _reciprocal = vrsqrteq_f32(y);
+    _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(y, _reciprocal), _reciprocal), _reciprocal);
+    y = vmulq_f32(y, _reciprocal);
+#endif
+
+    xv[0] = vmulq_f32(x, x);
+    for (i = 1; i < 5; i++)
+    {
+        xv[i] = vmulq_f32(xv[i - 1], x);
+    }
+
+    a0 = vaddq_f32(lut[0], vmulq_f32(lut[1], x));
+    a1 = vaddq_f32(vmulq_f32(lut[2], xv[0]), vmulq_f32(lut[3], xv[1]));
+    a2 = vaddq_f32(vmulq_f32(lut[4], xv[2]), vmulq_f32(lut[5], xv[3]));
+    a3 = vmulq_f32(lut[6], xv[4]);
+    phx = vaddq_f32(vaddq_f32(a0, vaddq_f32(a1, a2)), a3);
+
+    arcsinx = vmulq_f32(y, phx);
+    arcsinx = vsubq_f32(m_pi_2, arcsinx);
+    arcnsinx = vmulq_f32(negone, arcsinx);
+    arcsinx = vbslq_f32(sign_mask_asin, arcnsinx, arcsinx);
+
+    *yasin = arcsinx;
+    *yacos = vsubq_f32(m_pi_2, arcsinx);
+}
+
+static inline float32x4_t asin_ps(float32x4_t x)
+{
+    float32x4_t yasin, yacos;
+    asincos_ps(x, &yasin, &yacos);
+    return yasin;
+}
+
+static inline float32x4_t acos_ps(float32x4_t x)
+{
+    float32x4_t yasin, yacos;
+    asincos_ps(x, &yasin, &yacos);
+    return yacos;
+}
+
+static inline float32x4_t atan2_ps(float32x4_t a, float32x4_t b)
+{
+    //TODO neon optimize
+    float tmpx[4];
+    float tmpy[4];
+    vst1q_f32(tmpx, a);
+    vst1q_f32(tmpy, b);
+    for (int i = 0; i < 4; i++)
+        tmpx[i] = atan2f(tmpx[i], tmpy[i]);
+    return vld1q_f32(tmpx);
 }
 
 #include "neon_mathfun_tanh.h"

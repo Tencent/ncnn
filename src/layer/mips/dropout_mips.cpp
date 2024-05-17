@@ -36,70 +36,40 @@ int Dropout_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 
-    int dims = bottom_top_blob.dims;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int channels = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
-#if __mips_msa
-    if (elempack == 4)
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
     {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
-        int size = w * h;
+        float* ptr = bottom_top_blob.channel(q);
 
+        int i = 0;
+#if __mips_msa
         v4f32 _scale = (v4f32)__msa_fill_w_f32(scale);
-
-        if (dims == 1)
+        for (; i + 3 < size; i += 4)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++)
-            {
-                float* ptr = (float*)bottom_top_blob + i * 4;
-                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                _p = __msa_fmul_w(_p, _scale);
-                __msa_st_w((v4i32)_p, ptr, 0);
-            }
+            __builtin_prefetch(ptr + 16);
+            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+            _p = __msa_fmul_w(_p, _scale);
+            __msa_st_w((v4i32)_p, ptr, 0);
+
+            ptr += 4;
         }
-
-        if (dims == 2)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                float* ptr = bottom_top_blob.row(i);
-
-                for (int j = 0; j < w; j++)
-                {
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                    _p = __msa_fmul_w(_p, _scale);
-                    __msa_st_w((v4i32)_p, ptr, 0);
-                    ptr += 4;
-                }
-            }
-        }
-
-        if (dims == 3)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                    _p = __msa_fmul_w(_p, _scale);
-                    __msa_st_w((v4i32)_p, ptr, 0);
-                    ptr += 4;
-                }
-            }
-        }
-
-        return 0;
-    }
 #endif // __mips_msa
+        for (; i < size; i++)
+        {
+            *ptr = *ptr * scale;
 
-    return Dropout::forward_inplace(bottom_top_blob, opt);
+            ptr++;
+        }
+    }
+
+    return 0;
 }
 
 } // namespace ncnn

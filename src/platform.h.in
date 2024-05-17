@@ -20,6 +20,7 @@
 #cmakedefine01 NCNN_SIMPLEOCV
 #cmakedefine01 NCNN_SIMPLEOMP
 #cmakedefine01 NCNN_SIMPLESTL
+#cmakedefine01 NCNN_SIMPLEMATH
 #cmakedefine01 NCNN_THREADS
 #cmakedefine01 NCNN_BENCHMARK
 #cmakedefine01 NCNN_C_API
@@ -29,7 +30,10 @@
 #cmakedefine01 NCNN_PIXEL_AFFINE
 #cmakedefine01 NCNN_PIXEL_DRAWING
 #cmakedefine01 NCNN_VULKAN
+#cmakedefine01 NCNN_SIMPLEVK
+#cmakedefine01 NCNN_SYSTEM_GLSLANG
 #cmakedefine01 NCNN_RUNTIME_CPU
+#cmakedefine01 NCNN_GNU_INLINE_ASM
 #cmakedefine01 NCNN_AVX
 #cmakedefine01 NCNN_XOP
 #cmakedefine01 NCNN_FMA
@@ -38,9 +42,21 @@
 #cmakedefine01 NCNN_AVXVNNI
 #cmakedefine01 NCNN_AVX512
 #cmakedefine01 NCNN_AVX512VNNI
+#cmakedefine01 NCNN_AVX512BF16
+#cmakedefine01 NCNN_AVX512FP16
+#cmakedefine01 NCNN_VFPV4
 #cmakedefine01 NCNN_ARM82
 #cmakedefine01 NCNN_ARM82DOT
+#cmakedefine01 NCNN_ARM82FP16FML
+#cmakedefine01 NCNN_ARM84BF16
+#cmakedefine01 NCNN_ARM84I8MM
+#cmakedefine01 NCNN_ARM86SVE
+#cmakedefine01 NCNN_ARM86SVE2
+#cmakedefine01 NCNN_ARM86SVEBF16
+#cmakedefine01 NCNN_ARM86SVEI8MM
+#cmakedefine01 NCNN_ARM86SVEF32MM
 #cmakedefine01 NCNN_MSA
+#cmakedefine01 NCNN_LSX
 #cmakedefine01 NCNN_MMI
 #cmakedefine01 NCNN_RVV
 #cmakedefine01 NCNN_INT8
@@ -220,6 +236,28 @@ private:
     Mutex& mutex;
 };
 
+static inline void swap_endianness_16(void* x)
+{
+    unsigned char* xx = (unsigned char*)x;
+    unsigned char x0 = xx[0];
+    unsigned char x1 = xx[1];
+    xx[0] = x1;
+    xx[1] = x0;
+}
+
+static inline void swap_endianness_32(void* x)
+{
+    unsigned char* xx = (unsigned char*)x;
+    unsigned char x0 = xx[0];
+    unsigned char x1 = xx[1];
+    unsigned char x2 = xx[2];
+    unsigned char x3 = xx[3];
+    xx[0] = x3;
+    xx[1] = x2;
+    xx[2] = x1;
+    xx[3] = x0;
+}
+
 } // namespace ncnn
 
 #if NCNN_SIMPLESTL
@@ -230,6 +268,23 @@ private:
 #include <vector>
 #include <string>
 #endif
+
+// simplemath
+#if NCNN_SIMPLEMATH
+#include "simplemath.h"
+#else
+#include <math.h>
+#include <fenv.h>
+#endif
+
+#if NCNN_VULKAN
+#if NCNN_SIMPLEVK
+#include "simplevk.h"
+#else
+#include <vulkan/vulkan.h>
+#endif
+#include "vulkan_header_fix.h"
+#endif // NCNN_VULKAN
 
 #endif // __cplusplus
 

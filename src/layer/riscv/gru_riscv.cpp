@@ -15,11 +15,7 @@
 #include "gru_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 namespace ncnn {
@@ -44,6 +40,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
         int ti = reverse ? T - 1 - t : t;
 
         const float* x = bottom_blob.row(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             float* gates_data = gates.row(q);
@@ -66,7 +63,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_xcu = weight_xc_U;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 vfloat32m8_t _x = vle32_v_f32m8(ptr_x, vl);
                 vfloat32m8_t _xcr = vle32_v_f32m8(ptr_xcr, vl);
                 vfloat32m8_t _xcu = vle32_v_f32m8(ptr_xcu, vl);
@@ -75,8 +72,8 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
                 _xcr = vfmul_vv_f32m8(_xcr, _x, vl);
                 _xcu = vfmul_vv_f32m8(_xcu, _x, vl);
-                _scalar_r = vfredsum_vs_f32m8_f32m1(_scalar_r, _xcr, _scalar_r, vl);
-                _scalar_u = vfredsum_vs_f32m8_f32m1(_scalar_u, _xcu, _scalar_u, vl);
+                _scalar_r = vfredusum_vs_f32m8_f32m1(_scalar_r, _xcr, _scalar_r, vl);
+                _scalar_u = vfredusum_vs_f32m8_f32m1(_scalar_u, _xcu, _scalar_u, vl);
 
                 R = vfmv_f_s_f32m1_f32(_scalar_r);
                 U = vfmv_f_s_f32m1_f32(_scalar_u);
@@ -96,7 +93,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_hcu = weight_hc_U;
             while (n_out > 0)
             {
-                word_type vl = vsetvl_e32m8(n_out);
+                size_t vl = vsetvl_e32m8(n_out);
                 vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc, vl);
                 vfloat32m8_t _hcr = vle32_v_f32m8(ptr_hcr, vl);
                 vfloat32m8_t _hcu = vle32_v_f32m8(ptr_hcu, vl);
@@ -105,8 +102,8 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
                 _hcr = vfmul_vv_f32m8(_hcr, _h_cont, vl);
                 _hcu = vfmul_vv_f32m8(_hcu, _h_cont, vl);
-                _scalar_r = vfredsum_vs_f32m8_f32m1(_scalar_r, _hcr, _scalar_r, vl);
-                _scalar_u = vfredsum_vs_f32m8_f32m1(_scalar_u, _hcu, _scalar_u, vl);
+                _scalar_r = vfredusum_vs_f32m8_f32m1(_scalar_r, _hcr, _scalar_r, vl);
+                _scalar_u = vfredusum_vs_f32m8_f32m1(_scalar_u, _hcu, _scalar_u, vl);
 
                 R = vfmv_f_s_f32m1_f32(_scalar_r);
                 U = vfmv_f_s_f32m1_f32(_scalar_u);
@@ -139,14 +136,14 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_whc_n = weight_hc_N;
             while (n_out2 > 0)
             {
-                word_type vl = vsetvl_e32m8(n_out2);
+                size_t vl = vsetvl_e32m8(n_out2);
 
                 vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc2, vl);
                 vfloat32m8_t _whc_n = vle32_v_f32m8(ptr_whc_n, vl);
                 vfloat32m1_t _scalar_n = vfmv_s_f_f32m1(vundefined_f32m1(), N, vl);
 
                 _h_cont = vfmul_vv_f32m8(_whc_n, _h_cont, vl);
-                _scalar_n = vfredsum_vs_f32m8_f32m1(_scalar_n, _h_cont, _scalar_n, vl);
+                _scalar_n = vfredusum_vs_f32m8_f32m1(_scalar_n, _h_cont, _scalar_n, vl);
 
                 N = vfmv_f_s_f32m1_f32(_scalar_n);
                 n_out2 -= vl;
@@ -163,14 +160,14 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_xcn = weight_xc_N;
             while (n2 > 0)
             {
-                word_type vl = vsetvl_e32m8(n2);
+                size_t vl = vsetvl_e32m8(n2);
 
                 vfloat32m8_t _x = vle32_v_f32m8(ptr_x2, vl);
                 vfloat32m8_t _xcn = vle32_v_f32m8(ptr_xcn, vl);
                 vfloat32m1_t _scalar_n = vfmv_s_f_f32m1(vundefined_f32m1(), N, vl);
 
                 _xcn = vfmul_vv_f32m8(_x, _xcn, vl);
-                _scalar_n = vfredsum_vs_f32m8_f32m1(_scalar_n, _xcn, _scalar_n, vl);
+                _scalar_n = vfredusum_vs_f32m8_f32m1(_scalar_n, _xcn, _scalar_n, vl);
                 N = vfmv_f_s_f32m1_f32(_scalar_n);
 
                 n2 -= vl;
@@ -189,6 +186,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
         // h_t := (1 - update) .* new + update .* h_{t-1}
         float* output_data = top_blob.row(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);
@@ -217,6 +215,14 @@ GRU_riscv::GRU_riscv()
 
 int GRU_riscv::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        support_fp16_storage = false;
+        return 0;
+    }
+#endif
+
 #if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
         return create_pipeline_fp16sa(opt);
@@ -227,6 +233,13 @@ int GRU_riscv::create_pipeline(const Option& opt)
 
 int GRU_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return GRU::forward(bottom_blob, top_blob, opt);
+    }
+#endif
+
     int elembits = bottom_blob.elembits();
 #if __riscv_vector
 
@@ -301,6 +314,13 @@ int GRU_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
 int GRU_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return GRU::forward(bottom_blobs, top_blobs, opt);
+    }
+#endif
+
     const Mat& bottom_blob = bottom_blobs[0];
     int elembits = bottom_blob.elembits();
 
@@ -407,6 +427,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
         int ti = reverse ? T - 1 - t : t;
 
         const __fp16* x = bottom_blob.row<const __fp16>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             float* gates_data = gates.row(q);
@@ -429,7 +450,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_xcu = weight_xc_U;
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                size_t vl = vsetvl_e16m4(n);
                 vfloat32m8_t _x = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_x, vl), vl);
                 vfloat32m8_t _xcr = vle32_v_f32m8(ptr_xcr, vl);
                 vfloat32m8_t _xcu = vle32_v_f32m8(ptr_xcu, vl);
@@ -438,8 +459,8 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
                 _xcr = vfmul_vv_f32m8(_xcr, _x, vl);
                 _xcu = vfmul_vv_f32m8(_xcu, _x, vl);
-                _scalar_r = vfredsum_vs_f32m8_f32m1(_scalar_r, _xcr, _scalar_r, vl);
-                _scalar_u = vfredsum_vs_f32m8_f32m1(_scalar_u, _xcu, _scalar_u, vl);
+                _scalar_r = vfredusum_vs_f32m8_f32m1(_scalar_r, _xcr, _scalar_r, vl);
+                _scalar_u = vfredusum_vs_f32m8_f32m1(_scalar_u, _xcu, _scalar_u, vl);
 
                 R = vfmv_f_s_f32m1_f32(_scalar_r);
                 U = vfmv_f_s_f32m1_f32(_scalar_u);
@@ -459,7 +480,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_hcu = weight_hc_U;
             while (n_out > 0)
             {
-                word_type vl = vsetvl_e16m4(n_out);
+                size_t vl = vsetvl_e16m4(n_out);
                 vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc, vl);
                 vfloat32m8_t _hcr = vle32_v_f32m8(ptr_hcr, vl);
                 vfloat32m8_t _hcu = vle32_v_f32m8(ptr_hcu, vl);
@@ -468,8 +489,8 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
                 _hcr = vfmul_vv_f32m8(_hcr, _h_cont, vl);
                 _hcu = vfmul_vv_f32m8(_hcu, _h_cont, vl);
-                _scalar_r = vfredsum_vs_f32m8_f32m1(_scalar_r, _hcr, _scalar_r, vl);
-                _scalar_u = vfredsum_vs_f32m8_f32m1(_scalar_u, _hcu, _scalar_u, vl);
+                _scalar_r = vfredusum_vs_f32m8_f32m1(_scalar_r, _hcr, _scalar_r, vl);
+                _scalar_u = vfredusum_vs_f32m8_f32m1(_scalar_u, _hcu, _scalar_u, vl);
 
                 R = vfmv_f_s_f32m1_f32(_scalar_r);
                 U = vfmv_f_s_f32m1_f32(_scalar_u);
@@ -502,14 +523,14 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_whc_n = weight_hc_N;
             while (n_out2 > 0)
             {
-                word_type vl = vsetvl_e16m4(n_out2);
+                size_t vl = vsetvl_e16m4(n_out2);
 
                 vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc2, vl);
                 vfloat32m8_t _whc_n = vle32_v_f32m8(ptr_whc_n, vl);
                 vfloat32m1_t _scalar_n = vfmv_s_f_f32m1(vundefined_f32m1(), N, vl);
 
                 _h_cont = vfmul_vv_f32m8(_whc_n, _h_cont, vl);
-                _scalar_n = vfredsum_vs_f32m8_f32m1(_scalar_n, _h_cont, _scalar_n, vl);
+                _scalar_n = vfredusum_vs_f32m8_f32m1(_scalar_n, _h_cont, _scalar_n, vl);
 
                 N = vfmv_f_s_f32m1_f32(_scalar_n);
                 n_out2 -= vl;
@@ -526,14 +547,14 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_xcn = weight_xc_N;
             while (n2 > 0)
             {
-                word_type vl = vsetvl_e16m4(n2);
+                size_t vl = vsetvl_e16m4(n2);
 
                 vfloat32m8_t _x = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_x2, vl), vl);
                 vfloat32m8_t _xcn = vle32_v_f32m8(ptr_xcn, vl);
                 vfloat32m1_t _scalar_n = vfmv_s_f_f32m1(vundefined_f32m1(), N, vl);
 
                 _xcn = vfmul_vv_f32m8(_x, _xcn, vl);
-                _scalar_n = vfredsum_vs_f32m8_f32m1(_scalar_n, _xcn, _scalar_n, vl);
+                _scalar_n = vfredusum_vs_f32m8_f32m1(_scalar_n, _xcn, _scalar_n, vl);
                 N = vfmv_f_s_f32m1_f32(_scalar_n);
 
                 n2 -= vl;
@@ -552,6 +573,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
         // h_t := (1 - update) .* new + update .* h_{t-1}
         __fp16* output_data = top_blob.row<__fp16>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);
@@ -714,6 +736,13 @@ int GRU_riscv::create_pipeline_fp16sa(const Option& opt)
     cast_float32_to_float16(weight_hc_data, weight_hc_data_fp16sa, opt);
     cast_float32_to_float16(bias_c_data, bias_c_data_fp16sa, opt);
 
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
+
     return 0;
 }
 
@@ -735,6 +764,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
         int ti = reverse ? T - 1 - t : t;
 
         const __fp16* x = bottom_blob.row<const __fp16>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             float* gates_data = gates.row(q);
@@ -757,7 +787,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_xcu = weight_xc_U;
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m8(n);
+                size_t vl = vsetvl_e16m8(n);
                 vfloat16m8_t _x = vle16_v_f16m8(ptr_x, vl);
                 vfloat16m8_t _xcr = vle16_v_f16m8(ptr_xcr, vl);
                 vfloat16m8_t _xcu = vle16_v_f16m8(ptr_xcu, vl);
@@ -766,8 +796,8 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
                 _xcr = vfmul_vv_f16m8(_xcr, _x, vl);
                 _xcu = vfmul_vv_f16m8(_xcu, _x, vl);
-                _scalar_r = vfredsum_vs_f16m8_f16m1(_scalar_r, _xcr, _scalar_r, vl);
-                _scalar_u = vfredsum_vs_f16m8_f16m1(_scalar_u, _xcu, _scalar_u, vl);
+                _scalar_r = vfredusum_vs_f16m8_f16m1(_scalar_r, _xcr, _scalar_r, vl);
+                _scalar_u = vfredusum_vs_f16m8_f16m1(_scalar_u, _xcu, _scalar_u, vl);
 
                 R = vfmv_f_s_f16m1_f16(_scalar_r);
                 U = vfmv_f_s_f16m1_f16(_scalar_u);
@@ -784,7 +814,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_hcu = weight_hc_U;
             while (n_out > 0)
             {
-                word_type vl = vsetvl_e16m4(n_out);
+                size_t vl = vsetvl_e16m4(n_out);
                 vfloat16m4_t _h_cont = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_hc, vl), vl);
                 vfloat16m4_t _hcr = vle16_v_f16m4(ptr_hcr, vl);
                 vfloat16m4_t _hcu = vle16_v_f16m4(ptr_hcu, vl);
@@ -793,8 +823,8 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
                 _hcr = vfmul_vv_f16m4(_hcr, _h_cont, vl);
                 _hcu = vfmul_vv_f16m4(_hcu, _h_cont, vl);
-                _scalar_r = vfredsum_vs_f16m4_f16m1(_scalar_r, _hcr, _scalar_r, vl);
-                _scalar_u = vfredsum_vs_f16m4_f16m1(_scalar_u, _hcu, _scalar_u, vl);
+                _scalar_r = vfredusum_vs_f16m4_f16m1(_scalar_r, _hcr, _scalar_r, vl);
+                _scalar_u = vfredusum_vs_f16m4_f16m1(_scalar_u, _hcu, _scalar_u, vl);
 
                 R = vfmv_f_s_f16m1_f16(_scalar_r);
                 U = vfmv_f_s_f16m1_f16(_scalar_u);
@@ -824,14 +854,14 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_whc_n = weight_hc_N;
             while (n_out2 > 0)
             {
-                word_type vl = vsetvl_e16m4(n_out2);
+                size_t vl = vsetvl_e16m4(n_out2);
 
                 vfloat16m4_t _h_cont = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_hc2, vl), vl);
                 vfloat16m4_t _whc_n = vle16_v_f16m4(ptr_whc_n, vl);
                 vfloat16m1_t _scalar_n = vfmv_s_f_f16m1(vundefined_f16m1(), N, vl);
 
                 _h_cont = vfmul_vv_f16m4(_whc_n, _h_cont, vl);
-                _scalar_n = vfredsum_vs_f16m4_f16m1(_scalar_n, _h_cont, _scalar_n, vl);
+                _scalar_n = vfredusum_vs_f16m4_f16m1(_scalar_n, _h_cont, _scalar_n, vl);
 
                 N = vfmv_f_s_f16m1_f16(_scalar_n);
                 n_out2 -= vl;
@@ -845,14 +875,14 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_xcn = weight_xc_N;
             while (n2 > 0)
             {
-                word_type vl = vsetvl_e16m8(n2);
+                size_t vl = vsetvl_e16m8(n2);
 
                 vfloat16m8_t _x = vle16_v_f16m8(ptr_x2, vl);
                 vfloat16m8_t _xcn = vle16_v_f16m8(ptr_xcn, vl);
                 vfloat16m1_t _scalar_n = vfmv_s_f_f16m1(vundefined_f16m1(), N, vl);
 
                 _xcn = vfmul_vv_f16m8(_x, _xcn, vl);
-                _scalar_n = vfredsum_vs_f16m8_f16m1(_scalar_n, _xcn, _scalar_n, vl);
+                _scalar_n = vfredusum_vs_f16m8_f16m1(_scalar_n, _xcn, _scalar_n, vl);
                 N = vfmv_f_s_f16m1_f16(_scalar_n);
 
                 n2 -= vl;
@@ -869,6 +899,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
         // h_t := (1 - update) .* new + update .* h_{t-1}
         __fp16* output_data = top_blob.row<__fp16>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);

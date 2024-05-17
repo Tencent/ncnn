@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InstanceNorm_arm : virtual public InstanceNorm
+class InstanceNorm_arm : public InstanceNorm
 {
 public:
     InstanceNorm_arm();
@@ -27,7 +27,7 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif
 #if NCNN_BF16

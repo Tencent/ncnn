@@ -14,8 +14,6 @@
 
 #include "log.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Log::Log()
@@ -49,13 +47,13 @@ int Log::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i = 0; i < size; i++)
             {
-                ptr[i] = static_cast<float>(log(shift + ptr[i] * scale));
+                ptr[i] = logf(shift + ptr[i] * scale);
             }
         }
     }
     else
     {
-        float log_base_inv = static_cast<float>(1.f / log(base));
+        float log_base_inv = 1.f / logf(base);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -64,7 +62,7 @@ int Log::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i = 0; i < size; i++)
             {
-                ptr[i] = static_cast<float>(log(shift + ptr[i] * scale) * log_base_inv);
+                ptr[i] = logf(shift + ptr[i] * scale) * log_base_inv;
             }
         }
     }

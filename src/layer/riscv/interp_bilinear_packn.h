@@ -15,7 +15,7 @@
 static void resize_bilinear_image_packn(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     int w = dst.w;
     int h = dst.h;
@@ -106,9 +106,9 @@ static void resize_bilinear_image_packn(const Mat& src, Mat& dst, float* alpha, 
             vfloat32m1_t _rows0 = vle32_v_f32m1(rows0p, vl);
             vfloat32m1_t _rows1 = vle32_v_f32m1(rows1p, vl);
 
-            vfloat32m1_t _D = vfmacc_vf_f32m1(vfmul_vf_f32m1(_rows0, b0, vl), b1, _rows1, vl);
+            vfloat32m1_t _Dp = vfmacc_vf_f32m1(vfmul_vf_f32m1(_rows0, b0, vl), b1, _rows1, vl);
 
-            vse32_v_f32m1(Dp, _D, vl);
+            vse32_v_f32m1(Dp, _Dp, vl);
 
             Dp += packn;
             rows0p += packn;

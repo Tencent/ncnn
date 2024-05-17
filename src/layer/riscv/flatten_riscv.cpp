@@ -15,11 +15,7 @@
 #include "flatten_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 #include "riscv_usability.h"
@@ -123,7 +119,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
                     vsse32_v_f32m1(outptr, w * sizeof(float), _p, vl);
@@ -151,7 +147,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
                     vsse32_v_f32m1(outptr, size * sizeof(float), _p, vl);
@@ -176,7 +172,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
 
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     vse32_v_f32m8(outptr, _p, vl);
@@ -266,7 +262,7 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1_t _p = vle16_v_u16m1(ptr, vl);
                     vsse16_v_u16m1(outptr, w * sizeof(unsigned short), _p, vl);
@@ -294,7 +290,7 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1_t _p = vle16_v_u16m1(ptr, vl);
                     vsse16_v_u16m1(outptr, size * sizeof(unsigned short), _p, vl);
@@ -319,7 +315,7 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
 
                     vuint16m8_t _p = vle16_v_u16m8(ptr, vl);
                     vse16_v_u16m8(outptr, _p, vl);
@@ -409,7 +405,7 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e8m1(n);
+                    size_t vl = vsetvl_e8m1(n);
 
                     vint8m1_t _p = vle8_v_i8m1(ptr, vl);
                     vsse8_v_i8m1(outptr, w * sizeof(unsigned char), _p, vl);
@@ -437,7 +433,7 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e8m1(n);
+                    size_t vl = vsetvl_e8m1(n);
 
                     vint8m1_t _p = vle8_v_i8m1(ptr, vl);
                     vsse8_v_i8m1(outptr, size * sizeof(signed char), _p, vl);
@@ -462,7 +458,7 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e8m8(n);
+                    size_t vl = vsetvl_e8m8(n);
 
                     vint8m8_t _p = vle8_v_i8m8(ptr, vl);
                     vse8_v_i8m8(outptr, _p, vl);

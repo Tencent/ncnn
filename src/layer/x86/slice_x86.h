@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Slice_x86 : virtual public Slice
+class Slice_x86 : public Slice
 {
 public:
     Slice_x86();

@@ -148,8 +148,28 @@ void main()
     }
     if (op_type == 16)
     {
+#if NCNN_moltenvk
+        res[0] = afpvec4(tanh(vec4(v[0])));
+        res[1] = afpvec4(tanh(vec4(v[1])));
+#else
         res[0] = tanh(v[0]);
         res[1] = tanh(v[1]);
+#endif
+    }
+    if (op_type == 17)
+    {
+        res[0] = log(v[0]) * afp(0.434294481903);
+        res[1] = log(v[1]) * afp(0.434294481903);
+    }
+    if (op_type == 18)
+    {
+        res[0] = round(v[0]);
+        res[1] = round(v[1]);
+    }
+    if (op_type == 19)
+    {
+        res[0] = trunc(v[0]);
+        res[1] = trunc(v[1]);
     }
 
 #if NCNN_image_shader

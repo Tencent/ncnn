@@ -19,8 +19,6 @@
 #include "pipelinecache.h"
 #include "option.h"
 
-#include <math.h>
-
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26

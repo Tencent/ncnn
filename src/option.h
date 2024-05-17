@@ -129,14 +129,25 @@ public:
 
     bool use_local_pool_allocator;
 
-    bool use_reserved_1;
-    bool use_reserved_2;
-    bool use_reserved_3;
-    bool use_reserved_4;
-    bool use_reserved_5;
-    bool use_reserved_6;
-    bool use_reserved_7;
-    bool use_reserved_8;
+    // enable local memory optimization for gpu inference
+    bool use_shader_local_memory;
+
+    // enable cooperative matrix optimization for gpu inference
+    bool use_cooperative_matrix;
+
+    // more fine-grained control of winograd convolution
+    bool use_winograd23_convolution;
+    bool use_winograd43_convolution;
+    bool use_winograd63_convolution;
+
+    // this option is turned on for A53/A55 automatically
+    // but you can force this on/off if you wish
+    bool use_a53_a55_optimized_kernel;
+
+    // enable options for shared variables in gpu shader
+    bool use_fp16_uniform;
+    bool use_int8_uniform;
+
     bool use_reserved_9;
     bool use_reserved_10;
     bool use_reserved_11;

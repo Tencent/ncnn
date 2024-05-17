@@ -15,7 +15,6 @@
 #ifndef FUSED_ACTIVATION_H
 #define FUSED_ACTIVATION_H
 
-#include <math.h>
 #include "mat.h"
 #include "layer_type.h"
 
@@ -25,7 +24,7 @@ static NCNN_FORCEINLINE float activation_ss(float v, int activation_type, const 
     {
     case 1:
     {
-        v = fmax(v, 0.f);
+        v = fmaxf(v, 0.f);
         break;
     }
     case 2:
@@ -48,12 +47,12 @@ static NCNN_FORCEINLINE float activation_ss(float v, int activation_type, const 
     {
         v = std::min(v, 88.3762626647949f);
         v = std::max(v, -88.3762626647949f);
-        v = 1.f / (1.f + exp(-v));
+        v = 1.f / (1.f + expf(-v));
         break;
     }
     case 5:
     {
-        v = v * tanh(log(exp(v) + 1.f));
+        v = v * tanhf(logf(expf(v) + 1.f));
         break;
     }
     case 6:
@@ -81,14 +80,14 @@ static ncnn::Layer* create_activation_layer(int activation_type, const ncnn::Mat
 
     if (activation_type == 1)
     {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::ReLU);
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
     else if (activation_type == 2)
     {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::ReLU);
 
         ncnn::ParamDict pd;
         pd.set(0, activation_params[0]); // slope
@@ -96,7 +95,7 @@ static ncnn::Layer* create_activation_layer(int activation_type, const ncnn::Mat
     }
     else if (activation_type == 3)
     {
-        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::Clip);
 
         ncnn::ParamDict pd;
         pd.set(0, activation_params[0]); // min
@@ -106,21 +105,21 @@ static ncnn::Layer* create_activation_layer(int activation_type, const ncnn::Mat
     }
     else if (activation_type == 4)
     {
-        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::Sigmoid);
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
     else if (activation_type == 5)
     {
-        activation = ncnn::create_layer(ncnn::LayerType::Mish);
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::Mish);
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
     else if (activation_type == 6)
     {
-        activation = ncnn::create_layer(ncnn::LayerType::HardSwish);
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::HardSwish);
 
         ncnn::ParamDict pd;
         pd.set(0, activation_params[0]); // alpha

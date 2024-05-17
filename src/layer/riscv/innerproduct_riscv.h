@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_riscv : virtual public InnerProduct
+class InnerProduct_riscv : public InnerProduct
 {
 public:
     InnerProduct_riscv();
@@ -39,8 +39,9 @@ protected:
 public:
     Layer* flatten;
 
+    Mat weight_data_tm;
+
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
 };
 

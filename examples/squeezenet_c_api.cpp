@@ -34,8 +34,10 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<float>& cls_scores)
     ncnn_net_set_option(squeezenet, opt);
 
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    ncnn_net_load_param(squeezenet, "squeezenet_v1.1.param");
-    ncnn_net_load_model(squeezenet, "squeezenet_v1.1.bin");
+    if (ncnn_net_load_param(squeezenet, "squeezenet_v1.1.param"))
+        exit(-1);
+    if (ncnn_net_load_model(squeezenet, "squeezenet_v1.1.bin"))
+        exit(-1);
 
     ncnn_mat_t in = ncnn_mat_from_pixels_resize(bgr.data, NCNN_MAT_PIXEL_BGR, bgr.cols, bgr.rows, bgr.cols * 3, 227, 227, NULL);
 

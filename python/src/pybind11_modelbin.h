@@ -25,13 +25,13 @@ public:
     using Base::Base; // Inherit constructors
     ncnn::Mat load(int w, int type) const override
     {
-        PYBIND11_OVERLOAD_PURE(ncnn::Mat, Base, load, w, type);
+        PYBIND11_OVERRIDE(ncnn::Mat, Base, load, w, type);
     }
     //ncnn::Mat load(int w, int h, int type) const override {
-    //	PYBIND11_OVERLOAD(ncnn::Mat, Base, load, w, h, type);
+    //	PYBIND11_OVERRIDE(ncnn::Mat, Base, load, w, h, type);
     //}
     //ncnn::Mat load(int w, int h, int c, int type) const override {
-    //	PYBIND11_OVERLOAD(ncnn::Mat, Base, load, w, h, c, type);
+    //	PYBIND11_OVERRIDE(ncnn::Mat, Base, load, w, h, c, type);
     //}
 };
 
@@ -42,7 +42,7 @@ public:
     using PyModelBin<Other>::PyModelBin;
     ncnn::Mat load(int w, int type) const override
     {
-        PYBIND11_OVERLOAD(ncnn::Mat, Other, load, w, type);
+        PYBIND11_OVERRIDE(ncnn::Mat, Other, load, w, type);
     }
 };
 

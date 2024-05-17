@@ -74,6 +74,19 @@ static std::vector<int> get_node_attr_ai(const onnx::NodeProto& node, const char
     return v;
 }
 
+static void set_node_attr_ai(onnx::NodeProto& node, const char* key,
+                             const std::vector<int>& value)
+{
+    onnx::AttributeProto* attr_group = node.add_attribute();
+    attr_group->set_name(key);
+    for (auto v : value)
+    {
+        attr_group->add_ints(v);
+    }
+
+    return;
+}
+
 static std::vector<float> get_node_attr_af(const onnx::NodeProto& node, const char* key)
 {
     std::vector<float> v;
@@ -354,6 +367,48 @@ static void fwrite_tensor_proto_data(const onnx::TensorProto& tp, FILE* bp)
     else if (tp.data_type() == 1)
     {
         fwrite(tp.float_data().data(), sizeof(float), size, bp);
+    }
+}
+
+static void fuse_rewrite_gather(onnx::GraphProto* mutable_graph,
+                                std::map<std::string, onnx::TensorProto>& weights,
+                                std::map<std::string, int>& node_reference,
+                                std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    const int node_count = mutable_graph->node_size();
+    for (int i = 0; i < node_count; ++i)
+    {
+        onnx::NodeProto* gather = mutable_graph->mutable_node(i);
+        if (gather->op_type() != "Gather")
+        {
+            continue;
+        }
+        auto indices = get_node_attr_from_input_ai(weights[gather->input(1)]);
+        if (indices.size() != 1)
+        {
+            continue;
+        }
+
+        {
+            // reconstruct node connections
+            node_reference[gather->input(1)] -= 1;
+            std::string origin_inp = gather->input(0);
+            gather->clear_input();
+            gather->add_input(origin_inp);
+        }
+
+        {
+            // update axis, starts and ends
+            int axis = get_node_attr_i(*gather, "axis", 1) - 1;
+
+            gather->set_op_type("Crop");
+            gather->clear_attribute();
+
+            int indice = indices[0];
+            set_node_attr_ai(*gather, "starts", std::vector<int> {indice});
+            set_node_attr_ai(*gather, "ends", std::vector<int> {indice + 1});
+            set_node_attr_ai(*gather, "axis", std::vector<int> {axis});
+        }
     }
 }
 
@@ -2875,6 +2930,30 @@ static void fuse_binaryop_with_scalar(onnx::GraphProto* mutable_graph, std::map<
     }
 }
 
+// truncate layer/blob names when they exceed 255, which is the upper length limit when parsing param in src/net.cpp
+static std::string trunc_name(std::string name)
+{
+    static int trunc_idx = 0;
+    static std::map<std::string, std::string> name_trunc_map;
+
+    const int max_len = 255;
+    if (name.size() <= max_len)
+    {
+        return name;
+    }
+    if (name_trunc_map.count(name))
+    {
+        return name_trunc_map[name];
+    }
+
+    std::string concat_name = name + "_t" + std::to_string(trunc_idx);
+    std::string trunc_name = concat_name.substr(concat_name.size() - max_len);
+    trunc_idx += 1;
+    name_trunc_map[name] = trunc_name;
+
+    return trunc_name;
+}
+
 int main(int argc, char** argv)
 {
     if (!(argc == 2 || argc == 4))
@@ -3099,6 +3178,7 @@ int main(int argc, char** argv)
     fuse_lstm_gru_rnn(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_multiheadattention(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_binaryop_with_scalar(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
+    fuse_rewrite_gather(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
 
     // reduce common const weight node_reference
     for (int i = 0; i < node_count; i++)
@@ -3377,7 +3457,7 @@ int main(int argc, char** argv)
         if (weights.find(input_name) != weights.end())
             continue;
 
-        fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", input_name.c_str(), input_name.c_str());
+        fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", trunc_name(input_name).c_str(), trunc_name(input_name).c_str());
 
         int refcount = node_reference[input_name];
         if (refcount <= 1)
@@ -3388,11 +3468,12 @@ int main(int argc, char** argv)
         char splitname[256];
         sprintf(splitname, "splitncnn_input%d", j);
         fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
-        fprintf(pp, " %s", input_name.c_str());
+        fprintf(pp, " %s", trunc_name(input_name).c_str());
 
         for (int k = 0; k < refcount; k++)
         {
-            fprintf(pp, " %s_splitncnn_%d", input_name.c_str(), k);
+            std::string split_name = input_name + "_splitncnn_" + std::to_string(k);
+            fprintf(pp, " %s", trunc_name(split_name).c_str());
         }
         fprintf(pp, "\n");
     }
@@ -3408,7 +3489,7 @@ int main(int argc, char** argv)
             continue;
         }
 
-        fprintf(pp, "%-16s %-24s 0 1 %s", "MemoryData", input_name.c_str(), input_name.c_str());
+        fprintf(pp, "%-16s %-24s 0 1 %s", "MemoryData", trunc_name(input_name).c_str(), trunc_name(input_name).c_str());
 
         const onnx::TensorProto& M = weights[input_name];
 
@@ -3457,11 +3538,12 @@ int main(int argc, char** argv)
         sprintf(splitname, "splitncnn_%d", internal_split);
         fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
 
-        fprintf(pp, " %s", input_name.c_str());
+        fprintf(pp, " %s", trunc_name(input_name).c_str());
 
         for (int k = 0; k < refcount; k++)
         {
-            fprintf(pp, " %s_splitncnn_%d", input_name.c_str(), k);
+            std::string split_name = input_name + "_splitncnn_" + std::to_string(k);
+            fprintf(pp, " %s", trunc_name(split_name).c_str());
         }
         fprintf(pp, "\n");
 
@@ -3559,6 +3641,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Celu")
+        {
+            fprintf(pp, "%-16s", "CELU");
+        }
         else if (op == "Clip")
         {
             fprintf(pp, "%-16s", "Clip");
@@ -3607,6 +3693,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Crop")
+        {
+            fprintf(pp, "%-16s", "Crop");
+        }
         else if (op == "DepthToSpace")
         {
             fprintf(pp, "%-16s", "PixelShuffle");
@@ -3628,6 +3718,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "EmbedLayerNormalization");
         }
+        else if (op == "Erf")
+        {
+            fprintf(pp, "%-16s", "Erf");
+        }
         else if (op == "Exp")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -3639,6 +3733,10 @@ int main(int argc, char** argv)
         else if (op == "Floor")
         {
             fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Gelu")
+        {
+            fprintf(pp, "%-16s", "GELU");
         }
         else if (op == "Gemm")
         {
@@ -3796,6 +3894,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
+        else if (op == "Shrink")
+        {
+            fprintf(pp, "%-16s", "Shrink");
+        }
         else if (op == "ShuffleChannel")
         {
             fprintf(pp, "%-16s", "ShuffleChannel");
@@ -3875,7 +3977,7 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", op.c_str());
         }
 
-        fprintf(pp, " %-24s %d %d", name.c_str(), input_size, output_size);
+        fprintf(pp, " %-24s %d %d", trunc_name(name).c_str(), input_size, output_size);
 
         for (int j = 0; j < (int)node.input_size(); j++)
         {
@@ -3902,14 +4004,14 @@ int main(int argc, char** argv)
                 input_name = input_name + splitsuffix;
             }
 
-            fprintf(pp, " %s", input_name.c_str());
+            fprintf(pp, " %s", trunc_name(input_name).c_str());
         }
 
         for (int j = 0; j < output_size; j++)
         {
             const std::string& output_name = node.output(j);
 
-            fprintf(pp, " %s", output_name.c_str());
+            fprintf(pp, " %s", trunc_name(output_name).c_str());
         }
 
         if (op == "Abs")
@@ -4059,6 +4161,12 @@ int main(int argc, char** argv)
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "CeLU")
+        {
+            float alpha = get_node_attr_f(node, "alpha", 1.0f);
+
+            fprintf(pp, " 0=%e", alpha);
         }
         else if (op == "Clip")
         {
@@ -4334,6 +4442,27 @@ int main(int argc, char** argv)
             int op_type = 10;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (op == "Crop")
+        {
+            auto starts = get_node_attr_ai(node, "starts");
+            fprintf(pp, " -23309=%zu", starts.size());
+            for (size_t j = 0; j < starts.size(); ++j)
+            {
+                fprintf(pp, ",%i", starts[j]);
+            }
+            auto ends = get_node_attr_ai(node, "ends");
+            fprintf(pp, " -23310=%zu", ends.size());
+            for (size_t j = 0; j < ends.size(); ++j)
+            {
+                fprintf(pp, ",%i", ends[j]);
+            }
+            auto axis = get_node_attr_ai(node, "axis");
+            fprintf(pp, " -23311=%zu", axis.size());
+            for (size_t j = 0; j < axis.size(); ++j)
+            {
+                fprintf(pp, ",%i", axis[j]);
+            }
+        }
         else if (op == "DepthToSpace")
         {
             // pixelshuffle
@@ -4399,6 +4528,10 @@ int main(int argc, char** argv)
 
             fwrite_tensor_proto_data(B, bp);
         }
+        else if (op == "Erf")
+        {
+            // no-op
+        }
         else if (op == "Exp")
         {
             int op_type = 7;
@@ -4416,6 +4549,10 @@ int main(int argc, char** argv)
         {
             int op_type = 2;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Gelu")
+        {
+            fprintf(pp, " 0=1");
         }
         else if (op == "Gemm")
         {
@@ -5613,6 +5750,13 @@ int main(int argc, char** argv)
                 fprintf(pp, " 2=%e", b);
             }
         }
+        else if (op == "Shrink")
+        {
+            float bias = get_node_attr_f(node, "bias", 0.0f);
+            float lambd = get_node_attr_f(node, "lambd", 0.5f);
+            fprintf(pp, " 0=%e", bias);
+            fprintf(pp, " 1=%e", lambd);
+        }
         else if (op == "ShuffleChannel")
         {
             int group = get_node_attr_i(node, "group", 1);
@@ -5840,6 +5984,8 @@ int main(int argc, char** argv)
                     fprintf(pp, " 0=4"); // h c w
                 else if (perm[1] == 3 && perm[2] == 2 && perm[3] == 1)
                     fprintf(pp, " 0=5"); // c h w
+                else
+                    fprintf(stderr, "Unsupported transpose type !\n");
             }
             else if (perm.size() == 5)
             {
@@ -5975,11 +6121,12 @@ int main(int argc, char** argv)
                     sprintf(splitname, "splitncnn_%d", internal_split);
                     fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
 
-                    fprintf(pp, " %s", output_name.c_str());
+                    fprintf(pp, " %s", trunc_name(output_name).c_str());
 
                     for (int k = 0; k < refcount; k++)
                     {
-                        fprintf(pp, " %s_splitncnn_%d", output_name.c_str(), k);
+                        std::string split_name = output_name + "_splitncnn_" + std::to_string(k);
+                        fprintf(pp, " %s", trunc_name(split_name).c_str());
                     }
                     fprintf(pp, "\n");
 

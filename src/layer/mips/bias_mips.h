@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Bias_mips : virtual public Bias
+class Bias_mips : public Bias
 {
 public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;

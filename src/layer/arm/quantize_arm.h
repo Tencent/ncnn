@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Quantize_arm : virtual public Quantize
+class Quantize_arm : public Quantize
 {
 public:
     Quantize_arm();
@@ -27,7 +27,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif

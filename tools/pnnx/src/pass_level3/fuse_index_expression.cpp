@@ -36,7 +36,7 @@ static std::string fuse_attribute_expression(Operator* op_expr)
     {
         Operator* op_attr = op_expr->inputs[i]->producer;
 
-        const Attribute& attr = op_attr->attrs[op_attr->name];
+        const Attribute& attr = op_attr->attrs.begin()->second;
 
         std::string attr_expr;
 

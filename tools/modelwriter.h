@@ -32,6 +32,7 @@
 #include "layer/batchnorm.h"
 #include "layer/bias.h"
 #include "layer/binaryop.h"
+#include "layer/celu.h"
 #include "layer/clip.h"
 #include "layer/concat.h"
 #include "layer/convolution.h"
@@ -40,14 +41,18 @@
 #include "layer/convolutiondepthwise.h"
 #include "layer/convolutiondepthwise1d.h"
 #include "layer/convolutiondepthwise3d.h"
+#include "layer/copyto.h"
 #include "layer/crop.h"
+#include "layer/cumulativesum.h"
 #include "layer/deconvolution.h"
 #include "layer/deconvolution1d.h"
 #include "layer/deconvolution3d.h"
 #include "layer/deconvolutiondepthwise.h"
 #include "layer/deconvolutiondepthwise1d.h"
 #include "layer/deconvolutiondepthwise3d.h"
+#include "layer/deformableconv2d.h"
 #include "layer/detectionoutput.h"
+#include "layer/diag.h"
 #include "layer/dropout.h"
 #include "layer/eltwise.h"
 #include "layer/elu.h"
@@ -55,8 +60,11 @@
 #include "layer/exp.h"
 #include "layer/expanddims.h"
 #include "layer/flatten.h"
+#include "layer/fold.h"
 #include "layer/gelu.h"
 #include "layer/gemm.h"
+#include "layer/glu.h"
+#include "layer/gridsample.h"
 #include "layer/groupnorm.h"
 #include "layer/gru.h"
 #include "layer/hardsigmoid.h"
@@ -102,6 +110,7 @@
 #include "layer/squeeze.h"
 #include "layer/threshold.h"
 #include "layer/unaryop.h"
+#include "layer/unfold.h"
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
@@ -244,6 +253,7 @@ public:
 ModelWriter::ModelWriter()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
+    opt.lightmode = false;
     has_custom_layer = false;
     gen_random_weight = false;
     cutstart = -1;
@@ -329,6 +339,7 @@ int ModelWriter::shape_inference()
     }
 
     ncnn::Extractor ex = create_extractor();
+    ex.set_light_mode(true);
 
     // prepare Input blobs
     for (size_t i = 0; i < layer_count; i++)
@@ -452,6 +463,7 @@ int ModelWriter::estimate_memory_footprint()
     MemoryFootprintAllocator allocator;
 
     ncnn::Extractor ex = create_extractor();
+    ex.set_light_mode(true);
 
     ex.set_blob_allocator(&allocator);
     ex.set_workspace_allocator(&allocator);
@@ -605,7 +617,7 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
 {
     int p0 = ftell(bp);
 
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
     if (gen_random_weight)
         Randomize(data_flattened, a, b);
 
@@ -657,7 +669,7 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, fl
 {
     int p0 = ftell(bp);
 
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
     if (gen_random_weight)
         Randomize(data_flattened, a, b);
 
@@ -784,7 +796,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             continue;
         }
 
-        ncnn::Layer* layer_default = ncnn::create_layer(layer->typeindex);
+        ncnn::Layer* layer_default = ncnn::create_layer_cpu(layer->typeindex);
 
         ncnn::ParamDict pd;
         layer_default->load_param(pd);
@@ -824,6 +836,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", op_type)
             fprintf_param_value(" 1=%d", with_scalar)
             fprintf_param_value(" 2=%e", b)
+        }
+        else if (layer->type == "CELU")
+        {
+            ncnn::CELU* op = (ncnn::CELU*)layer;
+            ncnn::CELU* op_default = (ncnn::CELU*)layer_default;
+
+            fprintf_param_value(" 0=%e", alpha)
         }
         else if (layer->type == "Clip")
         {
@@ -876,19 +895,23 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
+            fprintf_param_value(" 19=%d", dynamic_weight)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->dynamic_weight == 0)
+            {
+                fwrite_weight_tag_data(op->weight_data, bp);
+                fwrite_weight_data(op->bias_data, bp);
 
 #if NCNN_INT8
-            // write int8_scale data
-            if (op->int8_scale_term)
-            {
-                fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
-                fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
-                fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
-            }
+                // write int8_scale data
+                if (op->int8_scale_term)
+                {
+                    fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                    fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
+                    fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                }
 #endif // NCNN_INT8
+            }
 
             if (shape_ready)
             {
@@ -920,9 +943,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
+            fprintf_param_value(" 19=%d", dynamic_weight)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->dynamic_weight == 0)
+            {
+                fwrite_weight_tag_data(op->weight_data, bp);
+                fwrite_weight_data(op->bias_data, bp);
+            }
 
             if (shape_ready)
             {
@@ -1027,33 +1054,37 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
+            fprintf_param_value(" 19=%d", dynamic_weight)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->dynamic_weight == 0)
+            {
+                fwrite_weight_tag_data(op->weight_data, bp);
+                fwrite_weight_data(op->bias_data, bp);
 
 #if NCNN_INT8
-            // write int8_scale data
-            if (op->int8_scale_term == 1 || op->int8_scale_term == 101)
-            {
-                op->bottom_blob_int8_scales.w = 1;
-            }
-            if (op->int8_scale_term == 2 || op->int8_scale_term == 102)
-            {
-                op->weight_data_int8_scales.w = 1;
-                op->bottom_blob_int8_scales.w = 1;
-            }
-            if (op->int8_scale_term > 100)
-            {
-                op->top_blob_int8_scales.w = 1;
-            }
+                // write int8_scale data
+                if (op->int8_scale_term == 1 || op->int8_scale_term == 101)
+                {
+                    op->bottom_blob_int8_scales.w = 1;
+                }
+                if (op->int8_scale_term == 2 || op->int8_scale_term == 102)
+                {
+                    op->weight_data_int8_scales.w = 1;
+                    op->bottom_blob_int8_scales.w = 1;
+                }
+                if (op->int8_scale_term > 100)
+                {
+                    op->top_blob_int8_scales.w = 1;
+                }
 
-            if (op->int8_scale_term)
-            {
-                fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
-                fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
-                fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
-            }
+                if (op->int8_scale_term)
+                {
+                    fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                    fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
+                    fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                }
 #endif // NCNN_INT8
+            }
 
             if (shape_ready)
             {
@@ -1086,9 +1117,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
+            fprintf_param_value(" 19=%d", dynamic_weight)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->dynamic_weight == 0)
+            {
+                fwrite_weight_tag_data(op->weight_data, bp);
+                fwrite_weight_data(op->bias_data, bp);
+            }
 
             if (shape_ready)
             {
@@ -1157,6 +1192,22 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 mac += (uint64_t)op->kernel_d * op->kernel_h * op->kernel_w * outw * outh * outd * (outc / op->group) * (inc / op->group) * op->group;
             }
         }
+        else if (layer->type == "CopyTo")
+        {
+            ncnn::CopyTo* op = (ncnn::CopyTo*)layer;
+            ncnn::CopyTo* op_default = (ncnn::CopyTo*)layer_default;
+
+            fprintf_param_value(" 0=%d", woffset)
+            fprintf_param_value(" 1=%d", hoffset)
+            fprintf_param_value(" 13=%d", doffset)
+            fprintf_param_value(" 2=%d", coffset)
+            {
+                if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp);
+            }
+            {
+                if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp);
+            }
+        }
         else if (layer->type == "Crop")
         {
             ncnn::Crop* op = (ncnn::Crop*)layer;
@@ -1164,12 +1215,15 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", woffset)
             fprintf_param_value(" 1=%d", hoffset)
+            fprintf_param_value(" 13=%d", doffset)
             fprintf_param_value(" 2=%d", coffset)
             fprintf_param_value(" 3=%d", outw)
             fprintf_param_value(" 4=%d", outh)
+            fprintf_param_value(" 14=%d", outd)
             fprintf_param_value(" 5=%d", outc)
             fprintf_param_value(" 6=%d", woffset2)
             fprintf_param_value(" 7=%d", hoffset2)
+            fprintf_param_value(" 15=%d", doffset2)
             fprintf_param_value(" 8=%d", coffset2)
             {
                 if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp);
@@ -1180,6 +1234,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp);
             }
+        }
+        else if (layer->type == "CumulativeSum")
+        {
+            ncnn::CumulativeSum* op = (ncnn::CumulativeSum*)layer;
+            ncnn::CumulativeSum* op_default = (ncnn::CumulativeSum*)layer_default;
+
+            fprintf_param_value(" 0=%d", axis)
         }
         else if (layer->type == "Deconvolution")
         {
@@ -1223,9 +1284,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
+            fprintf_param_value(" 28=%d", dynamic_weight)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->dynamic_weight == 0)
+            {
+                fwrite_weight_tag_data(op->weight_data, bp);
+                fwrite_weight_data(op->bias_data, bp);
+            }
 
             if (shape_ready)
             {
@@ -1258,9 +1323,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
+            fprintf_param_value(" 28=%d", dynamic_weight)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->dynamic_weight == 0)
+            {
+                fwrite_weight_tag_data(op->weight_data, bp);
+                fwrite_weight_data(op->bias_data, bp);
+            }
 
             if (shape_ready)
             {
@@ -1380,9 +1449,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
+            fprintf_param_value(" 28=%d", dynamic_weight)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->dynamic_weight == 0)
+            {
+                fwrite_weight_tag_data(op->weight_data, bp);
+                fwrite_weight_data(op->bias_data, bp);
+            }
 
             if (shape_ready)
             {
@@ -1416,9 +1489,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
+            fprintf_param_value(" 28=%d", dynamic_weight)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->dynamic_weight == 0)
+            {
+                fwrite_weight_tag_data(op->weight_data, bp);
+                fwrite_weight_data(op->bias_data, bp);
+            }
 
             if (shape_ready)
             {
@@ -1496,6 +1573,54 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 mac += (uint64_t)op->kernel_d * op->kernel_h * op->kernel_w * inw * inh * ind * (outc / op->group) * (inc / op->group) * op->group;
             }
         }
+        else if (layer->type == "DeformableConv2D")
+        {
+            ncnn::DeformableConv2D* op = (ncnn::DeformableConv2D*)layer;
+            ncnn::DeformableConv2D* op_default = (ncnn::DeformableConv2D*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", kernel_w)
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
+            fprintf_param_value(" 2=%d", dilation_w)
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
+            fprintf_param_value(" 3=%d", stride_w)
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
+            fprintf_param_value(" 5=%d", bias_term)
+            fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 9=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inw = blobs[layer->bottoms[0]].shape.w;
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int inc = blobs[layer->bottoms[0]].shape.c;
+                int outc = blobs[layer->tops[0]].shape.c;
+
+                mac += (uint64_t)op->kernel_h * op->kernel_w * inw * inh * outc * inc;
+            }
+        }
         else if (layer->type == "DetectionOutput")
         {
             ncnn::DetectionOutput* op = (ncnn::DetectionOutput*)layer;
@@ -1510,6 +1635,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 6=%e", variances[1])
             fprintf_param_value(" 7=%e", variances[2])
             fprintf_param_value(" 8=%e", variances[3])
+        }
+        else if (layer->type == "Diag")
+        {
+            ncnn::Diag* op = (ncnn::Diag*)layer;
+            ncnn::Diag* op_default = (ncnn::Diag*)layer_default;
+
+            fprintf_param_value(" 0=%d", diagonal)
         }
         else if (layer->type == "Dropout")
         {
@@ -1564,9 +1696,42 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", expand_w)
             fprintf_param_value(" 1=%d", expand_h)
+            fprintf_param_value(" 11=%d", expand_d)
             fprintf_param_value(" 2=%d", expand_c)
             {
-                if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
+                if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
+            }
+        }
+        else if (layer->type == "Fold")
+        {
+            ncnn::Fold* op = (ncnn::Fold*)layer;
+            ncnn::Fold* op_default = (ncnn::Fold*)layer_default;
+
+            fprintf_param_value(" 1=%d", kernel_w)
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
+            fprintf_param_value(" 2=%d", dilation_w)
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
+            fprintf_param_value(" 3=%d", stride_w)
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
+            fprintf_param_value(" 20=%d", output_w)
+            {
+                if (op->output_h != op->output_w) fprintf(pp, " 21=%d", op->output_h);
             }
         }
         else if (layer->type == "GELU")
@@ -1585,6 +1750,50 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%e", beta)
             fprintf_param_value(" 2=%d", transA)
             fprintf_param_value(" 3=%d", transB)
+            fprintf_param_value(" 4=%d", constantA)
+            fprintf_param_value(" 5=%d", constantB)
+            fprintf_param_value(" 6=%d", constantC)
+            fprintf_param_value(" 7=%d", constantM)
+            fprintf_param_value(" 8=%d", constantN)
+            fprintf_param_value(" 9=%d", constantK)
+            fprintf_param_value(" 10=%d", constant_broadcast_type_C)
+            fprintf_param_value(" 11=%d", output_N1M)
+            fprintf_param_value(" 12=%d", output_elempack)
+            fprintf_param_value(" 13=%d", output_elemtype)
+            fprintf_param_value(" 14=%d", output_transpose)
+            fprintf_param_value(" 20=%d", constant_TILE_M)
+            fprintf_param_value(" 21=%d", constant_TILE_N)
+            fprintf_param_value(" 22=%d", constant_TILE_K)
+
+            if (op->constantA == 1)
+            {
+                fwrite_weight_tag_data(op->A_data, bp);
+            }
+            if (op->constantB == 1)
+            {
+                fwrite_weight_tag_data(op->B_data, bp);
+            }
+            if (op->constantC == 1 && op->constant_broadcast_type_C != -1)
+            {
+                fwrite_weight_tag_data(op->C_data, bp);
+            }
+        }
+        else if (layer->type == "GLU")
+        {
+            ncnn::GLU* op = (ncnn::GLU*)layer;
+            ncnn::GLU* op_default = (ncnn::GLU*)layer_default;
+
+            fprintf_param_value(" 0=%d", axis)
+        }
+        else if (layer->type == "GridSample")
+        {
+            ncnn::GridSample* op = (ncnn::GridSample*)layer;
+            ncnn::GridSample* op_default = (ncnn::GridSample*)layer_default;
+
+            fprintf_param_value(" 0=%d", sample_type)
+            fprintf_param_value(" 1=%d", padding_mode)
+            fprintf_param_value(" 2=%d", align_corner)
+            fprintf_param_value(" 3=%d", permute_fusion)
         }
         else if (layer->type == "GroupNorm")
         {
@@ -1607,10 +1816,20 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", weight_data_size)
             fprintf_param_value(" 2=%d", direction)
+            fprintf_param_value(" 8=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_xc_data, bp);
             fwrite_weight_tag_data(op->bias_c_data, bp);
             fwrite_weight_tag_data(op->weight_hc_data, bp);
+
+#if NCNN_INT8
+            // write int8_scale data
+            if (op->int8_scale_term)
+            {
+                fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
+            }
+#endif // NCNN_INT8
         }
         else if (layer->type == "HardSigmoid")
         {
@@ -1738,10 +1957,26 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", weight_data_size)
             fprintf_param_value(" 2=%d", direction)
+            fprintf_param_value(" 3=%d", hidden_size)
+            fprintf_param_value(" 8=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_xc_data, bp);
             fwrite_weight_tag_data(op->bias_c_data, bp);
             fwrite_weight_tag_data(op->weight_hc_data, bp);
+
+            if (op->num_output != op->hidden_size)
+            {
+                fwrite_weight_tag_data(op->weight_hr_data, bp);
+            }
+
+#if NCNN_INT8
+            // write int8_scale data
+            if (op->int8_scale_term)
+            {
+                fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
+            }
+#endif // NCNN_INT8
         }
         else if (layer->type == "MatMul")
         {
@@ -1758,6 +1993,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", w)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 2=%d", c)
+            fprintf_param_value(" 11=%d", d)
             fwrite_weight_data(op->data, bp);
         }
         else if (layer->type == "MultiHeadAttention")
@@ -1766,8 +2002,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::MultiHeadAttention* op_default = (ncnn::MultiHeadAttention*)layer_default;
 
             fprintf_param_value(" 0=%d", embed_dim)
-            fprintf_param_value(" 1=%d", num_head)
+            fprintf_param_value(" 1=%d", num_heads)
             fprintf_param_value(" 2=%d", weight_data_size)
+            fprintf_param_value(" 3=%d", kdim)
+            fprintf_param_value(" 4=%d", vdim)
+            fprintf_param_value(" 5=%d", attn_mask)
 
             fwrite_weight_tag_data(op->q_weight_data, bp);
             fwrite_weight_data(op->q_bias_data, bp);
@@ -2058,6 +2297,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", w)
             fprintf_param_value(" 1=%d", h)
+            fprintf_param_value(" 11=%d", d)
             fprintf_param_value(" 2=%d", c)
             fprintf_param_value(" 3=%d", permute)
         }
@@ -2069,10 +2309,20 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", weight_data_size)
             fprintf_param_value(" 2=%d", direction)
+            fprintf_param_value(" 8=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_xc_data, bp);
             fwrite_weight_tag_data(op->bias_c_data, bp);
             fwrite_weight_tag_data(op->weight_hc_data, bp);
+
+#if NCNN_INT8
+            // write int8_scale data
+            if (op->int8_scale_term)
+            {
+                fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
+            }
+#endif // NCNN_INT8
         }
         else if (layer->type == "ROIAlign")
         {
@@ -2145,9 +2395,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", squeeze_w)
             fprintf_param_value(" 1=%d", squeeze_h)
+            fprintf_param_value(" 11=%d", squeeze_d)
             fprintf_param_value(" 2=%d", squeeze_c)
             {
-                if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
+                if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
             }
         }
         else if (layer->type == "Threshold")
@@ -2163,6 +2414,35 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::UnaryOp* op_default = (ncnn::UnaryOp*)layer_default;
 
             fprintf_param_value(" 0=%d", op_type)
+        }
+        else if (layer->type == "Unfold")
+        {
+            ncnn::Unfold* op = (ncnn::Unfold*)layer;
+            ncnn::Unfold* op_default = (ncnn::Unfold*)layer_default;
+
+            fprintf_param_value(" 1=%d", kernel_w)
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
+            fprintf_param_value(" 2=%d", dilation_w)
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
+            fprintf_param_value(" 3=%d", stride_w)
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
+            fprintf_param_value(" 18=%e", pad_value)
         }
         else if (layer->type == "YoloDetectionOutput")
         {
@@ -2209,7 +2489,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
     if (mac)
     {
-        fprintf(stderr, "mac = %llu = %.2f M\n", mac, mac / 1000000.0);
+        fprintf(stderr, "mac = %llu = %.2f M\n", static_cast<long long unsigned>(mac), mac / 1000000.0);
     }
 
     return 0;

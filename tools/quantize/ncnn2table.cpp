@@ -371,6 +371,7 @@ int QuantNet::quantize_KL()
         }
 
         ncnn::Extractor ex = create_extractor();
+        ex.set_light_mode(true);
 
         const int thread_num = ncnn::get_omp_thread_num();
         ex.set_blob_allocator(&blob_allocators[thread_num]);
@@ -444,6 +445,7 @@ int QuantNet::quantize_KL()
         }
 
         ncnn::Extractor ex = create_extractor();
+        ex.set_light_mode(true);
 
         const int thread_num = ncnn::get_omp_thread_num();
         ex.set_blob_allocator(&blob_allocators[thread_num]);
@@ -835,6 +837,7 @@ int QuantNet::quantize_ACIQ()
         }
 
         ncnn::Extractor ex = create_extractor();
+        ex.set_light_mode(true);
 
         const int thread_num = ncnn::get_omp_thread_num();
         ex.set_blob_allocator(&blob_allocators[thread_num]);
@@ -1078,6 +1081,7 @@ int QuantNet::quantize_EQ()
                 }
 
                 ncnn::Extractor ex = create_extractor();
+                ex.set_light_mode(true);
 
                 const int thread_num = ncnn::get_omp_thread_num();
                 ex.set_blob_allocator(&blob_allocators[thread_num]);
@@ -1108,7 +1112,7 @@ int QuantNet::quantize_EQ()
                 ncnn::Mat out;
                 ex.extract(conv_top_blobs[i], out);
 
-                ncnn::Layer* layer_int8 = ncnn::create_layer(layer->typeindex);
+                ncnn::Layer* layer_int8 = ncnn::create_layer_cpu(layer->typeindex);
 
                 ncnn::ParamDict pd;
                 get_layer_param(layer, pd);
@@ -1187,6 +1191,7 @@ int QuantNet::quantize_EQ()
                 }
 
                 ncnn::Extractor ex = create_extractor();
+                ex.set_light_mode(true);
 
                 const int thread_num = ncnn::get_omp_thread_num();
                 ex.set_blob_allocator(&blob_allocators[thread_num]);
@@ -1217,7 +1222,7 @@ int QuantNet::quantize_EQ()
                 ncnn::Mat out;
                 ex.extract(conv_top_blobs[i], out);
 
-                ncnn::Layer* layer_int8 = ncnn::create_layer(layer->typeindex);
+                ncnn::Layer* layer_int8 = ncnn::create_layer_cpu(layer->typeindex);
 
                 ncnn::ParamDict pd;
                 get_layer_param(layer, pd);
@@ -1608,6 +1613,7 @@ int main(int argc, char** argv)
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.lightmode = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;

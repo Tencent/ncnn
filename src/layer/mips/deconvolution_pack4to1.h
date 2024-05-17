@@ -88,7 +88,7 @@ static void deconvolution_pack4to1_msa(const Mat& bottom_blob, Mat& top_blob, co
                     kptr += maxk * 4;
                 }
 
-                sum += __msa_fhadd_w(_sum);
+                sum += __msa_reduce_fadd_w(_sum);
 
                 sum = activation_ss(sum, activation_type, activation_params);
 

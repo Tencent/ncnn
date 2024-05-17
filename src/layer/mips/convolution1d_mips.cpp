@@ -78,6 +78,9 @@ int Convolution1D_mips::create_pipeline(const Option& opt)
         }
     }
 
+    if (opt.lightmode)
+        weight_data.release();
+
     return 0;
 }
 
@@ -253,7 +256,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         }
                     }
 
-                    sum += __msa_fhadd_w(_sum);
+                    sum += __msa_reduce_fadd_w(_sum);
 
                     sum = activation_ss(sum, activation_type, activation_params);
 
@@ -281,7 +284,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         sum = bias_data[p];
                     }
 
-                    const float* kptr = (const float*)weight_data + kernel_w * h * p;
+                    const float* kptr = weight_data_packed.channel(p);
 
                     for (int q = 0; q < h; q++)
                     {
@@ -342,7 +345,7 @@ int Convolution1D_mips::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution1D);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution1D);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

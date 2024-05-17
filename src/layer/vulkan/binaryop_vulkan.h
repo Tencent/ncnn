@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BinaryOp_vulkan : virtual public BinaryOp
+class BinaryOp_vulkan : public BinaryOp
 {
 public:
     BinaryOp_vulkan();
@@ -43,13 +43,11 @@ public:
     Pipeline* pipeline_binaryop_pack8;
 
     // broadcast
-    Pipeline* pipeline_binaryop_broadcast;
-    Pipeline* pipeline_binaryop_broadcast_pack4;
-    Pipeline* pipeline_binaryop_broadcast_a1_pack4;
-    Pipeline* pipeline_binaryop_broadcast_b1_pack4;
-    Pipeline* pipeline_binaryop_broadcast_pack8;
-    Pipeline* pipeline_binaryop_broadcast_a1_pack8;
-    Pipeline* pipeline_binaryop_broadcast_b1_pack8;
+    Pipeline* pipeline_binaryop_broadcast[2];
+    Pipeline* pipeline_binaryop_broadcast_pack4[2];
+    Pipeline* pipeline_binaryop_broadcast_pack1to4[2];
+    Pipeline* pipeline_binaryop_broadcast_pack8[2];
+    Pipeline* pipeline_binaryop_broadcast_pack1to8[2];
 };
 
 } // namespace ncnn

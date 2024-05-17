@@ -1,0 +1,77 @@
+name: linux-loongarch64-cpu-gcc
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - 'toolchains/loongarch64-linux-gnu.toolchain.cmake'
+    - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/loongarch/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - 'toolchains/loongarch64-linux-gnu.toolchain.cmake'
+    - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/loongarch/**'
+    - 'tests/**'
+concurrency:
+  group: linux-loongarch64-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-gcc-loongarch64:
+    runs-on: [self-hosted, linux, centos]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # - name: cache-qemu
+    #   id: cache-qemu
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: qemu-install
+    #     key: qemu-loongarch64-install-20230524
+    # - name: checkout-qemu
+    #   if: steps.cache-qemu.outputs.cache-hit != 'true'
+    #   uses: actions/checkout@v4
+    #   with:
+    #     repository: qemu/qemu
+    #     path: qemu
+    #     ref: 1c12355b31046a6b35a4f50c85c4f01afb1bd728
+    # - name: qemu
+    #   if: steps.cache-qemu.outputs.cache-hit != 'true'
+    #   run: |
+    #     cd qemu
+    #     ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=loongarch64-linux-user --disable-system
+    #     make -j2
+    #     make install
+
+    # - name: loongarch64-toolchain
+    #   run: |
+    #     wget https://github.com/sunhaiyong1978/CLFS-for-LoongArch/releases/download/8.0/loongarch64-clfs-8.0-cross-tools-gcc-full.tar.xz
+    #     tar -xf loongarch64-clfs-8.0-cross-tools-gcc-full.tar.xz
+
+    - name: build
+      run: |
+        export LOONGARCH64_ROOT_PATH=/data/action/osd/cross-tools
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 4
+
+    - name: test
+      run: |
+        export PATH=/data/action/osd/qemu-loongson/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/data/action/osd/cross-tools/target" ctest --output-on-failure -j 4

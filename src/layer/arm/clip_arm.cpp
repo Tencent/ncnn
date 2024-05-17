@@ -18,14 +18,17 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "arm_usability.h"
+#include "cpu.h"
+
 namespace ncnn {
 
 Clip_arm::Clip_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
 
@@ -38,8 +41,8 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
 
@@ -50,88 +53,102 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
-
-#if __ARM_NEON
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            float32x4_t _max = vdupq_n_f32(max);
-            float32x4_t _min = vdupq_n_f32(min);
-
-            for (int i = 0; i < size; i++)
-            {
-                float32x4_t _ptr = vld1q_f32(ptr);
-                _ptr = vmaxq_f32(_ptr, _min);
-                _ptr = vminq_f32(_ptr, _max);
-                vst1q_f32(ptr, _ptr);
-
-                ptr += 4;
-            }
-        }
-
-        return 0;
-    }
-#endif // __ARM_NEON
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
+        int i = 0;
 #if __ARM_NEON
-        int nn = size >> 2;
-        int remain = size & 3;
-#else
-        int remain = size;
-#endif
-
-#if __ARM_NEON
-        float32x4_t _max = vdupq_n_f32(max);
         float32x4_t _min = vdupq_n_f32(min);
-#if __aarch64__
-        for (; nn > 0; nn--)
+        float32x4_t _max = vdupq_n_f32(max);
+        for (; i + 15 < size; i += 16)
         {
-            float32x4_t _ptr = vld1q_f32(ptr);
-            _ptr = vmaxq_f32(_ptr, _min);
-            _ptr = vminq_f32(_ptr, _max);
-            vst1q_f32(ptr, _ptr);
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+            asm volatile(
+                "prfm   pldl1keep, [%0, #512]   \n"
+                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
+                "fmax   v0.4s, v0.4s, %2.4s     \n"
+                "fmax   v1.4s, v1.4s, %2.4s     \n"
+                "fmax   v2.4s, v2.4s, %2.4s     \n"
+                "fmax   v3.4s, v3.4s, %2.4s     \n"
+                "fmin   v0.4s, v0.4s, %3.4s     \n"
+                "fmin   v1.4s, v1.4s, %3.4s     \n"
+                "fmin   v2.4s, v2.4s, %3.4s     \n"
+                "fmin   v3.4s, v3.4s, %3.4s     \n"
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                : "=r"(ptr) // %0
+                : "0"(ptr),
+                "w"(_min), // %2
+                "w"(_max)  // %3
+                : "memory", "v0", "v1", "v2", "v3");
+#else  // __aarch64__
+            asm volatile(
+                "pld        [%0, #512]      \n"
+                "vldm       %0, {d0-d7}     \n"
+                "vmax.f32   q0, q0, %q2     \n"
+                "vmax.f32   q1, q1, %q2     \n"
+                "vmax.f32   q2, q2, %q2     \n"
+                "vmax.f32   q3, q3, %q2     \n"
+                "vmin.f32   q0, q0, %q3     \n"
+                "vmin.f32   q1, q1, %q3     \n"
+                "vmin.f32   q2, q2, %q3     \n"
+                "vmin.f32   q3, q3, %q3     \n"
+                "vstm       %0!, {d0-d7}    \n"
+                : "=r"(ptr) // %0
+                : "0"(ptr),
+                "w"(_min), // %2
+                "w"(_max)  // %3
+                : "memory", "q0", "q1", "q2", "q3");
+#endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            float32x4_t _p2 = vld1q_f32(ptr + 8);
+            float32x4_t _p3 = vld1q_f32(ptr + 12);
+            _p0 = vmaxq_f32(_p0, _min);
+            _p1 = vmaxq_f32(_p1, _min);
+            _p2 = vmaxq_f32(_p2, _min);
+            _p3 = vmaxq_f32(_p3, _min);
+            _p0 = vminq_f32(_p0, _max);
+            _p1 = vminq_f32(_p1, _max);
+            _p2 = vminq_f32(_p2, _max);
+            _p3 = vminq_f32(_p3, _max);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            vst1q_f32(ptr + 8, _p2);
+            vst1q_f32(ptr + 12, _p3);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
+        }
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            _p0 = vmaxq_f32(_p0, _min);
+            _p1 = vmaxq_f32(_p1, _min);
+            _p0 = vminq_f32(_p0, _max);
+            _p1 = vminq_f32(_p1, _max);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _p = vld1q_f32(ptr);
+            _p = vmaxq_f32(_p, _min);
+            _p = vminq_f32(_p, _max);
+            vst1q_f32(ptr, _p);
             ptr += 4;
         }
-#else
-        if (nn > 0)
-        {
-            asm volatile(
-                "0:                             \n"
-                "pld        [%1, #128]          \n"
-                "vld1.f32   {d0-d1}, [%1: 128]  \n"
-
-                "vmax.f32   q0, q0, %q4         \n"
-                "vmin.f32   q0, q0, %q5         \n"
-
-                "subs       %0, #1              \n"
-                "vst1.f32   {d0-d1}, [%1: 128]! \n"
-
-                "bne        0b                  \n"
-
-                : "=r"(nn), // %0
-                "=r"(ptr) // %1
-                : "0"(nn),
-                "1"(ptr),
-                "w"(_min), // %q4
-                "w"(_max)  // %q5
-                : "cc", "memory", "q0");
-        }
-#endif // __aarch64__
 #endif // __ARM_NEON
-
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             if (*ptr < min)
                 *ptr = min;
@@ -146,184 +163,126 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-    int size = w * h;
-    int elempack = bottom_top_blob.elempack;
-
-    if (elempack == 8)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            __fp16* ptr = bottom_top_blob.channel(q);
-
-            float16x8_t _max = vdupq_n_f16(max);
-            float16x8_t _min = vdupq_n_f16(min);
-
-            for (int i = 0; i < size; i++)
-            {
-                float16x8_t _ptr = vld1q_f16(ptr);
-                _ptr = vmaxq_f16(_ptr, _min);
-                _ptr = vminq_f16(_ptr, _max);
-                vst1q_f16(ptr, _ptr);
-
-                ptr += 8;
-            }
-        }
-
-        return 0;
-    }
-
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            __fp16* ptr = bottom_top_blob.channel(q);
-
-            float16x8_t _max = vdupq_n_f16(max);
-            float16x8_t _min = vdupq_n_f16(min);
-
-            int i = 0;
-            for (; i + 1 < size; i += 2)
-            {
-                float16x8_t _ptr = vld1q_f16(ptr);
-                _ptr = vmaxq_f16(_ptr, _min);
-                _ptr = vminq_f16(_ptr, _max);
-                vst1q_f16(ptr, _ptr);
-
-                ptr += 8;
-            }
-            for (; i < size; i++)
-            {
-                float16x4_t _ptr = vld1_f16(ptr);
-                _ptr = vmax_f16(_ptr, vget_low_f16(_min));
-                _ptr = vmin_f16(_ptr, vget_low_f16(_max));
-                vst1_f16(ptr, _ptr);
-
-                ptr += 4;
-            }
-        }
-
-        return 0;
-    }
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = bottom_top_blob.channel(q);
-
-        int i = 0;
-
-        float16x8_t _max = vdupq_n_f16(max);
-        float16x8_t _min = vdupq_n_f16(min);
-
-        for (; i + 7 < size; i += 8)
-        {
-            float16x8_t _ptr = vld1q_f16(ptr);
-            _ptr = vmaxq_f16(_ptr, _min);
-            _ptr = vminq_f16(_ptr, _max);
-            vst1q_f16(ptr, _ptr);
-
-            ptr += 8;
-        }
-        for (; i + 3 < size; i += 4)
-        {
-            float16x4_t _ptr = vld1_f16(ptr);
-            _ptr = vmax_f16(_ptr, vget_low_f16(_min));
-            _ptr = vmin_f16(_ptr, vget_low_f16(_max));
-            vst1_f16(ptr, _ptr);
-
-            ptr += 4;
-        }
-
-        __fp16 min_fp16 = min;
-        __fp16 max_fp16 = max;
-
-        for (; i < size; i++)
-        {
-            __fp16 v = *ptr;
-            if (v < min_fp16)
-                v = min_fp16;
-
-            if (v > max_fp16)
-                v = max_fp16;
-
-            *ptr = v;
-            ptr++;
-        }
-    }
-
-    return 0;
-}
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-
 #if NCNN_BF16
 int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
-
-#if __ARM_NEON
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            unsigned short* ptr = bottom_top_blob.channel(q);
-
-            float32x4_t _max = vdupq_n_f32(max);
-            float32x4_t _min = vdupq_n_f32(min);
-
-            for (int i = 0; i < size; i++)
-            {
-                float32x4_t _ptr = vcvt_f32_bf16(vld1_u16(ptr));
-                _ptr = vmaxq_f32(_ptr, _min);
-                _ptr = vminq_f32(_ptr, _max);
-                vst1_u16(ptr, vcvt_bf16_f32(_ptr));
-
-                ptr += 4;
-            }
-        }
-
-        return 0;
-    }
-#endif // __ARM_NEON
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
+        int i = 0;
 #if __ARM_NEON
-        int nn = size >> 2;
-        int remain = size & 3;
-#else
-        int remain = size;
-#endif
-
-#if __ARM_NEON
-        float32x4_t _max = vdupq_n_f32(max);
         float32x4_t _min = vdupq_n_f32(min);
-        for (; nn > 0; nn--)
+        float32x4_t _max = vdupq_n_f32(max);
+        for (; i + 15 < size; i += 16)
         {
-            float32x4_t _ptr = vcvt_f32_bf16(vld1_u16(ptr));
-            _ptr = vmaxq_f32(_ptr, _min);
-            _ptr = vminq_f32(_ptr, _max);
-            vst1_u16(ptr, vcvt_bf16_f32(_ptr));
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+            asm volatile(
+                "prfm   pldl1keep, [%0, #256]   \n"
+                "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0] \n"
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
+                "shll   v2.4s, v2.4h, #16       \n"
+                "shll   v3.4s, v3.4h, #16       \n"
+                "fmax   v0.4s, v0.4s, %2.4s     \n"
+                "fmax   v1.4s, v1.4s, %2.4s     \n"
+                "fmax   v2.4s, v2.4s, %2.4s     \n"
+                "fmax   v3.4s, v3.4s, %2.4s     \n"
+                "fmin   v0.4s, v0.4s, %3.4s     \n"
+                "fmin   v1.4s, v1.4s, %3.4s     \n"
+                "fmin   v2.4s, v2.4s, %3.4s     \n"
+                "fmin   v3.4s, v3.4s, %3.4s     \n"
+                "shrn   v0.4h, v0.4s, #16       \n"
+                "shrn   v1.4h, v1.4s, #16       \n"
+                "shrn   v2.4h, v2.4s, #16       \n"
+                "shrn   v3.4h, v3.4s, #16       \n"
+                "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0], #32 \n"
+                : "=r"(ptr) // %0
+                : "0"(ptr),
+                "w"(_min), // %2
+                "w"(_max)  // %3
+                : "memory", "v0", "v1", "v2", "v3");
+#else  // __aarch64__
+            asm volatile(
+                "pld        [%0, #256]      \n"
+                "vld1.u16   {d4-d7}, [%0]   \n"
+                "vshll.u16  q0, d4, #16     \n"
+                "vshll.u16  q1, d5, #16     \n"
+                "vshll.u16  q2, d6, #16     \n"
+                "vshll.u16  q3, d7, #16     \n"
+                "vmax.f32   q0, q0, %q2     \n"
+                "vmax.f32   q1, q1, %q2     \n"
+                "vmax.f32   q2, q2, %q2     \n"
+                "vmax.f32   q3, q3, %q2     \n"
+                "vmin.f32   q0, q0, %q3     \n"
+                "vmin.f32   q1, q1, %q3     \n"
+                "vmin.f32   q2, q2, %q3     \n"
+                "vmin.f32   q3, q3, %q3     \n"
+                "vshrn.u32  d0, q0, #16     \n"
+                "vshrn.u32  d1, q1, #16     \n"
+                "vshrn.u32  d2, q2, #16     \n"
+                "vshrn.u32  d3, q3, #16     \n"
+                "vst1.u16   {d0-d3}, [%0]!  \n"
+                : "=r"(ptr) // %0
+                : "0"(ptr),
+                "w"(_min), // %2
+                "w"(_max)  // %3
+                : "memory", "q0", "q1", "q2", "q3");
+#endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            uint16x8_t _p = vld1q_u16(ptr);
+            uint16x8_t _q = vld1q_u16(ptr + 8);
+            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+            float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
+            float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+            _p0 = vmaxq_f32(_p0, _min);
+            _p1 = vmaxq_f32(_p1, _min);
+            _p2 = vmaxq_f32(_p2, _min);
+            _p3 = vmaxq_f32(_p3, _min);
+            _p0 = vminq_f32(_p0, _max);
+            _p1 = vminq_f32(_p1, _max);
+            _p2 = vminq_f32(_p2, _max);
+            _p3 = vminq_f32(_p3, _max);
+            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+            _q = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
+            vst1q_u16(ptr, _p);
+            vst1q_u16(ptr + 8, _q);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
+        }
+        for (; i + 7 < size; i += 8)
+        {
+            uint16x8_t _p = vld1q_u16(ptr);
+            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+            _p0 = vmaxq_f32(_p0, _min);
+            _p1 = vmaxq_f32(_p1, _min);
+            _p0 = vminq_f32(_p0, _max);
+            _p1 = vminq_f32(_p1, _max);
+            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+            vst1q_u16(ptr, _p);
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _p = bfloat2float(vld1_u16(ptr));
+            _p = vmaxq_f32(_p, _min);
+            _p = vminq_f32(_p, _max);
+            vst1_u16(ptr, float2bfloat(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON
-
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             float v = bfloat16_to_float32(*ptr);
             if (v < min)

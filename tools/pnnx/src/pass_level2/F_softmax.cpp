@@ -25,7 +25,7 @@ public:
 5 4
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 dtype value=None
+prim::Constant          op_0        0 1 dtype value=*
 aten::softmax           op_1        3 1 input dim dtype out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -38,5 +38,26 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax, 10)
+
+class F_softmax_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+aten::softmax_no_dtype  op_0        1 1 input out dim=%dim
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.softmax";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_1, 10)
 
 } // namespace pnnx

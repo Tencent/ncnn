@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_mips : virtual public InnerProduct
+class InnerProduct_mips : public InnerProduct
 {
 public:
     InnerProduct_mips();
@@ -29,8 +29,24 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+protected:
+#if __mips_msa
+    int create_pipeline_fp16s(const Option& opt);
+    int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+#if NCNN_INT8
+    int create_pipeline_int8_mips(const Option& opt);
+    int forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+
 public:
     Layer* flatten;
+
+    Mat weight_data_tm;
+
+#if NCNN_INT8
+    Mat scale_in_data;
+#endif
 };
 
 } // namespace ncnn

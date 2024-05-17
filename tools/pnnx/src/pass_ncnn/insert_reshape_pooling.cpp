@@ -36,8 +36,6 @@ void insert_reshape_pooling(Graph& graph)
             if (input_rank == 0)
                 continue;
 
-            fprintf(stderr, "insert_reshape_pooling %d\n", input_rank);
-
             // nn.MaxPool1d    2d-3d-2d
             // nn.MaxPool2d    3d-4d-3d
             // nn.MaxPool3d    4d-5d-4d
@@ -52,10 +50,14 @@ void insert_reshape_pooling(Graph& graph)
             if (!insert_reshape)
                 continue;
 
+            fprintf(stderr, "insert_reshape_pooling %d\n", input_rank);
+
             matched = true;
 
             Operand* pooling_in = op->inputs[0];
             Operand* pooling_out = op->outputs[0];
+
+            const int batch_index = pooling_in->params["__batch_index"].i;
 
             Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
             Operator* reshape1 = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape1", op);
@@ -85,6 +87,9 @@ void insert_reshape_pooling(Graph& graph)
             reshape0_out->consumers.push_back(op);
             reshape1_in->producer = op;
             reshape1_in->consumers.push_back(reshape1);
+
+            reshape0_out->params["__batch_index"] = 0;
+            reshape1_in->params["__batch_index"] = batch_index;
 
             std::vector<int> reshape0_shape = pooling_in->shape;
             reshape0_shape.insert(reshape0_shape.begin(), 1);

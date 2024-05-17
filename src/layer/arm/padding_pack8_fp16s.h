@@ -12,10 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, float16x8_t _v)
+static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, uint16x8_t v)
 {
-    const __fp16* ptr = src;
-    __fp16* outptr = dst;
+    const unsigned short* ptr = src;
+    unsigned short* outptr = dst;
 
     int w = src.w;
     int h = src.h;
@@ -23,6 +23,7 @@ static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top,
     int top_size = top * dst.w;
     int bottom_size = bottom * dst.w;
 
+#if NCNN_GNU_INLINE_ASM
     asm volatile(
         "mov    v0.16b, %10.16b         \n"
         "mov    v1.16b, %10.16b         \n"
@@ -154,57 +155,115 @@ static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top,
         "r"(right),       // %7
         "r"(top_size),    // %8
         "r"(bottom_size), // %9
-        "w"(_v)           // %10
+        "w"(v)            // %10
         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19");
-}
-
-static void padding_replicate_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)
-{
-    const __fp16* ptr = src;
-    __fp16* outptr = dst;
+#else  // NCNN_GNU_INLINE_ASM
 
     // fill top
-    for (int y = 0; y < top; y++)
     {
-        const __fp16* ptr0 = ptr;
-        float16x8_t _p = vld1q_f16(ptr0);
-        for (int x = 0; x < left; x++)
+        int x = 0;
+        for (; x + 3 < top_size; x += 4)
         {
-            vst1q_f16(outptr, _p);
-            outptr += 8;
+            vst1q_u16(outptr, v);
+            vst1q_u16(outptr + 8, v);
+            vst1q_u16(outptr + 16, v);
+            vst1q_u16(outptr + 24, v);
+            outptr += 32;
         }
-        for (int x = 0; x < src.w; x++)
+        for (; x < top_size; x++)
         {
-            _p = vld1q_f16(ptr0);
-            vst1q_f16(outptr, _p);
-            ptr0 += 8;
-            outptr += 8;
-        }
-        for (int x = 0; x < right; x++)
-        {
-            vst1q_f16(outptr, _p);
+            vst1q_u16(outptr, v);
             outptr += 8;
         }
     }
     // fill center
     for (int y = 0; y < src.h; y++)
     {
-        float16x8_t _p = vld1q_f16(ptr);
         for (int x = 0; x < left; x++)
         {
-            vst1q_f16(outptr, _p);
+            vst1q_u16(outptr, v);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = vld1q_f16(ptr);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr);
+            vst1q_u16(outptr, _p);
             ptr += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            vst1q_f16(outptr, _p);
+            vst1q_u16(outptr, v);
+            outptr += 8;
+        }
+    }
+    // fill bottom
+    {
+        int x = 0;
+        for (; x + 3 < bottom_size; x += 4)
+        {
+            vst1q_u16(outptr, v);
+            vst1q_u16(outptr + 8, v);
+            vst1q_u16(outptr + 16, v);
+            vst1q_u16(outptr + 24, v);
+            outptr += 32;
+        }
+        for (; x < bottom_size; x++)
+        {
+            vst1q_u16(outptr, v);
+            outptr += 8;
+        }
+    }
+#endif // NCNN_GNU_INLINE_ASM
+}
+
+static void padding_replicate_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)
+{
+    const unsigned short* ptr = src;
+    unsigned short* outptr = dst;
+
+    // fill top
+    for (int y = 0; y < top; y++)
+    {
+        const unsigned short* ptr0 = ptr;
+        uint16x8_t _p = vld1q_u16(ptr0);
+        for (int x = 0; x < left; x++)
+        {
+            vst1q_u16(outptr, _p);
+            outptr += 8;
+        }
+        for (int x = 0; x < src.w; x++)
+        {
+            _p = vld1q_u16(ptr0);
+            vst1q_u16(outptr, _p);
+            ptr0 += 8;
+            outptr += 8;
+        }
+        for (int x = 0; x < right; x++)
+        {
+            vst1q_u16(outptr, _p);
+            outptr += 8;
+        }
+    }
+    // fill center
+    for (int y = 0; y < src.h; y++)
+    {
+        uint16x8_t _p = vld1q_u16(ptr);
+        for (int x = 0; x < left; x++)
+        {
+            vst1q_u16(outptr, _p);
+            outptr += 8;
+        }
+        for (int x = 0; x < src.w; x++)
+        {
+            _p = vld1q_u16(ptr);
+            vst1q_u16(outptr, _p);
+            ptr += 8;
+            outptr += 8;
+        }
+        for (int x = 0; x < right; x++)
+        {
+            vst1q_u16(outptr, _p);
             outptr += 8;
         }
     }
@@ -212,23 +271,23 @@ static void padding_replicate_pack8_fp16s_neon(const Mat& src, Mat& dst, int top
     ptr -= src.w * 8;
     for (int y = 0; y < bottom; y++)
     {
-        const __fp16* ptr0 = ptr;
-        float16x8_t _p = vld1q_f16(ptr0);
+        const unsigned short* ptr0 = ptr;
+        uint16x8_t _p = vld1q_u16(ptr0);
         for (int x = 0; x < left; x++)
         {
-            vst1q_f16(outptr, _p);
+            vst1q_u16(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = vld1q_f16(ptr0);
-            vst1q_f16(outptr, _p);
+            _p = vld1q_u16(ptr0);
+            vst1q_u16(outptr, _p);
             ptr0 += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            vst1q_f16(outptr, _p);
+            vst1q_u16(outptr, _p);
             outptr += 8;
         }
     }
@@ -236,31 +295,31 @@ static void padding_replicate_pack8_fp16s_neon(const Mat& src, Mat& dst, int top
 
 static void padding_reflect_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)
 {
-    const __fp16* ptr = src;
-    __fp16* outptr = dst;
+    const unsigned short* ptr = src;
+    unsigned short* outptr = dst;
 
     // fill top
     ptr += top * src.w * 8;
     for (int y = 0; y < top; y++)
     {
-        const __fp16* ptr0 = ptr;
+        const unsigned short* ptr0 = ptr;
         for (int x = 0; x < left; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr0 + (left - x) * 8);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr0 + (left - x) * 8);
+            vst1q_u16(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr0);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr0);
+            vst1q_u16(outptr, _p);
             ptr0 += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr0 - 16 - x * 8);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr0 - 16 - x * 8);
+            vst1q_u16(outptr, _p);
             outptr += 8;
         }
         ptr -= src.w * 8;
@@ -270,21 +329,21 @@ static void padding_reflect_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, 
     {
         for (int x = 0; x < left; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr + (left - x) * 8);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr + (left - x) * 8);
+            vst1q_u16(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr);
+            vst1q_u16(outptr, _p);
             ptr += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr - 16 - x * 8);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr - 16 - x * 8);
+            vst1q_u16(outptr, _p);
             outptr += 8;
         }
     }
@@ -292,24 +351,24 @@ static void padding_reflect_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, 
     ptr -= 2 * src.w * 8;
     for (int y = 0; y < bottom; y++)
     {
-        const __fp16* ptr0 = ptr;
+        const unsigned short* ptr0 = ptr;
         for (int x = 0; x < left; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr0 + (left - x) * 8);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr0 + (left - x) * 8);
+            vst1q_u16(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr0);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr0);
+            vst1q_u16(outptr, _p);
             ptr0 += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr0 - 16 - x * 8);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr0 - 16 - x * 8);
+            vst1q_u16(outptr, _p);
             outptr += 8;
         }
         ptr -= src.w * 8;

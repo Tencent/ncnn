@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Padding_mips : virtual public Padding
+class Padding_mips : public Padding
 {
 public:
     Padding_mips();

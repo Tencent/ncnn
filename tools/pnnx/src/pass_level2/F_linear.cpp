@@ -52,7 +52,7 @@ pnnx.Input              input_2     0 1 bias
 aten::t                 op_0        1 1 weight 9
 aten::matmul            op_1        2 1 input 9 a
 prim::Constant          op_2        0 1 19 value=1
-aten::add_              op_3        3 1 a bias 19 out
+aten::add               op_3        3 1 a bias 19 out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

@@ -46,7 +46,10 @@ public:
         Operation_ACOS = 13,
         Operation_ATAN = 14,
         Operation_RECIPROCAL = 15,
-        Operation_TANH = 16
+        Operation_TANH = 16,
+        Operation_LOG10 = 17,
+        Operation_ROUND = 18,
+        Operation_TRUNC = 19
     };
 
 public:

@@ -22,30 +22,36 @@ class Model(nn.Module):
 
         self.act_0 = nn.ReLU6()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = self.act_0(x)
         y = self.act_0(y)
         z = self.act_0(z)
-        return x, y, z
+        w = self.act_0(w)
+        return x, y, z, w
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12)
-    y = torch.rand(1, 12, 64)
-    z = torch.rand(1, 12, 24, 64)
+    x = torch.rand(12)
+    y = torch.rand(12, 64)
+    z = torch.rand(12, 24, 64)
+    w = torch.rand(12, 24, 32, 64)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_nn_ReLU6.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_ReLU6.pt inputshape=[1,12],[1,12,64],[1,12,24,64]")
+    os.system("../../src/pnnx test_nn_ReLU6.pt inputshape=[12],[12,64],[12,24,64],[12,24,32,64]")
 
     # ncnn inference
     import test_nn_ReLU6_ncnn

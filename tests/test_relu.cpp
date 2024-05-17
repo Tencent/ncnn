@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/relu.h"
 #include "testutil.h"
 
 static int test_relu(const ncnn::Mat& a, float slope)
@@ -22,7 +21,7 @@ static int test_relu(const ncnn::Mat& a, float slope)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::ReLU>("ReLU", pd, weights, a);
+    int ret = test_layer("ReLU", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_relu failed a.dims=%d a=(%d %d %d %d) slope=%f\n", a.dims, a.w, a.h, a.d, a.c, slope);

@@ -109,9 +109,9 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
         {
             v4f32 _rows0 = (v4f32)__msa_ld_w(rows0p, 0);
             v4f32 _rows1 = (v4f32)__msa_ld_w(rows1p, 0);
-            v4f32 _D = __msa_fmul_w(_rows0, _b0);
-            _D = __msa_fmadd_w(_D, _rows1, _b1);
-            __msa_st_w((v4i32)_D, Dp, 0);
+            v4f32 _Dp = __msa_fmul_w(_rows0, _b0);
+            _Dp = __msa_fmadd_w(_Dp, _rows1, _b1);
+            __msa_st_w((v4i32)_Dp, Dp, 0);
 
             Dp += 4;
             rows0p += 4;

@@ -16,7 +16,6 @@
 
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -1041,7 +1040,7 @@ static int reduction(const Mat& a, Mat& b, float v0, bool reduce_w, bool reduce_
     if (ret != 0)
         return -100;
 
-    if (post_process || fabs(coeff - 1.f) > FLT_EPSILON)
+    if (post_process || fabsf(coeff - 1.f) > FLT_EPSILON)
     {
         ret = reduction_post_process<Op3>(b, coeff, opt);
         if (ret != 0)
@@ -1065,7 +1064,11 @@ struct post_process_sqrt
 {
     T operator()(const T& x) const
     {
-        return static_cast<T>(sqrt(x));
+        // math optimization will probably generate rsqrt
+        // that produce -inf on sse with subnormal input
+        // flush subnormal input to zero as a workaround
+        // TODO explicit use simd sqrt like unaryop     --- nihui
+        return static_cast<T>(sqrtf(x < FLT_MIN ? 0.f : x));
     }
 };
 
@@ -1074,7 +1077,7 @@ struct post_process_log
 {
     T operator()(const T& x) const
     {
-        return static_cast<T>(log(x));
+        return static_cast<T>(logf(x));
     }
 };
 
@@ -1101,7 +1104,7 @@ struct reduction_op_asum
 {
     T operator()(const T& x, const T& y) const
     {
-        return static_cast<T>(x + fabs(y));
+        return static_cast<T>(x + fabsf(y));
     }
 };
 
@@ -1119,7 +1122,7 @@ struct reduction_op_sumsexp
 {
     T operator()(const T& x, const T& y) const
     {
-        return static_cast<T>(x + exp(y));
+        return static_cast<T>(x + expf(y));
     }
 };
 

@@ -94,7 +94,6 @@ in.substract_mean_normalize(mean_vals, 0);
 ncnn::Mat in;// input blob as above
 ncnn::Mat out;
 ncnn::Extractor ex = net.create_extractor();
-ex.set_light_mode(true);
 ex.input("data", in);
 ex.extract("prob", out);
 ```
@@ -105,7 +104,6 @@ ex.extract("prob", out);
 ncnn::Mat in;// input blob as above
 ncnn::Mat out;
 ncnn::Extractor ex = net.create_extractor();
-ex.set_light_mode(true);
 ex.input(alexnet_param_id::BLOB_data, in);
 ex.extract(alexnet_param_id::BLOB_prob, out);
 ```
@@ -121,10 +119,6 @@ for (int j=0; j<out_flatterned.w; j++)
 ```
 ### 某些使用技巧
 
-Extractor 有个多线程加速的开关，设置线程数能加快计算
-```cpp
-ex.set_num_threads(4);
-```
 Mat 转换图像的时候可以顺便转换颜色和缩放大小，这些顺带的操作也是有优化的
 支持 RGB2GRAY GRAY2RGB RGB2BGR 等常用转换，支持缩小和放大
 ```cpp
