@@ -22,7 +22,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
         self.attention_0_0 = nn.MultiheadAttention(embed_dim=64, num_heads=4)
-        self.attention_0_1 = nn.MultiheadAttention(embed_dim=64, num_heads=8, bias=False, add_bias_kv=False, add_zero_attn=False)
+        self.attention_0_1 = nn.MultiheadAttention(embed_dim=64, num_heads=8, bias=True, add_bias_kv=False, add_zero_attn=False)
         self.attention_0_2 = nn.MultiheadAttention(embed_dim=64, num_heads=16, bias=True, add_bias_kv=True, add_zero_attn=True)
 
         self.attention_0_3 = nn.MultiheadAttention(embed_dim=32, num_heads=8, bias=True)
