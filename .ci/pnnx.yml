@@ -190,7 +190,7 @@ jobs:
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx
         cd build
-        ctest -R test_nn_MultiheadAttention || true
+        ctest -R test_nn_MultiheadAttention --verbose || true
         cat tests/test_nn_MultiheadAttention_pnnx.py
         #cd build && ctest --output-on-failure -j 16
 
