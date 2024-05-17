@@ -30,9 +30,9 @@ jobs:
           - torch-version: 1.8.1
             torchvision-version: 0.9.1
 
-          # - torch-version: 1.9.1
-          #   torchvision-version: 0.10.1
-          #
+          - torch-version: 1.9.1
+            torchvision-version: 0.10.1
+
           # - torch-version: 1.10.0
           #   torchvision-version: 0.11.1
           #
@@ -53,9 +53,9 @@ jobs:
           #
           # - torch-version: 2.2.1
           #   torchvision-version: 0.17.1
-          #
-          # - torch-version: 2.3.0
-          #   torchvision-version: 0.18.0
+
+          - torch-version: 2.3.0
+            torchvision-version: 0.18.0
 
     runs-on:
       pool-name: docker
@@ -167,9 +167,9 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 16
         cd ..
-        export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+        export CMAKE_BUILD_PARALLEL_LEVEL=16
         pip3 install --user .
 
     - name: build-pnnx
@@ -179,7 +179,7 @@ jobs:
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -Dprotobuf_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/lib/cmake/protobuf ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 16
 
     - name: test
       run: |
