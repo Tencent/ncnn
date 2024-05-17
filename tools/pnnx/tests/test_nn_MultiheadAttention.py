@@ -43,9 +43,9 @@ class Model(nn.Module):
             self.attention_1_6 = nn.MultiheadAttention(embed_dim=40, num_heads=10, kdim=30, vdim=20, bias=True, add_bias_kv=True, add_zero_attn=True, batch_first=True)
 
     def forward(self, xq, xk, xv, z, zmask, yq, yk, yv, ymask, ymask2):
-        x0, x0w = self.attention_0_0(xq, xk, xv)
-        x1, x1w = self.attention_0_1(xq, xk, xv)
-        x2, x2w = self.attention_0_2(xq, xk, xk)
+        x0, x0w = self.attention_0_0(xq.clone(), xk.clone(), xv.clone())
+        x1, x1w = self.attention_0_1(xq.clone(), xk.clone(), xv.clone())
+        x2, x2w = self.attention_0_2(xq.clone(), xk.clone(), xk.clone())
 
         x3, _ = self.attention_0_3(z, z, z, need_weights=False)
         x33, _ = self.attention_0_3(z, z, z, attn_mask=zmask)
@@ -126,11 +126,11 @@ def test():
     b = test_nn_MultiheadAttention_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
+        print(a0.shape)
+        print(b0.shape)
+        print(a0)
+        print(b0)
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            print(a0.shape)
-            print(b0.shape)
-            print(a0)
-            print(b0)
             return False
     return True
 
