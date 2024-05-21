@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -46,23 +47,35 @@ def test():
     # export onnx
     torch.onnx.export(net, (x, y, z, w), "test_F_relu.onnx")
 
+    # onnx to pnnx
+    import os
+    os.system("../../src/pnnx test_F_relu.onnx inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
+
+    # pnnx inference
+    import test_F_relu_pnnx
+    b = test_F_relu_pnnx.test_inference()
+
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.3'):
+        return True
+
     # export dynamo onnx
     torch.onnx.dynamo_export(net, x, y, z, w).save("test_F_relu_dynamo.onnx")
 
     # onnx to pnnx
-    import os
-    os.system("../../src/pnnx test_F_relu.onnx inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
     os.system("../../src/pnnx test_F_relu_dynamo.onnx inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
 
     # pnnx inference
-    import test_F_relu_pnnx
     import test_F_relu_dynamo_pnnx
-    b = test_F_relu_pnnx.test_inference()
-    c = test_F_relu_dynamo_pnnx.test_inference()
+    b = test_F_relu_dynamo_pnnx.test_inference()
 
-    for a0, b0, c0 in zip(a, b, c):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4) or not torch.allclose(a0, c0, 1e-4, 1e-4):
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
+
     return True
 
 if __name__ == "__main__":
