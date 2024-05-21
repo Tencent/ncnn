@@ -452,11 +452,22 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
     fprintf(stderr, "%10.2fms\n", t1 - t0);
 
     // save
-    std::fstream output("debug.onnx", std::ios::out | std::ios::trunc | std::ios::binary);
-    if (!model.SerializeToOstream(&output))
     {
-        fprintf(stderr, "write onnx failed\n");
-        return -1;
+        std::string simonnx_path;
+        if (onnxpath.size() > 5 && onnxpath.substr(onnxpath.size() - 5) == ".onnx")
+        {
+            simonnx_path = onnxpath.substr(0, onnxpath.size() - 5) + ".pnnxsim.onnx";
+        }
+        else
+        {
+            simonnx_path = onnxpath + ".pnnxsim.onnx";
+        }
+        std::fstream output(simonnx_path, std::ios::out | std::ios::trunc | std::ios::binary);
+        if (!model.SerializeToOstream(&output))
+        {
+            fprintf(stderr, "write pnnxsim onnx failed\n");
+            return -1;
+        }
     }
 
     onnx2pnnx::ModelStat newstat = onnx2pnnx::get_model_stat(model);

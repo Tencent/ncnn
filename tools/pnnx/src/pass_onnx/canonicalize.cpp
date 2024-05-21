@@ -155,10 +155,12 @@ void canonicalize(onnx::ModelProto& model)
                 }
                 else
                 {
-                    // fprintf(stderr, "%s -> %s\n", node_input.c_str(), std::to_string(input_output_index).c_str());
+                    std::string new_name = std::string("pnnx_") + std::to_string(input_output_index);
 
-                    input_output_remap[node_input] = std::to_string(input_output_index);
-                    node->set_input(j, std::to_string(input_output_index));
+                    // fprintf(stderr, "%s -> pnnx_%s\n", node_input.c_str(), new_name.c_str());
+
+                    input_output_remap[node_input] = new_name;
+                    node->set_input(j, new_name);
                     input_output_index++;
                 }
             }
@@ -176,10 +178,12 @@ void canonicalize(onnx::ModelProto& model)
                 }
                 else
                 {
-                    // fprintf(stderr, "%s -> %s\n", node_output.c_str(), std::to_string(input_output_index).c_str());
+                    std::string new_name = std::string("pnnx_") + std::to_string(input_output_index);
 
-                    input_output_remap[node_output] = std::to_string(input_output_index);
-                    node->set_output(j, std::to_string(input_output_index));
+                    // fprintf(stderr, "%s -> pnnx_%s\n", node_output.c_str(), new_name.c_str());
+
+                    input_output_remap[node_output] = new_name;
+                    node->set_output(j, new_name);
                     input_output_index++;
                 }
             }
