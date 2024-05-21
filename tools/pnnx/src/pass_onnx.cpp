@@ -614,9 +614,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::slice";
             }
 
-            if (op_type == "Transpose")
+            if (op_type == "Concat")
             {
-                sim_op_type = "aten::permute";
+                sim_op_type = "aten::cat";
             }
 
             if (op_type == "Add")
@@ -914,23 +914,38 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             {
                 if (op->inputs.size() == 4)
                 {
-                    // data start end dim -> data dim start end
-                    op->inputnames = {"data", "dim", "start", "end"};
+                    // data start end dim -> input dim start end
+                    op->inputnames = {"input", "dim", "start", "end"};
                     op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2]};
                     op->params["step"] = 1;
                 }
                 else // if (op->inputs.size() == 5)
                 {
-                    // data start end dim step -> data dim start end step
-                    op->inputnames = {"data", "dim", "start", "end", "step"};
+                    // data start end dim step -> input dim start end step
+                    op->inputnames = {"input", "dim", "start", "end", "step"};
                     op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2], op->inputs[4]};
                 }
             }
 
-            if (op_type == "Transpose")
+            if (op_type == "Concat")
             {
-                op->params["dims"] = op->params["perm"];
-                op->params.erase("perm");
+                op->params["dim"] = op->params["axis"];
+                op->params.erase("axis");
+
+                // insert for cat prim::ListConstruct
+                Operator* opm1 = pnnx_graph.new_operator_before("prim::ListConstruct", op->name + "_listconstruct", op);
+                Operand* opm1_out = pnnx_graph.new_operand(op->name + "_in");
+                opm1_out->producer = opm1;
+                opm1->outputs.push_back(opm1_out);
+                for (auto& x : op->inputs)
+                {
+                    opm1->inputs.push_back(x);
+                    x->remove_consumer(op);
+                    x->consumers.push_back(opm1);
+                }
+                opm1_out->consumers.push_back(op);
+                op->inputs.clear();
+                op->inputs.push_back(opm1_out);
             }
         }
         else if (is_prim_op)

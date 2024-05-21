@@ -20,7 +20,7 @@ variables:
   libtorch_version: 2.3.0
   libtorchvision_version: 0.18.0
   onnxruntime_version: 1.17.3
-  cache_date: 20240501
+  cache_date: 20240502
 
 jobs:
   ubuntu:

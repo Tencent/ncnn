@@ -42,18 +42,18 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm, 10)
 
-class F_layer_norm_1 : public GraphRewriterPass
+class F_layer_norm_onnx : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 6
+5 4
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-LayerNormalization      op_0        3 3 input weight bias out Mean InvStdDev axis=%axis epsilon=%epsilon stash_type=%stash_type
-pnnx.Output             output      3 0 out Mean InvStdDev
+LayerNormalization      op_0        3 1 input weight bias out axis=%axis epsilon=%epsilon
+pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
@@ -80,6 +80,29 @@ pnnx.Output             output      3 0 out Mean InvStdDev
 
         op->params["normalized_shape"] = normalized_shape;
         op->params["eps"] = captured_params.at("epsilon");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx, 10)
+
+class F_layer_norm_onnx_1 : public F_layer_norm_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+LayerNormalization      op_0        3 3 input weight bias out Mean InvStdDev axis=%axis epsilon=%epsilon stash_type=%stash_type
+pnnx.Output             output      3 0 out Mean InvStdDev
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        F_layer_norm_onnx::write(op, captured_params);
 
         // drop Mean and InvStdDev if not used
         if (op->outputs[1]->consumers.empty() && op->outputs[2]->consumers.empty())
@@ -91,6 +114,6 @@ pnnx.Output             output      3 0 out Mean InvStdDev
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 10)
 
 } // namespace pnnx
