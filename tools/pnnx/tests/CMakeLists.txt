@@ -354,3 +354,7 @@ if(TorchVision_FOUND)
 endif()
 
 add_subdirectory(ncnn)
+
+if(onnxruntime_FOUND)
+    add_subdirectory(onnx)
+endif()

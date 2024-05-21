@@ -623,6 +623,30 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             {
                 sim_op_type = "aten::add";
             }
+            if (op_type == "Sub")
+            {
+                sim_op_type = "aten::sub";
+            }
+            if (op_type == "Mul")
+            {
+                sim_op_type = "aten::mul";
+            }
+            if (op_type == "Div")
+            {
+                sim_op_type = "aten::div";
+            }
+            if (op_type == "Max")
+            {
+                sim_op_type = "aten::max";
+            }
+            if (op_type == "Min")
+            {
+                sim_op_type = "aten::min";
+            }
+            if (op_type == "Pow")
+            {
+                sim_op_type = "aten::pow";
+            }
         }
         else if (string_starts_with(op_type, "aten_"))
         {
