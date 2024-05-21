@@ -6,3 +6,5 @@ macro(pnnx_onnx_add_test name)
 endmacro()
 
 pnnx_onnx_add_test(F_relu)
+
+pnnx_onnx_add_test(resnet18)
