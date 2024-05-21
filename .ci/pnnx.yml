@@ -160,6 +160,8 @@ jobs:
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        pip3 install --user onnx
+        pip3 install --user onnxscript || true
 
     - name: build-ncnn
       run: |
