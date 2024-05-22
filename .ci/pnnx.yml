@@ -74,7 +74,7 @@ jobs:
         apt-get install -y python3-pip libjpeg-dev libpng-dev
         python3 -m pip install --upgrade pip
         apt-get remove -y python3-setuptools
-        pip3 install -U setuptools
+        pip3 install -U setuptools==69.5.1
         pip3 install -U pytest wheel twine requests einops
         cd ${{ci.workspace}}
         wget -q https://github.com/Kitware/CMake/releases/download/v3.29.3/cmake-3.29.3-linux-x86_64.tar.gz
