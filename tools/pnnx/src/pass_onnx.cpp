@@ -621,7 +621,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
             if (op_type == "Split")
             {
-                sim_op_type = "aten::tensor_split";
+                sim_op_type = "aten::split";
             }
 
             // unaryop
