@@ -619,34 +619,38 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::cat";
             }
 
-            if (op_type == "Add")
-            {
-                sim_op_type = "aten::add";
-            }
-            if (op_type == "Sub")
-            {
-                sim_op_type = "aten::sub";
-            }
-            if (op_type == "Mul")
-            {
-                sim_op_type = "aten::mul";
-            }
-            if (op_type == "Div")
-            {
-                sim_op_type = "aten::div";
-            }
-            if (op_type == "Max")
-            {
-                sim_op_type = "aten::max";
-            }
-            if (op_type == "Min")
-            {
-                sim_op_type = "aten::min";
-            }
-            if (op_type == "Pow")
-            {
-                sim_op_type = "aten::pow";
-            }
+            // unaryop
+            if (op_type == "Abs") sim_op_type = "aten::abs";
+            if (op_type == "Acos") sim_op_type = "aten::acos";
+            if (op_type == "Acosh") sim_op_type = "aten::acosh";
+            if (op_type == "Asin") sim_op_type = "aten::asin";
+            if (op_type == "Asinh") sim_op_type = "aten::asinh";
+            if (op_type == "Atan") sim_op_type = "aten::atan";
+            if (op_type == "Atanh") sim_op_type = "aten::atanh";
+            if (op_type == "Ceil") sim_op_type = "aten::ceil";
+            if (op_type == "Cos") sim_op_type = "aten::cos";
+            if (op_type == "Cosh") sim_op_type = "aten::cosh";
+            if (op_type == "Exp") sim_op_type = "aten::exp";
+            if (op_type == "Floor") sim_op_type = "aten::floor";
+            if (op_type == "Log") sim_op_type = "aten::log";
+            if (op_type == "Neg") sim_op_type = "aten::neg";
+            if (op_type == "Reciprocal") sim_op_type = "aten::reciprocal";
+            if (op_type == "Round") sim_op_type = "aten::round";
+            if (op_type == "Sign") sim_op_type = "aten::sign";
+            if (op_type == "Sin") sim_op_type = "aten::sin";
+            if (op_type == "Sinh") sim_op_type = "aten::sinh";
+            if (op_type == "Sqrt") sim_op_type = "aten::sqrt";
+            if (op_type == "Tan") sim_op_type = "aten::tan";
+            if (op_type == "Tanh") sim_op_type = "aten::tanh";
+
+            // binaryop
+            if (op_type == "Add") sim_op_type = "aten::add";
+            if (op_type == "Sub") sim_op_type = "aten::sub";
+            if (op_type == "Mul") sim_op_type = "aten::mul";
+            if (op_type == "Div") sim_op_type = "aten::div";
+            if (op_type == "Max") sim_op_type = "aten::max";
+            if (op_type == "Min") sim_op_type = "aten::min";
+            if (op_type == "Pow") sim_op_type = "aten::pow";
         }
         else if (string_starts_with(op_type, "aten_"))
         {

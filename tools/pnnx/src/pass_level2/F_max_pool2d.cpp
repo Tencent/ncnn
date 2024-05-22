@@ -128,7 +128,7 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+3 2
 pnnx.Input              input       0 1 input
 MaxPool                 op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads dilations=%dilations ceil_mode=%ceil_mode
 pnnx.Output             output      1 0 out
@@ -192,7 +192,7 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+3 2
 pnnx.Input              input       0 1 input
 MaxPool                 op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads ceil_mode=%ceil_mode
 pnnx.Output             output      1 0 out
@@ -250,7 +250,7 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+3 2
 pnnx.Input              input       0 1 input
 MaxPool                 op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads
 pnnx.Output             output      1 0 out
@@ -262,7 +262,7 @@ pnnx.Output             output      1 0 out
         return "F.max_pool2d";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         if (captured_params.at("kernel_shape").type != 5)
             return false;
@@ -281,7 +281,31 @@ pnnx.Output             output      1 0 out
 
         const std::vector<int>& pads = captured_params.at("pads").ai;
         if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
-            return false;
+        {
+            const Operator* maxpool = matched_operators.at("op_0");
+            const std::vector<int>& in_shape = maxpool->inputs[0]->shape;
+            if (in_shape.size() < 2)
+                return false;
+
+            const int inh = in_shape[in_shape.size() - 2];
+            const int inw = in_shape[in_shape.size() - 1];
+            const int kh = captured_params.at("kernel_shape").ai[0];
+            const int kw = captured_params.at("kernel_shape").ai[1];
+            const int sh = captured_params.at("strides").ai[0];
+            const int sw = captured_params.at("strides").ai[1];
+
+            const int wpad = kw + (inw - 1) / sw * sw - inw;
+            const int hpad = kh + (inh - 1) / sh * sh - inh;
+
+            if (pads[0] == hpad / 2 && pads[1] == wpad / 2 && pads[2] == hpad - hpad / 2 && pads[3] == wpad - wpad / 2)
+            {
+                // same upper mode
+            }
+            else
+            {
+                return false;
+            }
+        }
 
         return true;
     }
@@ -290,11 +314,34 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& pads = captured_params.at("pads").ai;
 
+        bool ceil_mode = false;
+        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
+        {
+            const std::vector<int>& in_shape = op->inputs[0]->shape;
+            if (in_shape.size() >= 2)
+            {
+                const int inh = in_shape[in_shape.size() - 2];
+                const int inw = in_shape[in_shape.size() - 1];
+                const int kh = captured_params.at("kernel_shape").ai[0];
+                const int kw = captured_params.at("kernel_shape").ai[1];
+                const int sh = captured_params.at("strides").ai[0];
+                const int sw = captured_params.at("strides").ai[1];
+
+                const int wpad = kw + (inw - 1) / sw * sw - inw;
+                const int hpad = kh + (inh - 1) / sh * sh - inh;
+
+                if (pads[0] == hpad / 2 && pads[1] == wpad / 2 && pads[2] == hpad - hpad / 2 && pads[3] == wpad - wpad / 2)
+                {
+                    ceil_mode = true;
+                }
+            }
+        }
+
         op->params["kernel_size"] = captured_params.at("kernel_shape");
         op->params["dilation"] = {1, 1};
         op->params["stride"] = captured_params.at("strides");
         op->params["padding"] = {pads[0], pads[1]};
-        op->params["ceil_mode"] = false;
+        op->params["ceil_mode"] = ceil_mode;
         op->params["return_indices"] = false;
     }
 };
