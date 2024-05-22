@@ -619,6 +619,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::cat";
             }
 
+            if (op_type == "Split")
+            {
+                sim_op_type = "aten::tensor_split";
+            }
+
             // unaryop
             if (op_type == "Abs") sim_op_type = "aten::abs";
             if (op_type == "Acos") sim_op_type = "aten::acos";
@@ -950,6 +955,28 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 opm1_out->consumers.push_back(op);
                 op->inputs.clear();
                 op->inputs.push_back(opm1_out);
+            }
+
+            if (op_type == "Split")
+            {
+                op->params["dim"] = op->params["axis"];
+                op->params.erase("axis");
+                op->params["indices"] = op->params["split"];
+                op->params.erase("split");
+
+                // insert for tensor_split prim::ListUnpack
+                Operator* op1 = pnnx_graph.new_operator_after("prim::ListUnpack", op->name + "_listunpack", op);
+                Operand* op1_in = pnnx_graph.new_operand(op->name + "_out");
+                op1_in->producer = op;
+                op1_in->consumers.push_back(op1);
+                op1->inputs.push_back(op1_in);
+                for (auto& x : op->outputs)
+                {
+                    x->producer = op1;
+                    op1->outputs.push_back(x);
+                }
+                op->outputs.clear();
+                op->outputs.push_back(op1_in);
             }
         }
         else if (is_prim_op)

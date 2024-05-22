@@ -70,7 +70,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-Split                   op_0        1 1 input out axis=%dim split=%indices
+aten::tensor_split      op_0        1 1 input out dim=%dim indices=%indices
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

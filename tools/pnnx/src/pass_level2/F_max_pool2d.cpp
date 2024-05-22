@@ -140,7 +140,7 @@ pnnx.Output             output      1 0 out
         return "F.max_pool2d";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         if (captured_params.at("kernel_shape").type != 5)
             return false;
@@ -163,9 +163,46 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("pads").type != 5)
             return false;
 
+        int ceil_mode = captured_params.at("ceil_mode").i;
+
         const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
+        if (pads.size() != 4)
             return false;
+
+        if (pads[0] != pads[2] || pads[1] != pads[3])
+        {
+            const Operator* maxpool = matched_operators.at("op_0");
+            const std::vector<int>& in_shape = maxpool->inputs[0]->shape;
+            const std::vector<int>& out_shape = maxpool->outputs[0]->shape;
+            if (in_shape.size() < 2 || out_shape.size() < 2)
+                return false;
+
+            const int inh = in_shape[in_shape.size() - 2];
+            const int inw = in_shape[in_shape.size() - 1];
+            const int outh = out_shape[out_shape.size() - 2];
+            const int outw = out_shape[out_shape.size() - 1];
+            const int kh = captured_params.at("kernel_shape").ai[0];
+            const int kw = captured_params.at("kernel_shape").ai[1];
+            const int dh = captured_params.at("dilations").ai[0];
+            const int dw = captured_params.at("dilations").ai[1];
+            const int sh = captured_params.at("strides").ai[0];
+            const int sw = captured_params.at("strides").ai[1];
+
+            const int keh = dh * (kh - 1) + 1;
+            const int kew = dw * (kw - 1) + 1;
+
+            const int hpad = (outh - 1) * sh + keh - inh;
+            const int wpad = (outw - 1) * sw + kew - inw;
+
+            if (ceil_mode == 0 && hpad == 0 && wpad == 0)
+            {
+                // useless tail padding  :D
+            }
+            else
+            {
+                return false;
+            }
+        }
 
         return true;
     }
@@ -204,7 +241,7 @@ pnnx.Output             output      1 0 out
         return "F.max_pool2d";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         if (captured_params.at("kernel_shape").type != 5)
             return false;
@@ -221,9 +258,41 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("pads").type != 5)
             return false;
 
+        int ceil_mode = captured_params.at("ceil_mode").i;
+
         const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
+        if (pads.size() != 4)
             return false;
+
+        if (pads[0] != pads[2] || pads[1] != pads[3])
+        {
+            const Operator* maxpool = matched_operators.at("op_0");
+            const std::vector<int>& in_shape = maxpool->inputs[0]->shape;
+            const std::vector<int>& out_shape = maxpool->outputs[0]->shape;
+            if (in_shape.size() < 2 || out_shape.size() < 2)
+                return false;
+
+            const int inh = in_shape[in_shape.size() - 2];
+            const int inw = in_shape[in_shape.size() - 1];
+            const int outh = out_shape[out_shape.size() - 2];
+            const int outw = out_shape[out_shape.size() - 1];
+            const int kh = captured_params.at("kernel_shape").ai[0];
+            const int kw = captured_params.at("kernel_shape").ai[1];
+            const int sh = captured_params.at("strides").ai[0];
+            const int sw = captured_params.at("strides").ai[1];
+
+            const int hpad = (outh - 1) * sh + kh - inh;
+            const int wpad = (outw - 1) * sw + kw - inw;
+
+            if (ceil_mode == 0 && hpad == 0 && wpad == 0)
+            {
+                // useless tail padding  :D
+            }
+            else
+            {
+                return false;
+            }
+        }
 
         return true;
     }
@@ -280,26 +349,32 @@ pnnx.Output             output      1 0 out
             return false;
 
         const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
+        if (pads.size() != 4)
+            return false;
+
+        if (pads[0] != pads[2] || pads[1] != pads[3])
         {
             const Operator* maxpool = matched_operators.at("op_0");
             const std::vector<int>& in_shape = maxpool->inputs[0]->shape;
-            if (in_shape.size() < 2)
+            const std::vector<int>& out_shape = maxpool->outputs[0]->shape;
+            if (in_shape.size() < 2 || out_shape.size() < 2)
                 return false;
 
             const int inh = in_shape[in_shape.size() - 2];
             const int inw = in_shape[in_shape.size() - 1];
+            const int outh = out_shape[out_shape.size() - 2];
+            const int outw = out_shape[out_shape.size() - 1];
             const int kh = captured_params.at("kernel_shape").ai[0];
             const int kw = captured_params.at("kernel_shape").ai[1];
             const int sh = captured_params.at("strides").ai[0];
             const int sw = captured_params.at("strides").ai[1];
 
-            const int wpad = kw + (inw - 1) / sw * sw - inw;
-            const int hpad = kh + (inh - 1) / sh * sh - inh;
+            const int hpad = (outh - 1) * sh + kh - inh;
+            const int wpad = (outw - 1) * sw + kw - inw;
 
-            if (pads[0] == hpad / 2 && pads[1] == wpad / 2 && pads[2] == hpad - hpad / 2 && pads[3] == wpad - wpad / 2)
+            if (hpad == 0 && wpad == 0)
             {
-                // same upper mode
+                // useless tail padding  :D
             }
             else
             {
@@ -314,34 +389,11 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& pads = captured_params.at("pads").ai;
 
-        bool ceil_mode = false;
-        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
-        {
-            const std::vector<int>& in_shape = op->inputs[0]->shape;
-            if (in_shape.size() >= 2)
-            {
-                const int inh = in_shape[in_shape.size() - 2];
-                const int inw = in_shape[in_shape.size() - 1];
-                const int kh = captured_params.at("kernel_shape").ai[0];
-                const int kw = captured_params.at("kernel_shape").ai[1];
-                const int sh = captured_params.at("strides").ai[0];
-                const int sw = captured_params.at("strides").ai[1];
-
-                const int wpad = kw + (inw - 1) / sw * sw - inw;
-                const int hpad = kh + (inh - 1) / sh * sh - inh;
-
-                if (pads[0] == hpad / 2 && pads[1] == wpad / 2 && pads[2] == hpad - hpad / 2 && pads[3] == wpad - wpad / 2)
-                {
-                    ceil_mode = true;
-                }
-            }
-        }
-
         op->params["kernel_size"] = captured_params.at("kernel_shape");
         op->params["dilation"] = {1, 1};
         op->params["stride"] = captured_params.at("strides");
         op->params["padding"] = {pads[0], pads[1]};
-        op->params["ceil_mode"] = ceil_mode;
+        op->params["ceil_mode"] = false;
         op->params["return_indices"] = false;
     }
 };
