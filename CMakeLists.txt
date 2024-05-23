@@ -474,6 +474,10 @@ else()
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mfma -mf16c")
         check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256 _s, _a, _b; _s = _mm256_fmadd_ps(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_FMA)
 
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mxop")
+        check_cxx_source_compiles("#include <ammintrin.h>\nint main() { __m128 _s, _a, _b; _s = _mm_maddd_epi16(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_XOP_0)
+        check_cxx_source_compiles("#include <x86intrin.h>\nint main() { __m128 _s, _a, _b; _s = _mm_maddd_epi16(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_XOP_1)
+
         check_cxx_compiler_flag("/arch:AVX -mxop" NCNN_COMPILER_SUPPORT_X86_XOP)
         check_cxx_compiler_flag("/arch:AVX -mf16c" NCNN_COMPILER_SUPPORT_X86_F16C)
         check_cxx_compiler_flag("/arch:AVX2 -mfma -mf16c" NCNN_COMPILER_SUPPORT_X86_AVX2)
