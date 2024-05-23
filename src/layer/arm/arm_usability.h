@@ -123,7 +123,7 @@ static inline int8x8_t float2int8leakyrelu(float32x4_t _vlow, float32x4_t _vhigh
 }
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 struct __fp16
 {
     __fp16()
