@@ -37,7 +37,7 @@ jobs:
 
     env:
       UseMultiToolTask: true
-      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=OFF
 
     steps:
     - uses: actions/checkout@v4
@@ -62,5 +62,5 @@ jobs:
     - name: arm64
       run: |
         mkdir build-arm64; cd build-arm64
-        cmake -T ClangCL -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} ..
+        cmake -T ClangCL -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_GNU_INLINE_ASM=OFF ..
         cmake --build . --config Release -j 4
