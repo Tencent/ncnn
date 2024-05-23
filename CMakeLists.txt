@@ -133,9 +133,10 @@ endif()
 
 ##############################################
 
+include(CheckCXXCompilerFlag)
+
 # gnu inline assembly in clang msvc does not work actually
 if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")))
-    include(CheckCXXCompilerFlag)
     check_cxx_source_compiles("int main() { int a = 0; asm volatile(\"\" : \"=r\"(a) : \"0\"(a) : \"memory\"); return 0; }" NCNN_COMPILER_SUPPORT_GNU_INLINE_ASM)
     if(NCNN_COMPILER_SUPPORT_GNU_INLINE_ASM)
         option(NCNN_GNU_INLINE_ASM "optimize platform with gnu style inline assembly" ON)
