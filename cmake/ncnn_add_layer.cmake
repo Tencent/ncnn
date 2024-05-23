@@ -134,7 +134,7 @@ macro(ncnn_add_layer class)
     endif()
 
     if(NCNN_TARGET_ARCH STREQUAL "x86")
-        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
             if(NCNN_RUNTIME_CPU AND NCNN_AVX512)
                 ncnn_add_arch_opt_layer(${class} avx512 "/arch:AVX512 /D__SSSE3__ /D__SSE4_1__ /D__FMA__ /D__F16C__")
             endif()
