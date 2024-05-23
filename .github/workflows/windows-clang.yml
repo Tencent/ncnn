@@ -43,6 +43,13 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
+
+    - name: arm64
+      run: |
+        mkdir build-arm64; cd build-arm64
+        cmake -T ClangCL -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_GNU_INLINE_ASM=OFF ..
+        cmake --build . --config Release -j 4
+
     - name: x86
       run: |
         mkdir build-x86; cd build-x86
@@ -58,9 +65,3 @@ jobs:
         cmake --build . --config Release -j 4
     - name: x64-test
       run: cd build-x64; ctest -C Release --output-on-failure -j 4
-
-    - name: arm64
-      run: |
-        mkdir build-arm64; cd build-arm64
-        cmake -T ClangCL -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_GNU_INLINE_ASM=OFF ..
-        cmake --build . --config Release -j 4
