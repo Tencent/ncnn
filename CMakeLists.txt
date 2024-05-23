@@ -450,7 +450,7 @@ else()
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
         check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_AVX)
 
-        set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mfma")
         check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256 _s, _a, _b; _s = _mm256_fmadd_ps(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_FMA)
 
         check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_XOP)
