@@ -37,7 +37,7 @@ jobs:
 
     env:
       UseMultiToolTask: true
-      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
 
     steps:
     - uses: actions/checkout@v4
@@ -48,12 +48,16 @@ jobs:
         mkdir build-x86; cd build-x86
         cmake -T ClangCL -A Win32 ${{ env.NCNN_CMAKE_OPTIONS }} ..
         cmake --build . --config Release -j 4
+    - name: x86-test
+      run: cd build-x86; ctest -C Release --output-on-failure -j 4
 
     - name: x64
       run: |
         mkdir build-x64; cd build-x64
         cmake -T ClangCL -A x64 ${{ env.NCNN_CMAKE_OPTIONS }} ..
         cmake --build . --config Release -j 4
+    - name: x64-test
+      run: cd build-x64; ctest -C Release --output-on-failure -j 4
 
     - name: arm64
       run: |
