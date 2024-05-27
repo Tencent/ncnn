@@ -39,6 +39,7 @@ jobs:
         -DCMAKE_TOOLCHAIN_FILE=/data/action/osd/ohos-sdk/linux/native/build/cmake/ohos.toolchain.cmake \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
+        -DNCNN_SIMPLEOMP=ON \
         -DNCNN_VULKAN=ON \
 
     steps:
