@@ -190,12 +190,7 @@ jobs:
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx
         cd build
-        ctest -R test_onnx_resnet18 || true
-
-    - uses: UploadArtifactory@1.*
-      with:
-        filePath: tools/pnnx/build/tests/onnx/test_resnet18_dynamo.onnx
-
+        ctest --verbose -R test_onnx_resnet18 || true
 
 
     #    cd build && ctest --output-on-failure -j 16
