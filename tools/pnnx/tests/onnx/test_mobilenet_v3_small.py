@@ -17,6 +17,9 @@ import torchvision.models as models
 from packaging import version
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.9'):
+        return True
+
     net = models.mobilenet_v3_small()
     net.eval()
 
