@@ -856,6 +856,13 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                     // create constant for functions
                     Operator* op_const = pnnx_graph.new_operator_before("pnnx.Attribute", input, op);
 
+                    // sanitize 123 to c123
+                    {
+                        char hc = op_const->name[0];
+                        if (hc >= '0' && hc <= '9')
+                            op_const->name = std::string("c") + op_const->name;
+                    }
+
                     Operand* op_const_out = pnnx_graph.new_operand(tensor);
 
                     op_const_out->producer = op_const;

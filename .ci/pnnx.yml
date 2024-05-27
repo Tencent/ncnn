@@ -178,7 +178,7 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -DProtobuf_INCLUDE_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/include -DProtobuf_LIBRARIES=${{ci.workspace}}/pnnx-deps-onnx-install/lib64/libprotobuf.a -DProtobuf_PROTOC_EXECUTABLE=${{ci.workspace}}/pnnx-deps-onnx-install/bin/protoc ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -DProtobuf_INCLUDE_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/include -DProtobuf_LIBRARIES=${{ci.workspace}}/pnnx-deps-onnx-install/lib/libprotobuf.a -DProtobuf_PROTOC_EXECUTABLE=${{ci.workspace}}/pnnx-deps-onnx-install/bin/protoc ..
         cmake --build . -j 16
 
     - name: test
