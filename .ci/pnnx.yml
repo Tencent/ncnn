@@ -178,8 +178,8 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -Dprotobuf_VERBOSE=ON -Dprotobuf_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/lib/cmake/protobuf -Dprotobuf_PROTOC_EXE=${{ci.workspace}}/pnnx-deps-onnx-install/bin/protoc ..
-        cmake --build . -j $(nproc)
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -Dprotobuf_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/lib/cmake/protobuf ..
+        cmake --build . -j 16 --verbose
 
     - name: test
       run: |
