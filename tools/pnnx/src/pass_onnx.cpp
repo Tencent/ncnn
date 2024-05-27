@@ -317,6 +317,15 @@ bool OnnxFunctionProxy::has_named_node(const std::string& name) const
 
 const OnnxNodeProxy OnnxFunctionProxy::typed_node(const std::string& type) const
 {
+    if (!has_typed_node(type))
+    {
+        for (auto x : typed_nodes)
+        {
+            fprintf(stderr, "     %s\n", x.first.c_str());
+        }
+    }
+
+
     int node_index = typed_nodes.at(type);
     return function.node(node_index);
 }
