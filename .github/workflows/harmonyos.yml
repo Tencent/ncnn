@@ -59,30 +59,30 @@ jobs:
       run: |
         mkdir build-armeabi-v7a && cd build-armeabi-v7a
         ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="armeabi-v7a" ..
-        ${{ env.OHOS_NDK_CMAKE }} --build . -j $(nproc)
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
     - name: arm64-v8a
       run: |
         mkdir build-arm64-v8a && cd build-arm64-v8a
         ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="arm64-v8a" ..
-        ${{ env.OHOS_NDK_CMAKE }} --build . -j $(nproc)
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
     - name: x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
         ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="x86_64" ..
-        ${{ env.OHOS_NDK_CMAKE }} --build . -j $(nproc)
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
 
     - name: armeabi-v7a-shared
       run: |
         mkdir build-armeabi-v7a-shared && cd build-armeabi-v7a-shared
         ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="armeabi-v7a" -DNCNN_SHARED_LIB=ON ..
-        ${{ env.OHOS_NDK_CMAKE }} --build . -j $(nproc)
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
     - name: arm64-v8a-shared
       run: |
         mkdir build-arm64-v8a-shared && cd build-arm64-v8a-shared
         ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="arm64-v8a" -DNCNN_SHARED_LIB=ON ..
-        ${{ env.OHOS_NDK_CMAKE }} --build . -j $(nproc)
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
     - name: x86_64-shared
       run: |
         mkdir build-x86_64-shared && cd build-x86_64-shared
         ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="x86_64" -DNCNN_SHARED_LIB=ON ..
-        ${{ env.OHOS_NDK_CMAKE }} --build . -j $(nproc)
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
