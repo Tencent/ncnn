@@ -30,12 +30,13 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, centos]
+
     env:
-      OHOS_NDK_HOME: $GITHUB_WORKSPACE/ohos-sdk/linux/native
-      OHOS_NDK_CMAKE: $GITHUB_WORKSPACE/ohos-sdk/linux/native/build-tools/cmake/bin/cmake
+      OHOS_NDK_HOME: /data/action/osd/ohos-sdk/linux/native
+      OHOS_NDK_CMAKE: /data/action/osd/ohos-sdk/linux/native/build-tools/cmake/bin/cmake
       NCNN_CMAKE_OPTIONS: |
-        -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/ohos-sdk/linux/native/build/cmake/ohos.toolchain.cmake \
+        -DCMAKE_TOOLCHAIN_FILE=/data/action/osd/ohos-sdk/linux/native/build/cmake/ohos.toolchain.cmake \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
         -DNCNN_VULKAN=ON \
@@ -45,13 +46,13 @@ jobs:
       with:
         submodules: true
 
-    - name: setup-sdk
-      run: |
-        cd $GITHUB_WORKSPACE
-        wget -q https://repo.huaweicloud.com/harmonyos/os/4.1.1-Release/ohos-sdk-windows_linux-public.tar.gz
-        tar -xf ohos-sdk-windows_linux-public.tar.gz
-        cd ohos-sdk/linux
-        unzip -q native-linux-x64-4.1.7.8-Release.zip
+    # - name: setup-sdk
+    #   run: |
+    #     cd /data/action/osd
+    #     wget -q https://repo.huaweicloud.com/harmonyos/os/4.1.1-Release/ohos-sdk-windows_linux-public.tar.gz
+    #     tar -xf ohos-sdk-windows_linux-public.tar.gz
+    #     cd ohos-sdk/linux
+    #     unzip -q native-linux-x64-4.1.7.8-Release.zip
 
     - name: armeabi-v7a
       run: |
