@@ -325,7 +325,6 @@ const OnnxNodeProxy OnnxFunctionProxy::typed_node(const std::string& type) const
         }
     }
 
-
     int node_index = typed_nodes.at(type);
     return function.node(node_index);
 }
