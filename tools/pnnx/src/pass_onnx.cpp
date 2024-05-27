@@ -860,7 +860,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                     {
                         char hc = op_const->name[0];
                         if (hc >= '0' && hc <= '9')
-                            op_const->name = std::string("c") + op_const->name;
+                            op_const->name = std::string("pnnx_") + op_const->name;
                     }
 
                     Operand* op_const_out = pnnx_graph.new_operand(tensor);

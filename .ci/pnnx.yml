@@ -27,32 +27,32 @@ jobs:
     strategy:
       matrix:
         include:
-#           - torch-version: 1.8.1
-#             torchvision-version: 0.9.1
-#
-#           - torch-version: 1.9.1
-#             torchvision-version: 0.10.1
-#
-#           - torch-version: 1.10.0
-#             torchvision-version: 0.11.1
-#
-#           - torch-version: 1.11.0
-#             torchvision-version: 0.12.0
-#
-#           - torch-version: 1.12.0
-#             torchvision-version: 0.13.0
-#
-#           - torch-version: 1.13.0
-#             torchvision-version: 0.14.0
-#
-#           - torch-version: 2.0.0
-#             torchvision-version: 0.15.1
-#
-#           - torch-version: 2.1.0
-#             torchvision-version: 0.16.0
-#
-#           - torch-version: 2.2.1
-#             torchvision-version: 0.17.1
+          # - torch-version: 1.8.1
+          #   torchvision-version: 0.9.1
+          #
+          # - torch-version: 1.9.1
+          #   torchvision-version: 0.10.1
+          #
+          # - torch-version: 1.10.0
+          #   torchvision-version: 0.11.1
+          #
+          # - torch-version: 1.11.0
+          #   torchvision-version: 0.12.0
+          #
+          # - torch-version: 1.12.0
+          #   torchvision-version: 0.13.0
+          #
+          # - torch-version: 1.13.0
+          #   torchvision-version: 0.14.0
+          #
+          # - torch-version: 2.0.0
+          #   torchvision-version: 0.15.1
+          #
+          # - torch-version: 2.1.0
+          #   torchvision-version: 0.16.0
+          #
+          # - torch-version: 2.2.1
+          #   torchvision-version: 0.17.1
 
           - torch-version: 2.3.0
             torchvision-version: 0.18.0
@@ -108,7 +108,7 @@ jobs:
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-torch-install -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_SHARED_LIBS=OFF -DBUILD_CAFFE2_OPS=OFF -DBUILD_CUSTOM_PROTOBUF=OFF -DBUILD_LITE_INTERPRETER=OFF -DBUILD_PYTHON=OFF -DINTERN_BUILD_MOBILE=ON -DINTERN_DISABLE_AUTOGRAD=ON -DINTERN_DISABLE_ONNX=ON -DUSE_CUDA=OFF -DUSE_DISTRIBUTED=OFF -DUSE_ITT=OFF -DUSE_KINETO=OFF -DUSE_LITE_INTERPRETER_PROFILER=OFF -DUSE_MKLDNN=OFF -DUSE_MPS=OFF -DUSE_NUMPY=OFF -DUSE_OPENMP=OFF -DUSE_SOURCE_DEBUG_ON_MOBILE=OFF -DUSE_XNNPACK=OFF ..
         cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
+        cmake --build . -j $(nproc) --target install/strip
     - name: pnnx-deps-torch-libtorchvision
       if: steps.cache-pnnx-deps-torch.outputs.cacheHit != 'true'
       run: |
@@ -121,7 +121,7 @@ jobs:
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-torch-install -DTorch_DIR=${{ci.workspace}}/pnnx-deps-torch-install/share/cmake/Torch -DCMAKE_BUILD_TYPE=MinSizeRel -DWITH_PNG=OFF -DWITH_JPEG=OFF ..
         cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
+        cmake --build . -j $(nproc) --target install/strip
 
     - name: cache-pnnx-deps-onnx
       id: cache-pnnx-deps-onnx
@@ -152,14 +152,14 @@ jobs:
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-onnx-install -DCMAKE_BUILD_TYPE=MinSizeRel -Donnxruntime_USE_FULL_PROTOBUF=ON -Donnxruntime_BUILD_SHARED_LIB=ON -Donnxruntime_BUILD_UNIT_TESTS=OFF -Donnxruntime_ENABLE_CPUINFO=OFF -Donnxruntime_DISABLE_CONTRIB_OPS=ON -Donnxruntime_DISABLE_ML_OPS=ON -Donnxruntime_DISABLE_SPARSE_TENSORS=ON --compile-no-warning-as-error ../cmake
         cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
+        cmake --build . -j $(nproc) --target install/strip
 
     - name: setup-pytorch
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
         pip3 install --user onnx
-        pip3 install --user onnxscript || true
+        pip3 install --user onnxscript
 
     - name: build-ncnn
       run: |
@@ -167,9 +167,9 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 16
+        cmake --build . -j $(nproc)
         cd ..
-        export CMAKE_BUILD_PARALLEL_LEVEL=16
+        export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
         pip3 install --user .
 
     - name: build-pnnx
@@ -178,8 +178,8 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -DProtobuf_INCLUDE_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/include -DProtobuf_LIBRARIES=${{ci.workspace}}/pnnx-deps-onnx-install/lib/libprotobuf.a -DProtobuf_PROTOC_EXECUTABLE=${{ci.workspace}}/pnnx-deps-onnx-install/bin/protoc ..
-        cmake --build . -j 16
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -Dprotobuf_VERBOSE=ON -Dprotobuf_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/lib/cmake/protobuf -Dprotobuf_PROTOC_EXE=${{ci.workspace}}/pnnx-deps-onnx-install/bin/protoc ..
+        cmake --build . -j $(nproc)
 
     - name: test
       run: |
@@ -189,7 +189,7 @@ jobs:
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx
-        cd build && ctest --output-on-failure -j 16
+        cd build && ctest --output-on-failure -j $(nproc)
 
     - name: python-pnnx
       run: |
