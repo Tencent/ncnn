@@ -317,14 +317,6 @@ bool OnnxFunctionProxy::has_named_node(const std::string& name) const
 
 const OnnxNodeProxy OnnxFunctionProxy::typed_node(const std::string& type) const
 {
-    if (!has_typed_node(type))
-    {
-        for (auto x : typed_nodes)
-        {
-            fprintf(stderr, "     %s\n", x.first.c_str());
-        }
-    }
-
     int node_index = typed_nodes.at(type);
     return function.node(node_index);
 }
@@ -503,7 +495,6 @@ static bool string_starts_with(const std::string& s, const std::string& s2)
 
 static void fuse_list_unpack(Graph& graph)
 {
-    fprintf(stderr, "fuse_list_unpack\n");
     // prim::Constant + aten::getitem ...  ->  prim::ListUnpack
 
     while (1)
@@ -696,7 +687,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             sim_op_type = std::string("custom_op.") + op_type;
         }
 
-        fprintf(stderr, "%-24s %-8s", sim_op_type.c_str(), node.name().c_str());
+        // fprintf(stderr, "%-24s %-8s", sim_op_type.c_str(), node.name().c_str());
 
         Operator* op = pnnx_graph.new_operator(sim_op_type, node.name());
 
