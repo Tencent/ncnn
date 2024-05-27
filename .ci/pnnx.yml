@@ -86,14 +86,23 @@ jobs:
       with:
         cachePaths: pnnx-deps-torch-install
         cacheKey: pnnx-deps-torch-linux-install-${{variables.cache_date}}
+
+    - name: cache-pnnx-deps-onnx
+      id: cache-pnnx-deps-onnx
+      uses: cache@1.*
+      with:
+        cachePaths: pnnx-deps-onnx-install
+        cacheKey: pnnx-deps-onnx-linux-install-${{variables.cache_date}}
+
     - name: checkout-pnnx-patches
-      if: steps.cache-pnnx-deps-torch.outputs.cacheHit != 'true'
+      if: steps.cache-pnnx-deps-torch.outputs.cacheHit != 'true' || steps.cache-pnnx-deps-onnx.outputs.cacheHit != 'true'
       checkout: https://github.com/pnnx/pnnx.git
       with:
         refName: main
         localPath: pnnx-patches
         enableSubmodule: false
         enableGitLfs: false
+
     - name: pnnx-deps-torch-libtorch
       if: steps.cache-pnnx-deps-torch.outputs.cacheHit != 'true'
       run: |
@@ -123,12 +132,6 @@ jobs:
         cmake --build . -j $(nproc)
         cmake --build . -j $(nproc) --target install/strip
 
-    - name: cache-pnnx-deps-onnx
-      id: cache-pnnx-deps-onnx
-      uses: cache@1.*
-      with:
-        cachePaths: pnnx-deps-onnx-install
-        cacheKey: pnnx-deps-onnx-linux-install-${{variables.cache_date}}
     - name: pnnx-deps-onnx-protobuf
       if: steps.cache-pnnx-deps-onnx.outputs.cacheHit != 'true'
       run: |
