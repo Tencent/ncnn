@@ -10,7 +10,6 @@ on:
     - 'src/layer/*'
     - 'src/layer/arm/**'
     - 'src/layer/x86/**'
-    - 'src/layer/mips/**'
     - 'src/layer/vulkan/**'
   pull_request:
     branches: [master]
@@ -22,7 +21,6 @@ on:
     - 'src/layer/*'
     - 'src/layer/arm/**'
     - 'src/layer/x86/**'
-    - 'src/layer/mips/**'
     - 'src/layer/vulkan/**'
 concurrency:
   group: android-${{ github.ref }}

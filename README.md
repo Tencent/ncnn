@@ -119,6 +119,32 @@ https://github.com/Tencent/ncnn/releases/latest
 
 <tr>
 <td rowspan=3>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/HMOS_Logo_Icon.svg/240px-HMOS_Logo_Icon.svg.png" width="120" height="auto">
+</td>
+<td colspan=3>
+
+</td>
+</tr>
+<tr>
+<td>HarmonyOS</td>
+<td>
+
+</td>
+<td rowspan=2>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/harmonyos.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aharmonyos)
+
+</td>
+</tr>
+<tr>
+<td>HarmonyOS shared</td>
+<td>
+
+</td>
+</tr>
+
+<tr>
+<td rowspan=3>
   <img src="https://user-images.githubusercontent.com/25181517/121406611-a8246b80-c95e-11eb-9b11-b771486377f6.png" width="120" height="auto">
 </td>
 <td colspan=3>

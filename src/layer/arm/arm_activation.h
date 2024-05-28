@@ -126,7 +126,7 @@ static inline float16x4_t activation_ps_f16(float16x4_t _v, int activation_type,
     else if (activation_type == 2)
     {
         const float16x4_t _zero = vdup_n_f16(0.f);
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
         const float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(activation_params[0]));
 #else
         const float16x4_t _slope = vdup_n_f16((__fp16)activation_params[0]);
@@ -176,7 +176,7 @@ static inline float16x8_t activation_ps_f16(float16x8_t _v, int activation_type,
     else if (activation_type == 2)
     {
         const float16x8_t _zero = vdupq_n_f16(0.f);
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
         const float16x4_t _slope0 = vcvt_f16_f32(vdupq_n_f32(activation_params[0]));
         const float16x8_t _slope = vcombine_f16(_slope0, _slope0);
 #else
