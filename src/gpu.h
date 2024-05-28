@@ -478,7 +478,7 @@ NCNN_EXPORT int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_si
 #else
 namespace ncnn {
 
-NCNN_EXPORT int create_gpu_instance(const char * driver_path = 0);
+NCNN_EXPORT int create_gpu_instance(const char* driver_path = 0);
 
 NCNN_EXPORT void destroy_gpu_instance(void);
 
