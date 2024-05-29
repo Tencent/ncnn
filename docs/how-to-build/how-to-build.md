@@ -26,6 +26,7 @@ git submodule update --init
 - [Build for Termux on Android](#build-for-termux-on-android)
 - [Build for QNX](#build-for-qnx)
 - [Build for Nintendo 3DS Homebrew Launcher](#build-for-nintendo-3ds-homebrew-launcher)
+- [Build for HarmonyOS with cross-compiling](#build-for-harmonyos-with-cross-compiling)
 
 ***
 
@@ -844,3 +845,24 @@ make install
 ```
 Modify the Makefile in Homebrew example to link and use NCNN in your 3DS Homebrew app.
 
+***
+
+### Build for HarmonyOS with cross-compiling
+Download and install HarmonyOS SDK. The sdk installation directory is `/opt/ohos-sdk/linux`
+
+```shell
+cd <ncnn-root-dir>
+mkdir -p build
+cd build
+
+export HM_SDK=/opt/ohos-sdk/linux
+
+# Choose HarmonyOS sdk cmake toolchain file. 
+# If you want to enable vulkan, set -DNCNN_VULKAN=ON
+# The HarmonyOS sdk does not support openmp, use ncnn simpleomp instead.
+# Cross-compiling with CMake must use the one provided by the HarmonyOS SDK; otherwise, it won't recognize parameters like OHOS_PLATFORM, leading to compilation errors.
+${HM_SDK}/native/build-tools/cmake/bin/cmake -DOHOS_STL=c++_static -DOHOS_ARCH=arm64-v8a -DOHOS_PLATFORM=OHOS -DCMAKE_TOOLCHAIN_FILE=${HM_SDK}/native/build/cmake/ohos.toolchain.cmake -DNCNN_VULKAN=ON -DNCNN_SIMPLEOMP=ON ..
+
+make -j$(nproc)
+make install
+```
