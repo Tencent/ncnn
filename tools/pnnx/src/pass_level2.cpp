@@ -112,7 +112,7 @@ void GraphRewriterPass::write(Operator* op, const std::map<std::string, Paramete
             int ai = shape[j];
             if (ai == -233)
             {
-                std::string key = operand->params.at(std::string("__shape_") + std::to_string(j)).s;
+                std::string key = operand->params.at(std::string("__shape__") + std::to_string(j)).s;
 
                 if (captured_params.find(key) == captured_params.end())
                 {
@@ -134,7 +134,7 @@ void GraphRewriterPass::write(Operator* op, const std::map<std::string, Paramete
             int ai = shape[j];
             if (ai == -233)
             {
-                std::string key = operand->params.at(std::string("__shape_") + std::to_string(j)).s;
+                std::string key = operand->params.at(std::string("__shape__") + std::to_string(j)).s;
 
                 if (captured_params.find(key) == captured_params.end())
                 {
@@ -556,7 +556,7 @@ static bool match_attribute(const Attribute& a, const Attribute& b, std::map<std
         if (bi != -233)
             return false;
 
-        std::string key = b.params.at(std::string("__shape_") + std::to_string(j)).s;
+        std::string key = b.params.at(std::string("__shape__") + std::to_string(j)).s;
 
         if (captured_params.find(key) != captured_params.end())
         {
@@ -654,7 +654,7 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
             if (bi != -233)
                 return false;
 
-            std::string key = b->inputs[i]->params.at(std::string("__shape_") + std::to_string(j)).s;
+            std::string key = b->inputs[i]->params.at(std::string("__shape__") + std::to_string(j)).s;
 
             if (captured_params.find(key) != captured_params.end())
             {
@@ -702,7 +702,7 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
             if (bi != -233)
                 return false;
 
-            std::string key = b->outputs[i]->params.at(std::string("__shape_") + std::to_string(j)).s;
+            std::string key = b->outputs[i]->params.at(std::string("__shape__") + std::to_string(j)).s;
 
             if (captured_params.find(key) != captured_params.end())
             {

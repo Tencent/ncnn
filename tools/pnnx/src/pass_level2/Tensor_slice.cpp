@@ -41,4 +41,28 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice, 20)
 
+class Tensor_slice_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 dim
+pnnx.Input              input_2     0 1 start
+pnnx.Input              input_3     0 1 end
+aten::slice             op_0        4 1 input dim start end out step=%step
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.slice";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice_onnx, 20)
+
 } // namespace pnnx

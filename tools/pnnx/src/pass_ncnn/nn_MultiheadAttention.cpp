@@ -164,7 +164,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_MultiheadAttention_1, 20)
 
-class nn_MultiheadAttention_1_attn_mask : public nn_MultiheadAttention
+class nn_MultiheadAttention_1_attn_mask : public nn_MultiheadAttention_attn_mask
 {
 public:
     const char* match_pattern_graph() const
@@ -176,18 +176,6 @@ pnnx.Input              input_1     0 1 attn_mask
 nn.MultiheadAttention   op_0        2 1 input attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
-    {
-        const Operator* mha = matched_operators.at("op_0");
-        return mha->inputnames.size() == 2 && mha->inputnames[1] == "attn_mask";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        nn_MultiheadAttention::write(op, captured_params, captured_attrs);
-        op->params["5"] = 1;
     }
 };
 
@@ -375,7 +363,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_MultiheadAttention_3, 20)
 
-class nn_MultiheadAttention_3_attn_mask : public nn_MultiheadAttention_2
+class nn_MultiheadAttention_3_attn_mask : public nn_MultiheadAttention_2_attn_mask
 {
 public:
     const char* match_pattern_graph() const
@@ -389,18 +377,6 @@ pnnx.Input              input_3     0 1 attn_mask
 nn.MultiheadAttention   op_0        4 1 query key value attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
-    {
-        const Operator* mha = matched_operators.at("op_0");
-        return mha->inputnames.size() == 4 && mha->inputnames[3] == "attn_mask";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        nn_MultiheadAttention_2::write(op, captured_params, captured_attrs);
-        op->params["5"] = 1;
     }
 };
 
@@ -453,7 +429,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_MultiheadAttention_4_attn_mask, 19)
 
-class nn_MultiheadAttention_5 : public nn_MultiheadAttention_2
+class nn_MultiheadAttention_5 : public nn_MultiheadAttention_4
 {
 public:
     const char* match_pattern_graph() const
@@ -470,7 +446,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_MultiheadAttention_5, 20)
 
-class nn_MultiheadAttention_5_attn_mask : public nn_MultiheadAttention_2
+class nn_MultiheadAttention_5_attn_mask : public nn_MultiheadAttention_4_attn_mask
 {
 public:
     const char* match_pattern_graph() const
@@ -483,18 +459,6 @@ pnnx.Input              input_2     0 1 attn_mask
 nn.MultiheadAttention   op_0        3 1 query key attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
-    {
-        const Operator* mha = matched_operators.at("op_0");
-        return mha->inputnames.size() == 3 && mha->inputnames[2] == "attn_mask";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        nn_MultiheadAttention_2::write(op, captured_params, captured_attrs);
-        op->params["5"] = 1;
     }
 };
 

@@ -161,4 +161,130 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_1, 10)
 
+class F_conv2d_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+Conv                    op_0        3 1 input weight bias out kernel_shape=%kernel_shape strides=%strides pads=%pads dilations=%dilations group=%group
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.conv2d";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("kernel_shape").type != 5)
+            return false;
+
+        if (captured_params.at("kernel_shape").ai.size() != 2)
+            return false;
+
+        if (captured_params.at("strides").type != 5)
+            return false;
+
+        if (captured_params.at("strides").ai.size() != 2)
+            return false;
+
+        if (captured_params.at("dilations").type != 5)
+            return false;
+
+        if (captured_params.at("dilations").ai.size() != 2)
+            return false;
+
+        if (captured_params.at("group").type != 2)
+            return false;
+
+        if (captured_params.at("pads").type != 5)
+            return false;
+
+        const std::vector<int>& pads = captured_params.at("pads").ai;
+        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& pads = captured_params.at("pads").ai;
+
+        op->params["stride"] = captured_params.at("strides");
+        op->params["dilation"] = captured_params.at("dilations");
+        op->params["groups"] = captured_params.at("group");
+        op->params["padding"] = {pads[0], pads[1]};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx, 10)
+
+class F_conv2d_onnx_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+Conv                    op_0        3 1 input weight bias out strides=%strides pads=%pads dilations=%dilations group=%group auto_pad=NOTSET
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.conv2d";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("strides").type != 5)
+            return false;
+
+        if (captured_params.at("strides").ai.size() != 2)
+            return false;
+
+        if (captured_params.at("dilations").type != 5)
+            return false;
+
+        if (captured_params.at("dilations").ai.size() != 2)
+            return false;
+
+        if (captured_params.at("group").type != 2)
+            return false;
+
+        if (captured_params.at("pads").type != 5)
+            return false;
+
+        const std::vector<int>& pads = captured_params.at("pads").ai;
+        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& pads = captured_params.at("pads").ai;
+
+        op->params["stride"] = captured_params.at("strides");
+        op->params["dilation"] = captured_params.at("dilations");
+        op->params["groups"] = captured_params.at("group");
+        op->params["padding"] = {pads[0], pads[1]};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx_1, 10)
+
 } // namespace pnnx

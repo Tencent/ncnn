@@ -34,7 +34,7 @@ option(PNNX_COVERAGE "build for coverage" OFF)
 # set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
 # set(TorchVision_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
 
-#set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
+# set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
 find_package(Python3 COMPONENTS Interpreter Development)
@@ -105,15 +105,17 @@ if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH
     endif()
 endif()
 
-# set(onnxruntime_INSTALL_DIR "/home/nihui/osd/ncnn-nihui/tools/pnnx/build/src/test/onnxruntime-1.16.3/build/install" CACHE STRING "")
-# set(onnxruntime_DIR "${onnxruntime_INSTALL_DIR}/lib64/cmake/onnxruntime")
-#
-# find_package(onnxruntime)
-#
-# message(STATUS "onnxruntime_VERSION = ${onnxruntime_VERSION}")
-# message(STATUS "onnxruntime_VERSION_MAJOR = ${onnxruntime_VERSION_MAJOR}")
-# message(STATUS "onnxruntime_VERSION_MINOR = ${onnxruntime_VERSION_MINOR}")
-# message(STATUS "onnxruntime_VERSION_PATCH = ${onnxruntime_VERSION_PATCH}")
+# https://github.com/supertone-inc/onnxruntime-build
+set(onnxruntime_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
+find_library(onnxruntime_LIB NAMES onnxruntime PATHS ${onnxruntime_INSTALL_DIR}/lib64 ${onnxruntime_INSTALL_DIR}/lib)
+if(onnxruntime_LIB)
+    set(onnxruntime_FOUND TRUE)
+    add_library(onnxruntime::onnxruntime STATIC IMPORTED)
+    set_target_properties(onnxruntime::onnxruntime PROPERTIES IMPORTED_LOCATION ${onnxruntime_LIB})
+    set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${onnxruntime_INSTALL_DIR}/include)
+else()
+    set(onnxruntime_FOUND FALSE)
+endif()
 
 add_subdirectory(src)
 

@@ -79,4 +79,29 @@ pnnx.Output             output      3 0 out save_mean save_invstd
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_1, 10)
 
+class F_batch_norm_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+pnnx.Input              input_3     0 1 running_mean
+pnnx.Input              input_4     0 1 running_var
+BatchNormalization      op_0        5 1 input weight bias running_mean running_var out epsilon=%eps training_mode=* momentum=*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.batch_norm";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_onnx, 10)
+
 } // namespace pnnx

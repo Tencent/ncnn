@@ -22,23 +22,12 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        if version.parse(torch.__version__) < version.parse('1.9'):
-            x = x.permute(1, 0)
-            x = x.permute(0, 1)
-            y = y.permute(2, 1, 0)
-            y = y.permute(1, 0, 2)
-            z = z.permute(1, 3, 0, 2)
-            z = z.permute(2, 0, 3, 1)
-        else:
-            x = torch.permute(x, (1, 0))
-            x = torch.permute(x, (0, 1))
-            y = torch.permute(y, (2, 1, 0))
-            y = torch.permute(y, (1, 0, 2))
-            z = torch.permute(z, (1, 3, 0, 2))
-            z = torch.permute(z, (2, 0, 3, 1))
-        x = F.relu(x)
-        y = F.relu(y)
-        z = F.relu(z)
+        x = x.permute(1, 0, 2)
+        x = x.permute(0, 1, 2)
+        y = y.permute(2, 3, 1, 0)
+        y = y.permute(3, 1, 0, 2)
+        z = z.permute(1, 3, 0, 4, 2)
+        z = z.permute(0, 2, 4, 3, 1)
         return x, y, z
 
 def test():
@@ -46,26 +35,26 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 16)
-    y = torch.rand(5, 9, 11)
-    z = torch.rand(8, 5, 9, 10)
+    x = torch.rand(1, 3, 16)
+    y = torch.rand(1, 5, 9, 11)
+    z = torch.rand(14, 8, 5, 9, 10)
 
     a = net(x, y, z)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_torch_permute.pt")
+    mod.save("test_Tensor_permute.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_permute.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
+    os.system("../src/pnnx test_Tensor_permute.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
 
-    # ncnn inference
-    import test_torch_permute_ncnn
-    b = test_torch_permute_ncnn.test_inference()
+    # pnnx inference
+    import test_Tensor_permute_pnnx
+    b = test_Tensor_permute_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.equal(a0, b0):
             return False
     return True
 

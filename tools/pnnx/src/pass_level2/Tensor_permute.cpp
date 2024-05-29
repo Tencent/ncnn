@@ -18,7 +18,7 @@
 
 namespace pnnx {
 
-class torch_permute : public GraphRewriterPass
+class Tensor_permute : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -34,17 +34,13 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-#if TORCH_VERSION_MAJOR >= 2 || TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
-        return "torch.permute";
-#else
         return "Tensor.permute";
-#endif
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_permute, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_permute, 20)
 
-class torch_permute_1 : public GraphRewriterPass
+class Tensor_permute_1 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -59,14 +55,31 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-#if TORCH_VERSION_MAJOR >= 2 || TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
-        return "torch.permute";
-#else
         return "Tensor.permute";
-#endif
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_permute_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_permute_1, 20)
+
+class Tensor_permute_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+Transpose               op_0        1 1 input out perm=%dims
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.permute";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_permute_onnx, 20)
 
 } // namespace pnnx

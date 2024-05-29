@@ -27,7 +27,7 @@ public:
 5 4
 pnnx.Input              input       0 1 input
 Tensor.reshape          op_1        1 1 input 1 shape=%shape
-torch.permute           op_2        1 1 1 2 dims=%dims
+Tensor.permute          op_2        1 1 1 2 dims=%dims
 Tensor.reshape          op_3        1 1 2 out shape=%shape2
 pnnx.Output             output      1 0 out
 )PNNXIR";
