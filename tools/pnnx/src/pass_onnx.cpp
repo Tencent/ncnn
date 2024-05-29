@@ -595,7 +595,17 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
     {
         const onnx::NodeProto& node = graph.node(i);
 
-        const std::string& op_type = node.op_type();
+        std::string op_type = node.op_type();
+
+        // drop |folded_N suffix
+        if (op_type.size() > 8)
+        {
+            size_t folded_N_index = op_type.rfind("|folded_");
+            if (folded_N_index != std::string::npos)
+            {
+                op_type = op_type.substr(0, folded_N_index);
+            }
+        }
 
         std::string sim_op_type;
 
@@ -714,6 +724,19 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
                 const onnx::TensorProto& tensor = modelproxy.initializer(input);
 
+                bool is_attr_list = false;
+                if (tensor.dims_size() == 1 && (tensor.data_type() == onnx::TensorProto::INT32 || tensor.data_type() == onnx::TensorProto::INT64))
+                {
+                    if (is_aten_op)
+                        is_attr_list = true;
+
+                    if (sim_op_type == "Reshape" && j == 1)
+                        is_attr_list = true;
+
+                    if (sim_op_type == "ReduceMean" && j == 1)
+                        is_attr_list = true;
+                }
+
                 int64_t numel = 1;
                 for (int k = 0; k < tensor.dims_size(); k++)
                 {
@@ -790,7 +813,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         fprintf(stderr, "unknown constant scalar type %d\n", (int)tensor.data_type());
                     }
                 }
-                else if (is_aten_op && tensor.dims_size() == 1 && (tensor.data_type() == onnx::TensorProto::INT32 || tensor.data_type() == onnx::TensorProto::INT64))
+                else if (is_attr_list)
                 {
                     // create list expression
                     Operator* op_const = pnnx_graph.new_operator_before("pnnx.Expression", input, op);

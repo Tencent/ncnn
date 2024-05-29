@@ -189,4 +189,36 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx, 10)
 
+class F_hardsigmoid_onnx_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+HardSigmoid             op_0        1 1 input out alpha=%alpha beta=%beta
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.hardsigmoid";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        float alpha = captured_params.at("alpha").f;
+        float beta = captured_params.at("beta").f;
+        return NearlyEqual(alpha, 1.f / 6, 0.001) && NearlyEqual(beta, 0.5f, 0.001);
+    }
+
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_1, 10)
+
 } // namespace pnnx

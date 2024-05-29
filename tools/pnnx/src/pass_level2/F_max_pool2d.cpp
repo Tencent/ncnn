@@ -223,6 +223,22 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx, 10)
 
+class F_max_pool2d_onnx_0 : public F_max_pool2d_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+MaxPool                 op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads dilations=%dilations ceil_mode=%ceil_mode auto_pad=NOTSET storage_order=*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_0, 10)
+
 class F_max_pool2d_onnx_1 : public GraphRewriterPass
 {
 public:

@@ -116,4 +116,22 @@ pnnx.Output             output      3 0 out Mean InvStdDev
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 10)
 
+class F_layer_norm_onnx_2 : public F_layer_norm_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+LayerNormalization      op_0        3 1 input weight bias out axis=%axis epsilon=%epsilon stash_type=%stash_type
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_2, 10)
+
 } // namespace pnnx
