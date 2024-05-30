@@ -627,7 +627,6 @@ static void constant_unpooling(Graph& graph)
     }
 }
 
-
 void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 {
     onnx2pnnx::OnnxModelProxy modelproxy(model);
