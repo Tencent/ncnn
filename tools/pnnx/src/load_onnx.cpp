@@ -23,6 +23,8 @@
 
 #include <fstream>
 
+#include <onnxruntime_c_api.h>
+
 #include "ir.h"
 
 #include "pass_onnx/canonicalize.h"
@@ -366,7 +368,133 @@ static double get_current_time()
     return usec.count() / 1000.0;
 }
 
-int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
+static const char* get_onnx_tensor_elem_data_type_str(ONNXTensorElementDataType type)
+{
+    switch (type)
+    {
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8: return "i8";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8: return "u8";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16: return "i16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16: return "u16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32: return "i32";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32: return "u32";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64: return "i64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64: return "u64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16: return "f16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT: return "f32";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE: return "f64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16: return "bf16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX64: return "c64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX128: return "c128";
+    default:
+        break;
+    }
+
+    // unknown
+    fprintf(stderr, "unsupported tensor elem data type %d\n", (int)type);
+    return "";
+}
+
+static bool check_input_shape(onnx::ModelProto& model, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types)
+{
+    const onnx::GraphProto& graph = model.graph();
+
+    if (!input_shapes.empty() && (int)input_shapes.size() != graph.input_size())
+    {
+        fprintf(stderr, "input_shape expect %d tensors but got %d\n", graph.input_size(), (int)input_shapes.size());
+        return false;
+    }
+
+    for (int i = 0; i < graph.input_size(); i++)
+    {
+        const onnx::ValueInfoProto& value = graph.input(i);
+        const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
+
+        ONNXTensorElementDataType datatype = (ONNXTensorElementDataType)value.type().tensor_type().elem_type();
+
+        bool matched = true;
+
+        if (input_shapes.empty())
+        {
+            // dynamic dimension size
+            for (int j = 0; j < tsp.dim_size(); j++)
+            {
+                if (!tsp.dim(j).has_dim_value())
+                {
+                    matched = false;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            if ((int)input_shapes[i].size() != tsp.dim_size())
+            {
+                matched = false;
+            }
+            else
+            {
+                for (int j = 0; j < tsp.dim_size(); j++)
+                {
+                    if (!tsp.dim(j).has_dim_value())
+                        continue;
+
+                    int64_t ds = tsp.dim(j).dim_value();
+                    if (input_shapes[i][j] != ds)
+                        matched = false;
+                }
+            }
+
+            if (input_types[i] != get_onnx_tensor_elem_data_type_str(datatype))
+                matched = false;
+        }
+
+        if (!matched)
+        {
+            fprintf(stderr, "input_shapes[%d] expect [", i);
+            for (int j = 0; j < tsp.dim_size(); j++)
+            {
+                if (tsp.dim(j).has_dim_value())
+                {
+                    int64_t ds = tsp.dim(j).dim_value();
+                    fprintf(stderr, "%ld", ds);
+                }
+                else
+                {
+                    fprintf(stderr, "?");
+                }
+                if (j + 1 != tsp.dim_size())
+                    fprintf(stderr, ",");
+            }
+            fprintf(stderr, "]%s but got ", get_onnx_tensor_elem_data_type_str(datatype));
+            if (input_shapes.empty())
+            {
+                fprintf(stderr, "nothing\n");
+            }
+            else
+            {
+                fprintf(stderr, "[");
+                for (size_t j = 0; j < input_shapes[i].size(); j++)
+                {
+                    fprintf(stderr, "%ld", input_shapes[i][j]);
+                    if (j + 1 != input_shapes[i].size())
+                        fprintf(stderr, ",");
+                }
+                fprintf(stderr, "]%s\n", input_types[i].c_str());
+            }
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
+int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
+              const std::vector<std::vector<int64_t> >& input_shapes,
+              const std::vector<std::string>& input_types,
+              const std::vector<std::vector<int64_t> >& input_shapes2,
+              const std::vector<std::string>& input_types2)
 {
     onnx::ModelProto model;
 
@@ -374,6 +502,16 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
     if (!s1)
     {
         fprintf(stderr, "read_proto_from_binary failed\n");
+        return -1;
+    }
+
+    // input shape sanity check
+    if (!check_input_shape(model, input_shapes, input_types))
+    {
+        return -1;
+    }
+    if (!input_shapes2.empty() && !check_input_shape(model, input_shapes2, input_types2))
+    {
         return -1;
     }
 
@@ -415,7 +553,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     t0 = get_current_time();
 
-    onnx2pnnx::fold_constants(model);
+    onnx2pnnx::fold_constants(model, input_shapes, input_types, input_shapes2, input_types2);
 
     t1 = get_current_time();
 
@@ -445,7 +583,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     t0 = get_current_time();
 
-    onnx2pnnx::shape_inference(model);
+    onnx2pnnx::shape_inference(model, input_shapes, input_types, input_shapes2, input_types2);
 
     t1 = get_current_time();
 

@@ -316,7 +316,9 @@ int main(int argc, char** argv)
 #if BUILD_ONNX2PNNX
     if (!model_file_maybe_torchscript(ptpath))
     {
-        load_onnx(ptpath.c_str(), pnnx_graph);
+        load_onnx(ptpath.c_str(), pnnx_graph,
+                  input_shapes, input_types,
+                  input_shapes2, input_types2);
     }
     else
 #endif

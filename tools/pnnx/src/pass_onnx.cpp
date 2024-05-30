@@ -645,12 +645,14 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Ceil") sim_op_type = "aten::ceil";
             if (op_type == "Cos") sim_op_type = "aten::cos";
             if (op_type == "Cosh") sim_op_type = "aten::cosh";
+            if (op_type == "Erf") sim_op_type = "aten::erf";
             if (op_type == "Exp") sim_op_type = "aten::exp";
             if (op_type == "Floor") sim_op_type = "aten::floor";
             if (op_type == "Log") sim_op_type = "aten::log";
             if (op_type == "Neg") sim_op_type = "aten::neg";
             if (op_type == "Reciprocal") sim_op_type = "aten::reciprocal";
             if (op_type == "Round") sim_op_type = "aten::round";
+            if (op_type == "Sigmoid") sim_op_type = "aten::sigmoid";
             if (op_type == "Sign") sim_op_type = "aten::sign";
             if (op_type == "Sin") sim_op_type = "aten::sin";
             if (op_type == "Sinh") sim_op_type = "aten::sinh";
@@ -666,6 +668,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Max") sim_op_type = "aten::max";
             if (op_type == "Min") sim_op_type = "aten::min";
             if (op_type == "Pow") sim_op_type = "aten::pow";
+
+            // trinaryop
+            if (op_type == "Clip") sim_op_type = "aten::clamp";
         }
         else if (string_starts_with(op_type, "aten_"))
         {

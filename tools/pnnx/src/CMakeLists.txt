@@ -363,6 +363,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_slice_copy.cpp
     pass_level5/fuse_slice_indices.cpp
     pass_level5/fuse_slice_to_tensor_split.cpp
+    pass_level5/fuse_slice_squeeze_to_select.cpp
     pass_level5/fuse_static_batchnorm.cpp
     pass_level5/fuse_static_conv.cpp
     pass_level5/fuse_static_convtranspose.cpp
@@ -371,6 +372,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_static_instancenorm.cpp
     pass_level5/fuse_static_layernorm.cpp
     pass_level5/fuse_static_linear.cpp
+    pass_level5/fuse_swish.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
 )

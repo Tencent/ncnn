@@ -12,19 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef PNNX_LOAD_ONNX_H
-#define PNNX_LOAD_ONNX_H
-
 #include "ir.h"
 
 namespace pnnx {
 
-int load_onnx(const std::string& onnxpath, Graph& g,
-              const std::vector<std::vector<int64_t> >& input_shapes,
-              const std::vector<std::string>& input_types,
-              const std::vector<std::vector<int64_t> >& input_shapes2,
-              const std::vector<std::string>& input_types2);
+void fuse_slice_squeeze_to_select(Graph& graph);
 
 } // namespace pnnx
-
-#endif // PNNX_LOAD_ONNX_H

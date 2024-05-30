@@ -24,12 +24,38 @@ namespace pnnx {
 
 namespace onnx2pnnx {
 
+static ONNXTensorElementDataType get_onnx_tensor_elem_data_type(const std::string& type)
+{
+    if (type == "i8") return ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8;
+    if (type == "u8") return ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8;
+    if (type == "i16") return ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16;
+    if (type == "u16") return ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16;
+    if (type == "i32") return ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32;
+    if (type == "u32") return ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32;
+    if (type == "i64") return ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64;
+    if (type == "u64") return ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64;
+    if (type == "f16") return ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
+    if (type == "f32") return ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT;
+    if (type == "f64") return ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE;
+    if (type == "bf16") return ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16;
+    if (type == "c64") return ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX64;
+    if (type == "c128") return ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX128;
+
+    // unknown
+    fprintf(stderr, "unsupported tensor elem data type %s\n", type.c_str());
+    return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
+}
+
 static bool string_starts_with(const std::string& s, const std::string& s2)
 {
     return strncmp(s.c_str(), s2.c_str(), s2.size()) == 0;
 }
 
-void shape_inference(onnx::ModelProto& model)
+void shape_inference(onnx::ModelProto& model,
+                     const std::vector<std::vector<int64_t> >& input_shapes,
+                     const std::vector<std::string>& input_types,
+                     const std::vector<std::vector<int64_t> >& input_shapes2,
+                     const std::vector<std::string>& input_types2)
 {
     onnx::GraphProto* graph = model.mutable_graph();
 
@@ -166,14 +192,22 @@ void shape_inference(onnx::ModelProto& model)
             const onnx::ValueInfoProto& value = graph->input(i);
 
             std::vector<int64_t> shape;
-            const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
-            for (int k = 0; k < tsp.dim_size(); k++)
+            ONNXTensorElementDataType datatype;
+            if (!input_shapes.empty())
             {
-                // TODO has_dim_value ?
-                shape.push_back(tsp.dim(k).dim_value());
+                shape = input_shapes[i];
+                datatype = get_onnx_tensor_elem_data_type(input_types[i]);
             }
+            else
+            {
+                const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
+                for (int k = 0; k < tsp.dim_size(); k++)
+                {
+                    shape.push_back(tsp.dim(k).dim_value());
+                }
 
-            ONNXTensorElementDataType datatype = (ONNXTensorElementDataType)value.type().tensor_type().elem_type();
+                datatype = (ONNXTensorElementDataType)value.type().tensor_type().elem_type();
+            }
 
             OrtValue* ort_val = 0;
             ort_status = ort_api->CreateTensorAsOrtValue(ort_allocator, (const int64_t*)shape.data(), shape.size(), datatype, &ort_val);

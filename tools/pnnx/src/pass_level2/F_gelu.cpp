@@ -214,7 +214,7 @@ public:
 pnnx.Input              input       0 1 input
 prim::Constant          op_0        0 1 sqrt2 value=%sqrt2
 aten::div               op_1        2 1 input sqrt2 16
-Erf                     op_2        1 1 16 17
+aten::erf               op_2        1 1 16 17
 prim::Constant          op_3        0 1 one value=%1
 aten::add               op_4        2 1 17 one 22
 aten::mul               op_5        2 1 input 22 25
