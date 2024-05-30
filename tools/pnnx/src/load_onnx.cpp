@@ -372,20 +372,34 @@ static const char* get_onnx_tensor_elem_data_type_str(ONNXTensorElementDataType 
 {
     switch (type)
     {
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8: return "i8";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8: return "u8";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16: return "i16";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16: return "u16";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32: return "i32";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32: return "u32";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64: return "i64";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64: return "u64";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16: return "f16";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT: return "f32";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE: return "f64";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16: return "bf16";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX64: return "c64";
-    case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX128: return "c128";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8:
+        return "i8";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8:
+        return "u8";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16:
+        return "i16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
+        return "u16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32:
+        return "i32";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32:
+        return "u32";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64:
+        return "i64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64:
+        return "u64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16:
+        return "f16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT:
+        return "f32";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE:
+        return "f64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16:
+        return "bf16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX64:
+        return "c64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX128:
+        return "c128";
     default:
         break;
     }

@@ -70,18 +70,24 @@ class fuse_layernorm_pass_1 : public GraphRewriterPass
 public:
     const char* match_pattern_graph() const
     {
-        return R"PNNXIR(7767517
-9 8
-pnnx.Input              input       0 1 input #input=(1,?,%c)f32
-pnnx.Attribute          op_0        0 1 weight @data #weight=(%c)f32
-pnnx.Attribute          op_1        0 1 bias @data #bias=(%c)f32
-torch.mean              op_2        1 1 input mean dim=(-1) keepdim=True
-pnnx.Expression         op_3        2 1 input mean 173 expr=sub(@0,@1)
-pnnx.Expression         op_4        1 1 173 174 expr=pow(@0,2.000000e+00)
-torch.mean              op_5        1 1 174 var dim=(-1) keepdim=True
-pnnx.Expression         op_6        4 1 173 var weight bias out expr=add(mul(div(@0,sqrt(add(@1,%eps))),@2),@3)
-pnnx.Output             output      1 0 out
-)PNNXIR";
+        return R "PNNXIR(7767517
+               9 8 pnnx.Input input 0 1 input #input
+               = (1, ?, % c) f32
+                                pnnx.Attribute op_0 0 1 weight @data #weight
+                  = (% c) f32
+                        pnnx.Attribute op_1 0 1 bias @data #bias
+                  = (% c) f32
+                        torch.mean op_2 1 1 input mean dim
+                  = (-1)keepdim = True
+                                      pnnx.Expression op_3 2 1 input mean 173 expr
+                  = sub(@0, @1)
+                        pnnx.Expression op_4 1 1 173 174 expr
+                  = pow(@0, 2.000000e+00)
+                        torch.mean op_5 1 1 174 var dim
+                  = (-1)keepdim = True
+                                      pnnx.Expression op_6 4 1 173 var weight bias out expr
+                  = add(mul(div(@0, sqrt(add(@1, % eps))), @2), @3)
+                        pnnx.Output output 1 0 out) PNNXIR ";
     }
 
     const char* replace_pattern_graph() const
