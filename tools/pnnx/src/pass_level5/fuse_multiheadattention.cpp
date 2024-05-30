@@ -173,6 +173,70 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_multiheadattention_pass_11_1 : public fuse_multiheadattention_pass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+28 27
+pnnx.Input              input       0 1 input
+Tensor.permute          op_1        1 1 input 9 dims=(1,0,2)
+nn.Linear               op_0        1 1 9 10 bias=%qkvbias in_features=%embed_dim out_features=%qkv_out_features @bias @weight
+Tensor.reshape          op_2        1 1 10 11 shape=(1,%size,%batch,3,%embed_dim)
+Tensor.permute          op_3        1 1 11 12 dims=(3,1,2,0,4)
+torch.squeeze           op_4        1 1 12 13 dim=3
+torch.unbind            op_5        1 3 13 14 15 16 dim=0
+Tensor.reshape          op_6        1 1 14 17 shape=(%size,%num_heads,%feat_per_head)
+Tensor.permute          op_7        1 1 17 18 dims=(1,0,2)
+Tensor.reshape          op_8        1 1 15 19 shape=(%size,%num_heads,%feat_per_head)
+Tensor.permute          op_9        1 1 19 20 dims=(1,0,2)
+Tensor.reshape          op_10       1 1 16 21 shape=(%size,%num_heads,%feat_per_head)
+Tensor.permute          op_11       1 1 21 22 dims=(1,0,2)
+Tensor.reshape          op_12       1 1 18 23 shape=(%batch,%num_heads,%size,%feat_per_head)
+Tensor.reshape          op_13       1 1 20 24 shape=(%batch,%num_heads,%size,%feat_per_head)
+Tensor.reshape          op_14       1 1 22 25 shape=(%batch,%num_heads,%size,%feat_per_head)
+Tensor.permute          op_15       1 1 24 26 dims=(0,1,3,2)
+pnnx.Expression         op_16       1 1 23 27 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
+pnnx.Expression         op_17       1 1 26 28 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
+torch.matmul            op_18       2 1 27 28 29
+F.softmax               softmax     1 1 29 30 dim=%softmax_dim
+torch.matmul            op_20       2 1 30 25 31
+Tensor.permute          op_21       1 1 31 32 dims=(2,0,1,3)
+Tensor.reshape          op_22       1 1 32 33 shape=(%size,%embed_dim)
+nn.Linear               out_proj    1 1 33 34 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+Tensor.reshape          op_24       1 1 34 35 shape=(%size,%batch,%embed_dim)
+Tensor.permute          op_25       1 1 35 out dims=(1,0,2)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const int embed_dim = captured_params.at("embed_dim").i;
+        const int qkv_out_features = captured_params.at("qkv_out_features").i;
+        const int num_heads = captured_params.at("num_heads").i;
+        const int feat_per_head = captured_params.at("feat_per_head").i;
+        const float inv_sqrt_embed_dim_per_head = captured_params.at("inv_sqrt_embed_dim_per_head").f;
+        const int softmax_dim = captured_params.at("softmax_dim").i;
+
+        if (qkv_out_features != embed_dim * 3)
+            return false;
+
+        if (embed_dim != num_heads * feat_per_head)
+            return false;
+
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, sqrt(1.f / sqrt(feat_per_head)), 0.001))
+            return false;
+
+        int softmax_input_rank = (int)matched_operators.at("softmax")->inputs[0]->shape.size();
+        if (softmax_dim != -1 && softmax_dim != softmax_input_rank - 1)
+            return false;
+
+        return true;
+    }
+};
+
 class fuse_multiheadattention_pass_sameqkv : public GraphRewriterPass
 {
 public:
@@ -1456,6 +1520,7 @@ void fuse_multiheadattention(Graph& graph)
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
     fuse_multiheadattention_pass a;
     fuse_multiheadattention_pass_11 a1;
+    fuse_multiheadattention_pass_11_1 a2;
     fuse_multiheadattention_pass_sameqkv b;
     fuse_multiheadattention_pass_qkv c;
     fuse_multiheadattention_pass_q_samekv d;
@@ -1485,6 +1550,7 @@ void fuse_multiheadattention(Graph& graph)
 
     pnnx_graph_rewrite(graph, &a, opindex);
     pnnx_graph_rewrite(graph, &a1, opindex);
+    pnnx_graph_rewrite(graph, &a2, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &d, opindex);
