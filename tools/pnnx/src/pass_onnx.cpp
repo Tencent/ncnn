@@ -634,6 +634,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::split";
             }
 
+            if (op_type == "Shape")
+            {
+                sim_op_type = "aten::size";
+            }
+
             // unaryop
             if (op_type == "Abs") sim_op_type = "aten::abs";
             if (op_type == "Acos") sim_op_type = "aten::acos";

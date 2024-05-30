@@ -90,6 +90,8 @@ void fold_constants(onnx::ModelProto& model,
                     const std::vector<std::vector<int64_t> >& input_shapes2,
                     const std::vector<std::string>& input_types2)
 {
+    bool ignore_aten_size = input_shapes2.empty();
+
     // collect initializers
     std::unordered_set<std::string> initializers;
     {
@@ -140,13 +142,13 @@ void fold_constants(onnx::ModelProto& model,
                     || op_type == "aten_ones_like"
                     || op_type == "aten_zeros_like")
             {
-                is_outputs_foldable = true;
+                is_outputs_foldable = ignore_aten_size;
             }
 
             // TODO whitelist for static shape
             if (op_type == "Shape")
             {
-                is_outputs_foldable = true;
+                is_outputs_foldable = ignore_aten_size;
             }
 
             // TODO whitelist for static type

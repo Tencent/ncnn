@@ -306,7 +306,14 @@ Operand* Graph::new_operand(const onnx::ValueInfoProto& value)
     r->shape.resize(tensor_shape.dim_size());
     for (int z = 0; z < tensor_shape.dim_size(); z++)
     {
-        r->shape[z] = tensor_shape.dim(z).dim_value();
+        if (!tensor_shape.dim(z).has_dim_value())
+        {
+            r->shape[z] = -1;
+        }
+        else
+        {
+            r->shape[z] = tensor_shape.dim(z).dim_value();
+        }
     }
 
     operands.push_back(r);

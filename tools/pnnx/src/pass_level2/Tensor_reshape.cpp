@@ -44,10 +44,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
+5 4
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 shape
-Reshape                 op_0        2 1 input shape out allowzero=*
+aten::cat               op_0        1 1 shape cat dim=0
+Reshape                 op_1        2 1 input cat out allowzero=*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -66,10 +67,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
+5 4
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 shape
-Reshape                 op_0        2 1 input shape out
+aten::cat               op_0        1 1 shape cat dim=0
+Reshape                 op_1        2 1 input cat out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
