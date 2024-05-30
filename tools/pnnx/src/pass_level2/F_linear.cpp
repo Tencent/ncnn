@@ -259,4 +259,23 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_3, 8)
 
+class F_linear_onnx_4 : public F_linear_onnx_3
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          weight      0 1 weight @data=(%in_features,%out_features)f32
+pnnx.Attribute          bias        0 1 bias @data=(%out_features)f32
+MatMul                  matmul      2 1 input weight mm
+aten::add               add         2 1 bias mm out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_4, 8)
+
 } // namespace pnnx
