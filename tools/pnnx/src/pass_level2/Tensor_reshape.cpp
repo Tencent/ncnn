@@ -59,9 +59,9 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx, 19)
 
-class Tensor_reshape_onnx_1 : public GraphRewriterPass
+class Tensor_reshape_onnx_1 : public Tensor_reshape_onnx
 {
 public:
     const char* match_pattern_graph() const
@@ -75,13 +75,42 @@ Reshape                 op_1        2 1 input cat out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
+};
 
-    const char* type_str() const
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_1, 19)
+
+class Tensor_reshape_onnx_2 : public Tensor_reshape_onnx
+{
+public:
+    const char* match_pattern_graph() const
     {
-        return "Tensor.reshape";
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 shape
+Reshape                 op_1        2 1 input shape out allowzero=*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_2, 20)
+
+class Tensor_reshape_onnx_3 : public Tensor_reshape_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 shape
+Reshape                 op_1        2 1 input shape out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_3, 20)
 
 } // namespace pnnx

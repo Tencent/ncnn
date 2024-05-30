@@ -86,9 +86,10 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
+4 3
 pnnx.Input              input_0     0 1 input
-Squeeze                 op_0        1 1 input out axes=%dim
+pnnx.Input              input_1     0 1 dim
+Squeeze                 op_0        2 1 input dim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -100,5 +101,21 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_onnx, 20)
+
+class torch_squeeze_onnx_1 : public torch_squeeze_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Squeeze                 op_0        1 1 input out axes=%dim
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_onnx_1, 20)
 
 } // namespace pnnx
