@@ -123,6 +123,8 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 <td colspan=3>
 
+- [Build for HarmonyOS with cross-compiling](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-harmonyos-with-cross-compiling)
+
 </td>
 </tr>
 <tr>
