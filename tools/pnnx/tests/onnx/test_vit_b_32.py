@@ -21,7 +21,7 @@ def test():
     if version.parse(torchvision.__version__) < version.parse('0.12'):
         return True
 
-    if version.parse(torchvision.__version__) >= version.parse('2.0') and version.parse(torchvision.__version__) < version.parse('2.1'):
+    if version.parse(torch.__version__) >= version.parse('2.0') and version.parse(torch.__version__) < version.parse('2.1'):
         return True
 
     net = models.vit_b_32()
