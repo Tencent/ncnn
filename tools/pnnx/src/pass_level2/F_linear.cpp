@@ -198,7 +198,7 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Attribute          weight      0 1 weight @data=(%in_features,%out_features)f32
 MatMul                  matmul      2 1 input weight out
@@ -209,7 +209,7 @@ pnnx.Output             output      1 0 out
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Attribute          weight      0 1 weight
 F.linear                linear      2 1 input weight out bias=None $weight=weight
@@ -219,5 +219,63 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_2, 9)
+
+class F_linear_onnx_3 : public F_linear_onnx_1
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          weight      0 1 weight @data=(%in_features,%out_features)f32
+pnnx.Attribute          bias        0 1 bias @data=(%out_features)f32
+MatMul                  matmul      2 1 input weight mm
+aten::add               add         2 1 mm bias out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          weight      0 1 weight
+pnnx.Attribute          bias        0 1 bias
+F.linear                linear      3 1 input weight bias out $weight=weight $bias=bias
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        F_linear_onnx_1::write(ops, captured_params, captured_attrs);
+
+        Operator* op_bias = ops.at("bias");
+        op_bias->attrs["data"] = captured_attrs.at("bias.data");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_3, 8)
+
+class F_linear_onnx_4 : public F_linear_onnx_3
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          weight      0 1 weight @data=(%in_features,%out_features)f32
+pnnx.Attribute          bias        0 1 bias @data=(%out_features)f32
+MatMul                  matmul      2 1 input weight mm
+aten::add               add         2 1 bias mm out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_4, 8)
 
 } // namespace pnnx

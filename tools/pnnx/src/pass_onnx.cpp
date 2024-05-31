@@ -571,6 +571,62 @@ static void fuse_list_unpack(Graph& graph)
     }
 }
 
+static void constant_unpooling(Graph& graph)
+{
+    while (1)
+    {
+        bool matched = false;
+
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            if (op->type != "prim::Constant" && op->type != "pnnx.Expression" && op->type != "pnnx.Attribute")
+                continue;
+
+            Operand* op_out = op->outputs[0];
+            if (op_out->consumers.size() == 1)
+                continue;
+
+            matched = true;
+
+            // create shadow node for all consumers
+            for (size_t j = 1; j < op_out->consumers.size(); j++)
+            {
+                Operator* op1 = op_out->consumers[j];
+
+                Operator* op0 = graph.new_operator_before(op->type, op->name + "_pnnxshadow" + std::to_string(j), op1);
+                op0->inputnames = op->inputnames;
+                op0->params = op->params;
+                op0->attrs = op->attrs;
+
+                Operand* op0_out = graph.new_operand(op_out->name + "_pnnxshadow" + std::to_string(j));
+                op0_out->type = op_out->type;
+                op0_out->shape = op_out->shape;
+                op0_out->params = op_out->params;
+
+                op0_out->producer = op0;
+                op0->outputs.push_back(op0_out);
+
+                for (size_t k = 0; k < op1->inputs.size(); k++)
+                {
+                    if (op1->inputs[k] == op_out)
+                        op1->inputs[k] = op0_out;
+                }
+
+                op0_out->consumers.push_back(op1);
+            }
+
+            op_out->consumers.resize(1);
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+}
+
 void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 {
     onnx2pnnx::OnnxModelProxy modelproxy(model);
@@ -634,6 +690,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::split";
             }
 
+            if (op_type == "Shape")
+            {
+                sim_op_type = "aten::size";
+            }
+
             // unaryop
             if (op_type == "Abs") sim_op_type = "aten::abs";
             if (op_type == "Acos") sim_op_type = "aten::acos";
@@ -645,12 +706,14 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Ceil") sim_op_type = "aten::ceil";
             if (op_type == "Cos") sim_op_type = "aten::cos";
             if (op_type == "Cosh") sim_op_type = "aten::cosh";
+            if (op_type == "Erf") sim_op_type = "aten::erf";
             if (op_type == "Exp") sim_op_type = "aten::exp";
             if (op_type == "Floor") sim_op_type = "aten::floor";
             if (op_type == "Log") sim_op_type = "aten::log";
             if (op_type == "Neg") sim_op_type = "aten::neg";
             if (op_type == "Reciprocal") sim_op_type = "aten::reciprocal";
             if (op_type == "Round") sim_op_type = "aten::round";
+            if (op_type == "Sigmoid") sim_op_type = "aten::sigmoid";
             if (op_type == "Sign") sim_op_type = "aten::sign";
             if (op_type == "Sin") sim_op_type = "aten::sin";
             if (op_type == "Sinh") sim_op_type = "aten::sinh";
@@ -666,6 +729,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Max") sim_op_type = "aten::max";
             if (op_type == "Min") sim_op_type = "aten::min";
             if (op_type == "Pow") sim_op_type = "aten::pow";
+
+            // trinaryop
+            if (op_type == "Clip") sim_op_type = "aten::clamp";
         }
         else if (string_starts_with(op_type, "aten_"))
         {
@@ -716,7 +782,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (input.empty())
                 continue;
 
-            if (modelproxy.has_initializer(input))
+            Operand* op_in = pnnx_graph.get_operand(input);
+
+            if (!op_in && modelproxy.has_initializer(input))
             {
                 // skip function weight
                 if (is_function_op)
@@ -731,6 +799,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         is_attr_list = true;
 
                     if (sim_op_type == "Reshape" && j == 1)
+                        is_attr_list = true;
+
+                    if (sim_op_type == "Pad" && j == 1)
                         is_attr_list = true;
 
                     if (sim_op_type == "ReduceMean" && j == 1)
@@ -893,9 +964,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
                     op_const->attrs["data"] = tensor;
                 }
-            }
 
-            Operand* op_in = pnnx_graph.get_operand(input);
+                op_in = pnnx_graph.get_operand(input);
+            }
 
             op_in->consumers.push_back(op);
             op->inputs.push_back(op_in);
@@ -1039,6 +1110,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
     // post process
     fuse_list_unpack(pnnx_graph);
+
+    constant_unpooling(pnnx_graph);
 }
 
 } // namespace pnnx

@@ -105,4 +105,21 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_split_onnx, 20)
 
+class torch_split_onnx_1 : public torch_split_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 tensor
+pnnx.Input              input_1     0 1 split_size_or_sections
+aten::split             op_0        2 1 tensor split_size_or_sections out dim=%dim indices=None
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_split_onnx_1, 20)
+
 } // namespace pnnx

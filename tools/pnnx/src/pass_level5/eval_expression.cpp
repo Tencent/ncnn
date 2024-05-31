@@ -119,40 +119,49 @@ static std::string eval_expression(const Operator* op)
         {
             std::string a = exprstack.top();
             exprstack.pop();
-            std::string b = exprstack.top();
-            exprstack.pop();
 
-            if (token_is_argument(a) && token_is_literal(b))
+            if (exprstack.empty())
             {
-                int input_index = std::stoi(a.substr(1));
-                if (op->inputs[input_index]->shape.empty())
+                std::string r = std::string("size(") + a + ")";
+                exprstack.push(r);
+            }
+            else
+            {
+                std::string b = exprstack.top();
+                exprstack.pop();
+
+                if (token_is_argument(a) && token_is_literal(b))
                 {
-                    std::string r = std::string("size(") + a + "," + b + ")";
-                    exprstack.push(r);
-                }
-                else
-                {
-                    int bi = std::stoi(b);
-                    if (bi < 0)
-                        bi = op->inputs[input_index]->shape.size() + bi;
-                    int r = op->inputs[input_index]->shape[bi];
-                    if (r == -1)
+                    int input_index = std::stoi(a.substr(1));
+                    if (op->inputs[input_index]->shape.empty())
                     {
-                        // do not evaluate dynamic size info as -1
-                        // just keep the size expression
                         std::string r = std::string("size(") + a + "," + b + ")";
                         exprstack.push(r);
                     }
                     else
                     {
-                        exprstack.push(std::to_string(r));
+                        int bi = std::stoi(b);
+                        if (bi < 0)
+                            bi = op->inputs[input_index]->shape.size() + bi;
+                        int r = op->inputs[input_index]->shape[bi];
+                        if (r == -1)
+                        {
+                            // do not evaluate dynamic size info as -1
+                            // just keep the size expression
+                            std::string r = std::string("size(") + a + "," + b + ")";
+                            exprstack.push(r);
+                        }
+                        else
+                        {
+                            exprstack.push(std::to_string(r));
+                        }
                     }
                 }
-            }
-            else
-            {
-                std::string r = std::string("size(") + a + "," + b + ")";
-                exprstack.push(r);
+                else
+                {
+                    std::string r = std::string("size(") + a + "," + b + ")";
+                    exprstack.push(r);
+                }
             }
         }
         else if (t == "int"

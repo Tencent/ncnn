@@ -1004,11 +1004,20 @@ static std::string expand_expression(const Operator* op)
         {
             std::string a = exprstack.top();
             exprstack.pop();
-            std::string b = exprstack.top();
-            exprstack.pop();
 
-            std::string r = a + ".size(" + b + ")";
-            exprstack.push(r);
+            if (exprstack.empty())
+            {
+                std::string r = a + ".shape";
+                exprstack.push(r);
+            }
+            else
+            {
+                std::string b = exprstack.top();
+                exprstack.pop();
+
+                std::string r = a + ".size(" + b + ")";
+                exprstack.push(r);
+            }
         }
         else if (t == "int"
                  || t == "abs"

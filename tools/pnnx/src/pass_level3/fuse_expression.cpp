@@ -54,7 +54,7 @@ static bool operand_maybe_tensor(const Operand* operand)
 
     if (op->type == "aten::size")
     {
-        return false;
+        return op->inputs.size() == 1;
     }
 
     if (op->type == "aten::Int")
@@ -508,8 +508,11 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     {
         expr += "size(";
         fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
-        expr += ",";
-        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
+        if (op->inputs.size() == 2)
+        {
+            expr += ",";
+            fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
+        }
         expr += ")";
     }
     else if (op->type == "aten::Int")

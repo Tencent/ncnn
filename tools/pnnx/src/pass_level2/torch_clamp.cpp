@@ -45,11 +45,9 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 min
-pnnx.Input              input_2     0 1 max
-Clip                    op_0        3 1 input min max out
+3 2
+pnnx.Input              input       0 1 input
+aten::clamp             op_0        1 1 input out min=%min max=%max
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -61,26 +59,5 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clamp_onnx, 20)
-
-class torch_clamp_onnx_1 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-Clip                    op_0        1 1 input out min=%min max=%max
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "torch.clamp";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clamp_onnx_1, 20)
 
 } // namespace pnnx
