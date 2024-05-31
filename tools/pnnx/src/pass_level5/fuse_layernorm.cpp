@@ -95,7 +95,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.LayerNorm            layernorm   1 1 input out elementwise_affine=True eps=%eps normalized_shape=(%c) @weight=%op_0.data @bias=%op_1.data
+nn.LayerNorm            ln          1 1 input out elementwise_affine=True eps=%eps normalized_shape=(%c) @weight=%op_0.data @bias=%op_1.data
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -129,7 +129,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.LayerNorm            layernorm   1 1 input out elementwise_affine=False eps=%eps normalized_shape=(%c)
+nn.LayerNorm            ln          1 1 input out elementwise_affine=False eps=%eps normalized_shape=(%c)
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
