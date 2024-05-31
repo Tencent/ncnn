@@ -173,6 +173,65 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_multiheadattention_pass_11_0 : public fuse_multiheadattention_pass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+22 21
+pnnx.Input              input       0 1 input
+Tensor.permute          op_1        1 1 input 13 dims=(1,0,2)
+nn.Linear               op_0        1 1 13 14 bias=%qkvbias in_features=%embed_dim out_features=%qkv_out_features @bias @weight
+Tensor.slice            op_2        1 1 14 15 dim=-1 end=%embed_dim start=0 step=1
+Tensor.slice            op_3        1 1 14 16 dim=-1 end=%embed_dim2 start=%embed_dim step=1
+Tensor.slice            op_4        1 1 14 17 dim=-1 end=%qkv_out_features start=%embed_dim2 step=1
+Tensor.reshape          op_5        1 1 15 18 shape=(%size,%num_heads,%feat_per_head)
+Tensor.permute          op_6        1 1 18 19 dims=(1,0,2)
+Tensor.reshape          op_7        1 1 16 20 shape=(%size,%num_heads,%feat_per_head)
+Tensor.reshape          op_8        1 1 17 21 shape=(%size,%num_heads,%feat_per_head)
+Tensor.permute          op_9        1 1 21 22 dims=(1,0,2)
+pnnx.Expression         op_10       1 1 19 23 expr=div(@0,%sqrt_embed_dim_per_head)
+Tensor.permute          op_11       1 1 20 24 dims=(1,2,0)
+torch.matmul            op_12       2 1 23 24 25
+F.softmax               softmax     1 1 25 26 dim=%softmax_dim
+torch.matmul            op_14       2 1 26 22 27
+Tensor.permute          op_15       1 1 27 28 dims=(1,0,2)
+Tensor.reshape          op_16       1 1 28 29 shape=(%size,%embed_dim)
+nn.Linear               out_proj    1 1 29 30 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+Tensor.reshape          op_24       1 1 30 31 shape=(%size,%batch,%embed_dim)
+Tensor.permute          op_25       1 1 31 out dims=(1,0,2)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const int embed_dim = captured_params.at("embed_dim").i;
+        const int embed_dim2 = captured_params.at("embed_dim2").i;
+        const int qkv_out_features = captured_params.at("qkv_out_features").i;
+        const int num_heads = captured_params.at("num_heads").i;
+        const int feat_per_head = captured_params.at("feat_per_head").i;
+        const float sqrt_embed_dim_per_head = captured_params.at("sqrt_embed_dim_per_head").f;
+        const int softmax_dim = captured_params.at("softmax_dim").i;
+
+        if (qkv_out_features != embed_dim * 3 || embed_dim2 != embed_dim * 2)
+            return false;
+
+        if (embed_dim != num_heads * feat_per_head)
+            return false;
+
+        if (!NearlyEqual(sqrt_embed_dim_per_head, sqrt(feat_per_head), 0.001))
+            return false;
+
+        int softmax_input_rank = (int)matched_operators.at("softmax")->inputs[0]->shape.size();
+        if (softmax_dim != -1 && softmax_dim != softmax_input_rank - 1)
+            return false;
+
+        return true;
+    }
+};
+
 class fuse_multiheadattention_pass_11_1 : public fuse_multiheadattention_pass
 {
 public:
@@ -1520,7 +1579,8 @@ void fuse_multiheadattention(Graph& graph)
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
     fuse_multiheadattention_pass a;
     fuse_multiheadattention_pass_11 a1;
-    fuse_multiheadattention_pass_11_1 a2;
+    fuse_multiheadattention_pass_11_0 a2;
+    fuse_multiheadattention_pass_11_1 a3;
     fuse_multiheadattention_pass_sameqkv b;
     fuse_multiheadattention_pass_qkv c;
     fuse_multiheadattention_pass_q_samekv d;
@@ -1551,6 +1611,7 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &a, opindex);
     pnnx_graph_rewrite(graph, &a1, opindex);
     pnnx_graph_rewrite(graph, &a2, opindex);
+    pnnx_graph_rewrite(graph, &a3, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &d, opindex);

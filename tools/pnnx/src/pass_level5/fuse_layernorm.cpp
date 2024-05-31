@@ -101,14 +101,44 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_layernorm_pass_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input #input=(1,?,%c)f32
+torch.mean              op_0        1 1 input mean dim=(-1) keepdim=True
+pnnx.Expression         op_1        2 1 input mean 25 expr=sub(@0,@1)
+pnnx.Expression         op_2        1 1 25 26 expr=pow(@0,2.000000e+00)
+torch.mean              op_3        1 1 26 var dim=(-1) keepdim=True
+pnnx.Expression         op_4        2 1 25 var out expr=div(@0,sqrt(add(@1,%eps)))
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.LayerNorm            layernorm   1 1 input out elementwise_affine=False eps=%eps normalized_shape=(%c)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 void fuse_layernorm(Graph& graph)
 {
     fuse_layernorm_pass a;
     fuse_layernorm_pass_1 b;
+    fuse_layernorm_pass_2 c;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
+    pnnx_graph_rewrite(graph, &c, opindex);
 }
 
 } // namespace pnnx
