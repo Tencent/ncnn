@@ -997,4 +997,118 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_7, 10)
 
+class F_interpolate_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Attribute          op_0        0 1 size @data
+Resize                  op_1        2 1 input size out coordinate_transformation_mode=* mode=nearest nearest_mode=floor cubic_coeff_a=*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        auto size = captured_attrs.at("op_0.data");
+        if (size.type != 5)
+            return false;
+
+        int size_count = size.data.size() / sizeof(int64_t);
+        if (size_count < 3 || size_count > 5)
+            return false;
+
+        const std::vector<int>& input_shape = matched_operators.at("op_1")->inputs[0]->shape;
+        if (input_shape.size() < 3 || input_shape.size() > 5)
+            return false;
+
+        const int64_t* ps = (const int64_t*)size.data.data();
+        if (input_shape[0] != ps[0] || input_shape[1] != ps[1])
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        auto size = captured_attrs.at("op_0.data");
+        int size_count = size.data.size() / sizeof(float);
+        const int64_t* ps = (const int64_t*)size.data.data();
+
+        op->params["mode"] = "nearest";
+        op->params["align_corners"] = false;
+        if (size_count == 3)
+            op->params["size"] = {ps[2]};
+        if (size_count == 4)
+            op->params["size"] = {ps[2], ps[3]};
+        if (size_count == 5)
+            op->params["size"] = {ps[2], ps[3], ps[4]};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx, 10)
+
+class F_interpolate_onnx_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Attribute          op_0        0 1 scale_factor @data
+Resize                  op_1        2 1 input scale_factor out coordinate_transformation_mode=* mode=nearest nearest_mode=floor cubic_coeff_a=*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        auto scale_factor = captured_attrs.at("op_0.data");
+        if (scale_factor.type != 1)
+            return false;
+
+        int scale_factor_count = scale_factor.data.size() / sizeof(float);
+        if (scale_factor_count < 3 || scale_factor_count > 5)
+            return false;
+
+        const float* ps = (const float*)scale_factor.data.data();
+        if (ps[0] != 1.f || ps[1] != 1.f)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        auto scale_factor = captured_attrs.at("op_0.data");
+        int scale_factor_count = scale_factor.data.size() / sizeof(float);
+        const float* ps = (const float*)scale_factor.data.data();
+
+        op->params["mode"] = "nearest";
+        op->params["recompute_scale_factor"] = true;
+        if (scale_factor_count == 3)
+            op->params["scale_factor"] = {ps[2]};
+        if (scale_factor_count == 4)
+            op->params["scale_factor"] = {ps[2], ps[3]};
+        if (scale_factor_count == 5)
+            op->params["scale_factor"] = {ps[2], ps[3], ps[4]};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_1, 10)
+
 } // namespace pnnx
