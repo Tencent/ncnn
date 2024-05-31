@@ -106,6 +106,9 @@ class fuse_layernorm_pass_2 : public GraphRewriterPass
 public:
     const char* match_pattern_graph() const
     {
+        // clang-format off
+        // *INDENT-OFF*
+
         return R"PNNXIR(7767517
 7 6
 pnnx.Input              input       0 1 input #input=(1,?,%c)f32
@@ -116,6 +119,9 @@ torch.mean              op_3        1 1 26 var dim=(-1) keepdim=True
 pnnx.Expression         op_4        2 1 25 var out expr=div(@0,sqrt(add(@1,%eps)))
 pnnx.Output             output      1 0 out
 )PNNXIR";
+
+        // *INDENT-ON*
+        // clang-format on
     }
 
     const char* replace_pattern_graph() const
