@@ -12,13 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "fuse_swish.h"
+#include "fuse_silu.h"
 
 #include "pass_level2.h"
 
 namespace pnnx {
 
-class fuse_swish_pass : public GraphRewriterPass
+class fuse_silu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -34,16 +34,16 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "F.swish";
+        return "F.silu";
     }
 
     const char* name_str() const
     {
-        return "swish";
+        return "silu";
     }
 };
 
-class fuse_swish_pass_1 : public fuse_swish_pass
+class fuse_silu_pass_1 : public fuse_silu_pass
 {
 public:
     const char* match_pattern_graph() const
@@ -58,10 +58,10 @@ pnnx.Output             output      1 0 out
     }
 };
 
-void fuse_swish(Graph& graph)
+void fuse_silu(Graph& graph)
 {
-    fuse_swish_pass a;
-    fuse_swish_pass_1 b;
+    fuse_silu_pass a;
+    fuse_silu_pass_1 b;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
