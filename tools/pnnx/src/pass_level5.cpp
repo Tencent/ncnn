@@ -46,6 +46,7 @@
 #include "pass_level5/fuse_pad_conv2d.h"
 #include "pass_level5/fuse_scaled_dot_product_attention.h"
 #include "pass_level5/fuse_select_to_unbind.h"
+#include "pass_level5/fuse_silu.h"
 #include "pass_level5/fuse_slice_copy.h"
 #include "pass_level5/fuse_slice_indices.h"
 #include "pass_level5/fuse_slice_to_tensor_split.h"
@@ -58,7 +59,6 @@
 #include "pass_level5/fuse_static_instancenorm.h"
 #include "pass_level5/fuse_static_layernorm.h"
 #include "pass_level5/fuse_static_linear.h"
-#include "pass_level5/fuse_swish.h"
 #include "pass_level5/normalize_einsum_equation.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
@@ -144,7 +144,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_multiheadattention(g);
     fuse_scaled_dot_product_attention(g);
 
-    fuse_swish(g);
+    fuse_silu(g);
 
     fuse_index_expression(g);
 

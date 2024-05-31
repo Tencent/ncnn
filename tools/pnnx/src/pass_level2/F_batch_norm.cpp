@@ -100,11 +100,19 @@ pnnx.Output             output      1 0 out
     {
         return "F.batch_norm";
     }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(op, captured_params, captured_attrs);
+
+        std::swap(op->inputs[1], op->inputs[3]);
+        std::swap(op->inputs[2], op->inputs[4]);
+    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_onnx, 10)
 
-class F_batch_norm_onnx_1 : public GraphRewriterPass
+class F_batch_norm_onnx_1 : public F_batch_norm_onnx
 {
 public:
     const char* match_pattern_graph() const
@@ -119,11 +127,6 @@ pnnx.Input              input_4     0 1 running_var
 BatchNormalization      op_0        5 1 input weight bias running_mean running_var out epsilon=%eps momentum=*
 pnnx.Output             output      1 0 out
 )PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "F.batch_norm";
     }
 };
 

@@ -16,6 +16,6 @@
 
 namespace pnnx {
 
-void fuse_swish(Graph& graph);
+void fuse_silu(Graph& graph);
 
 } // namespace pnnx
