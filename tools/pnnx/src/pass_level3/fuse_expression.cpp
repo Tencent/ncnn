@@ -555,16 +555,13 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         {
             fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         }
-        else
+        else // if (op->inputs.size() == 2)
         {
-        expr += "size(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
-        if (op->inputs.size() == 2)
-        {
+            expr += "size(";
+            fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
             expr += ",";
             fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
-        }
-        expr += ")";
+            expr += ")";
         }
     }
     else if (op->type == "Tensor.slice" && !operand_maybe_tensor(operand))
