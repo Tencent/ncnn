@@ -81,13 +81,13 @@ static bool operand_maybe_tensor(const Operand* operand)
             return true;
 
         if (op->inputs[1]->producer->type != "prim::Constant"
-            || op->inputs[2]->producer->type != "prim::Constant"
-            || op->inputs[3]->producer->type != "prim::Constant")
+                || op->inputs[2]->producer->type != "prim::Constant"
+                || op->inputs[3]->producer->type != "prim::Constant")
             return true;
 
         if (op->inputs[1]->producer->params.at("value").type != 2
-            || op->inputs[2]->producer->params.at("value").type != 2
-            || op->inputs[3]->producer->params.at("value").type != 2)
+                || op->inputs[2]->producer->params.at("value").type != 2
+                || op->inputs[3]->producer->params.at("value").type != 2)
             return true;
 
         // dim=0 and step=1
