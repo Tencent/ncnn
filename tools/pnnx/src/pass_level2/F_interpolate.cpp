@@ -1056,6 +1056,44 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx, 10)
 
+class F_interpolate_onnx_0 : public F_interpolate_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Attribute          roi         0 1 roi @data
+pnnx.Attribute          op_0        0 1 size @data
+Resize                  op_1        3 1 input roi size out coordinate_transformation_mode=* mode=nearest nearest_mode=floor
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        if (!F_interpolate_onnx::match(matched_operators, captured_params, captured_attrs))
+            return false;
+
+        auto roi = captured_attrs.at("roi.data");
+        if (roi.type != 1)
+            return false;
+
+        int roi_count = roi.data.size() / sizeof(float);
+        const float* proi = (const float*)roi.data.data();
+        for (int i = 0; i < roi_count; i++)
+        {
+            if (proi[i] != 1.f)
+                return false;
+        }
+
+        return true;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_0, 10)
+
 class F_interpolate_onnx_1 : public GraphRewriterPass
 {
 public:
@@ -1110,5 +1148,43 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_1, 10)
+
+class F_interpolate_onnx_2 : public F_interpolate_onnx_1
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Attribute          roi         0 1 roi @data
+pnnx.Attribute          op_0        0 1 scale_factor @data
+Resize                  op_1        3 1 input roi scale_factor out coordinate_transformation_mode=* mode=nearest nearest_mode=floor
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        if (!F_interpolate_onnx_1::match(captured_params, captured_attrs))
+            return false;
+
+        auto roi = captured_attrs.at("roi.data");
+        if (roi.type != 1)
+            return false;
+
+        int roi_count = roi.data.size() / sizeof(float);
+        const float* proi = (const float*)roi.data.data();
+        for (int i = 0; i < roi_count; i++)
+        {
+            if (proi[i] != 1.f)
+                return false;
+        }
+
+        return true;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_2, 10)
 
 } // namespace pnnx

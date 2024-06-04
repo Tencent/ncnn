@@ -50,6 +50,14 @@ void eliminate_noop(onnx::ModelProto& model)
                     }
                 }
             }
+
+            for (int j = 0; j < graph->output_size(); j++)
+            {
+                if (graph->output(j).name() == output_name)
+                {
+                    graph->mutable_output(j)->set_name(input_name);
+                }
+            }
         }
     }
 }

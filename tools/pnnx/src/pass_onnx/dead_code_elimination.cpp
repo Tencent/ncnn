@@ -144,7 +144,7 @@ void dead_code_elimination(onnx::ModelProto& model)
                     }
 
                     //  ..... ....... j
-                    graph->mutable_node()->RemoveLast();
+                    graph->mutable_value_info()->RemoveLast();
 
                     break;
                 }
