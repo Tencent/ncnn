@@ -808,13 +808,21 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         is_attr_list = true;
                 }
 
+                bool is_attr_weight = false;
+                {
+                    if (sim_op_type == "Conv" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                    if (sim_op_type == "ConvTranspose" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                }
+
                 int64_t numel = 1;
                 for (int k = 0; k < tensor.dims_size(); k++)
                 {
                     numel *= tensor.dims(k);
                 }
 
-                if (numel == 1)
+                if (numel == 1 && !is_attr_weight)
                 {
                     Operator* op_const = pnnx_graph.new_operator_before("prim::Constant", input, op);
 
@@ -884,7 +892,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         fprintf(stderr, "unknown constant scalar type %d\n", (int)tensor.data_type());
                     }
                 }
-                else if (is_attr_list)
+                else if (is_attr_list && !is_attr_weight)
                 {
                     // create list expression
                     Operator* op_const = pnnx_graph.new_operator_before("pnnx.Expression", input, op);
@@ -1022,7 +1030,13 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
             if (op_type == "Slice")
             {
-                if (op->inputs.size() == 4)
+                if (op->inputs.size() == 3)
+                {
+                    op->inputnames = {"input", "start", "end"};
+                    op->params["dim"] = 0;
+                    op->params["step"] = 1;
+                }
+                else if (op->inputs.size() == 4)
                 {
                     // data start end dim -> input dim start end
                     op->inputnames = {"input", "dim", "start", "end"};

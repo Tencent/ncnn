@@ -221,4 +221,67 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_1, 10)
 
+class F_hardsigmoid_onnx_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+HardSigmoid             op_0        1 1 input out alpha=%alpha
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+prim::Constant          alpha2      0 1 alpha2
+aten::mul               mul         2 1 input alpha2 a
+F.hardsigmoid           hs          1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        float alpha = captured_params.at("alpha").f;
+        return !NearlyEqual(alpha, 1.f / 6, 0.001);
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const float alpha = captured_params.at("alpha").f;
+        ops.at("alpha2")->params["value"] = alpha / (1.f / 6);
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_2, 10)
+
+class F_hardsigmoid_onnx_3 : public F_hardsigmoid_onnx_2
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+HardSigmoid             op_0        1 1 input out alpha=%alpha beta=%beta
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        float alpha = captured_params.at("alpha").f;
+        float beta = captured_params.at("beta").f;
+        return !NearlyEqual(alpha, 1.f / 6, 0.001) && NearlyEqual(beta, 0.5f, 0.001);
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_3, 10)
+
 } // namespace pnnx

@@ -461,6 +461,9 @@ static bool check_input_shape(onnx::ModelProto& model, const std::vector<std::ve
                         continue;
 
                     int64_t ds = tsp.dim(j).dim_value();
+                    if (ds == -1)
+                        continue;
+
                     if (input_shapes[i][j] != ds)
                         matched = false;
                 }
@@ -540,7 +543,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     onnx2pnnx::ModelStat oldstat = onnx2pnnx::get_model_stat(model);
 
-    fprintf(stderr, "%-30s", "inline_containers ... ");
+    fprintf(stderr, "%-34s", "inline_containers ... ");
 
     double t0 = get_current_time();
 
@@ -548,9 +551,9 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     double t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "eliminate_noop ... ");
+    fprintf(stderr, "%-34s", "eliminate_noop ... ");
 
     t0 = get_current_time();
 
@@ -558,9 +561,9 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "dead_code_elimination ... ");
+    fprintf(stderr, "%-34s", "dead_code_elimination ... ");
 
     t0 = get_current_time();
 
@@ -568,9 +571,9 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "fold_constants ... ");
+    fprintf(stderr, "%-34s", "fold_constants ... ");
 
     t0 = get_current_time();
 
@@ -578,9 +581,9 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "dead_code_elimination ... ");
+    fprintf(stderr, "%-34s", "dead_code_elimination ... ");
 
     t0 = get_current_time();
 
@@ -588,9 +591,9 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "canonicalize ... ");
+    fprintf(stderr, "%-34s", "canonicalize ... ");
 
     t0 = get_current_time();
 
@@ -598,9 +601,9 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "shape_inference ... ");
+    fprintf(stderr, "%-34s", "shape_inference ... ");
 
     t0 = get_current_time();
 
@@ -608,7 +611,27 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+    fprintf(stderr, "%-34s", "fold_constants_dynamic_shape ... ");
+
+    t0 = get_current_time();
+
+    onnx2pnnx::fold_constants_dynamic_shape(model, input_shapes, input_types);
+
+    t1 = get_current_time();
+
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+    fprintf(stderr, "%-34s", "dead_code_elimination ... ");
+
+    t0 = get_current_time();
+
+    onnx2pnnx::dead_code_elimination(model);
+
+    t1 = get_current_time();
+
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
     // save
     {

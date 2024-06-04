@@ -77,26 +77,29 @@ static bool operand_maybe_tensor(const Operand* operand)
     if (op->type == "Tensor.slice")
     {
         // static slice
-        if (op->inputs.size() != 4 && op->inputs.size() != 5)
+        const size_t inputs_size = op->inputs.size();
+        if (inputs_size != 3 && inputs_size != 4 && inputs_size != 5)
             return true;
 
-        if (op->inputs[1]->producer->type != "prim::Constant"
-                || op->inputs[2]->producer->type != "prim::Constant"
-                || op->inputs[3]->producer->type != "prim::Constant")
+        for (size_t i = 0; i < inputs_size; i++)
+        {
+            if (op->inputs[i]->producer->type != "prim::Constant")
+                return true;
+
+            if (op->inputs[i]->producer->params.at("value").type != 2)
+                return true;
+        }
+
+        // dim=0
+        if (inputs_size == 3 && op->params.at("dim").i != 0)
+            return true;
+        if ((inputs_size == 4 || inputs_size == 5) && op->inputs[0]->producer->params.at("value").i != 1)
             return true;
 
-        if (op->inputs[1]->producer->params.at("value").type != 2
-                || op->inputs[2]->producer->params.at("value").type != 2
-                || op->inputs[3]->producer->params.at("value").type != 2)
+        // step=1
+        if ((inputs_size == 3 || inputs_size == 4) && op->params.at("step").i != 1)
             return true;
-
-        // dim=0 and step=1
-        if (op->inputs[1]->producer->params.at("value").i != 0)
-            return true;
-
-        if (op->inputs.size() == 4 && op->params.at("step").i != 1)
-            return true;
-        if (op->inputs.size() == 5 && op->inputs[4]->producer->params.at("value").i != 1)
+        if (inputs_size == 5 && op->inputs[4]->producer->params.at("value").i != 1)
             return true;
 
         return !operand_maybe_shape_tensor(op->inputs[0]);
@@ -566,8 +569,8 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     }
     else if (op->type == "Tensor.slice" && !operand_maybe_tensor(operand))
     {
-        int start = op->inputs[2]->producer->params.at("value").i;
-        int end = op->inputs[3]->producer->params.at("value").i;
+        int start = op->inputs.size() == 3 ? op->inputs[1]->producer->params.at("value").i : op->inputs[2]->producer->params.at("value").i;
+        int end = op->inputs.size() == 3 ? op->inputs[2]->producer->params.at("value").i : op->inputs[3]->producer->params.at("value").i;
 
         // onnx style shape + slice chain
         const Operator* op_shape = op->inputs[0]->producer;

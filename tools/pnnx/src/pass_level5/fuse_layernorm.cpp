@@ -101,6 +101,31 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_layernorm_pass_1_1 : public fuse_layernorm_pass_1
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // clang-format off
+        // *INDENT-OFF*
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input       0 1 input #input=(1,?,%c)f32
+pnnx.Attribute          op_0        0 1 weight @data #weight=(%c)f32
+pnnx.Attribute          op_1        0 1 bias @data #bias=(%c)f32
+torch.mean              op_2        1 1 input mean dim=(2) keepdim=True #input=(1,?,%c)f32
+pnnx.Expression         op_3        2 1 input mean 75 expr=sub(@0,@1)
+pnnx.Expression         op_4        1 1 75 76 expr=pow(@0,2.000000e+00)
+torch.mean              op_5        1 1 76 var dim=(2) keepdim=True
+pnnx.Expression         op_6        4 1 75 var weight bias out expr=add(mul(div(@0,sqrt(add(@1,%eps))),@2),@3)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+
+        // *INDENT-ON*
+        // clang-format on
+    }
+};
+
 class fuse_layernorm_pass_2 : public GraphRewriterPass
 {
 public:
@@ -163,12 +188,14 @@ void fuse_layernorm(Graph& graph)
 {
     fuse_layernorm_pass a;
     fuse_layernorm_pass_1 b;
+    fuse_layernorm_pass_1_1 b1;
     fuse_layernorm_pass_2 c;
     fuse_layernorm_pass_2_1 c1;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
+    pnnx_graph_rewrite(graph, &b1, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &c1, opindex);
 }
