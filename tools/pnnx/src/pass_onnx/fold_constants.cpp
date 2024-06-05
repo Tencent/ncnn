@@ -85,6 +85,36 @@ static ONNXTensorElementDataType get_onnx_tensor_elem_data_type(const std::strin
     return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
 }
 
+static void onnx_tensor_fill_random(void* ort_val_data, const std::vector<int64_t>& shape, ONNXTensorElementDataType datatype)
+{
+    if (shape.empty())
+        return;
+
+    int64_t n = 1;
+    for (size_t i = 0; i < shape.size(); i++)
+    {
+        n *= shape[i];
+    }
+
+    if (datatype == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT)
+    {
+        float* p = (float*)ort_val_data;
+        for (int64_t i = 0; i < n; i++)
+        {
+            p[i] = 0.1f;
+        }
+    }
+
+    if (datatype == ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64)
+    {
+        int64_t* p = (int64_t*)ort_val_data;
+        for (int64_t i = 0; i < n; i++)
+        {
+            p[i] = 7;
+        }
+    }
+}
+
 void fold_constants(onnx::ModelProto& model,
                     const std::vector<std::vector<int64_t> >& input_shapes,
                     const std::vector<std::string>& input_types,
@@ -315,6 +345,14 @@ void fold_constants(onnx::ModelProto& model,
             {
                 fprintf(stderr, "ort CreateTensorAsOrtValue failed %s\n", ort_api->GetErrorMessage(ort_status));
             }
+
+            void* ort_val_data = 0;
+            ort_status = ort_api->GetTensorMutableData(ort_val, &ort_val_data);
+            if (ort_status)
+            {
+                fprintf(stderr, "ort GetTensorMutableData failed %s\n", ort_api->GetErrorMessage(ort_status));
+            }
+            onnx_tensor_fill_random(ort_val_data, shape, datatype);
 
             input_names.push_back(value.name().c_str());
             inputs.push_back(ort_val);
@@ -616,6 +654,99 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
                 }
             }
 
+            if (op_type == "Gather")
+            {
+                // match Shape + Gather pattern for partial static shape
+                const std::string& input = node.input(0);
+                bool is_producer_shape = false;
+                int producer_node_output_index = -1;
+                if (!input.empty() && initializers.find(input) == initializers.end())
+                {
+                    for (int j = 0; j < i; j++)
+                    {
+                        const onnx::NodeProto& node0 = graph.node(j);
+
+                        for (int k = 0; k < node0.output_size(); k++)
+                        {
+                            if (node0.output(k) == input)
+                            {
+                                producer_node_output_index = j;
+                                break;
+                            }
+                        }
+
+                        if (producer_node_output_index != -1)
+                        {
+                            const onnx::NodeProto& node0 = graph.node(producer_node_output_index);
+                            is_producer_shape = node0.op_type() == "Shape";
+                            break;
+                        }
+                    }
+                }
+
+                if (is_producer_shape)
+                {
+                    // get shape info
+                    int value_info_index = -1;
+                    for (int j = 0; j < graph.value_info_size(); j++)
+                    {
+                        if (graph.value_info(j).name() == input)
+                        {
+                            value_info_index = j;
+                            break;
+                        }
+                    }
+
+                    std::vector<int> shape;
+                    if (value_info_index != -1)
+                    {
+                        const onnx::ValueInfoProto& value = graph.value_info(value_info_index);
+                        const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
+                        shape.resize(tsp.dim_size());
+                        for (int j = 0; j < tsp.dim_size(); j++)
+                        {
+                            if (tsp.dim(j).has_dim_value())
+                            {
+                                shape[j] = tsp.dim(j).dim_value();
+                            }
+                            else
+                            {
+                                shape[j] = -1;
+                            }
+                        }
+                    }
+
+                    if (!shape.empty())
+                    {
+                        if (initializers.find(node.input(1)) != initializers.end())
+                        {
+                            const onnx::TensorProto& tensor = graph.initializer(initializers.at(node.input(1)));
+                            int64_t i64;
+                            if (tensor.has_raw_data())
+                            {
+                                // assert tensor.raw_data().size() == 8
+                                i64 = ((int64_t*)tensor.raw_data().data())[0];
+                            }
+                            else
+                            {
+                                // assert tensor.int64_data().size() == 1
+                                i64 = tensor.int64_data().at(0);
+                            }
+                            if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                            if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                            int gather_indices = (int)i64;
+
+                            is_outputs_foldable = true;
+
+                            if (shape[gather_indices] == -1)
+                            {
+                                is_outputs_foldable = false;
+                            }
+                        }
+                    }
+                }
+            }
+
             if (!is_outputs_foldable)
             {
                 for (int j = 0; j < node.input_size(); j++)
@@ -773,6 +904,14 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
             {
                 fprintf(stderr, "ort CreateTensorAsOrtValue failed %s\n", ort_api->GetErrorMessage(ort_status));
             }
+
+            void* ort_val_data = 0;
+            ort_status = ort_api->GetTensorMutableData(ort_val, &ort_val_data);
+            if (ort_status)
+            {
+                fprintf(stderr, "ort GetTensorMutableData failed %s\n", ort_api->GetErrorMessage(ort_status));
+            }
+            onnx_tensor_fill_random(ort_val_data, shape, datatype);
 
             input_names.push_back(value.name().c_str());
             inputs.push_back(ort_val);
