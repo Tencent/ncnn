@@ -311,7 +311,7 @@ _PS256_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
 _PS256_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
 
 // an approximation of tanh
-static inline __m256 tanh256_ps(const __m256 x)
+static NCNN_FORCEINLINE __m256 tanh256_ps(__m256 x)
 {
     __m256 value = x;
     value = _mm256_max_ps(*(__m256*)_ps256_tanh_lo, value);
