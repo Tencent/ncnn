@@ -350,6 +350,8 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (elempack < out_elempack)
         {
             convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+            if (top_blob.empty())
+                return -100;
         }
     }
 
@@ -685,6 +687,8 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (elempack < out_elempack)
         {
             convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+            if (top_blob.empty())
+                return -100;
         }
     }
 
