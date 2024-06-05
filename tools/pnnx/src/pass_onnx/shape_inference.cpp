@@ -46,6 +46,36 @@ static ONNXTensorElementDataType get_onnx_tensor_elem_data_type(const std::strin
     return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
 }
 
+static void onnx_tensor_fill_random(void* ort_val_data, const std::vector<int64_t>& shape, ONNXTensorElementDataType datatype)
+{
+    if (shape.empty())
+        return;
+
+    int64_t n = 1;
+    for (size_t i = 0; i < shape.size(); i++)
+    {
+        n *= shape[i];
+    }
+
+    if (datatype == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT)
+    {
+        float* p = (float*)ort_val_data;
+        for (int64_t i = 0; i < n; i++)
+        {
+            p[i] = 0.1f;
+        }
+    }
+
+    if (datatype == ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64)
+    {
+        int64_t* p = (int64_t*)ort_val_data;
+        for (int64_t i = 0; i < n; i++)
+        {
+            p[i] = 7;
+        }
+    }
+}
+
 static bool string_starts_with(const std::string& s, const std::string& s2)
 {
     return strncmp(s.c_str(), s2.c_str(), s2.size()) == 0;
@@ -127,6 +157,7 @@ void shape_inference(onnx::ModelProto& model,
     }
 
     // onnxrt inference
+    std::vector<std::string> new_outputs;
     {
         const OrtApi* ort_api = OrtGetApiBase()->GetApi(ORT_API_VERSION);
 
@@ -215,6 +246,14 @@ void shape_inference(onnx::ModelProto& model,
             {
                 fprintf(stderr, "ort CreateTensorAsOrtValue failed %s\n", ort_api->GetErrorMessage(ort_status));
             }
+
+            void* ort_val_data = 0;
+            ort_status = ort_api->GetTensorMutableData(ort_val, &ort_val_data);
+            if (ort_status)
+            {
+                fprintf(stderr, "ort GetTensorMutableData failed %s\n", ort_api->GetErrorMessage(ort_status));
+            }
+            onnx_tensor_fill_random(ort_val_data, shape, datatype);
 
             input_names.push_back(value.name().c_str());
             inputs.push_back(ort_val);
@@ -310,6 +349,7 @@ void shape_inference(onnx::ModelProto& model,
                         {
                             value = graph->add_output();
                             value->set_name(output_names[i]);
+                            new_outputs.push_back(output_names[i]);
                             break;
                         }
                     }
@@ -444,6 +484,14 @@ void shape_inference(onnx::ModelProto& model,
                 fprintf(stderr, "ort CreateTensorAsOrtValue failed %s\n", ort_api->GetErrorMessage(ort_status));
             }
 
+            void* ort_val_data = 0;
+            ort_status = ort_api->GetTensorMutableData(ort_val, &ort_val_data);
+            if (ort_status)
+            {
+                fprintf(stderr, "ort GetTensorMutableData failed %s\n", ort_api->GetErrorMessage(ort_status));
+            }
+            onnx_tensor_fill_random(ort_val_data, shape, datatype);
+
             input_names.push_back(value.name().c_str());
             inputs.push_back(ort_val);
         }
@@ -532,9 +580,9 @@ void shape_inference(onnx::ModelProto& model,
                     onnx::ValueInfoProto* value = 0;
 
                     // maybe output
-                    for (size_t j = 0; j < orig_outputs.size(); j++)
+                    for (size_t j = 0; j < new_outputs.size(); j++)
                     {
-                        if (orig_outputs[j] == output_names[i])
+                        if (new_outputs[j] == output_names[i])
                         {
                             value = graph->mutable_output(j);
                             break;
