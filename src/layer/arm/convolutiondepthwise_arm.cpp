@@ -1547,7 +1547,6 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
             return -100;
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);

@@ -42,6 +42,9 @@ Mat Mat::clone(Allocator* _allocator) const
     else if (dims == 4)
         m.create(w, h, d, c, elemsize, elempack, _allocator);
 
+    if (m.empty())
+        return m;
+
     if (total() > 0)
     {
         if (cstep == m.cstep)
@@ -74,6 +77,8 @@ Mat Mat::reshape(int _w, Allocator* _allocator) const
     {
         Mat m;
         m.create(_w, elemsize, elempack, _allocator);
+        if (m.empty())
+            return m;
 
         // flatten
         for (int i = 0; i < c; i++)
@@ -108,6 +113,8 @@ Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     {
         Mat m;
         m.create(_w, _h, elemsize, elempack, _allocator);
+        if (m.empty())
+            return m;
 
         // flatten
         for (int i = 0; i < c; i++)
@@ -144,6 +151,8 @@ Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
         {
             Mat m;
             m.create(_w, _h, _c, elemsize, elempack, _allocator);
+            if (m.empty())
+                return m;
 
             // align channel
             for (int i = 0; i < _c; i++)
@@ -187,6 +196,8 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
         {
             Mat m;
             m.create(_w, _h, _d, _c, elemsize, elempack, _allocator);
+            if (m.empty())
+                return m;
 
             // align channel
             for (int i = 0; i < _c; i++)
