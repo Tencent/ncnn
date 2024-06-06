@@ -159,6 +159,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (elempack < out_elempack)
         {
             convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+            if (top_blob.empty())
+                return -100;
         }
     }
 
@@ -284,6 +286,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (elempack < out_elempack)
         {
             convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+            if (top_blob.empty())
+                return -100;
         }
     }
 
@@ -617,6 +621,8 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (elempack < out_elempack)
         {
             convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+            if (top_blob.empty())
+                return -100;
         }
     }
 
@@ -816,6 +822,8 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (elempack < out_elempack)
         {
             convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+            if (top_blob.empty())
+                return -100;
         }
     }
 
