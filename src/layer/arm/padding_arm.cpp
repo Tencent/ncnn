@@ -238,6 +238,8 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);
@@ -616,6 +618,8 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);
@@ -770,6 +774,8 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);

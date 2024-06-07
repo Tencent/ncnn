@@ -3145,7 +3145,7 @@ static void convolution_im2col_gemm_transform_kernel_fp16sa(const Mat& kernel, M
     }
 }
 
-static void convolution_im2col_gemm_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt)
+static int convolution_im2col_gemm_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt)
 {
     // NCNN_LOGE("convolution_im2col_gemm_fp16sa %p %p %p %p", bottom_blob.data, top_blob.data, AT.data, bias.data);
     const int maxk = kernel_w * kernel_h;
@@ -3164,6 +3164,8 @@ static void convolution_im2col_gemm_fp16sa(const Mat& bottom_blob, Mat& top_blob
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -3187,7 +3189,11 @@ static void convolution_im2col_gemm_fp16sa(const Mat& bottom_blob, Mat& top_blob
 
     Mat topT_tileX;
     if (K > TILE_K)
+    {
         topT_tileX.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
+        if (topT_tileX.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -3218,4 +3224,6 @@ static void convolution_im2col_gemm_fp16sa(const Mat& bottom_blob, Mat& top_blob
             }
         }
     }
+
+    return 0;
 }

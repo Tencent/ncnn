@@ -329,6 +329,8 @@ int DeconvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_b
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
@@ -350,13 +352,17 @@ int DeconvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_b
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack == 1 && out_elempack == 4)
         {
             convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {
@@ -622,6 +628,8 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, g_elempack, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
@@ -643,13 +651,17 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack < out_elempack)
         {
             convert_packing(top_blob_bordered_unpacked, top_blob_bordered, out_elempack, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {
