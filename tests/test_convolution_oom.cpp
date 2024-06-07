@@ -53,8 +53,7 @@ static int test_convolution_0()
 {
     return 0
            || test_convolution_oom(9, 7, 31, 63, 1, 1, 1, 0, 1)
-           || test_convolution_oom(9, 7, 31, 63, 3, 1, 1, 1, 1)
-           ;
+           || test_convolution_oom(9, 7, 31, 63, 3, 1, 1, 1, 1);
 }
 
 int main()
