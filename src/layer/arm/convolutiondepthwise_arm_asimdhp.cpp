@@ -270,7 +270,7 @@ int ConvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blo
     }
 
     Mat top_blob_unpacked = top_blob;
-    if (out_g_elempack == 1 && out_elempack == 4)
+    if (out_g_elempack < out_elempack)
     {
         top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
         if (top_blob_unpacked.empty())
@@ -294,9 +294,9 @@ int ConvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blo
     }
 
     // packing
-    if (out_g_elempack == 1 && out_elempack == 4)
+    if (out_g_elempack < out_elempack)
     {
-        convert_packing(top_blob_unpacked, top_blob, 4, opt);
+        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
         if (top_blob.empty())
             return -100;
     }
