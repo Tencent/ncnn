@@ -27,6 +27,11 @@ void lstm_transform_weight_int8_avx512vnni(const Mat& weight_xc, const Mat& weig
     lstm_transform_weight_int8(weight_xc, weight_xc_int8_scales, weight_hc, weight_hc_int8_scales, bias_c, weight_data_tm, weight_data_tm_int8_descales, bias_c_tm, size, num_output, num_directions, hidden_size, opt);
 }
 
+void lstm_dynamic_quantize_scale2int8_avx512vnni(const float* ptr, int size, float scale, signed char* outptr)
+{
+    lstm_dynamic_quantize_scale2int8(ptr, size, scale, outptr);
+}
+
 void lstm_int8_avx512vnni(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt)
 {
     lstm_int8(bottom_blob_int8, bottom_blob_int8_descales, top_blob, reverse, weight_data_tm, weight_data_tm_int8_descales, bias_c, weight_hr, hidden_state, cell_state, opt);
