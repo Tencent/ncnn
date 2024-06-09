@@ -1676,14 +1676,11 @@ static void lstm_dynamic_quantize_scale2int8(const float* ptr, int size, float s
         __m128 _p = _mm_loadu_ps(ptr);
         _p = _mm_mul_ps(_p, _scale);
         *(int32_t*)outptr = float2int8_sse(_p);
-#ifndef _MSC_VER
-        // but msvc feels unhappy :L
 #if __AVXVNNI__ || __AVX512VNNI__
         outptr[0] += 127;
         outptr[1] += 127;
         outptr[2] += 127;
         outptr[3] += 127;
-#endif
 #endif
         ptr += 4;
         outptr += 4;
@@ -1784,17 +1781,10 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 }
                 for (; i + 3 < num_output; i += 4)
                 {
-#ifdef _MSC_VER
-                    hs[0] = 0;
-                    hs[1] = 0;
-                    hs[2] = 0;
-                    hs[3] = 0;
-#else
                     hs[0] = 127;
                     hs[1] = 127;
                     hs[2] = 127;
                     hs[3] = 127;
-#endif
                     hs += 4;
                 }
                 for (; i < num_output; i++)
@@ -2612,9 +2602,6 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
             __m128i _sum1 = _mm_setzero_si128();
             int i = 0;
 #if __AVXVNNI__ || __AVX512VNNI__
-#ifdef _MSC_VER
-            __m128i _v127 = _mm_set1_epi8(127);
-#endif
 #if defined(__x86_64__) || defined(_M_X64)
             __m128i _sum2 = _mm_setzero_si128();
             __m128i _sum3 = _mm_setzero_si128();
@@ -2626,9 +2613,6 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w2 = _mm_loadu_si128((const __m128i*)(kptr + 32));
                 __m128i _w3 = _mm_loadu_si128((const __m128i*)(kptr + 48));
 
-#ifdef _MSC_VER
-                _xi = _mm_add_epi8(_xi, _v127);
-#endif
                 _sum0 = _mm_dpbusd_epi32(_sum0, _xi, _w0);
                 _sum1 = _mm_dpbusd_epi32(_sum1, _xi, _w1);
                 _sum2 = _mm_dpbusd_epi32(_sum2, _xi, _w2);
@@ -2653,9 +2637,6 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
                 __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
 
-#ifdef _MSC_VER
-                _xi = _mm_add_epi8(_xi, _v127);
-#endif
                 _sum0 = _mm_dpbusd_epi32(_sum0, _xi, _w0);
                 _sum1 = _mm_dpbusd_epi32(_sum1, _xi, _w1);
 
@@ -2671,9 +2652,6 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _xi = _mm_castps_si128(_mm_load1_ps((const float*)(x + i)));
                 __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
 
-#ifdef _MSC_VER
-                _xi = _mm_add_epi8(_xi, _v127);
-#endif
                 _lstm_IFOGx0 = _mm_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
 
                 kptr += 16;
@@ -2841,9 +2819,6 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w2 = _mm_loadu_si128((const __m128i*)(kptr + 32));
                 __m128i _w3 = _mm_loadu_si128((const __m128i*)(kptr + 48));
 
-#ifdef _MSC_VER
-                _h_cont = _mm_add_epi8(_h_cont, _v127);
-#endif
                 _sum0 = _mm_dpbusd_epi32(_sum0, _h_cont, _w0);
                 _sum1 = _mm_dpbusd_epi32(_sum1, _h_cont, _w1);
                 _sum2 = _mm_dpbusd_epi32(_sum2, _h_cont, _w2);
@@ -2868,9 +2843,6 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
                 __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
 
-#ifdef _MSC_VER
-                _h_cont = _mm_add_epi8(_h_cont, _v127);
-#endif
                 _sum0 = _mm_dpbusd_epi32(_sum0, _h_cont, _w0);
                 _sum1 = _mm_dpbusd_epi32(_sum1, _h_cont, _w1);
 
@@ -2886,9 +2858,6 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _h_cont = _mm_castps_si128(_mm_load1_ps((const float*)(hs + i)));
                 __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
 
-#ifdef _MSC_VER
-                _h_cont = _mm_add_epi8(_h_cont, _v127);
-#endif
                 _lstm_IFOGh0 = _mm_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
 
                 kptr += 16;
