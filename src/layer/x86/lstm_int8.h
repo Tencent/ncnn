@@ -1578,7 +1578,7 @@ static float lstm_dynamic_quantize_get_absmax(const float* ptr, int size)
     __m512 _absmax_avx512 = _mm512_set1_ps(0.f);
     for (; i + 15 < size; i += 16)
     {
-        __m512 _p = _mm512_load_ps(ptr);
+        __m512 _p = _mm512_loadu_ps(ptr);
         _absmax_avx512 = _mm512_max_ps(_absmax_avx512, abs512_ps(_p));
         ptr += 16;
     }
@@ -1587,7 +1587,7 @@ static float lstm_dynamic_quantize_get_absmax(const float* ptr, int size)
     __m256 _absmax_avx = _mm256_set1_ps(0.f);
     for (; i + 7 < size; i += 8)
     {
-        __m256 _p = _mm256_load_ps(ptr);
+        __m256 _p = _mm256_loadu_ps(ptr);
         _absmax_avx = _mm256_max_ps(_absmax_avx, abs256_ps(_p));
         ptr += 8;
     }
@@ -1596,7 +1596,7 @@ static float lstm_dynamic_quantize_get_absmax(const float* ptr, int size)
     __m128 _absmax = _mm_set1_ps(0.f);
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = _mm_load_ps(ptr);
+        __m128 _p = _mm_loadu_ps(ptr);
         _absmax = _mm_max_ps(_absmax, abs_ps(_p));
         ptr += 4;
     }
@@ -1639,7 +1639,7 @@ static void lstm_dynamic_quantize_scale2int8(const float* ptr, int size, float s
 #endif
     for (; i + 15 < size; i += 16)
     {
-        __m512 _p = _mm512_load_ps(ptr);
+        __m512 _p = _mm512_loadu_ps(ptr);
         _p = _mm512_mul_ps(_p, _scale_avx512);
         __m128i _outp = float2int8_avx512(_p);
 #if __AVX512VNNI__
@@ -1653,7 +1653,7 @@ static void lstm_dynamic_quantize_scale2int8(const float* ptr, int size, float s
     __m256 _scale_avx = _mm256_set1_ps(scale);
     for (; i + 7 < size; i += 8)
     {
-        __m256 _p = _mm256_load_ps(ptr);
+        __m256 _p = _mm256_loadu_ps(ptr);
         _p = _mm256_mul_ps(_p, _scale_avx);
         *(int64_t*)outptr = float2int8_avx(_p);
 #if __AVXVNNI__ || __AVX512VNNI__
@@ -1673,7 +1673,7 @@ static void lstm_dynamic_quantize_scale2int8(const float* ptr, int size, float s
     __m128 _scale = _mm_set1_ps(scale);
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = _mm_load_ps(ptr);
+        __m128 _p = _mm_loadu_ps(ptr);
         _p = _mm_mul_ps(_p, _scale);
         *(int32_t*)outptr = float2int8_sse(_p);
 #if __AVXVNNI__ || __AVX512VNNI__
