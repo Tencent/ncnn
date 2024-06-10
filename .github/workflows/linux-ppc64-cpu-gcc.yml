@@ -9,6 +9,7 @@ on:
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
+    - 'src/layer/x86/*'
     - 'tests/**'
   pull_request:
     branches: [master]
@@ -19,6 +20,7 @@ on:
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
+    - 'src/layer/x86/*'
     - 'tests/**'
 concurrency:
   group: linux-ppc64-cpu-gcc-${{ github.ref }}
