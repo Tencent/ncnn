@@ -1081,7 +1081,7 @@ static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
 static NCNN_FORCEINLINE __m256 abs256_ps(__m256 x)
 {
     const __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7fffffff));
-    return _mm256_and_ps(abs_mask, inputs);
+    return _mm256_and_ps(abs_mask, x);
 }
 
 #endif // AVX_MATHFUN_H
