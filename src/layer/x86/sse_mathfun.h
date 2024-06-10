@@ -1148,10 +1148,10 @@ static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
                _mm_andnot_ps(normal_mode, special_result));
 }
 
-static NCNN_FORCEINLINE __m128 abs_ps(__m128 inputs)
+static NCNN_FORCEINLINE __m128 abs_ps(__m128 x)
 {
     const __m128 abs_mask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
-    return _mm_and_ps(abs_mask, inputs);
+    return _mm_and_ps(abs_mask, x);
 }
 
 #endif // SSE_MATHFUN_H
