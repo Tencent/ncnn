@@ -241,13 +241,13 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             op->create_pipeline(opt);
 
             // forward
-            op->forward(bottom_blob, top_blob, opt);
+            int ret = op->forward(bottom_blob, top_blob, opt);
 
             op->destroy_pipeline(opt);
 
             delete op;
 
-            return 0;
+            return ret;
         }
     }
 
@@ -401,6 +401,8 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         opt_g.blob_allocator = opt.workspace_allocator;
 
         quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_g);
+        if (bottom_blob_unbordered.empty())
+            return -100;
     }
 
     Mat bottom_blob_bordered;
