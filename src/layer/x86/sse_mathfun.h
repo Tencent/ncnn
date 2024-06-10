@@ -1150,11 +1150,8 @@ static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
 
 static NCNN_FORCEINLINE __m128 abs_ps(__m128 inputs)
 {
-    // Use negative zero as the sign bit mask.
-    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
-
-    // return (!magic_negative_zero && x);
-    return _mm_andnot_ps(magic_negative_zero, inputs);
+    const __m128 abs_mask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
+    return _mm_and_ps(abs_mask, inputs);
 }
 
 #endif // SSE_MATHFUN_H
