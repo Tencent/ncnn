@@ -142,6 +142,8 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (elempack > out_elempack)
         {
             convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, opt);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         const float* ptr = bottom_blob_unpacked;
@@ -304,6 +306,8 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (elempack > out_elempack)
         {
             convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, opt);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         int p = 0;
