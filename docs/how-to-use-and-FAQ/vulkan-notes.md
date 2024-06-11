@@ -106,7 +106,7 @@ cmd.wait();
 
 ## batch inference
 ```cpp
-int max_batch_size = vkdev->info.compute_queue_count;
+int max_batch_size = vkdev->info.compute_queue_count();
 
 ncnn::Mat inputs[1000];
 ncnn::Mat outputs[1000];

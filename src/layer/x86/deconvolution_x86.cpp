@@ -278,7 +278,9 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         Mat top_col2im;
         Option opt_b = opt;
         opt_b.blob_allocator = top_blob_bordered.allocator;
-        gemm->forward(bottom_blob_2, top_col2im, opt_b);
+        int ret = gemm->forward(bottom_blob_2, top_col2im, opt_b);
+        if (ret != 0)
+            return ret;
 
         {
             // col2im

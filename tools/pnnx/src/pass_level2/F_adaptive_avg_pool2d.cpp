@@ -38,4 +38,30 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_adaptive_avg_pool2d, 10)
 
+class F_adaptive_avg_pool2d_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input #input=(?,?,?,?)f32
+GlobalAveragePool       op_0        1 1 input out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.adaptive_avg_pool2d";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        op->params["output_size"] = {1, 1};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_adaptive_avg_pool2d_onnx, 10)
+
 } // namespace pnnx

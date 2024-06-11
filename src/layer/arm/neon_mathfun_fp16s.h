@@ -201,7 +201,7 @@ static inline float16x4_t exp_ps_f16(float16x4_t x)
     x = vmax_f16(x, vdup_n_f16(c_exp_lo_f16));
 
     /* express exp(x) as exp(g + n*log(2)) */
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
     fx = vfma_f16(vdup_n_f16(0.5f), x, vcvt_f16_f32(vdupq_n_f32(c_cephes_LOG2EF)));
 #else
     fx = vfma_f16(vdup_n_f16(0.5f), x, vdup_n_f16(c_cephes_LOG2EF));
@@ -216,7 +216,7 @@ static inline float16x4_t exp_ps_f16(float16x4_t x)
 
     fx = vsub_f16(tmp, (float16x4_t)(mask));
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
     tmp = vmul_f16(fx, vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1)));
     float16x4_t z = vmul_f16(fx, vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C2)));
 #else
@@ -258,7 +258,7 @@ static inline float16x8_t exp_ps_f16(float16x8_t x)
     x = vmaxq_f16(x, vdupq_n_f16(c_exp_lo_f16));
 
     /* express exp(x) as exp(g + n*log(2)) */
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
     float16x4_t _c_cephes_LOG2EF = vcvt_f16_f32(vdupq_n_f32(c_cephes_LOG2EF));
     fx = vfmaq_f16(vdupq_n_f16(0.5f), x, vcombine_f16(_c_cephes_LOG2EF, _c_cephes_LOG2EF));
 #else
@@ -274,7 +274,7 @@ static inline float16x8_t exp_ps_f16(float16x8_t x)
 
     fx = vsubq_f16(tmp, vreinterpretq_f16_u16(mask));
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
     float16x4_t _c_cephes_exp_C1 = vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1));
     tmp = vmulq_f16(fx, vcombine_f16(_c_cephes_exp_C1, _c_cephes_exp_C1));
     float16x4_t _c_cephes_exp_C2 = vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C2));
@@ -347,7 +347,7 @@ static inline void sincos_ps_f16(float16x4_t x, float16x4_t* ysin, float16x4_t* 
     x = vabs_f16(x);
 
     /* scale by 4/Pi */
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
     float16x4_t _c_cephes_FOPI = vcvt_f16_f32(vdupq_n_f32(c_cephes_FOPI));
     y = vmul_f16(x, _c_cephes_FOPI);
 #else
@@ -371,7 +371,7 @@ static inline void sincos_ps_f16(float16x4_t x, float16x4_t* ysin, float16x4_t* 
 
     /* The magic pass: "Extended precision modular arithmetic"
      *     x = ((x - y * DP1) - y * DP2) - y * DP3; */
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
     float16x4_t _c_minus_cephes_DP1 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP1));
     float16x4_t _c_minus_cephes_DP2 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP2));
     float16x4_t _c_minus_cephes_DP3 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP3));
@@ -422,7 +422,7 @@ static inline void sincos_ps_f16(float16x8_t x, float16x8_t* ysin, float16x8_t* 
     x = vabsq_f16(x);
 
     /* scale by 4/Pi */
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
     float16x4_t _c_cephes_FOPI = vcvt_f16_f32(vdupq_n_f32(c_cephes_FOPI));
     y = vmulq_f16(x, vcombine_f16(_c_cephes_FOPI, _c_cephes_FOPI));
 #else
@@ -446,7 +446,7 @@ static inline void sincos_ps_f16(float16x8_t x, float16x8_t* ysin, float16x8_t* 
 
     /* The magic pass: "Extended precision modular arithmetic"
      *     x = ((x - y * DP1) - y * DP2) - y * DP3; */
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
     float16x4_t _c_minus_cephes_DP1 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP1));
     float16x4_t _c_minus_cephes_DP2 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP2));
     float16x4_t _c_minus_cephes_DP3 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP3));

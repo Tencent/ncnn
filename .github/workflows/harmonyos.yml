@@ -1,0 +1,88 @@
+name: harmonyos
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/harmonyos.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/harmonyos.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+concurrency:
+  group: harmonyos-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux, centos]
+
+    env:
+      OHOS_NDK_HOME: /data/action/osd/ohos-sdk/linux/native
+      OHOS_NDK_CMAKE: /data/action/osd/ohos-sdk/linux/native/build-tools/cmake/bin/cmake
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=/data/action/osd/ohos-sdk/linux/native/build/cmake/ohos.toolchain.cmake \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DNCNN_SIMPLEOMP=ON \
+        -DNCNN_VULKAN=ON \
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    # - name: setup-sdk
+    #   run: |
+    #     cd /data/action/osd
+    #     wget -q https://repo.huaweicloud.com/harmonyos/os/4.1.1-Release/ohos-sdk-windows_linux-public.tar.gz
+    #     tar -xf ohos-sdk-windows_linux-public.tar.gz
+    #     cd ohos-sdk/linux
+    #     unzip -q native-linux-x64-4.1.7.8-Release.zip
+
+    - name: armeabi-v7a
+      run: |
+        mkdir build-armeabi-v7a && cd build-armeabi-v7a
+        ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="armeabi-v7a" ..
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
+    - name: arm64-v8a
+      run: |
+        mkdir build-arm64-v8a && cd build-arm64-v8a
+        ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="arm64-v8a" ..
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
+    - name: x86_64
+      run: |
+        mkdir build-x86_64 && cd build-x86_64
+        ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="x86_64" ..
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
+
+    - name: armeabi-v7a-shared
+      run: |
+        mkdir build-armeabi-v7a-shared && cd build-armeabi-v7a-shared
+        ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="armeabi-v7a" -DNCNN_SHARED_LIB=ON ..
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
+    - name: arm64-v8a-shared
+      run: |
+        mkdir build-arm64-v8a-shared && cd build-arm64-v8a-shared
+        ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="arm64-v8a" -DNCNN_SHARED_LIB=ON ..
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4
+    - name: x86_64-shared
+      run: |
+        mkdir build-x86_64-shared && cd build-x86_64-shared
+        ${{ env.OHOS_NDK_CMAKE }} ${{ env.NCNN_CMAKE_OPTIONS }} -DOHOS_ARCH="x86_64" -DNCNN_SHARED_LIB=ON ..
+        ${{ env.OHOS_NDK_CMAKE }} --build . -j 4

@@ -266,7 +266,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
             else
             {
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                 float16x4_t _slope0 = vcvt_f16_f32(vdupq_n_f32(slope_data[0]));
                 float16x8_t _slope = vcombine_f16(_slope0, _slope0);
 #else
@@ -344,7 +344,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
     {
         if (dims == 1)
         {
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
             float16x8_t _zero = vdupq_n_f16(0.f);
 #else
             float16x4_t _zero = vdup_n_f16(0.f);
@@ -363,7 +363,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
 
                     float16x4_t _p = vld1_f16(ptr);
                     float16x4_t _slope = vcvt_f16_f32(vld1q_f32(slope + i * 4));
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                     uint16x4_t _lemask = vcle_f16(_p, vget_low_f16(_zero));
 #else
                     uint16x4_t _lemask = vcle_f16(_p, _zero);
@@ -375,7 +375,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
             else
             {
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                 float16x8_t _slope = vdupq_n_f16((__fp16)slope_data[0]);
 #else
                 float16x4_t _slope = vdup_n_f16((__fp16)slope_data[0]);
@@ -387,7 +387,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
                     __fp16* ptr = (__fp16*)bottom_top_blob + i * 4;
 
                     float16x4_t _p = vld1_f16(ptr);
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                     uint16x4_t _lemask = vcle_f16(_p, vget_low_f16(_zero));
                     float16x4_t _ps = vmul_f16(_p, vget_low_f16(_slope));
 #else
@@ -500,7 +500,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             const float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
 
             float16x4_t _zero = vdup_n_f16(0.f);
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
             float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(slope));
 #else
             float16x4_t _slope = vdup_n_f16((__fp16)slope);
@@ -543,7 +543,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             const float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
 
             float16x4_t _zero = vdup_n_f16(0.f);
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
             float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(slope));
 #else
             float16x4_t _slope = vdup_n_f16((__fp16)slope);

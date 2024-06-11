@@ -19,7 +19,11 @@
 
 namespace pnnx {
 
-int load_onnx(const std::string& onnxpath, Graph& g);
+int load_onnx(const std::string& onnxpath, Graph& g,
+              const std::vector<std::vector<int64_t> >& input_shapes,
+              const std::vector<std::string>& input_types,
+              const std::vector<std::vector<int64_t> >& input_shapes2,
+              const std::vector<std::string>& input_types2);
 
 } // namespace pnnx
 

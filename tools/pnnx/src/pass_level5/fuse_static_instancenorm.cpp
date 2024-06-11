@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.InstanceNorm1d       instance_norm 1 1 input out num_features=%num_features eps=%eps affine=True track_running_stats=False @weight=%op_weight.data @bias=%op_bias.data
+nn.InstanceNorm1d       in          1 1 input out num_features=%num_features eps=%eps affine=True track_running_stats=False @weight=%op_weight.data @bias=%op_bias.data
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -73,7 +73,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.InstanceNorm2d       instance_norm 1 1 input out num_features=%num_features eps=%eps affine=True track_running_stats=False @weight=%op_weight.data @bias=%op_bias.data
+nn.InstanceNorm2d       in          1 1 input out num_features=%num_features eps=%eps affine=True track_running_stats=False @weight=%op_weight.data @bias=%op_bias.data
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -99,7 +99,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.InstanceNorm3d       instance_norm 1 1 input out num_features=%num_features eps=%eps affine=True track_running_stats=False @weight=%op_weight.data @bias=%op_bias.data
+nn.InstanceNorm3d       in          1 1 input out num_features=%num_features eps=%eps affine=True track_running_stats=False @weight=%op_weight.data @bias=%op_bias.data
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

@@ -369,7 +369,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             __fp16 b = (__fp16)b_data[i];
 
             float16x4_t _a = vdup_n_f16(a);
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
             float16x4_t _b = vcvt_f16_f32(vdupq_n_f32(b_data[i]));
 #else
             float16x4_t _b = vdup_n_f16(b);
@@ -410,7 +410,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             __fp16 b = (__fp16)b_data[q];
 
             float16x4_t _a = vdup_n_f16(a);
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
             float16x4_t _b = vcvt_f16_f32(vdupq_n_f32(b_data[q]));
 #else
             float16x4_t _b = vdup_n_f16(b);

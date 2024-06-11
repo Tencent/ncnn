@@ -142,7 +142,7 @@ static void solve_batch_index_forward(Operand* operand)
         if (is_known_operator_with_batch_first_param(op))
             continue;
 
-        if (op->type == "torch.permute" || op->type == "Tensor.permute")
+        if (op->type == "Tensor.permute")
         {
             const std::vector<int>& dims = op->params.at("dims").ai;
 
@@ -250,7 +250,7 @@ static void solve_batch_index_backward(Operand* operand)
     if (is_known_operator_with_batch_first_param(op))
         return;
 
-    if (op->type == "torch.permute" || op->type == "Tensor.permute")
+    if (op->type == "Tensor.permute")
     {
         const std::vector<int>& dims = op->params.at("dims").ai;
 

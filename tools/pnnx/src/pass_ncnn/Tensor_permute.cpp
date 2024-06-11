@@ -18,7 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class torch_permute : public GraphRewriterPass
+class Tensor_permute : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-torch.permute           op_0        1 1 input out dims=%dims
+Tensor.permute          op_0        1 1 input out dims=%dims
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -161,22 +161,6 @@ pnnx.Output             output      1 0 out
             else if (new_dims == std::vector<int>{3, 2, 1, 0})
                 op->params["0"] = 23;
         }
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_permute, 20)
-
-class Tensor_permute : public torch_permute
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-Tensor.permute          op_0        1 1 input out dims=%dims
-pnnx.Output             output      1 0 out
-)PNNXIR";
     }
 };
 

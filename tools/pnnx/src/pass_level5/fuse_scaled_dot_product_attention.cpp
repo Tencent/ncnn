@@ -46,7 +46,7 @@ public:
 pnnx.Input              input_0     0 1 query #query=(%batch,%num_heads,%qsize,%feat_per_head)f32
 pnnx.Input              input_1     0 1 key #key=(%batch,%num_heads,%kvsize,%feat_per_head)f32
 pnnx.Input              input_2     0 1 value #value=(%batch,%num_heads,%kvsize,%feat_per_head)f32
-torch.permute           op_0        1 1 key 59 dims=(0,1,3,2)
+Tensor.permute          op_0        1 1 key 59 dims=(0,1,3,2)
 torch.matmul            op_1        2 1 query 59 61
 pnnx.Expression         op_2        1 1 61 62 expr=div(@0,%sqrt_embed_dim_per_head)
 F.softmax               op_3        1 1 62 63 dim=-1

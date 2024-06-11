@@ -33,7 +33,7 @@ void eliminate_noop(onnx::ModelProto& model)
         const onnx::NodeProto& node = graph->node(i);
         const std::string& op_type = node.op_type();
 
-        if (op_type == "Identity" || op_type == "aten_copy")
+        if (op_type == "Identity" || op_type == "Dropout" || op_type == "aten_copy")
         {
             const std::string& input_name = node.input(0);
             const std::string& output_name = node.output(0);
@@ -48,6 +48,14 @@ void eliminate_noop(onnx::ModelProto& model)
                     {
                         node2->set_input(k, input_name);
                     }
+                }
+            }
+
+            for (int j = 0; j < graph->output_size(); j++)
+            {
+                if (graph->output(j).name() == output_name)
+                {
+                    graph->mutable_output(j)->set_name(input_name);
                 }
             }
         }

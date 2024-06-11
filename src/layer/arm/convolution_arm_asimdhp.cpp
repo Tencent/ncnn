@@ -372,22 +372,25 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
             NCNN_LOGE("opt.num_threads %d changed, convolution winograd will use load-time value %d", opt.num_threads, nT);
         }
 
+        int ret = 0;
         if (prefer_winograd23)
         {
-            conv3x3s1_winograd23_fp16sa(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data_fp16, _nT, opt);
+            ret = conv3x3s1_winograd23_fp16sa(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data_fp16, _nT, opt);
         }
         else if (prefer_winograd43)
         {
-            conv3x3s1_winograd43_fp16sa(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data_fp16, _nT, opt);
+            ret = conv3x3s1_winograd43_fp16sa(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data_fp16, _nT, opt);
         }
         else if (prefer_winograd63)
         {
-            conv3x3s1_winograd63_fp16sa(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data_fp16, _nT, opt);
+            ret = conv3x3s1_winograd63_fp16sa(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data_fp16, _nT, opt);
         }
         else
         {
             // should never reach here
         }
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -471,7 +474,9 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
             NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
         }
 
-        convolution_im2col_gemm_fp16sa(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        int ret = convolution_im2col_gemm_fp16sa(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {

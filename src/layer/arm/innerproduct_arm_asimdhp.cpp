@@ -480,6 +480,8 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;

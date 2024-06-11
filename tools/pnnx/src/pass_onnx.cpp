@@ -571,6 +571,62 @@ static void fuse_list_unpack(Graph& graph)
     }
 }
 
+static void constant_unpooling(Graph& graph)
+{
+    while (1)
+    {
+        bool matched = false;
+
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            if (op->type != "prim::Constant" && op->type != "pnnx.Expression" && op->type != "pnnx.Attribute")
+                continue;
+
+            Operand* op_out = op->outputs[0];
+            if (op_out->consumers.size() == 1)
+                continue;
+
+            matched = true;
+
+            // create shadow node for all consumers
+            for (size_t j = 1; j < op_out->consumers.size(); j++)
+            {
+                Operator* op1 = op_out->consumers[j];
+
+                Operator* op0 = graph.new_operator_before(op->type, op->name + "_pnnxshadow" + std::to_string(j), op1);
+                op0->inputnames = op->inputnames;
+                op0->params = op->params;
+                op0->attrs = op->attrs;
+
+                Operand* op0_out = graph.new_operand(op_out->name + "_pnnxshadow" + std::to_string(j));
+                op0_out->type = op_out->type;
+                op0_out->shape = op_out->shape;
+                op0_out->params = op_out->params;
+
+                op0_out->producer = op0;
+                op0->outputs.push_back(op0_out);
+
+                for (size_t k = 0; k < op1->inputs.size(); k++)
+                {
+                    if (op1->inputs[k] == op_out)
+                        op1->inputs[k] = op0_out;
+                }
+
+                op0_out->consumers.push_back(op1);
+            }
+
+            op_out->consumers.resize(1);
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+}
+
 void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 {
     onnx2pnnx::OnnxModelProxy modelproxy(model);
@@ -595,7 +651,17 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
     {
         const onnx::NodeProto& node = graph.node(i);
 
-        const std::string& op_type = node.op_type();
+        std::string op_type = node.op_type();
+
+        // drop |folded_N suffix
+        if (op_type.size() > 8)
+        {
+            size_t folded_N_index = op_type.rfind("|folded_");
+            if (folded_N_index != std::string::npos)
+            {
+                op_type = op_type.substr(0, folded_N_index);
+            }
+        }
 
         std::string sim_op_type;
 
@@ -614,10 +680,58 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::slice";
             }
 
-            if (op_type == "Transpose")
+            if (op_type == "Concat")
             {
-                sim_op_type = "aten::permute";
+                sim_op_type = "aten::cat";
             }
+
+            if (op_type == "Split")
+            {
+                sim_op_type = "aten::split";
+            }
+
+            if (op_type == "Shape")
+            {
+                sim_op_type = "aten::size";
+            }
+
+            // unaryop
+            if (op_type == "Abs") sim_op_type = "aten::abs";
+            if (op_type == "Acos") sim_op_type = "aten::acos";
+            if (op_type == "Acosh") sim_op_type = "aten::acosh";
+            if (op_type == "Asin") sim_op_type = "aten::asin";
+            if (op_type == "Asinh") sim_op_type = "aten::asinh";
+            if (op_type == "Atan") sim_op_type = "aten::atan";
+            if (op_type == "Atanh") sim_op_type = "aten::atanh";
+            if (op_type == "Ceil") sim_op_type = "aten::ceil";
+            if (op_type == "Cos") sim_op_type = "aten::cos";
+            if (op_type == "Cosh") sim_op_type = "aten::cosh";
+            if (op_type == "Erf") sim_op_type = "aten::erf";
+            if (op_type == "Exp") sim_op_type = "aten::exp";
+            if (op_type == "Floor") sim_op_type = "aten::floor";
+            if (op_type == "Log") sim_op_type = "aten::log";
+            if (op_type == "Neg") sim_op_type = "aten::neg";
+            if (op_type == "Reciprocal") sim_op_type = "aten::reciprocal";
+            if (op_type == "Round") sim_op_type = "aten::round";
+            if (op_type == "Sigmoid") sim_op_type = "aten::sigmoid";
+            if (op_type == "Sign") sim_op_type = "aten::sign";
+            if (op_type == "Sin") sim_op_type = "aten::sin";
+            if (op_type == "Sinh") sim_op_type = "aten::sinh";
+            if (op_type == "Sqrt") sim_op_type = "aten::sqrt";
+            if (op_type == "Tan") sim_op_type = "aten::tan";
+            if (op_type == "Tanh") sim_op_type = "aten::tanh";
+
+            // binaryop
+            if (op_type == "Add") sim_op_type = "aten::add";
+            if (op_type == "Sub") sim_op_type = "aten::sub";
+            if (op_type == "Mul") sim_op_type = "aten::mul";
+            if (op_type == "Div") sim_op_type = "aten::div";
+            if (op_type == "Max") sim_op_type = "aten::max";
+            if (op_type == "Min") sim_op_type = "aten::min";
+            if (op_type == "Pow") sim_op_type = "aten::pow";
+
+            // trinaryop
+            if (op_type == "Clip") sim_op_type = "aten::clamp";
         }
         else if (string_starts_with(op_type, "aten_"))
         {
@@ -649,7 +763,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             sim_op_type = std::string("custom_op.") + op_type;
         }
 
-        // fprintf(fp, "%-24s %-8s", sim_op_type.c_str(), node.name().c_str());
+        // fprintf(stderr, "%-24s %-8s", sim_op_type.c_str(), node.name().c_str());
 
         Operator* op = pnnx_graph.new_operator(sim_op_type, node.name());
 
@@ -665,7 +779,12 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
         {
             const std::string& input = node.input(j);
 
-            if (modelproxy.has_initializer(input))
+            if (input.empty())
+                continue;
+
+            Operand* op_in = pnnx_graph.get_operand(input);
+
+            if (!op_in && modelproxy.has_initializer(input))
             {
                 // skip function weight
                 if (is_function_op)
@@ -673,13 +792,37 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
                 const onnx::TensorProto& tensor = modelproxy.initializer(input);
 
+                bool is_attr_list = false;
+                if (tensor.dims_size() == 1 && (tensor.data_type() == onnx::TensorProto::INT32 || tensor.data_type() == onnx::TensorProto::INT64))
+                {
+                    if (is_aten_op)
+                        is_attr_list = true;
+
+                    if (sim_op_type == "Reshape" && j == 1)
+                        is_attr_list = true;
+
+                    if (sim_op_type == "Pad" && j == 1)
+                        is_attr_list = true;
+
+                    if (sim_op_type == "ReduceMean" && j == 1)
+                        is_attr_list = true;
+                }
+
+                bool is_attr_weight = false;
+                {
+                    if (sim_op_type == "Conv" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                    if (sim_op_type == "ConvTranspose" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                }
+
                 int64_t numel = 1;
                 for (int k = 0; k < tensor.dims_size(); k++)
                 {
                     numel *= tensor.dims(k);
                 }
 
-                if (numel == 1)
+                if (numel == 1 && !is_attr_weight)
                 {
                     Operator* op_const = pnnx_graph.new_operator_before("prim::Constant", input, op);
 
@@ -749,7 +892,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         fprintf(stderr, "unknown constant scalar type %d\n", (int)tensor.data_type());
                     }
                 }
-                else if (is_aten_op && tensor.dims_size() == 1 && (tensor.data_type() == onnx::TensorProto::INT32 || tensor.data_type() == onnx::TensorProto::INT64))
+                else if (is_attr_list && !is_attr_weight)
                 {
                     // create list expression
                     Operator* op_const = pnnx_graph.new_operator_before("pnnx.Expression", input, op);
@@ -815,6 +958,13 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                     // create constant for functions
                     Operator* op_const = pnnx_graph.new_operator_before("pnnx.Attribute", input, op);
 
+                    // sanitize 123 to c123
+                    {
+                        char hc = op_const->name[0];
+                        if (hc >= '0' && hc <= '9')
+                            op_const->name = std::string("pnnx_") + op_const->name;
+                    }
+
                     Operand* op_const_out = pnnx_graph.new_operand(tensor);
 
                     op_const_out->producer = op_const;
@@ -822,9 +972,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
                     op_const->attrs["data"] = tensor;
                 }
-            }
 
-            Operand* op_in = pnnx_graph.get_operand(input);
+                op_in = pnnx_graph.get_operand(input);
+            }
 
             op_in->consumers.push_back(op);
             op->inputs.push_back(op_in);
@@ -833,6 +983,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
         for (int j = 0; j < node.output_size(); j++)
         {
             const std::string& output = node.output(j);
+
+            if (output.empty())
+                continue;
 
             Operand* op_out = 0;
 
@@ -877,15 +1030,68 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
             if (op_type == "Slice")
             {
-                // data start end dim step -> data dim start end step
-                op->inputnames = {"data", "dim", "start", "end", "step"};
-                op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2], op->inputs[4]};
+                if (op->inputs.size() == 3)
+                {
+                    op->inputnames = {"input", "start", "end"};
+                    op->params["dim"] = 0;
+                    op->params["step"] = 1;
+                }
+                else if (op->inputs.size() == 4)
+                {
+                    // data start end dim -> input dim start end
+                    op->inputnames = {"input", "dim", "start", "end"};
+                    op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2]};
+                    op->params["step"] = 1;
+                }
+                else // if (op->inputs.size() == 5)
+                {
+                    // data start end dim step -> input dim start end step
+                    op->inputnames = {"input", "dim", "start", "end", "step"};
+                    op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2], op->inputs[4]};
+                }
             }
 
-            if (op_type == "Transpose")
+            if (op_type == "Concat")
             {
-                op->params["dims"] = op->params["perm"];
-                op->params.erase("perm");
+                op->params["dim"] = op->params["axis"];
+                op->params.erase("axis");
+
+                // insert for cat prim::ListConstruct
+                Operator* opm1 = pnnx_graph.new_operator_before("prim::ListConstruct", op->name + "_listconstruct", op);
+                Operand* opm1_out = pnnx_graph.new_operand(op->name + "_in");
+                opm1_out->producer = opm1;
+                opm1->outputs.push_back(opm1_out);
+                for (auto& x : op->inputs)
+                {
+                    opm1->inputs.push_back(x);
+                    x->remove_consumer(op);
+                    x->consumers.push_back(opm1);
+                }
+                opm1_out->consumers.push_back(op);
+                op->inputs.clear();
+                op->inputs.push_back(opm1_out);
+            }
+
+            if (op_type == "Split")
+            {
+                op->params["dim"] = op->params["axis"];
+                op->params.erase("axis");
+                op->params["indices"] = op->params["split"];
+                op->params.erase("split");
+
+                // insert for tensor_split prim::ListUnpack
+                Operator* op1 = pnnx_graph.new_operator_after("prim::ListUnpack", op->name + "_listunpack", op);
+                Operand* op1_in = pnnx_graph.new_operand(op->name + "_out");
+                op1_in->producer = op;
+                op1_in->consumers.push_back(op1);
+                op1->inputs.push_back(op1_in);
+                for (auto& x : op->outputs)
+                {
+                    x->producer = op1;
+                    op1->outputs.push_back(x);
+                }
+                op->outputs.clear();
+                op->outputs.push_back(op1_in);
             }
         }
         else if (is_prim_op)
@@ -918,6 +1124,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
     // post process
     fuse_list_unpack(pnnx_graph);
+
+    constant_unpooling(pnnx_graph);
 }
 
 } // namespace pnnx

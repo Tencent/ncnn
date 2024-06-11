@@ -79,7 +79,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         printf "[Processor]\nThreadCount=4\n" > build/tests/SwiftShader.ini
@@ -159,7 +159,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         export LP_NUM_THREADS=4
@@ -230,9 +230,9 @@ jobs:
             -DNCNN_AVX512BF16=${{matrix.AVX512BF16}} \
             -DNCNN_AVX512FP16=${{matrix.AVX512FP16}} \
             ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
-      run: cd build && ctest --output-on-failure -j $(nproc)
+      run: cd build && ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -309,12 +309,12 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_GNU_INLINE_ASM=${{matrix.GNU_INLINE_ASM}} -DNCNN_VFPV4=ON -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -327,12 +327,12 @@ jobs:
       run: |
         mkdir build-armhf-vfpv3-d16 && cd build-armhf-vfpv3-d16
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_GNU_INLINE_ASM=${{matrix.GNU_INLINE_ASM}} -DNCNN_VFPV4=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test-armhf-vfpv3-d16
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build-armhf-vfpv3-d16
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j 4
     - name: lcov-collect-armhf-vfpv3-d16
       run: |
         cd build-armhf-vfpv3-d16
@@ -423,12 +423,12 @@ jobs:
             -DNCNN_ARM84BF16=${{matrix.ARM84BF16}} \
             -DNCNN_ARM84I8MM=${{matrix.ARM84I8MM}} \
             ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -502,12 +502,12 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=OFF -DNCNN_MMI=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -581,12 +581,12 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=ON -DNCNN_MMI=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -660,12 +660,12 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/powerpc-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-ppc TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -739,12 +739,12 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/powerpc64le-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -824,12 +824,12 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -951,12 +951,12 @@ jobs:
         export RISCV_ROOT_PATH=${{ci.workspace}}/rv64gcv-install
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test-vlen128
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,x-zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,x-zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
     - name: lcov-collect-vlen128
       run: |
         cd build
@@ -971,7 +971,7 @@ jobs:
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,x-zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,x-zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
     - name: lcov-collect-vlen256
       run: |
         cd build
@@ -1051,12 +1051,12 @@ jobs:
         export LOONGARCH64_ROOT_PATH=${{ci.workspace}}/cross-tools
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_LSX=ON -DNCNN_LASX=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;${{ci.workspace}}/cross-tools/target" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;${{ci.workspace}}/cross-tools/target" ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -1099,9 +1099,9 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEMATH=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 4
     - name: test
-      run: cd build && ctest --output-on-failure -j $(nproc)
+      run: cd build && ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build

@@ -33,6 +33,11 @@ void reset_device(std::shared_ptr<torch::jit::Graph>& graph, const std::string& 
                     {
                         dtype_node->i_(torch::jit::attr::value, 6);
                     }
+                    // change dtype=bfloat16 to dtype=float
+                    if (dtype_node->kindOf(torch::jit::attr::value) == torch::jit::AttributeKind::i && dtype_node->i(torch::jit::attr::value) == 15)
+                    {
+                        dtype_node->i_(torch::jit::attr::value, 6);
+                    }
                 }
             }
 
