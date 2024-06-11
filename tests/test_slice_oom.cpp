@@ -112,36 +112,34 @@ static int test_slice_oom_indices(const ncnn::Mat& a, const ncnn::Mat& indices, 
 
 static int test_slice_0()
 {
-    ncnn::Mat a = RandomMat(16, 10, 12, 48);
+    ncnn::Mat a = RandomMat(48, 48, 48, 48);
 
     return 0
-           || test_slice_oom(a, IntArrayMat(-233, -233, -233), 0)
            || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 0)
-           || test_slice_oom(a, IntArrayMat(12, 16, -233), 0)
-           || test_slice_oom(a, IntArrayMat(32, 8, -233), 0)
+           || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 1)
+           || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 2)
+           || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 3)
            || test_slice_oom_indices(a, IntArrayMat(2, -24, -8), 0);
 }
 
 static int test_slice_1()
 {
-    ncnn::Mat a = RandomMat(18, 18, 48);
+    ncnn::Mat a = RandomMat(48, 48, 48);
 
     return 0
-           || test_slice_oom(a, IntArrayMat(-233, -233, -233), 0)
            || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 0)
-           || test_slice_oom(a, IntArrayMat(12, 16, -233), 0)
-           || test_slice_oom(a, IntArrayMat(32, 8, -233), 0)
+           || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 1)
+           || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 2)
            || test_slice_oom_indices(a, IntArrayMat(2, -24, -8), 0);
 }
 
 static int test_slice_2()
 {
-    ncnn::Mat a = RandomMat(18, 48);
+    ncnn::Mat a = RandomMat(48, 48);
 
     return 0
-           || test_slice_oom(a, IntArrayMat(-233, -233, -233), 0)
            || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 0)
-           || test_slice_oom(a, IntArrayMat(12, 16, -233), 0)
+           || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 1)
            || test_slice_oom_indices(a, IntArrayMat(2, -24, -8), 0);
 }
 
@@ -150,9 +148,7 @@ static int test_slice_3()
     ncnn::Mat a = RandomMat(48);
 
     return 0
-           || test_slice_oom(a, IntArrayMat(-233, -233, -233), 0)
            || test_slice_oom(a, IntArrayMat(3, 12, 16, -233), 0)
-           || test_slice_oom(a, IntArrayMat(12, 16, -233), 0)
            || test_slice_oom_indices(a, IntArrayMat(2, -24, -8), 0);
 }
 
