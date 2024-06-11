@@ -29,6 +29,13 @@
 #endif                // _WIN32
 #endif
 
+#ifdef __linux__
+#include <asm/unistd.h>
+#include <linux/perf_event.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif // __linux__
+
 #if NCNN_BENCHMARK
 #include "layer/convolution.h"
 #include "layer/convolutiondepthwise.h"
@@ -84,6 +91,61 @@ void sleep(unsigned long long int milliseconds)
 #else
     // TODO How to handle it ?
 #endif
+#endif
+}
+
+Perf::Perf()
+    : fd(-1), start_time(0.0)
+{
+    (void)fd;
+}
+
+Perf::~Perf()
+{
+#ifdef __linux__
+    if (fd >= 0)
+        close(fd);
+#endif
+}
+
+int Perf::init()
+{
+#ifdef __linux__
+    perf_event_attr attr = {};
+    attr.type = PERF_TYPE_HARDWARE;
+    attr.size = sizeof(attr);
+    attr.config = PERF_COUNT_HW_CPU_CYCLES;
+    attr.disabled = 1;
+    attr.exclude_kernel = 1;
+    attr.exclude_hv = 1;
+
+    fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
+    if (fd == -1)
+        return -1;
+#endif
+
+    return 0;
+}
+
+void Perf::start()
+{
+    start_time = get_current_time();
+#ifdef __linux__
+    ioctl(fd, PERF_EVENT_IOC_RESET, 0);
+    ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
+#endif
+}
+
+void Perf::stop(double &time, int64_t &circles)
+{
+    time = get_current_time() - start_time;
+#ifdef __linux__
+    uint64_t n;
+    ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
+    read(fd, &n, sizeof(n));
+    circles = n;
+#else
+    circles = -1;
 #endif
 }
 

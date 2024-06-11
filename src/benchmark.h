@@ -27,6 +27,24 @@ NCNN_EXPORT double get_current_time();
 // sleep milliseconds
 NCNN_EXPORT void sleep(unsigned long long int milliseconds = 1000);
 
+class NCNN_EXPORT Perf
+{
+public:
+    Perf();
+
+    ~Perf();
+
+    int init();
+
+    void start();
+
+    void stop(double &time, int64_t &circles);
+
+private:
+    int fd;
+    double start_time;
+};
+
 #if NCNN_BENCHMARK
 
 NCNN_EXPORT void benchmark(const Layer* layer, double start, double end);
