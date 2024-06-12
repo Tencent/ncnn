@@ -3,7 +3,7 @@
 // Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Copyright (C) 2024 whyb(https://github.com/whyb). All rights reserved.
-// 
+//
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
 //
@@ -14,22 +14,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-
 // ReadMe
 // Convert yolov8 model to ncnn model workflow:
-// 
+//
 // step 1:
 // If you don't want to train the model yourself. You should go to the ultralytics website download the pretrained model file.
 // original pretrained model from https://docs.ultralytics.com/models/yolov8/#supported-tasks-and-modes
-// 
+//
 // step 2:
 // run this command.
 // conda create --name yolov8 python=3.11
 // conda activate yolov8
 // pip install ultralytics onnx numpy protobuf
-// 
+//
 // step 3:
-// save source code file(export_model_to_ncnn.py): 
+// save source code file(export_model_to_ncnn.py):
 // from ultralytics import YOLO
 // detection_models = [
 //     ["./Detection-pt/yolov8n.pt", "./Detection-pt/"],
@@ -41,7 +40,7 @@
 // for model_dict in detection_models:
 //     model = YOLO(model_dict[0])  # load an official pretrained weight model
 //     model.export(format="ncnn", dynamic=True, save_dir=model_dict[1], simplify=True)
-// 
+//
 // step 4:
 // run command: python export_model_to_ncnn.py
 
@@ -256,7 +255,7 @@ static int detect_yolov8(const cv::Mat& bgr, std::vector<Object>& objects)
     ex.input("in0", in_pad);
 
     std::vector<Object> proposals;
-    
+
     // stride 32
     {
         ncnn::Mat out;
