@@ -262,14 +262,6 @@ static int detect_yolov8(const cv::Mat& bgr, std::vector<Object>& objects)
         ncnn::Mat out;
         ex.extract("out0", out);
 
-        ncnn::Mat anchors(6);
-        anchors[0] = 116.f;
-        anchors[1] = 90.f;
-        anchors[2] = 156.f;
-        anchors[3] = 198.f;
-        anchors[4] = 373.f;
-        anchors[5] = 326.f;
-
         std::vector<Object> objects32;
         const int num_labels = 80; // COCO has detect 80 object labels.
         parse_yolov8_detections(
