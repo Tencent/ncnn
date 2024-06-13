@@ -38,7 +38,7 @@ public:
 
     void start();
 
-    void stop(double &time, int64_t &circles);
+    void stop(double& time, int64_t& circles);
 
 private:
     int fd;

@@ -136,7 +136,7 @@ void Perf::start()
 #endif
 }
 
-void Perf::stop(double &time, int64_t &circles)
+void Perf::stop(double& time, int64_t& circles)
 {
     time = get_current_time() - start_time;
 #ifdef __linux__

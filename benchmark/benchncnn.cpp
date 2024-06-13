@@ -81,7 +81,7 @@ private:
     std::vector<ncnn::Option> opts;
     ncnn::Perf perf;
 
-    const char *prev_comment;
+    const char* prev_comment;
     double prev_time_avg;
     int64_t prev_cpu_avg;
 };
@@ -89,15 +89,15 @@ private:
 Benchmark::Benchmark()
     :
 #if NCNN_VULKAN
-      vkdev(NULL),
-      blob_vkallocator(NULL),
-      staging_vkallocator(NULL),
+    vkdev(NULL),
+    blob_vkallocator(NULL),
+    staging_vkallocator(NULL),
 #endif
-      warmup_loop_count(8),
-      loop_count(4),
-      enable_cooling_down(true),
-      prev_comment(NULL),
-      prev_time_avg(0)
+    warmup_loop_count(8),
+    loop_count(4),
+    enable_cooling_down(true),
+    prev_comment(NULL),
+    prev_time_avg(0)
 {
     if (perf.init())
     {
