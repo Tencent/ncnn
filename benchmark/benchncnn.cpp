@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include <float.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -78,9 +79,11 @@ private:
     // 3. Enable Vulkan
     // and so on.
     std::vector<ncnn::Option> opts;
+    ncnn::Perf perf;
 
     const char *prev_comment;
     double prev_time_avg;
+    int64_t prev_cpu_avg;
 };
 
 Benchmark::Benchmark()
@@ -96,6 +99,11 @@ Benchmark::Benchmark()
       prev_comment(NULL),
       prev_time_avg(0)
 {
+    if (perf.init())
+    {
+        fprintf(stderr, "perf init failed\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 Benchmark::~Benchmark()
@@ -220,10 +228,11 @@ void Benchmark::run(const char* comment, const std::vector<ncnn::Mat>& _in, cons
     double time_min = DBL_MAX;
     double time_max = -DBL_MAX;
     double time_avg = 0;
+    int64_t cpu_avg = 0;
 
     for (int i = 0; i < loop_count; i++)
     {
-        double start = ncnn::get_current_time();
+        perf.start();
         {
             ncnn::Extractor ex = net.create_extractor();
             for (size_t j = 0; j < input_names.size(); ++j)
@@ -239,44 +248,49 @@ void Benchmark::run(const char* comment, const std::vector<ncnn::Mat>& _in, cons
             }
         }
 
-        double end = ncnn::get_current_time();
-
-        double time = end - start;
+        double time;
+        int64_t cpu;
+        perf.stop(time, cpu);
 
         time_min = std::min(time_min, time);
         time_max = std::max(time_max, time);
         time_avg += time;
+        cpu_avg += cpu;
     }
 
     time_avg /= loop_count;
+    cpu_avg /= loop_count;
 
     if (opts.size() == 1)
     {
         // Keep the old format
         fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
+        return;
+    }
+
+    fprintf(stderr, "%20s %s min = %7.2f  max = %7.2f  avg = %7.2f",
+            comment, opt.use_vulkan_compute ? "gpu" : "cpu", time_min, time_max, time_avg);
+    if (cpu_avg > 0)
+        fprintf(stderr, "  circles = %7" PRId64, cpu_avg);
+
+    if (prev_comment != NULL && strcmp(prev_comment, comment) == 0)
+    {
+        // Relative speed compare to baseline
+        double ratio = prev_time_avg / time_avg;
+        fprintf(stderr, "  speed_ratio = %7.2fx", ratio);
+        if (cpu_avg > 0)
+        {
+            ratio = cpu_avg * 100.0 / prev_cpu_avg;
+            fprintf(stderr, "  cpu_percent = %7.2f%%", ratio);
+        }
     }
     else
     {
-        fprintf(stderr, "%20s %s min = %7.2f  max = %7.2f  avg = %7.2f",
-                comment, opt.use_vulkan_compute ? "gpu" : "cpu", time_min, time_max, time_avg);
-
-        if (prev_comment != NULL && strcmp(prev_comment, comment) == 0)
-        {
-            // Relative speed compare to baseline
-            double speedup_ratio = prev_time_avg / time_avg;
-            fprintf(stderr, "  ratio = %7.2fx\n", speedup_ratio);
-        }
-        else
-        {
-            fprintf(stderr, "\n");
-        }
-    }
-
-    if (prev_comment == NULL || strcmp(prev_comment, comment) != 0)
-    {
         prev_comment = comment;
         prev_time_avg = time_avg;
+        prev_cpu_avg = cpu_avg;
     }
+    fprintf(stderr, "\n");
 }
 
 void Benchmark::run(const char* comment, const ncnn::Mat& _in, bool fixed_path)
