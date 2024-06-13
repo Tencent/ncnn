@@ -51,8 +51,10 @@ public:
 
     ~Benchmark();
 
-    void run(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fixed_path = true);
-    void run(const char* comment, const ncnn::Mat& _in, const ncnn::Option& opt, bool fixed_path = true);
+    void add_opt(int num_threads, bool use_vulkan_compute);
+
+    void run(const char* comment, const std::vector<ncnn::Mat>& _in, bool fixed_path = true);
+    void run(const char* comment, const ncnn::Mat& _in, bool fixed_path = true);
 
     ncnn::UnlockedPoolAllocator blob_pool_allocator;
     ncnn::PoolAllocator workspace_pool_allocator;
@@ -64,6 +66,11 @@ public:
     int warmup_loop_count;
     int loop_count;
     bool enable_cooling_down;
+
+private:
+    void run(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fixed_path);
+
+    std::vector<ncnn::Option> opts;
 };
 
 Benchmark::Benchmark()
@@ -85,6 +92,34 @@ Benchmark::~Benchmark()
     delete blob_vkallocator;
     delete staging_vkallocator;
 #endif // NCNN_VULKAN
+}
+
+void Benchmark::add_opt(int num_threads, bool use_vulkan_compute)
+{
+    ncnn::Option opt;
+    opt.lightmode = true;
+    opt.num_threads = num_threads;
+    opt.blob_allocator = &blob_pool_allocator;
+    opt.workspace_allocator = &workspace_pool_allocator;
+#if NCNN_VULKAN
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+#endif // NCNN_VULKAN
+    opt.use_winograd_convolution = true;
+    opt.use_sgemm_convolution = true;
+    opt.use_int8_inference = true;
+    opt.use_vulkan_compute = use_vulkan_compute;
+    opt.use_fp16_packed = true;
+    opt.use_fp16_storage = true;
+    opt.use_fp16_arithmetic = true;
+    opt.use_int8_storage = true;
+    opt.use_int8_arithmetic = true;
+    opt.use_packing_layout = true;
+    opt.use_shader_pack8 = false;
+    opt.use_image_storage = false;
+
+    opts.push_back(opt);
 }
 
 void Benchmark::run(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fixed_path)
@@ -203,14 +238,31 @@ void Benchmark::run(const char* comment, const std::vector<ncnn::Mat>& _in, cons
 
     time_avg /= loop_count;
 
-    fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
+    if (opts.size() == 1)
+    {
+        // Keep the old format
+        fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
+    }
+    else
+    {
+        fprintf(stderr, "%20s %s min = %7.2f  max = %7.2f  avg = %7.2f\n",
+                comment, opt.use_vulkan_compute ? "gpu" : "cpu", time_min, time_max, time_avg);
+    }
 }
 
-void Benchmark::run(const char* comment, const ncnn::Mat& _in, const ncnn::Option& opt, bool fixed_path)
+void Benchmark::run(const char* comment, const ncnn::Mat& _in, bool fixed_path)
 {
     std::vector<ncnn::Mat> inputs;
     inputs.push_back(_in);
-    return run(comment, inputs, opt, fixed_path);
+    run(comment, inputs, fixed_path);
+}
+
+void Benchmark::run(const char* comment, const std::vector<ncnn::Mat>& _in, bool fixed_path)
+{
+    for (size_t i = 0; i < opts.size(); i++)
+    {
+        run(comment, _in, opts[i], fixed_path);
+    }
 }
 
 void show_usage()
@@ -288,6 +340,7 @@ int main(int argc, char** argv)
     int num_threads = ncnn::get_physical_big_cpu_count();
     int powersave = 2;
     int gpu_device = -1;
+    bool cpu_and_gpu = false;
     int cooling_down = 1;
     char* model = 0;
     std::vector<ncnn::Mat> inputs;
@@ -321,7 +374,19 @@ int main(int argc, char** argv)
     }
     if (argc >= 5)
     {
-        gpu_device = atoi(argv[4]);
+        // -1,0     benchmark with CPU and GPU both:
+        // 0        benchmark with GPU
+        // -1       benchmark with CPU only
+        int n[2] = {-1, -1};
+        if (sscanf(argv[4], "%d,%d", &n[0], &n[1]) == 2)
+        {
+            cpu_and_gpu = true;
+            gpu_device = n[1];
+        }
+        else
+        {
+            gpu_device = n[0];
+        }
     }
     if (argc >= 6)
     {
@@ -390,115 +455,101 @@ int main(int argc, char** argv)
     ncnn::set_omp_dynamic(0);
     ncnn::set_omp_num_threads(num_threads);
 
-    // default option
-    ncnn::Option opt;
-    opt.lightmode = true;
-    opt.num_threads = num_threads;
-    opt.blob_allocator = &bench.blob_pool_allocator;
-    opt.workspace_allocator = &bench.workspace_pool_allocator;
-#if NCNN_VULKAN
-    opt.blob_vkallocator = bench.blob_vkallocator;
-    opt.workspace_vkallocator = bench.blob_vkallocator;
-    opt.staging_vkallocator = bench.staging_vkallocator;
-#endif // NCNN_VULKAN
-    opt.use_winograd_convolution = true;
-    opt.use_sgemm_convolution = true;
-    opt.use_int8_inference = true;
-    opt.use_vulkan_compute = use_vulkan_compute;
-    opt.use_fp16_packed = true;
-    opt.use_fp16_storage = true;
-    opt.use_fp16_arithmetic = true;
-    opt.use_int8_storage = true;
-    opt.use_int8_arithmetic = true;
-    opt.use_packing_layout = true;
-    opt.use_shader_pack8 = false;
-    opt.use_image_storage = false;
-
     fprintf(stderr, "loop_count = %d\n", bench.loop_count);
     fprintf(stderr, "num_threads = %d\n", num_threads);
     fprintf(stderr, "powersave = %d\n", ncnn::get_cpu_powersave());
     fprintf(stderr, "gpu_device = %d\n", gpu_device);
     fprintf(stderr, "cooling_down = %d\n", (int)bench.enable_cooling_down);
 
+    if (cpu_and_gpu)
+    {
+        bench.add_opt(num_threads, false);
+        bench.add_opt(num_threads, true);
+    }
+    else
+    {
+        bench.add_opt(num_threads, use_vulkan_compute);
+    }
+
     if (model != 0)
     {
         // run user defined benchmark
-        bench.run(model, inputs, opt, false);
+        bench.run(model, inputs, false);
     }
     else
     {
         // run default cases
-        bench.run("squeezenet", ncnn::Mat(227, 227, 3), opt);
+        bench.run("squeezenet", ncnn::Mat(227, 227, 3));
 
-        bench.run("squeezenet_int8", ncnn::Mat(227, 227, 3), opt);
+        bench.run("squeezenet_int8", ncnn::Mat(227, 227, 3));
 
-        bench.run("mobilenet", ncnn::Mat(224, 224, 3), opt);
+        bench.run("mobilenet", ncnn::Mat(224, 224, 3));
 
-        bench.run("mobilenet_int8", ncnn::Mat(224, 224, 3), opt);
+        bench.run("mobilenet_int8", ncnn::Mat(224, 224, 3));
 
-        bench.run("mobilenet_v2", ncnn::Mat(224, 224, 3), opt);
+        bench.run("mobilenet_v2", ncnn::Mat(224, 224, 3));
 
-        // benchmark("mobilenet_v2_int8", ncnn::Mat(224, 224, 3), opt);
+        // benchmark("mobilenet_v2_int8", ncnn::Mat(224, 224, 3));
 
-        bench.run("mobilenet_v3", ncnn::Mat(224, 224, 3), opt);
+        bench.run("mobilenet_v3", ncnn::Mat(224, 224, 3));
 
-        bench.run("shufflenet", ncnn::Mat(224, 224, 3), opt);
+        bench.run("shufflenet", ncnn::Mat(224, 224, 3));
 
-        bench.run("shufflenet_v2", ncnn::Mat(224, 224, 3), opt);
+        bench.run("shufflenet_v2", ncnn::Mat(224, 224, 3));
 
-        bench.run("mnasnet", ncnn::Mat(224, 224, 3), opt);
+        bench.run("mnasnet", ncnn::Mat(224, 224, 3));
 
-        bench.run("proxylessnasnet", ncnn::Mat(224, 224, 3), opt);
+        bench.run("proxylessnasnet", ncnn::Mat(224, 224, 3));
 
-        bench.run("efficientnet_b0", ncnn::Mat(224, 224, 3), opt);
+        bench.run("efficientnet_b0", ncnn::Mat(224, 224, 3));
 
-        bench.run("efficientnetv2_b0", ncnn::Mat(224, 224, 3), opt);
+        bench.run("efficientnetv2_b0", ncnn::Mat(224, 224, 3));
 
-        bench.run("regnety_400m", ncnn::Mat(224, 224, 3), opt);
+        bench.run("regnety_400m", ncnn::Mat(224, 224, 3));
 
-        bench.run("blazeface", ncnn::Mat(128, 128, 3), opt);
+        bench.run("blazeface", ncnn::Mat(128, 128, 3));
 
-        bench.run("googlenet", ncnn::Mat(224, 224, 3), opt);
+        bench.run("googlenet", ncnn::Mat(224, 224, 3));
 
-        bench.run("googlenet_int8", ncnn::Mat(224, 224, 3), opt);
+        bench.run("googlenet_int8", ncnn::Mat(224, 224, 3));
 
-        bench.run("resnet18", ncnn::Mat(224, 224, 3), opt);
+        bench.run("resnet18", ncnn::Mat(224, 224, 3));
 
-        bench.run("resnet18_int8", ncnn::Mat(224, 224, 3), opt);
+        bench.run("resnet18_int8", ncnn::Mat(224, 224, 3));
 
-        bench.run("alexnet", ncnn::Mat(227, 227, 3), opt);
+        bench.run("alexnet", ncnn::Mat(227, 227, 3));
 
-        bench.run("vgg16", ncnn::Mat(224, 224, 3), opt);
+        bench.run("vgg16", ncnn::Mat(224, 224, 3));
 
-        bench.run("vgg16_int8", ncnn::Mat(224, 224, 3), opt);
+        bench.run("vgg16_int8", ncnn::Mat(224, 224, 3));
 
-        bench.run("resnet50", ncnn::Mat(224, 224, 3), opt);
+        bench.run("resnet50", ncnn::Mat(224, 224, 3));
 
-        bench.run("resnet50_int8", ncnn::Mat(224, 224, 3), opt);
+        bench.run("resnet50_int8", ncnn::Mat(224, 224, 3));
 
-        bench.run("squeezenet_ssd", ncnn::Mat(300, 300, 3), opt);
+        bench.run("squeezenet_ssd", ncnn::Mat(300, 300, 3));
 
-        bench.run("squeezenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
+        bench.run("squeezenet_ssd_int8", ncnn::Mat(300, 300, 3));
 
-        bench.run("mobilenet_ssd", ncnn::Mat(300, 300, 3), opt);
+        bench.run("mobilenet_ssd", ncnn::Mat(300, 300, 3));
 
-        bench.run("mobilenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
+        bench.run("mobilenet_ssd_int8", ncnn::Mat(300, 300, 3));
 
-        bench.run("mobilenet_yolo", ncnn::Mat(416, 416, 3), opt);
+        bench.run("mobilenet_yolo", ncnn::Mat(416, 416, 3));
 
-        bench.run("mobilenetv2_yolov3", ncnn::Mat(352, 352, 3), opt);
+        bench.run("mobilenetv2_yolov3", ncnn::Mat(352, 352, 3));
 
-        bench.run("yolov4-tiny", ncnn::Mat(416, 416, 3), opt);
+        bench.run("yolov4-tiny", ncnn::Mat(416, 416, 3));
 
-        bench.run("nanodet_m", ncnn::Mat(320, 320, 3), opt);
+        bench.run("nanodet_m", ncnn::Mat(320, 320, 3));
 
-        bench.run("yolo-fastest-1.1", ncnn::Mat(320, 320, 3), opt);
+        bench.run("yolo-fastest-1.1", ncnn::Mat(320, 320, 3));
 
-        bench.run("yolo-fastestv2", ncnn::Mat(352, 352, 3), opt);
+        bench.run("yolo-fastestv2", ncnn::Mat(352, 352, 3));
 
-        bench.run("vision_transformer", ncnn::Mat(384, 384, 3), opt);
+        bench.run("vision_transformer", ncnn::Mat(384, 384, 3));
 
-        bench.run("FastestDet", ncnn::Mat(352, 352, 3), opt);
+        bench.run("FastestDet", ncnn::Mat(352, 352, 3));
     }
 
     return 0;
