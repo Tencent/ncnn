@@ -16,6 +16,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined(__linux__) || defined(__APPLE__)
+#include <sys/resource.h>
+#elif defined(_WIN32)
+#include <windows.h>
+#endif
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -68,9 +74,30 @@ public:
     bool enable_cooling_down;
 
 private:
+    struct TimeStamps
+    {
+        double real_ms;
+        double user_ms;
+        double sys_ms;
+    };
+
+    static TimeStamps get_time_stamps();
+
     void run(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fixed_path);
 
+    // We can have multiple of Option, the first one is for baseline or reference, the other Options are candidate.
+    // For example:
+    // 0. C++ without assembly optimization
+    // 1. Enable SSE3 but not AVX2
+    // 2. Enable AVX2
+    // 3. Enable Vulkan
+    // and so on.
     std::vector<ncnn::Option> opts;
+
+    const char* prev_comment;
+    double prev_time_avg;
+    double prev_user_avg;
+    double prev_sys_avg;
 };
 
 Benchmark::Benchmark()
@@ -82,7 +109,11 @@ Benchmark::Benchmark()
 #endif
       warmup_loop_count(8),
       loop_count(4),
-      enable_cooling_down(true)
+      enable_cooling_down(true),
+      prev_comment(NULL),
+      prev_time_avg(0),
+      prev_user_avg(0),
+      prev_sys_avg(0)
 {
 }
 
@@ -208,10 +239,12 @@ void Benchmark::run(const char* comment, const std::vector<ncnn::Mat>& _in, cons
     double time_min = DBL_MAX;
     double time_max = -DBL_MAX;
     double time_avg = 0;
+    double user_time_avg = 0;
+    double sys_time_avg = 0;
 
     for (int i = 0; i < loop_count; i++)
     {
-        double start = ncnn::get_current_time();
+        TimeStamps t1 = get_time_stamps();
         {
             ncnn::Extractor ex = net.create_extractor();
             for (size_t j = 0; j < input_names.size(); ++j)
@@ -227,27 +260,51 @@ void Benchmark::run(const char* comment, const std::vector<ncnn::Mat>& _in, cons
             }
         }
 
-        double end = ncnn::get_current_time();
-
-        double time = end - start;
+        TimeStamps t2 = get_time_stamps();
+        double time = t2.real_ms - t1.real_ms;
 
         time_min = std::min(time_min, time);
         time_max = std::max(time_max, time);
         time_avg += time;
+        user_time_avg += t2.user_ms - t1.user_ms;
+        sys_time_avg += t2.sys_ms - t1.sys_ms;
     }
 
     time_avg /= loop_count;
+    user_time_avg /= loop_count;
+    sys_time_avg /= loop_count;
 
     if (opts.size() == 1)
     {
         // Keep the old format
         fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
+        return;
+    }
+
+    fprintf(stderr, "%20s %s min = %7.2f  max = %7.2f  avg = %7.2f  user = %7.2f  sys = %7.2f",
+            comment, opt.use_vulkan_compute ? "gpu" : "cpu",
+            time_min, time_max, time_avg,
+            user_time_avg, sys_time_avg);
+
+    if (prev_comment != NULL && strcmp(prev_comment, comment) == 0)
+    {
+        // Relative speed compare to baseline
+        double ratio = prev_time_avg / time_avg;
+        fprintf(stderr, "  speed_ratio = %6.2fx", ratio);
+        if (prev_user_avg + prev_sys_avg > 0)
+        {
+            ratio = 100.0 * (user_time_avg + sys_time_avg) / (prev_user_avg + prev_sys_avg);
+            fprintf(stderr, "  cpu_ratio = %6.2f%%", ratio);
+        }
     }
     else
     {
-        fprintf(stderr, "%20s %s min = %7.2f  max = %7.2f  avg = %7.2f\n",
-                comment, opt.use_vulkan_compute ? "gpu" : "cpu", time_min, time_max, time_avg);
+        prev_comment = comment;
+        prev_time_avg = time_avg;
+        prev_user_avg = user_time_avg;
+        prev_sys_avg = sys_time_avg;
     }
+    fprintf(stderr, "\n");
 }
 
 void Benchmark::run(const char* comment, const ncnn::Mat& _in, bool fixed_path)
@@ -263,6 +320,29 @@ void Benchmark::run(const char* comment, const std::vector<ncnn::Mat>& _in, bool
     {
         run(comment, _in, opts[i], fixed_path);
     }
+}
+
+Benchmark::TimeStamps Benchmark::get_time_stamps()
+{
+    TimeStamps time_stamps = {
+        ncnn::get_current_time(),
+    };
+#if defined(__linux__) || defined(__APPLE__)
+    rusage usage = {0};
+    getrusage(RUSAGE_SELF, &usage);
+    time_stamps.user_ms = (usage.ru_utime.tv_sec * 1000.0) + usage.ru_utime.tv_usec / 1000.0;
+    time_stamps.sys_ms = (usage.ru_stime.tv_sec * 1000.0) + usage.ru_stime.tv_usec / 1000.0;
+#elif defined(_WIN32)
+    HANDLE proc;
+    FILETIME c, e, k, u;
+    proc = GetCurrentProcess();
+    GetProcessTimes(proc, &c, &e, &k, &u);
+    time_stamps.user_ms = ((int64_t)u.dwHighDateTime << 32 | u.dwLowDateTime) / 10000.0;
+    time_stamps.sys_ms = ((int64_t)k.dwHighDateTime << 32 | k.dwLowDateTime) / 10000.0;
+#else
+    time_stamps.user_ms = time_stamps.sys_ms = 0;
+#endif
+    return time_stamps;
 }
 
 void show_usage()
