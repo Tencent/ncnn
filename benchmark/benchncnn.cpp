@@ -70,7 +70,17 @@ public:
 private:
     void run(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fixed_path);
 
+    // We can have multiple of Option, the first one is for baseline or reference, the other Options are candidate.
+    // For example:
+    // 0. C++ without assembly optimization
+    // 1. Enable SSE3 but not AVX2
+    // 2. Enable AVX2
+    // 3. Enable Vulkan
+    // and so on.
     std::vector<ncnn::Option> opts;
+
+    const char *prev_comment;
+    double prev_time_avg;
 };
 
 Benchmark::Benchmark()
@@ -82,7 +92,9 @@ Benchmark::Benchmark()
 #endif
       warmup_loop_count(8),
       loop_count(4),
-      enable_cooling_down(true)
+      enable_cooling_down(true),
+      prev_comment(NULL),
+      prev_time_avg(0)
 {
 }
 
@@ -245,8 +257,25 @@ void Benchmark::run(const char* comment, const std::vector<ncnn::Mat>& _in, cons
     }
     else
     {
-        fprintf(stderr, "%20s %s min = %7.2f  max = %7.2f  avg = %7.2f\n",
+        fprintf(stderr, "%20s %s min = %7.2f  max = %7.2f  avg = %7.2f",
                 comment, opt.use_vulkan_compute ? "gpu" : "cpu", time_min, time_max, time_avg);
+
+        if (prev_comment != NULL && strcmp(prev_comment, comment) == 0)
+        {
+            // Relative speed compare to baseline
+            double speedup_ratio = prev_time_avg / time_avg;
+            fprintf(stderr, "  ratio = %7.2fx\n", speedup_ratio);
+        }
+        else
+        {
+            fprintf(stderr, "\n");
+        }
+    }
+
+    if (prev_comment == NULL || strcmp(prev_comment, comment) != 0)
+    {
+        prev_comment = comment;
+        prev_time_avg = time_avg;
     }
 }
 
