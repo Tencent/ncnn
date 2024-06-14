@@ -103,17 +103,17 @@ private:
 Benchmark::Benchmark()
     :
 #if NCNN_VULKAN
-      vkdev(NULL),
-      blob_vkallocator(NULL),
-      staging_vkallocator(NULL),
+    vkdev(NULL),
+    blob_vkallocator(NULL),
+    staging_vkallocator(NULL),
 #endif
-      warmup_loop_count(8),
-      loop_count(4),
-      enable_cooling_down(true),
-      prev_comment(NULL),
-      prev_time_avg(0),
-      prev_user_avg(0),
-      prev_sys_avg(0)
+    warmup_loop_count(8),
+    loop_count(4),
+    enable_cooling_down(true),
+    prev_comment(NULL),
+    prev_time_avg(0),
+    prev_user_avg(0),
+    prev_sys_avg(0)
 {
 }
 
