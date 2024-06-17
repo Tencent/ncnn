@@ -34,6 +34,7 @@
 #include "pass_onnx/inline_containers.h"
 #include "pass_onnx/model_stat.h"
 #include "pass_onnx/shape_inference.h"
+#include "pass_onnx/fuse_constant_as_attribute.h"
 
 #include "pass_onnx.h"
 
@@ -651,6 +652,26 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
             return -1;
         }
     }
+
+    fprintf(stderr, "%-34s", "fuse_constant_as_attribute ... ");
+
+    t0 = get_current_time();
+
+    onnx2pnnx::fuse_constant_as_attribute(model);
+
+    t1 = get_current_time();
+
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+    fprintf(stderr, "%-34s", "dead_code_elimination ... ");
+
+    t0 = get_current_time();
+
+    onnx2pnnx::dead_code_elimination(model);
+
+    t1 = get_current_time();
+
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
     onnx2pnnx::ModelStat newstat = onnx2pnnx::get_model_stat(model);
 

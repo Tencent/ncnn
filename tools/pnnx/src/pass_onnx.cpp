@@ -797,15 +797,6 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 {
                     if (is_aten_op)
                         is_attr_list = true;
-
-                    if (sim_op_type == "Reshape" && j == 1)
-                        is_attr_list = true;
-
-                    if (sim_op_type == "Pad" && j == 1)
-                        is_attr_list = true;
-
-                    if (sim_op_type == "ReduceMean" && j == 1)
-                        is_attr_list = true;
                 }
 
                 bool is_attr_weight = false;

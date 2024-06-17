@@ -42,7 +42,7 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "conv2d";
+        return "padconv2d";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -131,7 +131,7 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "conv2d";
+        return "padconv2d";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -215,7 +215,7 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "conv2d";
+        return "padconv2d";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -293,7 +293,7 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "conv2d";
+        return "padconv2d";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -362,7 +362,7 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "conv2d";
+        return "padconv2d";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -431,7 +431,7 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "conv2d";
+        return "padconv2d";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
