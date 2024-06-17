@@ -11,6 +11,7 @@ pnnx_onnx_add_test(F_conv_transpose3d)
 pnnx_onnx_add_test(F_conv1d)
 pnnx_onnx_add_test(F_conv2d)
 pnnx_onnx_add_test(F_conv3d)
+pnnx_onnx_add_test(F_pad)
 pnnx_onnx_add_test(F_relu)
 
 pnnx_onnx_add_test(nn_Conv1d)
