@@ -31,12 +31,11 @@ struct constant_as_attribute
     const char* attribute;
 };
 
-static constant_as_attribute caas[] =
-{
-    {"Pad",         1, "pads"   },
-    {"Pad",         2, "value"  },
-    {"ReduceMean",  1, "axes"   },
-    {"Reshape",     1, "shape"  },
+static constant_as_attribute caas[] = {
+    {"Pad", 1, "pads"},
+    {"Pad", 2, "value"},
+    {"ReduceMean", 1, "axes"},
+    {"Reshape", 1, "shape"},
 };
 
 static const char* get_constant_as_attribute(const std::string& op_type, int input_index)
