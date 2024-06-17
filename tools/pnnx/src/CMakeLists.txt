@@ -652,6 +652,7 @@ if(onnxruntime_FOUND)
         pass_onnx/inline_containers.cpp
         pass_onnx/model_stat.cpp
         pass_onnx/shape_inference.cpp
+        pass_onnx/fuse_constant_as_attribute.cpp
 
         pass_onnx/nn_AdaptiveAvgPool2d.cpp
         pass_onnx/nn_AdaptiveAvgPool3d.cpp
