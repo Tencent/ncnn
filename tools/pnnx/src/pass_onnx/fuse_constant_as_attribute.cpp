@@ -249,15 +249,15 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
         }
 
         // drop inputs
-        for (size_t i = 0; i < fused_input_indexes.size(); i++)
+        for (size_t j = 0; j < fused_input_indexes.size(); j++)
         {
-            const int fused_input_index = fused_input_indexes[i];
+            const int fused_input_index = fused_input_indexes[j];
 
             //  ..... fii .......
             const int node_input_size = node->input_size();
-            for (int j = fused_input_index; j < node_input_size - 1; j++)
+            for (int k = fused_input_index; k < node_input_size - 1; k++)
             {
-                node->mutable_input()->SwapElements(j, j + 1);
+                node->mutable_input()->SwapElements(k, k + 1);
             }
 
             //  ..... ....... fii
