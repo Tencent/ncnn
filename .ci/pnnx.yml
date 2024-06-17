@@ -75,7 +75,7 @@ jobs:
         python3 -m pip install --upgrade pip
         apt-get remove -y python3-setuptools
         pip3 install -U setuptools==69.5.1
-        pip3 install -U pytest wheel twine requests einops numpy
+        pip3 install -U pytest wheel twine requests einops numpy==1.26.4
         cd ${{ci.workspace}}
         wget -q https://github.com/Kitware/CMake/releases/download/v3.29.3/cmake-3.29.3-linux-x86_64.tar.gz
         tar -xf cmake-3.29.3-linux-x86_64.tar.gz
