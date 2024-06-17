@@ -16,7 +16,7 @@
 
 namespace pnnx {
 
-class F_conv_transpose2d_onnx : public GraphRewriterPass
+class F_conv_transpose3d_onnx : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -33,7 +33,7 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "F.conv_transpose2d";
+        return "F.conv_transpose3d";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -41,19 +41,19 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("kernel_shape").type != 5)
             return false;
 
-        if (captured_params.at("kernel_shape").ai.size() != 2)
+        if (captured_params.at("kernel_shape").ai.size() != 3)
             return false;
 
         if (captured_params.at("strides").type != 5)
             return false;
 
-        if (captured_params.at("strides").ai.size() != 2)
+        if (captured_params.at("strides").ai.size() != 3)
             return false;
 
         if (captured_params.at("dilations").type != 5)
             return false;
 
-        if (captured_params.at("dilations").ai.size() != 2)
+        if (captured_params.at("dilations").ai.size() != 3)
             return false;
 
         if (captured_params.at("group").type != 2)
@@ -63,7 +63,7 @@ pnnx.Output             output      1 0 out
             return false;
 
         const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
+        if (pads.size() != 6 || pads[0] != pads[3] || pads[1] != pads[4] || pads[2] != pads[5])
             return false;
 
         return true;
@@ -76,14 +76,14 @@ pnnx.Output             output      1 0 out
         op->params["stride"] = captured_params.at("strides");
         op->params["dilation"] = captured_params.at("dilations");
         op->params["groups"] = captured_params.at("group");
-        op->params["padding"] = {pads[0], pads[1]};
-        op->params["output_padding"] = {0, 0};
+        op->params["padding"] = {pads[0], pads[1], pads[2]};
+        op->params["output_padding"] = {0, 0, 0};
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose2d_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_onnx, 10)
 
-class F_conv_transpose2d_onnx_0 : public F_conv_transpose2d_onnx
+class F_conv_transpose3d_onnx_0 : public F_conv_transpose3d_onnx
 {
 public:
     const char* match_pattern_graph() const
@@ -103,15 +103,15 @@ pnnx.Output             output      1 0 out
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
-F.conv_transpose2d      conv        2 1 input weight out bias=None
+F.conv_transpose3d      conv        2 1 input weight out bias=None
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose2d_onnx_0, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_onnx_0, 10)
 
-class F_conv_transpose2d_onnx_1 : public GraphRewriterPass
+class F_conv_transpose3d_onnx_1 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -128,7 +128,7 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "F.conv_transpose2d";
+        return "F.conv_transpose3d";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -136,13 +136,13 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("strides").type != 5)
             return false;
 
-        if (captured_params.at("strides").ai.size() != 2)
+        if (captured_params.at("strides").ai.size() != 3)
             return false;
 
         if (captured_params.at("dilations").type != 5)
             return false;
 
-        if (captured_params.at("dilations").ai.size() != 2)
+        if (captured_params.at("dilations").ai.size() != 3)
             return false;
 
         if (captured_params.at("group").type != 2)
@@ -152,7 +152,7 @@ pnnx.Output             output      1 0 out
             return false;
 
         const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
+        if (pads.size() != 6 || pads[0] != pads[3] || pads[1] != pads[4] || pads[2] != pads[5])
             return false;
 
         return true;
@@ -165,14 +165,14 @@ pnnx.Output             output      1 0 out
         op->params["stride"] = captured_params.at("strides");
         op->params["dilation"] = captured_params.at("dilations");
         op->params["groups"] = captured_params.at("group");
-        op->params["padding"] = {pads[0], pads[1]};
-        op->params["output_padding"] = {0, 0};
+        op->params["padding"] = {pads[0], pads[1], pads[2]};
+        op->params["output_padding"] = {0, 0, 0};
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose2d_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_onnx_1, 10)
 
-class F_conv_transpose2d_onnx_2 : public GraphRewriterPass
+class F_conv_transpose3d_onnx_2 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -189,7 +189,7 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "F.conv_transpose2d";
+        return "F.conv_transpose3d";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -197,25 +197,25 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("kernel_shape").type != 5)
             return false;
 
-        if (captured_params.at("kernel_shape").ai.size() != 2)
+        if (captured_params.at("kernel_shape").ai.size() != 3)
             return false;
 
         if (captured_params.at("strides").type != 5)
             return false;
 
-        if (captured_params.at("strides").ai.size() != 2)
+        if (captured_params.at("strides").ai.size() != 3)
             return false;
 
         if (captured_params.at("dilations").type != 5)
             return false;
 
-        if (captured_params.at("dilations").ai.size() != 2)
+        if (captured_params.at("dilations").ai.size() != 3)
             return false;
 
         if (captured_params.at("output_padding").type != 5)
             return false;
 
-        if (captured_params.at("output_padding").ai.size() != 2)
+        if (captured_params.at("output_padding").ai.size() != 3)
             return false;
 
         if (captured_params.at("group").type != 2)
@@ -225,7 +225,7 @@ pnnx.Output             output      1 0 out
             return false;
 
         const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads.size() != 4 || pads[0] != pads[2] || pads[1] != pads[3])
+        if (pads.size() != 6 || pads[0] != pads[3] || pads[1] != pads[4] || pads[2] != pads[5])
             return false;
 
         return true;
@@ -238,14 +238,14 @@ pnnx.Output             output      1 0 out
         op->params["stride"] = captured_params.at("strides");
         op->params["dilation"] = captured_params.at("dilations");
         op->params["groups"] = captured_params.at("group");
-        op->params["padding"] = {pads[0], pads[1]};
+        op->params["padding"] = {pads[0], pads[1], pads[2]};
         op->params["output_padding"] = captured_params.at("output_padding");
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose2d_onnx_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_onnx_2, 10)
 
-class F_conv_transpose2d_onnx_3 : public F_conv_transpose2d_onnx_2
+class F_conv_transpose3d_onnx_3 : public F_conv_transpose3d_onnx_2
 {
 public:
     const char* match_pattern_graph() const
@@ -265,12 +265,12 @@ pnnx.Output             output      1 0 out
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
-F.conv_transpose2d      conv        2 1 input weight out bias=None
+F.conv_transpose3d      conv        2 1 input weight out bias=None
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose2d_onnx_3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_onnx_3, 10)
 
 } // namespace pnnx

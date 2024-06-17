@@ -124,7 +124,9 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_conv2d.cpp
     pass_level2/F_conv3d.cpp
     pass_level2/F_conv_transpose123d.cpp
+    pass_level2/F_conv_transpose1d.cpp
     pass_level2/F_conv_transpose2d.cpp
+    pass_level2/F_conv_transpose3d.cpp
     pass_level2/F_dropout.cpp
     pass_level2/F_dropout23d.cpp
     pass_level2/F_elu.cpp
