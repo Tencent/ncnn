@@ -267,8 +267,8 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Expression         op_0        0 1 pad expr=[0,%pad_front,%pad_top,%pad_left,0,%pad_back,%pad_bottom,%pad_right]
-Pad                     op_1        2 1 input pad out mode=%mode
+pnnx.Expression         op_0        0 1 pads expr=[0,%pad_front,%pad_top,%pad_left,0,%pad_back,%pad_bottom,%pad_right]
+Pad                     op_1        2 1 input pads out mode=%mode
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -306,8 +306,8 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Expression         op_0        0 1 pad expr=[0,%pad_top,%pad_left,0,%pad_bottom,%pad_right]
-Pad                     op_1        2 1 input pad out mode=%mode
+pnnx.Expression         op_0        0 1 pads expr=[0,%pad_top,%pad_left,0,%pad_bottom,%pad_right]
+Pad                     op_1        2 1 input pads out mode=%mode
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -343,13 +343,78 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Expression         op_0        0 1 pad expr=[0,0,%pad_front,%pad_top,%pad_left,0,0,%pad_back,%pad_bottom,%pad_right]
-Pad                     op_1        2 1 input pad out mode=%mode
+pnnx.Expression         op_0        0 1 pads expr=[0,0,%pad_front,%pad_top,%pad_left,0,0,%pad_back,%pad_bottom,%pad_right]
+Pad                     op_1        2 1 input pads out mode=%mode
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_onnx_2, 10)
+
+class F_pad_onnx_0 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Pad                     op_0        1 1 input out mode=%mode pads=%pads
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.pad";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("pads").type != 5)
+            return false;
+
+        const std::vector<int>& pads = captured_params.at("pads").ai;
+        if (pads.size() == 2 && pads[0] == pads[1])
+            return true;
+
+        if (pads.size() == 4 && pads[0] == pads[2] && pads[1] == pads[3])
+            return true;
+
+        if (pads.size() == 6 && pads[0] == pads[3] && pads[1] == pads[4] && pads[2] == pads[5])
+            return true;
+
+        if (pads.size() == 8 && pads[0] == 0 && pads[4] == 0 && pads[1] == pads[5] && pads[2] == pads[6] && pads[3] == pads[7])
+            return true;
+
+        return false;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::string& mode = captured_params.at("mode").s;
+        if (mode == "constant") op->params["mode"] = "constant";
+        if (mode == "reflect") op->params["mode"] = "reflect";
+        if (mode == "edge") op->params["mode"] = "replicate";
+        if (mode == "wrap") op->params["mode"] = "circular";
+
+        const std::vector<int>& pads = captured_params.at("pads").ai;
+
+        if (pads.size() == 2)
+            op->params["pad"] = pads;
+
+        if (pads.size() == 4)
+            op->params["pad"] = std::vector<int>{pads[1], pads[3], pads[0], pads[2]};
+
+        if (pads.size() == 6)
+            op->params["pad"] = std::vector<int>{pads[2], pads[5], pads[1], pads[4], pads[0], pads[3]};
+
+        if (pads.size() == 8)
+            op->params["pad"] = std::vector<int>{pads[3], pads[7], pads[2], pads[6], pads[1], pads[5]};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_onnx_0, 10)
 
 } // namespace pnnx
