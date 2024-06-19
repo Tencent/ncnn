@@ -36,6 +36,8 @@ static constant_as_attribute caas[] = {
     {"Pad", 2, "value"},
     {"ReduceMean", 1, "axes"},
     {"Reshape", 1, "shape"},
+    {"Squeeze", 1, "axes"},
+    {"Unsqueeze", 1, "axes"},
 };
 
 static const char* get_constant_as_attribute(const std::string& op_type, int input_index)

@@ -89,6 +89,43 @@ void shape_inference(onnx::ModelProto& model,
 {
     onnx::GraphProto* graph = model.mutable_graph();
 
+    // set graph input shape
+    if (!input_shapes.empty())
+    {
+        for (int i = 0; i < graph->input_size(); i++)
+        {
+            onnx::ValueInfoProto* value = graph->mutable_input(i);
+
+            ONNXTensorElementDataType datatype = get_onnx_tensor_elem_data_type(input_types[i]);
+            const std::vector<int64_t>& in_shape = input_shapes[i];
+            const size_t in_dims = in_shape.size();
+
+            value->mutable_type()->mutable_tensor_type()->set_elem_type((int32_t)datatype);
+
+            onnx::TensorShapeProto* tsp = value->mutable_type()->mutable_tensor_type()->mutable_shape();
+
+            tsp->clear_dim();
+            for (size_t j = 0; j < in_dims; j++)
+            {
+                tsp->add_dim()->set_dim_value(in_shape[j]);
+            }
+
+            if (!input_shapes2.empty())
+            {
+                const std::vector<int64_t>& in_shape2 = input_shapes2[i];
+
+                for (size_t j = 0; j < in_dims; j++)
+                {
+                    if (tsp->dim(j).dim_value() == in_shape2[j])
+                        continue;
+
+                    // dynamic dim size
+                    tsp->mutable_dim(j)->clear_dim_value();
+                }
+            }
+        }
+    }
+
     // save original outputs
     std::vector<std::string> orig_outputs;
     {

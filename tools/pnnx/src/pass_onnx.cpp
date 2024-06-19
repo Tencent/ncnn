@@ -635,11 +635,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
     for (int i = 0; i < graph.input_size(); i++)
     {
-        const std::string& output = graph.input(i).name();
+        const std::string& input = graph.input(i).name();
 
-        Operator* op = pnnx_graph.new_operator("pnnx.Input", output);
+        Operator* op = pnnx_graph.new_operator("pnnx.Input", input);
 
-        const onnx::ValueInfoProto& value = modelproxy.valueinfo(output);
+        const onnx::ValueInfoProto& value = modelproxy.valueinfo(input);
 
         Operand* op_out = pnnx_graph.new_operand(value);
 
