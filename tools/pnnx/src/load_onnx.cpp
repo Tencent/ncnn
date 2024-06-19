@@ -614,11 +614,11 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-34s", "eliminate_noop ... ");
+    fprintf(stderr, "%-34s", "eliminate_noop_with_shape ... ");
 
     t0 = get_current_time();
 
-    onnx2pnnx::eliminate_noop(model);
+    onnx2pnnx::eliminate_noop_with_shape(model);
 
     t1 = get_current_time();
 

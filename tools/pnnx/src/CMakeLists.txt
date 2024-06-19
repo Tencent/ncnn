@@ -270,13 +270,15 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_sum.cpp
     pass_level2/torch_t.cpp
     pass_level2/torch_tensor_split.cpp
+    pass_level2/torch_tile.cpp
     pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
     pass_level2/torch_view_as_complex.cpp
-    pass_level2/torch_view_as_real.cpp    
+    pass_level2/torch_view_as_real.cpp
+    pass_level2/torch_where.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
     pass_level2/torch_stft.cpp

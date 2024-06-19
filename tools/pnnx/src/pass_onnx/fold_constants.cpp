@@ -584,20 +584,35 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
                 if (is_producer_shape)
                 {
                     // get shape info
+                    const onnx::NodeProto& node0 = graph.node(producer_node_output_index);
+
                     int value_info_index = -1;
-                    for (int j = 0; j < graph.value_info_size(); j++)
+                    bool value_is_graph_input = false;
+                    for (int j = 0; j < graph.input_size(); j++)
                     {
-                        if (graph.value_info(j).name() == input)
+                        if (graph.input(j).name() == node0.input(0))
                         {
                             value_info_index = j;
+                            value_is_graph_input = true;
                             break;
+                        }
+                    }
+                    if (value_info_index == -1)
+                    {
+                        for (int j = 0; j < graph.value_info_size(); j++)
+                        {
+                            if (graph.value_info(j).name() == node0.input(0))
+                            {
+                                value_info_index = j;
+                                break;
+                            }
                         }
                     }
 
                     std::vector<int> shape;
                     if (value_info_index != -1)
                     {
-                        const onnx::ValueInfoProto& value = graph.value_info(value_info_index);
+                        const onnx::ValueInfoProto& value = value_is_graph_input ? graph.input(value_info_index) : graph.value_info(value_info_index);
                         const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
                         shape.resize(tsp.dim_size());
                         for (int j = 0; j < tsp.dim_size(); j++)
@@ -691,20 +706,35 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
                 if (is_producer_shape)
                 {
                     // get shape info
+                    const onnx::NodeProto& node0 = graph.node(producer_node_output_index);
+
                     int value_info_index = -1;
-                    for (int j = 0; j < graph.value_info_size(); j++)
+                    bool value_is_graph_input = false;
+                    for (int j = 0; j < graph.input_size(); j++)
                     {
-                        if (graph.value_info(j).name() == input)
+                        if (graph.input(j).name() == node0.input(0))
                         {
                             value_info_index = j;
+                            value_is_graph_input = true;
                             break;
+                        }
+                    }
+                    if (value_info_index == -1)
+                    {
+                        for (int j = 0; j < graph.value_info_size(); j++)
+                        {
+                            if (graph.value_info(j).name() == node0.input(0))
+                            {
+                                value_info_index = j;
+                                break;
+                            }
                         }
                     }
 
                     std::vector<int> shape;
                     if (value_info_index != -1)
                     {
-                        const onnx::ValueInfoProto& value = graph.value_info(value_info_index);
+                        const onnx::ValueInfoProto& value = value_is_graph_input ? graph.input(value_info_index) : graph.value_info(value_info_index);
                         const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
                         shape.resize(tsp.dim_size());
                         for (int j = 0; j < tsp.dim_size(); j++)

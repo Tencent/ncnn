@@ -729,9 +729,22 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Max") sim_op_type = "aten::max";
             if (op_type == "Min") sim_op_type = "aten::min";
             if (op_type == "Pow") sim_op_type = "aten::pow";
+            if (op_type == "Equal") sim_op_type = "aten::eq";
+            if (op_type == "Less") sim_op_type = "aten::lt";
+            if (op_type == "LessOrEqual") sim_op_type = "aten::le";
+            if (op_type == "Greater") sim_op_type = "aten::gt";
+            if (op_type == "GreaterOrEqual") sim_op_type = "aten::ge";
+            if (op_type == "BitwiseAnd") sim_op_type = "aten::bitwise_and";
+            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
+            if (op_type == "BitwiseOr") sim_op_type = "aten::bitwise_or";
+            if (op_type == "BitwiseXor") sim_op_type = "aten::bitwise_xor";
+            if (op_type == "And") sim_op_type = "aten::__and__";
+            if (op_type == "Or") sim_op_type = "aten::__or__";
+            if (op_type == "Xor") sim_op_type = "aten::__xor__";
 
             // trinaryop
             if (op_type == "Clip") sim_op_type = "aten::clamp";
+            if (op_type == "Where") sim_op_type = "aten::where";
         }
         else if (string_starts_with(op_type, "aten_"))
         {

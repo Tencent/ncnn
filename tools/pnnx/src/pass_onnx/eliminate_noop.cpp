@@ -73,19 +73,65 @@ void eliminate_noop(onnx::ModelProto& model)
             noop = true;
         }
 
-        if (op_type == "Cast")
-        {
-            onnx::ValueInfoProto* input_value = find_value_info_by_name(graph, node.input(0));
-            onnx::ValueInfoProto* output_value = find_value_info_by_name(graph, node.output(0));
+        if (!noop)
+            continue;
 
-            if (input_value && output_value)
+        const std::string& input_name = node.input(0);
+        const std::string& output_name = node.output(0);
+
+        for (int j = i + 1; j < graph->node_size(); j++)
+        {
+            onnx::NodeProto* node2 = graph->mutable_node(j);
+
+            for (int k = 0; k < node2->input_size(); k++)
             {
-                if (input_value->type().has_tensor_type() && output_value->type().has_tensor_type())
+                if (node2->input(k) == output_name)
                 {
-                    if (input_value->type().tensor_type().elem_type() == output_value->type().tensor_type().elem_type())
-                        noop = true;
+                    node2->set_input(k, input_name);
                 }
             }
+        }
+
+        for (int j = 0; j < graph->output_size(); j++)
+        {
+            if (graph->output(j).name() == output_name)
+            {
+                graph->mutable_output(j)->set_name(input_name);
+            }
+        }
+    }
+
+    onnx2pnnx::dead_code_elimination(model);
+}
+
+void eliminate_noop_with_shape(onnx::ModelProto& model)
+{
+    onnx::GraphProto* graph = model.mutable_graph();
+
+    for (int i = 0; i < graph->node_size(); i++)
+    {
+        const onnx::NodeProto& node = graph->node(i);
+        const std::string& op_type = node.op_type();
+
+        onnx::ValueInfoProto* input_value = find_value_info_by_name(graph, node.input(0));
+        onnx::ValueInfoProto* output_value = find_value_info_by_name(graph, node.output(0));
+
+        if (!input_value || !output_value)
+            continue;
+
+        bool noop = false;
+
+        if (op_type == "Cast")
+        {
+            if (input_value->type().has_tensor_type() && output_value->type().has_tensor_type())
+            {
+                if (input_value->type().tensor_type().elem_type() == output_value->type().tensor_type().elem_type())
+                    noop = true;
+            }
+        }
+
+        if (op_type == "Reshape")
+        {
         }
 
         if (!noop)
