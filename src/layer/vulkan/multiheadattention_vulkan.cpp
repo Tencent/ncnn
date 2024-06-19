@@ -46,6 +46,7 @@ MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
 int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 {
     const int embed_dim_per_head = embed_dim / num_heads;
+    const int qdim = weight_data_size / embed_dim;
     {
         const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
 
@@ -61,7 +62,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(6, 1);         // constantC
         pd.set(7, embed_dim); // M
         pd.set(8, 0);         // N
-        pd.set(9, embed_dim); // K
+        pd.set(9, qdim);      // K
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         // pd.set(12, 1);        // output_elempack
@@ -220,7 +221,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(5, 1);         // constantB
         pd.set(6, 1);         // constantC
         pd.set(7, 0);         // M = outch
-        pd.set(8, embed_dim); // N = size
+        pd.set(8, qdim);      // N = size
         pd.set(9, embed_dim); // K = maxk*inch
         pd.set(10, 4);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
