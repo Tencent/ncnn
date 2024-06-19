@@ -18,7 +18,7 @@
 #include <string>
 #include <unordered_set>
 
-#include <onnxruntime_c_api.h>
+#include "dead_code_elimination.h"
 
 namespace pnnx {
 
@@ -36,6 +36,8 @@ static constant_as_attribute caas[] = {
     {"Pad", 2, "value"},
     {"ReduceMean", 1, "axes"},
     {"Reshape", 1, "shape"},
+    {"Squeeze", 1, "axes"},
+    {"Unsqueeze", 1, "axes"},
 };
 
 static const char* get_constant_as_attribute(const std::string& op_type, int input_index)
@@ -264,6 +266,8 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
             node->mutable_input()->RemoveLast();
         }
     }
+
+    onnx2pnnx::dead_code_elimination(model);
 }
 
 } // namespace onnx2pnnx

@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -16,32 +16,7 @@
 
 namespace pnnx {
 
-class F_embedding : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-prim::Constant          op_0        0 1 padding_idx value=*
-prim::Constant          op_1        0 1 scale_grad_by_freq value=%scale_grad_by_freq
-prim::Constant          op_2        0 1 sparse value=%sparse
-aten::embedding         op_3        5 1 weight input padding_idx scale_grad_by_freq sparse out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "F.embedding";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding, 10)
-
-class F_embedding_onnx : public GraphRewriterPass
+class torch_tile : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -49,24 +24,40 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-Gather                  op_0        2 1 weight input out
+pnnx.Input              input_1     0 1 dims
+aten::tile              op_0        2 1 input dims out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "F.embedding";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
-    {
-        op->params["scale_grad_by_freq"] = false;
-        op->params["sparse"] = false;
+        return "torch.tile";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_tile, 20)
+
+class torch_tile_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 dims
+Tile                    op_0        2 1 input dims out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.tile";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_tile_onnx, 20)
 
 } // namespace pnnx
