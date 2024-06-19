@@ -1776,6 +1776,64 @@ cooling_down = 1
   vision_transformer  min = 20594.51  max = 20601.53  avg = 20596.59
           FastestDet  min =   90.25  max =   91.00  avg =   90.64
 ```
+### Raspberry Pi 5 Broadcom BCM2712, VideoCore VII Graphics Overclock to 1.1Ghz (Vulkan 1.2)
+```
+pi@raspberrypi:~/ncnn/build/benchmark $ sudo echo "gpu_freq=1100" >> /boot/firmware/config.txt
+pi@raspberrypi:~/ncnn/build/benchmark $ sudo echo "force_turbo=1" >> /boot/firmware/config.txt
+pi@raspberrypi:~/ncnn/build/benchmark $ sudo reboot
+
+pi@raspberrypi:~/ncnn/build/benchmark $ ./benchncnn 10 4 0 0
+[0 V3D 7.1.7]  queueC=0[1]  queueG=0[1]  queueT=0[1]
+[0 V3D 7.1.7]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 V3D 7.1.7]  fp16-p/s/u/a=1/1/1/0  int8-p/s/u/a=1/1/1/0
+[0 V3D 7.1.7]  subgroup=16  basic/vote/ballot/shuffle=1/0/0/0
+[0 V3D 7.1.7]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=0/0/0/0
+[1 llvmpipe (LLVM 15.0.6, 128 bits)]  queueC=0[1]  queueG=0[1]  queueT=0[1]
+[1 llvmpipe (LLVM 15.0.6, 128 bits)]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[1 llvmpipe (LLVM 15.0.6, 128 bits)]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/1/1/1
+[1 llvmpipe (LLVM 15.0.6, 128 bits)]  subgroup=4  basic/vote/ballot/shuffle=1/1/1/1
+[1 llvmpipe (LLVM 15.0.6, 128 bits)]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=0/0/0/0
+loop_count = 10
+num_threads = 4
+powersave = 0
+gpu_device = 0
+cooling_down = 1
+          squeezenet  min =  106.91  max =  106.99  avg =  106.95
+     squeezenet_int8  min =    8.91  max =    9.49  avg =    9.11
+           mobilenet  min =  147.60  max =  147.66  avg =  147.63
+      mobilenet_int8  min =   10.77  max =   36.34  avg =   14.67
+        mobilenet_v2  min =  109.97  max =  110.05  avg =  110.00
+        mobilenet_v3  min =  101.90  max =  102.00  avg =  101.95
+          shufflenet  min =   59.73  max =   60.29  avg =   59.89
+       shufflenet_v2  min =   81.38  max =   81.60  avg =   81.48
+             mnasnet  min =  105.78  max =  105.88  avg =  105.82
+     proxylessnasnet  min =  108.78  max =  108.92  avg =  108.84
+     efficientnet_b0  min =  168.82  max =  169.02  avg =  168.90
+   efficientnetv2_b0  min =  232.37  max =  232.58  avg =  232.49
+        regnety_400m  min =  130.27  max =  130.41  avg =  130.34
+           blazeface  min =   22.14  max =   22.20  avg =   22.17
+           googlenet  min =  299.08  max =  299.28  avg =  299.17
+      googlenet_int8  min =   29.24  max =   29.92  avg =   29.61
+            resnet18  min =  304.37  max =  304.55  avg =  304.48
+       resnet18_int8  min =   26.23  max =   53.80  avg =   35.61
+             alexnet  min =  203.85  max =  217.97  avg =  209.30
+               vgg16  min = 1570.77  max = 1571.04  avg = 1570.94
+          vgg16_int8  min =  129.85  max =  145.79  avg =  132.82
+            resnet50  min =  753.93  max =  754.41  avg =  754.08
+       resnet50_int8  min =   49.41  max =   49.84  avg =   49.64
+      squeezenet_ssd  min =  399.12  max =  399.55  avg =  399.30
+ squeezenet_ssd_int8  min =   34.22  max =   34.89  avg =   34.54
+       mobilenet_ssd  min =  344.68  max =  344.90  avg =  344.79
+  mobilenet_ssd_int8  min =   27.42  max =   28.16  avg =   27.74
+      mobilenet_yolo  min =  711.69  max =  711.76  avg =  711.72
+  mobilenetv2_yolov3  min =  361.99  max =  362.11  avg =  362.05
+         yolov4-tiny  min =  589.25  max =  608.54  avg =  595.14
+           nanodet_m  min =  178.85  max =  184.93  avg =  180.18
+    yolo-fastest-1.1  min =   92.28  max =   92.53  avg =   92.43
+      yolo-fastestv2  min =   70.79  max =   73.38  avg =   71.19
+  vision_transformer  min = 18645.20  max = 18787.41  avg = 18667.17
+          FastestDet  min =   74.67  max =   74.77  avg =   74.71
+```
 ### Raspberry Pi Zero 2 W Broadcom BCM2710A1, Cortex-A53 (ARMv8) (1.0GHz x 4)
 
 ```
