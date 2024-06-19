@@ -21,6 +21,8 @@
 
 #include <onnxruntime_c_api.h>
 
+#include "dead_code_elimination.h"
+
 namespace pnnx {
 
 namespace onnx2pnnx {
@@ -503,6 +505,8 @@ void fold_constants(onnx::ModelProto& model,
             graph->add_output()->set_name(orig_outputs[i]);
         }
     }
+
+    onnx2pnnx::dead_code_elimination(model);
 }
 
 void fold_constants_dynamic_shape(onnx::ModelProto& model,
@@ -1062,6 +1066,8 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
             graph->add_output()->set_name(orig_outputs[i]);
         }
     }
+
+    onnx2pnnx::dead_code_elimination(model);
 }
 
 } // namespace onnx2pnnx

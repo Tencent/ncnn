@@ -18,7 +18,7 @@
 #include <string>
 #include <unordered_set>
 
-#include <onnxruntime_c_api.h>
+#include "dead_code_elimination.h"
 
 namespace pnnx {
 
@@ -266,6 +266,8 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
             node->mutable_input()->RemoveLast();
         }
     }
+
+    onnx2pnnx::dead_code_elimination(model);
 }
 
 } // namespace onnx2pnnx
