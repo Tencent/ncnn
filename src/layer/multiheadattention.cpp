@@ -94,12 +94,22 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         return -1;
 
     Mat xq(embed_dim_per_head, src_seqlen, num_heads, 4u, opt.workspace_allocator);
+    if (xq.empty())
+        return -1;
     Mat xk(embed_dim_per_head, dst_seqlen, num_heads, 4u, opt.workspace_allocator);
+    if (xk.empty())
+        return -1;
     Mat xv(dst_seqlen, embed_dim_per_head, num_heads, 4u, opt.workspace_allocator);
+    if (xv.empty())
+        return -1;
 
     Mat xqk(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
+    if (xqk.empty())
+        return -1;
 
     Mat xqkv(embed_dim_per_head, num_heads, src_seqlen, 4u, opt.workspace_allocator);
+    if (xqkv.empty())
+        return -1;
 
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
 
