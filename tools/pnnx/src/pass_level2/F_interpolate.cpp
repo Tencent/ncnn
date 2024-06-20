@@ -1003,10 +1003,9 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
+3 2
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_0        0 1 size @data
-Resize                  op_1        2 1 input size out coordinate_transformation_mode=* mode=nearest nearest_mode=floor cubic_coeff_a=*
+Resize                  op_0        1 1 input out sizes=%sizes coordinate_transformation_mode=%coordinate_transformation_mode mode=%mode nearest_mode=floor cubic_coeff_a=*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -1016,83 +1015,66 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        auto size = captured_attrs.at("op_0.data");
-        if (size.type != 5)
+        if (captured_params.at("sizes").type != 5)
             return false;
 
-        int size_count = size.data.size() / sizeof(int64_t);
-        if (size_count < 3 || size_count > 5)
+        const std::vector<int>& sizes = captured_params.at("sizes").ai;
+
+        if (sizes.size() < 3 || sizes.size() > 5)
             return false;
 
-        const std::vector<int>& input_shape = matched_operators.at("op_1")->inputs[0]->shape;
+        const std::vector<int>& input_shape = matched_operators.at("op_0")->inputs[0]->shape;
         if (input_shape.size() < 3 || input_shape.size() > 5)
             return false;
 
-        const int64_t* ps = (const int64_t*)size.data.data();
-        if (input_shape[0] != ps[0] || input_shape[1] != ps[1])
+        if (input_shape[0] != sizes[0] || input_shape[1] != sizes[1])
             return false;
 
         return true;
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        auto size = captured_attrs.at("op_0.data");
-        int size_count = size.data.size() / sizeof(float);
-        const int64_t* ps = (const int64_t*)size.data.data();
+        const std::string& coordinate_transformation_mode = captured_params.at("coordinate_transformation_mode").s;
+        std::string mode = captured_params.at("mode").s;
+        const std::vector<int>& sizes = captured_params.at("sizes").ai;
 
-        op->params["mode"] = "nearest";
-        op->params["align_corners"] = false;
-        if (size_count == 3)
-            op->params["size"] = {ps[2]};
-        if (size_count == 4)
-            op->params["size"] = {ps[2], ps[3]};
-        if (size_count == 5)
-            op->params["size"] = {ps[2], ps[3], ps[4]};
+        if (mode == "linear")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+
+            if (sizes.size() == 4)
+                mode = "bilinear";
+            if (sizes.size() == 5)
+                mode = "trilinear";
+        }
+
+        if (mode == "cubic")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+
+            mode = "bicubic";
+        }
+
+        op->params["mode"] = mode;
+        if (sizes.size() == 3)
+            op->params["size"] = {sizes[2]};
+        if (sizes.size() == 4)
+            op->params["size"] = {sizes[2], sizes[3]};
+        if (sizes.size() == 5)
+            op->params["size"] = {sizes[2], sizes[3], sizes[4]};
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx, 10)
-
-class F_interpolate_onnx_0 : public F_interpolate_onnx
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Attribute          roi         0 1 roi @data
-pnnx.Attribute          op_0        0 1 size @data
-Resize                  op_1        3 1 input roi size out coordinate_transformation_mode=* mode=nearest nearest_mode=floor
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        if (!F_interpolate_onnx::match(matched_operators, captured_params, captured_attrs))
-            return false;
-
-        auto roi = captured_attrs.at("roi.data");
-        if (roi.type != 1)
-            return false;
-
-        int roi_count = roi.data.size() / sizeof(float);
-        const float* proi = (const float*)roi.data.data();
-        for (int i = 0; i < roi_count; i++)
-        {
-            if (proi[i] != 1.f)
-                return false;
-        }
-
-        return true;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_0, 10)
 
 class F_interpolate_onnx_1 : public GraphRewriterPass
 {
@@ -1100,10 +1082,9 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
+3 2
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_0        0 1 scale_factor @data
-Resize                  op_1        2 1 input scale_factor out coordinate_transformation_mode=* mode=nearest nearest_mode=floor cubic_coeff_a=*
+Resize                  op_0        1 1 input out scales=%scales coordinate_transformation_mode=%coordinate_transformation_mode mode=%mode nearest_mode=floor cubic_coeff_a=*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -1113,78 +1094,62 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    bool match(const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        auto scale_factor = captured_attrs.at("op_0.data");
-        if (scale_factor.type != 1)
+        if (captured_params.at("scales").type != 6)
             return false;
 
-        int scale_factor_count = scale_factor.data.size() / sizeof(float);
-        if (scale_factor_count < 3 || scale_factor_count > 5)
+        const std::vector<float>& scales = captured_params.at("scales").af;
+
+        if (scales.size() < 3 || scales.size() > 5)
             return false;
 
-        const float* ps = (const float*)scale_factor.data.data();
-        if (ps[0] != 1.f || ps[1] != 1.f)
+        if (scales[0] != 1.f || scales[1] != 1.f)
             return false;
 
         return true;
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        auto scale_factor = captured_attrs.at("op_0.data");
-        int scale_factor_count = scale_factor.data.size() / sizeof(float);
-        const float* ps = (const float*)scale_factor.data.data();
+        const std::string& coordinate_transformation_mode = captured_params.at("coordinate_transformation_mode").s;
+        std::string mode = captured_params.at("mode").s;
+        const std::vector<float>& scales = captured_params.at("scales").af;
 
-        op->params["mode"] = "nearest";
-        op->params["recompute_scale_factor"] = true;
-        if (scale_factor_count == 3)
-            op->params["scale_factor"] = {ps[2]};
-        if (scale_factor_count == 4)
-            op->params["scale_factor"] = {ps[2], ps[3]};
-        if (scale_factor_count == 5)
-            op->params["scale_factor"] = {ps[2], ps[3], ps[4]};
+        if (mode == "linear")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+
+            if (scales.size() == 4)
+                mode = "bilinear";
+            if (scales.size() == 5)
+                mode = "trilinear";
+        }
+
+        if (mode == "cubic")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+
+            mode = "bicubic";
+        }
+
+        op->params["mode"] = mode;
+        op->params["recompute_scale_factor"] = false;
+        if (scales.size() == 3)
+            op->params["scale_factor"] = {scales[2]};
+        if (scales.size() == 4)
+            op->params["scale_factor"] = {scales[2], scales[3]};
+        if (scales.size() == 5)
+            op->params["scale_factor"] = {scales[2], scales[3], scales[4]};
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_1, 10)
-
-class F_interpolate_onnx_2 : public F_interpolate_onnx_1
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Attribute          roi         0 1 roi @data
-pnnx.Attribute          op_0        0 1 scale_factor @data
-Resize                  op_1        3 1 input roi scale_factor out coordinate_transformation_mode=* mode=nearest nearest_mode=floor
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        if (!F_interpolate_onnx_1::match(captured_params, captured_attrs))
-            return false;
-
-        auto roi = captured_attrs.at("roi.data");
-        if (roi.type != 1)
-            return false;
-
-        int roi_count = roi.data.size() / sizeof(float);
-        const float* proi = (const float*)roi.data.data();
-        for (int i = 0; i < roi_count; i++)
-        {
-            if (proi[i] != 1.f)
-                return false;
-        }
-
-        return true;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_2, 10)
 
 } // namespace pnnx
