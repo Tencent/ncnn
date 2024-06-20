@@ -36,8 +36,11 @@ static constant_as_attribute caas[] = {
     {"Pad", 2, "value"},
     {"ReduceMean", 1, "axes"},
     {"Reshape", 1, "shape"},
+    {"Resize", 2, "scales"},
+    {"Resize", 3, "sizes"},
     {"Squeeze", 1, "axes"},
     {"Unsqueeze", 1, "axes"},
+    {"Upsample", 1, "scales"},
 };
 
 static const char* get_constant_as_attribute(const std::string& op_type, int input_index)
@@ -191,7 +194,6 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
             }
             else if (tensor.dims_size() == 1)
             {
-                // int list
                 const int list_size = tensor.dims(0);
                 if (tensor.data_type() == onnx::TensorProto::INT32)
                 {
@@ -238,6 +240,28 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
                         if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
 
                         attr->add_ints((int)i64);
+                    }
+                }
+                else if (tensor.data_type() == onnx::TensorProto::FLOAT)
+                {
+                    std::vector<float> af(list_size);
+                    if (tensor.has_raw_data())
+                    {
+                        // assert tensor.raw_data().size() == 4 * list_size
+                        memcpy((void*)af.data(), (float*)tensor.raw_data().data(), sizeof(float) * list_size);
+                    }
+                    else
+                    {
+                        // assert tensor.float_data().size() == list_size
+                        memcpy((void*)af.data(), tensor.float_data().data(), sizeof(float) * list_size);
+                    }
+
+                    onnx::AttributeProto* attr = node->add_attribute();
+                    attr->set_name(std::string(attr_name));
+                    attr->set_type(onnx::AttributeProto::FLOATS);
+                    for (auto f32 : af)
+                    {
+                        attr->add_floats(f32);
                     }
                 }
                 else
