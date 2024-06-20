@@ -23,10 +23,10 @@ class Model(nn.Module):
 
     def forward(self, x, y, w):
         if version.parse(torch.__version__) < version.parse('1.12'):
-            x = F.upsample_nearest(x, size=(72,80))
+            x = F.upsample_nearest(x, size=(72,128))
             x = F.upsample_nearest(x, scale_factor=2)
 
-            y = F.upsample_nearest(y, size=(15,40,60))
+            y = F.upsample_nearest(y, size=(20,72,96))
             y = F.upsample_nearest(y, scale_factor=3)
         else:
             x = F.upsample_nearest(x, size=(12,12))
