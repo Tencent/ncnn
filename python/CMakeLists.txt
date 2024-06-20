@@ -31,7 +31,7 @@ if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
 endif("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
 
 include_directories(${pybind11_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS})
-pybind11_add_module(pyncnn src/main.cpp)
+pybind11_add_module(pyncnn THIN_LTO src/main.cpp)
 set_target_properties(pyncnn PROPERTIES OUTPUT_NAME "ncnn")
 target_link_libraries(pyncnn PUBLIC ncnn)
 set_target_properties(pyncnn PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/ncnn")
