@@ -15,17 +15,25 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
     def forward(self, x, y, w):
-        x = F.upsample_nearest(x, size=(12,12))
-        x = F.upsample_nearest(x, scale_factor=2)
+        if version.parse(torch.__version__) < version.parse('1.12'):
+            x = F.upsample_nearest(x, size=(50,70))
+            x = F.upsample_nearest(x, scale_factor=2)
 
-        y = F.upsample_nearest(y, size=(8,10,9))
-        y = F.upsample_nearest(y, scale_factor=3)
+            y = F.upsample_nearest(y, size=(24,30,50))
+            y = F.upsample_nearest(y, scale_factor=3)
+        else:
+            x = F.upsample_nearest(x, size=(12,12))
+            x = F.upsample_nearest(x, scale_factor=2)
+
+            y = F.upsample_nearest(y, size=(8,10,9))
+            y = F.upsample_nearest(y, scale_factor=3)
 
         w = F.upsample_nearest(w, scale_factor=(2.976744,2.976744))
         return x, y, w
