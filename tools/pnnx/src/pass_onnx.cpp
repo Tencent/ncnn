@@ -675,11 +675,6 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "prim::ListConstruct";
             }
 
-            if (op_type == "Slice")
-            {
-                sim_op_type = "aten::slice";
-            }
-
             if (op_type == "Concat")
             {
                 sim_op_type = "aten::cat";
@@ -1030,29 +1025,6 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 const onnx::AttributeProto& attr = node.attribute(j);
 
                 op->params[attr.name()] = attr;
-            }
-
-            if (op_type == "Slice")
-            {
-                if (op->inputs.size() == 3)
-                {
-                    op->inputnames = {"input", "start", "end"};
-                    op->params["dim"] = 0;
-                    op->params["step"] = 1;
-                }
-                else if (op->inputs.size() == 4)
-                {
-                    // data start end dim -> input dim start end
-                    op->inputnames = {"input", "dim", "start", "end"};
-                    op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2]};
-                    op->params["step"] = 1;
-                }
-                else // if (op->inputs.size() == 5)
-                {
-                    // data start end dim step -> input dim start end step
-                    op->inputnames = {"input", "dim", "start", "end", "step"};
-                    op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2], op->inputs[4]};
-                }
             }
 
             if (op_type == "Concat")
