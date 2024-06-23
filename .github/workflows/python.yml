@@ -56,14 +56,14 @@ jobs:
       uses: actions/cache@v4
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20230420
+        key: swiftshader-linux-install-20240622
     - name: checkout-swiftshader
       if: matrix.os == 'ubuntu-latest' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: dd55e592406dc0bae219df11adec6363840aff4a
+        ref: de870ac7518fe2b6bb651ecc22fc36647cf7b986
     - name: checkout-swiftshader-submodules
       if: matrix.os == 'ubuntu-latest' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
