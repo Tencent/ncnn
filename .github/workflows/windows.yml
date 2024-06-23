@@ -79,26 +79,26 @@ jobs:
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: cache-swiftshader
-      if: matrix.vs-version != 'vs2015'
+      if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017'
       id: cache-swiftshader
       uses: actions/cache@v4
       with:
         path: swiftshader-install
         key: swiftshader-${{ matrix.vs-version }}-x64-install-20240622
     - name: checkout-swiftshader
-      if: matrix.vs-version != 'vs2015' && steps.cache-swiftshader.outputs.cache-hit != 'true'
+      if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
       with:
         repository: google/swiftshader
         path: swiftshader
         ref: de870ac7518fe2b6bb651ecc22fc36647cf7b986
     - name: checkout-swiftshader-submodules
-      if: matrix.vs-version != 'vs2015' && steps.cache-swiftshader.outputs.cache-hit != 'true'
+      if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
         cd swiftshader
         git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
     - name: swiftshader
-      if: matrix.vs-version != 'vs2015' && steps.cache-swiftshader.outputs.cache-hit != 'true'
+      if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
         cd swiftshader
         mkdir build-${{ matrix.vs-version }}; cd build-${{ matrix.vs-version }}
@@ -113,7 +113,7 @@ jobs:
         cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 4
     - name: x64-test
-      if: matrix.vs-version != 'vs2015'
+      if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017'
       run: |
         echo "[Processor]`nThreadCount=1`n" > build-x64/tests/Release/SwiftShader.ini
         Copy-Item -Path "$env:GITHUB_WORKSPACE\swiftshader-install\vulkan-1.dll" -Destination 'build-x64\tests'
