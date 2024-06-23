@@ -60,12 +60,9 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
     const int qdim = weight_data_size / embed_dim;
 
     {
-        const int embed_dim_per_head = embed_dim / num_heads;
-        const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
-
         q_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(0, inv_sqrt_embed_dim_per_head);
+        pd.set(0, scale);
         pd.set(1, 1.f);
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
