@@ -106,7 +106,7 @@ static int test_multiheadattention_sameqkv(const ncnn::Mat& a, int embed_dim, in
     pd.set(2, embed_dim * qdim);
     pd.set(3, qdim);
     pd.set(4, qdim);
-    pd.set(6, 2.f / sqrtf(embed_dim / num_heads));
+    pd.set(6, 0.7f / sqrtf(embed_dim / num_heads));
 
     std::vector<ncnn::Mat> weights(8);
     weights[0] = RandomMat(embed_dim * qdim);
