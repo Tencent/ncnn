@@ -1266,21 +1266,22 @@ y = affine(out)
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | embed_dim     | int   | 0         |                   |
 | 1         | num_heads     | int   | 1         |                   |
-| 2         | weight_data_size| int | 0         |                   |
+| 2         | weight_data_size| int | 0         | qdim = weight_data_size / embed_dim |
 | 3         | kdim          | int   | embed_dim |                   |
 | 4         | vdim          | int   | embed_dim |                   |
 | 5         | attn_mask     | int   | 0         |                   |
+| 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| q_weight_data | float/fp16/int8 | [weight_data_size] |
+| q_weight_data | float/fp16/int8 | [embed_dim * qdim] |
 | q_bias_data   | float | [embed_dim]           |
 | k_weight_data | float/fp16/int8 | [embed_dim * kdim] |
 | k_bias_data   | float | [embed_dim]           |
 | v_weight_data | float/fp16/int8 | [embed_dim * vdim] |
 | v_bias_data   | float | [embed_dim]           |
-| out_weight_data| float/fp16/int8 | [weight_data_size] |
-| out_bias_data | float | [embed_dim]           |
+| out_weight_data| float/fp16/int8 | [qdim * embed_dim] |
+| out_bias_data | float | [qdim]                |
 
 # MVN
 ```

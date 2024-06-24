@@ -30,6 +30,7 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     kdim = pd.get(3, embed_dim);
     vdim = pd.get(4, embed_dim);
     attn_mask = pd.get(5, 0);
+    scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
 
     return 0;
 }
@@ -111,12 +112,10 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     if (xqkv.empty())
         return -100;
 
-    const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
     {
-        // xq = affine(q) * inv_sqrt_embed_dim_per_head
+        // xq = affine(q) * scale
         {
             Mat outm = xq.channel(q);
 
@@ -135,7 +134,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                         sum += *ptr++ * *kptr++;
                     }
 
-                    outptr[j] = sum * inv_sqrt_embed_dim_per_head;
+                    outptr[j] = sum * scale;
                 }
             }
         }
