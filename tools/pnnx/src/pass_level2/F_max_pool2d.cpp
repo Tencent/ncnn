@@ -122,6 +122,22 @@ pnnx.Output             output      2 0 out indices
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_3, 10)
 
+// https://github.com/pytorch/pytorch/blob/c263bd43e8e8502d4726643bc6fd046f0130ac0e/torch/onnx/symbolic_opset9.py#L1496
+static int get_pool_ceil_padding(int w, int ksize, int stride, int pad)
+{
+    if (stride == 1)
+        return 0;
+
+    int ceiled_output_w = int(ceil((w + pad * 2 - ksize) / float(stride))) + 1;
+
+    if ((ceiled_output_w - 1) * stride >= w + pad)
+        ceiled_output_w = ceiled_output_w - 1;
+
+    int ceil_pad = ksize - (w + pad * 2 - ((ceiled_output_w - 1) * stride + 1));
+
+    return ceil_pad;
+}
+
 class F_max_pool2d_onnx : public GraphRewriterPass
 {
 public:
@@ -169,16 +185,14 @@ pnnx.Output             output      1 0 out
             const int ceil_mode = captured_params.find("op_0.ceil_mode") != captured_params.end() ? captured_params.at("op_0.ceil_mode").i : 0;
             if (pads[0] != pads[2] || pads[1] != pads[3])
             {
-                const Operator* maxpool = matched_operators.at("op_0");
-                const std::vector<int>& in_shape = maxpool->inputs[0]->shape;
-                const std::vector<int>& out_shape = maxpool->outputs[0]->shape;
-                if (in_shape.size() < 2 || out_shape.size() < 2)
+                // ceil_mode for opset9
+                const Operator* avgpool = matched_operators.at("op_0");
+                const std::vector<int>& in_shape = avgpool->inputs[0]->shape;
+                if (in_shape.size() < 2)
                     return false;
 
                 const int inh = in_shape[in_shape.size() - 2];
                 const int inw = in_shape[in_shape.size() - 1];
-                const int outh = out_shape[out_shape.size() - 2];
-                const int outw = out_shape[out_shape.size() - 1];
                 const int kh = captured_params.at("op_0.kernel_shape").ai[0];
                 const int kw = captured_params.at("op_0.kernel_shape").ai[1];
                 const int dh = captured_params.find("op_0.dilations") != captured_params.end() ? captured_params.at("op_0.dilations").ai[0] : 1;
@@ -189,10 +203,10 @@ pnnx.Output             output      1 0 out
                 const int keh = dh * (kh - 1) + 1;
                 const int kew = dw * (kw - 1) + 1;
 
-                const int hpad = (outh - 1) * sh + keh - inh;
-                const int wpad = (outw - 1) * sw + kew - inw;
+                int ceil_padh = get_pool_ceil_padding(inh, keh, sh, pads[0]);
+                int ceil_padw = get_pool_ceil_padding(inw, kew, sw, pads[1]);
 
-                if (ceil_mode == 0 && hpad == 0 && wpad == 0)
+                if (ceil_mode == 0 && pads[0] + ceil_padh == pads[2] && pads[1] + ceil_padw == pads[3])
                 {
                     // useless tail padding  :D
                 }
@@ -242,6 +256,16 @@ pnnx.Output             output      1 0 out
         else
         {
             op->params["ceil_mode"] = false;
+        }
+
+        // ceil_mode for opset9
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            if (pads[0] != pads[2] || pads[1] != pads[3])
+            {
+                op->params["ceil_mode"] = true;
+            }
         }
 
         op->params["return_indices"] = false;
