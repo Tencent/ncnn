@@ -158,8 +158,6 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
-
         op->params["kernel_size"] = captured_params.at("op_0.kernel_shape");
 
         if (captured_params.find("op_0.dilations") != captured_params.end())
@@ -178,6 +176,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.find("op_0.pads") != captured_params.end())
         {
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
             op->params["padding"] = {pads[0]};
         }
         else
