@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -30,7 +31,7 @@ class Model(nn.Module):
             x = F.max_pool1d(x, kernel_size=2, stride=1, padding=0, return_indices=False, ceil_mode=True)
             x, indices1 = F.max_pool1d(x, kernel_size=2, padding=1, return_indices=True, ceil_mode=False)
             x, indices2 = F.max_pool1d(x, kernel_size=5, stride=1, padding=2, return_indices=True, ceil_mode=True)
-        else
+        else:
             x = F.max_pool1d(x, kernel_size=4, stride=2, padding=2, dilation=1)
             x = F.max_pool1d(x, kernel_size=3, stride=1, padding=1, dilation=1, return_indices=False, ceil_mode=False)
             x = F.max_pool1d(x, kernel_size=5, stride=2, padding=2, dilation=1, return_indices=False, ceil_mode=True)
