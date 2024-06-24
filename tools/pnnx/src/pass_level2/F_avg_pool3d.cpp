@@ -43,7 +43,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d, 10)
 
-class F_avg_pool3d_onnx_opset1 : public GraphRewriterPass
+class F_avg_pool3d_onnx : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -51,7 +51,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-AveragePool             op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads
+AveragePool             op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -63,149 +63,90 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.at("kernel_shape").type != 5 || captured_params.at("kernel_shape").ai.size() != 3)
+        if (captured_params.find("op_0.kernel_shape") == captured_params.end())
             return false;
 
-        if (captured_params.at("strides").type != 5 || captured_params.at("strides").ai.size() != 3)
+        if (captured_params.at("op_0.kernel_shape").type != 5 || captured_params.at("op_0.kernel_shape").ai.size() != 3)
             return false;
 
-        if (captured_params.at("pads").type != 5 || captured_params.at("pads").ai.size() != 6)
-            return false;
+        if (captured_params.find("op_0.dilations") != captured_params.end())
+        {
+            if (captured_params.at("op_0.dilations").type != 5 || captured_params.at("op_0.dilations").ai.size() != 3)
+                return false;
+        }
 
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads[0] != pads[3] || pads[1] != pads[4] || pads[2] != pads[5])
-            return false;
+        if (captured_params.find("op_0.strides") != captured_params.end())
+        {
+            if (captured_params.at("op_0.strides").type != 5 || captured_params.at("op_0.strides").ai.size() != 3)
+                return false;
+        }
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            if (captured_params.at("op_0.pads").type != 5 || captured_params.at("op_0.pads").ai.size() != 6)
+                return false;
+
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            if (pads[0] != pads[3] || pads[1] != pads[4] || pads[2] != pads[5])
+                return false;
+        }
 
         return true;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const std::vector<int>& pads = captured_params.at("pads").ai;
+        const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
 
-        op->params["kernel_size"] = captured_params.at("kernel_shape");
-        op->params["stride"] = captured_params.at("strides");
-        op->params["padding"] = {pads[0], pads[1], pads[2]};
-        op->params["ceil_mode"] = false;
-        op->params["count_include_pad"] = false;
+        op->params["kernel_size"] = captured_params.at("op_0.kernel_shape");
+
+        if (captured_params.find("op_0.dilations") != captured_params.end())
+        {
+            op->params["dilation"] = captured_params.at("op_0.dilations");
+        }
+
+        if (captured_params.find("op_0.strides") != captured_params.end())
+        {
+            op->params["stride"] = captured_params.at("op_0.strides");
+        }
+        else
+        {
+            op->params["stride"] = {1, 1, 1};
+        }
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            op->params["padding"] = {pads[0], pads[1], pads[2]};
+        }
+        else
+        {
+            op->params["padding"] = {0, 0, 0};
+        }
+
+        if (captured_params.find("op_0.count_include_pad") != captured_params.end())
+        {
+            int count_include_pad = captured_params.at("count_include_pad").i;
+            op->params["count_include_pad"] = (count_include_pad != 0);
+        }
+        else
+        {
+            op->params["count_include_pad"] = false;
+        }
+
+        if (captured_params.find("op_0.ceil_mode") != captured_params.end())
+        {
+            int ceil_mode = captured_params.at("ceil_mode").i;
+            op->params["ceil_mode"] = (ceil_mode != 0);
+        }
+        else
+        {
+            op->params["ceil_mode"] = false;
+        }
+
         op->params["divisor_override"] = Parameter();
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx_opset1, 10)
-
-class F_avg_pool3d_onnx_opset7 : public F_avg_pool3d_onnx_opset1
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-AveragePool             op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads count_include_pad=%count_include_pad
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        F_avg_pool3d_onnx_opset1::write(op, captured_params);
-
-        int count_include_pad = captured_params.at("count_include_pad").i;
-        op->params["count_include_pad"] = (count_include_pad != 0);
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx_opset7, 10)
-
-class F_avg_pool3d_onnx_opset10 : public F_avg_pool3d_onnx_opset7
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-AveragePool             op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads ceil_mode=%ceil_mode count_include_pad=%count_include_pad
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        F_avg_pool3d_onnx_opset7::write(op, captured_params);
-
-        int ceil_mode = captured_params.at("ceil_mode").i;
-        op->params["ceil_mode"] = (ceil_mode != 0);
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx_opset10, 10)
-
-class F_avg_pool3d_onnx_opset10_1 : public F_avg_pool3d_onnx_opset10
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-AveragePool             op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads ceil_mode=%ceil_mode count_include_pad=%count_include_pad auto_pad=*
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx_opset10_1, 10)
-
-class F_avg_pool3d_onnx_opset19 : public F_avg_pool3d_onnx_opset10
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-AveragePool             op_0        1 1 input out kernel_shape=%kernel_shape dilations=%dilations strides=%strides pads=%pads ceil_mode=%ceil_mode count_include_pad=%count_include_pad
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    bool match(const std::map<std::string, Parameter>& captured_params) const
-    {
-        if (F_avg_pool3d_onnx_opset10::match(captured_params))
-            return false;
-
-        if (captured_params.at("dilations").type != 5 || captured_params.at("dilations").ai.size() != 3)
-            return false;
-
-        return true;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        F_avg_pool3d_onnx_opset10::write(op, captured_params);
-
-        op->params["dilation"] = captured_params.at("dilations");
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx_opset19, 10)
-
-class F_avg_pool3d_onnx_opset19_1 : public F_avg_pool3d_onnx_opset19
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-AveragePool             op_0        1 1 input out kernel_shape=%kernel_shape dilations=%dilations strides=%strides pads=%pads ceil_mode=%ceil_mode count_include_pad=%count_include_pad auto_pad=*
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx_opset19_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx, 10)
 
 } // namespace pnnx

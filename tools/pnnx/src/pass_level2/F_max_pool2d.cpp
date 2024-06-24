@@ -130,7 +130,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-MaxPool                 op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads dilations=%dilations ceil_mode=%ceil_mode
+MaxPool                 op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -142,65 +142,64 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        if (captured_params.at("kernel_shape").type != 5)
+        if (captured_params.find("op_0.kernel_shape") == captured_params.end())
             return false;
 
-        if (captured_params.at("kernel_shape").ai.size() != 2)
+        if (captured_params.at("op_0.kernel_shape").type != 5 || captured_params.at("op_0.kernel_shape").ai.size() != 2)
             return false;
 
-        if (captured_params.at("strides").type != 5)
-            return false;
-
-        if (captured_params.at("strides").ai.size() != 2)
-            return false;
-
-        if (captured_params.at("dilations").type != 5)
-            return false;
-
-        if (captured_params.at("dilations").ai.size() != 2)
-            return false;
-
-        if (captured_params.at("pads").type != 5)
-            return false;
-
-        int ceil_mode = captured_params.at("ceil_mode").i;
-
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads.size() != 4)
-            return false;
-
-        if (pads[0] != pads[2] || pads[1] != pads[3])
+        if (captured_params.find("op_0.dilations") != captured_params.end())
         {
-            const Operator* maxpool = matched_operators.at("op_0");
-            const std::vector<int>& in_shape = maxpool->inputs[0]->shape;
-            const std::vector<int>& out_shape = maxpool->outputs[0]->shape;
-            if (in_shape.size() < 2 || out_shape.size() < 2)
+            if (captured_params.at("op_0.dilations").type != 5 || captured_params.at("op_0.dilations").ai.size() != 2)
+                return false;
+        }
+
+        if (captured_params.find("op_0.strides") != captured_params.end())
+        {
+            if (captured_params.at("op_0.strides").type != 5 || captured_params.at("op_0.strides").ai.size() != 2)
+                return false;
+        }
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            if (captured_params.at("op_0.pads").type != 5 || captured_params.at("op_0.pads").ai.size() != 4)
                 return false;
 
-            const int inh = in_shape[in_shape.size() - 2];
-            const int inw = in_shape[in_shape.size() - 1];
-            const int outh = out_shape[out_shape.size() - 2];
-            const int outw = out_shape[out_shape.size() - 1];
-            const int kh = captured_params.at("kernel_shape").ai[0];
-            const int kw = captured_params.at("kernel_shape").ai[1];
-            const int dh = captured_params.at("dilations").ai[0];
-            const int dw = captured_params.at("dilations").ai[1];
-            const int sh = captured_params.at("strides").ai[0];
-            const int sw = captured_params.at("strides").ai[1];
-
-            const int keh = dh * (kh - 1) + 1;
-            const int kew = dw * (kw - 1) + 1;
-
-            const int hpad = (outh - 1) * sh + keh - inh;
-            const int wpad = (outw - 1) * sw + kew - inw;
-
-            if (ceil_mode == 0 && hpad == 0 && wpad == 0)
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            const int ceil_mode = captured_params.find("op_0.ceil_mode") != captured_params.end() ? captured_params.at("op_0.ceil_mode").i : 0;
+            if (pads[0] != pads[2] || pads[1] != pads[3])
             {
-                // useless tail padding  :D
-            }
-            else
-            {
-                return false;
+                const Operator* maxpool = matched_operators.at("op_0");
+                const std::vector<int>& in_shape = maxpool->inputs[0]->shape;
+                const std::vector<int>& out_shape = maxpool->outputs[0]->shape;
+                if (in_shape.size() < 2 || out_shape.size() < 2)
+                    return false;
+
+                const int inh = in_shape[in_shape.size() - 2];
+                const int inw = in_shape[in_shape.size() - 1];
+                const int outh = out_shape[out_shape.size() - 2];
+                const int outw = out_shape[out_shape.size() - 1];
+                const int kh = captured_params.at("kernel_shape").ai[0];
+                const int kw = captured_params.at("kernel_shape").ai[1];
+                const int dh = captured_params.find("op_0.dilations") != captured_params.end() ? captured_params.at("op_0.dilations").ai[0] : 1;
+                const int dw = captured_params.find("op_0.dilations") != captured_params.end() ? captured_params.at("op_0.dilations").ai[1] : 1;
+                const int sh = captured_params.find("op_0.strides") != captured_params.end() ? captured_params.at("op_0.strides").ai[0] : 1;
+                const int sw = captured_params.find("op_0.strides") != captured_params.end() ? captured_params.at("op_0.strides").ai[1] : 1;
+
+                const int keh = dh * (kh - 1) + 1;
+                const int kew = dw * (kw - 1) + 1;
+
+                const int hpad = (outh - 1) * sh + keh - inh;
+                const int wpad = (outw - 1) * sw + kew - inw;
+
+                if (ceil_mode == 0 && hpad == 0 && wpad == 0)
+                {
+                    // useless tail padding  :D
+                }
+                else
+                {
+                    return false;
+                }
             }
         }
 
@@ -209,37 +208,50 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-        int ceil_mode = captured_params.at("ceil_mode").i;
+        const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
 
-        op->params["kernel_size"] = captured_params.at("kernel_shape");
-        op->params["dilation"] = captured_params.at("dilations");
-        op->params["stride"] = captured_params.at("strides");
-        op->params["padding"] = {pads[0], pads[1]};
-        op->params["ceil_mode"] = (ceil_mode != 0);
+        op->params["kernel_size"] = captured_params.at("op_0.kernel_shape");
+
+        if (captured_params.find("op_0.dilations") != captured_params.end())
+        {
+            op->params["dilation"] = captured_params.at("op_0.dilations");
+        }
+
+        if (captured_params.find("op_0.strides") != captured_params.end())
+        {
+            op->params["stride"] = captured_params.at("op_0.strides");
+        }
+        else
+        {
+            op->params["stride"] = {1, 1};
+        }
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            op->params["padding"] = {pads[0], pads[1]};
+        }
+        else
+        {
+            op->params["padding"] = {0, 0};
+        }
+
+        if (captured_params.find("op_0.ceil_mode") != captured_params.end())
+        {
+            int ceil_mode = captured_params.at("ceil_mode").i;
+            op->params["ceil_mode"] = (ceil_mode != 0);
+        }
+        else
+        {
+            op->params["ceil_mode"] = false;
+        }
+
         op->params["return_indices"] = false;
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx, 10)
 
-class F_max_pool2d_onnx_0 : public F_max_pool2d_onnx
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-MaxPool                 op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads dilations=%dilations ceil_mode=%ceil_mode auto_pad=NOTSET storage_order=*
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_0, 10)
-
-class F_max_pool2d_onnx_01 : public F_max_pool2d_onnx
+class F_max_pool2d_onnx_1 : public F_max_pool2d_onnx
 {
 public:
     const char* match_pattern_graph() const
@@ -247,313 +259,19 @@ public:
         return R"PNNXIR(7767517
 3 3
 pnnx.Input              input       0 1 input
-MaxPool                 op_0        1 2 input out indices kernel_shape=%kernel_shape strides=%strides pads=%pads dilations=%dilations ceil_mode=%ceil_mode
+MaxPool                 op_0        1 2 input out indices %*=%*
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-        int ceil_mode = captured_params.at("ceil_mode").i;
+        F_max_pool2d_onnx::write(op, captured_params);
 
-        op->params["kernel_size"] = captured_params.at("kernel_shape");
-        op->params["dilation"] = captured_params.at("dilations");
-        op->params["stride"] = captured_params.at("strides");
-        op->params["padding"] = {pads[0], pads[1]};
-        op->params["ceil_mode"] = (ceil_mode != 0);
         op->params["return_indices"] = true;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_01, 10)
-
-class F_max_pool2d_onnx_1 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-MaxPool                 op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads ceil_mode=%ceil_mode
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "F.max_pool2d";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
-    {
-        if (captured_params.at("kernel_shape").type != 5)
-            return false;
-
-        if (captured_params.at("kernel_shape").ai.size() != 2)
-            return false;
-
-        if (captured_params.at("strides").type != 5)
-            return false;
-
-        if (captured_params.at("strides").ai.size() != 2)
-            return false;
-
-        if (captured_params.at("pads").type != 5)
-            return false;
-
-        int ceil_mode = captured_params.at("ceil_mode").i;
-
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads.size() != 4)
-            return false;
-
-        if (pads[0] != pads[2] || pads[1] != pads[3])
-        {
-            const Operator* maxpool = matched_operators.at("op_0");
-            const std::vector<int>& in_shape = maxpool->inputs[0]->shape;
-            const std::vector<int>& out_shape = maxpool->outputs[0]->shape;
-            if (in_shape.size() < 2 || out_shape.size() < 2)
-                return false;
-
-            const int inh = in_shape[in_shape.size() - 2];
-            const int inw = in_shape[in_shape.size() - 1];
-            const int outh = out_shape[out_shape.size() - 2];
-            const int outw = out_shape[out_shape.size() - 1];
-            const int kh = captured_params.at("kernel_shape").ai[0];
-            const int kw = captured_params.at("kernel_shape").ai[1];
-            const int sh = captured_params.at("strides").ai[0];
-            const int sw = captured_params.at("strides").ai[1];
-
-            const int hpad = (outh - 1) * sh + kh - inh;
-            const int wpad = (outw - 1) * sw + kw - inw;
-
-            if (ceil_mode == 0 && hpad == 0 && wpad == 0)
-            {
-                // useless tail padding  :D
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-        int ceil_mode = captured_params.at("ceil_mode").i;
-
-        op->params["kernel_size"] = captured_params.at("kernel_shape");
-        op->params["dilation"] = {1, 1};
-        op->params["stride"] = captured_params.at("strides");
-        op->params["padding"] = {pads[0], pads[1]};
-        op->params["ceil_mode"] = (ceil_mode != 0);
-        op->params["return_indices"] = false;
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_1, 10)
-
-class F_max_pool2d_onnx_11 : public F_max_pool2d_onnx_1
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 3
-pnnx.Input              input       0 1 input
-MaxPool                 op_0        1 2 input out indices kernel_shape=%kernel_shape strides=%strides pads=%pads ceil_mode=%ceil_mode
-pnnx.Output             output      2 0 out indices
-)PNNXIR";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-        int ceil_mode = captured_params.at("ceil_mode").i;
-
-        op->params["kernel_size"] = captured_params.at("kernel_shape");
-        op->params["dilation"] = {1, 1};
-        op->params["stride"] = captured_params.at("strides");
-        op->params["padding"] = {pads[0], pads[1]};
-        op->params["ceil_mode"] = (ceil_mode != 0);
-        op->params["return_indices"] = true;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_11, 10)
-
-class F_max_pool2d_onnx_2 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-MaxPool                 op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "F.max_pool2d";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
-    {
-        if (captured_params.at("kernel_shape").type != 5)
-            return false;
-
-        if (captured_params.at("kernel_shape").ai.size() != 2)
-            return false;
-
-        if (captured_params.at("strides").type != 5)
-            return false;
-
-        if (captured_params.at("strides").ai.size() != 2)
-            return false;
-
-        if (captured_params.at("pads").type != 5)
-            return false;
-
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-        if (pads.size() != 4)
-            return false;
-
-        if (pads[0] != pads[2] || pads[1] != pads[3])
-        {
-            const Operator* maxpool = matched_operators.at("op_0");
-            const std::vector<int>& in_shape = maxpool->inputs[0]->shape;
-            const std::vector<int>& out_shape = maxpool->outputs[0]->shape;
-            if (in_shape.size() < 2 || out_shape.size() < 2)
-                return false;
-
-            const int inh = in_shape[in_shape.size() - 2];
-            const int inw = in_shape[in_shape.size() - 1];
-            const int outh = out_shape[out_shape.size() - 2];
-            const int outw = out_shape[out_shape.size() - 1];
-            const int kh = captured_params.at("kernel_shape").ai[0];
-            const int kw = captured_params.at("kernel_shape").ai[1];
-            const int sh = captured_params.at("strides").ai[0];
-            const int sw = captured_params.at("strides").ai[1];
-
-            const int hpad = (outh - 1) * sh + kh - inh;
-            const int wpad = (outw - 1) * sw + kw - inw;
-
-            if (hpad == 0 && wpad == 0)
-            {
-                // useless tail padding  :D
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-
-        op->params["kernel_size"] = captured_params.at("kernel_shape");
-        op->params["dilation"] = {1, 1};
-        op->params["stride"] = captured_params.at("strides");
-        op->params["padding"] = {pads[0], pads[1]};
-        op->params["ceil_mode"] = false;
-        op->params["return_indices"] = false;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_2, 10)
-
-class F_max_pool2d_onnx_21 : public F_max_pool2d_onnx_2
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 3
-pnnx.Input              input       0 1 input
-MaxPool                 op_0        1 2 input out indices kernel_shape=%kernel_shape strides=%strides pads=%pads
-pnnx.Output             output      2 0 out indices
-)PNNXIR";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        const std::vector<int>& pads = captured_params.at("pads").ai;
-
-        op->params["kernel_size"] = captured_params.at("kernel_shape");
-        op->params["dilation"] = {1, 1};
-        op->params["stride"] = captured_params.at("strides");
-        op->params["padding"] = {pads[0], pads[1]};
-        op->params["ceil_mode"] = false;
-        op->params["return_indices"] = true;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_21, 10)
-
-class F_max_pool2d_onnx_22 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 3
-pnnx.Input              input       0 1 input
-MaxPool                 op_0        1 2 input out indices kernel_shape=%kernel_shape dilations=%dilations strides=%strides
-pnnx.Output             output      2 0 out indices
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "F.max_pool2d";
-    }
-
-    bool match(const std::map<std::string, Parameter>& captured_params) const
-    {
-        if (captured_params.at("kernel_shape").type != 5)
-            return false;
-
-        if (captured_params.at("kernel_shape").ai.size() != 2)
-            return false;
-
-        if (captured_params.at("strides").type != 5)
-            return false;
-
-        if (captured_params.at("strides").ai.size() != 2)
-            return false;
-
-        if (captured_params.at("dilations").type != 5)
-            return false;
-
-        if (captured_params.at("dilations").ai.size() != 2)
-            return false;
-
-        return true;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        op->params["kernel_size"] = captured_params.at("kernel_shape");
-        op->params["dilation"] = captured_params.at("dilations");
-        op->params["stride"] = captured_params.at("strides");
-        op->params["padding"] = {0, 0};
-        op->params["ceil_mode"] = false;
-        op->params["return_indices"] = true;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_22, 10)
 
 } // namespace pnnx
