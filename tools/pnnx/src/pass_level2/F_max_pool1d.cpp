@@ -187,7 +187,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.find("op_0.ceil_mode") != captured_params.end())
         {
-            int ceil_mode = captured_params.at("ceil_mode").i;
+            int ceil_mode = captured_params.at("op_0.ceil_mode").i;
             op->params["ceil_mode"] = (ceil_mode != 0);
         }
         else

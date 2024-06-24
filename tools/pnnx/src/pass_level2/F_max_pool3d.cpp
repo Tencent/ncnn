@@ -139,9 +139,9 @@ pnnx.Output             output      1 0 out
                 const int outd = out_shape[out_shape.size() - 3];
                 const int outh = out_shape[out_shape.size() - 2];
                 const int outw = out_shape[out_shape.size() - 1];
-                const int kd = captured_params.at("kernel_shape").ai[0];
-                const int kh = captured_params.at("kernel_shape").ai[1];
-                const int kw = captured_params.at("kernel_shape").ai[2];
+                const int kd = captured_params.at("op_0.kernel_shape").ai[0];
+                const int kh = captured_params.at("op_0.kernel_shape").ai[1];
+                const int kw = captured_params.at("op_0.kernel_shape").ai[2];
                 const int dd = captured_params.find("op_0.dilations") != captured_params.end() ? captured_params.at("op_0.dilations").ai[0] : 1;
                 const int dh = captured_params.find("op_0.dilations") != captured_params.end() ? captured_params.at("op_0.dilations").ai[1] : 1;
                 const int dw = captured_params.find("op_0.dilations") != captured_params.end() ? captured_params.at("op_0.dilations").ai[2] : 1;
@@ -202,7 +202,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.find("op_0.ceil_mode") != captured_params.end())
         {
-            int ceil_mode = captured_params.at("ceil_mode").i;
+            int ceil_mode = captured_params.at("op_0.ceil_mode").i;
             op->params["ceil_mode"] = (ceil_mode != 0);
         }
         else
