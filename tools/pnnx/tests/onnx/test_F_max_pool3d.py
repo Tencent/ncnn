@@ -23,20 +23,15 @@ class Model(nn.Module):
 
     def forward(self, x):
         x = F.max_pool3d(x, kernel_size=3)
+        x = F.max_pool3d(x, kernel_size=4, stride=2, padding=2, dilation=1)
+        x = F.max_pool3d(x, kernel_size=(1,2,3), stride=1, padding=(0,0,1), dilation=1, return_indices=False, ceil_mode=False)
+        x = F.max_pool3d(x, kernel_size=(3,4,5), stride=(1,2,2), padding=(1,2,2), dilation=1, return_indices=False, ceil_mode=True)
         if version.parse(torch.__version__) < version.parse('1.12'):
-            x = F.max_pool3d(x, kernel_size=4, stride=2, padding=2)
-            x = F.max_pool3d(x, kernel_size=(1,2,3), stride=1, padding=(0,0,1), return_indices=False, ceil_mode=False)
-            x = F.max_pool3d(x, kernel_size=(3,4,5), stride=(1,2,2), padding=(1,2,2), return_indices=False, ceil_mode=True)
-            x = F.max_pool3d(x, kernel_size=(2,3,3), stride=1, padding=1, return_indices=False, ceil_mode=False)
-            x = F.max_pool3d(x, kernel_size=2, stride=1, padding=0, return_indices=False, ceil_mode=True)
-            x, indices = F.max_pool3d(x, kernel_size=(5,4,4), stride=1, padding=2, return_indices=True, ceil_mode=False)
+            x = F.max_pool3d(x, kernel_size=(2,3,3), stride=1, padding=1, dilation=1, return_indices=False, ceil_mode=False)
         else:
-            x = F.max_pool3d(x, kernel_size=4, stride=2, padding=2, dilation=1)
-            x = F.max_pool3d(x, kernel_size=(1,2,3), stride=1, padding=(0,0,1), dilation=1, return_indices=False, ceil_mode=False)
-            x = F.max_pool3d(x, kernel_size=(3,4,5), stride=(1,2,2), padding=(1,2,2), dilation=1, return_indices=False, ceil_mode=True)
             x = F.max_pool3d(x, kernel_size=(2,3,3), stride=1, padding=1, dilation=(1,2,2), return_indices=False, ceil_mode=False)
-            x = F.max_pool3d(x, kernel_size=2, stride=1, padding=0, dilation=1, return_indices=False, ceil_mode=True)
-            x, indices = F.max_pool3d(x, kernel_size=(5,4,4), stride=1, padding=2, dilation=1, return_indices=True, ceil_mode=False)
+        x = F.max_pool3d(x, kernel_size=2, stride=1, padding=0, dilation=1, return_indices=False, ceil_mode=True)
+        x, indices = F.max_pool3d(x, kernel_size=(5,4,4), stride=1, padding=2, dilation=1, return_indices=True, ceil_mode=False)
         return x, indices
 
 def test():

@@ -25,7 +25,10 @@ class Model(nn.Module):
         self.pool_1 = nn.MaxPool1d(kernel_size=4, stride=2, padding=2, dilation=1)
         self.pool_2 = nn.MaxPool1d(kernel_size=3, stride=1, padding=1, dilation=1, return_indices=False, ceil_mode=False)
         self.pool_3 = nn.MaxPool1d(kernel_size=5, stride=2, padding=2, dilation=1, return_indices=False, ceil_mode=True)
-        self.pool_4 = nn.MaxPool1d(kernel_size=3, stride=1, padding=1, dilation=2, return_indices=False, ceil_mode=False)
+        if version.parse(torch.__version__) < version.parse('1.12'):
+            self.pool_4 = nn.MaxPool1d(kernel_size=3, stride=1, padding=1, dilation=1, return_indices=False, ceil_mode=False)
+        else:
+            self.pool_4 = nn.MaxPool1d(kernel_size=3, stride=1, padding=1, dilation=2, return_indices=False, ceil_mode=False)
         self.pool_5 = nn.MaxPool1d(kernel_size=2, stride=1, padding=0, dilation=1, return_indices=True, ceil_mode=True)
         self.pool_6 = nn.MaxPool1d(kernel_size=5, stride=1, padding=2, dilation=1, return_indices=True, ceil_mode=False)
 
