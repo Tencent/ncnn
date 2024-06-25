@@ -39,7 +39,7 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12, 96, 128, 128)
+    x = torch.rand(1, 12, 64, 64, 64)
 
     a = net(x)
 
@@ -48,7 +48,7 @@ def test():
 
     # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_F_max_pool3d.onnx inputshape=[1,12,96,128,128]")
+    os.system("../../src/pnnx test_F_max_pool3d.onnx inputshape=[1,12,64,64,64]")
 
     # pnnx inference
     import test_F_max_pool3d_pnnx
