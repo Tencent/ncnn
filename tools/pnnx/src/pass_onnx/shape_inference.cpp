@@ -678,6 +678,25 @@ void shape_inference(onnx::ModelProto& model,
         ort_api->ReleaseSessionOptions(ort_session_opt);
         ort_api->ReleaseEnv(ort_env);
     }
+
+    // new_outputs order may differ from orig_outputs
+    {
+        for (size_t i = 0; i < orig_outputs.size(); i++)
+        {
+            if (orig_outputs[i] == new_outputs[i])
+                continue;
+
+            for (size_t j = 0; j < new_outputs.size(); j++)
+            {
+                if (orig_outputs[i] == new_outputs[j])
+                {
+                    graph->mutable_output()->SwapElements((int)i, (int)j);
+                    std::swap(new_outputs[i], new_outputs[j]);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 } // namespace onnx2pnnx

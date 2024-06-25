@@ -32,12 +32,17 @@ struct constant_as_attribute
 };
 
 static constant_as_attribute caas[] = {
+    {"Gather", 1, "indices"},
     {"Pad", 1, "pads"},
     {"Pad", 2, "value"},
     {"ReduceMean", 1, "axes"},
     {"Reshape", 1, "shape"},
     {"Resize", 2, "scales"},
     {"Resize", 3, "sizes"},
+    {"Slice", 1, "starts"},
+    {"Slice", 2, "ends"},
+    {"Slice", 3, "axes"},
+    {"Slice", 4, "steps"},
     {"Squeeze", 1, "axes"},
     {"Unsqueeze", 1, "axes"},
     {"Upsample", 1, "scales"},
