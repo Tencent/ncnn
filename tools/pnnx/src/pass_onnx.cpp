@@ -611,7 +611,10 @@ static void constant_unpooling(Graph& graph)
                 for (size_t k = 0; k < op1->inputs.size(); k++)
                 {
                     if (op1->inputs[k] == op_out)
+                    {
                         op1->inputs[k] = op0_out;
+                        break;
+                    }
                 }
 
                 op0_out->consumers.push_back(op1);
