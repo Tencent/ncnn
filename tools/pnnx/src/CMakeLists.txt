@@ -652,6 +652,7 @@ if(onnxruntime_FOUND)
         pass_onnx/eliminate_noop.cpp
         pass_onnx/fold_constants.cpp
         pass_onnx/inline_containers.cpp
+        pass_onnx/inline_if_graph.cpp
         pass_onnx/model_stat.cpp
         pass_onnx/shape_inference.cpp
         pass_onnx/fuse_constant_as_attribute.cpp
