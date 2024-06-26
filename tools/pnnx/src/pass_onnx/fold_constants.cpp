@@ -117,6 +117,47 @@ static void onnx_tensor_fill_random(void* ort_val_data, const std::vector<int64_
     }
 }
 
+static bool check_outputs_foldable(const onnx::NodeProto& node, const std::unordered_set<std::string>& non_foldable_outputs)
+{
+    for (int i = 0; i < node.input_size(); i++)
+    {
+        if (non_foldable_outputs.find(node.input(i)) != non_foldable_outputs.end())
+            return false;
+    }
+
+    // recurse subgraph
+    for (int i = 0; i < node.attribute_size(); i++)
+    {
+        const onnx::AttributeProto& attr = node.attribute(i);
+
+        if (attr.type() == onnx::AttributeProto::GRAPH)
+        {
+            const onnx::GraphProto& sg = attr.g();
+
+            for (int j = 0; j < sg.node_size(); j++)
+            {
+                if (!check_outputs_foldable(sg.node(j), non_foldable_outputs))
+                    return false;
+            }
+        }
+        if (attr.type() == onnx::AttributeProto::GRAPHS)
+        {
+            for (int k = 0; k < attr.graphs().size(); k++)
+            {
+                const onnx::GraphProto& sg = attr.graphs().at(k);
+
+                for (int j = 0; j < sg.node_size(); j++)
+                {
+                    if (!check_outputs_foldable(sg.node(j), non_foldable_outputs))
+                        return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 void fold_constants(onnx::ModelProto& model,
                     const std::vector<std::vector<int64_t> >& input_shapes,
                     const std::vector<std::string>& input_types,
@@ -151,17 +192,9 @@ void fold_constants(onnx::ModelProto& model,
         {
             const onnx::NodeProto& node = graph.node(i);
 
-            const std::string& op_type = node.op_type();
+            bool is_outputs_foldable = check_outputs_foldable(node, non_foldable_outputs);
 
-            bool is_outputs_foldable = true;
-            for (int j = 0; j < node.input_size(); j++)
-            {
-                if (non_foldable_outputs.find(node.input(j)) != non_foldable_outputs.end())
-                {
-                    is_outputs_foldable = false;
-                    break;
-                }
-            }
+            const std::string& op_type = node.op_type();
 
             // TODO whitelist for static shape
             // aten::size
@@ -201,6 +234,7 @@ void fold_constants(onnx::ModelProto& model,
                             continue;
 
                         foldable_outputs.insert(node.input(j));
+                        // fprintf(stderr, "foldable_outputs %s\n", node.input(j).c_str());
                     }
                 }
 
@@ -539,17 +573,9 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
         {
             const onnx::NodeProto& node = graph.node(i);
 
-            const std::string& op_type = node.op_type();
+            bool is_outputs_foldable = check_outputs_foldable(node, non_foldable_outputs);
 
-            bool is_outputs_foldable = true;
-            for (int j = 0; j < node.input_size(); j++)
-            {
-                if (non_foldable_outputs.find(node.input(j)) != non_foldable_outputs.end())
-                {
-                    is_outputs_foldable = false;
-                    break;
-                }
-            }
+            const std::string& op_type = node.op_type();
 
             if (op_type == "Slice")
             {

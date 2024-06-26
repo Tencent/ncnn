@@ -132,6 +132,40 @@ void eliminate_noop_with_shape(onnx::ModelProto& model)
 
         if (op_type == "Reshape")
         {
+            if (input_value->type().has_tensor_type() && output_value->type().has_tensor_type())
+            {
+                const onnx::TensorShapeProto& input_tsp = input_value->type().tensor_type().shape();
+                const onnx::TensorShapeProto& output_tsp = output_value->type().tensor_type().shape();
+                if (input_tsp.dim_size() == output_tsp.dim_size())
+                {
+                    bool is_shape_same = true;
+
+                    int dynamic_index_count = 0;
+                    for (int j = 0; j < input_tsp.dim_size(); j++)
+                    {
+                        if (input_tsp.dim(j).has_dim_value() && output_tsp.dim(j).has_dim_value())
+                        {
+                            if (input_tsp.dim(j).dim_value() != output_tsp.dim(j).dim_value())
+                            {
+                                is_shape_same = false;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            dynamic_index_count++;
+                            if (dynamic_index_count > 1)
+                            {
+                                is_shape_same = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (is_shape_same)
+                        noop = true;
+                }
+            }
         }
 
         if (!noop)
