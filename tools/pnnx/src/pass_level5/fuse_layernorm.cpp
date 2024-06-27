@@ -75,54 +75,91 @@ public:
 
         return R"PNNXIR(7767517
 9 8
-pnnx.Input              input       0 1 input #input=(1,?,%c)f32
-pnnx.Attribute          op_0        0 1 weight @data #weight=(%c)f32
-pnnx.Attribute          op_1        0 1 bias @data #bias=(%c)f32
-torch.mean              op_2        1 1 input mean dim=(-1) keepdim=True
-pnnx.Expression         op_3        2 1 input mean 173 expr=sub(@0,@1)
-pnnx.Expression         op_4        1 1 173 174 expr=pow(@0,2.000000e+00)
-torch.mean              op_5        1 1 174 var dim=(-1) keepdim=True
-pnnx.Expression         op_6        4 1 173 var weight bias out expr=add(mul(div(@0,sqrt(add(@1,%eps))),@2),@3)
-pnnx.Output             output      1 0 out
-)PNNXIR";
-
-        // *INDENT-ON*
-        // clang-format on
-    }
-
-    const char* replace_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
 pnnx.Input              input       0 1 input
-nn.LayerNorm            ln          1 1 input out elementwise_affine=True eps=%eps normalized_shape=(%c) @weight=%op_0.data @bias=%op_1.data
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-};
-
-class fuse_layernorm_pass_1_1 : public fuse_layernorm_pass_1
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        // clang-format off
-        // *INDENT-OFF*
-        return R"PNNXIR(7767517
-9 8
-pnnx.Input              input       0 1 input #input=(1,?,%c)f32
-pnnx.Attribute          op_0        0 1 weight @data #weight=(%c)f32
-pnnx.Attribute          op_1        0 1 bias @data #bias=(%c)f32
-torch.mean              op_2        1 1 input mean dim=(2) keepdim=True #input=(1,?,%c)f32
-pnnx.Expression         op_3        2 1 input mean 75 expr=sub(@0,@1)
-pnnx.Expression         op_4        1 1 75 76 expr=pow(@0,2.000000e+00)
-torch.mean              op_5        1 1 76 var dim=(2) keepdim=True
-pnnx.Expression         op_6        4 1 75 var weight bias out expr=add(mul(div(@0,sqrt(add(@1,%eps))),@2),@3)
+pnnx.Attribute          op_0        0 1 weight @data
+pnnx.Attribute          op_1        0 1 bias @data
+torch.mean              mean        1 1 input mean dim=%dim keepdim=True
+pnnx.Expression         op_3        2 1 input mean 32 expr=sub(@0,@1)
+pnnx.Expression         op_4        1 1 32 33 expr=pow(@0,2.000000e+00)
+torch.mean              op_5        1 1 33 var dim=%dim keepdim=True
+pnnx.Expression         op_6        4 1 32 var weight bias out expr=add(mul(div(@0,sqrt(add(@1,%eps))),@2),@3)
 pnnx.Output             output      1 0 out
 )PNNXIR";
 
         // *INDENT-ON*
         // clang-format on
+    }
+
+    const char* type_str() const
+    {
+        return "nn.LayerNorm";
+    }
+
+    const char* name_str() const
+    {
+        return "ln";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const Operator* op_mean = matched_operators.at("mean");
+        const std::vector<int>& inputshape = op_mean->inputs[0]->shape;
+        if (inputshape.empty())
+            return false;
+
+        // dim must be the last N dimensions
+        std::vector<int> dim = captured_params.at("dim").ai;
+
+        const int input_rank = (int)inputshape.size();
+        const int dim_count = (int)dim.size();
+
+        for (int i = 0; i < dim_count; i++)
+        {
+            if (dim[i] < 0)
+                dim[i] += input_rank;
+
+            if (dim[i] < input_rank - dim_count)
+                return false;
+        }
+
+        std::vector<int> normalized_shape(dim_count);
+        for (int i = 0; i < dim_count; i++)
+        {
+            normalized_shape[i] = inputshape[input_rank - dim_count + i];
+        }
+
+        // check weight and bias shape
+        auto weight = captured_attrs.at("op_0.data");
+        auto bias = captured_attrs.at("op_1.data");
+
+        if (weight.shape != normalized_shape)
+            return false;
+
+        if (bias.shape != normalized_shape)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const std::vector<int>& inputshape = op->inputs[0]->shape;
+        const std::vector<int>& dim = captured_params.at("dim").ai;
+        const int input_rank = (int)inputshape.size();
+        const int dim_count = (int)dim.size();
+
+        std::vector<int> normalized_shape(dim_count);
+        for (int i = 0; i < dim_count; i++)
+        {
+            normalized_shape[i] = inputshape[input_rank - dim_count + i];
+        }
+
+        op->params["normalized_shape"] = normalized_shape;
+        op->params["eps"] = captured_params.at("eps");
+        op->params["elementwise_affine"] = true;
+
+        op->attrs["weight"] = captured_attrs.at("op_0.data");
+        op->attrs["bias"] = captured_attrs.at("op_1.data");
     }
 };
 
@@ -136,45 +173,11 @@ public:
 
         return R"PNNXIR(7767517
 7 6
-pnnx.Input              input       0 1 input #input=(1,?,%c)f32
-torch.mean              op_0        1 1 input mean dim=(-1) keepdim=True
-pnnx.Expression         op_1        2 1 input mean 25 expr=sub(@0,@1)
-pnnx.Expression         op_2        1 1 25 26 expr=pow(@0,2.000000e+00)
-torch.mean              op_3        1 1 26 var dim=(-1) keepdim=True
-pnnx.Expression         op_4        2 1 25 var out expr=div(@0,sqrt(add(@1,%eps)))
-pnnx.Output             output      1 0 out
-)PNNXIR";
-
-        // *INDENT-ON*
-        // clang-format on
-    }
-
-    const char* replace_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
 pnnx.Input              input       0 1 input
-nn.LayerNorm            ln          1 1 input out elementwise_affine=False eps=%eps normalized_shape=(%c)
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-};
-
-class fuse_layernorm_pass_2_1 : public fuse_layernorm_pass_2
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        // clang-format off
-        // *INDENT-OFF*
-
-        return R"PNNXIR(7767517
-7 6
-pnnx.Input              input       0 1 input #input=(1,?,?,%c)f32
-torch.mean              op_0        1 1 input mean dim=(-1) keepdim=True
+torch.mean              mean        1 1 input mean dim=%dim keepdim=True
 pnnx.Expression         op_1        2 1 input mean 32 expr=sub(@0,@1)
 pnnx.Expression         op_2        1 1 32 33 expr=pow(@0,2.000000e+00)
-torch.mean              op_3        1 1 33 var dim=(-1) keepdim=True
+torch.mean              op_3        1 1 33 var dim=%dim keepdim=True
 pnnx.Expression         op_4        2 1 32 var out expr=div(@0,sqrt(add(@1,%eps)))
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -182,22 +185,71 @@ pnnx.Output             output      1 0 out
         // *INDENT-ON*
         // clang-format on
     }
+
+    const char* type_str() const
+    {
+        return "nn.LayerNorm";
+    }
+
+    const char* name_str() const
+    {
+        return "ln";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op_mean = matched_operators.at("mean");
+        const std::vector<int>& inputshape = op_mean->inputs[0]->shape;
+        if (inputshape.empty())
+            return false;
+
+        // dim must be the last N dimensions
+        std::vector<int> dim = captured_params.at("dim").ai;
+
+        const int input_rank = (int)inputshape.size();
+        const int dim_count = (int)dim.size();
+
+        for (int i = 0; i < dim_count; i++)
+        {
+            if (dim[i] < 0)
+                dim[i] += input_rank;
+
+            if (dim[i] < input_rank - dim_count)
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& inputshape = op->inputs[0]->shape;
+        const std::vector<int>& dim = captured_params.at("dim").ai;
+        const int input_rank = (int)inputshape.size();
+        const int dim_count = (int)dim.size();
+
+        std::vector<int> normalized_shape(dim_count);
+        for (int i = 0; i < dim_count; i++)
+        {
+            normalized_shape[i] = inputshape[input_rank - dim_count + i];
+        }
+
+        op->params["normalized_shape"] = normalized_shape;
+        op->params["eps"] = captured_params.at("eps");
+        op->params["elementwise_affine"] = false;
+    }
 };
 
 void fuse_layernorm(Graph& graph)
 {
     fuse_layernorm_pass a;
     fuse_layernorm_pass_1 b;
-    fuse_layernorm_pass_1_1 b1;
     fuse_layernorm_pass_2 c;
-    fuse_layernorm_pass_2_1 c1;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
-    pnnx_graph_rewrite(graph, &b1, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
-    pnnx_graph_rewrite(graph, &c1, opindex);
 }
 
 } // namespace pnnx
