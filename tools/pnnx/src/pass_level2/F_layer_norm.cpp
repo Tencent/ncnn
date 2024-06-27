@@ -134,7 +134,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_2, 10)
 
-class F_layer_norm_1 : public GraphRewriterPass
+class F_layer_norm_onnx_3 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -211,9 +211,9 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_1, 30)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_3, 30)
 
-class F_layer_norm_2 : public GraphRewriterPass
+class F_layer_norm_onnx_4 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -304,6 +304,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_2, 30)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_4, 29)
 
 } // namespace pnnx
