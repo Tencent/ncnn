@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -24,7 +25,10 @@ class Model(nn.Module):
         self.in_0.weight = nn.Parameter(torch.rand(12))
         self.in_0.bias = nn.Parameter(torch.rand(12))
         self.in_1 = nn.InstanceNorm1d(num_features=12, eps=1e-2, affine=False)
-        self.in_2 = nn.InstanceNorm1d(num_features=12, eps=1e-4, affine=True, track_running_stats=True)
+        if version.parse(torch.__version__) < version.parse('1.10'):
+            self.in_2 = nn.InstanceNorm1d(num_features=12, eps=1e-4, affine=True, track_running_stats=False)
+        else:
+            self.in_2 = nn.InstanceNorm1d(num_features=12, eps=1e-4, affine=True, track_running_stats=True)
         self.in_2.weight = nn.Parameter(torch.rand(12))
         self.in_2.bias = nn.Parameter(torch.rand(12))
 
@@ -43,13 +47,12 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_nn_InstanceNorm1d.pt")
+    # export onnx
+    torch.onnx.export(net, (x,), "test_nn_InstanceNorm1d.onnx")
 
-    # torchscript to pnnx
+    # onnx to pnnx
     import os
-    os.system("../src/pnnx test_nn_InstanceNorm1d.pt inputshape=[1,12,24]")
+    os.system("../../src/pnnx test_nn_InstanceNorm1d.onnx inputshape=[1,12,24]")
 
     # pnnx inference
     import test_nn_InstanceNorm1d_pnnx

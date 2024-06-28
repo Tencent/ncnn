@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -23,7 +24,12 @@ class Model(nn.Module):
         self.ln_0 = nn.LayerNorm(64)
         self.ln_0.weight = nn.Parameter(torch.rand(64))
         self.ln_0.bias = nn.Parameter(torch.rand(64))
-        self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=False)
+        if version.parse(torch.__version__) >= version.parse('2.1') and version.parse(torch.__version__) < version.parse('2.2'):
+            self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=True)
+            self.ln_1.weight = nn.Parameter(torch.rand(24,64))
+            self.ln_1.bias = nn.Parameter(torch.rand(24,64))
+        else:
+            self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=False)
 
     def forward(self, x, y, z):
         x = self.ln_0(x)
@@ -47,13 +53,12 @@ def test():
 
     a0, a1, a2 = net(x, y, z)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_nn_LayerNorm.pt")
+    # export onnx
+    torch.onnx.export(net, (x, y, z), "test_nn_LayerNorm.onnx")
 
-    # torchscript to pnnx
+    # onnx to pnnx
     import os
-    os.system("../src/pnnx test_nn_LayerNorm.pt inputshape=[1,24,64],[1,12,24,64],[1,12,16,24,64]")
+    os.system("../../src/pnnx test_nn_LayerNorm.onnx inputshape=[1,24,64],[1,12,24,64],[1,12,16,24,64]")
 
     # pnnx inference
     import test_nn_LayerNorm_pnnx

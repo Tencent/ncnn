@@ -42,4 +42,87 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm, 10)
 
+class F_group_norm_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input
+Reshape                 op_0        1 1 input r1 allowzero=0 shape=(0,%num_groups,-1)
+pnnx.Attribute          op_1        0 1 ones @data
+pnnx.Attribute          op_2        0 1 zeros @data
+InstanceNormalization   op_3        3 1 r1 ones zeros in epsilon=%epsilon
+Reshape                 op_4        1 1 in out allowzero=0 shape=%shape
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.group_norm";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const Operator* op_reshape = matched_operators.at("op_0");
+        const std::vector<int>& inputshape = op_reshape->inputs[0]->shape;
+        if (inputshape != captured_params.at("shape").ai)
+            return false;
+
+        const int num_groups = captured_params.at("num_groups").i;
+
+        const Attribute& ones = captured_attrs.at("op_1.data");
+        const Attribute& zeros = captured_attrs.at("op_2.data");
+
+        if (ones.shape.size() != 1 || ones.shape[0] != num_groups)
+            return false;
+        if (zeros.shape.size() != 1 || zeros.shape[0] != num_groups)
+            return false;
+
+        for (auto x : ones.get_float32_data())
+        {
+            if (x != 1.f)
+                return false;
+        }
+
+        for (auto x : zeros.get_float32_data())
+        {
+            if (x != 0.f)
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["num_groups"] = captured_params.at("num_groups");
+        op->params["eps"] = captured_params.at("epsilon");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx, 9)
+
+class F_group_norm_onnx_1 : public F_group_norm_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input
+Reshape                 op_0        1 1 input r1 shape=(0,%num_groups,-1)
+pnnx.Attribute          op_1        0 1 ones @data
+pnnx.Attribute          op_2        0 1 zeros @data
+InstanceNormalization   op_3        3 1 r1 ones zeros in epsilon=%epsilon
+Reshape                 op_4        1 1 in out shape=%shape
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx_1, 9)
+
 } // namespace pnnx

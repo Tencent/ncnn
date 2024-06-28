@@ -816,6 +816,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         is_attr_weight = true;
                     if (sim_op_type == "ConvTranspose" && (j == 1 || j == 2))
                         is_attr_weight = true;
+                    if (sim_op_type == "InstanceNormalization" && (j == 1 || j == 2))
+                        is_attr_weight = true;
                 }
 
                 int64_t numel = 1;
