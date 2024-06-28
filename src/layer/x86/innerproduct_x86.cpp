@@ -140,6 +140,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -210,6 +212,8 @@ int InnerProduct_x86::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -301,6 +305,8 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input)
@@ -310,6 +316,8 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_unpack = opt;
         opt_unpack.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_int8, bottom_blob_int8_unpacked, 1, opt_unpack);
+        if (bottom_blob_int8_unpacked.empty())
+            return -100;
 
         int h = bottom_blob_int8_unpacked.h;
 
@@ -630,6 +638,8 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_flatten = opt;
         opt_flatten.blob_allocator = opt.workspace_allocator;
         flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+        if (bottom_blob_int8_flattened.empty())
+            return -100;
     }
 
     //     int elempack = bottom_blob_int8_flattened.elempack;

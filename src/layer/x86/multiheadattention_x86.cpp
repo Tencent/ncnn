@@ -38,13 +38,12 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
 
 int MultiHeadAttention_x86::create_pipeline(const Option& opt)
 {
-    {
-        const int embed_dim_per_head = embed_dim / num_heads;
-        const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
+    const int qdim = weight_data_size / embed_dim;
 
+    {
         q_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(0, inv_sqrt_embed_dim_per_head);
+        pd.set(0, scale);
         pd.set(1, 1.f);
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
@@ -53,7 +52,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         pd.set(6, 1);         // constantC
         pd.set(7, embed_dim); // M
         pd.set(8, 0);         // N
-        pd.set(9, embed_dim); // K
+        pd.set(9, qdim);      // K
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
@@ -191,7 +190,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         pd.set(5, 1);         // constantB
         pd.set(6, 1);         // constantC
         pd.set(7, 0);         // M = outch
-        pd.set(8, embed_dim); // N = size
+        pd.set(8, qdim);      // N = size
         pd.set(9, embed_dim); // K = maxk*inch
         pd.set(10, 4);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
@@ -273,9 +272,11 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
 
     Mat attn_mask_blob_unpacked;
-    if (attn_mask_blob.elempack != 1)
+    if (attn_mask && attn_mask_blob.elempack != 1)
     {
         convert_packing(attn_mask_blob, attn_mask_blob_unpacked, 1, opt);
+        if (attn_mask_blob_unpacked.empty())
+            return -100;
     }
     else
     {
@@ -287,12 +288,21 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     const int dst_seqlen = k_blob.h * k_blob.elempack;
 
     Mat q_affine;
-    q_gemm->forward(q_blob, q_affine, opt);
+    int retq = q_gemm->forward(q_blob, q_affine, opt);
+    if (retq != 0)
+        return retq;
 
     Mat k_affine;
-    k_gemm->forward(k_blob, k_affine, opt);
+    int retk = k_gemm->forward(k_blob, k_affine, opt);
+    if (retk != 0)
+        return retk;
 
     Mat qk_cross(dst_seqlen, src_seqlen * num_heads, 4u, opt.blob_allocator);
+    if (qk_cross.empty())
+        return -100;
+
+    std::vector<int> retqks;
+    retqks.resize(num_heads);
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
@@ -308,18 +318,32 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         qk_top_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
         Option opt1 = opt;
         opt1.num_threads = 1;
-        qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
+        retqks[i] = qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
+    }
+    for (int i = 0; i < num_heads; i++)
+    {
+        if (retqks[i] != 0)
+            return retqks[i];
     }
 
     q_affine.release();
     k_affine.release();
 
-    qk_softmax->forward_inplace(qk_cross, opt);
+    int retqk = qk_softmax->forward_inplace(qk_cross, opt);
+    if (retqk != 0)
+        return retqk;
 
     Mat v_affine;
-    v_gemm->forward(v_blob, v_affine, opt);
+    int retv = v_gemm->forward(v_blob, v_affine, opt);
+    if (retv != 0)
+        return retv;
 
     Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
+    if (qkv_cross.empty())
+        return -100;
+
+    std::vector<int> retqkvs;
+    retqkvs.resize(num_heads);
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
@@ -330,12 +354,19 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         qkv_top_blobs[0] = qkv_cross.row_range(i * embed_dim_per_head, embed_dim_per_head);
         Option opt1 = opt;
         opt1.num_threads = 1;
-        qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
+        retqkvs[i] = qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
+    }
+    for (int i = 0; i < num_heads; i++)
+    {
+        if (retqkvs[i] != 0)
+            return retqkvs[i];
     }
 
     v_affine.release();
 
-    o_gemm->forward(qkv_cross, top_blobs[0], opt);
+    int reto = o_gemm->forward(qkv_cross, top_blobs[0], opt);
+    if (reto != 0)
+        return reto;
 
     return 0;
 }

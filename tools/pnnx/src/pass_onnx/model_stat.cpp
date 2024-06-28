@@ -42,7 +42,17 @@ ModelStat get_model_stat(const onnx::ModelProto& model)
     {
         const onnx::NodeProto& node = graph.node(i);
 
-        const std::string& op_type = node.op_type();
+        std::string op_type = node.op_type();
+
+        // drop |folded_N suffix
+        if (op_type.size() > 8)
+        {
+            size_t folded_N_index = op_type.rfind("|folded_");
+            if (folded_N_index != std::string::npos)
+            {
+                op_type = op_type.substr(0, folded_N_index);
+            }
+        }
 
         if (node.domain().empty())
         {
@@ -144,7 +154,17 @@ ModelStat get_model_stat(const onnx::ModelProto& model)
         {
             const onnx::NodeProto& node = graph.node(i);
 
-            const std::string& op_type = node.op_type();
+            std::string op_type = node.op_type();
+
+            // drop |folded_N suffix
+            if (op_type.size() > 8)
+            {
+                size_t folded_N_index = op_type.rfind("|folded_");
+                if (folded_N_index != std::string::npos)
+                {
+                    op_type = op_type.substr(0, folded_N_index);
+                }
+            }
 
             if (node.domain().empty())
             {
@@ -188,7 +208,17 @@ ModelStat get_model_stat(const onnx::ModelProto& model)
                 {
                     const onnx::NodeProto& node = function.node(j);
 
-                    const std::string& op_type = node.op_type();
+                    std::string op_type = node.op_type();
+
+                    // drop |folded_N suffix
+                    if (op_type.size() > 8)
+                    {
+                        size_t folded_N_index = op_type.rfind("|folded_");
+                        if (folded_N_index != std::string::npos)
+                        {
+                            op_type = op_type.substr(0, folded_N_index);
+                        }
+                    }
 
                     if (node.domain().empty())
                     {
@@ -238,7 +268,17 @@ ModelStat get_model_stat(const onnx::ModelProto& model)
         {
             const onnx::NodeProto& node = function.node(j);
 
-            const std::string& op_type = node.op_type();
+            std::string op_type = node.op_type();
+
+            // drop |folded_N suffix
+            if (op_type.size() > 8)
+            {
+                size_t folded_N_index = op_type.rfind("|folded_");
+                if (folded_N_index != std::string::npos)
+                {
+                    op_type = op_type.substr(0, folded_N_index);
+                }
+            }
 
             if (node.domain().empty())
             {

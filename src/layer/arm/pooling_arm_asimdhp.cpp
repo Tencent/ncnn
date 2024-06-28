@@ -612,7 +612,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
                                 }
                             }
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                             float16x4_t _inv_area0 = vcvt_f16_f32(vdupq_n_f32(1.f / area));
                             float16x8_t _inv_area = vcombine_f16(_inv_area0, _inv_area0);
 #else
@@ -672,7 +672,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
                                 }
                             }
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                             float16x4_t _inv_area = vcvt_f16_f32(vdupq_n_f32(1.f / area));
 #else
                             float16x4_t _inv_area = vdup_n_f16((__fp16)(1.f / area));
@@ -750,7 +750,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
                     const Mat m = bottom_blob_bordered.channel(q);
                     __fp16* outptr = top_blob.channel(q);
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                     float16x4_t _inv_maxk0 = vcvt_f16_f32(vdupq_n_f32(1.f / maxk));
                     float16x8_t _inv_maxk = vcombine_f16(_inv_maxk0, _inv_maxk0);
 #else
@@ -788,7 +788,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
                     const Mat m = bottom_blob_bordered.channel(q);
                     __fp16* outptr = top_blob.channel(q);
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                     float16x4_t _inv_maxk = vcvt_f16_f32(vdupq_n_f32(1.f / maxk));
 #else
                     float16x4_t _inv_maxk = vdup_n_f16((__fp16)(1.f / maxk));

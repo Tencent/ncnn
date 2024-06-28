@@ -44,11 +44,16 @@ static void collect_dead_nodes(const onnx::GraphProto& graph, std::vector<std::s
 
         if (is_outputs_live)
         {
-            for (int j = 0; j < node.output_size(); j++)
+            for (int j = node.output_size() - 1; j >= 0; j--)
             {
                 if (live_inputs.find(node.output(j)) == live_inputs.end())
                 {
                     dead_outputs.push_back(node.output(j));
+                }
+                else
+                {
+                    // leading outputs cannot be optional
+                    break;
                 }
             }
 
@@ -144,7 +149,7 @@ void dead_code_elimination(onnx::ModelProto& model)
                     }
 
                     //  ..... ....... j
-                    graph->mutable_node()->RemoveLast();
+                    graph->mutable_value_info()->RemoveLast();
 
                     break;
                 }

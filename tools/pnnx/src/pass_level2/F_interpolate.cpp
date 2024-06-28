@@ -997,4 +997,226 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_7, 10)
 
+class F_interpolate_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Resize                  op_0        1 1 input out sizes=%sizes coordinate_transformation_mode=%coordinate_transformation_mode mode=%mode nearest_mode=floor cubic_coeff_a=*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        if (captured_params.at("sizes").type != 5)
+            return false;
+
+        const std::vector<int>& sizes = captured_params.at("sizes").ai;
+
+        if (sizes.size() < 3 || sizes.size() > 5)
+            return false;
+
+        const std::vector<int>& input_shape = matched_operators.at("op_0")->inputs[0]->shape;
+        if (input_shape.size() < 3 || input_shape.size() > 5)
+            return false;
+
+        if (input_shape[0] != sizes[0] || input_shape[1] != sizes[1])
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::string& coordinate_transformation_mode = captured_params.at("coordinate_transformation_mode").s;
+        std::string mode = captured_params.at("mode").s;
+        const std::vector<int>& sizes = captured_params.at("sizes").ai;
+
+        if (mode == "linear")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+
+            if (sizes.size() == 4)
+                mode = "bilinear";
+            if (sizes.size() == 5)
+                mode = "trilinear";
+        }
+
+        if (mode == "cubic")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+
+            mode = "bicubic";
+        }
+
+        op->params["mode"] = mode;
+        if (sizes.size() == 3)
+            op->params["size"] = {sizes[2]};
+        if (sizes.size() == 4)
+            op->params["size"] = {sizes[2], sizes[3]};
+        if (sizes.size() == 5)
+            op->params["size"] = {sizes[2], sizes[3], sizes[4]};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx, 10)
+
+class F_interpolate_onnx_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Resize                  op_0        1 1 input out scales=%scales coordinate_transformation_mode=%coordinate_transformation_mode mode=%mode nearest_mode=floor cubic_coeff_a=*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("scales").type != 6)
+            return false;
+
+        const std::vector<float>& scales = captured_params.at("scales").af;
+
+        if (scales.size() < 3 || scales.size() > 5)
+            return false;
+
+        if (scales[0] != 1.f || scales[1] != 1.f)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::string& coordinate_transformation_mode = captured_params.at("coordinate_transformation_mode").s;
+        std::string mode = captured_params.at("mode").s;
+        const std::vector<float>& scales = captured_params.at("scales").af;
+
+        if (mode == "linear")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+
+            if (scales.size() == 4)
+                mode = "bilinear";
+            if (scales.size() == 5)
+                mode = "trilinear";
+        }
+
+        if (mode == "cubic")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+
+            mode = "bicubic";
+        }
+
+        op->params["mode"] = mode;
+        op->params["recompute_scale_factor"] = false;
+        if (scales.size() == 3)
+            op->params["scale_factor"] = {scales[2]};
+        if (scales.size() == 4)
+            op->params["scale_factor"] = {scales[2], scales[3]};
+        if (scales.size() == 5)
+            op->params["scale_factor"] = {scales[2], scales[3], scales[4]};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_1, 10)
+
+class F_interpolate_onnx_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Upsample                op_0        1 1 input out mode=%mode scales=%scales
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("scales").type != 6)
+            return false;
+
+        const std::vector<float>& scales = captured_params.at("scales").af;
+
+        if (scales.size() < 3 || scales.size() > 5)
+            return false;
+
+        if (scales[0] != 1.f || scales[1] != 1.f)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        std::string mode = captured_params.at("mode").s;
+        const std::vector<float>& scales = captured_params.at("scales").af;
+
+        if (mode == "linear")
+        {
+            op->params["align_corners"] = false;
+            if (scales.size() == 4)
+                mode = "bilinear";
+            if (scales.size() == 5)
+                mode = "trilinear";
+        }
+
+        if (mode == "cubic")
+        {
+            op->params["align_corners"] = false;
+            mode = "bicubic";
+        }
+
+        op->params["mode"] = mode;
+        op->params["recompute_scale_factor"] = false;
+        if (scales.size() == 3)
+            op->params["scale_factor"] = {scales[2]};
+        if (scales.size() == 4)
+            op->params["scale_factor"] = {scales[2], scales[3]};
+        if (scales.size() == 5)
+            op->params["scale_factor"] = {scales[2], scales[3], scales[4]};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_2, 10)
+
 } // namespace pnnx

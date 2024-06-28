@@ -39,9 +39,9 @@ void convolution_im2col_gemm_transform_kernel_int8_avx2(const Mat& kernel, Mat& 
     convolution_im2col_gemm_transform_kernel_int8(kernel, AT, inch, outch, kernel_w, kernel_h, opt);
 }
 
-void convolution_im2col_gemm_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt)
+int convolution_im2col_gemm_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt)
 {
-    convolution_im2col_gemm_int8(bottom_blob, top_blob, AT, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, nT, opt);
+    return convolution_im2col_gemm_int8(bottom_blob, top_blob, AT, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, nT, opt);
 }
 
 // winograd
@@ -50,9 +50,9 @@ void conv3x3s1_winograd23_transform_kernel_int8_avx2(const Mat& kernel, Mat& AT,
     conv3x3s1_winograd23_transform_kernel_int8(kernel, AT, inch, outch, opt);
 }
 
-void conv3x3s1_winograd23_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
+int conv3x3s1_winograd23_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-    conv3x3s1_winograd23_int8(bottom_blob, top_blob, AT, nT, opt);
+    return conv3x3s1_winograd23_int8(bottom_blob, top_blob, AT, nT, opt);
 }
 
 void conv3x3s1_winograd43_transform_kernel_int8_avx2(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
@@ -60,9 +60,9 @@ void conv3x3s1_winograd43_transform_kernel_int8_avx2(const Mat& kernel, Mat& AT,
     conv3x3s1_winograd43_transform_kernel_int8(kernel, AT, inch, outch, opt);
 }
 
-void conv3x3s1_winograd43_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
+int conv3x3s1_winograd43_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-    conv3x3s1_winograd43_int8(bottom_blob, top_blob, AT, nT, opt);
+    return conv3x3s1_winograd43_int8(bottom_blob, top_blob, AT, nT, opt);
 }
 
 } // namespace ncnn

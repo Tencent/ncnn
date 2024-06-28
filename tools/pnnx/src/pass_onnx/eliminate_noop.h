@@ -20,6 +20,8 @@ namespace onnx2pnnx {
 
 void eliminate_noop(onnx::ModelProto& model);
 
+void eliminate_noop_with_shape(onnx::ModelProto& model);
+
 } // namespace onnx2pnnx
 
 } // namespace pnnx

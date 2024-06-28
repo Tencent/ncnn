@@ -631,7 +631,7 @@ static void load_shape(Operator* op, const std::string& key, const std::string& 
             operand->shape.push_back(-233);
             int index = operand->shape.size() - 1;
             std::string key = elem.substr(1);
-            operand->params[std::string("__shape_") + std::to_string(index)] = key;
+            operand->params[std::string("__shape__") + std::to_string(index)] = key;
         }
         else
         {
@@ -1004,11 +1004,20 @@ static std::string expand_expression(const Operator* op)
         {
             std::string a = exprstack.top();
             exprstack.pop();
-            std::string b = exprstack.top();
-            exprstack.pop();
 
-            std::string r = a + ".size(" + b + ")";
-            exprstack.push(r);
+            if (exprstack.empty())
+            {
+                std::string r = a + ".shape";
+                exprstack.push(r);
+            }
+            else
+            {
+                std::string b = exprstack.top();
+                exprstack.pop();
+
+                std::string r = a + ".size(" + b + ")";
+                exprstack.push(r);
+            }
         }
         else if (t == "int"
                  || t == "abs"
@@ -1036,9 +1045,12 @@ static std::string expand_expression(const Operator* op)
                  || t == "square"
                  || t == "tan"
                  || t == "tanh"
-                 || t == "trunc")
+                 || t == "trunc"
+                 || t == "torch.bool"
+                 || t == "torch.float"
+                 || t == "torch.long")
         {
-            std::string unaryop;
+            std::string unaryop = t;
             if (t == "int") unaryop = "int";
             if (t == "abs") unaryop = "torch.abs";
             if (t == "acos") unaryop = "torch.acos";
@@ -2082,8 +2094,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
-            else if (op->type.find("::") != std::string::npos || op->type.find(".") != std::string::npos)
+            else
             {
+                if (op->type.find("::") == std::string::npos && op->type.find(".") == std::string::npos)
+                {
+                    fprintf(stderr, "todo %s\n", op->type.c_str());
+                }
+
                 // direct
                 for (size_t i = 0; i < op->outputs.size(); i++)
                 {
@@ -2323,10 +2340,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
 
                 fprintf(pyfp, ")\n");
-            }
-            else
-            {
-                fprintf(stderr, "todo %s\n", op->type.c_str());
             }
         }
     }
@@ -2743,7 +2756,7 @@ int Graph::parse(const std::string& param)
                             attr.shape.push_back(-233);
                             int index = attr.shape.size() - 1;
                             std::string key = elem.substr(1);
-                            attr.params[std::string("__shape_") + std::to_string(index)] = key;
+                            attr.params[std::string("__shape__") + std::to_string(index)] = key;
                         }
                         else
                         {

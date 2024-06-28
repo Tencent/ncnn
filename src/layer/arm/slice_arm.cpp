@@ -167,6 +167,8 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         if (elempack > out_elempack)
         {
             convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, opt);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         const float* ptr = bottom_blob_unpacked;
@@ -331,6 +333,8 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         if (elempack > out_elempack)
         {
             convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, opt);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         int p = 0;
@@ -704,6 +708,8 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
         if (elempack > out_elempack)
         {
             convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, opt);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         const unsigned short* ptr = bottom_blob_unpacked;
@@ -934,6 +940,8 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
         if (elempack > out_elempack)
         {
             convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, opt);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         int p = 0;

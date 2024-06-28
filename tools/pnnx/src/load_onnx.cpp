@@ -23,6 +23,8 @@
 
 #include <fstream>
 
+#include <onnxruntime_c_api.h>
+
 #include "ir.h"
 
 #include "pass_onnx/canonicalize.h"
@@ -30,8 +32,10 @@
 #include "pass_onnx/eliminate_noop.h"
 #include "pass_onnx/fold_constants.h"
 #include "pass_onnx/inline_containers.h"
+#include "pass_onnx/inline_if_graph.h"
 #include "pass_onnx/model_stat.h"
 #include "pass_onnx/shape_inference.h"
+#include "pass_onnx/fuse_constant_as_attribute.h"
 
 #include "pass_onnx.h"
 
@@ -304,7 +308,14 @@ Operand* Graph::new_operand(const onnx::ValueInfoProto& value)
     r->shape.resize(tensor_shape.dim_size());
     for (int z = 0; z < tensor_shape.dim_size(); z++)
     {
-        r->shape[z] = tensor_shape.dim(z).dim_value();
+        if (!tensor_shape.dim(z).has_dim_value())
+        {
+            r->shape[z] = -1;
+        }
+        else
+        {
+            r->shape[z] = tensor_shape.dim(z).dim_value();
+        }
     }
 
     operands.push_back(r);
@@ -366,7 +377,150 @@ static double get_current_time()
     return usec.count() / 1000.0;
 }
 
-int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
+static const char* get_onnx_tensor_elem_data_type_str(ONNXTensorElementDataType type)
+{
+    switch (type)
+    {
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8:
+        return "i8";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8:
+        return "u8";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16:
+        return "i16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
+        return "u16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32:
+        return "i32";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32:
+        return "u32";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64:
+        return "i64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64:
+        return "u64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16:
+        return "f16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT:
+        return "f32";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE:
+        return "f64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16:
+        return "bf16";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX64:
+        return "c64";
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX128:
+        return "c128";
+    default:
+        break;
+    }
+
+    // unknown
+    fprintf(stderr, "unsupported tensor elem data type %d\n", (int)type);
+    return "";
+}
+
+static bool check_input_shape(onnx::ModelProto& model, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types)
+{
+    const onnx::GraphProto& graph = model.graph();
+
+    if (!input_shapes.empty() && (int)input_shapes.size() != graph.input_size())
+    {
+        fprintf(stderr, "input_shape expect %d tensors but got %d\n", graph.input_size(), (int)input_shapes.size());
+        return false;
+    }
+
+    for (int i = 0; i < graph.input_size(); i++)
+    {
+        const onnx::ValueInfoProto& value = graph.input(i);
+        const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
+
+        ONNXTensorElementDataType datatype = (ONNXTensorElementDataType)value.type().tensor_type().elem_type();
+
+        bool matched = true;
+
+        if (input_shapes.empty())
+        {
+            // dynamic dimension size
+            for (int j = 0; j < tsp.dim_size(); j++)
+            {
+                if (!tsp.dim(j).has_dim_value())
+                {
+                    matched = false;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            if ((int)input_shapes[i].size() != tsp.dim_size())
+            {
+                matched = false;
+            }
+            else
+            {
+                for (int j = 0; j < tsp.dim_size(); j++)
+                {
+                    if (!tsp.dim(j).has_dim_value())
+                        continue;
+
+                    int64_t ds = tsp.dim(j).dim_value();
+                    if (ds == -1)
+                        continue;
+
+                    if (input_shapes[i][j] != ds)
+                        matched = false;
+                }
+            }
+
+            if (input_types[i] != get_onnx_tensor_elem_data_type_str(datatype))
+                matched = false;
+        }
+
+        if (!matched)
+        {
+            fprintf(stderr, "input_shapes[%d] expect [", i);
+            for (int j = 0; j < tsp.dim_size(); j++)
+            {
+                if (tsp.dim(j).has_dim_value())
+                {
+                    int64_t ds = tsp.dim(j).dim_value();
+                    fprintf(stderr, "%ld", ds);
+                }
+                else
+                {
+                    fprintf(stderr, "?");
+                }
+                if (j + 1 != tsp.dim_size())
+                    fprintf(stderr, ",");
+            }
+            fprintf(stderr, "]%s but got ", get_onnx_tensor_elem_data_type_str(datatype));
+            if (input_shapes.empty())
+            {
+                fprintf(stderr, "nothing\n");
+            }
+            else
+            {
+                fprintf(stderr, "[");
+                for (size_t j = 0; j < input_shapes[i].size(); j++)
+                {
+                    fprintf(stderr, "%ld", input_shapes[i][j]);
+                    if (j + 1 != input_shapes[i].size())
+                        fprintf(stderr, ",");
+                }
+                fprintf(stderr, "]%s\n", input_types[i].c_str());
+            }
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
+int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
+              const std::vector<std::vector<int64_t> >& input_shapes,
+              const std::vector<std::string>& input_types,
+              const std::vector<std::vector<int64_t> >& input_shapes2,
+              const std::vector<std::string>& input_types2)
 {
     onnx::ModelProto model;
 
@@ -377,11 +531,21 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
         return -1;
     }
 
+    // input shape sanity check
+    if (!check_input_shape(model, input_shapes, input_types))
+    {
+        return -1;
+    }
+    if (!input_shapes2.empty() && !check_input_shape(model, input_shapes2, input_types2))
+    {
+        return -1;
+    }
+
     fprintf(stderr, "############# pass_level0 onnx \n");
 
     onnx2pnnx::ModelStat oldstat = onnx2pnnx::get_model_stat(model);
 
-    fprintf(stderr, "%-30s", "inline_containers ... ");
+    fprintf(stderr, "%-34s", "inline_containers ... ");
 
     double t0 = get_current_time();
 
@@ -389,9 +553,9 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     double t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "eliminate_noop ... ");
+    fprintf(stderr, "%-34s", "eliminate_noop ... ");
 
     t0 = get_current_time();
 
@@ -399,39 +563,19 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "dead_code_elimination ... ");
-
-    t0 = get_current_time();
-
-    onnx2pnnx::dead_code_elimination(model);
-
-    t1 = get_current_time();
-
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
-
-    fprintf(stderr, "%-30s", "fold_constants ... ");
+    fprintf(stderr, "%-34s", "fold_constants ... ");
 
     t0 = get_current_time();
 
-    onnx2pnnx::fold_constants(model);
+    onnx2pnnx::fold_constants(model, input_shapes, input_types, input_shapes2, input_types2);
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "dead_code_elimination ... ");
-
-    t0 = get_current_time();
-
-    onnx2pnnx::dead_code_elimination(model);
-
-    t1 = get_current_time();
-
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
-
-    fprintf(stderr, "%-30s", "canonicalize ... ");
+    fprintf(stderr, "%-34s", "canonicalize ... ");
 
     t0 = get_current_time();
 
@@ -439,24 +583,148 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-30s", "shape_inference ... ");
+    fprintf(stderr, "%-34s", "shape_inference ... ");
 
     t0 = get_current_time();
 
-    onnx2pnnx::shape_inference(model);
+    onnx2pnnx::shape_inference(model, input_shapes, input_types, input_shapes2, input_types2);
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1 - t0);
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+    fprintf(stderr, "%-34s", "fold_constants_dynamic_shape ... ");
+
+    t0 = get_current_time();
+
+    onnx2pnnx::fold_constants_dynamic_shape(model, input_shapes, input_types);
+
+    t1 = get_current_time();
+
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+    fprintf(stderr, "%-34s", "inline_if_graph ... ");
+
+    t0 = get_current_time();
+
+    int inlined = onnx2pnnx::inline_if_graph(model);
+
+    t1 = get_current_time();
+
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+    while (inlined)
+    {
+        fprintf(stderr, "%-34s", "inline_containers ... ");
+
+        double t0 = get_current_time();
+
+        onnx2pnnx::inline_containers(model);
+
+        double t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "eliminate_noop ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::eliminate_noop(model);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "fold_constants ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::fold_constants(model, input_shapes, input_types, input_shapes2, input_types2);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "canonicalize ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::canonicalize(model);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "shape_inference ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::shape_inference(model, input_shapes, input_types, input_shapes2, input_types2);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "fold_constants_dynamic_shape ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::fold_constants_dynamic_shape(model, input_shapes, input_types);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "inline_if_graph ... ");
+
+        t0 = get_current_time();
+
+        inlined = onnx2pnnx::inline_if_graph(model);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+    }
+
+    fprintf(stderr, "%-34s", "fuse_constant_as_attribute ... ");
+
+    t0 = get_current_time();
+
+    onnx2pnnx::fuse_constant_as_attribute(model);
+
+    t1 = get_current_time();
+
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+    fprintf(stderr, "%-34s", "eliminate_noop_with_shape ... ");
+
+    t0 = get_current_time();
+
+    onnx2pnnx::eliminate_noop_with_shape(model);
+
+    t1 = get_current_time();
+
+    fprintf(stderr, "%8.2fms\n", t1 - t0);
 
     // save
-    std::fstream output("debug.onnx", std::ios::out | std::ios::trunc | std::ios::binary);
-    if (!model.SerializeToOstream(&output))
     {
-        fprintf(stderr, "write onnx failed\n");
-        return -1;
+        std::string simonnx_path;
+        if (onnxpath.size() > 5 && onnxpath.substr(onnxpath.size() - 5) == ".onnx")
+        {
+            simonnx_path = onnxpath.substr(0, onnxpath.size() - 5) + ".pnnxsim.onnx";
+        }
+        else
+        {
+            simonnx_path = onnxpath + ".pnnxsim.onnx";
+        }
+        std::fstream output(simonnx_path, std::ios::out | std::ios::trunc | std::ios::binary);
+        if (!model.SerializeToOstream(&output))
+        {
+            fprintf(stderr, "write pnnxsim onnx failed\n");
+            return -1;
+        }
     }
 
     onnx2pnnx::ModelStat newstat = onnx2pnnx::get_model_stat(model);

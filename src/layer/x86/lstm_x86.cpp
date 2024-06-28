@@ -16,9 +16,14 @@
 
 #if __SSE2__
 #include <emmintrin.h>
+#include "sse_mathfun.h"
 #if __AVX__
 #include <immintrin.h>
-#endif
+#include "avx_mathfun.h"
+#if __AVX512F__
+#include "avx512_mathfun.h"
+#endif // __AVX512F__
+#endif // __AVX__
 #endif // __SSE2__
 
 #include "x86_activation.h"
@@ -758,7 +763,7 @@ int LSTM_x86::create_pipeline_int8(const Option& opt)
     return 0;
 }
 
-void LSTM_x86::dynamic_quantize(const Mat& bottom_blob, Mat& bottom_blob_int8, Mat& bottom_blob_int8_descales, const Option& opt) const
+static void lstm_dynamic_quantize(const Mat& bottom_blob, Mat& bottom_blob_int8, Mat& bottom_blob_int8_descales, const Option& opt)
 {
     int size = bottom_blob.w;
     int T = bottom_blob.h;
@@ -766,24 +771,21 @@ void LSTM_x86::dynamic_quantize(const Mat& bottom_blob, Mat& bottom_blob_int8, M
     // dynamic quantize bottom_blob
     bottom_blob_int8_descales.create(T, (size_t)4u, 1, opt.blob_allocator);
 
-    Mat bottom_blob_int8_scales(T, (size_t)4u, 1, opt.blob_allocator);
+    bottom_blob_int8.create(size, T, (size_t)1u, opt.blob_allocator);
 
     // fp32
     for (int t = 0; t < T; t++)
     {
-        const float* x = bottom_blob.row(t);
+        const float* ptr = bottom_blob.row(t);
+        signed char* outptr = bottom_blob_int8.row<signed char>(t);
 
-        float absmax = 0.f;
-        for (int i = 0; i < size; i++)
-        {
-            absmax = std::max(absmax, (float)fabs(x[i]));
-        }
+        const float absmax = lstm_dynamic_quantize_get_absmax(ptr, size);
 
-        bottom_blob_int8_scales[t] = 127.f / absmax;
         bottom_blob_int8_descales[t] = absmax / 127.f;
-    }
 
-    quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt);
+        const float scale = 127.f / absmax;
+        lstm_dynamic_quantize_scale2int8(ptr, size, scale, outptr);
+    }
 }
 
 int LSTM_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -814,7 +816,7 @@ int LSTM_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& 
         Option opt_quant = opt;
         opt_quant.blob_allocator = opt.workspace_allocator;
         opt_quant.use_packing_layout = false;
-        dynamic_quantize(bottom_blob, bottom_blob_int8, bottom_blob_int8_descales, opt_quant);
+        lstm_dynamic_quantize(bottom_blob, bottom_blob_int8, bottom_blob_int8_descales, opt_quant);
     }
 
     // Uni directional
@@ -899,7 +901,7 @@ int LSTM_x86::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
         Option opt_quant = opt;
         opt_quant.blob_allocator = opt.workspace_allocator;
         opt_quant.use_packing_layout = false;
-        dynamic_quantize(bottom_blob, bottom_blob_int8, bottom_blob_int8_descales, opt_quant);
+        lstm_dynamic_quantize(bottom_blob, bottom_blob_int8, bottom_blob_int8_descales, opt_quant);
     }
 
     // Uni directional

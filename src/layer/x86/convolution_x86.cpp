@@ -537,6 +537,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         else
         {
             bottom_blob_3d = bottom_blob.reshape(1, 1, bottom_blob.w, opt.workspace_allocator);
+            if (bottom_blob_3d.empty())
+                return -100;
         }
 
         Mat top_blob_3d;
@@ -556,6 +558,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         else
         {
             top_blob = top_blob_3d.reshape(top_blob_3d.c, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
         }
 
         return 0;
@@ -653,22 +657,25 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             NCNN_LOGE("opt.num_threads %d changed, convolution winograd will use load-time value %d", opt.num_threads, nT);
         }
 
+        int ret = 0;
         if (prefer_winograd23)
         {
-            conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, _nT, opt);
+            ret = conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd43)
         {
-            conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, _nT, opt);
+            ret = conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd63)
         {
-            conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, _nT, opt);
+            ret = conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, _nT, opt);
         }
         else
         {
             // should never reach here
         }
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -690,7 +697,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
         }
 
-        convolution_im2col_gemm(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        int ret = convolution_im2col_gemm(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -937,6 +946,8 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     //     NCNN_LOGE("Convolution_x86 input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
@@ -1001,21 +1012,24 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
     }
 
+    int ret = 0;
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         if (opt.use_winograd43_convolution && !weight_winograd43_data.empty())
-            conv3x3s1_winograd43_int8(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, _nT, opt);
+            ret = conv3x3s1_winograd43_int8(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, _nT, opt);
         else
-            conv3x3s1_winograd23_int8(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
+            ret = conv3x3s1_winograd23_int8(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
     }
     else if (opt.use_sgemm_convolution)
     {
-        convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        ret = convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
     }
     else
     {
         convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
     }
+    if (ret != 0)
+        return ret;
 
     if (use_int8_requantize)
     {
