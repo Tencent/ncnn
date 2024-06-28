@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -23,7 +24,10 @@ class Model(nn.Module):
         self.ln_0 = nn.LayerNorm(64)
         self.ln_0.weight = nn.Parameter(torch.rand(64))
         self.ln_0.bias = nn.Parameter(torch.rand(64))
-        self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=False)
+        if version.parse(torch.__version__) >= version.parse('2.1') and version.parse(torch.__version__) < version.parse('2.2'):
+            self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=True)
+        else:
+            self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=False)
 
     def forward(self, x, y, z):
         x = self.ln_0(x)

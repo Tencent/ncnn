@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -29,15 +30,18 @@ class Model(nn.Module):
 
     def forward(self, x, y, z, w0, b0, w1, b1, w2, b2):
         x = F.layer_norm(x, (24,), w0, b0)
-        x = F.layer_norm(x, (12,24), None, None)
+        if version.parse(torch.__version__) < version.parse('2.1') or version.parse(torch.__version__) >= version.parse('2.2'):
+            x = F.layer_norm(x, (12,24), None, None)
         x = F.layer_norm(x, (24,), self.w3, self.b3)
 
-        y = F.layer_norm(y, (16,), None, None, eps=1e-3)
+        if version.parse(torch.__version__) < version.parse('2.1') or version.parse(torch.__version__) >= version.parse('2.2'):
+            y = F.layer_norm(y, (16,), None, None, eps=1e-3)
         y = F.layer_norm(y, (12,16), w1, b1)
         y = F.layer_norm(y, (12,16), self.w4, self.b4)
 
         z = F.layer_norm(z, (24,), w2, b2)
-        z = F.layer_norm(z, (12,16,24), None, None, eps=1e-2)
+        if version.parse(torch.__version__) < version.parse('2.1') or version.parse(torch.__version__) >= version.parse('2.2'):
+            z = F.layer_norm(z, (12,16,24), None, None, eps=1e-2)
         z = F.layer_norm(z, (24,), self.w5, self.b5)
         return x, y, z
 
