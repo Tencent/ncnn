@@ -79,7 +79,11 @@ static int test_requantize_pack8(const ncnn::Mat& a, int scale_in_data_size, int
     Randomize(weights[0], 0.0001, 0.001);
     Randomize(weights[1], 10, 100);
 
+#if NCNN_RVV
+    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_ENABLE_FORCE_INPUT_PACKVLENB;
+#else
     int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_ENABLE_FORCE_INPUT_PACK8;
+#endif
     int ret = test_layer("Requantize", pd, weights, a, 1, 0, flag);
     if (ret != 0)
     {

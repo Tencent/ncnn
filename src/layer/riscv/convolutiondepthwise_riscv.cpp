@@ -60,8 +60,7 @@ int ConvolutionDepthWise_riscv::create_pipeline(const Option& opt)
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        // TODO implement int8
-        return 0;
+        return create_pipeline_int8_riscv(opt);
     }
 #endif
 
@@ -240,14 +239,11 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
+        int packn = 1;
+#if __riscv_vector
+        packn = csrr_vlenb();
+#endif
         Mat bottom_blob_unpacked = bottom_blob;
-        if (bottom_blob.elempack != 1)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-        }
 
         Mat bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
         if (bottom_blob_unpacked.elembits() == 16)
@@ -255,12 +251,15 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
             Option opt_pack1 = opt;
             opt_pack1.blob_allocator = opt.workspace_allocator;
 
+            if (!opt.use_packing_layout || packn == 1 || bottom_blob.elempack == 1)
+                convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+            else
+                convert_packing(bottom_blob, bottom_blob_unpacked, packn / 4, opt_pack1);
+
             cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
         }
 
-        Option opt_unpacked = opt;
-        opt_unpacked.use_packing_layout = false;
-        return ConvolutionDepthWise::forward_int8(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
+        return forward_int8_riscv(bottom_blob_unpacked_fp32, top_blob, opt);
     }
 #endif
 
@@ -1157,4 +1156,369 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
 }
 #endif // __riscv_vector && __riscv_zfh
 
+#if NCNN_INT8
+int ConvolutionDepthWise_riscv::create_pipeline_int8_riscv(const Option& opt)
+{
+#if __riscv_vector
+    const int packn = csrr_vlenb();
+    size_t vl = vsetvl_e8m1(packn);
+#endif
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        int elempack = 1;
+#if __riscv_vector
+        if (opt.use_packing_layout)
+        {
+            elempack = channels % packn == 0 ? packn : 1;
+        }
+
+        if (elempack == packn)
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, group);
+            convert_packing(weight_data_r2, weight_data_tm, packn, opt);
+        }
+#endif // __riscv_vector
+
+        if (elempack == 1)
+        {
+            weight_data_tm = weight_data;
+        }
+
+        scale_in_data.create(group);
+        for (int g = 0; g < group; g++)
+        {
+            float scale_in;
+            if (weight_data_int8_scales[g] == 0)
+                scale_in = 0;
+            else
+                scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+            scale_in_data[g] = scale_in;
+        }
+
+        return 0;
+    }
+
+    // group convolution
+    Option opt_unpack = opt;
+    opt_unpack.use_packing_layout = false;
+    create_group_ops(opt_unpack);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
+
+    return 0;
+}
+
+int ConvolutionDepthWise_riscv::forward_int8_riscv(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+#if __riscv_vector
+    const int packn = csrr_vlenb();
+    size_t vl = vsetvl_e8m1(packn);
+#endif
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    int elempack = bottom_blob.elempack;
+
+    int elembits = bottom_blob.elembits();
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    Mat bottom_blob_int8 = bottom_blob;
+    if (elembits != 8)
+    {
+        const int channels_g = channels * elempack / group;
+
+        Mat scales(channels * elempack);
+        {
+            float* ps = scales;
+            for (int g = 0; g < group; g++)
+            {
+                float scale = bottom_blob_int8_scales[g];
+                for (int q = 0; q < channels_g; q++)
+                {
+                    *ps++ = scale;
+                }
+            }
+        }
+
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, scales, opt_q);
+    }
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob_int8, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+    channels = bottom_blob_bordered.c;
+    elempack = bottom_blob_bordered.elempack;
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    // depth-wise
+    if (channels * elempack == group && group == num_output)
+    {
+        int out_elempack = 1;
+#if __riscv_vector
+        if (opt.use_packing_layout)
+        {
+            out_elempack = num_output % packn == 0 ? packn : 1;
+        }
+#endif // __riscv_vector
+        bool use_int8_requantize = int8_scale_term > 100;
+        size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+
+        top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+#if __riscv_vector
+        if (elempack == packn)
+        {
+            {
+                const int maxk = kernel_w * kernel_h;
+
+                // kernel offsets
+                std::vector<int> _space_ofs(maxk);
+                int* space_ofs = &_space_ofs[0];
+                {
+                    int p1 = 0;
+                    int p2 = 0;
+                    int gap = w * dilation_h - kernel_w * dilation_w;
+                    for (int i = 0; i < kernel_h; i++)
+                    {
+                        for (int j = 0; j < kernel_w; j++)
+                        {
+                            space_ofs[p1] = p2;
+                            p1++;
+                            p2 += dilation_w;
+                        }
+                        p2 += gap;
+                    }
+                }
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g = 0; g < channels; g++)
+                {
+                    signed char* outptr_s8 = top_blob.channel(g);
+                    float* outptr_f32 = top_blob.channel(g);
+                    const signed char* kptr = (const signed char*)weight_data_tm + maxk * g * packn;
+                    const Mat m = bottom_blob_bordered.channel(g);
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            vint32m4_t _sum = vmv_v_x_i32m4(0, vl);
+
+                            const signed char* sptr = m.row<const signed char>(i * stride_h) + j * stride_w * packn;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                vint16m2_t _val = vwcvt_x_x_v_i16m2(vle8_v_i8m1(sptr + space_ofs[k] * packn, vl), vl);
+                                vint16m2_t _w = vwcvt_x_x_v_i16m2(vle8_v_i8m1(kptr + k * packn, vl), vl);
+
+                                _sum = vwmacc_vv_i32m4(_sum, _val, _w, vl);
+                            }
+
+                            vfloat32m4_t _scale_in = vle32_v_f32m4((const float*)scale_in_data + g * packn, vl);
+                            vfloat32m4_t _sumfp32 = bias_term ? vle32_v_f32m4((const float*)bias_data + g * packn, vl) 
+                                        : vfmv_v_f_f32m4(0.f, vl);
+
+                            _sumfp32 = vfmacc_vv_f32m4(_sumfp32, _scale_in, vfcvt_f_x_v_f32m4(_sum, vl), vl);
+                            _sumfp32 = activation_ps(_sumfp32, activation_type, activation_params, vl);
+
+                            if (use_int8_requantize)
+                            {
+                                // requantize and relu
+                                vfloat32m4_t _scale_out = vle32_v_f32m4((const float*)top_blob_int8_scales + g * packn, vl);
+                                _sumfp32 = vfmul_vv_f32m4(_sumfp32, _scale_out, vl);
+                                vint8m1_t _sum8 = float2int8(_sumfp32, vl);
+
+                                vse8_v_i8m1(outptr_s8, _sum8, vl);
+                                outptr_s8 += packn;
+                            }
+                            else
+                            {
+                                // dequantize and relu
+                                vse32_v_f32m4(outptr_f32, _sumfp32, vl);
+                                outptr_f32 += packn;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+#endif // __riscv_vector
+
+        if (elempack == 1)
+        {
+            {
+                const int maxk = kernel_w * kernel_h;
+
+                // kernel offsets
+                std::vector<int> _space_ofs(maxk);
+                int* space_ofs = &_space_ofs[0];
+                {
+                    int p1 = 0;
+                    int p2 = 0;
+                    int gap = w * dilation_h - kernel_w * dilation_w;
+                    for (int i = 0; i < kernel_h; i++)
+                    {
+                        for (int j = 0; j < kernel_w; j++)
+                        {
+                            space_ofs[p1] = p2;
+                            p1++;
+                            p2 += dilation_w;
+                        }
+                        p2 += gap;
+                    }
+                }
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g = 0; g < group; g++)
+                {
+                    signed char* outptr_s8 = top_blob.channel(g);
+                    float* outptr_f32 = top_blob.channel(g);
+                    const signed char* kptr = (const signed char*)weight_data_tm + maxk * g;
+                    const Mat m = bottom_blob_bordered.channel(g);
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            int sum = 0;
+
+                            const signed char* sptr = m.row<const signed char>(i * stride_h) + j * stride_w;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                signed char val = sptr[space_ofs[k]];
+                                signed char w = kptr[k];
+                                sum += val * w;
+                            }
+
+                            float sumfp32 = sum * scale_in_data[g];
+
+                            if (bias_term)
+                                sumfp32 += bias_data[g];
+
+                            sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
+
+                            if (use_int8_requantize)
+                            {
+                                // requantize
+                                float scale_out = top_blob_int8_scales[g];
+                                signed char sums8 = float2int8(sumfp32 * scale_out);
+                                outptr_s8[0] = sums8;
+                                outptr_s8 += 1;
+                            }
+                            else
+                            {
+                                // dequantize
+                                outptr_f32[0] = sumfp32;
+                                outptr_f32 += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    bool use_int8_requantize = int8_scale_term > 100;
+    int out_elempack = 1;
+#if 0
+    if (opt.use_packing_layout)
+    {
+        if (use_int8_requantize)
+            out_elempack = num_output % packn == 0 ? packn : 1;
+        else
+            out_elempack = num_output % (packn / 4) == 0 ? (packn / 4) : 1;
+    }
+#endif // __riscv_vector
+    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // group convolution
+    const int channels_g = channels * elempack / group;
+    const int num_output_g = num_output / group;
+
+    int g_elempack = 1;
+    int out_g_elempack = 1;
+#if 0
+    if (opt.use_packing_layout)
+    {
+        g_elempack = channels_g % packn == 0 ? packn : 1;
+        if (use_int8_requantize)
+            out_g_elempack = num_output_g % packn == 0 ? packn : 1;
+        else
+            out_g_elempack = num_output_g % (packn / 4) == 0 ? (packn / 4) : 1;
+    }
+#endif // __riscv_vector
+
+    // unpacking
+    Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
+    if (elempack > g_elempack)
+    {
+        Option opt_p = opt;
+        opt_p.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+    }
+
+    Mat top_blob_unpacked = top_blob;
+    if (out_g_elempack < out_elempack)
+    {
+        top_blob_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
+        if (top_blob_unpacked.empty())
+            return -100;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int g = 0; g < group; g++)
+    {
+        const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
+        Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
+
+        const ncnn::Layer* op = group_ops[g];
+
+        Option opt_g = opt;
+        opt_g.blob_allocator = top_blob_unpacked.allocator;
+
+        // forward
+        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+    }
+
+    // packing
+    if (out_g_elempack < out_elempack)
+    {
+        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+    }
+    else
+    {
+        top_blob = top_blob_unpacked;
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
 } // namespace ncnn
