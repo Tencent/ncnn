@@ -1629,6 +1629,12 @@ int create_gpu_instance(const char* driver_path)
                     gpu_info.support_subgroup_ballot = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BALLOT_BIT;
                     gpu_info.support_subgroup_shuffle = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
                 }
+
+                if (physicalDeviceProperties.vendorID == 0x5143)
+                {
+                    // double subgroup size for fp16
+                    gpu_info.subgroup_size *= 2;
+                }
             }
             else
             {
@@ -1645,6 +1651,10 @@ int create_gpu_instance(const char* driver_path)
                 if (physicalDeviceProperties.vendorID == 0x8086) // intel
                     gpu_info.subgroup_size = 32;
             }
+
+            // sanitize some weird subgroup size
+            // though there may be 1/4/8 on some cpu or awkward gpu implementations   --- nihui
+            gpu_info.subgroup_size = std::min(std::max(gpu_info.subgroup_size, 16u), 128u);
         }
 
         // cache memory properties
