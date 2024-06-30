@@ -3305,6 +3305,52 @@ cooling_down = 0
 
 ```
 
+### OrangePi5 Plus, Rockchip RK3588 (Quad Core A76 2.4GHz + Quad Core A55 1.8GHz)
+```
+orangepi@orangepi5plus:~/ncnn$ ./benchncnn 8 4 2 -1 1
+loop_count = 8
+num_threads = 4
+powersave = 2
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =    5.55  max =    5.67  avg =    5.61
+     squeezenet_int8  min =    5.39  max =    5.76  avg =    5.60
+           mobilenet  min =    7.43  max =    7.50  avg =    7.47
+      mobilenet_int8  min =    6.91  max =    7.00  avg =    6.96
+        mobilenet_v2  min =    8.24  max =    8.47  avg =    8.33
+        mobilenet_v3  min =    6.63  max =    7.32  avg =    6.84
+          shufflenet  min =    4.10  max =    4.23  avg =    4.14
+       shufflenet_v2  min =    3.51  max =    3.61  avg =    3.56
+             mnasnet  min =    5.76  max =    7.79  avg =    6.53
+     proxylessnasnet  min =    6.66  max =    7.19  avg =    6.79
+     efficientnet_b0  min =   10.32  max =   10.73  avg =   10.40
+   efficientnetv2_b0  min =   11.48  max =   11.78  avg =   11.61
+        regnety_400m  min =    9.73  max =    9.85  avg =    9.79
+           blazeface  min =    1.39  max =    1.62  avg =    1.46
+           googlenet  min =   21.48  max =   23.08  avg =   22.79
+      googlenet_int8  min =   20.82  max =   21.78  avg =   21.01
+            resnet18  min =    9.37  max =   10.05  avg =    9.50
+       resnet18_int8  min =   14.88  max =   19.64  avg =   15.90
+             alexnet  min =   24.74  max =   24.93  avg =   24.81
+               vgg16  min =   58.75  max =   62.44  avg =   59.52
+          vgg16_int8  min =   73.68  max =   75.89  avg =   74.14
+            resnet50  min =   44.88  max =   45.10  avg =   44.98
+       resnet50_int8  min =   35.54  max =   36.02  avg =   35.71
+      squeezenet_ssd  min =   12.07  max =   26.66  avg =   19.03
+ squeezenet_ssd_int8  min =   21.95  max =   25.51  avg =   23.21
+       mobilenet_ssd  min =   12.62  max =   12.73  avg =   12.67
+  mobilenet_ssd_int8  min =   17.21  max =   17.68  avg =   17.44
+      mobilenet_yolo  min =   32.82  max =   32.98  avg =   32.91
+  mobilenetv2_yolov3  min =   18.67  max =   20.52  avg =   19.57
+         yolov4-tiny  min =   38.82  max =   40.84  avg =   39.82
+           nanodet_m  min =    9.05  max =    9.22  avg =    9.13
+    yolo-fastest-1.1  min =    4.67  max =    5.04  avg =    4.74
+      yolo-fastestv2  min =    4.27  max =    4.32  avg =    4.29
+  vision_transformer  min =  429.32  max =  431.02  avg =  430.20
+          FastestDet  min =    4.28  max =    4.72  avg =    4.36
+
+```
+
 ### RDK X3 Module (Cortex-A53 1.5GHz x 4) aarch64
 ```
 root@ubuntu:/home/sunrise/ncnn-master/benchmark# ../build-aarch64-linux-gnu/benchmark/benchncnn 10 4 0 -1 1
