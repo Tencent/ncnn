@@ -45,7 +45,8 @@ public:
         Operation_RDIV = 8,
         Operation_RPOW = 9,
         Operation_ATAN2 = 10,
-        Operation_RATAN2 = 11
+        Operation_RATAN2 = 11,
+        Operation_REMAINDER = 12
     };
 
 public:
