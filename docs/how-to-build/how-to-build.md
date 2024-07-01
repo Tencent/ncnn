@@ -262,8 +262,6 @@ cmake --build . --config Release --target install
 
 Download MinGW-w64 toolchain from [winlibs](https://winlibs.com/) or [w64devkit](https://github.com/skeeto/w64devkit), add `bin` folder to environment variables.
 
-(optional) Download and install Vulkan SDK from <https://vulkan.lunarg.com/sdk/home>
-
 Build ncnn library:
 
 ```shell
@@ -271,7 +269,7 @@ cd <ncnn-root-dir>
 mkdir build
 cd build
 cmake -DNCNN_VULKAN=ON -G "MinGW Makefiles" ..
-cmake --build . --config Release -j4
+cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
 
