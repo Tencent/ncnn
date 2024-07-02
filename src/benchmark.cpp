@@ -15,11 +15,20 @@
 #include "benchmark.h"
 
 #if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
+#define USE_CXX11_CLOCK 1
+#else
+#define USE_CXX11_CLOCK 0
+#endif
+
+#if USE_CXX11_CLOCK
 #include <chrono>
+#if NCNN_THREADS
 #include <thread>
+#endif
 #include <numeric>
 #include <algorithm>
-#else
+#endif // USE_CXX11_CLOCK
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -27,7 +36,6 @@
 #include <sys/time.h> //gettimeofday()
 #include <unistd.h>   // sleep()
 #endif                // _WIN32
-#endif
 
 #if NCNN_BENCHMARK
 #include "layer/convolution.h"
@@ -46,7 +54,7 @@ namespace ncnn {
 
 double get_current_time()
 {
-#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
+#if USE_CXX11_CLOCK
     auto now = std::chrono::high_resolution_clock::now();
     auto usec = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch());
     return usec.count() / 1000.0;
@@ -69,7 +77,7 @@ double get_current_time()
 
 void sleep(unsigned long long int milliseconds)
 {
-#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
+#if USE_CXX11_CLOCK && NCNN_THREADS
     std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 #else
 #ifdef _WIN32

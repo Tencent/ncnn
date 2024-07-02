@@ -559,7 +559,7 @@ else()
         unset(CMAKE_REQUIRED_FLAGS)
     endif()
 
-    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_COMPILER_SUPPORT_X86_AVX)
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "Emscripten|WASI" AND NCNN_COMPILER_SUPPORT_X86_AVX)
         option(NCNN_AVX "optimize x86 platform with avx extension" ON)
         if(NCNN_COMPILER_SUPPORT_X86_FMA)
             if(NCNN_AVX)

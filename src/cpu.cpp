@@ -17,8 +17,10 @@
 #include "platform.h"
 
 #include <limits.h>
+#ifndef __wasi__
 #include <setjmp.h>
 #include <signal.h>
+#endif // __wasi__
 #include <stdio.h>
 #include <string.h>
 
