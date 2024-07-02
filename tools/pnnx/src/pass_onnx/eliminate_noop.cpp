@@ -113,16 +113,16 @@ void eliminate_noop_with_shape(onnx::ModelProto& model)
         const onnx::NodeProto& node = graph->node(i);
         const std::string& op_type = node.op_type();
 
-        onnx::ValueInfoProto* input_value = find_value_info_by_name(graph, node.input(0));
-        onnx::ValueInfoProto* output_value = find_value_info_by_name(graph, node.output(0));
-
-        if (!input_value || !output_value)
-            continue;
-
         bool noop = false;
 
         if (op_type == "Cast")
         {
+            onnx::ValueInfoProto* input_value = find_value_info_by_name(graph, node.input(0));
+            onnx::ValueInfoProto* output_value = find_value_info_by_name(graph, node.output(0));
+
+            if (!input_value || !output_value)
+                continue;
+
             if (input_value->type().has_tensor_type() && output_value->type().has_tensor_type())
             {
                 if (input_value->type().tensor_type().elem_type() == output_value->type().tensor_type().elem_type())
@@ -132,6 +132,12 @@ void eliminate_noop_with_shape(onnx::ModelProto& model)
 
         if (op_type == "Reshape")
         {
+            onnx::ValueInfoProto* input_value = find_value_info_by_name(graph, node.input(0));
+            onnx::ValueInfoProto* output_value = find_value_info_by_name(graph, node.output(0));
+
+            if (!input_value || !output_value)
+                continue;
+
             if (input_value->type().has_tensor_type() && output_value->type().has_tensor_type())
             {
                 const onnx::TensorShapeProto& input_tsp = input_value->type().tensor_type().shape();
