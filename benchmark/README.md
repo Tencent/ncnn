@@ -7184,6 +7184,44 @@ cooling_down = 0
           FastestDet  min =  199.71  max =  200.38  avg =  199.90
 ```
 
+### CVITEK SG2000 (C906, 1 GHz x 1 + 700MHz x 1)
+```
+[root@milkv-duo]~/ncnn# ./benchncnn 4 1 2 -1 0
+loop_count = 4
+num_threads = 1
+powersave = 2
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =  221.53  max =  229.14  avg =  225.53
+     squeezenet_int8  min = 8153.49  max = 8163.26  avg = 8160.17
+           mobilenet  min =  329.60  max =  338.58  avg =  335.00
+      mobilenet_int8  min = 12725.12  max = 12733.70  avg = 12728.52
+        mobilenet_v2  min =  253.83  max =  260.60  avg =  257.20
+        mobilenet_v3  min =  205.51  max =  212.72  avg =  209.26
+          shufflenet  min =  358.73  max =  367.05  avg =  364.52
+       shufflenet_v2  min =  238.44  max =  246.05  avg =  242.09
+             mnasnet  min =  254.39  max =  258.26  avg =  255.63
+     proxylessnasnet  min =  294.99  max =  302.80  avg =  300.65
+        regnety_400m  min =  407.72  max =  409.69  avg =  409.03
+           blazeface  min =  117.08  max =  124.26  avg =  119.00
+           googlenet  min =  817.28  max =  824.70  avg =  820.70
+      googlenet_int8  min = 18246.97  max = 18276.23  avg = 18261.11
+            resnet18  min =  610.81  max =  618.87  avg =  613.91
+       resnet18_int8  min = 18772.96  max = 18808.53  avg = 18786.88
+             alexnet  min =  568.11  max =  577.02  avg =  570.66
+      squeezenet_ssd  min =  890.76  max =  896.30  avg =  893.57
+ squeezenet_ssd_int8  min = 31680.48  max = 31938.09  avg = 31810.68
+       mobilenet_ssd  min =  746.38  max =  762.07  avg =  752.19
+  mobilenet_ssd_int8  min = 41140.62  max = 41540.85  avg = 41356.70
+      mobilenet_yolo  min = 1744.59  max = 1755.90  avg = 1750.05
+  mobilenetv2_yolov3  min =  890.20  max =  897.86  avg =  895.14
+         yolov4-tiny  min = 1056.03  max = 1059.44  avg = 1058.21
+           nanodet_m  min =  547.85  max =  554.80  avg =  549.81
+    yolo-fastest-1.1  min =  290.89  max =  298.31  avg =  296.24
+      yolo-fastestv2  min =  188.59  max =  196.79  avg =  190.96
+          FastestDet  min =  196.19  max =  205.96  avg =  200.99
+```
+
 ### Rockchip RK3588 (Quad Core A76 2.4GHz + Quad Core A55 1.8GHz)
 test in ROCK5 MODEL B
 
