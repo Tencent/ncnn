@@ -303,6 +303,10 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_fft_fftn.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp
+
+    pass_level2/nn_GRU.cpp
+    pass_level2/nn_LSTM.cpp
+    pass_level2/nn_RNN.cpp
 )
 
 set(pnnx_pass_level3_SRCS
