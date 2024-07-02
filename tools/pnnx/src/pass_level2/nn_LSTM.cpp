@@ -28,7 +28,7 @@ pnnx.Input              input_0     0 1 input
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 LSTM                    lstm        3 1 input W R out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=1
+Squeeze                 sqz         1 1 out out1 axes=%axes
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -75,6 +75,15 @@ pnnx.Output             output      1 0 out1
                 if (acts != std::vector<std::string>{"Sigmoid", "Tanh", "Tanh", "Sigmoid", "Tanh", "Tanh"})
                     return false;
             }
+        }
+
+        if (captured_params.find("axes") != captured_params.end())
+        {
+            if (captured_params.at("axes").type == 2 && captured_params.at("axes").i != 1)
+                return false;
+
+            if (captured_params.at("axes").type == 5 && captured_params.at("axes").ai != std::vector<int>{1})
+                return false;
         }
 
         const auto& W = captured_attrs.at("W.data");
@@ -233,7 +242,7 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 LSTM                    lstm        4 1 input W R B out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=1
+Squeeze                 sqz         1 1 out out1 axes=%axes
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -394,7 +403,7 @@ pnnx.Input              input_2     0 1 initial_c
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 LSTM                    lstm        5 3 input W R initial_h initial_c out outh outc %*=%*
-Squeeze                 sqz         1 1 out out1 axes=1
+Squeeze                 sqz         1 1 out out1 axes=%axes
 pnnx.Output             output      3 0 out1 outh outc
 )PNNXIR";
     }
@@ -416,7 +425,7 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 LSTM                    lstm        6 3 input W R B initial_h initial_c out outh outc %*=%*
-Squeeze                 sqz         1 1 out out1 axes=1
+Squeeze                 sqz         1 1 out out1 axes=%axes
 pnnx.Output             output      3 0 out1 outh outc
 )PNNXIR";
     }
@@ -437,7 +446,7 @@ pnnx.Input              input_2     0 1 initial_c
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 LSTM                    lstm        5 1 input W R initial_h initial_c out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=1
+Squeeze                 sqz         1 1 out out1 axes=%axes
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -459,7 +468,7 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 LSTM                    lstm        6 1 input W R B initial_h initial_c out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=1
+Squeeze                 sqz         1 1 out out1 axes=%axes
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -479,9 +488,20 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 LSTM                    lstm        3 1 input W R out %*=%*
 Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 shape=(0,0,-1) allowzero=0
+Reshape                 reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        if (!nn_LSTM_onnx::match(captured_params, captured_attrs))
+            return false;
+
+        if (captured_params.at("reshape.shape").ai != std::vector<int>{0, 0, -1})
+            return false;
+
+        return true;
     }
 };
 
@@ -500,15 +520,26 @@ pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 LSTM                    lstm        4 1 input W R B out %*=%*
 Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 shape=(0,0,-1) allowzero=0
+Reshape                 reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        if (!nn_LSTM_onnx_B::match(captured_params, captured_attrs))
+            return false;
+
+        if (captured_params.at("reshape.shape").ai != std::vector<int>{0, 0, -1})
+            return false;
+
+        return true;
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_B3, 10)
 
-class nn_LSTM_onnx_4 : public nn_LSTM_onnx
+class nn_LSTM_onnx_4 : public nn_LSTM_onnx_3
 {
 public:
     const char* match_pattern_graph() const
@@ -522,7 +553,7 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 LSTM                    lstm        5 3 input W R initial_h initial_c out outh outc %*=%*
 Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 shape=(0,0,-1) allowzero=0
+Reshape                 reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      3 0 out2 outh outc
 )PNNXIR";
     }
@@ -530,7 +561,7 @@ pnnx.Output             output      3 0 out2 outh outc
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_4, 10)
 
-class nn_LSTM_onnx_B4 : public nn_LSTM_onnx_B
+class nn_LSTM_onnx_B4 : public nn_LSTM_onnx_B3
 {
 public:
     const char* match_pattern_graph() const
@@ -545,7 +576,7 @@ pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 LSTM                    lstm        6 3 input W R B initial_h initial_c out outh outc %*=%*
 Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 shape=(0,0,-1) allowzero=0
+Reshape                 reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      3 0 out2 outh outc
 )PNNXIR";
     }
@@ -553,7 +584,7 @@ pnnx.Output             output      3 0 out2 outh outc
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_B4, 10)
 
-class nn_LSTM_onnx_5 : public nn_LSTM_onnx
+class nn_LSTM_onnx_5 : public nn_LSTM_onnx_3
 {
 public:
     const char* match_pattern_graph() const
@@ -567,7 +598,7 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 LSTM                    lstm        5 1 input W R initial_h initial_c out %*=%*
 Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 shape=(0,0,-1) allowzero=0
+Reshape                 reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
@@ -575,7 +606,7 @@ pnnx.Output             output      1 0 out2
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_5, 10)
 
-class nn_LSTM_onnx_B5 : public nn_LSTM_onnx_B
+class nn_LSTM_onnx_B5 : public nn_LSTM_onnx_B3
 {
 public:
     const char* match_pattern_graph() const
@@ -590,7 +621,7 @@ pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 LSTM                    lstm        6 1 input W R B initial_h initial_c out %*=%*
 Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 shape=(0,0,-1) allowzero=0
+Reshape                 reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
