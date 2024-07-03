@@ -294,6 +294,15 @@ static inline void swap_endianness_32(void* x)
 #define NCNN_LOGE(...) do { \
     fprintf(stderr, ##__VA_ARGS__); fprintf(stderr, "\n"); \
     __android_log_print(ANDROID_LOG_WARN, "ncnn", ##__VA_ARGS__); } while(0)
+#elif NCNN_PLATFORM_API && __OHOS__
+#ifndef LOG_DOMAIN
+#define LOG_DOMAIN 0x6E68
+#endif
+#ifndef LOG_TAG
+#define LOG_TAG "ncnn"
+#endif
+#include <hilog/log.h>
+#define NCNN_LOGE(...) OH_LOG_ERROR(LOG_APP, ##__VA_ARGS__)
 #else // NCNN_PLATFORM_API && __ANDROID_API__ >= 8
 #include <stdio.h>
 #define NCNN_LOGE(...) do { \
