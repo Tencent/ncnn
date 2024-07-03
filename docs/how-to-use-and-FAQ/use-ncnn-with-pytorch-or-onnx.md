@@ -45,11 +45,26 @@ https://github.com/daquexian/onnx-simplifier
 python3 -m onnxsim resnet18.onnx resnet18-sim.onnx
 ```
 
+Or you can use another powerful model simplification tool implemented in pure Python:
+
+https://github.com/tsingmicro-toolchain/OnnxSlim
+
+```
+python3 -m onnxslim resnet18.onnx resnet18-sim.onnx
+```
+
+
 ## onnx to ncnn
 
-Finally, you can convert the model to ncnn using tools/onnx2ncnn
+
+~~[Deprecated]Finally, you can convert the model to ncnn using tools/onnx2ncnn~~
+
+~~onnx2ncnn resnet18-sim.onnx resnet18.param resnet18.bin~~
+
+It is recommended to use the pnnx tool to convert your onnx model into a ncnn model.
 
 ```
-onnx2ncnn resnet18-sim.onnx resnet18.param resnet18.bin
+pnnx resnet18-sim.onnx resnet18.param resnet18.bin
 ```
 
+more details: https://github.com/pnnx/pnnx

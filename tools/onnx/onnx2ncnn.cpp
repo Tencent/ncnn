@@ -2956,11 +2956,13 @@ static std::string trunc_name(std::string name)
 
 int main(int argc, char** argv)
 {
+    const char* recommended_pnnx_str = "onnx2ncnn was deprecated! Recommended to use the pnnx tool now.\n";
     if (!(argc == 2 || argc == 4))
     {
-        fprintf(stderr, "Usage: %s [onnxpb] [ncnnparam] [ncnnbin]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [onnxpb] [ncnnparam] [ncnnbin]\n%s", argv[0], recommended_pnnx_str);
         return -1;
     }
+    fprintf(stderr, "%s", recommended_pnnx_str);
 
     const char* onnxpb = argv[1];
     const char* ncnn_prototxt = argc == 4 ? argv[2] : "ncnn.param";
@@ -6135,6 +6137,7 @@ int main(int argc, char** argv)
             }
         }
     }
+    fprintf(stderr, "%s", recommended_pnnx_str);
 
     fclose(pp);
     fclose(bp);
