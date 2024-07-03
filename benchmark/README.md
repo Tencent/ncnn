@@ -8617,12 +8617,11 @@ cooling_down = 0
   vision_transformer  min =  153.75  max =  198.81  avg =  165.58
           FastestDet  min =    3.01  max =    5.01  avg =    3.29
 ```
-```
 
 ### AXERA AX630C (Cortex-A53 1.2GHz * 2)
 
 ```
-# /root/zhangbing/ncnn/build-aarch64-linux-gnu/benchmark # ./benchncnn 4 1 0 -1 0
+# ~/ncnn/build-aarch64-linux-gnu/benchmark # ./benchncnn 4 1 0 -1 0
 loop_count = 4
 num_threads = 1
 powersave = 0
@@ -8655,7 +8654,7 @@ cooling_down = 0
       yolo-fastestv2  min =   73.94  max =   74.15  avg =   74.05
           FastestDet  min =   81.89  max =   82.07  avg =   81.98
           
-# /ncnn/build-aarch64-linux-gnu/benchmark # ./benchncnn 4 2 0 -1 0
+# ~/ncnn/build-aarch64-linux-gnu/benchmark # ./benchncnn 4 2 0 -1 0
 loop_count = 4
 num_threads = 2
 powersave = 0
@@ -8687,3 +8686,4 @@ cooling_down = 0
   mobilenetv2_yolov3  min =  300.33  max =  316.59  avg =  304.89
       yolo-fastestv2  min =   50.27  max =   50.62  avg =   50.43
           FastestDet  min =   53.34  max =   53.64  avg =   53.51
+```
