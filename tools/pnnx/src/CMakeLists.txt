@@ -124,7 +124,9 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_conv2d.cpp
     pass_level2/F_conv3d.cpp
     pass_level2/F_conv_transpose123d.cpp
+    pass_level2/F_conv_transpose1d.cpp
     pass_level2/F_conv_transpose2d.cpp
+    pass_level2/F_conv_transpose3d.cpp
     pass_level2/F_dropout.cpp
     pass_level2/F_dropout23d.cpp
     pass_level2/F_elu.cpp
@@ -268,13 +270,15 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_sum.cpp
     pass_level2/torch_t.cpp
     pass_level2/torch_tensor_split.cpp
+    pass_level2/torch_tile.cpp
     pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
     pass_level2/torch_view_as_complex.cpp
-    pass_level2/torch_view_as_real.cpp    
+    pass_level2/torch_view_as_real.cpp
+    pass_level2/torch_where.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
     pass_level2/torch_stft.cpp
@@ -299,6 +303,10 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_fft_fftn.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp
+
+    pass_level2/nn_GRU.cpp
+    pass_level2/nn_LSTM.cpp
+    pass_level2/nn_RNN.cpp
 )
 
 set(pnnx_pass_level3_SRCS
@@ -648,8 +656,10 @@ if(onnxruntime_FOUND)
         pass_onnx/eliminate_noop.cpp
         pass_onnx/fold_constants.cpp
         pass_onnx/inline_containers.cpp
+        pass_onnx/inline_if_graph.cpp
         pass_onnx/model_stat.cpp
         pass_onnx/shape_inference.cpp
+        pass_onnx/fuse_constant_as_attribute.cpp
 
         pass_onnx/nn_AdaptiveAvgPool2d.cpp
         pass_onnx/nn_AdaptiveAvgPool3d.cpp

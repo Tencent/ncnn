@@ -6,11 +6,11 @@
 [![Download Total Count](https://img.shields.io/github/downloads/Tencent/ncnn/total.svg?style=for-the-badge)](https://github.com/Tencent/ncnn/releases)
 [![codecov](https://img.shields.io/codecov/c/github/Tencent/ncnn/master?style=for-the-badge)](https://codecov.io/gh/Tencent/ncnn)
 
-ncnn is a high-performance neural network inference computing framework optimized for mobile platforms. 
+ncnn is a high-performance neural network inference computing framework optimized for mobile platforms.
 ncnn is deeply considerate about deployment and uses on mobile phones from the beginning of design.
 ncnn does not have third-party dependencies.
 It is cross-platform and runs faster than all known open-source frameworks on mobile phone cpu.
-Developers can easily deploy deep learning algorithm models to the mobile platform by using efficient ncnn implementation, creating intelligent APPs, and bringing artificial intelligence to your fingertips. 
+Developers can easily deploy deep learning algorithm models to the mobile platform by using efficient ncnn implementation, creating intelligent APPs, and bringing artificial intelligence to your fingertips.
 ncnn is currently being used in many Tencent applications, such as QQ, Qzone, WeChat, Pitu, and so on.
 
 ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架。
@@ -150,7 +150,7 @@ https://github.com/Tencent/ncnn/releases/latest
   <img src="https://user-images.githubusercontent.com/25181517/121406611-a8246b80-c95e-11eb-9b11-b771486377f6.png" width="120" height="auto">
 </td>
 <td colspan=3>
-  
+
 - [Build for iOS on macOS with xcode](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-ios-on-macos-with-xcode)
 
 </td>
@@ -184,7 +184,7 @@ https://github.com/Tencent/ncnn/releases/latest
   <img src="https://user-images.githubusercontent.com/25181517/186884152-ae609cca-8cf1-4175-8d60-1ce1fa078ca2.png" width="120" height="auto">
 </td>
 <td colspan=3>
-  
+
 - [Build for macOS](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-macos)
 
 </td>
@@ -336,6 +336,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td colspan=3>
 
 - [Build for Windows x64 using VS2017](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-windows-x64-using-visual-studio-community-2017)
+- [Build for Windows x64 using MinGW-w64](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-windows-x64-using-mingw-w64)
 
 </td>
 </tr>

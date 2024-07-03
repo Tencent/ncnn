@@ -44,11 +44,16 @@ static void collect_dead_nodes(const onnx::GraphProto& graph, std::vector<std::s
 
         if (is_outputs_live)
         {
-            for (int j = 0; j < node.output_size(); j++)
+            for (int j = node.output_size() - 1; j >= 0; j--)
             {
                 if (live_inputs.find(node.output(j)) == live_inputs.end())
                 {
                     dead_outputs.push_back(node.output(j));
+                }
+                else
+                {
+                    // leading outputs cannot be optional
+                    break;
                 }
             }
 
@@ -140,11 +145,41 @@ void dead_code_elimination(onnx::ModelProto& model)
                     const int graph_value_info_size = graph->value_info_size();
                     for (int k = j; k < graph_value_info_size - 1; k++)
                     {
-                        graph->mutable_node()->SwapElements(k, k + 1);
+                        graph->mutable_value_info()->SwapElements(k, k + 1);
                     }
 
                     //  ..... ....... j
                     graph->mutable_value_info()->RemoveLast();
+
+                    break;
+                }
+            }
+        }
+
+        for (int i = 0; i < graph->node_size(); i++)
+        {
+            onnx::NodeProto* node = graph->mutable_node(i);
+
+            for (int j = 0; j < node->output_size(); j++)
+            {
+                bool has_dead_output = false;
+                for (auto x : dead_outputs)
+                {
+                    if (x == node->output(j))
+                    {
+                        has_dead_output = true;
+                        break;
+                    }
+                }
+
+                if (has_dead_output)
+                {
+                    // drop optional unused outputs
+                    const int node_output_size = node->output_size();
+                    for (int k = j; k < node_output_size; k++)
+                    {
+                        node->mutable_output()->RemoveLast();
+                    }
 
                     break;
                 }

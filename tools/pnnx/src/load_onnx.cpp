@@ -32,8 +32,10 @@
 #include "pass_onnx/eliminate_noop.h"
 #include "pass_onnx/fold_constants.h"
 #include "pass_onnx/inline_containers.h"
+#include "pass_onnx/inline_if_graph.h"
 #include "pass_onnx/model_stat.h"
 #include "pass_onnx/shape_inference.h"
+#include "pass_onnx/fuse_constant_as_attribute.h"
 
 #include "pass_onnx.h"
 
@@ -543,91 +545,100 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     onnx2pnnx::ModelStat oldstat = onnx2pnnx::get_model_stat(model);
 
-    fprintf(stderr, "%-34s", "inline_containers ... ");
+    double t0 = 0;
+    double t1 = 0;
 
-    double t0 = get_current_time();
+    int inlined = 0;
 
-    onnx2pnnx::inline_containers(model);
+    do
+    {
+        fprintf(stderr, "%-34s", "inline_containers ... ");
 
-    double t1 = get_current_time();
+        t0 = get_current_time();
 
-    fprintf(stderr, "%8.2fms\n", t1 - t0);
+        onnx2pnnx::inline_containers(model);
 
-    fprintf(stderr, "%-34s", "eliminate_noop ... ");
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "eliminate_noop ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::eliminate_noop(model);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "fold_constants ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::fold_constants(model, input_shapes, input_types, input_shapes2, input_types2);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "canonicalize ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::canonicalize(model);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "shape_inference ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::shape_inference(model, input_shapes, input_types, input_shapes2, input_types2);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "fold_constants_dynamic_shape ... ");
+
+        t0 = get_current_time();
+
+        onnx2pnnx::fold_constants_dynamic_shape(model, input_shapes, input_types);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        fprintf(stderr, "%-34s", "inline_if_graph ... ");
+
+        t0 = get_current_time();
+
+        inlined = onnx2pnnx::inline_if_graph(model);
+
+        t1 = get_current_time();
+
+        fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+    } while (inlined);
+
+    fprintf(stderr, "%-34s", "fuse_constant_as_attribute ... ");
 
     t0 = get_current_time();
 
-    onnx2pnnx::eliminate_noop(model);
+    onnx2pnnx::fuse_constant_as_attribute(model);
 
     t1 = get_current_time();
 
     fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-    fprintf(stderr, "%-34s", "dead_code_elimination ... ");
+    fprintf(stderr, "%-34s", "eliminate_noop_with_shape ... ");
 
     t0 = get_current_time();
 
-    onnx2pnnx::dead_code_elimination(model);
-
-    t1 = get_current_time();
-
-    fprintf(stderr, "%8.2fms\n", t1 - t0);
-
-    fprintf(stderr, "%-34s", "fold_constants ... ");
-
-    t0 = get_current_time();
-
-    onnx2pnnx::fold_constants(model, input_shapes, input_types, input_shapes2, input_types2);
-
-    t1 = get_current_time();
-
-    fprintf(stderr, "%8.2fms\n", t1 - t0);
-
-    fprintf(stderr, "%-34s", "dead_code_elimination ... ");
-
-    t0 = get_current_time();
-
-    onnx2pnnx::dead_code_elimination(model);
-
-    t1 = get_current_time();
-
-    fprintf(stderr, "%8.2fms\n", t1 - t0);
-
-    fprintf(stderr, "%-34s", "canonicalize ... ");
-
-    t0 = get_current_time();
-
-    onnx2pnnx::canonicalize(model);
-
-    t1 = get_current_time();
-
-    fprintf(stderr, "%8.2fms\n", t1 - t0);
-
-    fprintf(stderr, "%-34s", "shape_inference ... ");
-
-    t0 = get_current_time();
-
-    onnx2pnnx::shape_inference(model, input_shapes, input_types, input_shapes2, input_types2);
-
-    t1 = get_current_time();
-
-    fprintf(stderr, "%8.2fms\n", t1 - t0);
-
-    fprintf(stderr, "%-34s", "fold_constants_dynamic_shape ... ");
-
-    t0 = get_current_time();
-
-    onnx2pnnx::fold_constants_dynamic_shape(model, input_shapes, input_types);
-
-    t1 = get_current_time();
-
-    fprintf(stderr, "%8.2fms\n", t1 - t0);
-
-    fprintf(stderr, "%-34s", "dead_code_elimination ... ");
-
-    t0 = get_current_time();
-
-    onnx2pnnx::dead_code_elimination(model);
+    onnx2pnnx::eliminate_noop_with_shape(model);
 
     t1 = get_current_time();
 

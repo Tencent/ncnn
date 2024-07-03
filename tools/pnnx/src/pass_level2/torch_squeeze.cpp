@@ -110,9 +110,21 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-Squeeze                 op_0        1 1 input out axes=%dim
+Squeeze                 op_0        1 1 input out axes=%axes
 pnnx.Output             output      1 0 out
 )PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("axes").type == 5 && captured_params.at("axes").ai.size() == 1)
+        {
+            op->params["dim"] = captured_params.at("axes").ai[0];
+        }
+        else
+        {
+            op->params["dim"] = captured_params.at("axes");
+        }
     }
 };
 
