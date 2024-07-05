@@ -1,0 +1,96 @@
+name: ESP32
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/esp32.yml'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/*'
+      - 'src/layer/*'
+      - 'src/layer/x86/**'
+      - 'src/layer/vulkan/**'
+      - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/esp32.yml'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/*'
+      - 'src/layer/*'
+      - 'src/layer/x86/**'
+      - 'src/layer/vulkan/**'
+      - 'tests/**'
+  workflow_dispatch:
+
+concurrency:
+  group: esp32-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ESP32
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+      - name: Install build-essential
+        run: sudo apt-get install -y build-essential
+
+      - name: Cache-ESP-IDF
+        id: Cache-ESP-IDF
+        uses: actions/cache@v2
+        with:
+          path: esp-idf-install
+          key: esp-idf-${{ runner.os }}-install
+
+      - name: Clone and Install ESP-IDF
+        if: steps.Cache-ESP-IDF.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/espressif/esp-idf
+          cd esp-idf
+          git submodule update --init --recursive
+          ./install.sh
+
+      - name: Set up ESP-IDF environment
+        run: |
+          source esp-idf/export.sh
+          echo "${IDF_PATH}/tools" >> $GITHUB_PATH
+          echo "${IDF_PATH}/components" >> $GITHUB_PATH
+
+      - name: Create toolchain file
+        run: |
+          mkdir -p toolchains
+          echo "set(CMAKE_SYSTEM_NAME freertos)" > toolchains/esp32.toolchain.cmake
+          echo "set(CMAKE_SYSTEM_PROCESSOR xtensa-esp32)" >> toolchains/esp32.toolchain.cmake
+          echo "include(\$ENV{IDF_PATH}/tools/cmake/toolchain-esp32.cmake)" >> toolchains/esp32.toolchain.cmake
+          echo "set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)" >> toolchains/esp32.toolchain.cmake
+          echo "set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)" >> toolchains/esp32.toolchain.cmake
+          echo "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)" >> toolchains/esp32.toolchain.cmake
+          echo "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)" >> toolchains/esp32.toolchain.cmake
+          echo "set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)" >> toolchains/esp32.toolchain.cmake
+          echo "set(CMAKE_C_FLAGS \"\${CMAKE_C_FLAGS}\" CACHE STRING \"c flags\")" >> toolchains/esp32.toolchain.cmake
+          echo "set(CMAKE_CXX_FLAGS \"\${CMAKE_CXX_FLAGS}\" CACHE STRING \"c++ flags\")" >> toolchains/esp32.toolchain.cmake
+
+      - name: Build NCNN for ESP32
+        run: |
+          mkdir -p build-esp32 && cd build-esp32
+          cmake -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/ncnn/toolchains/esp32.toolchain.cmake" -DCMAKE_BUILD_TYPE=Release ..
+          make -j4
+          make install
