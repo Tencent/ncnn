@@ -897,6 +897,8 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")
+
+option(NCNN_BUILD_BENCHMARK "" OFF)
 ```
 Note: The ncnn cmake compilation option can be added to the above cmake file to simplify the functionality.
 

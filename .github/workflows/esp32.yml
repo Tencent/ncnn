@@ -22,7 +22,6 @@ on:
       - 'src/layer/x86/**'
       - 'src/layer/vulkan/**'
       - 'tests/**'
-  workflow_dispatch:
 
 concurrency:
   group: esp32-${{ github.ref }}
@@ -50,8 +49,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build ccache
-      - name: Install build-essential
-        run: sudo apt-get install -y build-essential
 
       - name: Cache-ESP-IDF
         id: Cache-ESP-IDF
@@ -68,29 +65,13 @@ jobs:
           git submodule update --init --recursive
           ./install.sh
 
-      - name: Set up ESP-IDF environment
+      - name: Set environment and build NCNN for ESP32
         run: |
           source esp-idf/export.sh
+          echo "IDF_PATH=$IDF_PATH" >> $GITHUB_ENV
           echo "${IDF_PATH}/tools" >> $GITHUB_PATH
           echo "${IDF_PATH}/components" >> $GITHUB_PATH
-
-      - name: Create toolchain file
-        run: |
-          mkdir -p toolchains
-          echo "set(CMAKE_SYSTEM_NAME freertos)" > toolchains/esp32.toolchain.cmake
-          echo "set(CMAKE_SYSTEM_PROCESSOR xtensa-esp32)" >> toolchains/esp32.toolchain.cmake
-          echo "include(\$ENV{IDF_PATH}/tools/cmake/toolchain-esp32.cmake)" >> toolchains/esp32.toolchain.cmake
-          echo "set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)" >> toolchains/esp32.toolchain.cmake
-          echo "set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)" >> toolchains/esp32.toolchain.cmake
-          echo "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)" >> toolchains/esp32.toolchain.cmake
-          echo "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)" >> toolchains/esp32.toolchain.cmake
-          echo "set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)" >> toolchains/esp32.toolchain.cmake
-          echo "set(CMAKE_C_FLAGS \"\${CMAKE_C_FLAGS}\" CACHE STRING \"c flags\")" >> toolchains/esp32.toolchain.cmake
-          echo "set(CMAKE_CXX_FLAGS \"\${CMAKE_CXX_FLAGS}\" CACHE STRING \"c++ flags\")" >> toolchains/esp32.toolchain.cmake
-
-      - name: Build NCNN for ESP32
-        run: |
           mkdir -p build-esp32 && cd build-esp32
-          cmake -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/ncnn/toolchains/esp32.toolchain.cmake" -DCMAKE_BUILD_TYPE=Release ..
-          make -j4
+          cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/esp32.toolchain.cmake" -DCMAKE_BUILD_TYPE=Release -DNCNN_BUILD_EXAMPLES=OFF ..
+          make -j 4
           make install
