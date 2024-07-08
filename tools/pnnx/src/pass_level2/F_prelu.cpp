@@ -43,6 +43,9 @@ class F_prelu_onnx : public GraphRewriterPass
 public:
     const char* match_pattern_graph() const
     {
+        // clang-format off
+        // *INDENT-OFF*
+
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
@@ -50,6 +53,9 @@ pnnx.Input              input_1     0 1 weight #weight=(?)f32
 PRelu                   op_0        2 1 input weight out
 pnnx.Output             output      1 0 out
 )PNNXIR";
+
+        // *INDENT-ON*
+        // clang-format on
     }
 
     const char* type_str() const
@@ -110,6 +116,9 @@ class F_prelu_onnx_2 : public GraphRewriterPass
 public:
     const char* match_pattern_graph() const
     {
+        // clang-format off
+        // *INDENT-OFF*
+
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 input
@@ -118,6 +127,9 @@ Unsqueeze               uqz         1 1 weight w2 axes=%axes
 PRelu                   op_0        2 1 input w2 out
 pnnx.Output             output      1 0 out
 )PNNXIR";
+
+        // *INDENT-ON*
+        // clang-format on
     }
 
     const char* type_str() const
