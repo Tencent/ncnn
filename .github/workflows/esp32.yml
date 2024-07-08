@@ -8,9 +8,6 @@ on:
       - 'cmake/**'
       - 'src/*'
       - 'src/layer/*'
-      - 'src/layer/x86/**'
-      - 'src/layer/vulkan/**'
-      - 'tests/**'
   pull_request:
     branches: [master]
     paths:
@@ -19,9 +16,6 @@ on:
       - 'cmake/**'
       - 'src/*'
       - 'src/layer/*'
-      - 'src/layer/x86/**'
-      - 'src/layer/vulkan/**'
-      - 'tests/**'
 
 concurrency:
   group: esp32-${{ github.ref }}
@@ -49,25 +43,23 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build ccache
-
-      - name: Cache-ESP-IDF
-        id: Cache-ESP-IDF
-        uses: actions/cache@v2
+            
+      - name: Checkout ESP-IDF
+        uses: actions/checkout@v4
         with:
+          repository: espressif/esp-idf
           path: esp-idf-install
-          key: esp-idf-${{ runner.os }}-install
-
-      - name: Clone and Install ESP-IDF
-        if: steps.Cache-ESP-IDF.outputs.cache-hit != 'true'
+          ref: release/v5.3
+          
+      - name: Install ESP-IDF
         run: |
-          git clone https://github.com/espressif/esp-idf
-          cd esp-idf
+          cd esp-idf-install
           git submodule update --init --recursive
           ./install.sh
 
       - name: Set environment and build NCNN for ESP32
         run: |
-          source esp-idf/export.sh
+          source esp-idf-install/export.sh
           echo "IDF_PATH=$IDF_PATH" >> $GITHUB_ENV
           echo "${IDF_PATH}/tools" >> $GITHUB_PATH
           echo "${IDF_PATH}/components" >> $GITHUB_PATH
