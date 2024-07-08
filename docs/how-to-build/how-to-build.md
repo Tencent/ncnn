@@ -27,6 +27,7 @@ git submodule update --init
 - [Build for QNX](#build-for-qnx)
 - [Build for Nintendo 3DS Homebrew Launcher](#build-for-nintendo-3ds-homebrew-launcher)
 - [Build for HarmonyOS with cross-compiling](#build-for-harmonyos-with-cross-compiling)
+- [Build for ESP32 with cross-compiling](#build-for-esp32-with-cross-compiling)
 
 ***
 
@@ -867,6 +868,8 @@ make -j$(nproc)
 make install
 ```
 
+***
+
 ### Build for ESP32 with cross-compiling
 Download esp-idf sdk
 ```shell
@@ -880,27 +883,6 @@ sudo sh install.sh
 source export.sh
 ```
 Note: python>=3.8, cmake>=3.24.0
-
-Setting up cross-compilation, Create `esp32.toolchain.cmake` in the `ncnn/toolchains` directory, Select the appropriate toolchain in esp-idf.
-```cmake
-set(CMAKE_SYSTEM_NAME freertos)
-set(CMAKE_SYSTEM_PROCESSOR xtensa-esp32)
-
-include($ENV{IDF_PATH}/tools/cmake/toolchain-esp32.cmake)
-
-set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")
-
-option(NCNN_BUILD_BENCHMARK "" OFF)
-```
-Note: The ncnn cmake compilation option can be added to the above cmake file to simplify the functionality.
 
 Build ncnn library:
 ```shell
