@@ -61,10 +61,10 @@ python3 -m onnxslim resnet18.onnx resnet18-sim.onnx
 
 ~~onnx2ncnn resnet18-sim.onnx resnet18.param resnet18.bin~~
 
-It is recommended to use the pnnx tool to convert your onnx model into a ncnn model.
+It is recommended to use the `pnnx` tool to convert your onnx model into a ncnn model.
 
 ```
-pnnx resnet18-sim.onnx resnet18.param resnet18.bin
+pnnx mobilenet_v2.onnx inputshape=[1,3,256,256]
 ```
 
 more details: https://github.com/pnnx/pnnx
