@@ -305,4 +305,49 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_onnx, 9)
 
+class F_gelu_onnx_1 : public F_gelu_onnx
+{
+public:
+    // (x * 0.5) * (1.0 + torch.erf(x / math.sqrt(2.0)))
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 9
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 0p5 value=%0p5
+aten::mul               op_1        2 1 input 0p5 15
+prim::Constant          op_2        0 1 sqrt2 value=%sqrt2
+aten::div               op_3        2 1 input sqrt2 16
+aten::erf               op_4        1 1 16 17
+prim::Constant          op_5        0 1 one value=%1
+aten::add               op_6        2 1 17 one 22
+aten::mul               op_7        2 1 15 22 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_onnx_1, 9)
+
+class F_gelu_onnx_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Gelu                    op_0        1 1 input out approximate=%approximate
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.gelu";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_onnx_2, 10)
+
 } // namespace pnnx
