@@ -28,6 +28,7 @@ git submodule update --init
 - [Build for QNX](#build-for-qnx)
 - [Build for Nintendo 3DS Homebrew Launcher](#build-for-nintendo-3ds-homebrew-launcher)
 - [Build for HarmonyOS with cross-compiling](#build-for-harmonyos-with-cross-compiling)
+- [Build for ESP32 with cross-compiling](#build-for-esp32-with-cross-compiling)
 
 ***
 
@@ -885,3 +886,31 @@ ${HM_SDK}/native/build-tools/cmake/bin/cmake -DOHOS_STL=c++_static -DOHOS_ARCH=a
 make -j$(nproc)
 make install
 ```
+
+***
+
+### Build for ESP32 with cross-compiling
+Download esp-idf sdk
+```shell
+git clone https://github.com/espressif/esp-idf
+cd esp-idf
+git submodule update --init --recursive
+```
+Install esp-idf sdk and configure the environment
+```shell
+sudo sh install.sh
+source export.sh
+```
+Note: python>=3.8, cmake>=3.24.0
+
+Build ncnn library:
+```shell
+mkdir build-esp32
+cd build-esp32
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/esp32.toolchain.cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j 4
+make install
+```
+Note: Make sure to compile in esp-idf environment.
+
+The compiled ncnn library and headers can be put to the esp32 project to test.
