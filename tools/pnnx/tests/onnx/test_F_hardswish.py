@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 def hardswish_forward_0(x):
     return x * F.hardsigmoid(x)
@@ -46,6 +47,9 @@ class Model(nn.Module):
         return x, y, z, w
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.10'):
+        return True
+
     net = Model()
     net.eval()
 
