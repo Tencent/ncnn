@@ -1976,7 +1976,6 @@ pnnx.Output             output      2 0 out outweight
     }
 };
 
-
 class fuse_multiheadattention_pass_onnx_4_1 : public fuse_multiheadattention_pass_onnx_4
 {
 public:
