@@ -621,6 +621,15 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         // clang-format off
         // *INDENT-OFF*
 
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && layer->support_fp16_storage)
+        {
+            Mat bottom_blob_fp16;
+            cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
+            bottom_blob = bottom_blob_fp16;
+        }
+        else
+#endif // NCNN_ARM82
 #if NCNN_VFPV4
         if (opt.use_fp16_storage && !opt.use_bf16_storage && cpu_support_arm_vfpv4() && layer->support_fp16_storage)
         {
@@ -740,6 +749,15 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         // clang-format off
         // *INDENT-OFF*
 
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && !layer->support_fp16_storage)
+        {
+            Mat bottom_blob_fp32;
+            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            bottom_blob = bottom_blob_fp32;
+        }
+        else
+#endif // NCNN_ARM82
 #if NCNN_VFPV4
         if (opt.use_fp16_storage && !opt.use_bf16_storage && cpu_support_arm_vfpv4() && !layer->support_fp16_storage)
         {
@@ -2719,8 +2737,20 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
         // clang-format off
         // *INDENT-OFF*
+#if NCNN_ARM82
+        if (d->opt.use_fp16_storage && cpu_support_arm_asimdhp() && (type == 0))
+        {
+            if (feat.elembits() == 16)
+            {
+                Mat feat_fp32;
+                cast_float16_to_float32(feat, feat_fp32, d->opt);
+                feat = feat_fp32;
+            }
+        }
+        else
+#endif // NCNN_ARM82
 #if NCNN_VFPV4
-        if (d->opt.use_fp16_storage && cpu_support_arm_vfpv4() && (type == 0))
+        if (d->opt.use_fp16_storage && !d->opt.use_bf16_storage && cpu_support_arm_vfpv4() && (type == 0))
         {
             if (feat.elembits() == 16)
             {
