@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 def hardsigmoid_forward_0(x):
     return F.relu6(x + 3., True) / 6.
@@ -49,6 +50,9 @@ class Model(nn.Module):
         return x, y, z, w
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.10'):
+        return True
+
     net = Model()
     net.eval()
 
