@@ -78,10 +78,10 @@ class Model(nn.Module):
             # zmask2 = zmask.reshape(1, 1, 30, 30).expand(1, 8, 30, 30)
             # y33, _ = self.attention_1_33(z, z, z, attn_mask=zmask2)
             # but it produce all nan then, skip test :(
-            y33 = y3
+            y33 = y3.relu()
         elif version.parse(torch.__version__) >= version.parse('2.0') and version.parse(torch.__version__) < version.parse('2.1'):
             # HACK pytorch 2.0 produce all nan, skip test :(
-            y33 = y3
+            y33 = y3.relu()
         else:
             y33, _ = self.attention_1_33(z, z, z, attn_mask=zmask.relu())
 
