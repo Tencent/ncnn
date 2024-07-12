@@ -58,23 +58,33 @@ pnnx.Output             output      1 0 out
         return "torch.prod";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.axes") == captured_params.end())
+            return false;
+
+        if (captured_params.at("op_0.axes").type != 2 && captured_params.at("op_0.axes").type != 5)
+            return false;
+
+        if (captured_params.at("op_0.axes").type == 5 && captured_params.at("op_0.axes").ai.size() > 1)
+            return false;
+
+        return true;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.axes") != captured_params.end())
+        int dim;
+        if (captured_params.at("op_0.axes").type == 2)
         {
-            op->params["dim"] = captured_params.at("op_0.axes");
+            dim = captured_params.at("op_0.axes").i;
         }
-        else
+        else // if (captured_params.at("op_0.axes").type == 5)
         {
-            // reduce all
-            const int input_rank = (int)op->inputs[0]->shape.size();
-            std::vector<int> dim(input_rank);
-            for (int i = 0; i < input_rank; i++)
-            {
-                dim[i] = i;
-            }
-            op->params["dim"] = dim;
+            dim = captured_params.at("op_0.axes").ai[0];
         }
+
+        op->params["dim"] = dim;
 
         if (captured_params.find("op_0.keepdims") != captured_params.end())
         {

@@ -15,42 +15,38 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, q, k, v, m):
-        x = F.scaled_dot_product_attention(q, k, v)
-        y = F.scaled_dot_product_attention(q, k, v, attn_mask=m)
-        return x, y
+    def forward(self, x, y, z):
+        x = torch.mean(x, dim=1, keepdim=False)
+        y = torch.mean(y, dim=(2,3), keepdim=False)
+        z = torch.mean(z, dim=0, keepdim=True)
+        return x, y, z
 
 def test():
-    if version.parse(torch.__version__) < version.parse('2.1'):
-        return True
-
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    q = torch.rand(3, 8, 128, 64)
-    k = torch.rand(3, 8, 48, 64)
-    v = torch.rand(3, 8, 48, 77)
-    m = torch.rand(3, 8, 128, 48)
+    x = torch.rand(1, 3, 16)
+    y = torch.rand(1, 5, 9, 11)
+    z = torch.rand(14, 8, 5, 9, 10)
 
-    a = net(q, k, v, m)
+    a = net(x, y, z)
 
     # export onnx
-    torch.onnx.export(net, (q, k, v, m), "test_F_scaled_dot_product_attention.onnx")
+    torch.onnx.export(net, (x, y, z), "test_torch_mean.onnx")
 
     # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_F_scaled_dot_product_attention.onnx inputshape=[3,8,128,64],[3,8,48,64],[3,8,48,77],[3,8,128,48]")
+    os.system("../../src/pnnx test_torch_mean.onnx inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
 
     # pnnx inference
-    import test_F_scaled_dot_product_attention_pnnx
-    b = test_F_scaled_dot_product_attention_pnnx.test_inference()
+    import test_torch_mean_pnnx
+    b = test_torch_mean_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
