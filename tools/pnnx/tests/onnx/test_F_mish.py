@@ -15,49 +15,57 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
+
+def mish_forward_0(x):
+    return x * F.softplus(x).tanh()
+
+def mish_forward_1(x):
+    return x.mul(torch.tanh(F.softplus(x)))
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
-
-        self.act_0 = nn.Sigmoid()
 
     def forward(self, x, y, z, w):
         x = x * 2 - 1
         y = y * 2 - 1
         z = z * 2 - 1
         w = w * 2 - 1
-        x = self.act_0(x)
-        y = self.act_0(y)
-        z = self.act_0(z)
-        w = self.act_0(w)
+        x = F.mish(x)
+        y = F.mish(y)
+        z = mish_forward_0(z)
+        w = mish_forward_1(w)
         return x, y, z, w
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.9'):
+        return True
+
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12)
-    y = torch.rand(1, 12, 64)
-    z = torch.rand(1, 12, 24, 64)
-    w = torch.rand(1, 12, 24, 32, 64)
+    x = torch.rand(1, 16)
+    y = torch.rand(12, 2, 16)
+    z = torch.rand(1, 3, 12, 16)
+    w = torch.rand(1, 5, 7, 9, 11)
 
     a = net(x, y, z, w)
 
     # export onnx
-    torch.onnx.export(net, (x, y, z, w), "test_nn_Sigmoid.onnx")
+    torch.onnx.export(net, (x, y, z, w), "test_F_mish.onnx")
 
     # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Sigmoid.onnx inputshape=[1,12],[1,12,64],[1,12,24,64],[1,12,24,32,64]")
+    os.system("../../src/pnnx test_F_mish.onnx inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
 
     # pnnx inference
-    import test_nn_Sigmoid_pnnx
-    b = test_nn_Sigmoid_pnnx.test_inference()
+    import test_F_mish_pnnx
+    b = test_F_mish_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 
