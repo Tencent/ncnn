@@ -83,30 +83,80 @@ pnnx.Output             output      1 0 out
         if (captured_params.find("op_0.axes") != captured_params.end())
         {
             op->params["dim"] = captured_params.at("op_0.axes");
+
+            if (captured_params.find("op_0.keepdims") != captured_params.end())
+            {
+                op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
+            }
+            else
+            {
+                op->params["keepdim"] = true;
+            }
         }
         else
         {
             // reduce all
-            const int input_rank = (int)op->inputs[0]->shape.size();
-            std::vector<int> dim(input_rank);
-            for (int i = 0; i < input_rank; i++)
-            {
-                dim[i] = i;
-            }
-            op->params["dim"] = dim;
-        }
-
-        if (captured_params.find("op_0.keepdims") != captured_params.end())
-        {
-            op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
-        }
-        else
-        {
-            op->params["keepdim"] = true;
         }
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx, 20)
+
+class torch_min_onnx_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+ReduceMin               op_0        1 1 input out %*=%*
+ArgMin                  op_1        1 1 input indices %*=%*
+pnnx.Output             output      2 0 out indices
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.min";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.axes") == captured_params.end())
+            return false;
+
+        if (captured_params.find("op_0.keepdims") == captured_params.end())
+            return false;
+
+        if (captured_params.find("op_1.axis") == captured_params.end())
+            return false;
+
+        if (captured_params.find("op_1.keepdims") == captured_params.end())
+            return false;
+
+        if (captured_params.at("op_0.axes").type != 5 || captured_params.at("op_0.axes").ai.size() != 1)
+            return false;
+
+        if (captured_params.at("op_1.axis").type != 2)
+            return false;
+
+        if (captured_params.at("op_0.axes").ai[0] != captured_params.at("op_1.axis").i)
+            return false;
+
+        if (captured_params.at("op_0.keepdims").i != captured_params.at("op_1.keepdims").i)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["dim"] = captured_params.at("op_0.axes").ai[0];
+        op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx_1, 19)
 
 } // namespace pnnx
