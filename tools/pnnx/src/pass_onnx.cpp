@@ -812,11 +812,27 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
                 bool is_attr_weight = false;
                 {
+                    if (sim_op_type == "BatchNormalization" && (j == 1 || j == 2 || j == 3 || j == 4))
+                        is_attr_weight = true;
                     if (sim_op_type == "Conv" && (j == 1 || j == 2))
                         is_attr_weight = true;
                     if (sim_op_type == "ConvTranspose" && (j == 1 || j == 2))
                         is_attr_weight = true;
+                    if (sim_op_type == "Gather" && j == 0)
+                        is_attr_weight = true;
+                    if (sim_op_type == "GroupNormalization" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                    if (sim_op_type == "GRU" && (j == 1 || j == 2 || j == 3 || j == 5))
+                        is_attr_weight = true;
                     if (sim_op_type == "InstanceNormalization" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                    if (sim_op_type == "LayerNormalization" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                    if (sim_op_type == "LSTM" && (j == 1 || j == 2 || j == 3 || j == 5 || j == 6))
+                        is_attr_weight = true;
+                    if (sim_op_type == "PRelu" && j == 1)
+                        is_attr_weight = true;
+                    if (sim_op_type == "RNN" && (j == 1 || j == 2 || j == 3 || j == 5))
                         is_attr_weight = true;
                 }
 
