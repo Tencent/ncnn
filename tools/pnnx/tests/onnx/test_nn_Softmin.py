@@ -20,7 +20,10 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.act_0 = nn.Sigmoid()
+        self.act_0 = nn.Softmin(dim=1)
+        self.act_1 = nn.Softmin(dim=1)
+        self.act_2 = nn.Softmin(dim=0)
+        self.act_3 = nn.Softmin(dim=2)
 
     def forward(self, x, y, z, w):
         x = x * 2 - 1
@@ -28,9 +31,9 @@ class Model(nn.Module):
         z = z * 2 - 1
         w = w * 2 - 1
         x = self.act_0(x)
-        y = self.act_0(y)
-        z = self.act_0(z)
-        w = self.act_0(w)
+        y = self.act_1(y)
+        z = self.act_2(z)
+        w = self.act_3(w)
         return x, y, z, w
 
 def test():
@@ -46,15 +49,15 @@ def test():
     a = net(x, y, z, w)
 
     # export onnx
-    torch.onnx.export(net, (x, y, z, w), "test_nn_Sigmoid.onnx")
+    torch.onnx.export(net, (x, y, z, w), "test_nn_Softmin.onnx")
 
     # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Sigmoid.onnx inputshape=[1,12],[1,12,64],[1,12,24,64],[1,12,24,32,64]")
+    os.system("../../src/pnnx test_nn_Softmin.onnx inputshape=[1,12],[1,12,64],[1,12,24,64],[1,12,24,32,64]")
 
     # pnnx inference
-    import test_nn_Sigmoid_pnnx
-    b = test_nn_Sigmoid_pnnx.test_inference()
+    import test_nn_Softmin_pnnx
+    b = test_nn_Softmin_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

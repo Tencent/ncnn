@@ -15,12 +15,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.act_0 = nn.Sigmoid()
+        self.act_0 = nn.Mish()
 
     def forward(self, x, y, z, w):
         x = x * 2 - 1
@@ -34,6 +35,9 @@ class Model(nn.Module):
         return x, y, z, w
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.9'):
+        return True
+
     net = Model()
     net.eval()
 
@@ -46,18 +50,18 @@ def test():
     a = net(x, y, z, w)
 
     # export onnx
-    torch.onnx.export(net, (x, y, z, w), "test_nn_Sigmoid.onnx")
+    torch.onnx.export(net, (x, y, z, w), "test_nn_Mish.onnx")
 
     # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Sigmoid.onnx inputshape=[1,12],[1,12,64],[1,12,24,64],[1,12,24,32,64]")
+    os.system("../../src/pnnx test_nn_Mish.onnx inputshape=[1,12],[1,12,64],[1,12,24,64],[1,12,24,32,64]")
 
     # pnnx inference
-    import test_nn_Sigmoid_pnnx
-    b = test_nn_Sigmoid_pnnx.test_inference()
+    import test_nn_Mish_pnnx
+    b = test_nn_Mish_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 
