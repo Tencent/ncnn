@@ -15,20 +15,30 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = x[:,:12,1:14:2]
+        if version.parse(torch.__version__) < version.parse('1.12'):
+            x = x[:,:12,1:14:1]
+        else:
+            x = x[:,:12,1:14:2]
         x = x[...,1:]
         x = x[:,:,:x.size(2)-1]
         y = y[0:,1:,5:,3:]
-        y = y[:,:,1:13:2,:14]
+        if version.parse(torch.__version__) < version.parse('1.12'):
+            y = y[:,:,1:13:1,:14]
+        else:
+            y = y[:,:,1:13:2,:14]
         y = y[:1,:y.size(1):,:,:]
         z = z[4:]
-        z = z[:2,:,:,:,2:-2:3]
+        if version.parse(torch.__version__) < version.parse('1.12'):
+            z = z[:2,:,:,:,2:-2:1]
+        else:
+            z = z[:2,:,:,:,2:-2:3]
         z = z[:,:,:,z.size(3)-3:,:]
         return x, y, z
 
