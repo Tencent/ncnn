@@ -27,19 +27,22 @@ class Model(nn.Module):
         else:
             x = x[:,:12,1:14:2]
         x = x[...,1:]
-        x = x[:,:,:x.size(2)-1]
+        if version.parse(torch.__version__) >= version.parse('1.10'):
+            x = x[:,:,:x.size(2)-1]
         y = y[0:,1:,5:,3:]
         if version.parse(torch.__version__) < version.parse('1.12'):
             y = y[:,:,1:13:1,:14]
         else:
             y = y[:,:,1:13:2,:14]
-        y = y[:1,:y.size(1):,:,:]
+        if version.parse(torch.__version__) >= version.parse('1.10'):
+            y = y[:1,:y.size(1):,:,:]
         z = z[4:]
         if version.parse(torch.__version__) < version.parse('1.12'):
             z = z[:2,:,:,:,2:-2:1]
         else:
             z = z[:2,:,:,:,2:-2:3]
-        z = z[:,:,:,z.size(3)-3:,:]
+        if version.parse(torch.__version__) >= version.parse('1.10'):
+            z = z[:,:,:,z.size(3)-3:,:]
         return x, y, z
 
 def test():
