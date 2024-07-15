@@ -48,7 +48,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 shape
 aten::cat               op_0        1 1 shape cat dim=0
-Reshape                 op_1        2 1 input cat out allowzero=*
+Reshape                 op_1        2 1 input cat out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -56,6 +56,10 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "Tensor.reshape";
+    }
+
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
     }
 };
 
@@ -67,53 +71,18 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 shape
-aten::cat               op_0        1 1 shape cat dim=0
-Reshape                 op_1        2 1 input cat out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_1, 19)
-
-class Tensor_reshape_onnx_2 : public Tensor_reshape_onnx
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 shape
-Reshape                 op_1        2 1 input shape out allowzero=*
+Reshape                 op_1        2 1 input shape out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_2, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_1, 20)
 
-class Tensor_reshape_onnx_3 : public Tensor_reshape_onnx
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 shape
-Reshape                 op_1        2 1 input shape out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_3, 20)
-
-class Tensor_reshape_onnx_4 : public GraphRewriterPass
+class Tensor_reshape_onnx_2 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -121,7 +90,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-Reshape                 op_1        1 1 input out shape=%shape allowzero=*
+Reshape                 op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -130,24 +99,28 @@ pnnx.Output             output      1 0 out
     {
         return "Tensor.reshape";
     }
-};
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_4, 20)
-
-class Tensor_reshape_onnx_5 : public Tensor_reshape_onnx_4
-{
-public:
-    const char* match_pattern_graph() const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-Reshape                 op_1        1 1 input out shape=%shape
-pnnx.Output             output      1 0 out
-)PNNXIR";
+        if (captured_params.find("op_0.shape") == captured_params.end())
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("op_0.shape").type == 5)
+        {
+            op->params["shape"] = captured_params.at("op_0.shape");
+        }
+        else // if (captured_params.at("op_0.shape").type == 2)
+        {
+            op->params["shape"] = std::vector<int>{captured_params.at("op_0.shape").i};
+        }
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_5, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_2, 20)
 
 } // namespace pnnx
