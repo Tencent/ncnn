@@ -74,7 +74,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 shape
-Reshape                 op_1        2 1 input shape out %*=%*
+Reshape                 op_0        2 1 input shape out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
