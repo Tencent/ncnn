@@ -308,7 +308,7 @@ _RVV_FLOAT16_COS_OP(8, 2)
                                                                                                  \
         /* clamp the inputs to the range [-9, 9] since anything outside */                       \
         /* this range is -/+1.0f in single-precision.                   */                       \
-        x2 = vfmin_vf_f16m##LMUL(x, c_tanh_hi, vl);                                              \
+        x2 = vfmin_vf_f16m##LMUL(x2, c_tanh_hi, vl);                                             \
                                                                                                  \
         /* since the polynomials are odd/even, we need x**2. */                                  \
         vfloat16m##LMUL##_t z = vfmul_vv_f16m##LMUL(x2, x2, vl);                                 \
