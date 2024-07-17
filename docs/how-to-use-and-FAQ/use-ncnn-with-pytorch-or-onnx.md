@@ -55,9 +55,9 @@ Or you can use another powerful model simplification tool implemented in pure Py
 #### how to use onnxslim?
 ```shell
 pip install onnxslim
-python -m onnxslim resnet18.onnx resnet18-sim.onnx
+python -m onnxslim resnet18.onnx resnet18-slim.onnx
 ```
-more informations: https://github.com/tsingmicro-toolchain/OnnxSlim
+more informations: https://github.com/inisis/OnnxSlim
 
 ## onnx to ncnn
 
