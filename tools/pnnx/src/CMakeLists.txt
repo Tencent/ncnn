@@ -472,6 +472,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_prelu.cpp
     pass_ncnn/F_relu.cpp
     pass_ncnn/F_relu6.cpp
+    pass_ncnn/F_scaled_dot_product_attention.cpp
     pass_ncnn/F_selu.cpp
     pass_ncnn/F_sigmoid.cpp
     pass_ncnn/F_silu.cpp
