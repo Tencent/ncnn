@@ -622,10 +622,10 @@ static int get_cpu_support_x86_avx512()
 {
 #if __APPLE__
     return get_hw_capability("hw.optional.avx512f")
-         && get_hw_capability("hw.optional.avx512bw")
-         && get_hw_capability("hw.optional.avx512cd")
-         && get_hw_capability("hw.optional.avx512dq")
-         && get_hw_capability("hw.optional.avx512vl");
+           && get_hw_capability("hw.optional.avx512bw")
+           && get_hw_capability("hw.optional.avx512cd")
+           && get_hw_capability("hw.optional.avx512dq")
+           && get_hw_capability("hw.optional.avx512vl");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
