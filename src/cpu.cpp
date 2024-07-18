@@ -129,8 +129,10 @@
 #include <immintrin.h>
 #endif
 
+#if (defined _WIN32 && (__aarch64__ || __arm__))
 #define RUAPU_IMPLEMENTATION
 #include "ruapu.h"
+#endif
 
 // topology info
 static int g_cpucount;
@@ -596,9 +598,6 @@ static int get_cpu_support_x86_avx2()
 
 static int get_cpu_support_x86_avx_vnni()
 {
-#if __APPLE__
-    return ruapu_supports("avxvnni");
-#else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
 
@@ -617,13 +616,16 @@ static int get_cpu_support_x86_avx_vnni()
 
     x86_cpuid_sublevel(7, 1, cpu_info);
     return cpu_info[0] & (1u << 4);
-#endif
 }
 
 static int get_cpu_support_x86_avx512()
 {
 #if __APPLE__
-    return ruapu_supports("avx512f") && ruapu_supports("avx512bw") && ruapu_supports("avx512cd") && ruapu_supports("avx512dq") && ruapu_supports("avx512vl");
+    return get_hw_capability("hw.optional.avx512f")
+         && get_hw_capability("hw.optional.avx512bw")
+         && get_hw_capability("hw.optional.avx512cd")
+         && get_hw_capability("hw.optional.avx512dq")
+         && get_hw_capability("hw.optional.avx512vl");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -653,7 +655,7 @@ static int get_cpu_support_x86_avx512()
 static int get_cpu_support_x86_avx512_vnni()
 {
 #if __APPLE__
-    return ruapu_supports("avx512vnni");
+    return get_hw_capability("hw.optional.avx512vnni");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -683,7 +685,7 @@ static int get_cpu_support_x86_avx512_vnni()
 static int get_cpu_support_x86_avx512_bf16()
 {
 #if __APPLE__
-    return ruapu_supports("avx512bf16");
+    return get_hw_capability("hw.optional.avx512bf16");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -709,7 +711,7 @@ static int get_cpu_support_x86_avx512_bf16()
 static int get_cpu_support_x86_avx512_fp16()
 {
 #if __APPLE__
-    return ruapu_supports("avx512fp16");
+    return get_hw_capability("hw.optional.avx512fp16");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -1867,7 +1869,7 @@ static void initialize_global_cpu_info()
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
-#if (defined _WIN32 && (__aarch64__ || __arm__)) || __APPLE__
+#if (defined _WIN32 && (__aarch64__ || __arm__))
     if (!is_being_debugged())
     {
         ruapu_init();
