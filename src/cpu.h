@@ -17,7 +17,7 @@
 
 #include <stddef.h>
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
@@ -40,7 +40,7 @@ public:
     int num_enabled() const;
 
 public:
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     ULONG_PTR mask;
 #endif
 #if defined __ANDROID__ || defined __linux__

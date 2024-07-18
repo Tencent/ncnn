@@ -46,7 +46,7 @@
 #include <emscripten/threading.h>
 #endif
 
-#if defined _WIN32 && !(defined __MINGW32__)
+#if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <powerbase.h>
@@ -747,7 +747,7 @@ static int get_cpucount()
         count = emscripten_num_logical_cores();
     else
         count = 1;
-#elif (defined _WIN32 && !(defined __MINGW32__))
+#elif defined _WIN32
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
     count = system_info.dwNumberOfProcessors;
@@ -814,7 +814,7 @@ static int get_thread_siblings(int cpuid)
 static int get_physical_cpucount()
 {
     int count = 0;
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi == NULL)
@@ -1052,7 +1052,7 @@ static int get_big_cpu_data_cache_size(int level)
 static int get_cpu_level2_cachesize()
 {
     int size = 0;
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi != NULL)
@@ -1122,7 +1122,7 @@ static int get_cpu_level2_cachesize()
 static int get_cpu_level3_cachesize()
 {
     int size = 0;
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi != NULL)
@@ -1169,7 +1169,7 @@ static int get_cpu_level3_cachesize()
     return size;
 }
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
 static ncnn::CpuSet get_smt_cpu_mask()
 {
     ncnn::CpuSet smt_cpu_mask;
@@ -1263,7 +1263,7 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 
     return 0;
 }
-#endif // (defined _WIN32 && !(defined __MINGW32__))
+#endif // defined _WIN32
 
 #if defined __ANDROID__ || defined __linux__
 static int get_max_freq_khz(int cpuid)
@@ -1437,7 +1437,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         mask_all.enable(i);
     }
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     // get max freq mhz for all cores
     int max_freq_mhz_min = INT_MAX;
     int max_freq_mhz_max = 0;
@@ -1946,7 +1946,7 @@ static inline void try_initialize_global_cpu_info()
 
 namespace ncnn {
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
 CpuSet::CpuSet()
 {
     disable_all();
@@ -2687,7 +2687,7 @@ const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__ || (defined _WIN32 && !(defined __MINGW32__))
+#if defined __ANDROID__ || defined __linux__ || defined _WIN32
 #ifdef _OPENMP
     int num_threads = thread_affinity_mask.num_enabled();
 
