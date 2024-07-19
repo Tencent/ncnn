@@ -1091,7 +1091,8 @@ static std::string expand_expression(const Operator* op)
                  || t == "maximum"
                  || t == "min"
                  || t == "minimum"
-                 || t == "pow")
+                 || t == "pow"
+                 || t == "logaddexp")
         {
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
@@ -1101,6 +1102,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "min") binaryop = "torch.min";
             if (t == "minimum") binaryop = "torch.minimum";
             if (t == "pow") binaryop = "torch.pow";
+            if (t == "logaddexp") binaryop = "torch.logaddexp";
 
             std::string a = exprstack.top();
             exprstack.pop();
