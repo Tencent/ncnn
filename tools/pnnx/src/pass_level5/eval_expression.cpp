@@ -390,7 +390,8 @@ static std::string eval_expression(const Operator* op)
                  || t == "floor_divide"
                  || t == "fmod"
                  || t == "pow"
-                 || t == "remainder")
+                 || t == "remainder"
+                 || t == "logaddexp")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -457,6 +458,11 @@ static std::string eval_expression(const Operator* op)
                     float r = fmod(af, bf);
                     if (af * bf < 0)
                         r += bf;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "logaddexp")
+                {
+                    float r = log(exp(af) + exp(bf));
                     exprstack.push(std::to_string(r));
                 }
             }
