@@ -108,7 +108,7 @@ B. command line
 
 see more pnnx informations: https://github.com/pnnx/pnnx
 
-## pytorch to onnx
+## pytorch to onnx (deprecated)
 <details><summary>pytorch to onnx</summary>
 The official pytorch tutorial for exporting onnx model
 
@@ -130,7 +130,7 @@ torch_out = torch.onnx._export(model, x, "resnet18.onnx", export_params=True)
 ```
 </details>
 
-## simplify onnx model
+## simplify onnx model (deprecated)
 <details><summary>simplify onnx model</summary>
 The exported resnet18.onnx model may contains many redundant operators such as Shape, Gather and Unsqueeze that is not supported in ncnn
 
