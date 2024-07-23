@@ -2956,7 +2956,7 @@ static std::string trunc_name(std::string name)
 
 int main(int argc, char** argv)
 {
-    printf("onnx2ncnn may not fully meet your needs. For more accurate and elegant\n\
+    fprintf(stderr, "onnx2ncnn may not fully meet your needs. For more accurate and elegant\n\
 conversion results, please use PNNX. PyTorch Neural Network eXchange (PNNX) is\n\
 an open standard for PyTorch model interoperability. PNNX provides an open model\n\
 format for PyTorch. It defines computation graph as well as high level operators\n\
