@@ -282,6 +282,7 @@ NCNN_EXPORT void ncnn_net_register_custom_layer_by_typeindex(ncnn_net_t net, int
 
 #if NCNN_STDIO
 #if NCNN_STRING
+NCNN_EXPORT void ncnn_set_vulkan_device(ncnn_net_t net, int device_index);
 NCNN_EXPORT int ncnn_net_load_param(ncnn_net_t net, const char* path);
 #endif /* NCNN_STRING */
 NCNN_EXPORT int ncnn_net_load_param_bin(ncnn_net_t net, const char* path);

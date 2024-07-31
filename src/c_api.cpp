@@ -1297,6 +1297,10 @@ void ncnn_net_register_custom_layer_by_typeindex(ncnn_net_t net, int typeindex, 
 
 #if NCNN_STDIO
 #if NCNN_STRING
+void ncnn_set_vulkan_device(ncnn_net_t net, int device_index)
+{
+    return ((Net*)net->pthis)->set_vulkan_device(device_index);
+}
 int ncnn_net_load_param(ncnn_net_t net, const char* path)
 {
     return ((Net*)net->pthis)->load_param(path);
