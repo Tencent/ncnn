@@ -275,6 +275,10 @@ NCNN_EXPORT void ncnn_net_destroy(ncnn_net_t net);
 NCNN_EXPORT ncnn_option_t ncnn_net_get_option(ncnn_net_t net);
 NCNN_EXPORT void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt);
 
+#if NCNN_VULKAN
+NCNN_EXPORT void ncnn_net_set_vulkan_device(ncnn_net_t net, int device_index);
+#endif
+
 #if NCNN_STRING
 NCNN_EXPORT void ncnn_net_register_custom_layer_by_type(ncnn_net_t net, const char* type, ncnn_layer_creator_t creator, ncnn_layer_destroyer_t destroyer, void* userdata);
 #endif /* NCNN_STRING */

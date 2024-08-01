@@ -1240,6 +1240,13 @@ void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt)
     ((Net*)net->pthis)->opt = *((Option*)opt);
 }
 
+#if NCNN_VULKAN
+void ncnn_net_set_vulkan_device(ncnn_net_t net, int device_index)
+{
+    ((Net*)net->pthis)->set_vulkan_device(device_index);
+}
+#endif
+
 static ::ncnn::Layer* __Layer_c_api_layer_creator(void* userdata)
 {
     ncnn_net_custom_layer_factory_t ud = (ncnn_net_custom_layer_factory_t)userdata;
