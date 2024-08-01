@@ -1304,7 +1304,6 @@ void ncnn_net_register_custom_layer_by_typeindex(ncnn_net_t net, int typeindex, 
 
 #if NCNN_STDIO
 #if NCNN_STRING
-
 int ncnn_net_load_param(ncnn_net_t net, const char* path)
 {
     return ((Net*)net->pthis)->load_param(path);
