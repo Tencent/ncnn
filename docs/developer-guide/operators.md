@@ -66,6 +66,7 @@
 * [Power](#power)
 * [PReLU](#prelu)
 * [Quantize](#quantize)
+* [Range](#range)
 * [Reduction](#reduction)
 * [ReLU](#relu)
 * [Reorg](#reorg)
@@ -1570,6 +1571,11 @@ y = float2int8(x * scale)
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | scale_data    | float | [scale_data_size]     |
+
+# Range
+```
+y = range(x, limit, delta)
+```
 
 # Reduction
 ```
