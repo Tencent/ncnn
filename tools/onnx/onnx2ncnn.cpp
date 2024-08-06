@@ -3919,6 +3919,10 @@ For more information, please refer to https://github.com/pnnx/pnnx\n");
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Size")
+        {
+            fprintf(pp, "%-16s", "Size");
+        }
         else if (op == "SkipLayerNormalization")
         {
             fprintf(pp, "%-16s", "SkipLayerNormalization");
@@ -5781,6 +5785,10 @@ For more information, please refer to https://github.com/pnnx/pnnx\n");
         {
             int op_type = 9;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Size")
+        {
+            // no-op
         }
         else if (op == "SkipLayerNormalization")
         {
