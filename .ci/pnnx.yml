@@ -17,45 +17,48 @@ concurrency:
 
 variables:
   protobuf_version: 21.12
-  libtorch_version: 2.3.0
-  libtorchvision_version: 0.18.0
-  onnxruntime_version: 1.17.3
-  cache_date: 20240504
+  libtorch_version: 2.4.0
+  libtorchvision_version: 0.19.0
+  onnxruntime_version: 1.18.1
+  cache_date: 20240804
 
 jobs:
   ubuntu:
     strategy:
       matrix:
         include:
-          - torch-version: 1.8.1
-            torchvision-version: 0.9.1
+          # - torch-version: 1.8.1
+          #   torchvision-version: 0.9.1
+          #
+          # - torch-version: 1.9.1
+          #   torchvision-version: 0.10.1
+          #
+          # - torch-version: 1.10.0
+          #   torchvision-version: 0.11.1
+          #
+          # - torch-version: 1.11.0
+          #   torchvision-version: 0.12.0
+          #
+          # - torch-version: 1.12.0
+          #   torchvision-version: 0.13.0
+          #
+          # - torch-version: 1.13.0
+          #   torchvision-version: 0.14.0
+          #
+          # - torch-version: 2.0.0
+          #   torchvision-version: 0.15.1
+          #
+          # - torch-version: 2.1.0
+          #   torchvision-version: 0.16.0
+          #
+          # - torch-version: 2.2.1
+          #   torchvision-version: 0.17.1
+          #
+          # - torch-version: 2.3.0
+          #   torchvision-version: 0.18.0
 
-          - torch-version: 1.9.1
-            torchvision-version: 0.10.1
-
-          - torch-version: 1.10.0
-            torchvision-version: 0.11.1
-
-          - torch-version: 1.11.0
-            torchvision-version: 0.12.0
-
-          - torch-version: 1.12.0
-            torchvision-version: 0.13.0
-
-          - torch-version: 1.13.0
-            torchvision-version: 0.14.0
-
-          - torch-version: 2.0.0
-            torchvision-version: 0.15.1
-
-          - torch-version: 2.1.0
-            torchvision-version: 0.16.0
-
-          - torch-version: 2.2.1
-            torchvision-version: 0.17.1
-
-          - torch-version: 2.3.0
-            torchvision-version: 0.18.0
+          - torch-version: 2.4.0
+            torchvision-version: 0.19.0
 
     runs-on:
       pool-name: docker
