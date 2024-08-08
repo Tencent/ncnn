@@ -37,6 +37,11 @@ if(POLICY CMP0025)
     cmake_policy(SET CMP0025 NEW)
 endif()
 
+if(POLICY CMP0057)
+    # reference from https://cmake.org/cmake/help/latest/policy/CMP0057.html
+    cmake_policy(SET CMP0057 NEW)
+endif()
+
 project(ncnn)
 
 if(MSVC AND NOT CMAKE_VERSION VERSION_LESS "3.15")
