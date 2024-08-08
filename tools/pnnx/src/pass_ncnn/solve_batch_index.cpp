@@ -56,6 +56,7 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "F.pixel_shuffle",
         "F.pixel_unshuffle",
         "F.prelu",
+        "F.scaled_dot_product_attention",
         "F.unfold",
         "F.upsample_bilinear",
         "F.upsample_nearest",
