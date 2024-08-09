@@ -28,6 +28,10 @@
 #define TEST_LAYER_DISABLE_GPU_TESTING        (1 << 2)
 #define TEST_LAYER_ENABLE_FORCE_INPUT_PACK8   (1 << 3)
 
+#if NCNN_RVV
+#define TEST_LAYER_ENABLE_FORCE_INPUT_PACKVLENB (1 << 4)
+#endif // NCNN_RVV
+
 void SRAND(int seed);
 
 uint64_t RAND();
