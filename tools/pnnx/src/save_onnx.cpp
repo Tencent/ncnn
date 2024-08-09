@@ -14,7 +14,7 @@
 
 #include "save_onnx.h"
 
-#include "onnx.pb.h"
+#include "onnx-ml.pb.h"
 
 #include <string.h>
 #include <fstream>

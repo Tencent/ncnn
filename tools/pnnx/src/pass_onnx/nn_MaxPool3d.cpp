@@ -15,7 +15,7 @@
 #include "pass_onnx.h"
 #include "ir.h"
 
-#include "onnx.pb.h"
+#include "onnx-ml.pb.h"
 
 namespace pnnx {
 
