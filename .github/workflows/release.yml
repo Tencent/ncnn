@@ -58,12 +58,15 @@ jobs:
     strategy:
       matrix:
         opt:
-          - { ubuntu-id: 2004, ubuntu-version: 20.04 }
-          - { ubuntu-id: 2204, ubuntu-version: 22.04 }
-          - { ubuntu-id: 2404, ubuntu-version: 24.04 }
-    runs-on: ubuntu-${{ matrix.opt.ubuntu-version }}
+          - { shared-lib: OFF, os: ubuntu-20.04, id: ubuntu-2004        }
+          - { shared-lib: OFF, os: ubuntu-22.04, id: ubuntu-2204        }
+          - { shared-lib: OFF, os: ubuntu-24.04, id: ubuntu-2404        }
+          - { shared-lib: ON,  os: ubuntu-20.04, id: ubuntu-2004-shared }
+          - { shared-lib: ON,  os: ubuntu-22.04, id: ubuntu-2204-shared }
+          - { shared-lib: ON,  os: ubuntu-24.04, id: ubuntu-2404-shared }
+    runs-on: ${{ matrix.opt.os }}
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-${{ matrix.opt.ubuntu-id }}
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -75,14 +78,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-shared
-      run: |
-        mkdir build-shared && cd build-shared
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
@@ -92,23 +88,11 @@ jobs:
         cp -a build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: package-shared
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}-shared
-        mkdir -p ${{ env.PACKAGENAME }}-shared
-        cp -a build-shared/install/* ${{ env.PACKAGENAME }}-shared
-        rm -f ${{ env.PACKAGENAME }}-shared.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}-shared.zip ${{ env.PACKAGENAME }}-shared
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
-    - name: upload-zip-shared
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}-shared
-        path: ${{ env.PACKAGENAME }}-shared.zip
 
   openmp-macos:
     runs-on: macos-13
@@ -368,9 +352,14 @@ jobs:
 
   ios:
     needs: [setup, openmp-ios]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: ios        }
+          - { vulkan: ON,  id: ios-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
@@ -384,6 +373,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -404,12 +394,6 @@ jobs:
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install/strip
-    - name: build-arm64-vulkan
-      run: |
-        mkdir build-arm64-vulkan && cd build-arm64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -422,7 +406,28 @@ jobs:
         cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-ios/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
+        cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -434,52 +439,21 @@ jobs:
         cp build-arm64/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
         cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: package-glslang
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
       run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-arm64-vulkan/install/lib/libglslang.a \
-            build-arm64-vulkan/install/lib/libMachineIndependent.a \
-            build-arm64-vulkan/install/lib/libGenericCodeGen.a \
-            build-arm64-vulkan/install/lib/libSPIRV.a \
-            build-arm64-vulkan/install/lib/libOGLCompiler.a \
-            build-arm64-vulkan/install/lib/libOSDependent.a \
-            -o build-arm64-vulkan/install/lib/libglslang_combined.a
-        cp build-arm64-vulkan/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
-        cp -a build-arm64-vulkan/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package-vulkan
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        cp build-arm64-vulkan/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64-vulkan/install/include/ncnn ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}-vulkan.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
-    - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}-vulkan
-        path: ${{ env.PACKAGENAME }}-vulkan.zip
 
   openmp-ios-simulator:
     runs-on: macos-13
@@ -555,9 +529,14 @@ jobs:
 
   ios-simulator:
     needs: [setup, openmp-ios-simulator]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: ios-simulator        }
+          - { vulkan: ON,  id: ios-simulator-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
@@ -571,6 +550,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -597,18 +577,6 @@ jobs:
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install/strip
-    - name: build-x86_64-vulkan
-      run: |
-        mkdir build-x86_64-vulkan && cd build-x86_64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64-vulkan
-      run: |
-        mkdir build-arm64-vulkan && cd build-arm64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -621,7 +589,39 @@ jobs:
         cp openmp-ios-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-ios-simulator/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-x86_64/install/lib/libglslang.a \
+            build-x86_64/install/lib/libMachineIndependent.a \
+            build-x86_64/install/lib/libGenericCodeGen.a \
+            build-x86_64/install/lib/libSPIRV.a \
+            build-x86_64/install/lib/libOGLCompiler.a \
+            build-x86_64/install/lib/libOSDependent.a \
+            -o build-x86_64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        lipo -create \
+            build-x86_64/install/lib/libglslang_combined.a \
+            build-arm64/install/lib/libglslang_combined.a \
+            -o glslang.framework/Versions/A/glslang
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -636,66 +636,21 @@ jobs:
             -o ncnn.framework/Versions/A/ncnn
         cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: package-glslang
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
       run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-x86_64-vulkan/install/lib/libglslang.a \
-            build-x86_64-vulkan/install/lib/libMachineIndependent.a \
-            build-x86_64-vulkan/install/lib/libGenericCodeGen.a \
-            build-x86_64-vulkan/install/lib/libSPIRV.a \
-            build-x86_64-vulkan/install/lib/libOGLCompiler.a \
-            build-x86_64-vulkan/install/lib/libOSDependent.a \
-            -o build-x86_64-vulkan/install/lib/libglslang_combined.a
-        libtool -static \
-            build-arm64-vulkan/install/lib/libglslang.a \
-            build-arm64-vulkan/install/lib/libMachineIndependent.a \
-            build-arm64-vulkan/install/lib/libGenericCodeGen.a \
-            build-arm64-vulkan/install/lib/libSPIRV.a \
-            build-arm64-vulkan/install/lib/libOGLCompiler.a \
-            build-arm64-vulkan/install/lib/libOSDependent.a \
-            -o build-arm64-vulkan/install/lib/libglslang_combined.a
-        lipo -create \
-            build-x86_64-vulkan/install/lib/libglslang_combined.a \
-            build-arm64-vulkan/install/lib/libglslang_combined.a \
-            -o glslang.framework/Versions/A/glslang
-        cp -a build-x86_64-vulkan/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package-vulkan
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64-vulkan/install/lib/libncnn.a \
-            build-arm64-vulkan/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64-vulkan/install/include/ncnn ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}-vulkan.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
-    - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}-vulkan
-        path: ${{ env.PACKAGENAME }}-vulkan.zip
 
   openmp-mac-catalyst:
     runs-on: macos-13
@@ -771,9 +726,14 @@ jobs:
 
   mac-catalyst:
     needs: [setup, openmp-mac-catalyst]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: mac-catalyst        }
+          - { vulkan: ON,  id: mac-catalyst-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET \
@@ -787,6 +747,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -813,18 +774,6 @@ jobs:
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install/strip
-    - name: build-x86_64-vulkan
-      run: |
-        mkdir build-x86_64-vulkan && cd build-x86_64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64-vulkan
-      run: |
-        mkdir build-arm64-vulkan && cd build-arm64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="arm64" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -837,7 +786,39 @@ jobs:
         cp openmp-mac-catalyst/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-mac-catalyst/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-x86_64/install/lib/libglslang.a \
+            build-x86_64/install/lib/libMachineIndependent.a \
+            build-x86_64/install/lib/libGenericCodeGen.a \
+            build-x86_64/install/lib/libSPIRV.a \
+            build-x86_64/install/lib/libOGLCompiler.a \
+            build-x86_64/install/lib/libOSDependent.a \
+            -o build-x86_64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        lipo -create \
+            build-x86_64/install/lib/libglslang_combined.a \
+            build-arm64/install/lib/libglslang_combined.a \
+            -o glslang.framework/Versions/A/glslang
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -852,66 +833,21 @@ jobs:
             -o ncnn.framework/Versions/A/ncnn
         cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: package-glslang
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
       run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-x86_64-vulkan/install/lib/libglslang.a \
-            build-x86_64-vulkan/install/lib/libMachineIndependent.a \
-            build-x86_64-vulkan/install/lib/libGenericCodeGen.a \
-            build-x86_64-vulkan/install/lib/libSPIRV.a \
-            build-x86_64-vulkan/install/lib/libOGLCompiler.a \
-            build-x86_64-vulkan/install/lib/libOSDependent.a \
-            -o build-x86_64-vulkan/install/lib/libglslang_combined.a
-        libtool -static \
-            build-arm64-vulkan/install/lib/libglslang.a \
-            build-arm64-vulkan/install/lib/libMachineIndependent.a \
-            build-arm64-vulkan/install/lib/libGenericCodeGen.a \
-            build-arm64-vulkan/install/lib/libSPIRV.a \
-            build-arm64-vulkan/install/lib/libOGLCompiler.a \
-            build-arm64-vulkan/install/lib/libOSDependent.a \
-            -o build-arm64-vulkan/install/lib/libglslang_combined.a
-        lipo -create \
-            build-x86_64-vulkan/install/lib/libglslang_combined.a \
-            build-arm64-vulkan/install/lib/libglslang_combined.a \
-            -o glslang.framework/Versions/A/glslang
-        cp -a build-x86_64-vulkan/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package-vulkan
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64-vulkan/install/lib/libncnn.a \
-            build-arm64-vulkan/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64-vulkan/install/include/ncnn ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}-vulkan.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
-    - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}-vulkan
-        path: ${{ env.PACKAGENAME }}-vulkan.zip
 
   openmp-watchos:
     runs-on: macos-13
@@ -1285,9 +1221,14 @@ jobs:
 
   tvos:
     needs: [setup, openmp-tvos]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: tvos        }
+          - { vulkan: ON,  id: tvos-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
@@ -1301,6 +1242,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -1327,18 +1269,6 @@ jobs:
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" ..
         cmake --build . -j 4
         cmake --build . --target install/strip
-    - name: build-arm64-vulkan
-      run: |
-        mkdir build-arm64-vulkan && cd build-arm64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64e-vulkan
-      run: |
-        mkdir build-arm64e-vulkan && cd build-arm64e-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -1351,7 +1281,39 @@ jobs:
         cp openmp-tvos/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-tvos/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-arm64e/install/lib/libglslang.a \
+            build-arm64e/install/lib/libMachineIndependent.a \
+            build-arm64e/install/lib/libGenericCodeGen.a \
+            build-arm64e/install/lib/libSPIRV.a \
+            build-arm64e/install/lib/libOGLCompiler.a \
+            build-arm64e/install/lib/libOSDependent.a \
+            -o build-arm64e/install/lib/libglslang_combined.a
+        lipo -create \
+            build-arm64/install/lib/libglslang_combined.a \
+            build-arm64e/install/lib/libglslang_combined.a \
+            -o glslang.framework/Versions/A/glslang
+        cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -1366,66 +1328,21 @@ jobs:
             -o ncnn.framework/Versions/A/ncnn
         cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: package-glslang
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
       run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-arm64-vulkan/install/lib/libglslang.a \
-            build-arm64-vulkan/install/lib/libMachineIndependent.a \
-            build-arm64-vulkan/install/lib/libGenericCodeGen.a \
-            build-arm64-vulkan/install/lib/libSPIRV.a \
-            build-arm64-vulkan/install/lib/libOGLCompiler.a \
-            build-arm64-vulkan/install/lib/libOSDependent.a \
-            -o build-arm64-vulkan/install/lib/libglslang_combined.a
-        libtool -static \
-            build-arm64e-vulkan/install/lib/libglslang.a \
-            build-arm64e-vulkan/install/lib/libMachineIndependent.a \
-            build-arm64e-vulkan/install/lib/libGenericCodeGen.a \
-            build-arm64e-vulkan/install/lib/libSPIRV.a \
-            build-arm64e-vulkan/install/lib/libOGLCompiler.a \
-            build-arm64e-vulkan/install/lib/libOSDependent.a \
-            -o build-arm64e-vulkan/install/lib/libglslang_combined.a
-        lipo -create \
-            build-arm64-vulkan/install/lib/libglslang_combined.a \
-            build-arm64e-vulkan/install/lib/libglslang_combined.a \
-            -o glslang.framework/Versions/A/glslang
-        cp -a build-arm64-vulkan/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package-vulkan
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-arm64-vulkan/install/lib/libncnn.a \
-            build-arm64e-vulkan/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64-vulkan/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}-vulkan.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
-    - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}-vulkan
-        path: ${{ env.PACKAGENAME }}-vulkan.zip
 
   openmp-tvos-simulator:
     runs-on: macos-13
@@ -1501,9 +1418,14 @@ jobs:
 
   tvos-simulator:
     needs: [setup, openmp-tvos-simulator]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: tvos-simulator        }
+          - { vulkan: ON,  id: tvos-simulator-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
@@ -1517,6 +1439,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -1543,18 +1466,6 @@ jobs:
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install/strip
-    - name: build-x86_64-vulkan
-      run: |
-        mkdir build-x86_64-vulkan && cd build-x86_64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64-vulkan
-      run: |
-        mkdir build-arm64-vulkan && cd build-arm64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="arm64" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -1567,7 +1478,39 @@ jobs:
         cp openmp-tvos-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-tvos-simulator/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-x86_64/install/lib/libglslang.a \
+            build-x86_64/install/lib/libMachineIndependent.a \
+            build-x86_64/install/lib/libGenericCodeGen.a \
+            build-x86_64/install/lib/libSPIRV.a \
+            build-x86_64/install/lib/libOGLCompiler.a \
+            build-x86_64/install/lib/libOSDependent.a \
+            -o build-x86_64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        lipo -create \
+            build-x86_64/install/lib/libglslang_combined.a \
+            build-arm64/install/lib/libglslang_combined.a \
+            -o glslang.framework/Versions/A/glslang
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -1582,66 +1525,21 @@ jobs:
             -o ncnn.framework/Versions/A/ncnn
         cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: package-glslang
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
       run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-x86_64-vulkan/install/lib/libglslang.a \
-            build-x86_64-vulkan/install/lib/libMachineIndependent.a \
-            build-x86_64-vulkan/install/lib/libGenericCodeGen.a \
-            build-x86_64-vulkan/install/lib/libSPIRV.a \
-            build-x86_64-vulkan/install/lib/libOGLCompiler.a \
-            build-x86_64-vulkan/install/lib/libOSDependent.a \
-            -o build-x86_64-vulkan/install/lib/libglslang_combined.a
-        libtool -static \
-            build-arm64-vulkan/install/lib/libglslang.a \
-            build-arm64-vulkan/install/lib/libMachineIndependent.a \
-            build-arm64-vulkan/install/lib/libGenericCodeGen.a \
-            build-arm64-vulkan/install/lib/libSPIRV.a \
-            build-arm64-vulkan/install/lib/libOGLCompiler.a \
-            build-arm64-vulkan/install/lib/libOSDependent.a \
-            -o build-arm64-vulkan/install/lib/libglslang_combined.a
-        lipo -create \
-            build-x86_64-vulkan/install/lib/libglslang_combined.a \
-            build-arm64-vulkan/install/lib/libglslang_combined.a \
-            -o glslang.framework/Versions/A/glslang
-        cp -a build-x86_64-vulkan/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package-vulkan
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64-vulkan/install/lib/libncnn.a \
-            build-arm64-vulkan/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64-vulkan/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}-vulkan.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
-    - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}-vulkan
-        path: ${{ env.PACKAGENAME }}-vulkan.zip
 
   openmp-visionos:
     runs-on: macos-13
@@ -1706,9 +1604,14 @@ jobs:
 
   visionos:
     needs: [setup, openmp-visionos]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: visionos        }
+          - { vulkan: ON,  id: visionos-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-visionos
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
@@ -1722,6 +1625,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -1742,12 +1646,6 @@ jobs:
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=VISIONOS -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install/strip
-    - name: build-arm64-vulkan
-      run: |
-        mkdir build-arm64-vulkan && cd build-arm64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=VISIONOS -DARCHS="arm64" -DNCNN_VULKAN=ON ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -1760,7 +1658,28 @@ jobs:
         cp openmp-visionos/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-visionos/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
+        cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -1772,52 +1691,21 @@ jobs:
         cp build-arm64/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
         cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: package-glslang
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
       run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-arm64-vulkan/install/lib/libglslang.a \
-            build-arm64-vulkan/install/lib/libMachineIndependent.a \
-            build-arm64-vulkan/install/lib/libGenericCodeGen.a \
-            build-arm64-vulkan/install/lib/libSPIRV.a \
-            build-arm64-vulkan/install/lib/libOGLCompiler.a \
-            build-arm64-vulkan/install/lib/libOSDependent.a \
-            -o build-arm64-vulkan/install/lib/libglslang_combined.a
-        cp build-arm64-vulkan/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
-        cp -a build-arm64-vulkan/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package-vulkan
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        cp build-arm64-vulkan/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64-vulkan/install/include/ncnn ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}-vulkan.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
-    - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}-vulkan
-        path: ${{ env.PACKAGENAME }}-vulkan.zip
 
   openmp-visionos-simulator:
     runs-on: macos-13
@@ -1893,9 +1781,14 @@ jobs:
 
   visionos-simulator:
     needs: [setup, openmp-visionos-simulator]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: visionos-simulator        }
+          - { vulkan: ON,  id: visionos-simulator-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
@@ -1909,6 +1802,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -1935,18 +1829,6 @@ jobs:
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install/strip
-    - name: build-x86_64-vulkan
-      run: |
-        mkdir build-x86_64-vulkan && cd build-x86_64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="x86_64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64-vulkan
-      run: |
-        mkdir build-arm64-vulkan && cd build-arm64-vulkan
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="arm64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -1959,7 +1841,39 @@ jobs:
         cp openmp-visionos-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-visionos-simulator/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-x86_64/install/lib/libglslang.a \
+            build-x86_64/install/lib/libMachineIndependent.a \
+            build-x86_64/install/lib/libGenericCodeGen.a \
+            build-x86_64/install/lib/libSPIRV.a \
+            build-x86_64/install/lib/libOGLCompiler.a \
+            build-x86_64/install/lib/libOSDependent.a \
+            -o build-x86_64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        lipo -create \
+            build-x86_64/install/lib/libglslang_combined.a \
+            build-arm64/install/lib/libglslang_combined.a \
+            -o glslang.framework/Versions/A/glslang
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -1974,66 +1888,21 @@ jobs:
             -o ncnn.framework/Versions/A/ncnn
         cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: package-glslang
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
       run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-x86_64-vulkan/install/lib/libglslang.a \
-            build-x86_64-vulkan/install/lib/libMachineIndependent.a \
-            build-x86_64-vulkan/install/lib/libGenericCodeGen.a \
-            build-x86_64-vulkan/install/lib/libSPIRV.a \
-            build-x86_64-vulkan/install/lib/libOGLCompiler.a \
-            build-x86_64-vulkan/install/lib/libOSDependent.a \
-            -o build-x86_64-vulkan/install/lib/libglslang_combined.a
-        libtool -static \
-            build-arm64-vulkan/install/lib/libglslang.a \
-            build-arm64-vulkan/install/lib/libMachineIndependent.a \
-            build-arm64-vulkan/install/lib/libGenericCodeGen.a \
-            build-arm64-vulkan/install/lib/libSPIRV.a \
-            build-arm64-vulkan/install/lib/libOGLCompiler.a \
-            build-arm64-vulkan/install/lib/libOSDependent.a \
-            -o build-arm64-vulkan/install/lib/libglslang_combined.a
-        lipo -create \
-            build-x86_64-vulkan/install/lib/libglslang_combined.a \
-            build-arm64-vulkan/install/lib/libglslang_combined.a \
-            -o glslang.framework/Versions/A/glslang
-        cp -a build-x86_64-vulkan/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package-vulkan
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64-vulkan/install/lib/libncnn.a \
-            build-arm64-vulkan/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64-vulkan/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}-vulkan.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
-    - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}-vulkan
-        path: ${{ env.PACKAGENAME }}-vulkan.zip
 
   android:
     needs: [setup]
