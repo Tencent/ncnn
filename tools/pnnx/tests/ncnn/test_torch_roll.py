@@ -23,7 +23,7 @@ class Model(nn.Module):
     def forward(self, x, y, z):
         x = torch.roll(x, 3, 1)
         y = torch.roll(y, -2, -1)
-        z = torch.roll(z, 2, 0)
+        z = torch.roll(z, shifts=(2,1), dims=(0,1))
         return x, y, z
 
 def test():
