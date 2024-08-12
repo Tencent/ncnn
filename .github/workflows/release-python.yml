@@ -244,7 +244,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [aarch64, ppc64le, s390x]
-        build_cp: [cp36, cp37, cp38, cp39, cp310, cp311, cp312]
+        build_cp: [cp36, cp37, cp38, cp39, cp310, cp311, cp312, cp313]
         build_sub: [manylinux, musllinux]
 
     steps:
