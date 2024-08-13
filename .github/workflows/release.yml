@@ -1925,6 +1925,7 @@ jobs:
         -DNCNN_BUILD_BENCHMARK=OFF \
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
         -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} \
+        -DNCNN_AVX512BF16=OFF \
 
     steps:
     - uses: actions/checkout@v4
@@ -2228,9 +2229,9 @@ jobs:
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator.zip -d ncnn-tvos-simulator
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan.zip -d ncnn-tvos-simulator-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos/ncnn-${{ needs.setup.outputs.VERSION }}-visionos.zip -d ncnn-visionos
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-visionos.zip -d ncnn-visionos-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-vulkan.zip -d ncnn-visionos-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator.zip -d ncnn-visionos-simulator
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator.zip -d ncnn-visionos-simulator-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator-vulkan.zip -d ncnn-visionos-simulator-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos/ncnn-${{ needs.setup.outputs.VERSION }}-watchos.zip -d ncnn-watchos
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator.zip -d ncnn-watchos-simulator
 
