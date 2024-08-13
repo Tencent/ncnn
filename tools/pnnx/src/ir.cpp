@@ -2111,6 +2111,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         fprintf(pyfp, ", ");
                 }
 
+                if (op->type == "torch.max" || op->type == "torch.max")
+                {
+                    if (op->has_param("dim") && op->outputs.size() == 1)
+                    {
+                        // torch.max and torch.min with dim returns tuple
+                        fprintf(pyfp, ", _");
+                    }
+                }
+
                 if (op->type.substr(0, 7) == "Tensor.")
                 {
                     if (op->type == "Tensor.fill")
