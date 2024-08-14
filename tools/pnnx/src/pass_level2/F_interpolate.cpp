@@ -1058,7 +1058,7 @@ pnnx.Output             output      1 0 out
             if (input_shape[0] != sizes[0] || input_shape[1] != sizes[1])
                 return false;
         }
-        else if (captured_params.find("op_0.scales") != captured_params.end() && captured_params.at("op_0.scales").type == 6 && !captured_params.at("op_0.scales").ai.empty())
+        else if (captured_params.find("op_0.scales") != captured_params.end() && captured_params.at("op_0.scales").type == 6 && !captured_params.at("op_0.scales").af.empty())
         {
             const std::vector<float>& scales = captured_params.at("op_0.scales").af;
 
@@ -1122,7 +1122,7 @@ pnnx.Output             output      1 0 out
             if (sizes.size() == 5)
                 op->params["size"] = {sizes[2], sizes[3], sizes[4]};
         }
-        else if (captured_params.find("op_0.scales") != captured_params.end() && captured_params.at("op_0.scales").type == 6 && !captured_params.at("op_0.scales").ai.empty())
+        else if (captured_params.find("op_0.scales") != captured_params.end() && captured_params.at("op_0.scales").type == 6 && !captured_params.at("op_0.scales").af.empty())
         {
             const std::vector<float>& scales = captured_params.at("op_0.scales").af;
 
