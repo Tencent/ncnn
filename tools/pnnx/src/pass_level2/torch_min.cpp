@@ -78,11 +78,22 @@ pnnx.Output             output      1 0 out
         return "torch.min";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.axes") != captured_params.end())
+        {
+            if (captured_params.at("op_0.axes").type != 5 || captured_params.at("op_0.axes").ai.size() != 1)
+                return false;
+        }
+
+        return true;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.find("op_0.axes") != captured_params.end())
         {
-            op->params["dim"] = captured_params.at("op_0.axes");
+            op->params["dim"] = captured_params.at("op_0.axes").ai[0];
 
             if (captured_params.find("op_0.keepdims") != captured_params.end())
             {
