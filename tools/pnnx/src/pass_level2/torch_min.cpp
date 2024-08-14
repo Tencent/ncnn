@@ -35,6 +35,18 @@ pnnx.Output             output      2 0 out indices
     {
         return "torch.min";
     }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        GraphRewriterPass::write(op, captured_params);
+
+        // drop indices if not used
+        if (op->outputs[1]->consumers.empty())
+        {
+            op->outputs[1]->producer = 0;
+            op->outputs.resize(1);
+        }
+    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min, 20)
