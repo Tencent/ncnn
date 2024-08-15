@@ -475,6 +475,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_prelu.cpp
     pass_ncnn/F_relu.cpp
     pass_ncnn/F_relu6.cpp
+    pass_ncnn/F_rms_norm.cpp
     pass_ncnn/F_scaled_dot_product_attention.cpp
     pass_ncnn/F_selu.cpp
     pass_ncnn/F_sigmoid.cpp
@@ -541,6 +542,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ReplicationPad1d.cpp
     pass_ncnn/nn_ReplicationPad2d.cpp
     pass_ncnn/nn_ReplicationPad3d.cpp
+    pass_ncnn/nn_RMSNorm.cpp
     pass_ncnn/nn_RNN.cpp
     pass_ncnn/nn_SELU.cpp
     pass_ncnn/nn_Sigmoid.cpp
