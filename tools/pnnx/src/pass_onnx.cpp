@@ -14,7 +14,7 @@
 
 #include "pass_onnx.h"
 
-#include "onnx.pb.h"
+#include "onnx-ml.pb.h"
 
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -611,7 +611,10 @@ static void constant_unpooling(Graph& graph)
                 for (size_t k = 0; k < op1->inputs.size(); k++)
                 {
                     if (op1->inputs[k] == op_out)
+                    {
                         op1->inputs[k] = op0_out;
+                        break;
+                    }
                 }
 
                 op0_out->consumers.push_back(op1);
@@ -635,11 +638,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
     for (int i = 0; i < graph.input_size(); i++)
     {
-        const std::string& output = graph.input(i).name();
+        const std::string& input = graph.input(i).name();
 
-        Operator* op = pnnx_graph.new_operator("pnnx.Input", output);
+        Operator* op = pnnx_graph.new_operator("pnnx.Input", input);
 
-        const onnx::ValueInfoProto& value = modelproxy.valueinfo(output);
+        const onnx::ValueInfoProto& value = modelproxy.valueinfo(input);
 
         Operand* op_out = pnnx_graph.new_operand(value);
 
@@ -673,11 +676,6 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "SequenceConstruct")
             {
                 sim_op_type = "prim::ListConstruct";
-            }
-
-            if (op_type == "Slice")
-            {
-                sim_op_type = "aten::slice";
             }
 
             if (op_type == "Concat")
@@ -729,9 +727,22 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Max") sim_op_type = "aten::max";
             if (op_type == "Min") sim_op_type = "aten::min";
             if (op_type == "Pow") sim_op_type = "aten::pow";
+            if (op_type == "Equal") sim_op_type = "aten::eq";
+            if (op_type == "Less") sim_op_type = "aten::lt";
+            if (op_type == "LessOrEqual") sim_op_type = "aten::le";
+            if (op_type == "Greater") sim_op_type = "aten::gt";
+            if (op_type == "GreaterOrEqual") sim_op_type = "aten::ge";
+            if (op_type == "BitwiseAnd") sim_op_type = "aten::bitwise_and";
+            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
+            if (op_type == "BitwiseOr") sim_op_type = "aten::bitwise_or";
+            if (op_type == "BitwiseXor") sim_op_type = "aten::bitwise_xor";
+            if (op_type == "And") sim_op_type = "aten::__and__";
+            if (op_type == "Or") sim_op_type = "aten::__or__";
+            if (op_type == "Xor") sim_op_type = "aten::__xor__";
 
             // trinaryop
             if (op_type == "Clip") sim_op_type = "aten::clamp";
+            if (op_type == "Where") sim_op_type = "aten::where";
         }
         else if (string_starts_with(op_type, "aten_"))
         {
@@ -797,22 +808,31 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 {
                     if (is_aten_op)
                         is_attr_list = true;
-
-                    if (sim_op_type == "Reshape" && j == 1)
-                        is_attr_list = true;
-
-                    if (sim_op_type == "Pad" && j == 1)
-                        is_attr_list = true;
-
-                    if (sim_op_type == "ReduceMean" && j == 1)
-                        is_attr_list = true;
                 }
 
                 bool is_attr_weight = false;
                 {
+                    if (sim_op_type == "BatchNormalization" && (j == 1 || j == 2 || j == 3 || j == 4))
+                        is_attr_weight = true;
                     if (sim_op_type == "Conv" && (j == 1 || j == 2))
                         is_attr_weight = true;
                     if (sim_op_type == "ConvTranspose" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                    if (sim_op_type == "Gather" && j == 0)
+                        is_attr_weight = true;
+                    if (sim_op_type == "GroupNormalization" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                    if (sim_op_type == "GRU" && (j == 1 || j == 2 || j == 3 || j == 5))
+                        is_attr_weight = true;
+                    if (sim_op_type == "InstanceNormalization" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                    if (sim_op_type == "LayerNormalization" && (j == 1 || j == 2))
+                        is_attr_weight = true;
+                    if (sim_op_type == "LSTM" && (j == 1 || j == 2 || j == 3 || j == 5 || j == 6))
+                        is_attr_weight = true;
+                    if (sim_op_type == "PRelu" && j == 1)
+                        is_attr_weight = true;
+                    if (sim_op_type == "RNN" && (j == 1 || j == 2 || j == 3 || j == 5))
                         is_attr_weight = true;
                 }
 
@@ -1026,29 +1046,6 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 const onnx::AttributeProto& attr = node.attribute(j);
 
                 op->params[attr.name()] = attr;
-            }
-
-            if (op_type == "Slice")
-            {
-                if (op->inputs.size() == 3)
-                {
-                    op->inputnames = {"input", "start", "end"};
-                    op->params["dim"] = 0;
-                    op->params["step"] = 1;
-                }
-                else if (op->inputs.size() == 4)
-                {
-                    // data start end dim -> input dim start end
-                    op->inputnames = {"input", "dim", "start", "end"};
-                    op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2]};
-                    op->params["step"] = 1;
-                }
-                else // if (op->inputs.size() == 5)
-                {
-                    // data start end dim step -> input dim start end step
-                    op->inputnames = {"input", "dim", "start", "end", "step"};
-                    op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2], op->inputs[4]};
-                }
             }
 
             if (op_type == "Concat")

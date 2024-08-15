@@ -37,6 +37,11 @@ if(POLICY CMP0025)
     cmake_policy(SET CMP0025 NEW)
 endif()
 
+if(POLICY CMP0057)
+    # reference from https://cmake.org/cmake/help/latest/policy/CMP0057.html
+    cmake_policy(SET CMP0057 NEW)
+endif()
+
 project(ncnn)
 
 if(MSVC AND NOT CMAKE_VERSION VERSION_LESS "3.15")
@@ -559,7 +564,7 @@ else()
         unset(CMAKE_REQUIRED_FLAGS)
     endif()
 
-    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_COMPILER_SUPPORT_X86_AVX)
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "Emscripten|WASI" AND NCNN_COMPILER_SUPPORT_X86_AVX)
         option(NCNN_AVX "optimize x86 platform with avx extension" ON)
         if(NCNN_COMPILER_SUPPORT_X86_FMA)
             if(NCNN_AVX)

@@ -1091,7 +1091,8 @@ static std::string expand_expression(const Operator* op)
                  || t == "maximum"
                  || t == "min"
                  || t == "minimum"
-                 || t == "pow")
+                 || t == "pow"
+                 || t == "logaddexp")
         {
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
@@ -1101,6 +1102,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "min") binaryop = "torch.min";
             if (t == "minimum") binaryop = "torch.minimum";
             if (t == "pow") binaryop = "torch.pow";
+            if (t == "logaddexp") binaryop = "torch.logaddexp";
 
             std::string a = exprstack.top();
             exprstack.pop();
@@ -2107,6 +2109,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
                     if (i + 1 != op->outputs.size())
                         fprintf(pyfp, ", ");
+                }
+
+                if (op->type == "torch.max" || op->type == "torch.max")
+                {
+                    if (op->has_param("dim") && op->outputs.size() == 1)
+                    {
+                        // torch.max and torch.min with dim returns tuple
+                        fprintf(pyfp, ", _");
+                    }
                 }
 
                 if (op->type.substr(0, 7) == "Tensor.")

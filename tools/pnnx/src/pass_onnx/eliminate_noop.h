@@ -12,13 +12,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "onnx.pb.h"
+#include "onnx-ml.pb.h"
 
 namespace pnnx {
 
 namespace onnx2pnnx {
 
 void eliminate_noop(onnx::ModelProto& model);
+
+void eliminate_noop_with_shape(onnx::ModelProto& model);
 
 } // namespace onnx2pnnx
 

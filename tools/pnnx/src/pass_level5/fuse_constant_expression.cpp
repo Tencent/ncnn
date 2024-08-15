@@ -50,6 +50,16 @@ void fuse_constant_expression(Graph& graph)
                     new_consumers.push_back(x);
                     continue;
                 }
+
+                for (size_t j = 0; j < x->inputs.size(); j++)
+                {
+                    if (x->inputs[j] == expr_output && x->inputnames[j].empty())
+                    {
+                        // no param key
+                        new_consumers.push_back(x);
+                        break;
+                    }
+                }
             }
 
             if (new_consumers == expr_output->consumers)
@@ -71,7 +81,7 @@ void fuse_constant_expression(Graph& graph)
                 std::vector<std::string> new_inputnames;
                 for (size_t j = 0; j < x->inputs.size(); j++)
                 {
-                    if (x->inputs[j] == expr_output)
+                    if (x->inputs[j] == expr_output && !x->inputnames[j].empty())
                     {
                         // fuse constant
                         x->params[x->inputnames[j]] = ep;

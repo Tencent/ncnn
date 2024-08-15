@@ -77,6 +77,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_ReplicationPad1d.cpp
     pass_level1/nn_ReplicationPad2d.cpp
     pass_level1/nn_ReplicationPad3d.cpp
+    pass_level1/nn_RMSNorm.cpp
     pass_level1/nn_RNN.cpp
     pass_level1/nn_RReLU.cpp
     pass_level1/nn_SELU.cpp
@@ -124,7 +125,9 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_conv2d.cpp
     pass_level2/F_conv3d.cpp
     pass_level2/F_conv_transpose123d.cpp
+    pass_level2/F_conv_transpose1d.cpp
     pass_level2/F_conv_transpose2d.cpp
+    pass_level2/F_conv_transpose3d.cpp
     pass_level2/F_dropout.cpp
     pass_level2/F_dropout23d.cpp
     pass_level2/F_elu.cpp
@@ -161,6 +164,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_prelu.cpp
     pass_level2/F_relu.cpp
     pass_level2/F_relu6.cpp
+    pass_level2/F_rms_norm.cpp
     pass_level2/F_rrelu.cpp
     pass_level2/F_scaled_dot_product_attention.cpp
     pass_level2/F_selu.cpp
@@ -268,13 +272,15 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_sum.cpp
     pass_level2/torch_t.cpp
     pass_level2/torch_tensor_split.cpp
+    pass_level2/torch_tile.cpp
     pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
     pass_level2/torch_view_as_complex.cpp
-    pass_level2/torch_view_as_real.cpp    
+    pass_level2/torch_view_as_real.cpp
+    pass_level2/torch_where.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
     pass_level2/torch_stft.cpp
@@ -299,6 +305,10 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_fft_fftn.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp
+
+    pass_level2/nn_GRU.cpp
+    pass_level2/nn_LSTM.cpp
+    pass_level2/nn_RNN.cpp
 )
 
 set(pnnx_pass_level3_SRCS
@@ -374,6 +384,8 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_static_instancenorm.cpp
     pass_level5/fuse_static_layernorm.cpp
     pass_level5/fuse_static_linear.cpp
+    pass_level5/fuse_static_prelu.cpp
+    pass_level5/fuse_static_rmsnorm.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
 )
@@ -463,6 +475,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_prelu.cpp
     pass_ncnn/F_relu.cpp
     pass_ncnn/F_relu6.cpp
+    pass_ncnn/F_scaled_dot_product_attention.cpp
     pass_ncnn/F_selu.cpp
     pass_ncnn/F_sigmoid.cpp
     pass_ncnn/F_silu.cpp
@@ -562,6 +575,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_mm.cpp
     pass_ncnn/torch_norm.cpp
     pass_ncnn/torch_prod.cpp
+    pass_ncnn/torch_roll.cpp
     pass_ncnn/torch_slice_scatter.cpp
     pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_sum.cpp
@@ -577,12 +591,12 @@ if(PROTOBUF_FOUND)
     endif()
 
     if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
-        protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+        protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx-data.proto onnx-ml.proto onnx-operators-ml.proto)
         add_library(onnxproto STATIC ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS})
         target_include_directories(onnxproto PUBLIC ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
         target_link_libraries(onnxproto PUBLIC ${PROTOBUF_LIBRARIES})
     else()
-        add_library(onnxproto STATIC onnx.proto)
+        add_library(onnxproto STATIC onnx-data.proto onnx-ml.proto onnx-operators-ml.proto)
         target_include_directories(onnxproto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
         protobuf_generate(TARGET onnxproto)
         target_link_libraries(onnxproto PUBLIC protobuf::libprotobuf)
@@ -648,8 +662,10 @@ if(onnxruntime_FOUND)
         pass_onnx/eliminate_noop.cpp
         pass_onnx/fold_constants.cpp
         pass_onnx/inline_containers.cpp
+        pass_onnx/inline_if_graph.cpp
         pass_onnx/model_stat.cpp
         pass_onnx/shape_inference.cpp
+        pass_onnx/fuse_constant_as_attribute.cpp
 
         pass_onnx/nn_AdaptiveAvgPool2d.cpp
         pass_onnx/nn_AdaptiveAvgPool3d.cpp

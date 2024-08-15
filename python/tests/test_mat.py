@@ -298,7 +298,7 @@ def test_fill():
     mat = ncnn.Mat(1)
     mat.fill(1.0)
     array = np.array(mat)
-    assert np.abs(array[0] - 1.0) < sys.float_info.min
+    assert np.abs(array[0] - 1.0) < np.finfo(np.float32).eps
 
 
 def test_clone():

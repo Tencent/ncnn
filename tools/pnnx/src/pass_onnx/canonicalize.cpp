@@ -27,6 +27,51 @@ static bool string_starts_with(const std::string& s, const std::string& s2)
     return strncmp(s.c_str(), s2.c_str(), s2.size()) == 0;
 }
 
+static void canonicalize_subgraph_nodes(onnx::GraphProto* graph, const std::unordered_set<std::string>& initializers, const std::map<std::string, std::string>& input_output_remap)
+{
+    for (int i = 0; i < graph->node_size(); i++)
+    {
+        onnx::NodeProto* node = graph->mutable_node(i);
+
+        // canonicalize name
+        // node->set_name(std::string("op_") + std::to_string(i));
+
+        // canonicalize node input output
+        {
+            for (int j = 0; j < node->input_size(); j++)
+            {
+                const std::string& node_input = node->input(j);
+
+                // some input/output may have empty name, it causes trouble, skip it
+                if (node_input.empty())
+                    continue;
+
+                // skip initializer
+                if (initializers.find(node_input) != initializers.end())
+                    continue;
+
+                if (input_output_remap.find(node_input) != input_output_remap.end())
+                {
+                    node->set_input(j, input_output_remap.at(node_input));
+                }
+            }
+            for (int j = 0; j < node->output_size(); j++)
+            {
+                const std::string& node_output = node->output(j);
+
+                // some input/output may have empty name, it causes trouble, skip it
+                if (node_output.empty())
+                    continue;
+
+                if (input_output_remap.find(node_output) != input_output_remap.end())
+                {
+                    node->set_output(j, input_output_remap.at(node_output));
+                }
+            }
+        }
+    }
+}
+
 void canonicalize(onnx::ModelProto& model)
 {
     // collect initializers
@@ -185,6 +230,28 @@ void canonicalize(onnx::ModelProto& model)
                     input_output_remap[node_output] = new_name;
                     node->set_output(j, new_name);
                     input_output_index++;
+                }
+            }
+        }
+
+        // canonicalize node input output in subgraph
+        for (int j = 0; j < node->attribute_size(); j++)
+        {
+            onnx::AttributeProto* attr = node->mutable_attribute(j);
+
+            if (attr->type() == onnx::AttributeProto::GRAPH)
+            {
+                onnx::GraphProto* sg = attr->mutable_g();
+
+                canonicalize_subgraph_nodes(sg, initializers, input_output_remap);
+            }
+            if (attr->type() == onnx::AttributeProto::GRAPHS)
+            {
+                for (int k = 0; k < attr->graphs().size(); k++)
+                {
+                    onnx::GraphProto* sg = attr->mutable_graphs(k);
+
+                    canonicalize_subgraph_nodes(sg, initializers, input_output_remap);
                 }
             }
         }

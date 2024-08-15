@@ -21,6 +21,8 @@
 
 #include <onnxruntime_c_api.h>
 
+#include "dead_code_elimination.h"
+
 namespace pnnx {
 
 namespace onnx2pnnx {
@@ -115,6 +117,47 @@ static void onnx_tensor_fill_random(void* ort_val_data, const std::vector<int64_
     }
 }
 
+static bool check_outputs_foldable(const onnx::NodeProto& node, const std::unordered_set<std::string>& non_foldable_outputs)
+{
+    for (int i = 0; i < node.input_size(); i++)
+    {
+        if (non_foldable_outputs.find(node.input(i)) != non_foldable_outputs.end())
+            return false;
+    }
+
+    // recurse subgraph
+    for (int i = 0; i < node.attribute_size(); i++)
+    {
+        const onnx::AttributeProto& attr = node.attribute(i);
+
+        if (attr.type() == onnx::AttributeProto::GRAPH)
+        {
+            const onnx::GraphProto& sg = attr.g();
+
+            for (int j = 0; j < sg.node_size(); j++)
+            {
+                if (!check_outputs_foldable(sg.node(j), non_foldable_outputs))
+                    return false;
+            }
+        }
+        if (attr.type() == onnx::AttributeProto::GRAPHS)
+        {
+            for (int k = 0; k < attr.graphs().size(); k++)
+            {
+                const onnx::GraphProto& sg = attr.graphs().at(k);
+
+                for (int j = 0; j < sg.node_size(); j++)
+                {
+                    if (!check_outputs_foldable(sg.node(j), non_foldable_outputs))
+                        return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 void fold_constants(onnx::ModelProto& model,
                     const std::vector<std::vector<int64_t> >& input_shapes,
                     const std::vector<std::string>& input_types,
@@ -149,17 +192,9 @@ void fold_constants(onnx::ModelProto& model,
         {
             const onnx::NodeProto& node = graph.node(i);
 
-            const std::string& op_type = node.op_type();
+            bool is_outputs_foldable = check_outputs_foldable(node, non_foldable_outputs);
 
-            bool is_outputs_foldable = true;
-            for (int j = 0; j < node.input_size(); j++)
-            {
-                if (non_foldable_outputs.find(node.input(j)) != non_foldable_outputs.end())
-                {
-                    is_outputs_foldable = false;
-                    break;
-                }
-            }
+            const std::string& op_type = node.op_type();
 
             // TODO whitelist for static shape
             // aten::size
@@ -199,6 +234,7 @@ void fold_constants(onnx::ModelProto& model,
                             continue;
 
                         foldable_outputs.insert(node.input(j));
+                        // fprintf(stderr, "foldable_outputs %s\n", node.input(j).c_str());
                     }
                 }
 
@@ -503,6 +539,8 @@ void fold_constants(onnx::ModelProto& model,
             graph->add_output()->set_name(orig_outputs[i]);
         }
     }
+
+    onnx2pnnx::dead_code_elimination(model);
 }
 
 void fold_constants_dynamic_shape(onnx::ModelProto& model,
@@ -535,17 +573,9 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
         {
             const onnx::NodeProto& node = graph.node(i);
 
-            const std::string& op_type = node.op_type();
+            bool is_outputs_foldable = check_outputs_foldable(node, non_foldable_outputs);
 
-            bool is_outputs_foldable = true;
-            for (int j = 0; j < node.input_size(); j++)
-            {
-                if (non_foldable_outputs.find(node.input(j)) != non_foldable_outputs.end())
-                {
-                    is_outputs_foldable = false;
-                    break;
-                }
-            }
+            const std::string& op_type = node.op_type();
 
             if (op_type == "Slice")
             {
@@ -580,20 +610,35 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
                 if (is_producer_shape)
                 {
                     // get shape info
+                    const onnx::NodeProto& node0 = graph.node(producer_node_output_index);
+
                     int value_info_index = -1;
-                    for (int j = 0; j < graph.value_info_size(); j++)
+                    bool value_is_graph_input = false;
+                    for (int j = 0; j < graph.input_size(); j++)
                     {
-                        if (graph.value_info(j).name() == input)
+                        if (graph.input(j).name() == node0.input(0))
                         {
                             value_info_index = j;
+                            value_is_graph_input = true;
                             break;
+                        }
+                    }
+                    if (value_info_index == -1)
+                    {
+                        for (int j = 0; j < graph.value_info_size(); j++)
+                        {
+                            if (graph.value_info(j).name() == node0.input(0))
+                            {
+                                value_info_index = j;
+                                break;
+                            }
                         }
                     }
 
                     std::vector<int> shape;
                     if (value_info_index != -1)
                     {
-                        const onnx::ValueInfoProto& value = graph.value_info(value_info_index);
+                        const onnx::ValueInfoProto& value = value_is_graph_input ? graph.input(value_info_index) : graph.value_info(value_info_index);
                         const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
                         shape.resize(tsp.dim_size());
                         for (int j = 0; j < tsp.dim_size(); j++)
@@ -687,20 +732,35 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
                 if (is_producer_shape)
                 {
                     // get shape info
+                    const onnx::NodeProto& node0 = graph.node(producer_node_output_index);
+
                     int value_info_index = -1;
-                    for (int j = 0; j < graph.value_info_size(); j++)
+                    bool value_is_graph_input = false;
+                    for (int j = 0; j < graph.input_size(); j++)
                     {
-                        if (graph.value_info(j).name() == input)
+                        if (graph.input(j).name() == node0.input(0))
                         {
                             value_info_index = j;
+                            value_is_graph_input = true;
                             break;
+                        }
+                    }
+                    if (value_info_index == -1)
+                    {
+                        for (int j = 0; j < graph.value_info_size(); j++)
+                        {
+                            if (graph.value_info(j).name() == node0.input(0))
+                            {
+                                value_info_index = j;
+                                break;
+                            }
                         }
                     }
 
                     std::vector<int> shape;
                     if (value_info_index != -1)
                     {
-                        const onnx::ValueInfoProto& value = graph.value_info(value_info_index);
+                        const onnx::ValueInfoProto& value = value_is_graph_input ? graph.input(value_info_index) : graph.value_info(value_info_index);
                         const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
                         shape.resize(tsp.dim_size());
                         for (int j = 0; j < tsp.dim_size(); j++)
@@ -1062,6 +1122,8 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
             graph->add_output()->set_name(orig_outputs[i]);
         }
     }
+
+    onnx2pnnx::dead_code_elimination(model);
 }
 
 } // namespace onnx2pnnx

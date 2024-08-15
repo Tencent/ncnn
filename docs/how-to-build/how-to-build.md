@@ -15,6 +15,7 @@ git submodule update --init
   - [Cross compile: Riscv-gnu-toolchain](#cross-compile-riscv-gnu-toolchain)
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
+- [Build for Windows x64 using MinGW-w64](#build-for-windows-x64-using-mingw-w64)
 - [Build for macOS](#build-for-macos)
 - [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
 - [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
@@ -27,6 +28,7 @@ git submodule update --init
 - [Build for QNX](#build-for-qnx)
 - [Build for Nintendo 3DS Homebrew Launcher](#build-for-nintendo-3ds-homebrew-launcher)
 - [Build for HarmonyOS with cross-compiling](#build-for-harmonyos-with-cross-compiling)
+- [Build for ESP32 with cross-compiling](#build-for-esp32-with-cross-compiling)
 
 ***
 
@@ -47,15 +49,15 @@ Generally if you have Intel, AMD or Nvidia GPU from last 10 years, Vulkan can be
 
 On some systems there are no Vulkan drivers easily available at the moment (October 2020), so you might need to disable use of Vulkan on them. This applies to Raspberry Pi 3 (but there is experimental open source Vulkan driver in the works, which is not ready yet). Nvidia Tegra series devices (like Nvidia Jetson) should support Vulkan. Ensure you have most recent software installed for best experience.
 
-On Debian 10+, Ubuntu 20.04+, or Raspberry Pi OS, you can install all required dependencies using: 
+On Debian 10+, Ubuntu 20.04+, or Raspberry Pi OS, you can install all required dependencies using:
 ```shell
 sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-tools libopencv-dev
 ```
-On earlier Debian or Ubuntu, you can install all required dependencies using: 
+On earlier Debian or Ubuntu, you can install all required dependencies using:
 ```shell
 sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-utils libopencv-dev
 ```
-On Redhat or Centos, you can install all required dependencies using: 
+On Redhat or Centos, you can install all required dependencies using:
 ```shell
 sudo yum install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev
 ```
@@ -135,7 +137,7 @@ Before compiling the whole project, toolchain must be installed.
 ./configure --prefix=/opt/riscv --enable-multilib --with-arch=rv64gc
 
 # it takes quite a long time:(
-sudo make linux 
+sudo make linux
 
 ```
 Now you can build the project:
@@ -256,6 +258,24 @@ cmake --build . --config Release --target install
 ```
 
 ***
+
+### Build for Windows x64 using MinGW-w64
+
+Download MinGW-w64 toolchain from [winlibs](https://winlibs.com/) or [w64devkit](https://github.com/skeeto/w64devkit), add `bin` folder to environment variables.
+
+Build ncnn library:
+
+```shell
+cd <ncnn-root-dir>
+mkdir build
+cd build
+cmake -DNCNN_VULKAN=ON -G "MinGW Makefiles" ..
+cmake --build . --config Release -j 4
+cmake --build . --config Release --target install
+```
+
+***
+
 ### Build for macOS
 
 We've published ncnn to [brew](https://formulae.brew.sh/formula/ncnn#default) now, you can just use following method to install ncnn if you have the Xcode Command Line Tools installed.
@@ -733,7 +753,7 @@ pkg install proot-distro
 proot-distro install ubuntu
 ```
 
-or you can see what system can be installed using `proot-distro list` 
+or you can see what system can be installed using `proot-distro list`
 
 while you install ubuntu successfully, using `proot-distro login ubuntu` to login Ubuntu.
 
@@ -792,7 +812,7 @@ Pick `build-qnx/install` folder for further usage.
 ### Build for Nintendo 3DS Homebrew Launcher
 Install DevkitPRO toolchains
 - If you are working on windows, download DevkitPro installer from [DevkitPro](https://devkitpro.org/wiki/Getting_Started).
-- If you are using Ubuntu, the official guidelines from DevkitPro might not work for you. Try using the lines below to install 
+- If you are using Ubuntu, the official guidelines from DevkitPro might not work for you. Try using the lines below to install
 ```shell
 sudo apt-get update
 sudo apt-get upgrade
@@ -857,7 +877,7 @@ cd build
 
 export HM_SDK=/opt/ohos-sdk/linux
 
-# Choose HarmonyOS sdk cmake toolchain file. 
+# Choose HarmonyOS sdk cmake toolchain file.
 # If you want to enable vulkan, set -DNCNN_VULKAN=ON
 # The HarmonyOS sdk does not support openmp, use ncnn simpleomp instead.
 # Cross-compiling with CMake must use the one provided by the HarmonyOS SDK; otherwise, it won't recognize parameters like OHOS_PLATFORM, leading to compilation errors.
@@ -866,3 +886,31 @@ ${HM_SDK}/native/build-tools/cmake/bin/cmake -DOHOS_STL=c++_static -DOHOS_ARCH=a
 make -j$(nproc)
 make install
 ```
+
+***
+
+### Build for ESP32 with cross-compiling
+Download esp-idf sdk
+```shell
+git clone https://github.com/espressif/esp-idf
+cd esp-idf
+git submodule update --init --recursive
+```
+Install esp-idf sdk and configure the environment
+```shell
+sudo sh install.sh
+source export.sh
+```
+Note: python>=3.8, cmake>=3.24.0
+
+Build ncnn library:
+```shell
+mkdir build-esp32
+cd build-esp32
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/esp32.toolchain.cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j 4
+make install
+```
+Note: Make sure to compile in esp-idf environment.
+
+The compiled ncnn library and headers can be put to the esp32 project to test.

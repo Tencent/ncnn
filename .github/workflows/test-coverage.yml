@@ -52,10 +52,11 @@ jobs:
         lcov -r lcov.info '*/install/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
+
     - name: codecov
       id: codecov
       continue-on-error: true
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -63,7 +64,7 @@ jobs:
       continue-on-error: true
       id: codecov-vlen256-retry-1
       if: steps.codecov.outcome=='failure'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -71,7 +72,7 @@ jobs:
       continue-on-error: true
       id: codecov-vlen256-retry-2
       if: steps.codecov-vlen256-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -79,7 +80,7 @@ jobs:
       continue-on-error: true
       id: codecov-vlen256-retry-3
       if: steps.codecov-vlen256-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -87,7 +88,7 @@ jobs:
       continue-on-error: true
       id: codecov-vlen256-retry-4
       if: steps.codecov-vlen256-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -95,7 +96,7 @@ jobs:
       continue-on-error: true
       id: codecov-vlen256-retry-5
       if: steps.codecov-vlen256-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
