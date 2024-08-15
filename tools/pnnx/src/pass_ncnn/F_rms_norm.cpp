@@ -50,8 +50,10 @@ pnnx.Output             output      1 0 out
             affine_size *= normalized_shape[i];
         }
 
+        const float eps = captured_params.at("eps").type == 0 ? 0.f : captured_params.at("eps").f;
+
         op->params["0"] = affine_size;
-        op->params["1"] = captured_params.at("eps");
+        op->params["1"] = eps;
         op->params["2"] = 0;
     }
 };

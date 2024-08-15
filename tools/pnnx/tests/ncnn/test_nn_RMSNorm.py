@@ -39,8 +39,8 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(24, 64)
-    y = torch.rand(12, 24, 64)
+    x = torch.rand(1, 24, 64)
+    y = torch.rand(1, 12, 24, 64)
 
     a = net(x, y)
 
@@ -50,7 +50,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_RMSNorm.pt inputshape=[24,64],[12,24,64]")
+    os.system("../../src/pnnx test_nn_RMSNorm.pt inputshape=[1,24,64],[1,12,24,64]")
 
     # ncnn inference
     import test_nn_RMSNorm_ncnn
@@ -58,8 +58,6 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            print(a0)
-            print(b0)
             return False
     return True
 

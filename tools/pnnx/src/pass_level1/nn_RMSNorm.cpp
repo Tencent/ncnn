@@ -37,7 +37,7 @@ public:
 
         op->params["normalized_shape"] = rmsn->namedInput("normalized_shape");
         op->params["eps"] = rmsn->namedInput("eps");
-        op->params["elementwise_affine"] = mod.hasattr("weight") && mod.hasattr("bias");
+        op->params["elementwise_affine"] = mod.hasattr("weight");
 
         if (mod.hasattr("weight"))
         {
