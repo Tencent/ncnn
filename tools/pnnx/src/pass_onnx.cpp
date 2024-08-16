@@ -820,6 +820,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         is_attr_weight = true;
                     if (sim_op_type == "Gather" && j == 0)
                         is_attr_weight = true;
+                    if (sim_op_type == "Gemm" && (j == 1 || j == 2))
+                        is_attr_weight = true;
                     if (sim_op_type == "GroupNormalization" && (j == 1 || j == 2))
                         is_attr_weight = true;
                     if (sim_op_type == "GRU" && (j == 1 || j == 2 || j == 3 || j == 5))
