@@ -37,9 +37,15 @@ namespace py = pybind11;
 class DataReaderFromMemoryCopy : public DataReaderFromMemory
 {
 public:
-    explicit DataReaderFromMemoryCopy(const unsigned char*& mem) : DataReaderFromMemory(mem) {}
+    explicit DataReaderFromMemoryCopy(const unsigned char*& mem)
+        : DataReaderFromMemory(mem)
+    {
+    }
 
-    virtual size_t reference(size_t size, const void** buf) const { return 0; }
+    virtual size_t reference(size_t size, const void** buf) const
+    {
+        return 0;
+    }
 };
 
 struct LayerFactory
