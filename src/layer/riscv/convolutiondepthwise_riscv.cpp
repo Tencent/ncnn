@@ -105,9 +105,7 @@ int ConvolutionDepthWise_riscv::create_pipeline(const Option& opt)
         }
 
         if (opt.lightmode)
-        {
             weight_data.release();
-        }
 
         return 0;
     }
@@ -116,9 +114,7 @@ int ConvolutionDepthWise_riscv::create_pipeline(const Option& opt)
     create_group_ops(opt);
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -146,7 +142,7 @@ int ConvolutionDepthWise_riscv::create_group_ops(const Option& opt)
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+        ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -613,7 +609,7 @@ int ConvolutionDepthWise_riscv::forward(const std::vector<Mat>& bottom_blobs, st
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::ConvolutionDepthWise);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::ConvolutionDepthWise);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -689,9 +685,7 @@ int ConvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
         ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
         if (opt.lightmode)
-        {
             weight_data.release();
-        }
 
         return 0;
     }
@@ -700,9 +694,7 @@ int ConvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
     create_group_ops(opt);
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }

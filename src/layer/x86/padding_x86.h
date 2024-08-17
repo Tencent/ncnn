@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Padding_x86 : virtual public Padding
+class Padding_x86 : public Padding
 {
 public:
     Padding_x86();

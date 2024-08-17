@@ -72,12 +72,103 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("scale").type == 0)
         {
-            // drop scale=None for compatiblity with old torch
+            // drop scale=None for compatibility with old torch
             op->params.erase("scale");
         }
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_1, 10)
+
+static bool NearlyEqual(float a, float b, float epsilon)
+{
+    if (a == b)
+        return true;
+
+    float diff = (float)fabs(a - b);
+    if (diff <= epsilon)
+        return true;
+
+    // relative error
+    return diff < epsilon * std::max(fabs(a), fabs(b));
+}
+
+class F_scaled_dot_product_attention_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+12 11
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+Transpose               op_0        1 1 key kt perm=(0,1,3,2)
+prim::Constant          op_1        0 1 scale value=%sqrt_scale
+aten::mul               op_2        2 1 query scale q
+prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
+aten::mul               op_4        2 1 kt scale2 k
+MatMul                  op_5        2 1 q k qk
+Softmax                 op_6        1 1 qk 4 axis=-1
+MatMul                  op_7        2 1 4 value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.scaled_dot_product_attention";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["dropout_p"] = 0.f;
+        op->params["is_causal"] = false;
+
+        const float sqrt_scale = captured_params.at("sqrt_scale").f;
+        const float scale = sqrt_scale * sqrt_scale;
+
+        op->params["scale"] = scale;
+
+        if (!op->inputs[0]->shape.empty())
+        {
+            const int embed_dim = op->inputs[0]->shape[op->inputs[0]->shape.size() - 1];
+            if (NearlyEqual(scale, 1.f / sqrt(embed_dim), 0.001))
+            {
+                // drop scale=None for compatibility with old torch
+                op->params.erase("scale");
+            }
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_onnx, 10)
+
+class F_scaled_dot_product_attention_onnx_1 : public F_scaled_dot_product_attention_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+14 13
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 attn_mask
+Transpose               op_0        1 1 key kt perm=(0,1,3,2)
+prim::Constant          op_1        0 1 scale value=%sqrt_scale
+aten::mul               op_2        2 1 query scale q
+prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
+aten::mul               op_4        2 1 kt scale2 k
+MatMul                  op_5        2 1 q k qk
+aten::add               op_6        2 1 qk attn_mask qkm
+Softmax                 op_7        1 1 qkm 4 axis=-1
+MatMul                  op_8        2 1 4 value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_onnx_1, 10)
 
 } // namespace pnnx

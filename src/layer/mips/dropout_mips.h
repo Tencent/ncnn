@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Dropout_mips : virtual public Dropout
+class Dropout_mips : public Dropout
 {
 public:
     Dropout_mips();

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class GroupNorm_x86 : virtual public GroupNorm
+class GroupNorm_x86 : public GroupNorm
 {
 public:
     GroupNorm_x86();

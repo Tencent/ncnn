@@ -18,21 +18,7 @@
 
 #include <string.h>
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4250)
-#endif
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Woverloaded-virtual"
-#endif
 #include "layer_declaration.h"
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 namespace ncnn {
 
@@ -221,9 +207,296 @@ Layer* create_layer(const char* type)
 
     return create_layer(index);
 }
+
+Layer* create_layer_naive(const char* type)
+{
+    int index = layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_layer_naive(index);
+}
+
+Layer* create_layer_cpu(const char* type)
+{
+    int index = layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_layer_cpu(index);
+}
+
+#if NCNN_VULKAN
+Layer* create_layer_vulkan(const char* type)
+{
+    int index = layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_layer_vulkan(index);
+}
+#endif // NCNN_VULKAN
 #endif // NCNN_STRING
 
+// internal wrapper
+class Layer_final : public Layer
+{
+public:
+    Layer* layer_cpu;
+#if NCNN_VULKAN
+    Layer* layer_vulkan;
+#endif
+
+    // utility functions for transfer layer properties
+    void set_layer_properties()
+    {
+        layer_cpu->userdata = userdata;
+
+        layer_cpu->bottoms = bottoms;
+        layer_cpu->tops = tops;
+        layer_cpu->bottom_shapes = bottom_shapes;
+        layer_cpu->top_shapes = top_shapes;
+        layer_cpu->featmask = featmask;
+
+#if NCNN_VULKAN
+        if (layer_vulkan)
+        {
+            layer_vulkan->vkdev = vkdev;
+
+            layer_vulkan->userdata = userdata;
+
+            layer_vulkan->bottoms = bottoms;
+            layer_vulkan->tops = tops;
+            layer_vulkan->bottom_shapes = bottom_shapes;
+            layer_vulkan->top_shapes = top_shapes;
+            layer_vulkan->featmask = featmask;
+        }
+#endif
+    }
+
+    void get_layer_properties()
+    {
+        one_blob_only = layer_cpu->one_blob_only;
+        support_inplace = layer_cpu->support_inplace;
+        support_packing = layer_cpu->support_packing;
+        support_bf16_storage = layer_cpu->support_bf16_storage;
+        support_fp16_storage = layer_cpu->support_fp16_storage;
+        support_int8_storage = layer_cpu->support_int8_storage;
+
+        support_vulkan = 0;
+        support_image_storage = 0;
+        support_tensor_storage = 0;
+
+#if NCNN_VULKAN
+        if (layer_vulkan)
+        {
+            support_vulkan = layer_vulkan->support_vulkan;
+            support_image_storage = layer_vulkan->support_image_storage;
+            support_tensor_storage = layer_vulkan->support_tensor_storage;
+        }
+#endif
+    }
+
+public:
+    Layer_final()
+    {
+        layer_cpu = 0;
+#if NCNN_VULKAN
+        layer_vulkan = 0;
+#endif
+    }
+
+    ~Layer_final()
+    {
+        delete layer_cpu;
+#if NCNN_VULKAN
+        delete layer_vulkan;
+#endif
+    }
+
+    virtual int load_param(const ParamDict& pd)
+    {
+        set_layer_properties();
+#if NCNN_VULKAN
+        if (layer_vulkan)
+        {
+            if (vkdev)
+            {
+                int ret = layer_vulkan->load_param(pd);
+                get_layer_properties();
+
+                if (layer_vulkan->support_vulkan)
+                    return ret;
+            }
+
+            // fallback to cpu layer
+            delete layer_vulkan;
+            layer_vulkan = 0;
+        }
+#endif // NCNN_VULKAN
+
+        int ret = layer_cpu->load_param(pd);
+        get_layer_properties();
+        return ret;
+    }
+
+    virtual int load_model(const ModelBin& mb)
+    {
+#if NCNN_VULKAN
+        if (layer_vulkan)
+        {
+            int ret = layer_vulkan->load_model(mb);
+            get_layer_properties();
+            return ret;
+        }
+#endif // NCNN_VULKAN
+
+        int ret = layer_cpu->load_model(mb);
+        get_layer_properties();
+        return ret;
+    }
+
+    virtual int create_pipeline(const Option& opt)
+    {
+        set_layer_properties();
+#if NCNN_VULKAN
+        if (layer_vulkan)
+        {
+            if (vkdev)
+            {
+                int ret = layer_vulkan->create_pipeline(opt);
+                get_layer_properties();
+                return ret;
+            }
+
+            // fallback to cpu layer
+            delete layer_vulkan;
+            layer_vulkan = 0;
+        }
+#endif // NCNN_VULKAN
+
+        int ret = layer_cpu->create_pipeline(opt);
+        get_layer_properties();
+        return ret;
+    }
+
+    virtual int destroy_pipeline(const Option& opt)
+    {
+#if NCNN_VULKAN
+        if (layer_vulkan)
+        {
+            return layer_vulkan->destroy_pipeline(opt);
+        }
+#endif // NCNN_VULKAN
+
+        return layer_cpu->destroy_pipeline(opt);
+    }
+
+public:
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+    {
+        return layer_cpu->forward(bottom_blobs, top_blobs, opt);
+    }
+
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+    {
+        return layer_cpu->forward(bottom_blob, top_blob, opt);
+    }
+
+    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
+    {
+        return layer_cpu->forward_inplace(bottom_top_blobs, opt);
+    }
+
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+    {
+        return layer_cpu->forward_inplace(bottom_top_blob, opt);
+    }
+
+#if NCNN_VULKAN
+public:
+    virtual int upload_model(VkTransfer& cmd, const Option& opt)
+    {
+        return layer_vulkan ? layer_vulkan->upload_model(cmd, opt) : -1;
+    }
+
+    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+    {
+        return layer_vulkan ? layer_vulkan->forward(bottom_blobs, top_blobs, cmd, opt) : -1;
+    }
+
+    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+    {
+        return layer_vulkan ? layer_vulkan->forward(bottom_blob, top_blob, cmd, opt) : -1;
+    }
+
+    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+    {
+        return layer_vulkan ? layer_vulkan->forward(bottom_blobs, top_blobs, cmd, opt) : -1;
+    }
+
+    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
+    {
+        return layer_vulkan ? layer_vulkan->forward(bottom_blob, top_blob, cmd, opt) : -1;
+    }
+
+    virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
+    {
+        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt) : -1;
+    }
+
+    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+    {
+        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt) : -1;
+    }
+
+    virtual int forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
+    {
+        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt) : -1;
+    }
+
+    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+    {
+        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt) : -1;
+    }
+#endif // NCNN_VULKAN
+};
+
 Layer* create_layer(int index)
+{
+    Layer* layer_cpu = create_layer_cpu(index);
+    if (!layer_cpu)
+        return 0;
+
+    Layer_final* layer_final = new Layer_final;
+    layer_final->layer_cpu = layer_cpu;
+
+#if NCNN_VULKAN
+    layer_final->layer_vulkan = create_layer_vulkan(index);
+#endif
+
+    layer_final->typeindex = index;
+    layer_final->set_layer_properties();
+    layer_final->get_layer_properties();
+
+    return layer_final;
+}
+
+Layer* create_layer_naive(int index)
+{
+    if (index < 0 || index >= layer_registry_entry_count)
+        return 0;
+
+    layer_creator_func layer_creator = layer_registry[index].creator;
+    if (!layer_creator)
+        return 0;
+
+    Layer* layer = layer_creator(0);
+    layer->typeindex = index;
+    return layer;
+}
+
+Layer* create_layer_cpu(int index)
 {
     if (index < 0 || index >= layer_registry_entry_count)
         return 0;
@@ -281,6 +554,11 @@ Layer* create_layer(int index)
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_RVV
     {
+        layer_creator = layer_registry_arch[index].creator;
+    }
+
+    if (!layer_creator)
+    {
         layer_creator = layer_registry[index].creator;
     }
     // *INDENT-ON*
@@ -292,5 +570,21 @@ Layer* create_layer(int index)
     layer->typeindex = index;
     return layer;
 }
+
+#if NCNN_VULKAN
+Layer* create_layer_vulkan(int index)
+{
+    if (index < 0 || index >= layer_registry_entry_count)
+        return 0;
+
+    layer_creator_func layer_creator = layer_registry_vulkan[index].creator;
+    if (!layer_creator)
+        return 0;
+
+    Layer* layer = layer_creator(0);
+    layer->typeindex = index;
+    return layer;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_arm : virtual public InnerProduct
+class InnerProduct_arm : public InnerProduct
 {
 public:
     InnerProduct_arm();

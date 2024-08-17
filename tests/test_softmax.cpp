@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/softmax.h"
 #include "testutil.h"
 
 static int test_softmax(const ncnn::Mat& a, int axis)
@@ -23,7 +22,7 @@ static int test_softmax(const ncnn::Mat& a, int axis)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Softmax>("Softmax", pd, weights, a);
+    int ret = test_layer("Softmax", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);

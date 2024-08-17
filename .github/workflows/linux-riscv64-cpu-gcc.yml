@@ -38,7 +38,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-riscv64-install-20220502-4
@@ -61,7 +61,7 @@ jobs:
         wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
         patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
         ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
-        make -j2
+        make -j$(nproc)
         make install
 
     - name: riscv64-gnu-toolchain
@@ -72,13 +72,13 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   linux-gcc-riscv64-c906:
     runs-on: [self-hosted, linux, centos]
@@ -106,7 +106,7 @@ jobs:
 
     #- name: cache-qemu
       #id: cache-qemu
-      #uses: actions/cache@v3
+      #uses: actions/cache@v4
       #with:
         #path: qemu-install
         #key: qemu-riscv64-install-20220502-3
@@ -134,7 +134,7 @@ jobs:
 
     #- name: cache-riscv
       #id: cache-riscv
-      #uses: actions/cache@v3
+      #uses: actions/cache@v4
       #with:
         #path: rv64gcv-install-next
         #key: rv64gcv-linux-install-20210504

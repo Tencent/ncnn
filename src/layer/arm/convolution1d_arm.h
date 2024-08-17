@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Convolution1D_arm : virtual public Convolution1D
+class Convolution1D_arm : public Convolution1D
 {
 public:
     Convolution1D_arm();

@@ -35,19 +35,19 @@ void fuse_slice_to_tensor_split(Graph& graph)
 
             Operand* op_in = op->inputs[0];
 
-            if (op->params.find("dims") == op->params.end()
-                    || op->params.find("starts") == op->params.end()
-                    || op->params.find("ends") == op->params.end()
-                    || op->params.find("steps") == op->params.end())
+            if ((!op->has_param("dim") && !op->has_param("dims"))
+                    || (!op->has_param("start") && !op->has_param("starts"))
+                    || (!op->has_param("end") && !op->has_param("ends"))
+                    || (!op->has_param("step") && !op->has_param("steps")))
                 continue;
 
-            if (op->params.at("dims").ai.size() != 1)
+            if (!op->has_param("dim") && op->params.at("dims").ai.size() != 1)
                 continue;
 
-            int dim = op->params.at("dims").ai[0];
-            int start = op->params.at("starts").ai[0];
-            int end = op->params.at("ends").ai[0];
-            int step = op->params.at("steps").ai[0];
+            int dim = op->has_param("dim") ? op->params.at("dim").i : op->params.at("dims").ai[0];
+            int start = op->has_param("start") ? op->params.at("start").i : op->params.at("starts").ai[0];
+            int end = op->has_param("end") ? op->params.at("end").i : op->params.at("ends").ai[0];
+            int step = op->has_param("step") ? op->params.at("step").i : op->params.at("steps").ai[0];
             if (start != 0 || step != 1)
                 continue;
 
@@ -74,18 +74,18 @@ void fuse_slice_to_tensor_split(Graph& graph)
                     if (x->inputs[0] != op_in)
                         continue;
 
-                    if (x->params.find("dims") == x->params.end()
-                            || x->params.find("starts") == x->params.end()
-                            || x->params.find("ends") == x->params.end()
-                            || x->params.find("steps") == x->params.end())
+                    if ((!x->has_param("dim") && !x->has_param("dims"))
+                            || (!x->has_param("start") && !x->has_param("starts"))
+                            || (!x->has_param("end") && !x->has_param("ends"))
+                            || (!x->has_param("step") && !x->has_param("steps")))
                         continue;
 
-                    if (x->params.at("dims").ai.size() != 1)
+                    if (!x->has_param("dim") && x->params.at("dims").ai.size() != 1)
                         continue;
 
-                    int dim2 = x->params.at("dims").ai[0];
-                    int start2 = x->params.at("starts").ai[0];
-                    int step2 = x->params.at("steps").ai[0];
+                    int dim2 = x->has_param("dim") ? x->params.at("dim").i : x->params.at("dims").ai[0];
+                    int start2 = x->has_param("start") ? x->params.at("start").i : x->params.at("starts").ai[0];
+                    int step2 = x->has_param("step") ? x->params.at("step").i : x->params.at("steps").ai[0];
                     if (step2 != 1)
                         continue;
 
@@ -102,8 +102,14 @@ void fuse_slice_to_tensor_split(Graph& graph)
                 if (std::find(graph.ops.begin(), graph.ops.end(), op2) < std::find(graph.ops.begin(), graph.ops.end(), cur))
                     cur = op2;
 
-                int end2 = op2->params.at("ends").ai[0];
+                int end2 = op2->has_param("end") ? op2->params.at("end").i : op2->params.at("ends").ai[0];
                 if (end2 == INT_MAX)
+                {
+                    slice_n_ops.push_back(op2);
+                    full_dimsize_slice = true;
+                    break;
+                }
+                if (!op_in->shape.empty() && end2 == op_in->shape[dim])
                 {
                     slice_n_ops.push_back(op2);
                     full_dimsize_slice = true;

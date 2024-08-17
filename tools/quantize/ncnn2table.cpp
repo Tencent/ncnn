@@ -1112,7 +1112,7 @@ int QuantNet::quantize_EQ()
                 ncnn::Mat out;
                 ex.extract(conv_top_blobs[i], out);
 
-                ncnn::Layer* layer_int8 = ncnn::create_layer(layer->typeindex);
+                ncnn::Layer* layer_int8 = ncnn::create_layer_cpu(layer->typeindex);
 
                 ncnn::ParamDict pd;
                 get_layer_param(layer, pd);
@@ -1222,7 +1222,7 @@ int QuantNet::quantize_EQ()
                 ncnn::Mat out;
                 ex.extract(conv_top_blobs[i], out);
 
-                ncnn::Layer* layer_int8 = ncnn::create_layer(layer->typeindex);
+                ncnn::Layer* layer_int8 = ncnn::create_layer_cpu(layer->typeindex);
 
                 ncnn::ParamDict pd;
                 get_layer_param(layer, pd);

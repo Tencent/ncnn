@@ -41,4 +41,113 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice, 20)
 
+class Tensor_slice_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Slice                   op_0        1 1 input out axes=%axes starts=%starts ends=%ends
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.slice";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("axes").type == 2)
+        {
+            op->params["dim"] = captured_params.at("axes");
+            op->params["start"] = captured_params.at("starts");
+            op->params["end"] = captured_params.at("ends");
+            op->params["step"] = 1;
+        }
+        else // if (captured_params.at("axes").type == 5)
+        {
+            const std::vector<int>& axes = captured_params.at("axes").ai;
+            const std::vector<int>& starts = captured_params.at("starts").ai;
+            const std::vector<int>& ends = captured_params.at("ends").ai;
+
+            if (axes.size() == 1)
+            {
+                op->params["dim"] = axes[0];
+                op->params["start"] = starts[0];
+                op->params["end"] = ends[0];
+                op->params["step"] = 1;
+            }
+            else
+            {
+                op->params["dims"] = axes;
+                op->params["starts"] = starts;
+                op->params["ends"] = ends;
+                op->params["steps"] = std::vector<int>(axes.size(), 1);
+                op->params["selects"] = std::vector<int>(axes.size(), INT_MAX);
+            }
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice_onnx, 20)
+
+class Tensor_slice_onnx_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Slice                   op_0        1 1 input out axes=%axes starts=%starts ends=%ends steps=%steps
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.slice";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("axes").type == 2)
+        {
+            op->params["dim"] = captured_params.at("axes");
+            op->params["start"] = captured_params.at("starts");
+            op->params["end"] = captured_params.at("ends");
+            op->params["step"] = captured_params.at("steps");
+        }
+        else // if (captured_params.at("axes").type == 5)
+        {
+            const std::vector<int>& axes = captured_params.at("axes").ai;
+            const std::vector<int>& starts = captured_params.at("starts").ai;
+            const std::vector<int>& ends = captured_params.at("ends").ai;
+            const std::vector<int>& steps = captured_params.at("steps").ai;
+
+            if (axes.size() == 1)
+            {
+                op->params["dim"] = axes[0];
+                op->params["start"] = starts[0];
+                op->params["end"] = ends[0];
+                op->params["step"] = steps[0];
+            }
+            else
+            {
+                op->params["dims"] = axes;
+                op->params["starts"] = starts;
+                op->params["ends"] = ends;
+                op->params["steps"] = steps;
+                op->params["selects"] = std::vector<int>(axes.size(), INT_MAX);
+            }
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice_onnx_1, 20)
+
 } // namespace pnnx

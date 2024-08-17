@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Slice_loongarch : virtual public Slice
+class Slice_loongarch : public Slice
 {
 public:
     Slice_loongarch();

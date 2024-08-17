@@ -18,7 +18,7 @@
 #include "instancenorm.h"
 
 namespace ncnn {
-class InstanceNorm_riscv : virtual public InstanceNorm
+class InstanceNorm_riscv : public InstanceNorm
 {
 public:
     InstanceNorm_riscv();

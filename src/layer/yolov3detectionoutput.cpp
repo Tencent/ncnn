@@ -25,7 +25,7 @@ Yolov3DetectionOutput::Yolov3DetectionOutput()
     one_blob_only = false;
     support_inplace = false;
 
-    //softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+    //softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
 
     // set param
     ncnn::ParamDict pd;

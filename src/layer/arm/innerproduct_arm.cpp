@@ -46,7 +46,7 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_cpu(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
 
@@ -123,9 +123,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -417,6 +415,8 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -869,9 +869,7 @@ int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -1068,6 +1066,8 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -1265,9 +1265,7 @@ int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -1284,6 +1282,8 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input)
@@ -1293,6 +1293,8 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_unpack = opt;
         opt_unpack.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_int8, bottom_blob_int8_unpacked, 1, opt_unpack);
+        if (bottom_blob_int8_unpacked.empty())
+            return -100;
 
         int h = bottom_blob_int8_unpacked.h;
 
@@ -1690,6 +1692,8 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_flatten = opt;
         opt_flatten.blob_allocator = opt.workspace_allocator;
         flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+        if (bottom_blob_int8_flattened.empty())
+            return -100;
     }
 
     //     int elempack = bottom_blob_int8_flattened.elempack;

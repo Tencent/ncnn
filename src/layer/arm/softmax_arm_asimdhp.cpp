@@ -18,6 +18,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #include "neon_mathfun_fp16s.h"
 #endif // __ARM_NEON
 
@@ -72,7 +73,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
             for (; i + 7 < size; i += 8)
             {
                 float16x8_t _p = vld1q_f16(ptr);
-                _p = exp_ps(vsubq_f16(_p, _max));
+                _p = exp_ps_f16(vsubq_f16(_p, _max));
                 vst1q_f16(ptr, _p);
                 _sum = vaddq_f16(_sum, _p);
                 ptr += 8;
@@ -80,7 +81,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
             for (; i + 3 < size; i += 4)
             {
                 float16x4_t _p = vld1_f16(ptr);
-                _p = exp_ps(vsub_f16(_p, vget_low_f16(_max)));
+                _p = exp_ps_f16(vsub_f16(_p, vget_low_f16(_max)));
                 vst1_f16(ptr, _p);
                 _sum = vcombine_f16(vadd_f16(vget_low_f16(_sum), _p), vget_high_f16(_sum));
                 ptr += 4;
@@ -243,10 +244,10 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x8_t _p3 = vld1q_f16(ptr + 24);
                     float16x4_t _max = vld1_f16(maxptr);
                     float16x4_t _sum = vld1_f16(sumptr);
-                    _p0 = exp_ps(vsubq_f16(_p0, vdupq_lane_f16(_max, 0)));
-                    _p1 = exp_ps(vsubq_f16(_p1, vdupq_lane_f16(_max, 1)));
-                    _p2 = exp_ps(vsubq_f16(_p2, vdupq_lane_f16(_max, 2)));
-                    _p3 = exp_ps(vsubq_f16(_p3, vdupq_lane_f16(_max, 3)));
+                    _p0 = exp_ps_f16(vsubq_f16(_p0, vdupq_lane_f16(_max, 0)));
+                    _p1 = exp_ps_f16(vsubq_f16(_p1, vdupq_lane_f16(_max, 1)));
+                    _p2 = exp_ps_f16(vsubq_f16(_p2, vdupq_lane_f16(_max, 2)));
+                    _p3 = exp_ps_f16(vsubq_f16(_p3, vdupq_lane_f16(_max, 3)));
                     vst1q_f16(ptr, _p0);
                     vst1q_f16(ptr + 8, _p1);
                     vst1q_f16(ptr + 16, _p2);
@@ -254,7 +255,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x8_t _ss01 = vpaddq_f16(_p0, _p1);
                     float16x8_t _ss23 = vpaddq_f16(_p2, _p3);
                     float16x8_t _ss2 = vpaddq_f16(_ss01, _ss23);
-                    _sum = vadd_f16(_sum, vpmax_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
+                    _sum = vadd_f16(_sum, vpadd_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
                     vst1_f16(sumptr, _sum);
                     ptr += 32;
                     maxptr += 4;
@@ -264,7 +265,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 {
                     float16x8_t _p = vld1q_f16(ptr);
                     float16x8_t _max = vdupq_n_f16(*maxptr);
-                    _p = exp_ps(vsubq_f16(_p, _max));
+                    _p = exp_ps_f16(vsubq_f16(_p, _max));
                     vst1q_f16(ptr, _p);
                     float16x4_t _sum2 = vadd_f16(vget_low_f16(_p), vget_high_f16(_p));
                     float16x4_t _ss2 = vpadd_f16(_sum2, _sum2);
@@ -286,12 +287,12 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x4_t _sum = vld1_f16(sumptr);
                     float16x8_t _max0 = vcombine_f16(vdup_lane_f16(_max, 0), vdup_lane_f16(_max, 1));
                     float16x8_t _max1 = vcombine_f16(vdup_lane_f16(_max, 2), vdup_lane_f16(_max, 3));
-                    _p0 = exp_ps(vsubq_f16(_p0, _max0));
-                    _p1 = exp_ps(vsubq_f16(_p1, _max1));
+                    _p0 = exp_ps_f16(vsubq_f16(_p0, _max0));
+                    _p1 = exp_ps_f16(vsubq_f16(_p1, _max1));
                     vst1q_f16(ptr, _p0);
                     vst1q_f16(ptr + 8, _p1);
                     float16x8_t _ss2 = vpaddq_f16(_p0, _p1);
-                    _sum = vadd_f16(_sum, vpmax_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
+                    _sum = vadd_f16(_sum, vpadd_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
                     vst1_f16(sumptr, _sum);
                     ptr += 16;
                     maxptr += 4;
@@ -301,7 +302,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 {
                     float16x4_t _p = vld1_f16(ptr);
                     float16x4_t _max = vdup_n_f16(*maxptr);
-                    _p = exp_ps(vsub_f16(_p, _max));
+                    _p = exp_ps_f16(vsub_f16(_p, _max));
                     vst1_f16(ptr, _p);
                     float16x4_t _ss2 = vpadd_f16(_p, _p);
                     __fp16 sum0 = vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
@@ -319,7 +320,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x8_t _p = vld1q_f16(ptr);
                     float16x8_t _max = vld1q_f16(maxptr);
                     float16x8_t _sum = vld1q_f16(sumptr);
-                    _p = exp_ps(vsubq_f16(_p, _max));
+                    _p = exp_ps_f16(vsubq_f16(_p, _max));
                     _sum = vaddq_f16(_sum, _p);
                     vst1q_f16(ptr, _p);
                     vst1q_f16(sumptr, _sum);
@@ -332,7 +333,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x4_t _p = vld1_f16(ptr);
                     float16x4_t _max = vld1_f16(maxptr);
                     float16x4_t _sum = vld1_f16(sumptr);
-                    _p = exp_ps(vsub_f16(_p, _max));
+                    _p = exp_ps_f16(vsub_f16(_p, _max));
                     _sum = vadd_f16(_sum, _p);
                     vst1_f16(ptr, _p);
                     vst1_f16(sumptr, _sum);
@@ -465,7 +466,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 for (; j + 7 < size; j += 8)
                 {
                     float16x8_t _p = vld1q_f16(ptr);
-                    _p = exp_ps(vsubq_f16(_p, _max));
+                    _p = exp_ps_f16(vsubq_f16(_p, _max));
                     vst1q_f16(ptr, _p);
                     _sum = vaddq_f16(_sum, _p);
                     ptr += 8;
@@ -473,7 +474,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 for (; j + 3 < size; j += 4)
                 {
                     float16x4_t _p = vld1_f16(ptr);
-                    _p = exp_ps(vsub_f16(_p, vget_low_f16(_max)));
+                    _p = exp_ps_f16(vsub_f16(_p, vget_low_f16(_max)));
                     vst1_f16(ptr, _p);
                     _sum = vcombine_f16(vadd_f16(vget_low_f16(_sum), _p), vget_high_f16(_sum));
                     ptr += 4;
@@ -643,10 +644,10 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x8_t _p2 = vld1q_f16(ptr + 16);
                     float16x8_t _p3 = vld1q_f16(ptr + 24);
                     float16x4_t _max = vld1_f16(maxptr);
-                    _p0 = exp_ps(vsubq_f16(_p0, vdupq_lane_f16(_max, 0)));
-                    _p1 = exp_ps(vsubq_f16(_p1, vdupq_lane_f16(_max, 1)));
-                    _p2 = exp_ps(vsubq_f16(_p2, vdupq_lane_f16(_max, 2)));
-                    _p3 = exp_ps(vsubq_f16(_p3, vdupq_lane_f16(_max, 3)));
+                    _p0 = exp_ps_f16(vsubq_f16(_p0, vdupq_lane_f16(_max, 0)));
+                    _p1 = exp_ps_f16(vsubq_f16(_p1, vdupq_lane_f16(_max, 1)));
+                    _p2 = exp_ps_f16(vsubq_f16(_p2, vdupq_lane_f16(_max, 2)));
+                    _p3 = exp_ps_f16(vsubq_f16(_p3, vdupq_lane_f16(_max, 3)));
                     vst1q_f16(ptr, _p0);
                     vst1q_f16(ptr + 8, _p1);
                     vst1q_f16(ptr + 16, _p2);
@@ -658,7 +659,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 {
                     float16x8_t _p = vld1q_f16(ptr);
                     float16x8_t _max = vdupq_n_f16(*maxptr);
-                    _p = exp_ps(vsubq_f16(_p, _max));
+                    _p = exp_ps_f16(vsubq_f16(_p, _max));
                     vst1q_f16(ptr, _p);
                     ptr += 8;
                     maxptr++;
@@ -674,8 +675,8 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x4_t _max = vld1_f16(maxptr);
                     float16x8_t _max0 = vcombine_f16(vdup_lane_f16(_max, 0), vdup_lane_f16(_max, 1));
                     float16x8_t _max1 = vcombine_f16(vdup_lane_f16(_max, 2), vdup_lane_f16(_max, 3));
-                    _p0 = exp_ps(vsubq_f16(_p0, _max0));
-                    _p1 = exp_ps(vsubq_f16(_p1, _max1));
+                    _p0 = exp_ps_f16(vsubq_f16(_p0, _max0));
+                    _p1 = exp_ps_f16(vsubq_f16(_p1, _max1));
                     vst1q_f16(ptr, _p0);
                     vst1q_f16(ptr + 8, _p1);
                     ptr += 16;
@@ -685,7 +686,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 {
                     float16x4_t _p = vld1_f16(ptr);
                     float16x4_t _max = vdup_n_f16(*maxptr);
-                    _p = exp_ps(vsub_f16(_p, _max));
+                    _p = exp_ps_f16(vsub_f16(_p, _max));
                     vst1_f16(ptr, _p);
                     ptr += 4;
                     maxptr++;
@@ -698,7 +699,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 {
                     float16x8_t _p = vld1q_f16(ptr);
                     float16x8_t _max = vld1q_f16(maxptr);
-                    _p = exp_ps(vsubq_f16(_p, _max));
+                    _p = exp_ps_f16(vsubq_f16(_p, _max));
                     vst1q_f16(ptr, _p);
                     ptr += 8;
                     maxptr += 8;
@@ -707,7 +708,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 {
                     float16x4_t _p = vld1_f16(ptr);
                     float16x4_t _max = vld1_f16(maxptr);
-                    _p = exp_ps(vsub_f16(_p, _max));
+                    _p = exp_ps_f16(vsub_f16(_p, _max));
                     vst1_f16(ptr, _p);
                     ptr += 4;
                     maxptr += 4;
@@ -742,7 +743,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x8_t _ss01 = vpaddq_f16(_p0, _p1);
                     float16x8_t _ss23 = vpaddq_f16(_p2, _p3);
                     float16x8_t _ss2 = vpaddq_f16(_ss01, _ss23);
-                    _sum = vadd_f16(_sum, vpmax_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
+                    _sum = vadd_f16(_sum, vpadd_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
                     vst1_f16(sumptr, _sum);
                     ptr += 32;
                     sumptr += 4;
@@ -767,7 +768,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x8_t _p1 = vld1q_f16(ptr + 8);
                     float16x4_t _sum = vld1_f16(sumptr);
                     float16x8_t _ss2 = vpaddq_f16(_p0, _p1);
-                    _sum = vadd_f16(_sum, vpmax_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
+                    _sum = vadd_f16(_sum, vpadd_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
                     vst1_f16(sumptr, _sum);
                     ptr += 16;
                     sumptr += 4;
@@ -943,7 +944,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x8_t _p = vld1q_f16(ptr);
                     float16x8_t _max = vld1q_f16(maxptr);
                     float16x8_t _sum = vld1q_f16(sumptr);
-                    _p = exp_ps(vsubq_f16(_p, _max));
+                    _p = exp_ps_f16(vsubq_f16(_p, _max));
                     _sum = vaddq_f16(_sum, _p);
                     vst1q_f16(ptr, _p);
                     vst1q_f16(sumptr, _sum);
@@ -956,7 +957,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x4_t _p = vld1_f16(ptr);
                     float16x4_t _max = vld1_f16(maxptr);
                     float16x4_t _sum = vld1_f16(sumptr);
-                    _p = exp_ps(vsub_f16(_p, _max));
+                    _p = exp_ps_f16(vsub_f16(_p, _max));
                     _sum = vadd_f16(_sum, _p);
                     vst1_f16(ptr, _p);
                     vst1_f16(sumptr, _sum);
@@ -1070,7 +1071,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     for (; j + 7 < size; j += 8)
                     {
                         float16x8_t _p = vld1q_f16(ptr);
-                        _p = exp_ps(vsubq_f16(_p, _max));
+                        _p = exp_ps_f16(vsubq_f16(_p, _max));
                         vst1q_f16(ptr, _p);
                         _sum = vaddq_f16(_sum, _p);
                         ptr += 8;
@@ -1078,7 +1079,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     for (; j + 3 < size; j += 4)
                     {
                         float16x4_t _p = vld1_f16(ptr);
-                        _p = exp_ps(vsub_f16(_p, vget_low_f16(_max)));
+                        _p = exp_ps_f16(vsub_f16(_p, vget_low_f16(_max)));
                         vst1_f16(ptr, _p);
                         _sum = vcombine_f16(vadd_f16(vget_low_f16(_sum), _p), vget_high_f16(_sum));
                         ptr += 4;

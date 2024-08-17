@@ -399,6 +399,8 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             Mat bottom_blob_unpacked;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+            if (bottom_blob_unpacked.empty())
+                return -100;
 
             Mat top_blob_unpacked;
             int ret = ShuffleChannel::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
@@ -406,6 +408,8 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                 return ret;
 
             convert_packing(top_blob_unpacked, top_blob, elempack, opt);
+            if (top_blob.empty())
+                return -100;
 
             return 0;
         }

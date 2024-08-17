@@ -46,16 +46,21 @@
 #include "pass_level5/fuse_pad_conv2d.h"
 #include "pass_level5/fuse_scaled_dot_product_attention.h"
 #include "pass_level5/fuse_select_to_unbind.h"
+#include "pass_level5/fuse_silu.h"
 #include "pass_level5/fuse_slice_copy.h"
 #include "pass_level5/fuse_slice_indices.h"
 #include "pass_level5/fuse_slice_to_tensor_split.h"
+#include "pass_level5/fuse_slice_squeeze_to_select.h"
 #include "pass_level5/fuse_static_batchnorm.h"
 #include "pass_level5/fuse_static_conv.h"
 #include "pass_level5/fuse_static_convtranspose.h"
+#include "pass_level5/fuse_static_embedding.h"
 #include "pass_level5/fuse_static_groupnorm.h"
 #include "pass_level5/fuse_static_instancenorm.h"
 #include "pass_level5/fuse_static_layernorm.h"
 #include "pass_level5/fuse_static_linear.h"
+#include "pass_level5/fuse_static_prelu.h"
+#include "pass_level5/fuse_static_rmsnorm.h"
 #include "pass_level5/normalize_einsum_equation.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
@@ -75,6 +80,8 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_noop_expression(g);
 
     eliminate_noop_slice(g);
+
+    fuse_slice_squeeze_to_select(g);
 
     fuse_slice_indices(g);
 
@@ -96,10 +103,13 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_static_groupnorm(g);
     fuse_static_instancenorm(g);
     fuse_static_layernorm(g);
+    fuse_static_rmsnorm(g);
 
     fuse_static_conv(g);
     fuse_static_convtranspose(g);
     fuse_static_linear(g);
+    fuse_static_embedding(g);
+    fuse_static_prelu(g);
 
     fuse_conv1d_batchnorm1d(g);
     fuse_conv2d_batchnorm2d(g);
@@ -137,6 +147,8 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_layernorm(g);
     fuse_multiheadattention(g);
     fuse_scaled_dot_product_attention(g);
+
+    fuse_silu(g);
 
     fuse_index_expression(g);
 

@@ -38,7 +38,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-mipsel-install-20220502-2
@@ -59,7 +59,7 @@ jobs:
       run: |
         cd qemu
         ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mipsel-linux-user --disable-system
-        make -j2
+        make -j$(nproc)
         make install
 
     - name: mipsel-gnu-toolchain
@@ -70,13 +70,13 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsel-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsel-linux-gnu" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsel-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   linux-gcc-mipsisa32r6el:
     runs-on: ubuntu-20.04
@@ -85,7 +85,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-mipsel-install-20220502-2
@@ -106,7 +106,7 @@ jobs:
       run: |
         cd qemu
         ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mipsel-linux-user --disable-system
-        make -j2
+        make -j$(nproc)
         make install
 
     - name: mipsisa32r6el-gnu-toolchain
@@ -117,10 +117,10 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j $(nproc)

@@ -4,9 +4,12 @@ if(MSVC)
     add_definitions(/wd4996)
 endif()
 
+add_library(ncnntestutil STATIC testutil.cpp)
+target_link_libraries(ncnntestutil PUBLIC ncnn)
+
 macro(ncnn_add_test name)
     add_executable(test_${name} test_${name}.cpp)
-    target_link_libraries(test_${name} PRIVATE ncnn)
+    target_link_libraries(test_${name} PRIVATE ncnntestutil ncnn)
 
     add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:test_${name}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
 
@@ -24,7 +27,7 @@ macro(ncnn_add_layer_test class)
         foreach(test_file ${test_${name}_SRCS})
             get_filename_component(test_filename ${test_file} NAME_WE)
             add_executable(${test_filename} ${test_file})
-            target_link_libraries(${test_filename} PRIVATE ncnn)
+            target_link_libraries(${test_filename} PRIVATE ncnntestutil ncnn)
 
             add_test(NAME ${test_filename} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:${test_filename}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
 
@@ -138,6 +141,7 @@ ncnn_add_layer_test(ReLU)
 ncnn_add_layer_test(Reorg)
 ncnn_add_layer_test(Requantize)
 ncnn_add_layer_test(Reshape)
+ncnn_add_layer_test(RMSNorm)
 ncnn_add_layer_test(RNN)
 ncnn_add_layer_test(ROIPooling)
 ncnn_add_layer_test(ROIAlign)

@@ -52,6 +52,7 @@ jobs:
         lcov -r lcov.info '*/install/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
+
     - name: codecov
       id: codecov
       continue-on-error: true
@@ -119,7 +120,7 @@ jobs:
     - name: lcov
       run: sudo apt-get install lcov
     - name: Setup SDE binaries
-      uses: petarpetrovt/setup-sde@v2
+      uses: petarpetrovt/setup-sde@v2.4
     - name: build-avx512-spr
       env:
         CC: gcc-12
@@ -140,7 +141,7 @@ jobs:
         lcov -r lcov.info '*/build-avx512-spr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-avx512-spr
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build-avx512-spr/lcov.info

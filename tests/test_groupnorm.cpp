@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/groupnorm.h"
 #include "testutil.h"
 
 static int test_groupnorm(const ncnn::Mat& a, int group, float eps, int affine)
@@ -37,7 +36,7 @@ static int test_groupnorm(const ncnn::Mat& a, int group, float eps, int affine)
     weights[0] = RandomMat(channels);
     weights[1] = RandomMat(channels);
 
-    int ret = test_layer<ncnn::GroupNorm>("GroupNorm", pd, weights, a);
+    int ret = test_layer("GroupNorm", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_groupnorm failed a.dims=%d a=(%d %d %d) group=%d eps=%f\n", a.dims, a.w, a.h, a.c, group, eps);

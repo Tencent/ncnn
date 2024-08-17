@@ -56,12 +56,12 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test
       shell: alpine.sh {0}
-      run: cd build && ctest --output-on-failure -j 2
+      run: cd build && ctest --output-on-failure -j $(nproc)
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
         cmake -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)

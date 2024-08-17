@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/cast.h"
 #include "testutil.h"
 
 static int cast_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int type_from, int type_to)
@@ -25,11 +24,8 @@ static int cast_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int type_from, int t
 
     ncnn::Option opt;
     opt.num_threads = 1;
-    opt.use_vulkan_compute = false;
-    opt.use_int8_inference = false;
-    opt.use_packing_layout = false;
 
-    ncnn::Layer* op = ncnn::create_layer("Cast");
+    ncnn::Layer* op = ncnn::create_layer_naive("Cast");
 
     op->load_param(pd);
 
@@ -39,7 +35,7 @@ static int cast_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int type_from, int t
 
     op->create_pipeline(opt);
 
-    ((ncnn::Cast*)op)->ncnn::Cast::forward(a, b, opt);
+    op->forward(a, b, opt);
 
     op->destroy_pipeline(opt);
 
@@ -62,7 +58,7 @@ static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
     opt.use_int8_inference = false;
     opt.use_packing_layout = false;
 
-    ncnn::Layer* op = ncnn::create_layer("Cast");
+    ncnn::Layer* op = ncnn::create_layer_cpu("Cast");
 
     op->load_param(pd);
 
@@ -76,7 +72,7 @@ static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
     cast_cpu_naive(a, a_fp16, 1, type_from);
 
     ncnn::Mat b;
-    ((ncnn::Cast*)op)->ncnn::Cast::forward(a_fp16, b, opt);
+    cast_cpu_naive(a_fp16, b, type_from, type_to);
 
     ncnn::Mat c;
     op->forward(a_fp16, c, opt);
@@ -107,7 +103,7 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
     opt.use_vulkan_compute = false;
     opt.use_packing_layout = false;
 
-    ncnn::Layer* op = ncnn::create_layer("Cast");
+    ncnn::Layer* op = ncnn::create_layer_cpu("Cast");
 
     op->load_param(pd);
 
@@ -121,7 +117,7 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
     cast_cpu_naive(a, a_fp16, 1, type_from);
 
     ncnn::Mat b;
-    ((ncnn::Cast*)op)->ncnn::Cast::forward(a_fp16, b, opt);
+    cast_cpu_naive(a_fp16, b, type_from, type_to);
 
     ncnn::Mat a4;
     ncnn::convert_packing(a, a4, 4, opt);
@@ -180,7 +176,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
-    ncnn::Layer* op = ncnn::create_layer("Cast");
+    ncnn::Layer* op = ncnn::create_layer_vulkan("Cast");
 
     op->vkdev = vkdev;
 
@@ -203,7 +199,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     }
 
     ncnn::Mat b;
-    ((ncnn::Cast*)op)->ncnn::Cast::forward(a_fp16, b, opt);
+    cast_cpu_naive(a_fp16, b, type_from, type_to);
 
     ncnn::Mat d;
 
@@ -296,7 +292,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
-    ncnn::Layer* op = ncnn::create_layer("Cast");
+    ncnn::Layer* op = ncnn::create_layer_vulkan("Cast");
 
     op->vkdev = vkdev;
 
@@ -319,7 +315,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     }
 
     ncnn::Mat b;
-    ((ncnn::Cast*)op)->ncnn::Cast::forward(a_fp16, b, opt);
+    cast_cpu_naive(a_fp16, b, type_from, type_to);
 
     ncnn::Mat d;
 
@@ -413,7 +409,7 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
-    ncnn::Layer* op = ncnn::create_layer("Cast");
+    ncnn::Layer* op = ncnn::create_layer_vulkan("Cast");
 
     op->vkdev = vkdev;
 
@@ -436,7 +432,7 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
     }
 
     ncnn::Mat b;
-    ((ncnn::Cast*)op)->ncnn::Cast::forward(a_fp16, b, opt);
+    cast_cpu_naive(a_fp16, b, type_from, type_to);
 
     ncnn::Mat d;
 
@@ -529,7 +525,7 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
-    ncnn::Layer* op = ncnn::create_layer("Cast");
+    ncnn::Layer* op = ncnn::create_layer_vulkan("Cast");
 
     op->vkdev = vkdev;
 
@@ -552,7 +548,7 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
     }
 
     ncnn::Mat b;
-    ((ncnn::Cast*)op)->ncnn::Cast::forward(a_fp16, b, opt);
+    cast_cpu_naive(a_fp16, b, type_from, type_to);
 
     ncnn::Mat d;
 

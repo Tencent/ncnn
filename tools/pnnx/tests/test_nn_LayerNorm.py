@@ -21,6 +21,8 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
         self.ln_0 = nn.LayerNorm(64)
+        self.ln_0.weight = nn.Parameter(torch.rand(64))
+        self.ln_0.bias = nn.Parameter(torch.rand(64))
         self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=False)
 
     def forward(self, x, y, z):

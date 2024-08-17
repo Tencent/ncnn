@@ -517,6 +517,11 @@ float erf(float a)
     return r;
 }
 
+float erff(float x)
+{
+    return erf(x);
+}
+
 float erfcf(float x)
 {
     return 1.0 - erf(x);

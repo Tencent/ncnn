@@ -1240,6 +1240,13 @@ void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt)
     ((Net*)net->pthis)->opt = *((Option*)opt);
 }
 
+#if NCNN_VULKAN
+void ncnn_net_set_vulkan_device(ncnn_net_t net, int device_index)
+{
+    ((Net*)net->pthis)->set_vulkan_device(device_index);
+}
+#endif
+
 static ::ncnn::Layer* __Layer_c_api_layer_creator(void* userdata)
 {
     ncnn_net_custom_layer_factory_t ud = (ncnn_net_custom_layer_factory_t)userdata;
@@ -1457,6 +1464,88 @@ void ncnn_copy_cut_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int 
     const Option _opt = opt ? *((const Option*)opt) : Option();
     copy_cut_border_3d(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, front, behind, _opt);
 }
+
+#if NCNN_PIXEL_DRAWING
+void ncnn_draw_rectangle_c1(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    ncnn::draw_rectangle_c1(pixels, w, h, w, rx, ry, rw, rh, color, thickness);
+}
+
+void ncnn_draw_rectangle_c2(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    ncnn::draw_rectangle_c2(pixels, w, h, w * 2, rx, ry, rw, rh, color, thickness);
+}
+
+void ncnn_draw_rectangle_c3(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    ncnn::draw_rectangle_c3(pixels, w, h, w * 3, rx, ry, rw, rh, color, thickness);
+}
+
+void ncnn_draw_rectangle_c4(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    ncnn::draw_rectangle_c4(pixels, w, h, w * 4, rx, ry, rw, rh, color, thickness);
+}
+
+void ncnn_draw_text_c1(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c1(pixels, w, h, w, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_text_c2(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c2(pixels, w, h, w * 2, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_text_c3(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c3(pixels, w, h, w * 3, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_text_c4(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c4(pixels, w, h, w * 4, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_circle_c1(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c1(pixels, w, h, w, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_circle_c2(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c2(pixels, w, h, w * 2, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_circle_c3(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c3(pixels, w, h, w * 3, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_circle_c4(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c4(pixels, w, h, w * 4, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_line_c1(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c1(pixels, w, h, w, x0, y0, x1, y1, color, thickness);
+}
+
+void ncnn_draw_line_c2(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c2(pixels, w, h, w * 2, x0, y0, x1, y1, color, thickness);
+}
+
+void ncnn_draw_line_c3(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c3(pixels, w, h, w * 3, x0, y0, x1, y1, color, thickness);
+}
+
+void ncnn_draw_line_c4(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c4(pixels, w, h, w * 4, x0, y0, x1, y1, color, thickness);
+}
+#endif /* NCNN_PIXEL_DRAWING */
 
 #ifdef __cplusplus
 } /* extern "C" */

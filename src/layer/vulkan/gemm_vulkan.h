@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Gemm_vulkan : virtual public Gemm
+class Gemm_vulkan : public Gemm
 {
 public:
     Gemm_vulkan();

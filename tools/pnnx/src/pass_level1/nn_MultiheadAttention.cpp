@@ -35,9 +35,8 @@ public:
 
     void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
     {
-        //         mod.dump(false, false, false);
-
-        //         graph->dump();
+        // mod.dump(false, false, false);
+        // graph->dump();
 
         const torch::jit::Node* multi_head_attention = find_node_by_kind(graph, "aten::_native_multi_head_attention");
         if (multi_head_attention)
@@ -72,12 +71,6 @@ public:
             {
                 op->params["batch_first"] = true;
             }
-#if TORCH_VERSION_MAJOR >= 2 || TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
-            else
-            {
-                op->params["batch_first"] = false;
-            }
-#endif
 
             const torch::jit::Node* add_zero_attn = find_node_by_kind(graph, "aten::zeros");
             if (add_zero_attn)
@@ -89,6 +82,18 @@ public:
                 op->params["add_zero_attn"] = false;
             }
 
+            const torch::jit::Node* scaled_dot_product_attention = find_node_by_kind(graph, "aten::scaled_dot_product_attention");
+            if (scaled_dot_product_attention)
+            {
+                if (scaled_dot_product_attention->input(3)->type()->kind() != c10::TypeKind::NoneType)
+                {
+                    size_t input_count = op->inputs.size();
+                    op->inputnames.resize(input_count);
+                    op->inputnames[input_count - 1] = "attn_mask";
+                }
+            }
+
+            // find attention mask addition pattern pre torch-2.1
             const torch::jit::Node* has_attn_mask = find_node_by_kind(graph, "aten::baddbmm");
             if (has_attn_mask)
             {
@@ -158,7 +163,7 @@ public:
         else
         {
             op->params["bias"] = false;
-#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR == 8
+
             // the output projection bias always there no matter bias is False in pytorch 1.8
             // this behavior changes since https://github.com/pytorch/pytorch/commit/58d1b3639bc07f9519de18e5a18e575f260c7eeb
             if (mod.attr("out_proj").toModule().hasattr("bias"))
@@ -166,7 +171,6 @@ public:
                 const auto& out_proj_bias = mod.attr("out_proj").toModule().attr("bias").toTensor();
                 op->attrs["out_proj.bias"] = out_proj_bias;
             }
-#endif
         }
 
         if (mod.hasattr("bias_k") && mod.hasattr("bias_v"))

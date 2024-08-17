@@ -2360,7 +2360,11 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -2391,7 +2395,11 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -2472,6 +2480,8 @@ static int gemm_AT_arm_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& to
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -2502,7 +2512,11 @@ static int gemm_AT_arm_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& to
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -2566,10 +2580,16 @@ static int gemm_BT_arm_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& to
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -2648,7 +2668,11 @@ static int gemm_AT_BT_arm_fp16sa(const Mat& AT, const Mat& BT, const Mat& C, Mat
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -2737,9 +2761,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
         }
 
         if (opt.lightmode)
-        {
             A_data.release();
-        }
     }
 
     if (constantB)
@@ -2780,9 +2802,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
         }
 
         if (opt.lightmode)
-        {
             B_data.release();
-        }
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -2809,9 +2829,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
         }
 
         if (opt.lightmode)
-        {
             C_data.release();
-        }
     }
 
     if (constantA || constantB || constantC)
@@ -2916,13 +2934,15 @@ int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
             {
                 Mat CT_data;
                 CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
 
                 const int size = C.total() * C.elempack;
                 const __fp16* ptr = C;
                 __fp16* outptr = CT_data;
                 for (int i = 0; i < size; i++)
                 {
-                    outptr[i] = ptr[i] * beta;
+                    outptr[i] = ptr[i] * (__fp16)beta;
                 }
 
                 C = CT_data;

@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/slice.h"
 #include "testutil.h"
 
 static ncnn::Mat IntArrayMat(int a0)
@@ -76,7 +75,7 @@ static int test_slice(const ncnn::Mat& a, const ncnn::Mat& slices, int axis)
     std::vector<ncnn::Mat> a0(1);
     a0[0] = a;
 
-    int ret = test_layer<ncnn::Slice>("Slice", pd, weights, a0, slices.w);
+    int ret = test_layer("Slice", pd, weights, a0, slices.w);
     if (ret != 0)
     {
         fprintf(stderr, "test_slice failed a.dims=%d a=(%d %d %d %d)", a.dims, a.w, a.h, a.d, a.c);
@@ -99,7 +98,7 @@ static int test_slice_indices(const ncnn::Mat& a, const ncnn::Mat& indices, int 
     std::vector<ncnn::Mat> a0(1);
     a0[0] = a;
 
-    int ret = test_layer<ncnn::Slice>("Slice", pd, weights, a0, indices.w);
+    int ret = test_layer("Slice", pd, weights, a0, indices.w);
     if (ret != 0)
     {
         fprintf(stderr, "test_slice_indices failed a.dims=%d a=(%d %d %d %d)", a.dims, a.w, a.h, a.d, a.c);

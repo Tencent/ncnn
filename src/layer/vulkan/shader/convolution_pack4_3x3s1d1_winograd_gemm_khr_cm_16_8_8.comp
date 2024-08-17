@@ -70,14 +70,14 @@ void main()
     const int lxd8 = lx / 8; // 0 1 2 3
     const int lxm8 = lx % 8; // 0 1 2 3 .... 7
 
-    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum0 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
-    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum1 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
-    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum2 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
-    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum3 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
-    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum4 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
-    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum5 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
-    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum6 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
-    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum7 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+    coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum0 = coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+    coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum1 = coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+    coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum2 = coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+    coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum3 = coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+    coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum4 = coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+    coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum5 = coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+    coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum6 = coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+    coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum7 = coopmat<afp, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
 
     const int N = psc(c) / 2;
 
@@ -202,6 +202,16 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
         return;
 
+#if NCNN_fp16_arithmetic
+    coopMatStore(sum0, tmp_v0, 0, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum1, tmp_v1, 0, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum2, tmp_v0, 16*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum3, tmp_v1, 16*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum4, tmp_v0, 16*4, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum5, tmp_v1, 16*4, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum6, tmp_v0, 16*6, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum7, tmp_v1, 16*6, 2, gl_CooperativeMatrixLayoutRowMajor);
+#else
     coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum0_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum0);
     coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum1_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum1);
     coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum2_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum2);
@@ -219,6 +229,7 @@ void main()
     coopMatStore(sum5_fp16, tmp_v1, 16*4, 2, gl_CooperativeMatrixLayoutRowMajor);
     coopMatStore(sum6_fp16, tmp_v0, 16*6, 2, gl_CooperativeMatrixLayoutRowMajor);
     coopMatStore(sum7_fp16, tmp_v1, 16*6, 2, gl_CooperativeMatrixLayoutRowMajor);
+#endif
 
     barrier();
 

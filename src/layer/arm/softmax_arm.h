@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Softmax_arm : virtual public Softmax
+class Softmax_arm : public Softmax
 {
 public:
     Softmax_arm();

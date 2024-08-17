@@ -1,0 +1,184 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#include <iostream>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <cfloat>
+#include "Rcards.h"
+//---------------------------------------------------------------------------
+using namespace std;
+//---------------------------------------------------------------------------
+#define REF_BOARD "Raspberry Pi 5 Broadcom BCM2712, Cortex-A76 (ARMv8)"
+//---------------------------------------------------------------------------
+// Define a custom comparator function for sorting based on Ratio
+bool compareByRatio(const TBoard& a, const TBoard& b)
+{
+    return a.Ratio < b.Ratio;
+}
+//---------------------------------------------------------------------------
+int main(int argc, char** argv)
+{
+    size_t i, t, n, r;
+    int RefBoard;
+    float f, x;
+    string Line;
+    TModel Model;
+    vector<string> Lines;  // Vector to store strings
+    vector<TBoard> Boards; // Vector to store boards
+    ifstream inputFile;
+
+    // Check existence of the ../README.md file
+    inputFile.open("../README.md");
+    if (!inputFile.is_open())
+    {
+        if (argc != 2)
+        {
+            fprintf(stderr, "Usage: ./RankCards <your README.md> \n");
+            return -1;
+        }
+        const char* imagepath = argv[1];
+        // Open the file given as argument
+        inputFile.open(imagepath);
+        // Check if the file is open
+        if (!inputFile.is_open())
+        {
+            cerr << "Error opening file" << endl;
+            return 1; // Return an error code
+        }
+    }
+
+    // Read each Line from the file and add it to the vector
+    while (std::getline(inputFile, Line))
+    {
+        Lines.push_back(Line);
+    }
+    // Close the file
+    inputFile.close();
+
+    // Get the boards.
+    for (i = 0; i < Lines.size(); i++)
+    {
+        TBoard Brd;
+        if (Lines[i].find("###") != string::npos)
+        {
+            Brd.Name = Lines[i].substr(4, Lines[i].length() - 4);
+            Brd.StartLine = i + 1;
+            Boards.push_back(Brd);
+        }
+    }
+    // Get the boards end Line.
+    for (t = 0; t < Boards.size() - 1; t++)
+    {
+        Boards[t].EndLine = Boards[t + 1].StartLine;
+    }
+    Boards[t].EndLine = Lines.size();
+
+    // Get the bench sets (must always start with squeezenet)
+    for (t = 0; t < Boards.size(); t++)
+    {
+        TModelSet MdSet;
+        bool FirstSet = true;
+        for (n = Boards[t].StartLine; n < Boards[t].EndLine; n++)
+        {
+            GetNameAver(Lines[n], Model);
+            MdSet.Store(Model);
+
+            if (Model.Name == "squeezenet")
+            {
+                //start of new set, check if it is the first set
+                if (FirstSet)
+                    FirstSet = false;
+                else
+                    Boards[t].BenchSet.push_back(MdSet);
+            }
+        }
+        Boards[t].BenchSet.push_back(MdSet);
+    }
+
+    // Get the total AvrTime of the bench sets and set the lowest as best set
+    for (t = 0; t < Boards.size(); t++)
+    {
+        x = FLT_MAX;
+        for (n = 0; n < Boards[t].BenchSet.size(); n++)
+        {
+            f = Boards[t].BenchSet[n].Sum();
+            if (f < x)
+            {
+                x = f;
+                Boards[t].BestSet = n;
+            }
+        }
+    }
+
+    // Get the reference set
+    RefBoard = -1;
+    for (t = 0; t < Boards.size(); t++)
+    {
+        if (Boards[t].Name.find(REF_BOARD) != string::npos)
+        {
+            RefBoard = static_cast<int>(t);
+        }
+    }
+    if (RefBoard == -1)
+    {
+        cerr << "Error finding reference board :" << endl;
+        cerr << REF_BOARD << endl;
+        return 1; // Return an error code
+    }
+
+    // Get the ratios between the best bench sets and reference
+    r = Boards[RefBoard].BestSet;
+    for (t = 0; t < Boards.size(); t++)
+    {
+        n = Boards[t].BestSet;
+        Boards[t].Ratio = Boards[t].BenchSet[n].Ratio(Boards[RefBoard].BenchSet[r]);
+    }
+
+    // Sort the vector using the custom comparator
+    std::sort(Boards.begin(), Boards.end(), compareByRatio);
+
+    // Open an output README.md file
+    std::ofstream outputFile("README.md");
+
+    // Check if the file is successfully opened
+    if (outputFile.is_open())
+    {
+        outputFile << "### Rank the boards." << endl;
+        outputFile << "The table below is generated by RankCards, using the timings found in the /ncnn/benchmark/README.md file.<br>" << endl;
+        outputFile << "First, the best set of timings is selected from each board.<br>" << endl;
+        outputFile << "The set is then compared to a reference set by calculating the ratio of each model one by one and averaging all results.<br>" << endl;
+        outputFile << "Finally, the boards are ranked from fast to slow.<br>" << endl;
+        outputFile << "|      | Board | Ratio | " << endl;
+        outputFile << "| :--: | :---- | :---  | " << endl;
+        // Write the sorted vector to the file
+        for (t = 0; t < Boards.size(); t++)
+        {
+            outputFile << "| " << t + 1 << " | " << Boards[t].Name << " | " << setprecision(3) << Boards[t].Ratio << " | " << endl;
+        }
+        // Close the file stream
+        outputFile.close();
+        cout << "Sorted data has been written to README.md" << endl;
+    }
+    else
+    {
+        cerr << "Error opening the file." << endl;
+        return 1; // Return an error code
+    }
+
+    return 0; // Return success
+}
+//---------------------------------------------------------------------------

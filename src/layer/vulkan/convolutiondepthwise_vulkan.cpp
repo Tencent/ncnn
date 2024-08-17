@@ -41,15 +41,21 @@ ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
     pipeline_convolutiondepthwise_group_pack8to1 = 0;
 }
 
-int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
+int ConvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
 {
+    int ret = ConvolutionDepthWise::load_param(pd);
+
     if (dynamic_weight)
     {
         support_vulkan = false;
         support_image_storage = false;
-        return 0;
     }
 
+    return ret;
+}
+
+int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
+{
     Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
@@ -177,7 +183,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        padding = ncnn::create_layer(ncnn::LayerType::Padding);
+        padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
 
         padding->bottom_shapes.resize(1);
@@ -263,6 +269,12 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolutiondepthwise_pack8 = new Pipeline(vkdev);
             pipeline_convolutiondepthwise_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_convolutiondepthwise_pack8->create(LayerShaderType::convolutiondepthwise_pack8, opt, specializations);
+        }
+
+        if (opt.lightmode)
+        {
+            weight_data.release();
+            bias_data.release();
         }
 
         return 0;
@@ -402,6 +414,12 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         pipeline_convolutiondepthwise_group_pack8to1 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_convolutiondepthwise_group_pack8to1->create(LayerShaderType::convolutiondepthwise_group_pack8to1, opt, specializations);
+    }
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+        bias_data.release();
     }
 
     return 0;

@@ -43,17 +43,17 @@ jobs:
         submodules: true
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20230420
+        key: swiftshader-linux-install-20240622
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: dd55e592406dc0bae219df11adec6363840aff4a
+        ref: de870ac7518fe2b6bb651ecc22fc36647cf7b986
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
@@ -98,12 +98,12 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DNCNN_VULKAN=ON -DNCNN_SYSTEM_GLSLANG=ON -DGLSLANG_TARGET_DIR=/usr/lib/x86_64-linux-gnu/cmake ..
-        cmake --build . -j 4
+        cmake --build . -j $(nproc)
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
         cmake -DNCNN_VULKAN=ON -DNCNN_SYSTEM_GLSLANG=ON -DGLSLANG_TARGET_DIR=/usr/lib/x86_64-linux-gnu/cmake -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 4
+        cmake --build . -j $(nproc)
 
   linux-gcc-gpu-t4:
     runs-on: [self-hosted, linux, t4]

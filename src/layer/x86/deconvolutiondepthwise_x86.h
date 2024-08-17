@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class DeconvolutionDepthWise_x86 : virtual public DeconvolutionDepthWise
+class DeconvolutionDepthWise_x86 : public DeconvolutionDepthWise
 {
 public:
     DeconvolutionDepthWise_x86();

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Concat_vulkan : virtual public Concat
+class Concat_vulkan : public Concat
 {
 public:
     Concat_vulkan();

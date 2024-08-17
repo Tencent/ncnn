@@ -38,7 +38,7 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
 int YoloDetectionOutput::create_pipeline(const Option& opt)
 {
     {
-        softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+        softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
 
         ncnn::ParamDict pd;
         pd.set(0, 0); // axis
@@ -197,6 +197,9 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
         all_box_bbox_rects.resize(num_box);
         all_box_bbox_scores.resize(num_box);
 
+        std::vector<int> softmax_rets;
+        softmax_rets.resize(num_box);
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < num_box; pp++)
         {
@@ -214,7 +217,7 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
 
             // softmax class scores
             Mat scores = bottom_top_blob.channel_range(p + 5, num_class);
-            softmax->forward_inplace(scores, opt);
+            softmax_rets[pp] = softmax->forward_inplace(scores, opt);
 
             for (int i = 0; i < h; i++)
             {
@@ -269,6 +272,9 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
 
         for (int i = 0; i < num_box; i++)
         {
+            if (softmax_rets[i] != 0)
+                return softmax_rets[i];
+
             const std::vector<BBoxRect>& box_bbox_rects = all_box_bbox_rects[i];
             const std::vector<float>& box_bbox_scores = all_box_bbox_scores[i];
 

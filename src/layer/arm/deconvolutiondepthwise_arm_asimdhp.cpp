@@ -100,7 +100,7 @@ int DeconvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
             if (bias_term)
                 bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+            ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
 
             // set param
             ncnn::ParamDict pd;
@@ -146,9 +146,7 @@ int DeconvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -331,6 +329,8 @@ int DeconvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_b
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
@@ -352,13 +352,17 @@ int DeconvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_b
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack == 1 && out_elempack == 4)
         {
             convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {
@@ -464,7 +468,7 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
                                 }
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                             vst1q_f16(outptr + j * 8, _sum);
                         }
@@ -528,7 +532,7 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
                                 }
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                             vst1_f16(outptr + j * 4, _sum);
                         }
@@ -592,7 +596,7 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
                                 }
                             }
 
-                            sum = activation_ss(sum, activation_type, activation_params);
+                            sum = activation_ss_f16(sum, activation_type, activation_params);
 
                             outptr[j] = (__fp16)sum;
                         }
@@ -624,6 +628,8 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, g_elempack, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
@@ -645,13 +651,17 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack < out_elempack)
         {
             convert_packing(top_blob_bordered_unpacked, top_blob_bordered, out_elempack, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {

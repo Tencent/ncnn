@@ -21,6 +21,8 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
         self.ln_0 = nn.LayerNorm(64)
+        self.ln_0.weight = nn.Parameter(torch.rand(64))
+        self.ln_0.bias = nn.Parameter(torch.rand(64))
         self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=False)
 
     def forward(self, x, y):
@@ -34,8 +36,8 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(24, 64)
-    y = torch.rand(12, 24, 64)
+    x = torch.rand(1, 24, 64)
+    y = torch.rand(1, 12, 24, 64)
 
     a = net(x, y)
 
@@ -45,7 +47,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_LayerNorm.pt inputshape=[24,64],[12,24,64]")
+    os.system("../../src/pnnx test_nn_LayerNorm.pt inputshape=[1,24,64],[1,12,24,64]")
 
     # ncnn inference
     import test_nn_LayerNorm_ncnn

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ROIAlign_x86 : virtual public ROIAlign
+class ROIAlign_x86 : public ROIAlign
 {
 public:
     ROIAlign_x86();

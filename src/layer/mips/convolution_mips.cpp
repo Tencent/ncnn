@@ -226,9 +226,7 @@ int Convolution_mips::create_pipeline(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -593,7 +591,7 @@ int Convolution_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -793,9 +791,7 @@ int Convolution_mips::create_pipeline_int8_mips(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }

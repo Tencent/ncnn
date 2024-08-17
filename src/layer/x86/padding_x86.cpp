@@ -14,6 +14,7 @@
 
 #include "padding_x86.h"
 
+#include <stdint.h>
 #if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
@@ -462,6 +463,8 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);
@@ -620,6 +623,8 @@ int Padding_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);

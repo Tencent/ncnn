@@ -109,6 +109,9 @@ int DeconvolutionDepthWise_x86::create_pipeline(const Option& opt)
             weight_data_tm = weight_data_transposed;
         }
 
+        if (opt.lightmode)
+            weight_data.release();
+
         return 0;
     }
 
@@ -116,9 +119,7 @@ int DeconvolutionDepthWise_x86::create_pipeline(const Option& opt)
     create_group_ops(opt);
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -146,7 +147,7 @@ int DeconvolutionDepthWise_x86::create_group_ops(const Option& opt)
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+        ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -535,6 +536,8 @@ int DeconvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, c
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, g_elempack, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
@@ -556,13 +559,17 @@ int DeconvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, c
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack < out_elempack)
         {
             convert_packing(top_blob_bordered_unpacked, top_blob_bordered, out_elempack, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {
@@ -641,7 +648,7 @@ int DeconvolutionDepthWise_x86::forward(const std::vector<Mat>& bottom_blobs, st
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::DeconvolutionDepthWise);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::DeconvolutionDepthWise);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

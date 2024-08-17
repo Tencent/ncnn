@@ -39,4 +39,31 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_flatten, 20)
 
+class torch_flatten_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+Flatten                 op_0        1 1 input out axis=%axis
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.flatten";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["start_dim"] = captured_params.at("axis");
+        op->params["end_dim"] = -1;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_flatten_onnx, 20)
+
 } // namespace pnnx

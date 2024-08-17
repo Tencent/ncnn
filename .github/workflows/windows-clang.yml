@@ -1,0 +1,85 @@
+name: windows-clang
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-clang.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-clang.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+concurrency:
+  group: windows-clang-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: ClangCL
+    runs-on: windows-2022
+
+    env:
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: arm64
+      run: |
+        mkdir build-arm64; cd build-arm64
+        cmake -T ClangCL -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_VULKAN=OFF ..
+        cmake --build . --config Release -j 4
+
+    - name: arm64-vulkan
+      run: |
+        mkdir build-arm64-vulkan; cd build-arm64-vulkan
+        cmake -T ClangCL -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 4
+
+    - name: x86
+      run: |
+        mkdir build-x86; cd build-x86
+        cmake -T ClangCL -A Win32 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_BUILD_TESTS=ON -DNCNN_VULKAN=OFF ..
+        cmake --build . --config Release -j 4
+    - name: x86-test
+      run: cd build-x86; ctest -C Release --output-on-failure -j 4
+
+    - name: x86-vulkan
+      run: |
+        mkdir build-x86-vulkan; cd build-x86-vulkan
+        cmake -T ClangCL -A Win32 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 4
+
+    - name: x64
+      run: |
+        mkdir build-x64; cd build-x64
+        cmake -T ClangCL -A x64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_BUILD_TESTS=ON -DNCNN_VULKAN=OFF ..
+        cmake --build . --config Release -j 4
+    - name: x64-test
+      run: cd build-x64; ctest -C Release --output-on-failure -j 4
+
+    - name: x64-vulkan
+      run: |
+        mkdir build-x64-vulkan; cd build-x64-vulkan
+        cmake -T ClangCL -A x64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 4

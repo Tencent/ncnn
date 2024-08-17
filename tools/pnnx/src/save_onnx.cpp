@@ -14,7 +14,7 @@
 
 #include "save_onnx.h"
 
-#include "onnx.pb.h"
+#include "onnx-ml.pb.h"
 
 #include <string.h>
 #include <fstream>
@@ -23,17 +23,6 @@
 #include "utils.h"
 
 namespace pnnx {
-
-// from cxxabi bridge
-extern const char* get_operand_name(const Operand* x);
-extern const char* get_operator_type(const Operator* op);
-extern const char* get_operator_name(const Operator* op);
-extern std::vector<const char*> get_operator_params_keys(const Operator* op);
-extern std::vector<const char*> get_operator_attrs_keys(const Operator* op);
-extern const Parameter& get_operator_param(const Operator* op, const char* key);
-extern const Attribute& get_operator_attr(const Operator* op, const char* key);
-extern const char* get_param_s(const Parameter& p);
-extern std::vector<const char*> get_param_as(const Parameter& p);
 
 int save_onnx(const Graph& g, const char* onnxpath, int fp16)
 {
@@ -45,7 +34,7 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
     {
         onnx::ValueInfoProto* vip = gp->add_value_info();
 
-        vip->set_name(get_operand_name(x));
+        vip->set_name(x->name);
 
         onnx::TypeProto* tp = vip->mutable_type();
 
@@ -108,34 +97,35 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
     {
         onnx::NodeProto* np = gp->add_node();
 
-        np->set_op_type(get_operator_type(op));
-        np->set_name(get_operator_name(op));
+        np->set_op_type(op->type);
+        np->set_name(op->name);
 
         for (const Operand* oprand : op->inputs)
         {
-            np->add_input(get_operand_name(oprand));
+            np->add_input(oprand->name);
         }
 
         for (const Operand* oprand : op->outputs)
         {
-            np->add_output(get_operand_name(oprand));
+            np->add_output(oprand->name);
         }
 
-        std::vector<const char*> params_keys = get_operator_params_keys(op);
-        for (const char* param_name : params_keys)
+        for (const auto& it : op->params)
         {
-            const Parameter& param = get_operator_param(op, param_name);
+            const Parameter& param = it.second;
 
             onnx::AttributeProto* ap = np->add_attribute();
 
-            ap->set_name(param_name);
+            ap->set_name(it.first);
 
             if (param.type == 0)
             {
+                ap->set_type(onnx::AttributeProto::STRING);
                 ap->set_s("None");
             }
             if (param.type == 1)
             {
+                ap->set_type(onnx::AttributeProto::INT);
                 if (param.b)
                     ap->set_i(1);
                 else
@@ -143,18 +133,22 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
             }
             if (param.type == 2)
             {
+                ap->set_type(onnx::AttributeProto::INT);
                 ap->set_i(param.i);
             }
             if (param.type == 3)
             {
+                ap->set_type(onnx::AttributeProto::FLOAT);
                 ap->set_f(param.f);
             }
             if (param.type == 4)
             {
-                ap->set_s(get_param_s(param));
+                ap->set_type(onnx::AttributeProto::STRING);
+                ap->set_s(param.s);
             }
             if (param.type == 5)
             {
+                ap->set_type(onnx::AttributeProto::INTS);
                 for (auto i : param.ai)
                 {
                     ap->add_ints(i);
@@ -162,6 +156,7 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
             }
             if (param.type == 6)
             {
+                ap->set_type(onnx::AttributeProto::FLOATS);
                 for (auto f : param.af)
                 {
                     ap->add_floats(f);
@@ -169,24 +164,23 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
             }
             if (param.type == 7)
             {
-                std::vector<const char*> as = get_param_as(param);
-                for (auto s : as)
+                ap->set_type(onnx::AttributeProto::STRINGS);
+                for (auto s : param.as)
                 {
                     ap->add_strings(s);
                 }
             }
         }
 
-        std::vector<const char*> attrs_keys = get_operator_attrs_keys(op);
-        for (const char* attr_name : attrs_keys)
+        for (const auto& it : op->attrs)
         {
             onnx::TensorProto* tp = gp->add_initializer();
 
-            tp->set_name(std::string(get_operator_name(op)) + "." + attr_name);
+            tp->set_name(op->name + "." + it.first);
 
-            np->add_input(std::string(get_operator_name(op)) + "." + attr_name);
+            np->add_input(op->name + "." + it.first);
 
-            const Attribute& attr = get_operator_attr(op, attr_name);
+            const Attribute& attr = it.second;
             for (auto s : attr.shape)
             {
                 tp->add_dims(s);

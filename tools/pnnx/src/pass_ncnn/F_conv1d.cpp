@@ -103,7 +103,7 @@ pnnx.Output             output      1 0 out
         std::vector<int> weight_shape = op->inputs[1]->shape;
         if (weight_shape.empty())
         {
-            weight_shape = {0, 0, 0, 0};
+            weight_shape = {0, 0, 0};
         }
 
         op->params["0"] = weight_shape[0];
@@ -158,7 +158,7 @@ pnnx.Output             output      1 0 out
         std::vector<int> weight_shape = op->inputs[1]->shape;
         if (weight_shape.empty())
         {
-            weight_shape = {0, 0, 0, 0};
+            weight_shape = {0, 0, 0};
         }
 
         op->params["0"] = weight_shape[0];
@@ -215,7 +215,7 @@ pnnx.Output             output      1 0 out
         std::vector<int> weight_shape = op->inputs[1]->shape;
         if (weight_shape.empty())
         {
-            weight_shape = {0, 0, 0, 0};
+            weight_shape = {0, 0, 0};
         }
 
         op->params["0"] = weight_shape[0];

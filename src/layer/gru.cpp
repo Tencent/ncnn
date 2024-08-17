@@ -27,6 +27,16 @@ int GRU::load_param(const ParamDict& pd)
     num_output = pd.get(0, 0);
     weight_data_size = pd.get(1, 0);
     direction = pd.get(2, 0);
+    int8_scale_term = pd.get(8, 0);
+
+    if (int8_scale_term)
+    {
+#if !NCNN_INT8
+        NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
+        return -1;
+#endif
+    }
+
     return 0;
 }
 
@@ -48,6 +58,14 @@ int GRU::load_model(const ModelBin& mb)
     weight_hc_data = mb.load(num_output, num_output * 3, num_directions, 0);
     if (weight_hc_data.empty())
         return -100;
+
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        weight_xc_data_int8_scales = mb.load(num_output * 3, num_directions, 1);
+        weight_hc_data_int8_scales = mb.load(num_output * 3, num_directions, 1);
+    }
+#endif // NCNN_INT8
 
     return 0;
 }
@@ -160,6 +178,182 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
     return 0;
 }
 
+#if NCNN_INT8
+static int gru_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc_int8, const float* weight_xc_int8_scales, const Mat& bias_c, const Mat& weight_hc_int8, const float* weight_hc_int8_scales, Mat& hidden_state, const Option& opt)
+{
+    int size = bottom_blob.w;
+    int T = bottom_blob.h;
+
+    int num_output = top_blob.w;
+
+    // 2 x num_output
+    Mat gates(2, num_output, 4u, opt.workspace_allocator);
+    if (gates.empty())
+        return -100;
+
+    // dynamic quantize bottom_blob
+    Mat bottom_blob_int8(size, T, (size_t)1u, 1, opt.workspace_allocator);
+    Mat bottom_blob_int8_scales(T, (size_t)4u, 1, opt.workspace_allocator);
+    {
+        for (int t = 0; t < T; t++)
+        {
+            const float* x = bottom_blob.row(t);
+
+            float absmax = 0.f;
+            for (int i = 0; i < size; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(x[i]));
+            }
+
+            bottom_blob_int8_scales[t] = 127.f / absmax;
+        }
+
+        Option opt_quant = opt;
+        opt_quant.blob_allocator = opt.workspace_allocator;
+        opt_quant.use_packing_layout = false;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_quant);
+    }
+
+    Mat hidden_state_int8(num_output, (size_t)1u, 1, opt.workspace_allocator);
+    Mat hidden_state_int8_scales(1, (size_t)4u, 1, opt.workspace_allocator);
+
+    // unroll
+    for (int t = 0; t < T; t++)
+    {
+        int ti = reverse ? T - 1 - t : t;
+
+        // dynamic quantize hidden_state
+        {
+            float absmax = 0.f;
+            for (int i = 0; i < num_output; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(hidden_state[i]));
+            }
+
+            if (absmax == 0.f)
+            {
+                hidden_state_int8_scales[0] = 1.f;
+                hidden_state_int8.fill<signed char>(0);
+            }
+            else
+            {
+                hidden_state_int8_scales[0] = 127.f / absmax;
+
+                Option opt_quant = opt;
+                opt_quant.blob_allocator = opt.workspace_allocator;
+                opt_quant.use_packing_layout = false;
+                quantize_to_int8(hidden_state, hidden_state_int8, hidden_state_int8_scales, opt_quant);
+            }
+        }
+
+        const signed char* x = bottom_blob_int8.row<const signed char>(ti);
+        const signed char* hs = hidden_state_int8;
+        const float descale_x = 1.f / bottom_blob_int8_scales[ti];
+        const float descale_h = 1.f / hidden_state_int8_scales[0];
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_output; q++)
+        {
+            float* gates_data = gates.row(q);
+
+            // gate reset update
+            const float* bias_c_R = bias_c.row(0);
+            const float* bias_c_U = bias_c.row(1);
+
+            const signed char* weight_xc_int8_R = weight_xc_int8.row<const signed char>(num_output * 0 + q);
+            const signed char* weight_xc_int8_U = weight_xc_int8.row<const signed char>(num_output * 1 + q);
+            const signed char* weight_hc_int8_R = weight_hc_int8.row<const signed char>(num_output * 0 + q);
+            const signed char* weight_hc_int8_U = weight_hc_int8.row<const signed char>(num_output * 1 + q);
+
+            const float descale_xc_R = 1.f / weight_xc_int8_scales[num_output * 0 + q];
+            const float descale_xc_U = 1.f / weight_xc_int8_scales[num_output * 1 + q];
+            const float descale_hc_R = 1.f / weight_hc_int8_scales[num_output * 0 + q];
+            const float descale_hc_U = 1.f / weight_hc_int8_scales[num_output * 1 + q];
+
+            int Rx = 0;
+            int Ux = 0;
+            for (int i = 0; i < size; i++)
+            {
+                signed char xi = x[i];
+
+                Rx += weight_xc_int8_R[i] * xi;
+                Ux += weight_xc_int8_U[i] * xi;
+            }
+
+            int Rh = 0;
+            int Uh = 0;
+            for (int i = 0; i < num_output; i++)
+            {
+                signed char h_cont = hs[i];
+
+                Rh += weight_hc_int8_R[i] * h_cont;
+                Uh += weight_hc_int8_U[i] * h_cont;
+            }
+
+            float R = bias_c_R[q] + Rx * (descale_x * descale_xc_R) + Rh * (descale_h * descale_hc_R);
+            float U = bias_c_U[q] + Ux * (descale_x * descale_xc_U) + Uh * (descale_h * descale_hc_U);
+
+            // sigmoid(R)
+            // sigmoid(U)
+            R = 1.f / (1.f + expf(-R));
+            U = 1.f / (1.f + expf(-U));
+
+            // gate new
+            const float* bias_c_WN = bias_c.row(2);
+            const float* bias_c_BN = bias_c.row(3);
+
+            const signed char* weight_xc_int8_N = weight_xc_int8.row<const signed char>(num_output * 2 + q);
+            const signed char* weight_hc_int8_N = weight_hc_int8.row<const signed char>(num_output * 2 + q);
+
+            const float descale_xc_N = 1.f / weight_xc_int8_scales[num_output * 2 + q];
+            const float descale_hc_N = 1.f / weight_hc_int8_scales[num_output * 2 + q];
+
+            int Nh = 0;
+            for (int i = 0; i < num_output; i++)
+            {
+                signed char h_cont = hs[i];
+
+                Nh += weight_hc_int8_N[i] * h_cont;
+            }
+
+            int Nx = 0;
+            for (int i = 0; i < size; i++)
+            {
+                signed char xi = x[i];
+
+                Nx += weight_xc_int8_N[i] * xi;
+            }
+
+            float N = bias_c_BN[q] + Nh * (descale_h * descale_hc_N);
+            N = bias_c_WN[q] + R * N + Nx * (descale_x * descale_xc_N);
+
+            // tanh(N)
+            N = tanhf(N);
+
+            gates_data[0] = U;
+            gates_data[1] = N;
+        }
+
+        // h_t := (1 - update) .* new + update .* h_{t-1}
+        float* output_data = top_blob.row(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_output; q++)
+        {
+            const float* gates_data = gates.row(q);
+
+            float U = gates_data[0];
+            float N = gates_data[1];
+
+            float H = (1 - U) * N + U * hidden_state[q];
+
+            hidden_state[q] = H;
+            output_data[q] = H;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
+
 int GRU::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int T = bottom_blob.h;
@@ -179,9 +373,20 @@ int GRU::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = gru(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
-        if (ret != 0)
-            return ret;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = gru_int8(bottom_blob, top_blob, direction, weight_xc_data.channel(0), weight_xc_data_int8_scales.row(0), bias_c_data.channel(0), weight_hc_data.channel(0), weight_hc_data_int8_scales.row(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = gru(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     if (direction == 2)
@@ -194,15 +399,37 @@ int GRU::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = gru(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
-        if (ret0 != 0)
-            return ret0;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = gru_int8(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), weight_xc_data_int8_scales.row(0), bias_c_data.channel(0), weight_hc_data.channel(0), weight_hc_data_int8_scales.row(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = gru(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         hidden.fill(0.0f);
 
-        int ret1 = gru(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden, opt);
-        if (ret1 != 0)
-            return ret1;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = gru_int8(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), weight_xc_data_int8_scales.row(1), bias_c_data.channel(1), weight_hc_data.channel(1), weight_hc_data_int8_scales.row(1), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = gru(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -247,9 +474,20 @@ int GRU::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = gru(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
-        if (ret != 0)
-            return ret;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = gru_int8(bottom_blob, top_blob, direction, weight_xc_data.channel(0), weight_xc_data_int8_scales.row(0), bias_c_data.channel(0), weight_hc_data.channel(0), weight_hc_data_int8_scales.row(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = gru(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     if (direction == 2)
@@ -263,14 +501,36 @@ int GRU::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
             return -100;
 
         Mat hidden0 = hidden.row_range(0, 1);
-        int ret0 = gru(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden0, opt);
-        if (ret0 != 0)
-            return ret0;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = gru_int8(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), weight_xc_data_int8_scales.row(0), bias_c_data.channel(0), weight_hc_data.channel(0), weight_hc_data_int8_scales.row(0), hidden0, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = gru(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden0, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         Mat hidden1 = hidden.row_range(1, 1);
-        int ret1 = gru(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden1, opt);
-        if (ret1 != 0)
-            return ret1;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = gru_int8(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), weight_xc_data_int8_scales.row(1), bias_c_data.channel(1), weight_hc_data.channel(1), weight_hc_data_int8_scales.row(1), hidden1, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = gru(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden1, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)

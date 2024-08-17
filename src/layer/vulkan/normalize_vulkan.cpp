@@ -264,6 +264,9 @@ int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         {
             cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
         }
+
+        if (opt.lightmode)
+            scale_data.release();
     }
 
     return 0;
