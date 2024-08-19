@@ -560,7 +560,7 @@ https://github.com/Tencent/ncnn/releases/latest
 
 **[use netron for ncnn model visualization](https://netron.app)**
 
-**[out-of-the-box web model conversion](https://convertmodel.com/#outputFormat=ncnn)**
+**[use ncnn with pytorch or onnx](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx)**
 
 [ncnn low-level operation api](https://github.com/Tencent/ncnn/wiki/low-level-operation-api)
 
