@@ -738,7 +738,7 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
     return true;
 }
 
-static bool match(const Operator* anchor, const Operator* pattern, std::map<std::string, const Operator*>& matched_operators, std::map<std::string, const Operand*>& matched_inputs, std::map<std::string, Parameter>& captured_params, std::map<std::string, Attribute>& captured_attrs)
+static bool match(const Operator* anchor, const Operator* pattern, std::map<std::string, const Operator*>& matched_operators, std::map<std::string, const Operand*>& matched_inputs, std::map<std::string, const Operand*>& matched_outputs, std::map<std::string, Parameter>& captured_params, std::map<std::string, Attribute>& captured_attrs)
 {
     if (!match_operator(anchor, pattern, captured_params, captured_attrs))
         return false;
@@ -746,7 +746,17 @@ static bool match(const Operator* anchor, const Operator* pattern, std::map<std:
     for (size_t i = 0; i < pattern->outputs.size(); i++)
     {
         if (pattern->outputs[i]->consumers.size() == 1 && pattern->outputs[i]->consumers[0]->type == "pnnx.Output")
+        {
+            if (matched_outputs.find(pattern->outputs[i]->name) == matched_outputs.end())
+            {
+                matched_outputs[pattern->outputs[i]->name] = anchor->outputs[i];
+            }
+            else if (matched_outputs[pattern->outputs[i]->name] != anchor->outputs[i])
+            {
+                return false;
+            }
             continue;
+        }
 
         if (anchor->outputs[i]->consumers.size() != pattern->outputs[i]->consumers.size())
             return false;
@@ -773,7 +783,7 @@ static bool match(const Operator* anchor, const Operator* pattern, std::map<std:
             continue;
         }
 
-        if (!match(anchor2, pattern2, matched_operators, matched_inputs, captured_params, captured_attrs))
+        if (!match(anchor2, pattern2, matched_operators, matched_inputs, matched_outputs, captured_params, captured_attrs))
             return false;
     }
 
@@ -838,9 +848,10 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
                         std::map<std::string, const Operator*> matched_operators2;
                         std::map<std::string, const Operand*> matched_inputs2;
+                        std::map<std::string, const Operand*> matched_outputs2;
                         std::map<std::string, Parameter> captured_params2;
                         std::map<std::string, Attribute> captured_attrs2;
-                        if (!match(anchor, pattern2, matched_operators2, matched_inputs2, captured_params2, captured_attrs2))
+                        if (!match(anchor, pattern2, matched_operators2, matched_inputs2, matched_outputs2, captured_params2, captured_attrs2))
                             continue;
 
                         bool submatch_matched = true;
@@ -872,6 +883,13 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                                 matched_inputs[x.first] = x.second;
                             }
                         }
+                        for (auto x : matched_outputs2)
+                        {
+                            if (matched_outputs.find(x.first) == matched_outputs.end())
+                            {
+                                matched_outputs[x.first] = x.second;
+                            }
+                        }
                         for (auto x : captured_params2)
                         {
                             captured_params[x.first] = x.second;
@@ -882,7 +900,6 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                         }
 
                         // match !
-                        matched_outputs[pattern->inputs[i]->name] = anchor->outputs[i];
                         break;
                     }
 
@@ -1147,6 +1164,18 @@ static void functionize(Graph& graph)
             Operand* out0 = op->outputs[0];
 
             if (out0->consumers.size() == 1)
+                continue;
+
+            bool all_consumers_are_same = true;
+            for (size_t j = 1; j < out0->consumers.size(); j++)
+            {
+                if (out0->consumers[j] != out0->consumers[0])
+                {
+                    all_consumers_are_same = false;
+                    break;
+                }
+            }
+            if (all_consumers_are_same)
                 continue;
 
             for (int j = (int)out0->consumers.size() - 1; j > 0; j--)

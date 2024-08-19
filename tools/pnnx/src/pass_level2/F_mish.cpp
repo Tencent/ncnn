@@ -62,4 +62,27 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish_1, 9)
 
+class F_mish_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+Softplus                op_0        1 1 input a
+aten::tanh              op_1        1 1 a b
+aten::mul               op_2        2 1 input b out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.mish";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish_onnx, 9)
+
 } // namespace pnnx

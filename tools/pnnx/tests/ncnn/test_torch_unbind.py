@@ -26,6 +26,7 @@ class Model(nn.Module):
 
         x0 = F.relu(x0)
         x1 = F.relu(x1)
+        x2 = F.relu(x2)
         y0 = F.relu(y0)
         y1 = F.relu(y1)
         y2 = F.relu(y2)
@@ -35,7 +36,7 @@ class Model(nn.Module):
         y6 = F.relu(y6)
         y7 = F.relu(y7)
         y8 = F.relu(y8)
-        return x0, x1, y0, y1, y2, y3, y4, y5, y6, y7, y8
+        return x0, x1, x2, y0, y1, y2, y3, y4, y5, y6, y7, y8
 
 def test():
     net = Model()
