@@ -175,10 +175,10 @@ static void parse_yolov8_detections(
 
     for (int i = 0; i < num_anchors; i++)
     {
-        float* row_ptr = output.row(i).ptr<float>();
-        float* bboxes_ptr = row_ptr;
-        float* scores_ptr = row_ptr + 4;
-        float* max_s_ptr = std::max_element(scores_ptr, scores_ptr + num_labels);
+        const float* row_ptr = output.row(i);
+        const float* bboxes_ptr = row_ptr;
+        const float* scores_ptr = row_ptr + 4;
+        const float* max_s_ptr = std::max_element(scores_ptr, scores_ptr + num_labels);
         float score = *max_s_ptr;
         if (score > confidence_threshold)
         {
