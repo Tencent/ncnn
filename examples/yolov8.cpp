@@ -187,14 +187,14 @@ static void parse_yolov8_detections(
             float w = *bboxes_ptr++;
             float h = *bboxes_ptr;
 
-            if (i >= 6400 && i < 8000) 
+            if (i >= 6400 && i < 8000)
             {
                 x *= 2;
                 y *= 2;
                 w *= 2;
                 h *= 2;
             }
-            else if (i >= 8000 && i < 8400) 
+            else if (i >= 8000 && i < 8400)
             {
                 x *= 4;
                 y *= 4;
