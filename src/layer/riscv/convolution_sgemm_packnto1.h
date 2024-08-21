@@ -77,8 +77,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
                     vfloat32m1_t _val5 = __riscv_vle32_v_f32m1(img0 + packn * 5, vl);
                     vfloat32m1_t _val6 = __riscv_vle32_v_f32m1(img0 + packn * 6, vl);
                     vfloat32m1_t _val7 = __riscv_vle32_v_f32m1(img0 + packn * 7, vl);
-#warning TODO
-                    // __riscv_vsseg8e32_v_f32m1(tmpptr, _val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7, vl);
+                    __riscv_vsseg8e32_v_f32m1x8(tmpptr, __riscv_vcreate_v_f32m1x8(_val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7), vl);
 
                     img0 += size * packn;
                     tmpptr += packn * 8;
@@ -119,8 +118,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
                     vfloat32m1_t _val1 = __riscv_vle32_v_f32m1(img0 + packn, vl);
                     vfloat32m1_t _val2 = __riscv_vle32_v_f32m1(img0 + packn * 2, vl);
                     vfloat32m1_t _val3 = __riscv_vle32_v_f32m1(img0 + packn * 3, vl);
-#warning TODO
-                    // __riscv_vsseg4e32_v_f32m1(tmpptr, _val0, _val1, _val2, _val3, vl);
+                    __riscv_vsseg4e32_v_f32m1x4(tmpptr, __riscv_vcreate_v_f32m1x4(_val0, _val1, _val2, _val3), vl);
 
                     img0 += size * packn;
                     tmpptr += packn * 4;
@@ -157,8 +155,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
 #else
                     vfloat32m1_t _val0 = __riscv_vle32_v_f32m1(img0, vl);
                     vfloat32m1_t _val1 = __riscv_vle32_v_f32m1(img0 + packn, vl);
-#warning TODO
-                    // __riscv_vsseg2e32_v_f32m1(tmpptr, _val0, _val1, vl);
+                    __riscv_vsseg2e32_v_f32m1x2(tmpptr, __riscv_vcreate_v_f32m1x2(_val0, _val1), vl);
 
                     img0 += size * packn;
                     tmpptr += packn * 2;
@@ -265,8 +262,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
             __riscv_vsse32_v_f32m1(outptr0 + 6, top_blob.cstep * sizeof(float), _sum6, vl);
             __riscv_vsse32_v_f32m1(outptr0 + 7, top_blob.cstep * sizeof(float), _sum7, vl);
 #else
-#warning TODO
-            // __riscv_vssseg8e32_v_f32m1(outptr0, top_blob.cstep * sizeof(float), _sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7, vl);
+            __riscv_vssseg8e32_v_f32m1x8(outptr0, top_blob.cstep * sizeof(float), __riscv_vcreate_v_f32m1x8(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7), vl);
 #endif
             outptr0 += 8;
         }
@@ -303,8 +299,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
             __riscv_vsse32_v_f32m1(outptr0 + 2, top_blob.cstep * sizeof(float), _sum2, vl);
             __riscv_vsse32_v_f32m1(outptr0 + 3, top_blob.cstep * sizeof(float), _sum3, vl);
 #else
-#warning TODO
-            // __riscv_vssseg4e32_v_f32m1(outptr0, top_blob.cstep * sizeof(float), _sum0, _sum1, _sum2, _sum3, vl);
+            __riscv_vssseg4e32_v_f32m1x4(outptr0, top_blob.cstep * sizeof(float), __riscv_vcreate_v_f32m1x4(_sum0, _sum1, _sum2, _sum3), vl);
 #endif
             outptr0 += 4;
         }
@@ -333,8 +328,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
             __riscv_vsse32_v_f32m1(outptr0, top_blob.cstep * sizeof(float), _sum0, vl);
             __riscv_vsse32_v_f32m1(outptr0 + 1, top_blob.cstep * sizeof(float), _sum1, vl);
 #else
-#warning TODO
-            // __riscv_vssseg2e32_v_f32m1(outptr0, top_blob.cstep * sizeof(float), _sum0, _sum1, vl);
+            __riscv_vssseg2e32_v_f32m1x2(outptr0, top_blob.cstep * sizeof(float), __riscv_vcreate_v_f32m1x2(_sum0, _sum1), vl);
 #endif
             outptr0 += 2;
         }
@@ -400,25 +394,16 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                vfloat32m1_t _val0;
-                vfloat32m1_t _val1;
-                vfloat32m1_t _val2;
-                vfloat32m1_t _val3;
-                vfloat32m1_t _val4;
-                vfloat32m1_t _val5;
-                vfloat32m1_t _val6;
-                vfloat32m1_t _val7;
-#warning TODO
-                // __riscv_vlseg8e32_v_f32m1(&_val0, &_val1, &_val2, &_val3, &_val4, &_val5, &_val6, &_val7, tmpptr, vl);
+                vfloat32m1x8_t _val = __riscv_vlseg8e32_v_f32m1x8(tmpptr, vl);
                 vfloat32m1_t _w0 = __riscv_vle32_v_f32m1(kptr0, vl);
-                _sum0 = __riscv_vfmacc_vv_f32m1(_sum0, _val0, _w0, vl);
-                _sum1 = __riscv_vfmacc_vv_f32m1(_sum1, _val1, _w0, vl);
-                _sum2 = __riscv_vfmacc_vv_f32m1(_sum2, _val2, _w0, vl);
-                _sum3 = __riscv_vfmacc_vv_f32m1(_sum3, _val3, _w0, vl);
-                _sum4 = __riscv_vfmacc_vv_f32m1(_sum4, _val4, _w0, vl);
-                _sum5 = __riscv_vfmacc_vv_f32m1(_sum5, _val5, _w0, vl);
-                _sum6 = __riscv_vfmacc_vv_f32m1(_sum6, _val6, _w0, vl);
-                _sum7 = __riscv_vfmacc_vv_f32m1(_sum7, _val7, _w0, vl);
+                _sum0 = __riscv_vfmacc_vv_f32m1(_sum0, __riscv_vget_v_f32m1x8_f32m1(_val, 0), _w0, vl);
+                _sum1 = __riscv_vfmacc_vv_f32m1(_sum1, __riscv_vget_v_f32m1x8_f32m1(_val, 1), _w0, vl);
+                _sum2 = __riscv_vfmacc_vv_f32m1(_sum2, __riscv_vget_v_f32m1x8_f32m1(_val, 2), _w0, vl);
+                _sum3 = __riscv_vfmacc_vv_f32m1(_sum3, __riscv_vget_v_f32m1x8_f32m1(_val, 3), _w0, vl);
+                _sum4 = __riscv_vfmacc_vv_f32m1(_sum4, __riscv_vget_v_f32m1x8_f32m1(_val, 4), _w0, vl);
+                _sum5 = __riscv_vfmacc_vv_f32m1(_sum5, __riscv_vget_v_f32m1x8_f32m1(_val, 5), _w0, vl);
+                _sum6 = __riscv_vfmacc_vv_f32m1(_sum6, __riscv_vget_v_f32m1x8_f32m1(_val, 6), _w0, vl);
+                _sum7 = __riscv_vfmacc_vv_f32m1(_sum7, __riscv_vget_v_f32m1x8_f32m1(_val, 7), _w0, vl);
                 tmpptr += packn * 8;
                 kptr0 += packn;
             }
@@ -493,17 +478,12 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                vfloat32m1_t _val0;
-                vfloat32m1_t _val1;
-                vfloat32m1_t _val2;
-                vfloat32m1_t _val3;
-#warning TODO
-                // __riscv_vlseg4e32_v_f32m1(&_val0, &_val1, &_val2, &_val3, tmpptr, vl);
+                vfloat32m1x4_t _val = __riscv_vlseg4e32_v_f32m1x4(tmpptr, vl);
                 vfloat32m1_t _w0 = __riscv_vle32_v_f32m1(kptr0, vl);
-                _sum0 = __riscv_vfmacc_vv_f32m1(_sum0, _val0, _w0, vl);
-                _sum1 = __riscv_vfmacc_vv_f32m1(_sum1, _val1, _w0, vl);
-                _sum2 = __riscv_vfmacc_vv_f32m1(_sum2, _val2, _w0, vl);
-                _sum3 = __riscv_vfmacc_vv_f32m1(_sum3, _val3, _w0, vl);
+                _sum0 = __riscv_vfmacc_vv_f32m1(_sum0, __riscv_vget_v_f32m1x4_f32m1(_val, 0), _w0, vl);
+                _sum1 = __riscv_vfmacc_vv_f32m1(_sum1, __riscv_vget_v_f32m1x4_f32m1(_val, 1), _w0, vl);
+                _sum2 = __riscv_vfmacc_vv_f32m1(_sum2, __riscv_vget_v_f32m1x4_f32m1(_val, 2), _w0, vl);
+                _sum3 = __riscv_vfmacc_vv_f32m1(_sum3, __riscv_vget_v_f32m1x4_f32m1(_val, 3), _w0, vl);
                 tmpptr += packn * 4;
                 kptr0 += packn;
             }
@@ -554,13 +534,10 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                vfloat32m1_t _val0;
-                vfloat32m1_t _val1;
-#warning TODO
-                // __riscv_vlseg2e32_v_f32m1(&_val0, &_val1, tmpptr, vl);
+                vfloat32m1x2_t _val = __riscv_vlseg2e32_v_f32m1x2(tmpptr, vl);
                 vfloat32m1_t _w0 = __riscv_vle32_v_f32m1(kptr0, vl);
-                _sum0 = __riscv_vfmacc_vv_f32m1(_sum0, _val0, _w0, vl);
-                _sum1 = __riscv_vfmacc_vv_f32m1(_sum1, _val1, _w0, vl);
+                _sum0 = __riscv_vfmacc_vv_f32m1(_sum0, __riscv_vget_v_f32m1x2_f32m1(_val, 0), _w0, vl);
+                _sum1 = __riscv_vfmacc_vv_f32m1(_sum1, __riscv_vget_v_f32m1x2_f32m1(_val, 1), _w0, vl);
                 tmpptr += packn * 2;
                 kptr0 += packn;
             }

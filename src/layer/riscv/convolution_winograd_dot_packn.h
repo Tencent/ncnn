@@ -75,8 +75,7 @@ static void convolution_winograd_dot_packn_rvv(Mat& bottom_blob_tm, int outch, c
                 vfloat32m1_t _val5 = __riscv_vle32_v_f32m1(r0 + packn * 5, vl);
                 vfloat32m1_t _val6 = __riscv_vle32_v_f32m1(r0 + packn * 6, vl);
                 vfloat32m1_t _val7 = __riscv_vle32_v_f32m1(r0 + packn * 7, vl);
-#warning TODO
-                // __riscv_vsseg8e32_v_f32m1(tmpptr, _val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7, vl);
+                __riscv_vsseg8e32_v_f32m1x8(tmpptr, __riscv_vcreate_v_f32m1x8(_val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7), vl);
 
                 r0 += bottom_blob_tm.cstep * packn;
                 tmpptr += packn * 8;
@@ -109,8 +108,7 @@ static void convolution_winograd_dot_packn_rvv(Mat& bottom_blob_tm, int outch, c
                 vfloat32m1_t _val1 = __riscv_vle32_v_f32m1(r0 + packn, vl);
                 vfloat32m1_t _val2 = __riscv_vle32_v_f32m1(r0 + packn * 2, vl);
                 vfloat32m1_t _val3 = __riscv_vle32_v_f32m1(r0 + packn * 3, vl);
-#warning TODO
-                // __riscv_vsseg4e32_v_f32m1(tmpptr, _val0, _val1, _val2, _val3, vl);
+                __riscv_vsseg4e32_v_f32m1x4(tmpptr, __riscv_vcreate_v_f32m1x4(_val0, _val1, _val2, _val3), vl);
 
                 r0 += bottom_blob_tm.cstep * packn;
                 tmpptr += packn * 4;
@@ -139,8 +137,7 @@ static void convolution_winograd_dot_packn_rvv(Mat& bottom_blob_tm, int outch, c
 #else
                 vfloat32m1_t _val0 = __riscv_vle32_v_f32m1(r0, vl);
                 vfloat32m1_t _val1 = __riscv_vle32_v_f32m1(r0 + packn, vl);
-#warning TODO
-                // __riscv_vsseg2e32_v_f32m1(tmpptr, _val0, _val1, vl);
+                __riscv_vsseg2e32_v_f32m1x2(tmpptr, __riscv_vcreate_v_f32m1x2(_val0, _val1), vl);
 
                 r0 += bottom_blob_tm.cstep * packn;
                 tmpptr += packn * 2;
