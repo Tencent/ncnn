@@ -416,10 +416,10 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
 
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv")
-        check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat32m1_t _s, _w; float _v; size_t vl; _s = __riscv_vfmacc_vf_f32m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV)
+        check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat32m1_t _s, _w; float _v; size_t vl; _s = __riscv_vfmacc_vf_f32m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RISCV_V)
 
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv_zvfh")
-        check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat16m1_t _s, _w; __fp16 _v; size_t vl; _s = __riscv_vfmacc_vf_f16m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV_ZVFH)
+        check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat16m1_t _s, _w; __fp16 _v; size_t vl; _s = __riscv_vfmacc_vf_f16m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RISCV_ZVFH)
 
         # if(NOT NCNN_COMPILER_SUPPORT_RVV_ZFH)
         #     set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv_zfh_zvfh0p1 -menable-experimental-extensions -D__fp16=_Float16")
@@ -428,8 +428,16 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
 
         unset(CMAKE_REQUIRED_FLAGS)
 
-        if(NCNN_COMPILER_SUPPORT_RVV)
+        if(NCNN_COMPILER_SUPPORT_RISCV_V)
             option(NCNN_RVV "optimize risc-v platform with v extension" ON)
+            if(NCNN_COMPILER_SUPPORT_RISCV_ZVFH)
+                if(NCNN_RVV)
+                    option(NCNN_ZVFH "optimize risc-v platform with zvfh extension" ON)
+                endif()
+            else()
+                message(WARNING "The compiler does not support zvfh extension. NCNN_ZVFH will be OFF.")
+            endif()
+
         #     option(NCNN_RVV_CHECK_VFREDSUM "check compilter about support rvv-intrinsic" ON)
         #     if(NCNN_RVV_CHECK_VFREDSUM)
         #         include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ncnn_check_rvv_vfredusum.cmake)
