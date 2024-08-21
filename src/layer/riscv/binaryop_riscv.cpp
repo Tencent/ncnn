@@ -20,7 +20,7 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
-#if __riscv_zfh
+#if __riscv_zvfh
 #include "rvv_mathfun_fp16s.h"
 #endif
 #endif // __riscv_vector
@@ -33,7 +33,7 @@ BinaryOp_riscv::BinaryOp_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
 #endif
@@ -473,7 +473,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 {
     int elembits = std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         return forward_fp16s(bottom_blobs, top_blobs, opt);
@@ -631,7 +631,7 @@ int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 {
     int elembits = bottom_top_blob.elembits();
 
-#if __riscv_zfh
+#if __riscv_zvfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         return forward_inplace_fp16s(bottom_top_blob, opt);
@@ -643,7 +643,7 @@ int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
     return 0;
 }
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
 template<typename Op>
 static void binary_op_vector_no_broadcast_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int size)
 {
@@ -1205,6 +1205,6 @@ int BinaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& op
 
     return 0;
 }
-#endif // __riscv_vector && __riscv_zfh
+#endif // __riscv_vector && __riscv_zvfh
 
 } // namespace ncnn

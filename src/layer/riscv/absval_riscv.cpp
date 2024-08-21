@@ -21,12 +21,12 @@ static inline vfloat32m8_t __riscv_vfabs_v_f32m8_absval(vfloat32m8_t op1, size_t
 {
     return __riscv_vfsgnjx_vv_f32m8(op1, op1, vl);
 }
-#if __riscv_zfh
+#if __riscv_zvfh
 static inline vfloat16m8_t __riscv_vfabs_v_f16m8_absval(vfloat16m8_t op1, size_t vl)
 {
     return __riscv_vfsgnjx_vv_f16m8(op1, op1, vl);
 }
-#endif // __riscv_zfh
+#endif // __riscv_zvfh
 #endif // __riscv_vector
 
 namespace ncnn {
@@ -35,7 +35,7 @@ AbsVal_riscv::AbsVal_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
 #endif // __riscv_vector
@@ -43,7 +43,7 @@ AbsVal_riscv::AbsVal_riscv()
 
 int AbsVal_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -90,7 +90,7 @@ int AbsVal_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
 int AbsVal_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;

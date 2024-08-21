@@ -208,7 +208,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
 GRU_riscv::GRU_riscv()
 {
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     support_fp16_storage = true;
 #endif
 }
@@ -223,7 +223,7 @@ int GRU_riscv::create_pipeline(const Option& opt)
     }
 #endif
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
         return create_pipeline_fp16sa(opt);
 #endif
@@ -243,7 +243,7 @@ int GRU_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     int elembits = bottom_blob.elembits();
 #if __riscv_vector
 
-#if __riscv_zfh
+#if __riscv_zvfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -325,7 +325,7 @@ int GRU_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     int elembits = bottom_blob.elembits();
 
 #if __riscv_vector
-#if __riscv_zfh
+#if __riscv_zvfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -408,7 +408,7 @@ int GRU_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     return GRU::forward(bottom_blobs, top_blobs, opt);
 }
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
 static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)
 {
     int size = bottom_blob.w;
@@ -728,7 +728,7 @@ int GRU_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif
 
 //fp16sa start at here
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
 
 int GRU_riscv::create_pipeline_fp16sa(const Option& opt)
 {

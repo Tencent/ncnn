@@ -17,7 +17,7 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
-#if __riscv_zfh
+#if __riscv_zvfh
 #include "rvv_mathfun_fp16s.h"
 #endif
 #endif // __riscv_vector
@@ -28,7 +28,7 @@ Sigmoid_riscv::Sigmoid_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
 #endif // __riscv_vector
@@ -36,7 +36,7 @@ Sigmoid_riscv::Sigmoid_riscv()
 
 int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -86,7 +86,7 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     return 0;
 }
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
 int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -148,6 +148,6 @@ int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
 
     return 0;
 }
-#endif // __riscv_vector && __riscv_zfh
+#endif // __riscv_vector && __riscv_zvfh
 
 } // namespace ncnn

@@ -24,7 +24,7 @@ PReLU_riscv::PReLU_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
 #endif
@@ -34,7 +34,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -279,7 +279,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
 //fp16s(a)
 //hint: slope always store as fp32
 

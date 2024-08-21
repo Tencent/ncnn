@@ -20,7 +20,7 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
-#if __riscv_zfh
+#if __riscv_zvfh
 #include "rvv_mathfun_fp16s.h"
 #endif
 
@@ -67,7 +67,7 @@
         return _v;                                                                                                                                              \
     }
 
-#if __riscv_zfh
+#if __riscv_zvfh
 _RVV_FLOAT_ACTIVATION_PS(16, 1, 16)
 _RVV_FLOAT_ACTIVATION_PS(16, 2, 8)
 _RVV_FLOAT_ACTIVATION_PS(16, 4, 4)

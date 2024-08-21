@@ -24,7 +24,7 @@ Cast_riscv::Cast_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
 #endif // __riscv_vector
@@ -89,7 +89,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
     int size = w * h * d * elempack;
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     if (type_from == 1 && type_to == 2)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -137,7 +137,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             }
         }
     }
-#endif // __riscv_vector && __riscv_zfh
+#endif // __riscv_vector && __riscv_zvfh
 
     if (type_from == 3 && type_to == 1)
     {

@@ -25,7 +25,7 @@ namespace ncnn {
 Packing_riscv::Packing_riscv()
 {
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
     support_bf16_storage = true;
@@ -38,7 +38,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if __riscv_zfh
+#if __riscv_zvfh
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif

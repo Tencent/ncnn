@@ -27,7 +27,7 @@ HardSigmoid_riscv::HardSigmoid_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
 #endif // __riscv_vector
@@ -35,7 +35,7 @@ HardSigmoid_riscv::HardSigmoid_riscv()
 
 int HardSigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -91,7 +91,7 @@ int HardSigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
     return 0;
 }
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
 int HardSigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;

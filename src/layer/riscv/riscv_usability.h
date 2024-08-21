@@ -86,7 +86,7 @@ static inline vfloat32m8_t __riscv_vle32_v_f32m8_f32m1(const float* ptr)
     return __riscv_vloxei32_v_f32m8(ptr, bindex, vl);
 }
 
-#if __riscv_zfh
+#if __riscv_zvfh
 static inline vfloat16m8_t __riscv_vle16_v_f16m8_f16m1(const __fp16* ptr)
 {
     const int packn = csrr_vlenb() / 2;
@@ -122,7 +122,7 @@ static inline vfloat16m8_t __riscv_vle16_v_f16m8_f16m1(const __fp16* ptr)
     vuint16m8_t bindex = __riscv_vle16_v_u16m8(index, vl);
     return __riscv_vloxei16_v_f16m8(ptr, bindex, vl);
 }
-#endif // __riscv_zfh
+#endif // __riscv_zvfh
 #endif // __riscv_vector
 
 #if __riscv_vector && __rvv_tuple
@@ -308,7 +308,7 @@ static inline void __riscv_vlseg2e16_v_u16m4(vuint16m4_t* v0, vuint16m4_t* v1, c
     *v1 = __riscv_vget_u16m4x2_u16m4(_tmp, 1);
 }
 
-#if __riscv_zfh
+#if __riscv_zvfh
 
 // f16m1, vsseg.v, 8/4/2
 static inline void __riscv_vsseg8e16_v_f16m1(float16_t* base, vfloat16m1_t v0, vfloat16m1_t v1, vfloat16m1_t v2, vfloat16m1_t v3, vfloat16m1_t v4, vfloat16m1_t v5, vfloat16m1_t v6, vfloat16m1_t v7, size_t vl)
@@ -396,7 +396,7 @@ static inline void __riscv_vlseg2e16_v_f16m4(vfloat16m4_t* v0, vfloat16m4_t* v1,
     *v1 = __riscv_vget_f16m4x2_f16m4(_tmp, 1);
 }
 
-#endif // __riscv_zfh
+#endif // __riscv_zvfh
 #endif // __riscv_vector
 
 #ifdef __riscv_vector

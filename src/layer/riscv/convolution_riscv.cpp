@@ -52,7 +52,7 @@ namespace ncnn {
 #include "convolution_3x3_pack1ton.h"
 #include "convolution_7x7_pack1ton.h"
 
-#if __riscv_zfh
+#if __riscv_zvfh
 #include "convolution_fp16s.h"
 #include "convolution_packn_fp16s.h"
 #include "convolution_pack1ton_fp16s.h"
@@ -79,7 +79,7 @@ Convolution_riscv::Convolution_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
 #endif // __riscv_vector
@@ -138,7 +138,7 @@ int Convolution_riscv::create_pipeline(const Option& opt)
     }
 #endif
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     if (opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -326,7 +326,7 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int elembits = bottom_blob.elembits();
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -715,7 +715,7 @@ int Convolution_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
     return 0;
 }
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
 static void convolution_transform_kernel_packed_fp16s_rvv(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
 {
     const int maxk = kernel_w * kernel_h;
@@ -1102,6 +1102,6 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
     return 0;
 }
-#endif // __riscv_vector && __riscv_zfh
+#endif // __riscv_vector && __riscv_zvfh
 
 } // namespace ncnn

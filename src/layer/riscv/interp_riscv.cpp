@@ -27,7 +27,7 @@ namespace ncnn {
 #if __riscv_vector
 #include "interp_bicubic_packn.h"
 #include "interp_bilinear_packn.h"
-#if __riscv_zfh
+#if __riscv_zvfh
 #include "interp_bicubic_fp16s.h"
 #include "interp_bicubic_packn_fp16s.h"
 #include "interp_bilinear_fp16s.h"
@@ -39,7 +39,7 @@ Interp_riscv::Interp_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
 #endif // __riscv_vector
@@ -53,7 +53,7 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     int elembits = bottom_blob.elembits();
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -489,7 +489,7 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     return 0;
 }
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
 int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
@@ -1212,6 +1212,6 @@ int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vect
 
     return 0;
 }
-#endif // __riscv_vector && __riscv_zfh
+#endif // __riscv_vector && __riscv_zvfh
 
 } // namespace ncnn
