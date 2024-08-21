@@ -43,7 +43,7 @@ static void crop_packn_rvv(const Mat& src, Mat& dst, int top, int left, int pack
     int h = dst.h;
     int right = src.w - dst.w - left;
 
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 
     const float* ptr = src.row(top) + left * packn;
     float* outptr = dst;
@@ -52,8 +52,8 @@ static void crop_packn_rvv(const Mat& src, Mat& dst, int top, int left, int pack
     {
         for (int x = 0; x < w; x++)
         {
-            vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
-            vse32_v_f32m1(outptr, _p, vl);
+            vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr, vl);
+            __riscv_vse32_v_f32m1(outptr, _p, vl);
 
             ptr += packn;
             outptr += packn;
@@ -69,7 +69,7 @@ static void crop_packn_bf16_fp16s_rvv(const Mat& src, Mat& dst, int top, int lef
     int h = dst.h;
     int right = src.w - dst.w - left;
 
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     const unsigned short* ptr = src.row<unsigned short>(top) + left * packn;
     unsigned short* outptr = dst;
@@ -78,8 +78,8 @@ static void crop_packn_bf16_fp16s_rvv(const Mat& src, Mat& dst, int top, int lef
     {
         for (int x = 0; x < w; x++)
         {
-            vuint16m1_t _p = vle16_v_u16m1(ptr, vl);
-            vse16_v_u16m1(outptr, _p, vl);
+            vuint16m1_t _p = __riscv_vle16_v_u16m1(ptr, vl);
+            __riscv_vse16_v_u16m1(outptr, _p, vl);
 
             ptr += packn;
             outptr += packn;

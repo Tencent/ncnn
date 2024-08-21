@@ -17,14 +17,16 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 
-static inline vfloat32m8_t vfabs_v_f32m8_absval(vfloat32m8_t op1, size_t vl)
+static inline vfloat32m8_t __riscv_vfabs_v_f32m8_absval(vfloat32m8_t op1, size_t vl)
 {
-    return vfsgnjx_vv_f32m8(op1, op1, vl);
+    return __riscv_vfsgnjx_vv_f32m8(op1, op1, vl);
 }
-static inline vfloat16m8_t vfabs_v_f16m8_absval(vfloat16m8_t op1, size_t vl)
+#if __riscv_zfh
+static inline vfloat16m8_t __riscv_vfabs_v_f16m8_absval(vfloat16m8_t op1, size_t vl)
 {
-    return vfsgnjx_vv_f16m8(op1, op1, vl);
+    return __riscv_vfsgnjx_vv_f16m8(op1, op1, vl);
 }
+#endif // __riscv_zfh
 #endif // __riscv_vector
 
 namespace ncnn {
@@ -66,11 +68,11 @@ int AbsVal_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int n = size;
         while (n > 0)
         {
-            size_t vl = vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(n);
 
-            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-            _p = vfabs_v_f32m8_absval(_p, vl);
-            vse32_v_f32m8(ptr, _p, vl);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+            _p = __riscv_vfabs_v_f32m8_absval(_p, vl);
+            __riscv_vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
             n -= vl;
@@ -106,11 +108,11 @@ int AbsVal_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt)
         int n = size;
         while (n > 0)
         {
-            size_t vl = vsetvl_e16m8(n);
+            size_t vl = __riscv_vsetvl_e16m8(n);
 
-            vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-            _p = vfabs_v_f16m8_absval(_p, vl);
-            vse16_v_f16m8(ptr, _p, vl);
+            vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+            _p = __riscv_vfabs_v_f16m8_absval(_p, vl);
+            __riscv_vse16_v_f16m8(ptr, _p, vl);
 
             ptr += vl;
             n -= vl;

@@ -143,7 +143,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const size_t vl = vsetvl_e32m1(packn);
+                const size_t vl = __riscv_vsetvl_e32m1(packn);
 
                 for (int i = 0; i < bottom_blob.h; i++)
                 {
@@ -153,8 +153,8 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
                     for (int j = 0; j < w; j++)
                     {
-                        vfloat32m1_t _p = vle32_v_f32m1(r0, vl);
-                        vsse32_v_f32m1(outptr0, w * sizeof(float), _p, vl);
+                        vfloat32m1_t _p = __riscv_vle32_v_f32m1(r0, vl);
+                        __riscv_vsse32_v_f32m1(outptr0, w * sizeof(float), _p, vl);
 
                         r0 += packn;
                         outptr0 += 1;
@@ -271,7 +271,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const size_t vl = vsetvl_e32m1(packn);
+                const size_t vl = __riscv_vsetvl_e32m1(packn);
 
                 int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
 
@@ -283,8 +283,8 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
                     for (int i = 0; i < size; i++)
                     {
-                        vfloat32m1_t _p = vle32_v_f32m1(r0, vl);
-                        vsse32_v_f32m1(outptr0, top_blob_unpacked.cstep * sizeof(float), _p, vl);
+                        vfloat32m1_t _p = __riscv_vle32_v_f32m1(r0, vl);
+                        __riscv_vsse32_v_f32m1(outptr0, top_blob_unpacked.cstep * sizeof(float), _p, vl);
 
                         r0 += packn;
                         outptr0 += 1;
@@ -545,7 +545,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 for (int i = 0; i < bottom_blob.h; i++)
                 {
@@ -555,8 +555,8 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 
                     for (int j = 0; j < w; j++)
                     {
-                        vuint16m1_t _p = vle16_v_u16m1(r0, vl);
-                        vsse16_v_u16m1(outptr0, w * sizeof(unsigned short), _p, vl);
+                        vuint16m1_t _p = __riscv_vle16_v_u16m1(r0, vl);
+                        __riscv_vsse16_v_u16m1(outptr0, w * sizeof(unsigned short), _p, vl);
 
                         r0 += packn;
                         outptr0 += 1;
@@ -673,7 +673,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
 
@@ -685,8 +685,8 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 
                     for (int i = 0; i < size; i++)
                     {
-                        vuint16m1_t _p = vle16_v_u16m1(r0, vl);
-                        vsse16_v_u16m1(outptr0, top_blob_unpacked.cstep * sizeof(unsigned short), _p, vl);
+                        vuint16m1_t _p = __riscv_vle16_v_u16m1(r0, vl);
+                        __riscv_vsse16_v_u16m1(outptr0, top_blob_unpacked.cstep * sizeof(unsigned short), _p, vl);
 
                         r0 += packn;
                         outptr0 += 1;

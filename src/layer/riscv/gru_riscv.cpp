@@ -63,20 +63,20 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_xcu = weight_xc_U;
             while (n > 0)
             {
-                size_t vl = vsetvl_e32m8(n);
-                vfloat32m8_t _x = vle32_v_f32m8(ptr_x, vl);
-                vfloat32m8_t _xcr = vle32_v_f32m8(ptr_xcr, vl);
-                vfloat32m8_t _xcu = vle32_v_f32m8(ptr_xcu, vl);
-                vfloat32m1_t _scalar_r = vfmv_s_f_f32m1(vundefined_f32m1(), R, vl);
-                vfloat32m1_t _scalar_u = vfmv_s_f_f32m1(vundefined_f32m1(), U, vl);
+                size_t vl = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t _x = __riscv_vle32_v_f32m8(ptr_x, vl);
+                vfloat32m8_t _xcr = __riscv_vle32_v_f32m8(ptr_xcr, vl);
+                vfloat32m8_t _xcu = __riscv_vle32_v_f32m8(ptr_xcu, vl);
+                vfloat32m1_t _scalar_r = __riscv_vfmv_s_f_f32m1(R, vl);
+                vfloat32m1_t _scalar_u = __riscv_vfmv_s_f_f32m1(U, vl);
 
-                _xcr = vfmul_vv_f32m8(_xcr, _x, vl);
-                _xcu = vfmul_vv_f32m8(_xcu, _x, vl);
-                _scalar_r = vfredusum_vs_f32m8_f32m1(_scalar_r, _xcr, _scalar_r, vl);
-                _scalar_u = vfredusum_vs_f32m8_f32m1(_scalar_u, _xcu, _scalar_u, vl);
+                _xcr = __riscv_vfmul_vv_f32m8(_xcr, _x, vl);
+                _xcu = __riscv_vfmul_vv_f32m8(_xcu, _x, vl);
+                _scalar_r = __riscv_vfredusum_vs_f32m8_f32m1(_xcr, _scalar_r, vl);
+                _scalar_u = __riscv_vfredusum_vs_f32m8_f32m1(_xcu, _scalar_u, vl);
 
-                R = vfmv_f_s_f32m1_f32(_scalar_r);
-                U = vfmv_f_s_f32m1_f32(_scalar_u);
+                R = __riscv_vfmv_f_s_f32m1_f32(_scalar_r);
+                U = __riscv_vfmv_f_s_f32m1_f32(_scalar_u);
 
                 ptr_x += vl;
                 ptr_xcr += vl;
@@ -93,20 +93,20 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_hcu = weight_hc_U;
             while (n_out > 0)
             {
-                size_t vl = vsetvl_e32m8(n_out);
-                vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc, vl);
-                vfloat32m8_t _hcr = vle32_v_f32m8(ptr_hcr, vl);
-                vfloat32m8_t _hcu = vle32_v_f32m8(ptr_hcu, vl);
-                vfloat32m1_t _scalar_r = vfmv_s_f_f32m1(vundefined_f32m1(), R, vl);
-                vfloat32m1_t _scalar_u = vfmv_s_f_f32m1(vundefined_f32m1(), U, vl);
+                size_t vl = __riscv_vsetvl_e32m8(n_out);
+                vfloat32m8_t _h_cont = __riscv_vle32_v_f32m8(ptr_hc, vl);
+                vfloat32m8_t _hcr = __riscv_vle32_v_f32m8(ptr_hcr, vl);
+                vfloat32m8_t _hcu = __riscv_vle32_v_f32m8(ptr_hcu, vl);
+                vfloat32m1_t _scalar_r = __riscv_vfmv_s_f_f32m1(R, vl);
+                vfloat32m1_t _scalar_u = __riscv_vfmv_s_f_f32m1(U, vl);
 
-                _hcr = vfmul_vv_f32m8(_hcr, _h_cont, vl);
-                _hcu = vfmul_vv_f32m8(_hcu, _h_cont, vl);
-                _scalar_r = vfredusum_vs_f32m8_f32m1(_scalar_r, _hcr, _scalar_r, vl);
-                _scalar_u = vfredusum_vs_f32m8_f32m1(_scalar_u, _hcu, _scalar_u, vl);
+                _hcr = __riscv_vfmul_vv_f32m8(_hcr, _h_cont, vl);
+                _hcu = __riscv_vfmul_vv_f32m8(_hcu, _h_cont, vl);
+                _scalar_r = __riscv_vfredusum_vs_f32m8_f32m1(_hcr, _scalar_r, vl);
+                _scalar_u = __riscv_vfredusum_vs_f32m8_f32m1(_hcu, _scalar_u, vl);
 
-                R = vfmv_f_s_f32m1_f32(_scalar_r);
-                U = vfmv_f_s_f32m1_f32(_scalar_u);
+                R = __riscv_vfmv_f_s_f32m1_f32(_scalar_r);
+                U = __riscv_vfmv_f_s_f32m1_f32(_scalar_u);
 
                 ptr_hc += vl;
                 ptr_hcr += vl;
@@ -136,16 +136,16 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_whc_n = weight_hc_N;
             while (n_out2 > 0)
             {
-                size_t vl = vsetvl_e32m8(n_out2);
+                size_t vl = __riscv_vsetvl_e32m8(n_out2);
 
-                vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc2, vl);
-                vfloat32m8_t _whc_n = vle32_v_f32m8(ptr_whc_n, vl);
-                vfloat32m1_t _scalar_n = vfmv_s_f_f32m1(vundefined_f32m1(), N, vl);
+                vfloat32m8_t _h_cont = __riscv_vle32_v_f32m8(ptr_hc2, vl);
+                vfloat32m8_t _whc_n = __riscv_vle32_v_f32m8(ptr_whc_n, vl);
+                vfloat32m1_t _scalar_n = __riscv_vfmv_s_f_f32m1(N, vl);
 
-                _h_cont = vfmul_vv_f32m8(_whc_n, _h_cont, vl);
-                _scalar_n = vfredusum_vs_f32m8_f32m1(_scalar_n, _h_cont, _scalar_n, vl);
+                _h_cont = __riscv_vfmul_vv_f32m8(_whc_n, _h_cont, vl);
+                _scalar_n = __riscv_vfredusum_vs_f32m8_f32m1(_h_cont, _scalar_n, vl);
 
-                N = vfmv_f_s_f32m1_f32(_scalar_n);
+                N = __riscv_vfmv_f_s_f32m1_f32(_scalar_n);
                 n_out2 -= vl;
                 ptr_hc2 += vl;
                 ptr_whc_n += vl;
@@ -160,15 +160,15 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_xcn = weight_xc_N;
             while (n2 > 0)
             {
-                size_t vl = vsetvl_e32m8(n2);
+                size_t vl = __riscv_vsetvl_e32m8(n2);
 
-                vfloat32m8_t _x = vle32_v_f32m8(ptr_x2, vl);
-                vfloat32m8_t _xcn = vle32_v_f32m8(ptr_xcn, vl);
-                vfloat32m1_t _scalar_n = vfmv_s_f_f32m1(vundefined_f32m1(), N, vl);
+                vfloat32m8_t _x = __riscv_vle32_v_f32m8(ptr_x2, vl);
+                vfloat32m8_t _xcn = __riscv_vle32_v_f32m8(ptr_xcn, vl);
+                vfloat32m1_t _scalar_n = __riscv_vfmv_s_f_f32m1(N, vl);
 
-                _xcn = vfmul_vv_f32m8(_x, _xcn, vl);
-                _scalar_n = vfredusum_vs_f32m8_f32m1(_scalar_n, _xcn, _scalar_n, vl);
-                N = vfmv_f_s_f32m1_f32(_scalar_n);
+                _xcn = __riscv_vfmul_vv_f32m8(_x, _xcn, vl);
+                _scalar_n = __riscv_vfredusum_vs_f32m8_f32m1(_xcn, _scalar_n, vl);
+                N = __riscv_vfmv_f_s_f32m1_f32(_scalar_n);
 
                 n2 -= vl;
                 ptr_x2 += vl;
@@ -450,20 +450,20 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_xcu = weight_xc_U;
             while (n > 0)
             {
-                size_t vl = vsetvl_e16m4(n);
-                vfloat32m8_t _x = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_x, vl), vl);
-                vfloat32m8_t _xcr = vle32_v_f32m8(ptr_xcr, vl);
-                vfloat32m8_t _xcu = vle32_v_f32m8(ptr_xcu, vl);
-                vfloat32m1_t _scalar_r = vfmv_s_f_f32m1(vundefined_f32m1(), R, vl);
-                vfloat32m1_t _scalar_u = vfmv_s_f_f32m1(vundefined_f32m1(), U, vl);
+                size_t vl = __riscv_vsetvl_e16m4(n);
+                vfloat32m8_t _x = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr_x, vl), vl);
+                vfloat32m8_t _xcr = __riscv_vle32_v_f32m8(ptr_xcr, vl);
+                vfloat32m8_t _xcu = __riscv_vle32_v_f32m8(ptr_xcu, vl);
+                vfloat32m1_t _scalar_r = __riscv_vfmv_s_f_f32m1(R, vl);
+                vfloat32m1_t _scalar_u = __riscv_vfmv_s_f_f32m1(U, vl);
 
-                _xcr = vfmul_vv_f32m8(_xcr, _x, vl);
-                _xcu = vfmul_vv_f32m8(_xcu, _x, vl);
-                _scalar_r = vfredusum_vs_f32m8_f32m1(_scalar_r, _xcr, _scalar_r, vl);
-                _scalar_u = vfredusum_vs_f32m8_f32m1(_scalar_u, _xcu, _scalar_u, vl);
+                _xcr = __riscv_vfmul_vv_f32m8(_xcr, _x, vl);
+                _xcu = __riscv_vfmul_vv_f32m8(_xcu, _x, vl);
+                _scalar_r = __riscv_vfredusum_vs_f32m8_f32m1(_xcr, _scalar_r, vl);
+                _scalar_u = __riscv_vfredusum_vs_f32m8_f32m1(_xcu, _scalar_u, vl);
 
-                R = vfmv_f_s_f32m1_f32(_scalar_r);
-                U = vfmv_f_s_f32m1_f32(_scalar_u);
+                R = __riscv_vfmv_f_s_f32m1_f32(_scalar_r);
+                U = __riscv_vfmv_f_s_f32m1_f32(_scalar_u);
 
                 ptr_x += vl;
                 ptr_xcr += vl;
@@ -480,20 +480,20 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_hcu = weight_hc_U;
             while (n_out > 0)
             {
-                size_t vl = vsetvl_e16m4(n_out);
-                vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc, vl);
-                vfloat32m8_t _hcr = vle32_v_f32m8(ptr_hcr, vl);
-                vfloat32m8_t _hcu = vle32_v_f32m8(ptr_hcu, vl);
-                vfloat32m1_t _scalar_r = vfmv_s_f_f32m1(vundefined_f32m1(), R, vl);
-                vfloat32m1_t _scalar_u = vfmv_s_f_f32m1(vundefined_f32m1(), U, vl);
+                size_t vl = __riscv_vsetvl_e16m4(n_out);
+                vfloat32m8_t _h_cont = __riscv_vle32_v_f32m8(ptr_hc, vl);
+                vfloat32m8_t _hcr = __riscv_vle32_v_f32m8(ptr_hcr, vl);
+                vfloat32m8_t _hcu = __riscv_vle32_v_f32m8(ptr_hcu, vl);
+                vfloat32m1_t _scalar_r = __riscv_vfmv_s_f_f32m1(R, vl);
+                vfloat32m1_t _scalar_u = __riscv_vfmv_s_f_f32m1(U, vl);
 
-                _hcr = vfmul_vv_f32m8(_hcr, _h_cont, vl);
-                _hcu = vfmul_vv_f32m8(_hcu, _h_cont, vl);
-                _scalar_r = vfredusum_vs_f32m8_f32m1(_scalar_r, _hcr, _scalar_r, vl);
-                _scalar_u = vfredusum_vs_f32m8_f32m1(_scalar_u, _hcu, _scalar_u, vl);
+                _hcr = __riscv_vfmul_vv_f32m8(_hcr, _h_cont, vl);
+                _hcu = __riscv_vfmul_vv_f32m8(_hcu, _h_cont, vl);
+                _scalar_r = __riscv_vfredusum_vs_f32m8_f32m1(_hcr, _scalar_r, vl);
+                _scalar_u = __riscv_vfredusum_vs_f32m8_f32m1(_hcu, _scalar_u, vl);
 
-                R = vfmv_f_s_f32m1_f32(_scalar_r);
-                U = vfmv_f_s_f32m1_f32(_scalar_u);
+                R = __riscv_vfmv_f_s_f32m1_f32(_scalar_r);
+                U = __riscv_vfmv_f_s_f32m1_f32(_scalar_u);
 
                 ptr_hc += vl;
                 ptr_hcr += vl;
@@ -523,16 +523,16 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_whc_n = weight_hc_N;
             while (n_out2 > 0)
             {
-                size_t vl = vsetvl_e16m4(n_out2);
+                size_t vl = __riscv_vsetvl_e16m4(n_out2);
 
-                vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc2, vl);
-                vfloat32m8_t _whc_n = vle32_v_f32m8(ptr_whc_n, vl);
-                vfloat32m1_t _scalar_n = vfmv_s_f_f32m1(vundefined_f32m1(), N, vl);
+                vfloat32m8_t _h_cont = __riscv_vle32_v_f32m8(ptr_hc2, vl);
+                vfloat32m8_t _whc_n = __riscv_vle32_v_f32m8(ptr_whc_n, vl);
+                vfloat32m1_t _scalar_n = __riscv_vfmv_s_f_f32m1(N, vl);
 
-                _h_cont = vfmul_vv_f32m8(_whc_n, _h_cont, vl);
-                _scalar_n = vfredusum_vs_f32m8_f32m1(_scalar_n, _h_cont, _scalar_n, vl);
+                _h_cont = __riscv_vfmul_vv_f32m8(_whc_n, _h_cont, vl);
+                _scalar_n = __riscv_vfredusum_vs_f32m8_f32m1(_h_cont, _scalar_n, vl);
 
-                N = vfmv_f_s_f32m1_f32(_scalar_n);
+                N = __riscv_vfmv_f_s_f32m1_f32(_scalar_n);
                 n_out2 -= vl;
                 ptr_hc2 += vl;
                 ptr_whc_n += vl;
@@ -547,15 +547,15 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_xcn = weight_xc_N;
             while (n2 > 0)
             {
-                size_t vl = vsetvl_e16m4(n2);
+                size_t vl = __riscv_vsetvl_e16m4(n2);
 
-                vfloat32m8_t _x = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_x2, vl), vl);
-                vfloat32m8_t _xcn = vle32_v_f32m8(ptr_xcn, vl);
-                vfloat32m1_t _scalar_n = vfmv_s_f_f32m1(vundefined_f32m1(), N, vl);
+                vfloat32m8_t _x = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr_x2, vl), vl);
+                vfloat32m8_t _xcn = __riscv_vle32_v_f32m8(ptr_xcn, vl);
+                vfloat32m1_t _scalar_n = __riscv_vfmv_s_f_f32m1(N, vl);
 
-                _xcn = vfmul_vv_f32m8(_x, _xcn, vl);
-                _scalar_n = vfredusum_vs_f32m8_f32m1(_scalar_n, _xcn, _scalar_n, vl);
-                N = vfmv_f_s_f32m1_f32(_scalar_n);
+                _xcn = __riscv_vfmul_vv_f32m8(_x, _xcn, vl);
+                _scalar_n = __riscv_vfredusum_vs_f32m8_f32m1(_xcn, _scalar_n, vl);
+                N = __riscv_vfmv_f_s_f32m1_f32(_scalar_n);
 
                 n2 -= vl;
                 ptr_x2 += vl;
@@ -787,20 +787,20 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_xcu = weight_xc_U;
             while (n > 0)
             {
-                size_t vl = vsetvl_e16m8(n);
-                vfloat16m8_t _x = vle16_v_f16m8(ptr_x, vl);
-                vfloat16m8_t _xcr = vle16_v_f16m8(ptr_xcr, vl);
-                vfloat16m8_t _xcu = vle16_v_f16m8(ptr_xcu, vl);
-                vfloat16m1_t _scalar_r = vfmv_s_f_f16m1(vundefined_f16m1(), R, vl);
-                vfloat16m1_t _scalar_u = vfmv_s_f_f16m1(vundefined_f16m1(), U, vl);
+                size_t vl = __riscv_vsetvl_e16m8(n);
+                vfloat16m8_t _x = __riscv_vle16_v_f16m8(ptr_x, vl);
+                vfloat16m8_t _xcr = __riscv_vle16_v_f16m8(ptr_xcr, vl);
+                vfloat16m8_t _xcu = __riscv_vle16_v_f16m8(ptr_xcu, vl);
+                vfloat16m1_t _scalar_r = __riscv_vfmv_s_f_f16m1(R, vl);
+                vfloat16m1_t _scalar_u = __riscv_vfmv_s_f_f16m1(U, vl);
 
-                _xcr = vfmul_vv_f16m8(_xcr, _x, vl);
-                _xcu = vfmul_vv_f16m8(_xcu, _x, vl);
-                _scalar_r = vfredusum_vs_f16m8_f16m1(_scalar_r, _xcr, _scalar_r, vl);
-                _scalar_u = vfredusum_vs_f16m8_f16m1(_scalar_u, _xcu, _scalar_u, vl);
+                _xcr = __riscv_vfmul_vv_f16m8(_xcr, _x, vl);
+                _xcu = __riscv_vfmul_vv_f16m8(_xcu, _x, vl);
+                _scalar_r = __riscv_vfredusum_vs_f16m8_f16m1(_xcr, _scalar_r, vl);
+                _scalar_u = __riscv_vfredusum_vs_f16m8_f16m1(_xcu, _scalar_u, vl);
 
-                R = vfmv_f_s_f16m1_f16(_scalar_r);
-                U = vfmv_f_s_f16m1_f16(_scalar_u);
+                R = __riscv_vfmv_f_s_f16m1_f16(_scalar_r);
+                U = __riscv_vfmv_f_s_f16m1_f16(_scalar_u);
 
                 ptr_x += vl;
                 ptr_xcr += vl;
@@ -814,20 +814,20 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_hcu = weight_hc_U;
             while (n_out > 0)
             {
-                size_t vl = vsetvl_e16m4(n_out);
-                vfloat16m4_t _h_cont = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_hc, vl), vl);
-                vfloat16m4_t _hcr = vle16_v_f16m4(ptr_hcr, vl);
-                vfloat16m4_t _hcu = vle16_v_f16m4(ptr_hcu, vl);
-                vfloat16m1_t _scalar_r = vfmv_s_f_f16m1(vundefined_f16m1(), R, vl);
-                vfloat16m1_t _scalar_u = vfmv_s_f_f16m1(vundefined_f16m1(), U, vl);
+                size_t vl = __riscv_vsetvl_e16m4(n_out);
+                vfloat16m4_t _h_cont = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_hc, vl), vl);
+                vfloat16m4_t _hcr = __riscv_vle16_v_f16m4(ptr_hcr, vl);
+                vfloat16m4_t _hcu = __riscv_vle16_v_f16m4(ptr_hcu, vl);
+                vfloat16m1_t _scalar_r = __riscv_vfmv_s_f_f16m1(R, vl);
+                vfloat16m1_t _scalar_u = __riscv_vfmv_s_f_f16m1(U, vl);
 
-                _hcr = vfmul_vv_f16m4(_hcr, _h_cont, vl);
-                _hcu = vfmul_vv_f16m4(_hcu, _h_cont, vl);
-                _scalar_r = vfredusum_vs_f16m4_f16m1(_scalar_r, _hcr, _scalar_r, vl);
-                _scalar_u = vfredusum_vs_f16m4_f16m1(_scalar_u, _hcu, _scalar_u, vl);
+                _hcr = __riscv_vfmul_vv_f16m4(_hcr, _h_cont, vl);
+                _hcu = __riscv_vfmul_vv_f16m4(_hcu, _h_cont, vl);
+                _scalar_r = __riscv_vfredusum_vs_f16m4_f16m1(_hcr, _scalar_r, vl);
+                _scalar_u = __riscv_vfredusum_vs_f16m4_f16m1(_hcu, _scalar_u, vl);
 
-                R = vfmv_f_s_f16m1_f16(_scalar_r);
-                U = vfmv_f_s_f16m1_f16(_scalar_u);
+                R = __riscv_vfmv_f_s_f16m1_f16(_scalar_r);
+                U = __riscv_vfmv_f_s_f16m1_f16(_scalar_u);
 
                 ptr_hc += vl;
                 ptr_hcr += vl;
@@ -854,16 +854,16 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_whc_n = weight_hc_N;
             while (n_out2 > 0)
             {
-                size_t vl = vsetvl_e16m4(n_out2);
+                size_t vl = __riscv_vsetvl_e16m4(n_out2);
 
-                vfloat16m4_t _h_cont = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_hc2, vl), vl);
-                vfloat16m4_t _whc_n = vle16_v_f16m4(ptr_whc_n, vl);
-                vfloat16m1_t _scalar_n = vfmv_s_f_f16m1(vundefined_f16m1(), N, vl);
+                vfloat16m4_t _h_cont = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_hc2, vl), vl);
+                vfloat16m4_t _whc_n = __riscv_vle16_v_f16m4(ptr_whc_n, vl);
+                vfloat16m1_t _scalar_n = __riscv_vfmv_s_f_f16m1(N, vl);
 
-                _h_cont = vfmul_vv_f16m4(_whc_n, _h_cont, vl);
-                _scalar_n = vfredusum_vs_f16m4_f16m1(_scalar_n, _h_cont, _scalar_n, vl);
+                _h_cont = __riscv_vfmul_vv_f16m4(_whc_n, _h_cont, vl);
+                _scalar_n = __riscv_vfredusum_vs_f16m4_f16m1(_h_cont, _scalar_n, vl);
 
-                N = vfmv_f_s_f16m1_f16(_scalar_n);
+                N = __riscv_vfmv_f_s_f16m1_f16(_scalar_n);
                 n_out2 -= vl;
                 ptr_hc2 += vl;
                 ptr_whc_n += vl;
@@ -875,15 +875,15 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_xcn = weight_xc_N;
             while (n2 > 0)
             {
-                size_t vl = vsetvl_e16m8(n2);
+                size_t vl = __riscv_vsetvl_e16m8(n2);
 
-                vfloat16m8_t _x = vle16_v_f16m8(ptr_x2, vl);
-                vfloat16m8_t _xcn = vle16_v_f16m8(ptr_xcn, vl);
-                vfloat16m1_t _scalar_n = vfmv_s_f_f16m1(vundefined_f16m1(), N, vl);
+                vfloat16m8_t _x = __riscv_vle16_v_f16m8(ptr_x2, vl);
+                vfloat16m8_t _xcn = __riscv_vle16_v_f16m8(ptr_xcn, vl);
+                vfloat16m1_t _scalar_n = __riscv_vfmv_s_f_f16m1(N, vl);
 
-                _xcn = vfmul_vv_f16m8(_x, _xcn, vl);
-                _scalar_n = vfredusum_vs_f16m8_f16m1(_scalar_n, _xcn, _scalar_n, vl);
-                N = vfmv_f_s_f16m1_f16(_scalar_n);
+                _xcn = __riscv_vfmul_vv_f16m8(_x, _xcn, vl);
+                _scalar_n = __riscv_vfredusum_vs_f16m8_f16m1(_xcn, _scalar_n, vl);
+                N = __riscv_vfmv_f_s_f16m1_f16(_scalar_n);
 
                 n2 -= vl;
                 ptr_x2 += vl;

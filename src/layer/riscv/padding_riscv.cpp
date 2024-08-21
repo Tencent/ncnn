@@ -91,7 +91,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -118,7 +118,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 if (top_blob.empty())
                     return -100;
 
-                vfloat32m1_t pad_value = vfmv_v_f_f32m1(value, vl);
+                vfloat32m1_t pad_value = __riscv_vfmv_v_f_f32m1(value, vl);
                 padding_constant_packn_float32_rvv(bottom_blob, top_blob, 0, 0, left / packn, right / packn, pad_value);
 
                 return 0;
@@ -139,7 +139,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 if (top_blob.empty())
                     return -100;
 
-                vfloat32m1_t pad_value = vfmv_v_f_f32m1(value, vl);
+                vfloat32m1_t pad_value = __riscv_vfmv_v_f_f32m1(value, vl);
                 padding_constant_packn_float32_rvv(bottom_blob, top_blob, top / packn, bottom / packn, left, right, pad_value);
 
                 return 0;
@@ -167,7 +167,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     Mat borderm = top_blob.channel(q);
 
-                    vfloat32m1_t pad_value = per_channel_pad_data_size ? vle32_v_f32m1((const float*)per_channel_pad_data + q * packn, vl) : vfmv_v_f_f32m1(value, vl);
+                    vfloat32m1_t pad_value = per_channel_pad_data_size ? __riscv_vle32_v_f32m1((const float*)per_channel_pad_data + q * packn, vl) : __riscv_vfmv_v_f_f32m1(value, vl);
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
                     {
@@ -204,7 +204,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    vfloat32m1_t pad_value = per_channel_pad_data_size ? vle32_v_f32m1((const float*)per_channel_pad_data + q * packn, vl) : vfmv_v_f_f32m1(value, vl);
+                    vfloat32m1_t pad_value = per_channel_pad_data_size ? __riscv_vle32_v_f32m1((const float*)per_channel_pad_data + q * packn, vl) : __riscv_vfmv_v_f_f32m1(value, vl);
 
                     for (int z = 0; z < outd; z++)
                     {
@@ -261,7 +261,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -294,14 +294,14 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 #if __riscv_zfh
                 if (opt.use_fp16_storage)
                 {
-                    pad_value = vreinterpret_v_f16m1_u16m1(vfmv_v_f_f16m1((__fp16)value, vl));
+                    pad_value = __riscv_vreinterpret_v_f16m1_u16m1(__riscv_vfmv_v_f_f16m1((__fp16)value, vl));
                 }
                 else
 #endif
 #if NCNN_BF16
                 if (opt.use_bf16_storage)
                 {
-                    pad_value = vmv_v_x_u16m1(value_bf16, vl);
+                    pad_value = __riscv_vmv_v_x_u16m1(value_bf16, vl);
                 }
                 else
 #endif
@@ -335,14 +335,14 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 #if __riscv_zfh
                 if (opt.use_fp16_storage)
                 {
-                    pad_value = vreinterpret_v_f16m1_u16m1(vfmv_v_f_f16m1((__fp16)value, vl));
+                    pad_value = __riscv_vreinterpret_v_f16m1_u16m1(__riscv_vfmv_v_f_f16m1((__fp16)value, vl));
                 }
                 else
 #endif
 #if NCNN_BF16
                 if (opt.use_bf16_storage)
                 {
-                    pad_value = vmv_v_x_u16m1(value_bf16, vl);
+                    pad_value = __riscv_vmv_v_x_u16m1(value_bf16, vl);
                 }
                 else
 #endif
@@ -383,14 +383,14 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 #if __riscv_zfh
                     if (opt.use_fp16_storage)
                     {
-                        pad_value = per_channel_pad_data_size ? vreinterpret_v_f16m1_u16m1(vle16_v_f16m1((const __fp16*)per_channel_pad_data_fp16 + q * packn, vl)) : vreinterpret_v_f16m1_u16m1(vfmv_v_f_f16m1((__fp16)value, vl));
+                        pad_value = per_channel_pad_data_size ? __riscv_vreinterpret_v_f16m1_u16m1(__riscv_vle16_v_f16m1((const __fp16*)per_channel_pad_data_fp16 + q * packn, vl)) : __riscv_vreinterpret_v_f16m1_u16m1(__riscv_vfmv_v_f_f16m1((__fp16)value, vl));
                     }
                     else
 #endif
 #if NCNN_BF16
                     if (opt.use_bf16_storage)
                     {
-                        pad_value = per_channel_pad_data_size ? vle16_v_u16m1((const unsigned short*)per_channel_pad_data_bf16 + q * packn, vl) : vmv_v_x_u16m1(value_bf16, vl);
+                        pad_value = per_channel_pad_data_size ? __riscv_vle16_v_u16m1((const unsigned short*)per_channel_pad_data_bf16 + q * packn, vl) : __riscv_vmv_v_x_u16m1(value_bf16, vl);
                     }
                     else
 #endif
@@ -441,14 +441,14 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 #if __riscv_zfh
                     if (opt.use_fp16_storage)
                     {
-                        pad_value = per_channel_pad_data_size ? vreinterpret_v_f16m1_u16m1(vle16_v_f16m1((const __fp16*)per_channel_pad_data_fp16 + q * packn, vl)) : vreinterpret_v_f16m1_u16m1(vfmv_v_f_f16m1((__fp16)value, vl));
+                        pad_value = per_channel_pad_data_size ? __riscv_vreinterpret_v_f16m1_u16m1(__riscv_vle16_v_f16m1((const __fp16*)per_channel_pad_data_fp16 + q * packn, vl)) : __riscv_vreinterpret_v_f16m1_u16m1(__riscv_vfmv_v_f_f16m1((__fp16)value, vl));
                     }
                     else
 #endif
 #if NCNN_BF16
                     if (opt.use_bf16_storage)
                     {
-                        pad_value = per_channel_pad_data_size ? vle16_v_u16m1((const unsigned short*)per_channel_pad_data_bf16 + q * packn, vl) : vmv_v_x_u16m1(value_bf16, vl);
+                        pad_value = per_channel_pad_data_size ? __riscv_vle16_v_u16m1((const unsigned short*)per_channel_pad_data_bf16 + q * packn, vl) : __riscv_vmv_v_x_u16m1(value_bf16, vl);
                     }
                     else
 #endif
@@ -511,7 +511,7 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 1;
-    const size_t vl = vsetvl_e8m1(packn);
+    const size_t vl = __riscv_vsetvl_e8m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -538,7 +538,7 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 if (top_blob.empty())
                     return -100;
 
-                vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+                vint8m1_t pad_value = __riscv_vmv_v_x_i8m1((signed char)value, vl);
                 padding_constant_packn_int8_rvv(bottom_blob, top_blob, 0, 0, left / packn, right / packn, pad_value);
 
                 return 0;
@@ -559,7 +559,7 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 if (top_blob.empty())
                     return -100;
 
-                vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+                vint8m1_t pad_value = __riscv_vmv_v_x_i8m1((signed char)value, vl);
                 padding_constant_packn_int8_rvv(bottom_blob, top_blob, top / packn, bottom / packn, left, right, pad_value);
 
                 return 0;
@@ -588,8 +588,8 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                     Mat borderm = top_blob.channel(q);
 
                     // TODO perchannel
-                    // vint8m1_t pad_value = per_channel_pad_data_size ? vle8_v_i8m1(per_channel_pad_data + q * packn) : vmv_v_x_i8m1((signed char)value);
-                    vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+                    // vint8m1_t pad_value = per_channel_pad_data_size ? __riscv_vle8_v_i8m1(per_channel_pad_data + q * packn) : __riscv_vmv_v_x_i8m1((signed char)value);
+                    vint8m1_t pad_value = __riscv_vmv_v_x_i8m1((signed char)value, vl);
 
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
@@ -628,8 +628,8 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 for (int q = 0; q < channels; q++)
                 {
                     // TODO perchannel
-                    // vint8m1_t pad_value = per_channel_pad_data_size ? vle8_v_i8m1(per_channel_pad_data + q * packn) : vmv_v_x_i8m1((signed char)value);
-                    vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+                    // vint8m1_t pad_value = per_channel_pad_data_size ? __riscv_vle8_v_i8m1(per_channel_pad_data + q * packn) : __riscv_vmv_v_x_i8m1((signed char)value);
+                    vint8m1_t pad_value = __riscv_vmv_v_x_i8m1((signed char)value, vl);
 
                     for (int z = 0; z < outd; z++)
                     {

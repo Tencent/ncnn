@@ -58,15 +58,15 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         int n = bottom_top_blob.w * elempack;
         while (n > 0)
         {
-            size_t vl = vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(n);
 
-            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-            vfloat32m8_t _a = vle32_v_f32m8(ptr_a, vl);
-            vfloat32m8_t _b = vle32_v_f32m8(ptr_b, vl);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+            vfloat32m8_t _a = __riscv_vle32_v_f32m8(ptr_a, vl);
+            vfloat32m8_t _b = __riscv_vle32_v_f32m8(ptr_b, vl);
 
-            _p = vfmadd_vv_f32m8(_p, _b, _a, vl);
+            _p = __riscv_vfmadd_vv_f32m8(_p, _b, _a, vl);
 
-            vse32_v_f32m8(ptr, _p, vl);
+            __riscv_vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
             ptr_a += vl;
@@ -103,11 +103,11 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    _p = vfmul_vf_f32m8(_p, b, vl);
-                    _p = vfadd_vf_f32m8(_p, a, vl);
-                    vse32_v_f32m8(ptr, _p, vl);
+                    size_t vl = __riscv_vsetvl_e32m8(n);
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                    _p = __riscv_vfmul_vf_f32m8(_p, b, vl);
+                    _p = __riscv_vfadd_vf_f32m8(_p, a, vl);
+                    __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                     ptr += vl;
                     n -= vl;
@@ -137,11 +137,11 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    _p = vfmul_vf_f32m8(_p, b, vl);
-                    _p = vfadd_vf_f32m8(_p, a, vl);
-                    vse32_v_f32m8(ptr, _p, vl);
+                    size_t vl = __riscv_vsetvl_e32m8(n);
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                    _p = __riscv_vfmul_vf_f32m8(_p, b, vl);
+                    _p = __riscv_vfadd_vf_f32m8(_p, a, vl);
+                    __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                     ptr += vl;
                     n -= vl;
@@ -164,7 +164,7 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-        const size_t vl = vsetvl_e32m1(packn);
+        const size_t vl = __riscv_vsetvl_e32m1(packn);
         if (dims == 2)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -177,13 +177,13 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 ptr_b += i * elempack;
                 int n = w * elempack;
 
-                vfloat32m1_t _a = vle32_v_f32m1(ptr_a, vl);
-                vfloat32m1_t _b = vle32_v_f32m1(ptr_b, vl);
+                vfloat32m1_t _a = __riscv_vle32_v_f32m1(ptr_a, vl);
+                vfloat32m1_t _b = __riscv_vle32_v_f32m1(ptr_b, vl);
                 while (n > 0)
                 {
-                    vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
-                    _p = vfmadd_vv_f32m1(_p, _b, _a, vl);
-                    vse32_v_f32m1(ptr, _p, vl);
+                    vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr, vl);
+                    _p = __riscv_vfmadd_vv_f32m1(_p, _b, _a, vl);
+                    __riscv_vse32_v_f32m1(ptr, _p, vl);
 
                     ptr += vl;
                     n -= vl;
@@ -204,15 +204,15 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 const float* ptr_a = (const float*)a_data + q * elempack;
                 const float* ptr_b = (const float*)b_data + q * elempack;
 
-                vfloat32m1_t _a = vle32_v_f32m1(ptr_a, vl);
-                vfloat32m1_t _b = vle32_v_f32m1(ptr_b, vl);
+                vfloat32m1_t _a = __riscv_vle32_v_f32m1(ptr_a, vl);
+                vfloat32m1_t _b = __riscv_vle32_v_f32m1(ptr_b, vl);
 
                 int n = size;
                 while (n > 0)
                 {
-                    vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
-                    _p = vfmadd_vv_f32m1(_p, _b, _a, vl);
-                    vse32_v_f32m1(ptr, _p, vl);
+                    vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr, vl);
+                    _p = __riscv_vfmadd_vv_f32m1(_p, _b, _a, vl);
+                    __riscv_vse32_v_f32m1(ptr, _p, vl);
 
                     ptr += vl;
                     n -= vl;
@@ -237,15 +237,15 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
         const float* ptr_b = b_data;
         while (n > 0)
         {
-            size_t vl = vsetvl_e16m4(n);
+            size_t vl = __riscv_vsetvl_e16m4(n);
 
-            vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
-            vfloat32m8_t _a = vle32_v_f32m8(ptr_a, vl);
-            vfloat32m8_t _b = vle32_v_f32m8(ptr_b, vl);
+            vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
+            vfloat32m8_t _a = __riscv_vle32_v_f32m8(ptr_a, vl);
+            vfloat32m8_t _b = __riscv_vle32_v_f32m8(ptr_b, vl);
 
-            _p = vfmadd_vv_f32m8(_p, _b, _a, vl);
+            _p = __riscv_vfmadd_vv_f32m8(_p, _b, _a, vl);
 
-            vse16_v_f16m4(ptr, vfncvt_f_f_w_f16m4(_p, vl), vl);
+            __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
             ptr += vl;
             ptr_a += vl;
@@ -272,11 +272,11 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m4(n);
-                    vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
-                    _p = vfmul_vf_f32m8(_p, b, vl);
-                    _p = vfadd_vf_f32m8(_p, a, vl);
-                    vse16_v_f16m4(ptr, vfncvt_f_f_w_f16m4(_p, vl), vl);
+                    size_t vl = __riscv_vsetvl_e16m4(n);
+                    vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
+                    _p = __riscv_vfmul_vf_f32m8(_p, b, vl);
+                    _p = __riscv_vfadd_vf_f32m8(_p, a, vl);
+                    __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
                     ptr += vl;
                     n -= vl;
@@ -299,12 +299,12 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m4(n);
-                    vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
+                    size_t vl = __riscv_vsetvl_e16m4(n);
+                    vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
                     ;
-                    _p = vfmul_vf_f32m8(_p, b, vl);
-                    _p = vfadd_vf_f32m8(_p, a, vl);
-                    vse16_v_f16m4(ptr, vfncvt_f_f_w_f16m4(_p, vl), vl);
+                    _p = __riscv_vfmul_vf_f32m8(_p, b, vl);
+                    _p = __riscv_vfadd_vf_f32m8(_p, a, vl);
+                    __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
                     ptr += vl;
                     n -= vl;
@@ -321,7 +321,7 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-        const size_t vl = vsetvl_e16m1(packn);
+        const size_t vl = __riscv_vsetvl_e16m1(packn);
         if (dims == 2)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -332,13 +332,13 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                 const float* ptr_b = (const float*)b_data + i * elempack;
                 int n = w * elempack;
 
-                vfloat32m2_t _a = vle32_v_f32m2(ptr_a, vl);
-                vfloat32m2_t _b = vle32_v_f32m2(ptr_b, vl);
+                vfloat32m2_t _a = __riscv_vle32_v_f32m2(ptr_a, vl);
+                vfloat32m2_t _b = __riscv_vle32_v_f32m2(ptr_b, vl);
                 while (n > 0)
                 {
-                    vfloat32m2_t _p = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(ptr, vl), vl);
-                    _p = vfmadd_vv_f32m2(_p, _b, _a, vl);
-                    vse16_v_f16m1(ptr, vfncvt_f_f_w_f16m1(_p, vl), vl);
+                    vfloat32m2_t _p = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(ptr, vl), vl);
+                    _p = __riscv_vfmadd_vv_f32m2(_p, _b, _a, vl);
+                    __riscv_vse16_v_f16m1(ptr, __riscv_vfncvt_f_f_w_f16m1(_p, vl), vl);
 
                     ptr += vl;
                     n -= vl;
@@ -359,15 +359,15 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                 const float* ptr_a = (const float*)a_data + q * elempack;
                 const float* ptr_b = (const float*)b_data + q * elempack;
 
-                vfloat32m2_t _a = vle32_v_f32m2(ptr_a, vl);
-                vfloat32m2_t _b = vle32_v_f32m2(ptr_b, vl);
+                vfloat32m2_t _a = __riscv_vle32_v_f32m2(ptr_a, vl);
+                vfloat32m2_t _b = __riscv_vle32_v_f32m2(ptr_b, vl);
 
                 int n = size;
                 while (n > 0)
                 {
-                    vfloat32m2_t _p = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(ptr, vl), vl);
-                    _p = vfmadd_vv_f32m2(_p, _b, _a, vl);
-                    vse16_v_f16m1(ptr, vfncvt_f_f_w_f16m1(_p, vl), vl);
+                    vfloat32m2_t _p = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(ptr, vl), vl);
+                    _p = __riscv_vfmadd_vv_f32m2(_p, _b, _a, vl);
+                    __riscv_vse16_v_f16m1(ptr, __riscv_vfncvt_f_f_w_f16m1(_p, vl), vl);
 
                     ptr += vl;
                     n -= vl;
@@ -391,15 +391,15 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
         const float* ptr_b = b_data;
         while (n > 0)
         {
-            size_t vl = vsetvl_e16m4(n);
+            size_t vl = __riscv_vsetvl_e16m4(n);
 
-            vfloat16m4_t _p = vle16_v_f16m4(ptr, vl);
-            vfloat16m4_t _a = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_a, vl), vl);
-            vfloat16m4_t _b = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_b, vl), vl);
+            vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
+            vfloat16m4_t _a = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_a, vl), vl);
+            vfloat16m4_t _b = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_b, vl), vl);
 
-            _p = vfmadd_vv_f16m4(_p, _b, _a, vl);
+            _p = __riscv_vfmadd_vv_f16m4(_p, _b, _a, vl);
 
-            vse16_v_f16m4(ptr, _p, vl);
+            __riscv_vse16_v_f16m4(ptr, _p, vl);
 
             ptr += vl;
             ptr_a += vl;
@@ -426,11 +426,11 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m8(n);
-                    vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                    _p = vfmul_vf_f16m8(_p, b, vl);
-                    _p = vfadd_vf_f16m8(_p, a, vl);
-                    vse16_v_f16m8(ptr, _p, vl);
+                    size_t vl = __riscv_vsetvl_e16m8(n);
+                    vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+                    _p = __riscv_vfmul_vf_f16m8(_p, b, vl);
+                    _p = __riscv_vfadd_vf_f16m8(_p, a, vl);
+                    __riscv_vse16_v_f16m8(ptr, _p, vl);
 
                     ptr += vl;
                     n -= vl;
@@ -453,12 +453,12 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m8(n);
-                    vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
+                    size_t vl = __riscv_vsetvl_e16m8(n);
+                    vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
                     ;
-                    _p = vfmul_vf_f16m8(_p, b, vl);
-                    _p = vfadd_vf_f16m8(_p, a, vl);
-                    vse16_v_f16m8(ptr, _p, vl);
+                    _p = __riscv_vfmul_vf_f16m8(_p, b, vl);
+                    _p = __riscv_vfadd_vf_f16m8(_p, a, vl);
+                    __riscv_vse16_v_f16m8(ptr, _p, vl);
 
                     ptr += vl;
                     n -= vl;
@@ -475,7 +475,7 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-        const size_t vl = vsetvl_e16m1(packn);
+        const size_t vl = __riscv_vsetvl_e16m1(packn);
         if (dims == 2)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -486,13 +486,13 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
                 const float* ptr_b = (const float*)b_data + i * elempack;
                 int n = w * elempack;
 
-                vfloat16m1_t _a = vfncvt_f_f_w_f16m1(vle32_v_f32m2(ptr_a, vl), vl);
-                vfloat16m1_t _b = vfncvt_f_f_w_f16m1(vle32_v_f32m2(ptr_b, vl), vl);
+                vfloat16m1_t _a = __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(ptr_a, vl), vl);
+                vfloat16m1_t _b = __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(ptr_b, vl), vl);
                 while (n > 0)
                 {
-                    vfloat16m1_t _p = vle16_v_f16m1(ptr, vl);
-                    _p = vfmadd_vv_f16m1(_p, _b, _a, vl);
-                    vse16_v_f16m1(ptr, _p, vl);
+                    vfloat16m1_t _p = __riscv_vle16_v_f16m1(ptr, vl);
+                    _p = __riscv_vfmadd_vv_f16m1(_p, _b, _a, vl);
+                    __riscv_vse16_v_f16m1(ptr, _p, vl);
 
                     ptr += vl;
                     n -= vl;
@@ -513,15 +513,15 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
                 const float* ptr_a = (const float*)a_data + q * elempack;
                 const float* ptr_b = (const float*)b_data + q * elempack;
 
-                vfloat16m1_t _a = vfncvt_f_f_w_f16m1(vle32_v_f32m2(ptr_a, vl), vl);
-                vfloat16m1_t _b = vfncvt_f_f_w_f16m1(vle32_v_f32m2(ptr_b, vl), vl);
+                vfloat16m1_t _a = __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(ptr_a, vl), vl);
+                vfloat16m1_t _b = __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(ptr_b, vl), vl);
 
                 int n = size;
                 while (n > 0)
                 {
-                    vfloat16m1_t _p = vle16_v_f16m1(ptr, vl);
-                    _p = vfmadd_vv_f16m1(_p, _b, _a, vl);
-                    vse16_v_f16m1(ptr, _p, vl);
+                    vfloat16m1_t _p = __riscv_vle16_v_f16m1(ptr, vl);
+                    _p = __riscv_vfmadd_vv_f16m1(_p, _b, _a, vl);
+                    __riscv_vse16_v_f16m1(ptr, _p, vl);
 
                     ptr += vl;
                     n -= vl;

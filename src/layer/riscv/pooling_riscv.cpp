@@ -72,7 +72,7 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -101,16 +101,16 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     const float* ptr = bottom_blob.channel(q);
 
-                    vfloat32m1_t _max = vle32_v_f32m1(ptr, vl);
+                    vfloat32m1_t _max = __riscv_vle32_v_f32m1(ptr, vl);
                     for (int i = 0; i < size; i++)
                     {
-                        vfloat32m1_t _val = vle32_v_f32m1(ptr, vl);
-                        _max = vfmax_vv_f32m1(_max, _val, vl);
+                        vfloat32m1_t _val = __riscv_vle32_v_f32m1(ptr, vl);
+                        _max = __riscv_vfmax_vv_f32m1(_max, _val, vl);
                         ptr += packn;
                     }
 
                     float* outptr = top_blob;
-                    vse32_v_f32m1(outptr + q * packn, _max, vl);
+                    __riscv_vse32_v_f32m1(outptr + q * packn, _max, vl);
                 }
             }
             else if (pooling_type == PoolMethod_AVE)
@@ -120,18 +120,18 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     const float* ptr = bottom_blob.channel(q);
 
-                    vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+                    vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
                     for (int i = 0; i < size; i++)
                     {
-                        vfloat32m1_t _val = vle32_v_f32m1(ptr, vl);
-                        _sum = vfadd_vv_f32m1(_sum, _val, vl);
+                        vfloat32m1_t _val = __riscv_vle32_v_f32m1(ptr, vl);
+                        _sum = __riscv_vfadd_vv_f32m1(_sum, _val, vl);
                         ptr += packn;
                     }
 
-                    vfloat32m1_t _avg = vfmul_vf_f32m1(_sum, 1.f / size, vl);
+                    vfloat32m1_t _avg = __riscv_vfmul_vf_f32m1(_sum, 1.f / size, vl);
 
                     float* outptr = top_blob;
-                    vse32_v_f32m1(outptr + q * packn, _avg, vl);
+                    __riscv_vse32_v_f32m1(outptr + q * packn, _avg, vl);
                 }
             }
 
@@ -188,15 +188,15 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                     {
                         const float* sptr = m.row(i * stride_h) + j * stride_w * packn;
 
-                        vfloat32m1_t _max = vle32_v_f32m1(sptr, vl);
+                        vfloat32m1_t _max = __riscv_vle32_v_f32m1(sptr, vl);
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            vfloat32m1_t _val = vle32_v_f32m1(sptr + space_ofs[k] * packn, vl);
-                            _max = vfmax_vv_f32m1(_max, _val, vl);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr + space_ofs[k] * packn, vl);
+                            _max = __riscv_vfmax_vv_f32m1(_max, _val, vl);
                         }
 
-                        vse32_v_f32m1(outptr + j * packn, _max, vl);
+                        __riscv_vse32_v_f32m1(outptr + j * packn, _max, vl);
                     }
 
                     outptr += outw * packn;
@@ -230,7 +230,7 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                         {
                             int sx0 = j * stride_w;
 
-                            vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+                            vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
                             int area = 0;
 
                             for (int ki = 0; ki < kernel_h; ki++)
@@ -253,14 +253,14 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                                     if (sx >= w - pad_right - wtailpad)
                                         break;
 
-                                    vfloat32m1_t _val = vle32_v_f32m1(m.row(sy) + sx * packn, vl);
-                                    _sum = vfadd_vv_f32m1(_sum, _val, vl);
+                                    vfloat32m1_t _val = __riscv_vle32_v_f32m1(m.row(sy) + sx * packn, vl);
+                                    _sum = __riscv_vfadd_vv_f32m1(_sum, _val, vl);
                                     area += 1;
                                 }
                             }
 
-                            vfloat32m1_t _avg = vfmul_vf_f32m1(_sum, 1.f / area, vl);
-                            vse32_v_f32m1(outptr + j * packn, _avg, vl);
+                            vfloat32m1_t _avg = __riscv_vfmul_vf_f32m1(_sum, 1.f / area, vl);
+                            __riscv_vse32_v_f32m1(outptr + j * packn, _avg, vl);
                         }
 
                         outptr += outw * packn;
@@ -283,16 +283,16 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                         {
                             const float* sptr = m.row(i * stride_h) + j * stride_w * packn;
 
-                            vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+                            vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                vfloat32m1_t _val = vle32_v_f32m1(sptr + space_ofs[k] * packn, vl);
-                                _sum = vfadd_vv_f32m1(_sum, _val, vl);
+                                vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr + space_ofs[k] * packn, vl);
+                                _sum = __riscv_vfadd_vv_f32m1(_sum, _val, vl);
                             }
 
-                            vfloat32m1_t _avg = vfmul_vf_f32m1(_sum, inv_maxk, vl);
-                            vse32_v_f32m1(outptr + j * packn, _avg, vl);
+                            vfloat32m1_t _avg = __riscv_vfmul_vf_f32m1(_sum, inv_maxk, vl);
+                            __riscv_vse32_v_f32m1(outptr + j * packn, _avg, vl);
                         }
 
                         outptr += outw * packn;
@@ -315,7 +315,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
     // avg value in NxN window
 
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -342,16 +342,16 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
 
-                    vfloat16m1_t _max = vfmv_v_f_f16m1((__fp16)-FLT_MAX, vl);
+                    vfloat16m1_t _max = __riscv_vfmv_v_f_f16m1((__fp16)-FLT_MAX, vl);
                     for (int i = 0; i < size; i++)
                     {
-                        vfloat16m1_t _val = vle16_v_f16m1(ptr, vl);
-                        _max = vfmax_vv_f16m1(_max, _val, vl);
+                        vfloat16m1_t _val = __riscv_vle16_v_f16m1(ptr, vl);
+                        _max = __riscv_vfmax_vv_f16m1(_max, _val, vl);
                         ptr += packn;
                     }
 
                     __fp16* outptr = top_blob;
-                    vse16_v_f16m1(outptr + q * packn, _max, vl);
+                    __riscv_vse16_v_f16m1(outptr + q * packn, _max, vl);
                 }
             }
 
@@ -383,18 +383,18 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
 
-                    vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+                    vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
                     for (int i = 0; i < size; i++)
                     {
-                        vfloat32m2_t _val = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(ptr, vl), vl);
-                        _sum = vfadd_vv_f32m2(_sum, _val, vl);
+                        vfloat32m2_t _val = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(ptr, vl), vl);
+                        _sum = __riscv_vfadd_vv_f32m2(_sum, _val, vl);
                         ptr += packn;
                     }
 
-                    vfloat32m2_t _avg = vfmul_vf_f32m2(_sum, 1.f / size, vl);
+                    vfloat32m2_t _avg = __riscv_vfmul_vf_f32m2(_sum, 1.f / size, vl);
 
                     __fp16* outptr = top_blob;
-                    vse16_v_f16m1(outptr + q * packn, vfncvt_f_f_w_f16m1(_avg, vl), vl);
+                    __riscv_vse16_v_f16m1(outptr + q * packn, __riscv_vfncvt_f_f_w_f16m1(_avg, vl), vl);
                 }
             }
 
@@ -472,15 +472,15 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                     {
                         const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * packn;
 
-                        vfloat16m1_t _max = vfmv_v_f_f16m1((__fp16)-FLT_MAX, vl);
+                        vfloat16m1_t _max = __riscv_vfmv_v_f_f16m1((__fp16)-FLT_MAX, vl);
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            vfloat16m1_t _val = vle16_v_f16m1(sptr + space_ofs[k] * packn, vl);
-                            _max = vfmax_vv_f16m1(_max, _val, vl);
+                            vfloat16m1_t _val = __riscv_vle16_v_f16m1(sptr + space_ofs[k] * packn, vl);
+                            _max = __riscv_vfmax_vv_f16m1(_max, _val, vl);
                         }
 
-                        vse16_v_f16m1(outptr + j * packn, _max, vl);
+                        __riscv_vse16_v_f16m1(outptr + j * packn, _max, vl);
                     }
 
                     outptr += outw * packn;
@@ -548,7 +548,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                         {
                             int sx0 = j * stride_w;
 
-                            vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+                            vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
                             int area = 0;
 
                             for (int ki = 0; ki < kernel_h; ki++)
@@ -571,14 +571,14 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                                     if (sx >= w - pad_right - wtailpad)
                                         break;
 
-                                    vfloat32m2_t _val = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(m.row<const __fp16>(sy) + sx * packn, vl), vl);
-                                    _sum = vfadd_vv_f32m2(_sum, _val, vl);
+                                    vfloat32m2_t _val = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(m.row<const __fp16>(sy) + sx * packn, vl), vl);
+                                    _sum = __riscv_vfadd_vv_f32m2(_sum, _val, vl);
                                     area += 1;
                                 }
                             }
 
-                            vfloat32m2_t _avg = vfmul_vf_f32m2(_sum, 1.f / area, vl);
-                            vse16_v_f16m1(outptr + j * packn, vfncvt_f_f_w_f16m1(_avg, vl), vl);
+                            vfloat32m2_t _avg = __riscv_vfmul_vf_f32m2(_sum, 1.f / area, vl);
+                            __riscv_vse16_v_f16m1(outptr + j * packn, __riscv_vfncvt_f_f_w_f16m1(_avg, vl), vl);
                         }
 
                         outptr += outw * packn;
@@ -658,16 +658,16 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                         {
                             const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * packn;
 
-                            vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+                            vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                vfloat32m2_t _val = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(sptr + space_ofs[k] * packn, vl), vl);
-                                _sum = vfadd_vv_f32m2(_sum, _val, vl);
+                                vfloat32m2_t _val = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(sptr + space_ofs[k] * packn, vl), vl);
+                                _sum = __riscv_vfadd_vv_f32m2(_sum, _val, vl);
                             }
 
-                            vfloat32m2_t _avg = vfmul_vf_f32m2(_sum, inv_maxk, vl);
-                            vse16_v_f16m1(outptr + j * packn, vfncvt_f_f_w_f16m1(_avg, vl), vl);
+                            vfloat32m2_t _avg = __riscv_vfmul_vf_f32m2(_sum, inv_maxk, vl);
+                            __riscv_vse16_v_f16m1(outptr + j * packn, __riscv_vfncvt_f_f_w_f16m1(_avg, vl), vl);
                         }
 
                         outptr += outw * packn;
@@ -721,7 +721,7 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
     }
 
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -796,7 +796,7 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
                         {
                             int sx0 = j * stride_w;
 
-                            vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
+                            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
                             int area = 0;
 
                             for (int ki = 0; ki < kernel_h; ki++)
@@ -819,14 +819,14 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
                                     if (sx >= w - pad_right - wtailpad)
                                         break;
 
-                                    vfloat16m1_t _val = vle16_v_f16m1(m.row<const __fp16>(sy) + sx * packn, vl);
-                                    _sum = vfadd_vv_f16m1(_sum, _val, vl);
+                                    vfloat16m1_t _val = __riscv_vle16_v_f16m1(m.row<const __fp16>(sy) + sx * packn, vl);
+                                    _sum = __riscv_vfadd_vv_f16m1(_sum, _val, vl);
                                     area += 1;
                                 }
                             }
 
-                            vfloat16m1_t _avg = vfmul_vf_f16m1(_sum, (__fp16)(1.f / area), vl);
-                            vse16_v_f16m1(outptr + j * packn, _avg, vl);
+                            vfloat16m1_t _avg = __riscv_vfmul_vf_f16m1(_sum, (__fp16)(1.f / area), vl);
+                            __riscv_vse16_v_f16m1(outptr + j * packn, _avg, vl);
                         }
 
                         outptr += outw * packn;
@@ -906,16 +906,16 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
                         {
                             const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * packn;
 
-                            vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
+                            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                vfloat16m1_t _val = vle16_v_f16m1(sptr + space_ofs[k] * packn, vl);
-                                _sum = vfadd_vv_f16m1(_sum, _val, vl);
+                                vfloat16m1_t _val = __riscv_vle16_v_f16m1(sptr + space_ofs[k] * packn, vl);
+                                _sum = __riscv_vfadd_vv_f16m1(_sum, _val, vl);
                             }
 
-                            vfloat16m1_t _avg = vfmul_vf_f16m1(_sum, inv_maxk, vl);
-                            vse16_v_f16m1(outptr + j * packn, _avg, vl);
+                            vfloat16m1_t _avg = __riscv_vfmul_vf_f16m1(_sum, inv_maxk, vl);
+                            __riscv_vse16_v_f16m1(outptr + j * packn, _avg, vl);
                         }
 
                         outptr += outw * packn;

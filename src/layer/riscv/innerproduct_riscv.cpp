@@ -196,7 +196,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __riscv_vector
             if (elempack == packn && num_output_elempack == packn)
             {
-                const size_t vl = vsetvl_e32m1(packn);
+                const size_t vl = __riscv_vsetvl_e32m1(packn);
 
                 float* outptr = top_blob.row(j);
 
@@ -207,18 +207,18 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         const float* kptr = weight_data_tm.row(p) + l;
                         const float* m = bottom_blob.row(j);
 
-                        vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+                        vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
                         if (bias_term)
                         {
-                            _sum = vfmv_v_f_f32m1(bias_data[p * packn + l], vl);
+                            _sum = __riscv_vfmv_v_f_f32m1(bias_data[p * packn + l], vl);
                         }
 
                         int n = num_input;
                         while (n > 0)
                         {
-                            vfloat32m1_t _val = vle32_v_f32m1(m, vl);
-                            _sum = vfmacc_vf_f32m1(_sum, *kptr, _val, vl);
+                            vfloat32m1_t _val = __riscv_vle32_v_f32m1(m, vl);
+                            _sum = __riscv_vfmacc_vf_f32m1(_sum, *kptr, _val, vl);
 
                             m += packn;
                             kptr += packn;
@@ -227,7 +227,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                         _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                        vse32_v_f32m1(outptr, _sum, vl);
+                        __riscv_vse32_v_f32m1(outptr, _sum, vl);
                         outptr += packn;
                     }
                 }
@@ -235,7 +235,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == 1 && num_output_elempack == packn)
             {
-                const size_t vl = vsetvl_e32m1(packn);
+                const size_t vl = __riscv_vsetvl_e32m1(packn);
 
                 float* outptr = top_blob.row(j);
 
@@ -244,18 +244,18 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
-                    vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+                    vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vle32_v_f32m1((const float*)bias_data + p * packn, vl);
+                        _sum = __riscv_vle32_v_f32m1((const float*)bias_data + p * packn, vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat32m1_t _w = vle32_v_f32m1(kptr, vl);
-                        _sum = vfmacc_vf_f32m1(_sum, *m, _w, vl);
+                        vfloat32m1_t _w = __riscv_vle32_v_f32m1(kptr, vl);
+                        _sum = __riscv_vfmacc_vf_f32m1(_sum, *m, _w, vl);
 
                         m += 1;
                         kptr += packn;
@@ -264,14 +264,14 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                     _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse32_v_f32m1(outptr, _sum, vl);
+                    __riscv_vse32_v_f32m1(outptr, _sum, vl);
                     outptr += packn;
                 }
             }
 
             if (elempack == packn && num_output_elempack == 1)
             {
-                const size_t vl = vsetvl_e32m1(packn);
+                const size_t vl = __riscv_vsetvl_e32m1(packn);
 
                 float* outptr = top_blob.row(j);
 
@@ -280,18 +280,18 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     const float* kptr = (const float*)weight_data_tm + num_input * p;
                     const float* m = bottom_blob.row(j);
 
-                    vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+                    vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vfmv_v_f_f32m1(bias_data[p], vl);
+                        _sum = __riscv_vfmv_v_f_f32m1(bias_data[p], vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat32m1_t _val = vle32_v_f32m1(m, vl);
-                        _sum = vfmacc_vf_f32m1(_sum, *kptr, _val, vl);
+                        vfloat32m1_t _val = __riscv_vle32_v_f32m1(m, vl);
+                        _sum = __riscv_vfmacc_vf_f32m1(_sum, *kptr, _val, vl);
 
                         m += packn;
                         kptr += 1;
@@ -300,7 +300,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                     _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse32_v_f32m1(outptr, _sum, vl);
+                    __riscv_vse32_v_f32m1(outptr, _sum, vl);
                     outptr += packn;
                 }
             }
@@ -370,12 +370,12 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            const size_t vl = vsetvl_e32m1(packn);
-            vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+            const size_t vl = __riscv_vsetvl_e32m1(packn);
+            vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
             if (bias_term)
             {
-                _sum = vle32_v_f32m1((const float*)bias_data + p * packn, vl);
+                _sum = __riscv_vle32_v_f32m1((const float*)bias_data + p * packn, vl);
             }
 
             const float* kptr = weight_data_tm.row(p);
@@ -385,8 +385,8 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             int n = num_input;
             while (n > 0)
             {
-                vfloat32m1_t _w = vle32_v_f32m1(kptr, vl);
-                _sum = vfmacc_vf_f32m1(_sum, *sptr, _w, vl);
+                vfloat32m1_t _w = __riscv_vle32_v_f32m1(kptr, vl);
+                _sum = __riscv_vfmacc_vf_f32m1(_sum, *sptr, _w, vl);
 
                 sptr += 1;
                 kptr += packn;
@@ -396,7 +396,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
             float* outptr = top_blob;
-            vse32_v_f32m1(outptr + p * packn, _sum, vl);
+            __riscv_vse32_v_f32m1(outptr + p * packn, _sum, vl);
         }
     }
 #endif // __riscv_vector
@@ -412,12 +412,12 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         {
             int p = pp * packn;
 
-            const size_t vl = vsetvl_e32m1(packn);
-            vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+            const size_t vl = __riscv_vsetvl_e32m1(packn);
+            vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
             if (bias_term)
             {
-                _sum = vle32_v_f32m1((const float*)bias_data + p, vl);
+                _sum = __riscv_vle32_v_f32m1((const float*)bias_data + p, vl);
             }
 
             const float* w = (const float*)weight_data_tm + num_input * p;
@@ -427,9 +427,9 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             int n = num_input;
             while (n > 0)
             {
-                vfloat32m1_t _w = vlse32_v_f32m1(w, num_input * sizeof(float), vl);
+                vfloat32m1_t _w = __riscv_vlse32_v_f32m1(w, num_input * sizeof(float), vl);
 
-                _sum = vfmacc_vf_f32m1(_sum, *m, _w, vl);
+                _sum = __riscv_vfmacc_vf_f32m1(_sum, *m, _w, vl);
 
                 m += 1;
                 w += 1;
@@ -438,7 +438,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-            vse32_v_f32m1((float*)top_blob + p, _sum, vl);
+            __riscv_vse32_v_f32m1((float*)top_blob + p, _sum, vl);
         }
 #else // __riscv_vector
         int nn_num_output = num_output / 4;
@@ -591,7 +591,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
         {
             if (elempack == packn && num_output_elempack == packn)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -602,19 +602,19 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
                         const __fp16* kptr = (const __fp16*)weight_data_tm + num_input * p * packn + l;
                         const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                        vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+                        vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
 
                         if (bias_term)
                         {
-                            _sum = vfmv_v_f_f32m2(bias_data[p * packn + l], vl);
+                            _sum = __riscv_vfmv_v_f_f32m2(bias_data[p * packn + l], vl);
                         }
 
                         int n = num_input;
                         while (n > 0)
                         {
-                            vfloat32m2_t _val = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(m, vl), vl);
+                            vfloat32m2_t _val = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(m, vl), vl);
 
-                            _sum = vfmacc_vf_f32m2(_sum, *kptr, _val, vl);
+                            _sum = __riscv_vfmacc_vf_f32m2(_sum, *kptr, _val, vl);
 
                             m += packn;
                             kptr += packn;
@@ -623,7 +623,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
 
                         _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                        vse16_v_f16m1(outptr, vfncvt_f_f_w_f16m1(_sum, vl), vl);
+                        __riscv_vse16_v_f16m1(outptr, __riscv_vfncvt_f_f_w_f16m1(_sum, vl), vl);
                         outptr += packn;
                     }
                 }
@@ -631,7 +631,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
 
             if (elempack == 1 && num_output_elempack == packn)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -640,19 +640,19 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
                     const __fp16* kptr = (const __fp16*)weight_data_tm + num_input * p * packn;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+                    vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vle32_v_f32m2((const float*)bias_data + p * packn, vl);
+                        _sum = __riscv_vle32_v_f32m2((const float*)bias_data + p * packn, vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat32m2_t _w = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(kptr, vl), vl);
+                        vfloat32m2_t _w = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(kptr, vl), vl);
 
-                        _sum = vfmacc_vf_f32m2(_sum, *m, _w, vl);
+                        _sum = __riscv_vfmacc_vf_f32m2(_sum, *m, _w, vl);
 
                         m += 1;
                         kptr += packn;
@@ -661,14 +661,14 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
 
                     _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse16_v_f16m1(outptr, vfncvt_f_f_w_f16m1(_sum, vl), vl);
+                    __riscv_vse16_v_f16m1(outptr, __riscv_vfncvt_f_f_w_f16m1(_sum, vl), vl);
                     outptr += packn;
                 }
             }
 
             if (elempack == packn && num_output_elempack == 1)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -677,19 +677,19 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
                     const __fp16* kptr = (const __fp16*)weight_data_tm + num_input * p;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+                    vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vfmv_v_f_f32m2(bias_data[p], vl);
+                        _sum = __riscv_vfmv_v_f_f32m2(bias_data[p], vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat32m2_t _val = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(m, vl), vl);
+                        vfloat32m2_t _val = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(m, vl), vl);
 
-                        _sum = vfmacc_vf_f32m2(_sum, *kptr, _val, vl);
+                        _sum = __riscv_vfmacc_vf_f32m2(_sum, *kptr, _val, vl);
 
                         m += packn;
                         kptr += 1;
@@ -698,7 +698,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
 
                     _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse16_v_f16m1(outptr, vfncvt_f_f_w_f16m1(_sum, vl), vl);
+                    __riscv_vse16_v_f16m1(outptr, __riscv_vfncvt_f_f_w_f16m1(_sum, vl), vl);
                     outptr += packn;
                 }
             }
@@ -761,12 +761,12 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            const size_t vl = vsetvl_e16m1(packn);
-            vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+            const size_t vl = __riscv_vsetvl_e16m1(packn);
+            vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
 
             if (bias_term)
             {
-                _sum = vle32_v_f32m2((const float*)bias_data + p * packn, vl);
+                _sum = __riscv_vle32_v_f32m2((const float*)bias_data + p * packn, vl);
             }
 
             const __fp16* kptr = weight_data_tm.row<const __fp16>(p);
@@ -776,9 +776,9 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
             int n = num_input;
             while (n > 0)
             {
-                vfloat32m2_t _w = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(kptr, vl), vl);
+                vfloat32m2_t _w = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(kptr, vl), vl);
 
-                _sum = vfmacc_vf_f32m2(_sum, (float)(*sptr), _w, vl);
+                _sum = __riscv_vfmacc_vf_f32m2(_sum, (float)(*sptr), _w, vl);
 
                 sptr += 1;
                 kptr += packn;
@@ -788,7 +788,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
             _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
             __fp16* outptr = (__fp16*)top_blob;
-            vse16_v_f16m1(outptr + p * packn, vfncvt_f_f_w_f16m1(_sum, vl), vl);
+            __riscv_vse16_v_f16m1(outptr + p * packn, __riscv_vfncvt_f_f_w_f16m1(_sum, vl), vl);
         }
     }
 
@@ -853,7 +853,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
         {
             if (elempack == packn && num_output_elempack == packn)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -864,19 +864,19 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
                         const __fp16* kptr = (const __fp16*)weight_data_tm + num_input * p * packn + l;
                         const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                        vfloat16m1_t _sum = vfmv_v_f_f16m1((__fp16)0.f, vl);
+                        vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                         if (bias_term)
                         {
-                            _sum = vfmv_v_f_f16m1(((const __fp16*)bias_data_fp16)[p * packn + l], vl);
+                            _sum = __riscv_vfmv_v_f_f16m1(((const __fp16*)bias_data_fp16)[p * packn + l], vl);
                         }
 
                         int n = num_input;
                         while (n > 0)
                         {
-                            vfloat16m1_t _val = vle16_v_f16m1(m, vl);
+                            vfloat16m1_t _val = __riscv_vle16_v_f16m1(m, vl);
 
-                            _sum = vfmacc_vf_f16m1(_sum, *kptr, _val, vl);
+                            _sum = __riscv_vfmacc_vf_f16m1(_sum, *kptr, _val, vl);
 
                             m += packn;
                             kptr += packn;
@@ -885,7 +885,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 
                         _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                        vse16_v_f16m1(outptr, _sum, vl);
+                        __riscv_vse16_v_f16m1(outptr, _sum, vl);
                         outptr += packn;
                     }
                 }
@@ -893,7 +893,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 
             if (elempack == 1 && num_output_elempack == packn)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -902,19 +902,19 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
                     const __fp16* kptr = (const __fp16*)weight_data_tm + num_input * p * packn;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
+                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vle16_v_f16m1((const __fp16*)bias_data_fp16 + p * packn, vl);
+                        _sum = __riscv_vle16_v_f16m1((const __fp16*)bias_data_fp16 + p * packn, vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat16m1_t _w = vle16_v_f16m1(kptr, vl);
+                        vfloat16m1_t _w = __riscv_vle16_v_f16m1(kptr, vl);
 
-                        _sum = vfmacc_vf_f16m1(_sum, *m, _w, vl);
+                        _sum = __riscv_vfmacc_vf_f16m1(_sum, *m, _w, vl);
 
                         m += 1;
                         kptr += packn;
@@ -923,14 +923,14 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 
                     _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse16_v_f16m1(outptr, _sum, vl);
+                    __riscv_vse16_v_f16m1(outptr, _sum, vl);
                     outptr += packn;
                 }
             }
 
             if (elempack == packn && num_output_elempack == 1)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -939,19 +939,19 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
                     const __fp16* kptr = (const __fp16*)weight_data_tm + num_input * p;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
+                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vfmv_v_f_f16m1(((const __fp16*)bias_data_fp16)[p], vl);
+                        _sum = __riscv_vfmv_v_f_f16m1(((const __fp16*)bias_data_fp16)[p], vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat16m1_t _val = vle16_v_f16m1(m, vl);
+                        vfloat16m1_t _val = __riscv_vle16_v_f16m1(m, vl);
 
-                        _sum = vfmacc_vf_f16m1(_sum, *kptr, _val, vl);
+                        _sum = __riscv_vfmacc_vf_f16m1(_sum, *kptr, _val, vl);
 
                         m += packn;
                         kptr += 1;
@@ -960,7 +960,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 
                     _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse16_v_f16m1(outptr, _sum, vl);
+                    __riscv_vse16_v_f16m1(outptr, _sum, vl);
                     outptr += packn;
                 }
             }
@@ -1023,12 +1023,12 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            const size_t vl = vsetvl_e16m1(packn);
-            vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
+            const size_t vl = __riscv_vsetvl_e16m1(packn);
+            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
 
             if (bias_term)
             {
-                _sum = vle16_v_f16m1((const __fp16*)bias_data_fp16 + p * packn, vl);
+                _sum = __riscv_vle16_v_f16m1((const __fp16*)bias_data_fp16 + p * packn, vl);
             }
 
             const __fp16* kptr = weight_data_tm.row<const __fp16>(p);
@@ -1038,9 +1038,9 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
             int n = num_input;
             while (n > 0)
             {
-                vfloat16m1_t _w = vle16_v_f16m1(kptr, vl);
+                vfloat16m1_t _w = __riscv_vle16_v_f16m1(kptr, vl);
 
-                _sum = vfmacc_vf_f16m1(_sum, *sptr, _w, vl);
+                _sum = __riscv_vfmacc_vf_f16m1(_sum, *sptr, _w, vl);
 
                 sptr += 1;
                 kptr += packn;
@@ -1050,7 +1050,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
             _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
             __fp16* outptr = (__fp16*)top_blob;
-            vse16_v_f16m1(outptr + p * packn, _sum, vl);
+            __riscv_vse16_v_f16m1(outptr + p * packn, _sum, vl);
         }
     }
 

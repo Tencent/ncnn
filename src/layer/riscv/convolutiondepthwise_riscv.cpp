@@ -278,7 +278,7 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -389,25 +389,25 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+                            vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
                             if (bias_term)
                             {
-                                _sum = vle32_v_f32m1((const float*)bias_data + g * packn, vl);
+                                _sum = __riscv_vle32_v_f32m1((const float*)bias_data + g * packn, vl);
                             }
 
                             const float* sptr = m.row(i * stride_h) + j * stride_w * packn;
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                vfloat32m1_t _val = vle32_v_f32m1(sptr + space_ofs[k] * packn, vl);
-                                vfloat32m1_t _w = vle32_v_f32m1(kptr + k * packn, vl);
-                                _sum = vfmacc_vv_f32m1(_sum, _val, _w, vl);
+                                vfloat32m1_t _val = __riscv_vle32_v_f32m1(sptr + space_ofs[k] * packn, vl);
+                                vfloat32m1_t _w = __riscv_vle32_v_f32m1(kptr + k * packn, vl);
+                                _sum = __riscv_vfmacc_vv_f32m1(_sum, _val, _w, vl);
                             }
 
                             _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                            vse32_v_f32m1(outptr + j * packn, _sum, vl);
+                            __riscv_vse32_v_f32m1(outptr + j * packn, _sum, vl);
                         }
 
                         outptr += outw * packn;
@@ -702,7 +702,7 @@ int ConvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
 int ConvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -768,25 +768,25 @@ int ConvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_b
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+                            vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
 
                             if (bias_term)
                             {
-                                _sum = vle32_v_f32m2((const float*)bias_data + g * packn, vl);
+                                _sum = __riscv_vle32_v_f32m2((const float*)bias_data + g * packn, vl);
                             }
 
                             const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * packn;
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                vfloat16m1_t _val = vle16_v_f16m1(sptr + space_ofs[k] * packn, vl);
-                                vfloat16m1_t _w = vle16_v_f16m1(kptr + k * packn, vl);
-                                _sum = vfwmacc_vv_f32m2(_sum, _val, _w, vl);
+                                vfloat16m1_t _val = __riscv_vle16_v_f16m1(sptr + space_ofs[k] * packn, vl);
+                                vfloat16m1_t _w = __riscv_vle16_v_f16m1(kptr + k * packn, vl);
+                                _sum = __riscv_vfwmacc_vv_f32m2(_sum, _val, _w, vl);
                             }
 
                             _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                            vse16_v_f16m1(outptr + j * packn, vfncvt_f_f_w_f16m1(_sum, vl), vl);
+                            __riscv_vse16_v_f16m1(outptr + j * packn, __riscv_vfncvt_f_f_w_f16m1(_sum, vl), vl);
                         }
 
                         outptr += outw * packn;
@@ -912,7 +912,7 @@ int ConvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_b
 int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -1015,25 +1015,25 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            vfloat16m1_t _sum = vfmv_v_f_f16m1((__fp16)0.f, vl);
+                            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                             if (bias_term)
                             {
-                                _sum = vle16_v_f16m1((const __fp16*)bias_data_fp16 + g * packn, vl);
+                                _sum = __riscv_vle16_v_f16m1((const __fp16*)bias_data_fp16 + g * packn, vl);
                             }
 
                             const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * packn;
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                vfloat16m1_t _val = vle16_v_f16m1(sptr + space_ofs[k] * packn, vl);
-                                vfloat16m1_t _w = vle16_v_f16m1(kptr + k * packn, vl);
-                                _sum = vfmacc_vv_f16m1(_sum, _val, _w, vl);
+                                vfloat16m1_t _val = __riscv_vle16_v_f16m1(sptr + space_ofs[k] * packn, vl);
+                                vfloat16m1_t _w = __riscv_vle16_v_f16m1(kptr + k * packn, vl);
+                                _sum = __riscv_vfmacc_vv_f16m1(_sum, _val, _w, vl);
                             }
 
                             _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                            vse16_v_f16m1(outptr + j * packn, _sum, vl);
+                            __riscv_vse16_v_f16m1(outptr + j * packn, _sum, vl);
                         }
 
                         outptr += outw * packn;
