@@ -138,9 +138,9 @@ public:
     void fill(vfloat32m1_t _v);
     void fill(vuint16m1_t _v);
     void fill(vint8m1_t _v);
-#if __riscv_zfh
+#if __riscv_zvfh
     void fill(vfloat16m1_t _v);
-#endif // __riscv_zfh
+#endif // __riscv_zvfh
 #endif // __riscv_vector
     template<typename T>
     void fill(T v);
@@ -1132,7 +1132,7 @@ NCNN_FORCEINLINE void Mat::fill(vint8m1_t _v)
         ptr += packn;
     }
 }
-#if __riscv_zfh
+#if __riscv_zvfh
 NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 2;
@@ -1146,7 +1146,7 @@ NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
         ptr += packn;
     }
 }
-#endif // __riscv_zfh
+#endif // __riscv_zvfh
 #endif // __riscv_vector
 
 template<typename T>
