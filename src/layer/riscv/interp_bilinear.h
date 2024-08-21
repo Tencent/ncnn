@@ -90,15 +90,13 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 
                 vuint32m4_t _sx = __riscv_vmul_vx_u32m4(__riscv_vle32_v_u32m4(pxofs, vl), sizeof(float), vl);
 
-                vfloat32m4_t _S1p0;
-                vfloat32m4_t _S1p1;
-#warning TODO
-                // __riscv_vloxseg2ei32_v_f32m4(&_S1p0, &_S1p1, S1, _sx, vl);
+                vfloat32m4x2_t _S1 = __riscv_vloxseg2ei32_v_f32m4x2(S1, _sx, vl);
+                vfloat32m4_t _S1p0 = __riscv_vget_v_f32m4x2_f32m4(_S1, 0);
+                vfloat32m4_t _S1p1 = __riscv_vget_v_f32m4x2_f32m4(_S1, 1);
 
-                vfloat32m4_t _a0;
-                vfloat32m4_t _a1;
-#warning TODO
-                // __riscv_vlseg2e32_v_f32m4(&_a0, &_a1, alphap, vl);
+                vfloat32m4x2_t _a = __riscv_vlseg2e32_v_f32m4x2(alphap, vl);
+                vfloat32m4_t _a0 = __riscv_vget_v_f32m4x2_f32m4(_a, 0);
+                vfloat32m4_t _a1 = __riscv_vget_v_f32m4x2_f32m4(_a, 1);
 
                 vfloat32m4_t _rows1 = __riscv_vfmacc_vv_f32m4(__riscv_vfmul_vv_f32m4(_S1p0, _a0, vl), _S1p1, _a1, vl);
 
@@ -142,19 +140,16 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 
                 vuint32m4_t _sx = __riscv_vmul_vx_u32m4(__riscv_vle32_v_u32m4(pxofs, vl), sizeof(float), vl);
 
-                vfloat32m4_t _S0p0;
-                vfloat32m4_t _S0p1;
-                vfloat32m4_t _S1p0;
-                vfloat32m4_t _S1p1;
+                vfloat32m4x2_t _S0 = __riscv_vloxseg2ei32_v_f32m4x2(S0, _sx, vl);
+                vfloat32m4x2_t _S1 = __riscv_vloxseg2ei32_v_f32m4x2(S1, _sx, vl);
+                vfloat32m4_t _S0p0 = __riscv_vget_v_f32m4x2_f32m4(_S0, 0);
+                vfloat32m4_t _S0p1 = __riscv_vget_v_f32m4x2_f32m4(_S0, 1);
+                vfloat32m4_t _S1p0 = __riscv_vget_v_f32m4x2_f32m4(_S1, 0);
+                vfloat32m4_t _S1p1 = __riscv_vget_v_f32m4x2_f32m4(_S1, 1);
 
-#warning TODO
-                // __riscv_vloxseg2ei32_v_f32m4(&_S0p0, &_S0p1, S0, _sx, vl);
-                // __riscv_vloxseg2ei32_v_f32m4(&_S1p0, &_S1p1, S1, _sx, vl);
-
-                vfloat32m4_t _a0;
-                vfloat32m4_t _a1;
-#warning TODO
-                // __riscv_vlseg2e32_v_f32m4(&_a0, &_a1, alphap, vl);
+                vfloat32m4x2_t _a = __riscv_vlseg2e32_v_f32m4x2(alphap, vl);
+                vfloat32m4_t _a0 = __riscv_vget_v_f32m4x2_f32m4(_a, 0);
+                vfloat32m4_t _a1 = __riscv_vget_v_f32m4x2_f32m4(_a, 1);
 
                 vfloat32m4_t _rows0 = __riscv_vfmacc_vv_f32m4(__riscv_vfmul_vv_f32m4(_S0p0, _a0, vl), _S0p1, _a1, vl);
                 vfloat32m4_t _rows1 = __riscv_vfmacc_vv_f32m4(__riscv_vfmul_vv_f32m4(_S1p0, _a0, vl), _S1p1, _a1, vl);
