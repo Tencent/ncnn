@@ -462,6 +462,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
     fclose(pyfp);
 
+    // cpp inference
+
     return 0;
 }
 
