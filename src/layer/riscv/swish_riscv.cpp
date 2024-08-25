@@ -17,9 +17,6 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
-#if __riscv_zvfh
-#include "rvv_mathfun_fp16s.h"
-#endif
 #endif // __riscv_vector
 
 namespace ncnn {
@@ -28,15 +25,15 @@ Swish_riscv::Swish_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zvfh
-    support_fp16_storage = true;
+#if NCNN_ZVFH
+    support_fp16_storage = cpu_support_riscv_zvfh();
 #endif
 #endif // __riscv_vector
 }
 
 int Swish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __riscv_vector && __riscv_zvfh
+#if NCNN_ZVFH
     int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -84,69 +81,5 @@ int Swish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
-
-#if __riscv_vector && __riscv_zvfh
-int Swish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = bottom_top_blob.channel(q);
-
-        int n = size;
-        while (n > 0)
-        {
-            size_t vl = __riscv_vsetvl_e16m4(n);
-
-            vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
-            _p = __riscv_vfdiv_vv_f32m8(_p, __riscv_vfadd_vf_f32m8(exp_ps(__riscv_vfneg_v_f32m8(_p, vl), vl), 1.f, vl), vl);
-            __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
-
-            ptr += vl;
-            n -= vl;
-        }
-    }
-
-    return 0;
-}
-
-int Swish_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = bottom_top_blob.channel(q);
-
-        int n = size;
-        while (n > 0)
-        {
-            size_t vl = __riscv_vsetvl_e16m8(n);
-
-            vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-            _p = __riscv_vfdiv_vv_f16m8(_p, __riscv_vfadd_vf_f16m8(exp_ps(__riscv_vfneg_v_f16m8(_p, vl), vl), 1.f, vl), vl);
-            __riscv_vse16_v_f16m8(ptr, _p, vl);
-
-            ptr += vl;
-            n -= vl;
-        }
-    }
-
-    return 0;
-}
-#endif // __riscv_vector && __riscv_zvfh
 
 } // namespace ncnn

@@ -17,9 +17,6 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
-#if __riscv_zvfh
-#include "rvv_mathfun_fp16s.h"
-#endif
 #endif // __riscv_vector
 
 namespace ncnn {
