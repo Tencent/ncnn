@@ -462,7 +462,7 @@ int DeconvolutionDepthWise_riscv::forward(const std::vector<Mat>& bottom_blobs, 
         return -100;
 
 #if NCNN_RVV
-    if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && weight_data_flattened.elembits() == 16)
+    if (opt.use_fp16_storage && cpu_support_riscv_zvfh() && weight_data_flattened.elembits() == 16)
     {
         Mat weight_data_flattened_fp32;
         cast_float16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
@@ -513,7 +513,7 @@ int DeconvolutionDepthWise_riscv::forward(const std::vector<Mat>& bottom_blobs, 
             return -100;
 
 #if NCNN_RVV
-        if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && bias_data_flattened.elembits() == 16)
+        if (opt.use_fp16_storage && cpu_support_riscv_zvfh() && bias_data_flattened.elembits() == 16)
         {
             Mat bias_data_flattened_fp32;
             cast_float16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
