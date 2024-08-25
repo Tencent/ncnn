@@ -2378,6 +2378,21 @@ int cpu_support_arm_svef32mm()
 #endif
 }
 
+int cpu_support_arm_amx()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__ && __APPLE__
+    return g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
+           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
+           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_x86_avx()
 {
     try_initialize_global_cpu_info();
