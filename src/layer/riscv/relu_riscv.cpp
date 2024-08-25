@@ -24,15 +24,15 @@ ReLU_riscv::ReLU_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zvfh
-    support_fp16_storage = true;
+#if NCNN_ZVFH
+    support_fp16_storage = cpu_support_riscv_zvfh();
 #endif
 #endif
 }
 
 int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __riscv_vector && __riscv_zvfh
+#if NCNN_ZVFH
     int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -105,55 +105,4 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-#if __riscv_vector && __riscv_zvfh
-int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = bottom_top_blob.channel(q);
-        if (slope == 0.f)
-        {
-            int n = size;
-            while (n > 0)
-            {
-                size_t vl = __riscv_vsetvl_e16m8(n);
-
-                vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-                _p = __riscv_vfmax_vf_f16m8(_p, (__fp16)0.f, vl);
-                __riscv_vse16_v_f16m8(ptr, _p, vl);
-
-                ptr += vl;
-                n -= vl;
-            }
-        }
-        else
-        {
-            int n = size;
-            __fp16 _slope = (__fp16)slope;
-            while (n > 0)
-            {
-                size_t vl = __riscv_vsetvl_e16m8(n);
-
-                vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-                _p = __riscv_vfmul_vf_f16m8_m(__riscv_vmflt_vf_f16m8_b2(_p, .0f, vl), _p, _slope, vl);
-                __riscv_vse16_v_f16m8(ptr, _p, vl);
-
-                ptr += vl;
-                n -= vl;
-            }
-        }
-    }
-
-    return 0;
-}
-
-#endif
 } // namespace ncnn
