@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -24,30 +24,9 @@
 
 namespace ncnn {
 
-TanH_riscv::TanH_riscv()
+#if __riscv_zvfh
+int TanH_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __riscv_vector
-    support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
-#endif // __riscv_vector
-}
-
-int TanH_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
-{
-#if NCNN_ZVFH
-    int elembits = bottom_top_blob.elembits();
-
-    if (opt.use_fp16_storage && elembits == 16)
-    {
-        if (opt.use_fp16_arithmetic)
-            return forward_inplace_fp16sa(bottom_top_blob, opt);
-        else
-            return forward_inplace_fp16s(bottom_top_blob, opt);
-    }
-#endif
-
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
@@ -58,31 +37,55 @@ int TanH_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
-        float* ptr = bottom_top_blob.channel(q);
+        __fp16* ptr = bottom_top_blob.channel(q);
 
-#if __riscv_vector
         int n = size;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e16m4(n);
 
-            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+            vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
             _p = tanh_ps(_p, vl);
-            __riscv_vse32_v_f32m8(ptr, _p, vl);
+            __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
             ptr += vl;
             n -= vl;
         }
-#else  // __riscv_vector
-        for (int i = 0; i < size; i++)
-        {
-            *ptr = tanh(*ptr);
-            ptr++;
-        }
-#endif // __riscv_vector
     }
 
     return 0;
 }
+
+int TanH_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int channels = bottom_top_blob.c;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = bottom_top_blob.channel(q);
+
+        int n = size;
+        while (n > 0)
+        {
+            size_t vl = __riscv_vsetvl_e16m8(n);
+
+            vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+            _p = tanh_ps(_p, vl);
+            __riscv_vse16_v_f16m8(ptr, _p, vl);
+
+            ptr += vl;
+            n -= vl;
+        }
+    }
+
+    return 0;
+}
+#endif // __riscv_zvfh
 
 } // namespace ncnn

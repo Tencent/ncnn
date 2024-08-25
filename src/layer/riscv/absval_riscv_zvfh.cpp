@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,42 +12,22 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "tanh_riscv.h"
+#include "absval_riscv.h"
 
 #if __riscv_vector
 #include <riscv_vector.h>
-#include "rvv_mathfun.h"
-#if __riscv_zvfh
-#include "rvv_mathfun_fp16s.h"
 #endif
-#endif // __riscv_vector
 
 namespace ncnn {
 
-TanH_riscv::TanH_riscv()
+#if __riscv_zvfh
+static inline vfloat16m8_t __riscv_vfabs_v_f16m8_absval(vfloat16m8_t op1, size_t vl)
 {
-#if __riscv_vector
-    support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
-#endif // __riscv_vector
+    return __riscv_vfsgnjx_vv_f16m8(op1, op1, vl);
 }
 
-int TanH_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int AbsVal_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZVFH
-    int elembits = bottom_top_blob.elembits();
-
-    if (opt.use_fp16_storage && elembits == 16)
-    {
-        if (opt.use_fp16_arithmetic)
-            return forward_inplace_fp16sa(bottom_top_blob, opt);
-        else
-            return forward_inplace_fp16s(bottom_top_blob, opt);
-    }
-#endif
-
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
@@ -58,31 +38,24 @@ int TanH_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
-        float* ptr = bottom_top_blob.channel(q);
+        __fp16* ptr = bottom_top_blob.channel(q);
 
-#if __riscv_vector
         int n = size;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e16m8(n);
 
-            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-            _p = tanh_ps(_p, vl);
-            __riscv_vse32_v_f32m8(ptr, _p, vl);
+            vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+            _p = __riscv_vfabs_v_f16m8_absval(_p, vl);
+            __riscv_vse16_v_f16m8(ptr, _p, vl);
 
             ptr += vl;
             n -= vl;
         }
-#else  // __riscv_vector
-        for (int i = 0; i < size; i++)
-        {
-            *ptr = tanh(*ptr);
-            ptr++;
-        }
-#endif // __riscv_vector
     }
 
     return 0;
 }
+#endif // __riscv_zvfh
 
 } // namespace ncnn
