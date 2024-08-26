@@ -58,7 +58,7 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
                 size_t vl = __riscv_vsetvl_e16m8(n);
 
                 vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-                _p = __riscv_vfmul_vf_f16m8_m(__riscv_vmflt_vf_f16m8_b2(_p, .0f, vl), _p, _slope, vl);
+                _p = __riscv_vfmul_vf_f16m8_mu(__riscv_vmflt_vf_f16m8_b2(_p, .0f, vl), _p, _p, _slope, vl);
                 __riscv_vse16_v_f16m8(ptr, _p, vl);
 
                 ptr += vl;

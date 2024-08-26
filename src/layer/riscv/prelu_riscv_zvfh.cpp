@@ -49,7 +49,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
                 vfloat32m8_t _slope = __riscv_vle32_v_f32m8(ptr_slope, vl);
                 vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
-                _p = __riscv_vfmul_vv_f32m8_m(_lower, _p, _slope, vl);
+                _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
 
                 __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
                 ptr += vl;
@@ -69,7 +69,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
                 vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
 
-                _p = __riscv_vfmul_vf_f32m8_m(_lower, _p, slope, vl);
+                _p = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _p, slope, vl);
                 __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
                 ptr += vl;
@@ -101,7 +101,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                         vfloat32m8_t _slope = __riscv_vle32_v_f32m8(ptr_slope, vl);
 
                         vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
-                        _p = __riscv_vfmul_vv_f32m8_m(_lower, _p, _slope, vl);
+                        _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
                         ptr += vl;
@@ -120,7 +120,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
                     vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
 
-                    _p = __riscv_vfmul_vf_f32m8_m(_lower, _p, slope, vl);
+                    _p = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _p, slope, vl);
                     __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
                     ptr += vl;
@@ -156,7 +156,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                         vfloat32m8_t _slope = __riscv_vle32_v_f32m8(slope_ptr, vl);
 
                         vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
-                        _p = __riscv_vfmul_vv_f32m8_m(_lower, _p, _slope, vl);
+                        _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
                         ptr += vl;
@@ -176,7 +176,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
 
                     vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
-                    _p = __riscv_vfmul_vf_f32m8_m(_lower, _p, slope, vl);
+                    _p = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _p, slope, vl);
                     __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
                     ptr += vl;
@@ -214,7 +214,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                 vfloat16m4_t _slope = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_slope, vl), vl);
                 vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, .0f, vl);
 
-                _p = __riscv_vfmul_vv_f16m4_m(_lower, _p, _slope, vl);
+                _p = __riscv_vfmul_vv_f16m4_mu(_lower, _p, _p, _slope, vl);
                 __riscv_vse16_v_f16m4(ptr, _p, vl);
 
                 ptr += vl;
@@ -234,7 +234,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                 vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
                 vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, .0f, vl);
 
-                _p = __riscv_vfmul_vf_f16m8_m(_lower, _p, slope, vl);
+                _p = __riscv_vfmul_vf_f16m8_mu(_lower, _p, _p, slope, vl);
                 __riscv_vse16_v_f16m8(ptr, _p, vl);
 
                 ptr += vl;
@@ -266,7 +266,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                         vfloat16m4_t _slope = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_slope, vl), vl);
 
                         vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, .0f, vl);
-                        _p = __riscv_vfmul_vv_f16m4_m(_lower, _p, _slope, vl);
+                        _p = __riscv_vfmul_vv_f16m4_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse16_v_f16m4(ptr, _p, vl);
 
                         ptr += vl;
@@ -285,7 +285,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                     vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
                     vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, .0f, vl);
 
-                    _p = __riscv_vfmul_vf_f16m8_m(_lower, _p, slope, vl);
+                    _p = __riscv_vfmul_vf_f16m8_mu(_lower, _p, _p, slope, vl);
                     __riscv_vse16_v_f16m8(ptr, _p, vl);
 
                     ptr += vl;
@@ -321,7 +321,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                         vfloat16m4_t _slope = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(slope_ptr, vl), vl);
 
                         vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, .0f, vl);
-                        _p = __riscv_vfmul_vv_f16m4_m(_lower, _p, _slope, vl);
+                        _p = __riscv_vfmul_vv_f16m4_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse16_v_f16m4(ptr, _p, vl);
 
                         ptr += vl;
@@ -341,7 +341,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                     vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
 
                     vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, .0f, vl);
-                    _p = __riscv_vfmul_vf_f16m8_m(_lower, _p, (__fp16)slope, vl);
+                    _p = __riscv_vfmul_vf_f16m8_mu(_lower, _p, _p, (__fp16)slope, vl);
                     __riscv_vse16_v_f16m8(ptr, _p, vl);
 
                     ptr += vl;

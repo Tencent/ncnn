@@ -57,9 +57,9 @@
         /*       x = x + x - 1.0;      */                                                                                  \
         /*     } else { x = x - 1.0; } */                                                                                  \
         vbool##MLEN##_t mask = __riscv_vmflt_vf_f16m##LMUL##_b##MLEN(x, c_cephes_SQRTHF, vl);                              \
-        x = __riscv_vfadd_vv_f16m##LMUL##_m(mask, x, x, vl);                                                               \
+        x = __riscv_vfadd_vv_f16m##LMUL##_mu(mask, x, x, x, vl);                                                           \
         x = __riscv_vfsub_vf_f16m##LMUL(x, 1.f, vl);                                                                       \
-        e = __riscv_vfsub_vf_f16m##LMUL##_m(mask, e, 1.f, vl);                                                             \
+        e = __riscv_vfsub_vf_f16m##LMUL##_mu(mask, e, e, 1.f, vl);                                                         \
                                                                                                                            \
         vfloat16m##LMUL##_t z = __riscv_vfmul_vv_f16m##LMUL(x, x, vl);                                                     \
                                                                                                                            \
@@ -94,7 +94,7 @@
         x = __riscv_vfadd_vv_f16m##LMUL(x, tmp, vl);                                                                       \
         /* negative arg will be NAN */                                                                                     \
         vuint16m##LMUL##_t xtmp = __riscv_vreinterpret_v_f16m##LMUL##_u16m##LMUL(x);                                       \
-        x = __riscv_vreinterpret_v_u16m##LMUL##_f16m##LMUL(__riscv_vor_vx_u16m##LMUL##_m(invalid_mask, xtmp, 0xffff, vl)); \
+        x = __riscv_vreinterpret_v_u16m##LMUL##_f16m##LMUL(__riscv_vor_vx_u16m##LMUL##_mu(invalid_mask, xtmp, xtmp, 0xffff, vl)); \
         return x;                                                                                                          \
     }
 
@@ -133,7 +133,7 @@ _RVV_FLOAT16_LOG_OP(8, 2)
                                                                                                           \
         /* if greater, substract 1 */                                                                     \
         vbool##MLEN##_t mask = __riscv_vmfgt_vv_f16m##LMUL##_b##MLEN(tmp, fx, vl);                        \
-        fx = __riscv_vfsub_vf_f16m##LMUL##_m(mask, tmp, 1.f, vl);                                         \
+        fx = __riscv_vfsub_vf_f16m##LMUL##_mu(mask, tmp, tmp, 1.f, vl);                                   \
                                                                                                           \
         tmp = __riscv_vfmul_vf_f16m##LMUL(fx, c_cephes_exp_C1, vl);                                       \
         vfloat16m##LMUL##_t z = __riscv_vfmul_vf_f16m##LMUL(fx, c_cephes_exp_C2, vl);                     \

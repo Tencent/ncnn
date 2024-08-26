@@ -268,9 +268,9 @@ struct unary_op_trunc_fp16s
         vint16m8_t _xi = __riscv_vfcvt_x_f_v_i16m8(x, vl);
         vfloat16m8_t _xf = __riscv_vfcvt_f_x_v_f16m8(_xi, vl);
         vbool2_t _floormask = __riscv_vmfgt_vv_f16m8_b2(_xf, x, vl);
-        vint16m8_t _floorx = __riscv_vsub_vx_i16m8_m(_floormask, _xi, _xi, 1, vl);
+        vint16m8_t _floorx = __riscv_vsub_vx_i16m8_mu(_floormask, _xi, _xi, 1, vl);
         vbool2_t _ceilmask = __riscv_vmflt_vv_f16m8_b2(_xf, x, vl);
-        vint16m8_t _ceilx = __riscv_vadd_vx_i16m8_m(_ceilmask, _xi, _xi, 1, vl);
+        vint16m8_t _ceilx = __riscv_vadd_vx_i16m8_mu(_ceilmask, _xi, _xi, 1, vl);
         vbool2_t _negative = __riscv_vmflt_vf_f16m8_b2(x, 0.f, vl);
         return __riscv_vfcvt_f_x_v_f16m8(__riscv_vmerge_vvm_i16m8(_negative, _floorx, _ceilx, vl), vl);
 #else

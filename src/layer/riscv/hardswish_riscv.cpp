@@ -69,7 +69,7 @@ int HardSwish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             _p = __riscv_vfmerge_vfm_f32m8(_p, .0f, _lower, vl);
 
             vfloat32m8_t _p0 = __riscv_vfadd_vf_f32m8_m(_apply, __riscv_vfmul_vf_f32m8_m(_apply, _p, alpha, vl), beta, vl);
-            _p = __riscv_vfmul_vv_f32m8_m(_apply, _p, _p0, vl);
+            _p = __riscv_vfmul_vv_f32m8_mu(_apply, _p, _p, _p0, vl);
 
             __riscv_vse32_v_f32m8(ptr, _p, vl);
             ptr += vl;

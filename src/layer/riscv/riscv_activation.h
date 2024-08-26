@@ -34,7 +34,7 @@
         else if (activation_type == 2)                                                                                                                          \
         {                                                                                                                                                       \
             vbool##MLEN##_t _lemask = __riscv_vmfle_vf_f##SEW##m##LMUL##_b##MLEN(_v, 0.f, vl);                                                                  \
-            _v = __riscv_vfmul_vf_f##SEW##m##LMUL##_m(_lemask, _v, activation_params[0], vl);                                                                   \
+            _v = __riscv_vfmul_vf_f##SEW##m##LMUL##_mu(_lemask, _v, _v, activation_params[0], vl);                                                                   \
         }                                                                                                                                                       \
         else if (activation_type == 3)                                                                                                                          \
         {                                                                                                                                                       \
@@ -61,7 +61,7 @@
             _v = __riscv_vfmerge_vfm_f##SEW##m##LMUL(_v, .0f, _lower, vl);                                                                                      \
                                                                                                                                                                 \
             vfloat##SEW##m##LMUL##_t _p0 = __riscv_vfadd_vf_f##SEW##m##LMUL##_m(_apply, __riscv_vfmul_vf_f##SEW##m##LMUL##_m(_apply, _v, alpha, vl), beta, vl); \
-            _v = __riscv_vfmul_vv_f##SEW##m##LMUL##_m(_apply, _v, _p0, vl);                                                                                     \
+            _v = __riscv_vfmul_vv_f##SEW##m##LMUL##_mu(_apply, _v, _v, _p0, vl);                                                                                     \
         }                                                                                                                                                       \
                                                                                                                                                                 \
         return _v;                                                                                                                                              \

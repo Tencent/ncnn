@@ -68,7 +68,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 vfloat32m8_t _slope = __riscv_vle32_v_f32m8(ptr_slope, vl);
                 vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
 
-                _p = __riscv_vfmul_vv_f32m8_m(_lower, _p, _slope, vl);
+                _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
                 __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                 ptr += vl;
@@ -88,7 +88,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
                 vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
 
-                _p = __riscv_vfmul_vf_f32m8_m(_lower, _p, slope, vl);
+                _p = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _p, slope, vl);
                 __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                 ptr += vl;
@@ -120,7 +120,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         vfloat32m8_t _slope = __riscv_vle32_v_f32m8(ptr_slope, vl);
 
                         vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
-                        _p = __riscv_vfmul_vv_f32m8_m(_lower, _p, _slope, vl);
+                        _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                         ptr += vl;
@@ -139,7 +139,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
                     vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
 
-                    _p = __riscv_vfmul_vf_f32m8_m(_lower, _p, slope, vl);
+                    _p = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _p, slope, vl);
                     __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                     ptr += vl;
@@ -175,7 +175,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         vfloat32m8_t _slope = __riscv_vle32_v_f32m8(slope_ptr, vl);
 
                         vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
-                        _p = __riscv_vfmul_vv_f32m8_m(_lower, _p, _slope, vl);
+                        _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                         ptr += vl;
@@ -195,7 +195,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
 
                     vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
-                    _p = __riscv_vfmul_vf_f32m8_m(_lower, _p, slope, vl);
+                    _p = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _p, slope, vl);
                     __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                     ptr += vl;

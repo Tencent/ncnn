@@ -85,7 +85,7 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 size_t vl = __riscv_vsetvl_e32m8(n);
 
                 vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                _p = __riscv_vfmul_vf_f32m8_m(__riscv_vmflt_vf_f32m8_b4(_p, .0f, vl), _p, slope, vl);
+                _p = __riscv_vfmul_vf_f32m8_mu(__riscv_vmflt_vf_f32m8_b4(_p, .0f, vl), _p, _p, slope, vl);
                 __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                 ptr += vl;
