@@ -88,9 +88,7 @@ struct unary_op_floor
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        vint32m8_t _xi = __riscv_vfcvt_x_f_v_i32m8(x, vl);
-        vbool4_t _mask = __riscv_vmfgt_vv_f32m8_b4(__riscv_vfcvt_f_x_v_f32m8(_xi, vl), x, vl);
-        return __riscv_vfcvt_f_x_v_f32m8(__riscv_vsub_vx_i32m8_m(_mask, _xi, 1, vl), vl);
+        return __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8_rm(x, __RISCV_FRM_RDN, vl), vl);
     }
 };
 
@@ -98,9 +96,7 @@ struct unary_op_ceil
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        vint32m8_t _xi = __riscv_vfcvt_x_f_v_i32m8(x, vl);
-        vbool4_t _mask = __riscv_vmflt_vv_f32m8_b4(__riscv_vfcvt_f_x_v_f32m8(_xi, vl), x, vl);
-        return __riscv_vfcvt_f_x_v_f32m8(__riscv_vadd_vx_i32m8_m(_mask, _xi, 1, vl), vl);
+        return __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8_rm(x, __RISCV_FRM_RUP, vl), vl);
     }
 };
 
