@@ -26,8 +26,8 @@ Flatten_riscv::Flatten_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zvfh
-    support_fp16_storage = true;
+#if NCNN_ZVFH
+    support_fp16_storage = cpu_support_riscv_zvfh();
 #endif
 #endif // __riscv_vector
 
@@ -43,7 +43,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if __riscv_vector && __riscv_zvfh
+#if NCNN_ZVFH
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif

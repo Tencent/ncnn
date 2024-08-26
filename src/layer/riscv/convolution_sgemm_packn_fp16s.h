@@ -109,7 +109,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
                     vfloat16m1_t _val5 = __riscv_vle16_v_f16m1(img0 + packn * 5, vl);
                     vfloat16m1_t _val6 = __riscv_vle16_v_f16m1(img0 + packn * 6, vl);
                     vfloat16m1_t _val7 = __riscv_vle16_v_f16m1(img0 + packn * 7, vl);
-                    __riscv_vsseg8e16_v_f16m1(tmpptr, _val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7, vl);
+                    __riscv_vsseg8e16_v_f16m1x8(tmpptr, __riscv_vcreate_v_f16m1x8(_val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7), vl);
 
                     img0 += size * packn;
                     tmpptr += packn * 8;
@@ -172,7 +172,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
                     vfloat16m1_t _val1 = __riscv_vle16_v_f16m1(img0 + packn, vl);
                     vfloat16m1_t _val2 = __riscv_vle16_v_f16m1(img0 + packn * 2, vl);
                     vfloat16m1_t _val3 = __riscv_vle16_v_f16m1(img0 + packn * 3, vl);
-                    __riscv_vsseg4e16_v_f16m1(tmpptr, _val0, _val1, _val2, _val3, vl);
+                    __riscv_vsseg4e16_v_f16m1x4(tmpptr, __riscv_vcreate_v_f16m1x4(_val0, _val1, _val2, _val3), vl);
 
                     img0 += size * packn;
                     tmpptr += packn * 4;
@@ -228,7 +228,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 #else
                     vfloat16m1_t _val0 = __riscv_vle16_v_f16m1(img0, vl);
                     vfloat16m1_t _val1 = __riscv_vle16_v_f16m1(img0 + packn, vl);
-                    __riscv_vsseg2e16_v_f16m1(tmpptr, _val0, _val1, vl);
+                    __riscv_vsseg2e16_v_f16m1x2(tmpptr, __riscv_vcreate_v_f16m1x2(_val0, _val1), vl);
 
                     img0 += size * packn;
                     tmpptr += packn * 2;

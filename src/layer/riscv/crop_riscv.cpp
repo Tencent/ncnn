@@ -26,8 +26,8 @@ Crop_riscv::Crop_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zvfh
-    support_fp16_storage = true;
+#if NCNN_ZVFH
+    support_fp16_storage = cpu_support_riscv_zvfh();
 #endif
 #endif // __riscv_vector
 
