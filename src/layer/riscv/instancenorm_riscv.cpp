@@ -94,7 +94,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
             }
 #endif // __riscv_vector
             float mean = sum / size;
-#if __riscv_vecotr
+#if __riscv_vector
             {
                 int n = size;
                 float* ptr_sqsum = ptr;
