@@ -46,8 +46,8 @@ int SELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             _p = __riscv_vfmul_vf_f32m8_mu(_higher, _p, _p, lambda, vl);
             vfloat32m8_t _nps = exp_ps(_p, vl);
-            _nps = __riscv_vfsub_vf_f32m8_mu(_lower, _nps, _nps, 1.f, vl);
-            _nps = __riscv_vfmul_vf_f32m8_mu(_lower, _nps, _nps, alphaxlambda, vl);
+            _nps = __riscv_vfsub_vf_f32m8_mu(_lower, _p, _nps, 1.f, vl);
+            _nps = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _nps, alphaxlambda, vl);
 
             __riscv_vse32_v_f32m8(ptr, _nps, vl);
             ptr += vl;
