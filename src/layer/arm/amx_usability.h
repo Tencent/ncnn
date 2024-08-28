@@ -103,7 +103,7 @@ void amx_stz(bool pair, unsigned int z_row, const void * ptr)
     AMX_STZ(oprand);
 }
 
-void amx_fma32(bool vector, unsigned int x_offset, unsigned int y_offset, int z_row)
+void amx_fma16_masked(bool vector, unsigned int x_offset, unsigned int y_offset, int z_row, uint8_t x_mode, uint8_t x_mask, uint8_t y_mode, uint8_t y_mask)
 {
     uint64_t oprand = 0;
     if (vector)
@@ -111,8 +111,40 @@ void amx_fma32(bool vector, unsigned int x_offset, unsigned int y_offset, int z_
 
     oprand |= (uint64_t)y_offset & 0x1FF;
     oprand |= ((uint64_t)x_offset & 0x1FF) << 10;
+    oprand |= ((uint64_t)z_row & 0x3F) << 20;
+    oprand |= ((uint64_t)y_mask & 0x1F) << 32;
+    oprand |= ((uint64_t)y_mode & 0x3) << 37;
+    oprand |= ((uint64_t)x_mask & 0x1F) << 41;
+    oprand |= ((uint64_t)x_mode & 0x3) << 46;
+    
+    AMX_FMA16(oprand);
+}
+
+void amx_fma16(bool vector, unsigned int x_offset, unsigned int y_offset, int z_row)
+{
+    amx_fma16_masked(vector, x_offset, y_offset, z_row, 0, 0, 0, 0);
+}
+
+void amx_fma32_masked(bool vector, unsigned int x_offset, unsigned int y_offset, int z_row, uint8_t x_mode, uint8_t x_mask, uint8_t y_mode, uint8_t y_mask)
+{
+    uint64_t oprand = 0;
+    if (vector)
+        oprand |= 1ULL << 63;
+
+    oprand |= (uint64_t)y_offset & 0x1FF;
+    oprand |= ((uint64_t)x_offset & 0x1FF) << 10;
+    oprand |= ((uint64_t)z_row & 0x3F) << 20;
+    oprand |= ((uint64_t)y_mask & 0x1F) << 32;
+    oprand |= ((uint64_t)y_mode & 0x3) << 37;
+    oprand |= ((uint64_t)x_mask & 0x1F) << 41;
+    oprand |= ((uint64_t)x_mode & 0x3) << 46;
     
     AMX_FMA32(oprand);
+}
+
+void amx_fma32(bool vector, unsigned int x_offset, unsigned int y_offset, int z_row)
+{
+    amx_fma32_masked(vector, x_offset, y_offset, z_row, 0, 0, 0, 0);
 }
 
 #endif // AMX_USABILITY_H
