@@ -39,12 +39,80 @@
 #define AMX_MAC16(gpr)  AMX_OP_GPR(14, gpr)
 #define AMX_FMA16(gpr)  AMX_OP_GPR(15, gpr)
 #define AMX_FMS16(gpr)  AMX_OP_GPR(16, gpr)
-#define AMX_SET()       AMX_NOP_OP_IMM5(17, 0)
-#define AMX_CLR()       AMX_NOP_OP_IMM5(17, 1)
 #define AMX_VECINT(gpr) AMX_OP_GPR(18, gpr)
 #define AMX_VECFP(gpr)  AMX_OP_GPR(19, gpr)
 #define AMX_MATINT(gpr) AMX_OP_GPR(20, gpr)
 #define AMX_MATFP(gpr)  AMX_OP_GPR(21, gpr)
 #define AMX_GENLUT(gpr) AMX_OP_GPR(22, gpr)
+#define PTR_ROW_FLAGS(ptr, row, flags) (((uint64_t)&*(ptr)) + (((uint64_t)((row) + (flags) * 64)) << 56))
+void amx_set()
+{
+    AMX_NOP_OP_IMM5(17, 0);
+}
+
+void amx_clr()
+{
+    AMX_NOP_OP_IMM5(17, 1);
+}
+
+void amx_ldx(bool pair, unsigned int x_row, const void * ptr)
+{
+    if (x_row >= 8)
+        return;
+
+    uint64_t oprand = (uint64_t)ptr + ((uint64_t)x_row << 56);
+    if (pair)
+        oprand |= 1ULL << 62;
+    
+    AMX_LDX(oprand);
+}
+
+void amx_ldy(bool pair, unsigned int y_row, const void * ptr)
+{
+    if (y_row >= 8)
+        return;
+
+    uint64_t oprand = (uint64_t)ptr + ((uint64_t)y_row << 56);
+    if (pair)
+        oprand |= 1ULL << 62;
+    
+    AMX_LDY(oprand);
+}
+
+void amx_ldz(bool pair, unsigned int z_row, const void * ptr)
+{
+    if (z_row >= 64)
+        return;
+
+    uint64_t oprand = (uint64_t)ptr + ((uint64_t)z_row << 56);
+    if (pair)
+        oprand |= 1ULL << 62;
+    
+    AMX_LDZ(oprand);
+}
+
+void amx_stz(bool pair, unsigned int z_row, const void * ptr)
+{
+    if (z_row >= 64)
+        return;
+
+    uint64_t oprand = (uint64_t)ptr + ((uint64_t)z_row << 56);
+    if (pair)
+        oprand |= 1ULL << 62;
+    
+    AMX_STZ(oprand);
+}
+
+void amx_fma32(bool vector, unsigned int x_offset, unsigned int y_offset, int z_row)
+{
+    uint64_t oprand = 0;
+    if (vector)
+        oprand |= 1ULL << 63;
+
+    oprand |= (uint64_t)y_offset & 0x1FF;
+    oprand |= ((uint64_t)x_offset & 0x1FF) << 10;
+    
+    AMX_FMA32(oprand);
+}
 
 #endif // AMX_USABILITY_H
