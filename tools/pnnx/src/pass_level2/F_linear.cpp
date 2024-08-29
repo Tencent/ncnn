@@ -129,7 +129,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-Gemm                    op_0        3 1 input weight bias out %*=%*
+Gemm                    gemm        3 1 input weight bias out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -141,28 +141,28 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        if (captured_params.find("op_0.alpha") != captured_params.end())
+        if (captured_params.find("gemm.alpha") != captured_params.end())
         {
-            if (captured_params.at("op_0.alpha").type != 3 || captured_params.at("op_0.alpha").f != 1.f)
+            if (captured_params.at("gemm.alpha").type != 3 || captured_params.at("gemm.alpha").f != 1.f)
                 return false;
         }
 
-        if (captured_params.find("op_0.beta") != captured_params.end())
+        if (captured_params.find("gemm.beta") != captured_params.end())
         {
-            if (captured_params.at("op_0.beta").type != 3 || captured_params.at("op_0.beta").f != 1.f)
+            if (captured_params.at("gemm.beta").type != 3 || captured_params.at("gemm.beta").f != 1.f)
                 return false;
         }
 
-        if (captured_params.find("op_0.transA") != captured_params.end())
+        if (captured_params.find("gemm.transA") != captured_params.end())
         {
-            if (captured_params.at("op_0.transA").type != 2 || captured_params.at("op_0.transA").i != 0)
+            if (captured_params.at("gemm.transA").type != 2 || captured_params.at("gemm.transA").i != 0)
                 return false;
         }
 
-        if (captured_params.find("op_0.transB") == captured_params.end())
+        if (captured_params.find("gemm.transB") == captured_params.end())
             return false;
 
-        if (captured_params.at("op_0.transB").type != 2 || captured_params.at("op_0.transB").i != 1)
+        if (captured_params.at("gemm.transB").type != 2 || captured_params.at("gemm.transB").i != 1)
             return false;
 
         return true;
@@ -200,27 +200,27 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        if (captured_params.find("op_0.alpha") != captured_params.end())
+        if (captured_params.find("gemm.alpha") != captured_params.end())
         {
-            if (captured_params.at("op_0.alpha").type != 3 || captured_params.at("op_0.alpha").f != 1.f)
+            if (captured_params.at("gemm.alpha").type != 3 || captured_params.at("gemm.alpha").f != 1.f)
                 return false;
         }
 
-        if (captured_params.find("op_0.beta") != captured_params.end())
+        if (captured_params.find("gemm.beta") != captured_params.end())
         {
-            if (captured_params.at("op_0.beta").type != 3 || captured_params.at("op_0.beta").f != 1.f)
+            if (captured_params.at("gemm.beta").type != 3 || captured_params.at("gemm.beta").f != 1.f)
                 return false;
         }
 
-        if (captured_params.find("op_0.transA") != captured_params.end())
+        if (captured_params.find("gemm.transA") != captured_params.end())
         {
-            if (captured_params.at("op_0.transA").type != 2 || captured_params.at("op_0.transA").i != 0)
+            if (captured_params.at("gemm.transA").type != 2 || captured_params.at("gemm.transA").i != 0)
                 return false;
         }
 
-        if (captured_params.find("op_0.transB") != captured_params.end())
+        if (captured_params.find("gemm.transB") != captured_params.end())
         {
-            if (captured_params.at("op_0.transB").type != 2 || captured_params.at("op_0.transB").i != 0)
+            if (captured_params.at("gemm.transB").type != 2 || captured_params.at("gemm.transB").i != 0)
                 return false;
         }
 
