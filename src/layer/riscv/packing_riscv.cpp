@@ -20,6 +20,8 @@
 
 #include "riscv_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Packing_riscv::Packing_riscv()

@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "absval_riscv.h"
+#include "cpu.h"
 
 #if __riscv_vector
 #include <riscv_vector.h>
@@ -20,12 +21,14 @@
 
 namespace ncnn {
 
+#include "absval_fp16.h"
+
 AbsVal_riscv::AbsVal_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
+#if NCNN_ZVFH || NCNN_XTHEADVECTOR
+    support_fp16_storage = cpu_support_riscv_zvfh() || cpu_support_riscv_xtheadvector();
 #endif
 #endif // __riscv_vector
 }
@@ -39,7 +42,7 @@ static inline vfloat32m8_t __riscv_vfabs_v_f32m8_absval(vfloat32m8_t op1, size_t
 
 int AbsVal_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZVFH
+#if __riscv_vector
     int elembits = bottom_top_blob.elembits();
 
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
@@ -85,5 +88,13 @@ int AbsVal_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if __riscv_vector
+int AbsVal_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    absval_fp16(bottom_top_blob, opt);
+    return 0;
+}
+#endif // __riscv_vector
 
 } // namespace ncnn

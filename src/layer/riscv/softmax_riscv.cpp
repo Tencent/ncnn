@@ -33,7 +33,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int elempack = bottom_top_blob.elempack;
 
     int positive_axis = axis < 0 ? dims + axis : axis;
-#ifdef __riscv_vector
+#if __riscv_vector
     if (dims == 1) // positive_axis == 0
     {
         int w = bottom_top_blob.w;
