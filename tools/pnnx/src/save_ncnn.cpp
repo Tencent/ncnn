@@ -54,6 +54,48 @@ static const char* type_to_dtype_string(int type)
     return "null";
 }
 
+static const char* type_to_libtorch_dtype_string(int type)
+{
+    if (type == 1) return "Float";
+    if (type == 2) return "Double";
+    if (type == 3) return "Half";
+    if (type == 4) return "Int";
+    if (type == 5)
+    {
+        fprintf(stderr, "replace ncnn input torch.long type with torch.int\n");
+        return "torch.int";
+    }
+    if (type == 6) return "Short";
+    if (type == 7) return "Char";
+    if (type == 8) return "Byte";
+    if (type == 9) return "Bool";
+    if (type == 10) return "ComplexFloat";
+    if (type == 11) return "ComplexDouble";
+    if (type == 12) return "ComplexHalf";
+    return "null";
+}
+
+static size_t type_to_elemsize(int type)
+{
+    if (type == 1) return 4;
+    if (type == 2) return 8;
+    if (type == 3) return 2;
+    if (type == 4) return 4;
+    if (type == 5)
+    {
+        fprintf(stderr, "replace ncnn input torch.long type with torch.int\n");
+        return 4;
+    }
+    if (type == 6) return 2;
+    if (type == 7) return 1;
+    if (type == 8) return 1;
+    if (type == 9) return 1;
+    if (type == 10) return 8;
+    if (type == 11) return 16;
+    if (type == 12) return 4;
+    return 4;
+}
+
 static bool string_is_positive_integer(const std::string& t)
 {
     for (size_t i = 0; i < t.size(); i++)
@@ -124,7 +166,7 @@ static size_t alignSize(size_t sz, int n)
     return (sz + n - 1) & -n;
 }
 
-int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, int fp16)
+int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::string& cpppath, int fp16)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
     if (!paramfp)
@@ -348,6 +390,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
     fclose(paramfp);
     fclose(binfp);
 
+    // py inference
+
     FILE* pyfp = fopen(pypath.c_str(), "wb");
     if (!pyfp)
     {
@@ -462,7 +506,144 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
     fclose(pyfp);
 
+    // ================
     // cpp inference
+    // ================
+
+    FILE* cppfp = fopen(cpppath.c_str(), "wb");
+    if (!cppfp)
+    {
+        fprintf(stderr, "fopen %s failed\n", cpppath.c_str());
+        return -1;
+    }
+
+    // include
+
+    fprintf(cppfp, "#include <stdio.h>\n");
+    fprintf(cppfp, "#include <vector>\n");
+    fprintf(cppfp, "#include <torch/torch.h>\n");
+    fprintf(cppfp, "#include \"net.h\"\n\n");
+
+    // utils
+
+    fprintf(cppfp, "void print_mat(const ncnn::Mat& m)\n");
+    fprintf(cppfp, "{\n");
+    fprintf(cppfp, "    for (int q=0; q<m.c; q++)\n");
+    fprintf(cppfp, "    {\n");
+    fprintf(cppfp, "        const float* ptr = m.channel(q);\n");
+    fprintf(cppfp, "        for (int z=0; z<m.d; z++)\n");
+    fprintf(cppfp, "        {\n");
+    fprintf(cppfp, "            for (int y=0; y<m.h; y++)\n");
+    fprintf(cppfp, "            {\n");
+    fprintf(cppfp, "                for (int x=0; x<m.w; x++)\n");
+    fprintf(cppfp, "                {\n");
+    fprintf(cppfp, "                    fprintf(stderr, \"%%f \", ptr[x]);\n");
+    fprintf(cppfp, "                }\n");
+    fprintf(cppfp, "                ptr += m.w;\n");
+    fprintf(cppfp, "                fprintf(stderr, \"\\n\");\n");
+    fprintf(cppfp, "            }\n");
+    fprintf(cppfp, "            fprintf(stderr, \"\\n\");\n");
+    fprintf(cppfp, "        }\n");
+    fprintf(cppfp, "        fprintf(stderr, \"------------------------\\n\");\n");
+    fprintf(cppfp, "    }\n");
+    fprintf(cppfp, "}\n");
+
+
+    fprintf(cppfp, "void copy(const ncnn::Mat& m, const at::Tensor& t, size_t elemsize)\n");
+    fprintf(cppfp, "{\n");
+    fprintf(cppfp, "    void* t_ptr = t.data_ptr();\n");
+    fprintf(cppfp, "    size_t step = m.d * m.h * m.w * elemsize;\n");
+    fprintf(cppfp, "    for (int q=0; q<m.c; q++)\n");
+    fprintf(cppfp, "    {\n");
+    fprintf(cppfp, "        const char* ptr = m.channel(q);\n");
+    fprintf(cppfp, "        memcpy((void*)ptr, t_ptr, step);\n");
+    fprintf(cppfp, "        t_ptr = (void*)((char*)t_ptr + step);\n");
+    fprintf(cppfp, "    }\n");
+    fprintf(cppfp, "}\n\n");
+
+    // test inference
+
+    fprintf(cppfp, "int main(int argc, char** argv)\n");
+    fprintf(cppfp, "{\n");
+    fprintf(cppfp, "    ncnn::Net net;\n");
+    fprintf(cppfp, "    if (net.load_param(\"%s\"))\n", parampath.c_str());
+    fprintf(cppfp, "        exit(-1);\n");
+    fprintf(cppfp, "    if (net.load_model(\"%s\"))\n", binpath.c_str());
+    fprintf(cppfp, "        exit(-1);\n\n");
+
+    fprintf(cppfp, "    at::manual_seed(0);\n");
+
+    for (int input_index = 0;; input_index++)
+    {
+        std::string input_name = std::string("in") + std::to_string(input_index);
+        const Operand* r = g.get_operand(input_name);
+        if (!r)
+            break;
+
+        int numel = 1;
+        for (size_t j = 0; j < r->shape.size(); j++)
+        {
+            numel *= r->shape[j];
+        }
+        const int batch_index = r->params.at("__batch_index").i;
+
+        if (type_is_integer(r->type))
+        {
+            fprintf(cppfp, "    at::Tensor %s_t = at::randint(10, {%d}, ", input_name.c_str(), numel);
+            fprintf(cppfp, "at::TensorOptions().dtype(at::k%s));\n", type_to_libtorch_dtype_string(r->type));
+        }
+        else
+        {
+            fprintf(cppfp, "    at::Tensor %s_t = at::rand({%d}, ", input_name.c_str(), numel);
+            fprintf(cppfp, "at::TensorOptions().dtype(at::k%s));\n", type_to_libtorch_dtype_string(r->type));
+        }
+
+        fprintf(cppfp, "    ncnn::Mat %s(", input_name.c_str());
+        for (size_t i = 0; i < r->shape.size(); i++)
+        {
+            // squeeze batch index
+            if (batch_index != 233 && i == batch_index && r->shape[r->shape.size() - 1 - i] == 1)
+                continue;
+            fprintf(cppfp, "%d, ", r->shape[r->shape.size() - 1 - i]);
+        }
+        fprintf(cppfp, "(size_t)%du);\n", type_to_elemsize(r->type));
+        fprintf(cppfp, "    copy(%s, %s_t, (size_t)%du);\n", input_name.c_str(), input_name.c_str(), type_to_elemsize(r->type));
+    }
+
+    fprintf(cppfp, "    ncnn::Extractor ex = net.create_extractor();\n");
+
+    for (int input_index = 0;; input_index++)
+    {
+        std::string input_name = std::string("in") + std::to_string(input_index);
+        const Operand* r = g.get_operand(input_name);
+        if (!r)
+            break;
+        fprintf(cppfp, "    ex.input(\"%s\", %s);\n", input_name.c_str(), input_name.c_str());
+    }
+
+    fprintf(cppfp, "\n");
+
+    for (int output_index = 0;; output_index++)
+    {
+        std::string output_name = std::string("out") + std::to_string(output_index);
+        const Operand* r = g.get_operand(output_name);
+        if (!r)
+            break;
+
+        fprintf(cppfp, "    ncnn::Mat %s;\n", output_name.c_str());
+        fprintf(cppfp, "    ex.extract(\"%s\", %s);\n", output_name.c_str(), output_name.c_str());
+
+        // TODO unsqueeze
+
+        fprintf(cppfp, "    print_mat(%s);\n", output_name.c_str());
+        
+    }
+
+
+    fprintf(cppfp, "    return 0;\n");
+    fprintf(cppfp, "}\n");
+
+    fclose(cppfp);
 
     return 0;
 }
