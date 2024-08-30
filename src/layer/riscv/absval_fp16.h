@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-
 #if NCNN_RUNTIME_CPU && NCNN_ZVFH && __riscv_vector && !__riscv_zvfh
 void absval_fp16_zvfh(Mat& bottom_top_blob, const Option& opt);
 #endif

@@ -125,7 +125,7 @@ static inline vfloat16m8_t __riscv_vle16_v_f16m8_f16m1(const __fp16* ptr)
 #endif // __riscv_zvfh
 #endif // __riscv_vector
 
-#if 0//__riscv_vector && __rvv_tuple
+#if 0 //__riscv_vector && __rvv_tuple
 
 // f32m1, vsseg.v
 static inline void __riscv_vsseg8e32_v_f32m1(float* base, vfloat32m1_t v0, vfloat32m1_t v1, vfloat32m1_t v2, vfloat32m1_t v3, vfloat32m1_t v4, vfloat32m1_t v5, vfloat32m1_t v6, vfloat32m1_t v7, size_t vl)
@@ -412,7 +412,7 @@ static inline void transpose8x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
 {
     float tmp[64];
 #if __riscv_vector
-#if 1//__riscv_v_intrinsic > 12000
+#if 1 //__riscv_v_intrinsic > 12000
 #warning A
     vfloat32m1x8_t _rl = __riscv_vcreate_v_f32m1x8(_r0l, _r1l, _r2l, _r3l, _r4l, _r5l, _r6l, _r7l);
     vfloat32m1x8_t _rh = __riscv_vcreate_v_f32m1x8(_r0h, _r1h, _r2h, _r3h, _r4h, _r5h, _r6h, _r7h);
