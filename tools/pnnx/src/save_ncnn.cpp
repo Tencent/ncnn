@@ -548,7 +548,6 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
     fprintf(cppfp, "    }\n");
     fprintf(cppfp, "}\n");
 
-
     fprintf(cppfp, "void copy(const ncnn::Mat& m, const at::Tensor& t, size_t elemsize)\n");
     fprintf(cppfp, "{\n");
     fprintf(cppfp, "    void* t_ptr = t.data_ptr();\n");
@@ -636,9 +635,7 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         // TODO unsqueeze
 
         fprintf(cppfp, "    print_mat(%s);\n", output_name.c_str());
-        
     }
-
 
     fprintf(cppfp, "    return 0;\n");
     fprintf(cppfp, "}\n");
