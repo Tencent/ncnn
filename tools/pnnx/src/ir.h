@@ -346,8 +346,8 @@ public:
     std::vector<Operator*> ops;
     std::vector<Operand*> operands;
 
-    int calculate_flops();
-    int calculate_memops();
+    int calculate_flops_M();
+    int calculate_memops_M();
 
 private:
     Graph(const Graph& rhs);
