@@ -22,6 +22,7 @@
 #include <sstream>
 #include <string>
 #include <stack>
+#include <vector>
 
 #include "storezip.h"
 #include "utils.h"
@@ -1439,6 +1440,32 @@ static std::string make_index_expression(const Operator* op)
     }
 
     return index_expr;
+}
+
+int Graph::calculate_flops()
+{
+    int flops = 0;
+    for(auto op:ops) {
+        if(expand_expression(op) == "*")
+        {
+            int m = op->inputs[0]->shape[0];
+            int k = op->inputs[0]->shape[1];
+            int n = op->inputs[1]->shape[1];
+            flops += 2 * m * k * n;
+        }
+        else if(expand_expression(op) == "+") {
+            int m = op->inputs[0]->shape[0];
+            int n = op->inputs[0]->shape[1];
+            flops += m * n;
+        }
+    }
+    return flops;
+}
+
+int Graph::calculate_memops()
+{
+    int mem = sizeof(Operator) * ops.size() + sizeof(Operand) * operands.size();
+    return mem;
 }
 
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
