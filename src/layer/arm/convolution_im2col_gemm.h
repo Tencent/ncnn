@@ -3377,7 +3377,7 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 "cbz    %w10, 0f                    \n"
 
                 "ld1    {v30.4s, v31.4s}, [%0]      \n"
-                "b      3f                          \n"
+                "b      2f                          \n"
 
                 "0:                                 \n"
                 // if pC

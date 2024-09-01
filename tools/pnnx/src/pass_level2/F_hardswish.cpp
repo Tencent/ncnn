@@ -343,4 +343,30 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx_2, 9)
 
+class F_hardswish_onnx_3 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 v3 value=3
+aten::add               op_1        2 1 input v3 a
+aten::clamp             op_2        1 1 a b max=6 min=0
+aten::mul               op_3        2 1 input b c
+prim::Constant          op_4        0 1 v6 value=6
+aten::div               op_5        2 1 c v6 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.hardswish";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx_3, 9)
+
 } // namespace pnnx

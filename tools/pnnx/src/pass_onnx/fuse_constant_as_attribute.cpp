@@ -43,6 +43,7 @@ static constant_as_attribute caas[] = {
     {"ReduceProd", 1, "axes"},
     {"ReduceSum", 1, "axes"},
     {"Reshape", 1, "shape"},
+    {"Resize", 1, "roi"},
     {"Resize", 2, "scales"},
     {"Resize", 3, "sizes"},
     {"Slice", 1, "starts"},

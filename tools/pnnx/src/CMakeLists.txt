@@ -77,6 +77,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_ReplicationPad1d.cpp
     pass_level1/nn_ReplicationPad2d.cpp
     pass_level1/nn_ReplicationPad3d.cpp
+    pass_level1/nn_RMSNorm.cpp
     pass_level1/nn_RNN.cpp
     pass_level1/nn_RReLU.cpp
     pass_level1/nn_SELU.cpp
@@ -163,6 +164,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_prelu.cpp
     pass_level2/F_relu.cpp
     pass_level2/F_relu6.cpp
+    pass_level2/F_rms_norm.cpp
     pass_level2/F_rrelu.cpp
     pass_level2/F_scaled_dot_product_attention.cpp
     pass_level2/F_selu.cpp
@@ -383,6 +385,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_static_layernorm.cpp
     pass_level5/fuse_static_linear.cpp
     pass_level5/fuse_static_prelu.cpp
+    pass_level5/fuse_static_rmsnorm.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
 )
@@ -472,6 +475,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_prelu.cpp
     pass_ncnn/F_relu.cpp
     pass_ncnn/F_relu6.cpp
+    pass_ncnn/F_rms_norm.cpp
     pass_ncnn/F_scaled_dot_product_attention.cpp
     pass_ncnn/F_selu.cpp
     pass_ncnn/F_sigmoid.cpp
@@ -538,6 +542,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ReplicationPad1d.cpp
     pass_ncnn/nn_ReplicationPad2d.cpp
     pass_ncnn/nn_ReplicationPad3d.cpp
+    pass_ncnn/nn_RMSNorm.cpp
     pass_ncnn/nn_RNN.cpp
     pass_ncnn/nn_SELU.cpp
     pass_ncnn/nn_Sigmoid.cpp
@@ -572,6 +577,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_mm.cpp
     pass_ncnn/torch_norm.cpp
     pass_ncnn/torch_prod.cpp
+    pass_ncnn/torch_roll.cpp
     pass_ncnn/torch_slice_scatter.cpp
     pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_sum.cpp

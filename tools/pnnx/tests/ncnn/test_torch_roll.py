@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -20,16 +20,10 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.w3 = nn.Parameter(torch.rand(24))
-        self.b3 = nn.Parameter(torch.rand(24))
-        self.w4 = nn.Parameter(torch.rand(12, 16))
-        self.b4 = nn.Parameter(torch.rand(12, 16))
-
-    def forward(self, x, y):
-        x = F.layer_norm(x, (24,), self.w3, self.b3)
-
-        y = F.layer_norm(y, (16,), None, None)
-        z = F.layer_norm(y, (12,16), self.w4, self.b4, eps=1e-3)
+    def forward(self, x, y, z):
+        x = torch.roll(x, 3, 1)
+        y = torch.roll(y, -2, -1)
+        z = torch.roll(z, shifts=(2,1), dims=(0,1))
         return x, y, z
 
 def test():
@@ -37,25 +31,29 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12, 24)
-    y = torch.rand(1, 3, 12, 16)
+    x = torch.rand(3, 16)
+    y = torch.rand(5, 9, 11)
+    z = torch.rand(8, 5, 9, 10)
 
-    a = net(x, y)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_F_layer_norm.pt")
+    mod = torch.jit.trace(net, (x, y, z))
+    mod.save("test_torch_roll.pt")
 
-    # torchscript to pnnx
+    # torchscript to ncnn
     import os
-    os.system("../../src/pnnx test_F_layer_norm.pt inputshape=[1,12,24],[1,3,12,16]")
+    os.system("../../src/pnnx test_torch_roll.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
 
     # ncnn inference
-    import test_F_layer_norm_ncnn
-    b = test_F_layer_norm_ncnn.test_inference()
+    import test_torch_roll_ncnn
+    b = test_torch_roll_ncnn.test_inference()
 
+    print(x)
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.equal(a0, b0):
+            print(a0)
+            print(b0)
             return False
     return True
 
