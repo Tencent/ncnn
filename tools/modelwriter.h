@@ -1676,9 +1676,20 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", input_dim)
             fprintf_param_value(" 2=%d", bias_term)
             fprintf_param_value(" 3=%d", weight_data_size)
+            fprintf_param_value(" 18=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
+
+#if NCNN_INT8
+            // write int8_scale data
+            if (op->int8_scale_term)
+            {
+                ncnn::Mat weight_data_int8_scales(1);
+                weight_data_int8_scales[0] = op->weight_data_int8_scale;
+                fwrite_weight_data(weight_data_int8_scales, bp, 90, 100);
+            }
+#endif // NCNN_INT8
         }
         else if (layer->type == "Exp")
         {

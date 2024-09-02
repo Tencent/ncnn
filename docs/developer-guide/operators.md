@@ -837,11 +837,13 @@ y = embedding(x)
 | 1         | input_dim     | int   | 0         |                   |
 | 2         | bias_term     | int   | 0         |                   |
 | 3         | weight_data_size | int | 0        |                   |
+| 18        | int8_scale_term| int  | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | weight_data   | float | [weight_data_size]    |
 | bias_term     | float | [num_output]          |
+| weight_data_int8_scales| float | [1]          |
 
 # Exp
 ```
