@@ -313,8 +313,6 @@ int main(int argc, char** argv)
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
     pnnx::Graph pnnx_graph;
-    fprintf(stderr, "float ops = %dM\n", pnnx_graph.calculate_flops_M());
-    fprintf(stderr, "memory ops = %dM\n", pnnx_graph.calculate_memops_M());
 #if BUILD_ONNX2PNNX
     if (!model_file_maybe_torchscript(ptpath))
     {
@@ -384,6 +382,7 @@ int main(int argc, char** argv)
 
     //     pnnx_graph2.load("pnnx.param", "pnnx.bin");
     //     pnnx_graph2.save("pnnx2.param", "pnnx2.bin");
-
+    fprintf(stderr, "float ops = %dM\n", pnnx_graph.calculate_flops_M());
+    fprintf(stderr, "memory ops = %dM\n", pnnx_graph.calculate_memops_M());
     return 0;
 }
