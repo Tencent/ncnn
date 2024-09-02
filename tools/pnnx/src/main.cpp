@@ -361,8 +361,8 @@ int main(int argc, char** argv)
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    fprintf(stderr, "float ops = %dM\n", pnnx_graph.calculate_flops());
-    fprintf(stderr, "memory ops = %dM\n", pnnx_graph.calculate_memops());
+    fprintf(stderr, "float ops = %dM\n", pnnx_graph.calculate_flops_M());
+    fprintf(stderr, "memory ops = %dM\n", pnnx_graph.calculate_memops_M());
 
     pnnx_graph.python(pnnxpypath, pnnxbinpath);
 
