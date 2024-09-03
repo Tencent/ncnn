@@ -1459,7 +1459,7 @@ int Graph::calculate_flops_M()
             flops += m * n;
         }
     }
-    return int(flops / 1e6);
+    return int(flops);
 }
 
 int Graph::calculate_memops_M()
@@ -1481,7 +1481,7 @@ int Graph::calculate_memops_M()
             mem += 3 * m * n;
         }
     }
-    return int(mem / 1e6);
+    return int(mem);
 }
 
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
