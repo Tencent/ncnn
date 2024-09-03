@@ -1446,14 +1446,14 @@ int Graph::calculate_flops_M()
 {
     long long flops = 0;
     for(auto op:ops) {
-        if(expand_expression(op) == "*")
+        if(op->type == "aten::matmul")
         {
             int m = op->inputs[0]->shape[0];
             int k = op->inputs[0]->shape[1];
             int n = op->inputs[1]->shape[1];
             flops += 2 * m * k * n;
         }
-        else if(expand_expression(op) == "+") {
+        else if(op->type == "aten::add") {
             int m = op->inputs[0]->shape[0];
             int n = op->inputs[0]->shape[1];
             flops += m * n;
@@ -1467,14 +1467,14 @@ int Graph::calculate_memops_M()
     long long mem = 0;
     for(auto op : ops)
     {
-        if(expand_expression(op) == "*")
+        if(op->type == "aten::matmul")
         {
             int m = op->inputs[0]->shape[0];
             int k = op->inputs[0]->shape[1];
             int n = op->inputs[1]->shape[1];
             mem += m * k + k * n + m * n;
         }
-        else if(expand_expression(op) == "+")
+        else if(op->type == "aten::add")
         {
             int m = op->inputs[0]->shape[0];
             int n = op->inputs[0]->shape[1];
