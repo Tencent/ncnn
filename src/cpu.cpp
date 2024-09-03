@@ -1932,16 +1932,13 @@ static void initialize_global_cpu_info()
 #endif // defined __ANDROID__ || defined __linux__
 }
 
-static int g_cpu_info_initialized = 0;
-
-static inline void try_initialize_global_cpu_info()
+static inline bool try_initialize_global_cpu_info()
 {
-    if (!g_cpu_info_initialized)
-    {
-        initialize_global_cpu_info();
-        g_cpu_info_initialized = 1;
-    }
+    initialize_global_cpu_info();
+    return true;
 }
+
+static bool g_cpu_info_initialized = try_initialize_global_cpu_info();
 
 namespace ncnn {
 
@@ -2086,7 +2083,6 @@ int CpuSet::num_enabled() const
 
 int cpu_support_arm_edsp()
 {
-    try_initialize_global_cpu_info();
 #if __arm__ && !__aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_edsp;
@@ -2104,7 +2100,6 @@ int cpu_support_arm_edsp()
 
 int cpu_support_arm_neon()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
     return 1;
 #elif __arm__
@@ -2124,7 +2119,6 @@ int cpu_support_arm_neon()
 
 int cpu_support_arm_vfpv4()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
     return 1;
 #elif __arm__
@@ -2144,7 +2138,6 @@ int cpu_support_arm_vfpv4()
 
 int cpu_support_arm_asimdhp()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_asimdhp;
@@ -2172,7 +2165,6 @@ int cpu_support_arm_asimdhp()
 
 int cpu_support_arm_cpuid()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_cpuid;
@@ -2190,7 +2182,6 @@ int cpu_support_arm_cpuid()
 
 int cpu_support_arm_asimddp()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_asimddp;
@@ -2216,7 +2207,6 @@ int cpu_support_arm_asimddp()
 
 int cpu_support_arm_asimdfhm()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_asimdfhm;
@@ -2242,7 +2232,6 @@ int cpu_support_arm_asimdfhm()
 
 int cpu_support_arm_bf16()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_bf16;
@@ -2266,7 +2255,6 @@ int cpu_support_arm_bf16()
 
 int cpu_support_arm_i8mm()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_i8mm;
@@ -2290,7 +2278,6 @@ int cpu_support_arm_i8mm()
 
 int cpu_support_arm_sve()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_sve;
@@ -2308,7 +2295,6 @@ int cpu_support_arm_sve()
 
 int cpu_support_arm_sve2()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_sve2;
@@ -2326,7 +2312,6 @@ int cpu_support_arm_sve2()
 
 int cpu_support_arm_svebf16()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_svebf16;
@@ -2344,7 +2329,6 @@ int cpu_support_arm_svebf16()
 
 int cpu_support_arm_svei8mm()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_svei8mm;
@@ -2362,7 +2346,6 @@ int cpu_support_arm_svei8mm()
 
 int cpu_support_arm_svef32mm()
 {
-    try_initialize_global_cpu_info();
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_svef32mm;
@@ -2380,7 +2363,6 @@ int cpu_support_arm_svef32mm()
 
 int cpu_support_x86_avx()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_avx;
 #else
@@ -2390,7 +2372,6 @@ int cpu_support_x86_avx()
 
 int cpu_support_x86_fma()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_fma;
 #else
@@ -2400,7 +2381,6 @@ int cpu_support_x86_fma()
 
 int cpu_support_x86_xop()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_xop;
 #else
@@ -2410,7 +2390,6 @@ int cpu_support_x86_xop()
 
 int cpu_support_x86_f16c()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_f16c;
 #else
@@ -2420,7 +2399,6 @@ int cpu_support_x86_f16c()
 
 int cpu_support_x86_avx2()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_avx2;
 #else
@@ -2430,7 +2408,6 @@ int cpu_support_x86_avx2()
 
 int cpu_support_x86_avx_vnni()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_avx_vnni;
 #else
@@ -2440,7 +2417,6 @@ int cpu_support_x86_avx_vnni()
 
 int cpu_support_x86_avx512()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_avx512;
 #else
@@ -2450,7 +2426,6 @@ int cpu_support_x86_avx512()
 
 int cpu_support_x86_avx512_vnni()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_avx512_vnni;
 #else
@@ -2460,7 +2435,6 @@ int cpu_support_x86_avx512_vnni()
 
 int cpu_support_x86_avx512_bf16()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_avx512_bf16;
 #else
@@ -2470,7 +2444,6 @@ int cpu_support_x86_avx512_bf16()
 
 int cpu_support_x86_avx512_fp16()
 {
-    try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_avx512_fp16;
 #else
@@ -2480,7 +2453,6 @@ int cpu_support_x86_avx512_fp16()
 
 int cpu_support_mips_msa()
 {
-    try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __mips__
     return g_hwcaps & HWCAP_MIPS_MSA;
@@ -2494,7 +2466,6 @@ int cpu_support_mips_msa()
 
 int cpu_support_loongarch_lsx()
 {
-    try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __loongarch64
     return g_hwcaps & HWCAP_LOONGARCH_LSX;
@@ -2508,7 +2479,6 @@ int cpu_support_loongarch_lsx()
 
 int cpu_support_loongarch_lasx()
 {
-    try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __loongarch64
     return g_hwcaps & HWCAP_LOONGARCH_LASX;
@@ -2522,7 +2492,6 @@ int cpu_support_loongarch_lasx()
 
 int cpu_support_loongson_mmi()
 {
-    try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __mips__
     return g_hwcaps & HWCAP_LOONGSON_MMI;
@@ -2536,7 +2505,6 @@ int cpu_support_loongson_mmi()
 
 int cpu_support_riscv_v()
 {
-    try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
     return g_hwcaps & COMPAT_HWCAP_ISA_V;
@@ -2550,7 +2518,6 @@ int cpu_support_riscv_v()
 
 int cpu_support_riscv_zfh()
 {
-    try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
     // v + f does not imply zfh, but how to discover zfh properly ?
@@ -2566,7 +2533,6 @@ int cpu_support_riscv_zfh()
 
 int cpu_riscv_vlenb()
 {
-    try_initialize_global_cpu_info();
 #if __riscv
     if (!cpu_support_riscv_v())
         return 0;
@@ -2586,32 +2552,27 @@ int cpu_riscv_vlenb()
 
 int get_cpu_count()
 {
-    try_initialize_global_cpu_info();
     return g_cpucount;
 }
 
 int get_little_cpu_count()
 {
-    try_initialize_global_cpu_info();
     return get_cpu_thread_affinity_mask(1).num_enabled();
 }
 
 int get_big_cpu_count()
 {
-    try_initialize_global_cpu_info();
     int big_cpu_count = get_cpu_thread_affinity_mask(2).num_enabled();
     return big_cpu_count ? big_cpu_count : g_cpucount;
 }
 
 int get_physical_cpu_count()
 {
-    try_initialize_global_cpu_info();
     return g_physical_cpucount;
 }
 
 int get_physical_little_cpu_count()
 {
-    try_initialize_global_cpu_info();
     if (g_physical_cpucount == g_cpucount)
         return get_little_cpu_count();
 
@@ -2620,7 +2581,6 @@ int get_physical_little_cpu_count()
 
 int get_physical_big_cpu_count()
 {
-    try_initialize_global_cpu_info();
     if (g_physical_cpucount == g_cpucount)
         return get_big_cpu_count();
 
@@ -2629,25 +2589,21 @@ int get_physical_big_cpu_count()
 
 int get_cpu_level2_cache_size()
 {
-    try_initialize_global_cpu_info();
     return g_cpu_level2_cachesize;
 }
 
 int get_cpu_level3_cache_size()
 {
-    try_initialize_global_cpu_info();
     return g_cpu_level3_cachesize;
 }
 
 int get_cpu_powersave()
 {
-    try_initialize_global_cpu_info();
     return g_powersave;
 }
 
 int set_cpu_powersave(int powersave)
 {
-    try_initialize_global_cpu_info();
     if (powersave < 0 || powersave > 2)
     {
         NCNN_LOGE("powersave %d not supported", powersave);
@@ -2667,7 +2623,6 @@ int set_cpu_powersave(int powersave)
 
 const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 {
-    try_initialize_global_cpu_info();
     if (powersave == 0)
         return g_cpu_affinity_mask_all;
 
@@ -2685,7 +2640,6 @@ const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
-    try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__ || defined _WIN32
 #ifdef _OPENMP
     int num_threads = thread_affinity_mask.num_enabled();
@@ -2767,7 +2721,6 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 
 int is_current_thread_running_on_a53_a55()
 {
-    try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __aarch64__
     if (g_cpu_is_arm_a53_a55 == 0)
