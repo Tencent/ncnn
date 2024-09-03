@@ -644,6 +644,13 @@ endif()
 
 ##############################################
 
+if(MSVC)
+    if(NCNN_OPENMP AND NCNN_SIMPLEOMP)
+        # try to use /openmp in cl.exe instead -fopenmp
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp")
+    endif()
+endif()
+
 # set cmake default folder name
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "cmake")
@@ -687,7 +694,7 @@ if(NCNN_VULKAN)
             endif()
         endif()
 
-        if (TARGET glslang AND TARGET SPIRV)
+        if(TARGET glslang AND TARGET SPIRV)
             get_property(glslang_location TARGET glslang PROPERTY LOCATION)
             get_property(SPIRV_location TARGET SPIRV PROPERTY LOCATION)
             message(STATUS "Found glslang: ${glslang_location} (found version \"${glslang_VERSION}\")")
