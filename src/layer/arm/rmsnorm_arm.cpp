@@ -90,6 +90,7 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
     float a;
     if (elempack == 1)
     {
+#if __ARM_NEON
 #if __aarch64__
         sqsum += vaddvq_f32(_sqsum);
 #else
@@ -97,6 +98,7 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
         _s2 = vpadd_f32(_s2, _s2);
         sqsum += vget_lane_f32(_s2, 0);
 #endif
+#endif // __ARM_NEON
 
         a = 1.f / sqrtf(sqsum / elemcount + eps);
 #if __ARM_NEON
@@ -286,6 +288,7 @@ static void rmsnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, float eps
     float a;
     if (elempack == 1)
     {
+#if __ARM_NEON
 #if __aarch64__
         sqsum += vaddvq_f32(_sqsum);
 #else
@@ -293,6 +296,7 @@ static void rmsnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, float eps
         _s2 = vpadd_f32(_s2, _s2);
         sqsum += vget_lane_f32(_s2, 0);
 #endif
+#endif // __ARM_NEON
 
         a = 1.f / sqrtf(sqsum / elemcount + eps);
 #if __ARM_NEON
