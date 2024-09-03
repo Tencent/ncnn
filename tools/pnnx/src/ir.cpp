@@ -14,6 +14,7 @@
 
 #include "ir.h"
 
+#include <cstdio>
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
@@ -1467,6 +1468,7 @@ int Graph::calculate_memops_M()
     long long mem = 0;
     for(auto op : ops)
     {
+        fprintf(stderr, "%s\n", op->type.c_str());
         if(op->type == "aten::matmul")
         {
             int m = op->inputs[0]->shape[0];
