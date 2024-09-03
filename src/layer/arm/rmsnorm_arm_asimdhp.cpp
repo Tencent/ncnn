@@ -26,9 +26,9 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
 {
     const int size = elemcount * elempack;
 
-    float32x4_t _sqsum0 = vdupq_n_f32(0.f);
-    float32x4_t _sqsum1 = vdupq_n_f32(0.f);
-    float sqsum = 0.f;
+    float32x4_t _rms0 = vdupq_n_f32(0.f);
+    float32x4_t _rms1 = vdupq_n_f32(0.f);
+    float rms = 0.f;
     {
         const __fp16* ptr0 = ptr;
 
@@ -38,66 +38,63 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
             float16x8_t _p = vld1q_f16(ptr0);
             float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
             float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
-            _sqsum0 = vmlaq_f32(_sqsum0, _p0, _p0);
-            _sqsum1 = vmlaq_f32(_sqsum1, _p1, _p1);
+            _rms0 = vmlaq_f32(_rms0, _p0, _p0);
+            _rms1 = vmlaq_f32(_rms1, _p1, _p1);
             ptr0 += 8;
         }
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr0));
-            _sqsum0 = vmlaq_f32(_sqsum0, _p, _p);
+            _rms0 = vmlaq_f32(_rms0, _p, _p);
             ptr0 += 4;
         }
         for (; i < size; i++)
         {
-            sqsum += (float)ptr0[0] * (float)ptr0[0];
+            rms += (float)ptr0[0] * (float)ptr0[0];
             ptr0++;
         }
     }
 
-    float32x4_t _a0;
-    float32x4_t _a1;
-    float a;
     if (elempack == 8)
     {
         float32x4_t _elemcount = vdupq_n_f32(elemcount);
         float32x4_t _eps = vdupq_n_f32(eps);
 
-        _sqsum0 = vdivq_f32(_sqsum0, _elemcount);
-        _sqsum1 = vdivq_f32(_sqsum1, _elemcount);
-        _sqsum0 = vaddq_f32(_sqsum0, _eps);
-        _sqsum1 = vaddq_f32(_sqsum1, _eps);
+        _rms0 = vdivq_f32(_rms0, _elemcount);
+        _rms1 = vdivq_f32(_rms1, _elemcount);
+        _rms0 = vaddq_f32(_rms0, _eps);
+        _rms1 = vaddq_f32(_rms1, _eps);
 
-        _a0 = vrsqrteq_f32(_sqsum0);
-        _a1 = vrsqrteq_f32(_sqsum1);
-        _a0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_sqsum0, _a0), _a0), _a0);
-        _a1 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_sqsum1, _a1), _a1), _a1);
-        _a0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_sqsum0, _a0), _a0), _a0);
-        _a1 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_sqsum1, _a1), _a1), _a1);
+        float32x4_t _rsqrt_rms0 = vrsqrteq_f32(_rms0);
+        float32x4_t _rsqrt_rms1 = vrsqrteq_f32(_rms1);
+        _rsqrt_rms0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_rms0, _rsqrt_rms0), _rsqrt_rms0), _rsqrt_rms0);
+        _rsqrt_rms1 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_rms1, _rsqrt_rms1), _rsqrt_rms1), _rsqrt_rms1);
+        _rms0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_rms0, _rsqrt_rms0), _rsqrt_rms0), _rsqrt_rms0);
+        _rms1 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_rms1, _rsqrt_rms1), _rsqrt_rms1), _rsqrt_rms1);
     }
     if (elempack == 4)
     {
-        _sqsum0 = vaddq_f32(_sqsum0, _sqsum1);
+        _rms0 = vaddq_f32(_rms0, _rms1);
 
         float32x4_t _elemcount = vdupq_n_f32(elemcount);
         float32x4_t _eps = vdupq_n_f32(eps);
 
-        _sqsum0 = vdivq_f32(_sqsum0, _elemcount);
-        _sqsum0 = vaddq_f32(_sqsum0, _eps);
+        _rms0 = vdivq_f32(_rms0, _elemcount);
+        _rms0 = vaddq_f32(_rms0, _eps);
 
-        _a0 = vrsqrteq_f32(_sqsum0);
-        _a0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_sqsum0, _a0), _a0), _a0);
-        _a0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_sqsum0, _a0), _a0), _a0);
-        _a1 = _a0;
+        float32x4_t _rsqrt_rms0 = vrsqrteq_f32(_rms0);
+        _rsqrt_rms0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_rms0, _rsqrt_rms0), _rsqrt_rms0), _rsqrt_rms0);
+        _rms0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_rms0, _rsqrt_rms0), _rsqrt_rms0), _rsqrt_rms0);
+        _rms1 = _rms0;
     }
     if (elempack == 1)
     {
-        _sqsum0 = vaddq_f32(_sqsum0, _sqsum1);
-        sqsum += vaddvq_f32(_sqsum0);
+        _rms0 = vaddq_f32(_rms0, _rms1);
+        rms += vaddvq_f32(_rms0);
 
-        a = 1.f / sqrtf(sqsum / elemcount + eps);
-        _a0 = vdupq_n_f32(a);
-        _a1 = _a0;
+        rms = 1.f / sqrtf(rms / elemcount + eps);
+        _rms0 = vdupq_n_f32(rms);
+        _rms1 = _rms0;
     }
 
     if (gamma_ptr)
@@ -111,8 +108,8 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
                 float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
                 float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
                 float32x4_t _gamma = vdupq_n_f32(gamma_ptr[0]);
-                _p0 = vmulq_f32(_p0, _a0);
-                _p1 = vmulq_f32(_p1, _a1);
+                _p0 = vmulq_f32(_p0, _rms0);
+                _p1 = vmulq_f32(_p1, _rms1);
                 _p0 = vmulq_f32(_p0, _gamma);
                 _p1 = vmulq_f32(_p1, _gamma);
                 _p = vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1));
@@ -121,7 +118,6 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
                 gamma_ptr += 1;
             }
         }
-
         if (elempack == 4)
         {
             for (; i + 7 < size; i += 8)
@@ -131,8 +127,8 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
                 float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
                 float32x4_t _gamma0 = vdupq_n_f32(gamma_ptr[0]);
                 float32x4_t _gamma1 = vdupq_n_f32(gamma_ptr[1]);
-                _p0 = vmulq_f32(_p0, _a0);
-                _p1 = vmulq_f32(_p1, _a1);
+                _p0 = vmulq_f32(_p0, _rms0);
+                _p1 = vmulq_f32(_p1, _rms1);
                 _p0 = vmulq_f32(_p0, _gamma0);
                 _p1 = vmulq_f32(_p1, _gamma1);
                 _p = vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1));
@@ -144,14 +140,13 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
             {
                 float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
                 float32x4_t _gamma = vdupq_n_f32(gamma_ptr[0]);
-                _p = vmulq_f32(_p, _a0);
+                _p = vmulq_f32(_p, _rms0);
                 _p = vmulq_f32(_p, _gamma);
                 vst1_f16(ptr, vcvt_f16_f32(_p));
                 ptr += 4;
                 gamma_ptr += 1;
             }
         }
-
         if (elempack == 1)
         {
             for (; i + 7 < size; i += 8)
@@ -161,8 +156,8 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
                 float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
                 float32x4_t _gamma0 = vld1q_f32(gamma_ptr);
                 float32x4_t _gamma1 = vld1q_f32(gamma_ptr + 4);
-                _p0 = vmulq_f32(_p0, _a0);
-                _p1 = vmulq_f32(_p1, _a1);
+                _p0 = vmulq_f32(_p0, _rms0);
+                _p1 = vmulq_f32(_p1, _rms1);
                 _p0 = vmulq_f32(_p0, _gamma0);
                 _p1 = vmulq_f32(_p1, _gamma1);
                 _p = vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1));
@@ -174,7 +169,7 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
             {
                 float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
                 float32x4_t _gamma = vld1q_f32(gamma_ptr);
-                _p = vmulq_f32(_p, _a0);
+                _p = vmulq_f32(_p, _rms0);
                 _p = vmulq_f32(_p, _gamma);
                 vst1_f16(ptr, vcvt_f16_f32(_p));
                 ptr += 4;
@@ -183,7 +178,7 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
         }
         for (; i < size; i++)
         {
-            ptr[0] = (__fp16)(((float)ptr[0] * a) * gamma_ptr[0]);
+            ptr[0] = (__fp16)(((float)ptr[0] * rms) * gamma_ptr[0]);
             ptr++;
             gamma_ptr++;
         }
@@ -196,8 +191,8 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
             float16x8_t _p = vld1q_f16(ptr);
             float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
             float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
-            _p0 = vmulq_f32(_p0, _a0);
-            _p1 = vmulq_f32(_p1, _a1);
+            _p0 = vmulq_f32(_p0, _rms0);
+            _p1 = vmulq_f32(_p1, _rms1);
             _p = vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1));
             vst1q_f16(ptr, _p);
             ptr += 8;
@@ -205,13 +200,13 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
-            _p = vmulq_f32(_p, _a0);
+            _p = vmulq_f32(_p, _rms0);
             vst1_f16(ptr, vcvt_f16_f32(_p));
             ptr += 4;
         }
         for (; i < size; i++)
         {
-            ptr[0] = (__fp16)((float)ptr[0] * a);
+            ptr[0] = (__fp16)((float)ptr[0] * rms);
             ptr++;
         }
     }
