@@ -24,6 +24,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#if (__cplusplus >= 201103) && NCNN_THREADS
+#include <mutex>
+#endif
+
 #ifdef _OPENMP
 #if NCNN_SIMPLEOMP
 #include "simpleomp.h"
@@ -1932,15 +1936,19 @@ static void initialize_global_cpu_info()
 #endif // defined __ANDROID__ || defined __linux__
 }
 
-static int g_cpu_info_initialized = 0;
-
 static inline void try_initialize_global_cpu_info()
 {
-    if (!g_cpu_info_initialized)
+#if (__cplusplus >= 201103) && NCNN_THREADS
+    static std::once_flag flag;
+    std::call_once(flag, &initialize_global_cpu_info);
+#else
+    static int cpu_info_initialized = 0;
+    if (!cpu_info_initialized)
     {
         initialize_global_cpu_info();
-        g_cpu_info_initialized = 1;
+        cpu_info_initialized = 1;
     }
+#endif
 }
 
 namespace ncnn {
