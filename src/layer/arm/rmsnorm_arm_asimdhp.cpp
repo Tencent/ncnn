@@ -50,7 +50,7 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
         }
         for (; i < size; i++)
         {
-            sqsum += ptr0[0] * ptr0[0];
+            sqsum += (float)ptr0[0] * (float)ptr0[0];
             ptr0++;
         }
     }
@@ -183,7 +183,7 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
         }
         for (; i < size; i++)
         {
-            ptr[0] = (ptr[0] * a) * gamma_ptr[0];
+            ptr[0] = (__fp16)(((float)ptr[0] * a) * gamma_ptr[0]);
             ptr++;
             gamma_ptr++;
         }
@@ -211,7 +211,7 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
         }
         for (; i < size; i++)
         {
-            ptr[0] = ptr[0] * a;
+            ptr[0] = (__fp16)((float)ptr[0] * a);
             ptr++;
         }
     }
