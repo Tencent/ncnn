@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class T5LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
