@@ -144,3 +144,14 @@ jobs:
       run: |
         Copy-Item -Path "build-x86\src\Release\ncnn.dll" -Destination 'build-x86\tests'
         cd build-x86; ctest -C Release --output-on-failure -j 4
+
+    - name: x64-simpleomp
+      run: |
+        mkdir build-x64-simpleomp; cd build-x64-simpleomp
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DNCNN_VULKAN=ON -DNCNN_SIMPLEOMP=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . --config Release -j 4
+    - name: x64-simpleomp-test
+      run: |
+        Copy-Item -Path "build-x64-simpleomp\src\Release\ncnn.dll" -Destination 'build-x64-simpleomp\tests'
+        cd build-x64-simpleomp; ctest -C Release --output-on-failure -j 4
+
