@@ -99,6 +99,7 @@
 #include "layer/reorg.h"
 #include "layer/requantize.h"
 #include "layer/reshape.h"
+#include "layer/rmsnorm.h"
 #include "layer/rnn.h"
 #include "layer/roialign.h"
 #include "layer/roipooling.h"
@@ -2312,6 +2313,17 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 11=%d", d)
             fprintf_param_value(" 2=%d", c)
             fprintf_param_value(" 3=%d", permute)
+        }
+        else if (layer->type == "RMSNorm")
+        {
+            ncnn::RMSNorm* op = (ncnn::RMSNorm*)layer;
+            ncnn::RMSNorm* op_default = (ncnn::RMSNorm*)layer_default;
+
+            fprintf_param_value(" 0=%d", affine_size)
+            fprintf_param_value(" 1=%e", eps)
+            fprintf_param_value(" 2=%d", affine)
+
+            fwrite_weight_data(op->gamma_data, bp);
         }
         else if (layer->type == "RNN")
         {
