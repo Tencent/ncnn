@@ -51,6 +51,16 @@ class OnnxAttributeProxy;
 
 namespace pnnx {
 
+struct ModelInfo {
+    ModelInfo()
+        : flops(0), memory_access(0)
+    {
+    }
+
+    long long flops;
+    long long memory_access;
+};
+
 class Parameter
 {
 public:
@@ -323,6 +333,8 @@ public:
     int python(const std::string& pypath, const std::string& binpath);
 
     int parse(const std::string& param);
+
+    ModelInfo flops_mem_count();
 
     Operator* new_operator(const std::string& type, const std::string& name);
 
