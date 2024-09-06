@@ -2867,9 +2867,9 @@ pnnx::ModelInfo Graph::flops_mem_count()
     pnnx::ModelInfo m;
     for (const Operator* op : ops)
     {
-        if(op->type == "nn.Conv2d")
+        if (op->type == "nn.Conv2d")
         {
-            if(op->inputs[0]->type != 0)
+            if (op->inputs[0]->type != 0)
             {
                 int ci = op->inputs[0]->shape[1];
                 int kw = op->params.at("kernel_size").ai[0];
@@ -2881,13 +2881,13 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 int wi = op->inputs[0]->shape[2];
                 int hi = op->inputs[0]->shape[3];
                 int g = op->params.at("groups").i;
-                if(bias == 1)
+                if (bias == 1)
                 {
                     m.flops += 2 * ci * kw * kh * co * w * h;
                 }
                 else
                 {
-                    m.flops += (2 * ci * kw * kh -1) * co * w * h;
+                    m.flops += (2 * ci * kw * kh - 1) * co * w * h;
                 }
                 int input_m = wi * hi * ci;
                 int output_m = w * h * co;
@@ -2895,12 +2895,12 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 m.memory_access += input_m + output_m + weights_m;
             }
         }
-        else if(op->type == "nn.Linear")
+        else if (op->type == "nn.Linear")
         {
             int in = op->params.at("in_features").i;
             int out = op->params.at("out_features").i;
             int bias = op->params.at("bias").b ? 1 : 0;
-            if(bias == 1)
+            if (bias == 1)
             {
                 m.flops += 2 * in * out;
             }
@@ -2912,7 +2912,6 @@ pnnx::ModelInfo Graph::flops_mem_count()
         }
         else
         {
-
         }
     }
 

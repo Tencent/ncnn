@@ -383,7 +383,6 @@ int main(int argc, char** argv)
         pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
     }
 
-
     //     pnnx::Graph pnnx_graph2;
 
     //     pnnx_graph2.load("pnnx.param", "pnnx.bin");

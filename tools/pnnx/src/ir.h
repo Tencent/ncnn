@@ -51,7 +51,8 @@ class OnnxAttributeProxy;
 
 namespace pnnx {
 
-struct ModelInfo {
+struct ModelInfo
+{
     ModelInfo()
         : flops(0), memory_access(0)
     {
