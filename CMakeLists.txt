@@ -644,14 +644,6 @@ endif()
 
 ##############################################
 
-if(MSVC)
-    set(NCNN_THREADS OFF)
-    if(NCNN_OPENMP AND NCNN_SIMPLEOMP)
-        # try to use /openmp in cl.exe instead -fopenmp
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp")
-    endif()
-endif()
-
 # set cmake default folder name
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "cmake")
@@ -660,7 +652,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
     set(CMAKE_EXECUTBLE_LINKER_FLAGS "${CMAKE_EXECUTBLE_LINKER_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
-    
+
     if(NCNN_OPENMP AND NCNN_SIMPLEOMP)
         # TODO better flags for emscripten
         # node --experimental-wasm-threads xxx.js
