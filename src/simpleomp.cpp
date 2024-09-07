@@ -125,7 +125,7 @@ public:
     int argc;
     void** argv;
 #elif _WIN32
-    // vcomp abi 
+    // vcomp abi
     void (*fn)(void*);
     int argc;
     void** argv;
@@ -845,7 +845,7 @@ void CDECL _vcomp_fork_call_wrapper(void* wrapper, int nargs, void** args)
 }
 
 void CDECL _vcomp_for_static_simple_init(unsigned int first, unsigned int last, int step,
-                                         BOOL increment, unsigned int* begin, unsigned int* end)
+        BOOL increment, unsigned int* begin, unsigned int* end)
 {
     unsigned int iterations, per_thread, remaining;
     int num_threads = omp_get_num_threads();
@@ -893,7 +893,7 @@ void CDECL _vcomp_for_static_simple_init(unsigned int first, unsigned int last, 
 }
 
 void CDECL _vcomp_for_static_simple_init_i8(ULONG64 first, ULONG64 last, LONG64 step,
-                                            BOOL increment, ULONG64* begin, ULONG64* end)
+        BOOL increment, ULONG64* begin, ULONG64* end)
 {
     ULONG64 iterations, per_thread, remaining;
     int num_threads = omp_get_num_threads();
@@ -955,7 +955,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void* wrapper, ...)
     // for nested parallel region feature, not supported here
     if (!ifval)
         num_threads = 1;
-        
+
     // build argv
     void* argv[32];
     {
