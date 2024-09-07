@@ -148,7 +148,7 @@ jobs:
     - name: x64-simpleomp
       run: |
         mkdir build-x64-simpleomp; cd build-x64-simpleomp
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DNCNN_VULKAN=ON -DNCNN_SIMPLEOMP=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON -DNCNN_SIMPLEOMP=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 4
     - name: x64-simpleomp-test
       run: |
