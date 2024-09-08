@@ -151,9 +151,10 @@ jobs:
         cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON -DNCNN_SIMPLEOMP=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 4
     - name: x64-simpleomp-test
+      if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017'
       run: |
-        echo "[Processor]`nThreadCount=1`n" > build-x64/tests/Release/SwiftShader.ini
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\swiftshader-install\vulkan-1.dll" -Destination 'build-x64\tests'
+        echo "[Processor]`nThreadCount=1`n" > build-x64-simpleomp/tests/Release/SwiftShader.ini
+        Copy-Item -Path "$env:GITHUB_WORKSPACE\swiftshader-install\vulkan-1.dll" -Destination 'build-x64-simpleomp\tests'
         Copy-Item -Path "build-x64-simpleomp\src\Release\ncnn.dll" -Destination 'build-x64-simpleomp\tests'
         cd build-x64-simpleomp; ctest -C Release --output-on-failure -j 4
 
