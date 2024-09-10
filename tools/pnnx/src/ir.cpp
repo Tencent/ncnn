@@ -2863,3 +2863,28 @@ const Operand* Graph::get_operand(const std::string& name) const
 }
 
 } // namespace pnnx
+
+
+// 卷积层
+oid calculate_conv_flops_and_memory(const pnnx::Operator& op)
+{
+    int input_channels = op.params.at("input_channels").i;
+    int input_height = op.params.at("input_height").i;
+    int input_width = op.params.at("input_width").i;
+
+    int kernel_size = op.params.at("kernel_size").i;
+    int stride = op.params.at("stride").i;
+    int padding = op.params.at("padding").i;
+    int output_channels = op.params.at("output_channels").i;
+
+    int output_height = (input_height + 2 * padding - kernel_size) / stride + 1;
+    int output_width = (input_width + 2 * padding - kernel_size) / stride + 1;
+
+    int64_t flops = output_height * output_width * output_channels * input_channels * kernel_size * kernel_size;
+    op.attrs["flops"] = pnnx::Attribute(flops); //属性初始化
+
+    int64_t memory_ops = flops;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+// 

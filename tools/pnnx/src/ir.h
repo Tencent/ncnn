@@ -304,6 +304,9 @@ public:
     std::map<std::string, Parameter> params;
     std::map<std::string, Attribute> attrs;
 
+    int64_t flops;
+    int64_t memory_ops;
+
 private:
     friend class Graph;
     Operator()
