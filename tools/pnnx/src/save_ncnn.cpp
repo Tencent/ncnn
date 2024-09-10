@@ -462,6 +462,85 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
     fclose(pyfp);
 
+    // Generate C++ test
+    std::string cpppath = pypath.substr(0, pypath.find_last_of('.')) + ".cpp";
+    FILE* cppfp = fopen(cpppath.c_str(), "wb");
+    if (!cppfp)
+    {
+        fprint(stderr, "fopen %s failed\n", cpppath.c_str());
+        return -1;
+    }
+
+    fprintf(cppfp, "#include <iostream>\n");
+    fprintf(cppfp, "#include <vector>\n");
+    fprintf(cppfp, "#include <random>\n");
+    fprintf(cppfp, "#include \"ncnn.hpp\"\n\n");
+
+    fprintf(cppfp, "void test_inference(const std::string& parampath, const std::string& binpath)\n");
+    fprintf(cppfp, "{\n");
+    fprintf(cppfp, "    ncnn:::Net net;\n");
+    fprintf(cppfp, "    net.load_param(parampath.c_str());\n");
+    fprintf(cppfp, "    ner.load_model(binpath.c_str());\n\n");
+
+    for (int input_index = 0;; input_index++)
+    {
+        std::string input_name = std::string("in") + std::to_string(input_index);
+        const Operand* r = g.get_operand(input_name);
+        if (!r)
+            break;
+
+        fprintf(cppfp, "    std::vector<float> %s(", input_name.c_str());
+        for (size_t i = 0; i < r->shape.size(); i++) 
+        {
+            fprintf(cppfp, "%d", r->shape[i]);
+            if (i + 1 != r->shape.size())
+                fprintf(cppfp, " * ");
+        }
+        fprint(cppfp, ");\n");
+
+        if (type_is_integer(r->type))
+        {
+            fprintf(cppfp, "    std::default_random_engine engine;\n");
+            fprintf(cppfp, "    std::uniform_int_distribution<int> dist(0, 9);\n");
+            fprintf(cppfp, "    for (float& v : %s) {{ v = dist(engine); }}\n", input_name.c_str());
+
+        }
+        else
+        {
+            fprintf(cppfp, "    std::default_random_engine engine;\n");
+            fprintf(cppfp, "    std::uniform_real_distribution<float> dist(0.0, 1.0);\n");
+            fprintf(cppfp, "    for (float& v : %s) {{ v = dist(engine); }}\n", input_name.c_str());
+        }
+
+        fprintf(cppfp, "    ncnn::Mat %s_mat = ncnn::Mat::from_pixels(%s.data(), ncnn::Mat::PixelType::PIXEL_GRAY, %d, %d);\n",
+                input_name.c_str(), input_name.c_str(), r->shape[2], r->shape[1]);
+        // Assuming shape order: batch, height, width
+    fprintf(cppfp, "    net.input(\"net_input\", %s_mat);\n", input_name.c_str());
+
+    }
+    fprintf(cppfp, "    std::vector<ncnn::Mat> output;\n");
+    fprintf(cppfp, "    net.extract(\"output\", output);\n\n");
+
+    fprintf(cppfp, "    for (const auto& m : output) {\n");
+    fprintf(cppfp, "        const float* data = m.channel_data(0);\n");
+    fprintf(cppfp, "        for (int i = 0; i < m.w; i++) {\n");
+    fprintf(cppfp, "            std::cout << data[i] << \" \";\n");
+    fprintf(cppfp, "        }\n");
+    fprintf(cppfp, "        std::cout << std::endl;\n");
+    fprintf(cppfp, "    }\n");
+
+    fprintf(cppfp, "}\n\n");
+
+    fprintf(cppfp, "int main()\n");
+    fprintf(cppfp, "{\n");
+    fprintf(cppfp, "    std::string parampath = \"%s\";\n", parampath.c_str());
+    fprintf(cppfp, "    std::string binpath = \"%s\";\n", binpath.c_str());
+    fprintf(cppfp, "    test_inference(parampath, binpath);\n");
+    fprintf(cppfp, "    return 0;\n");
+    fprintf(cppfp, "}\n");
+
+    fclose(cppfp);
+
     return 0;
 
 } // namespace pnnx
