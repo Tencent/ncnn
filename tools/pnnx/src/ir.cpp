@@ -2948,7 +2948,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
 
             long long linear1 = q_l * embed_dim * embed_dim + k_s * embed_dim * Kdim + v_s * embed_dim * vdim;
             long long attention = q_l * k_s * embed_dim + 2 * q_l * k_s * num_heads + q_l * v_s * embed_dim;
-            long long linerar2 = q_l* embed_dim * embed_dim;
+            long long linerar2 = q_l * embed_dim * embed_dim;
             m.flops += linear1 + attention + linerar2;
 
             long long weights = embed_dim * embed_dim + embed_dim * Kdim + embed_dim * vdim + num_heads * vdim * embed_dim;
@@ -2979,7 +2979,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 out_h = op->outputs[0]->shape[1];
                 out_w = op->outputs[0]->shape[2];
             }
-            m.memory_access += batch_size * in_c * ( in_h * in_w + out_h * out_w * num_o )
+            m.memory_access += batch_size * in_c * (in_h * in_w + out_h * out_w * num_o)
         }
         else if (op->type == "nn.AvgPool2d")
         {
@@ -3007,8 +3007,8 @@ pnnx::ModelInfo Graph::flops_mem_count()
 
             kernel_add = k_h * k_w - 1;
             kernel_avg = 1;
-            m.flops += ( kernel_add + kernel_avg ) * ( out_h * out_w ) * in_c;
-            m.memory_access += batch_size * in_c * ( in_h * in_w + out_h * out_w )
+            m.flops += (kernel_add + kernel_avg) * (out_h * out_w) * in_c;
+            m.memory_access += batch_size * in_c * (in_h * in_w + out_h * out_w)
         }
         else
         {
