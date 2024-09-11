@@ -2862,11 +2862,9 @@ const Operand* Graph::get_operand(const std::string& name) const
     return 0;
 }
 
-} // namespace pnnx
-
 
 // ¾í»ý²ã
-oid calculate_conv_flops_and_memory(const pnnx::Operator& op)
+void calculate_conv_flops_and_memory(const pnnx::Operator& op)
 {
     int input_channels = op.params.at("input_channels").i;
     int input_height = op.params.at("input_height").i;
@@ -2962,7 +2960,8 @@ void calculate_lstm_flops_and_memory(const pnnx::Operator& op)
 }
 
 // Embedding Layer
-void calculate_embedding_flops_and_memory(const pnnx::Operator& op) {
+void calculate_embedding_flops_and_memory(const pnnx::Operator& op)
+{
     int input_vocab_size = op.params.at("vocab_size").i;
     int embedding_size = op.params.at("embedding_size").i;
     int64_t flops = input_vocab_size * embedding_size;
@@ -2981,3 +2980,55 @@ void calculate_layer_norm_flops_and_memory(const pnnx::Operator& op)
     int64_t memory_ops = flops;
     op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
 }
+
+void calculate_flops_and_memory_for_operator(Operator* op)
+{
+    if (op->type == "Convolution")
+    {
+        calculate_conv_flops_and_memory(const pnnx::Operator& op);
+    }
+    else if (op->type == "FullyConnected")
+    {
+        calculate_fc_flops_and_memory(const pnnx::Operator& op);
+    }
+    else if (op->type == "Pooling")
+    {
+        calculate_pool_flops_and_memory(const pnnx::Operator& op);
+    }
+    else if (op->type == "Activation")
+    {
+        calculate_activation_flops_and_memory(const pnnx::Operator& op);
+    }
+    else if (op->type == "BatchNormalization")
+    {
+        calculate_bn_flops_and_memory(const pnnx::Operator& op);
+    }
+    else if (op->type == "LSTM")
+    {
+        calculate_lstm_flops_and_memory(const pnnx::Operator& op);
+    }
+    else if (op->type == "Embedding")
+    {
+        calculate_embedding_flops_and_memory(const pnnx::Operator& op);
+    }
+    else if (op->type == "LayerNormalization")
+    {
+        calculate_layer_norm_flops_and_memory(const pnnx::Operator& op);
+    }
+}
+void Graph::calculate_total_flops_and_memory_ops()
+{
+    int64_t total_flops = 0;
+    int64_t total_memory_ops = 0;
+
+    for (Operator* op : ops)
+    {
+        calculate_flops_and_memory_for_operator(op);
+        total_flops += op->flops;
+        total_memory_ops += op->memory_ops;
+    }
+    std::cerr << "Total FLOPS: " << total_flops / 1e6 << "M" << std::endl;
+    std::cerr << "Total Memory Operations: " << total_memory_ops / 1e6 << "M" << std::endl;
+}
+
+} // namespace pnnx
