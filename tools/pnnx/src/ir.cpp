@@ -2985,35 +2985,35 @@ void calculate_flops_and_memory_for_operator(Operator* op)
 {
     if (op->type == "Convolution")
     {
-        calculate_conv_flops_and_memory(const pnnx::Operator& op);
+        calculate_conv_flops_and_memory(op);
     }
     else if (op->type == "FullyConnected")
     {
-        calculate_fc_flops_and_memory(const pnnx::Operator& op);
+        calculate_fc_flops_and_memory(op);
     }
     else if (op->type == "Pooling")
     {
-        calculate_pool_flops_and_memory(const pnnx::Operator& op);
+        calculate_pool_flops_and_memory(op);
     }
     else if (op->type == "Activation")
     {
-        calculate_activation_flops_and_memory(const pnnx::Operator& op);
+        calculate_activation_flops_and_memory(op);
     }
     else if (op->type == "BatchNormalization")
     {
-        calculate_bn_flops_and_memory(const pnnx::Operator& op);
+        calculate_bn_flops_and_memory(op);
     }
     else if (op->type == "LSTM")
     {
-        calculate_lstm_flops_and_memory(const pnnx::Operator& op);
+        calculate_lstm_flops_and_memory(op);
     }
     else if (op->type == "Embedding")
     {
-        calculate_embedding_flops_and_memory(const pnnx::Operator& op);
+        calculate_embedding_flops_and_memory(op);
     }
     else if (op->type == "LayerNormalization")
     {
-        calculate_layer_norm_flops_and_memory(const pnnx::Operator& op);
+        calculate_layer_norm_flops_and_memory(op);
     }
 }
 void Graph::calculate_total_flops_and_memory_ops()

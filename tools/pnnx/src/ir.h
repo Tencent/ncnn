@@ -224,9 +224,12 @@ class Attribute
 {
 public:
     Attribute()
-        : type(0)
+        : type(0), flops(0), memory_ops(0)
     {
     }
+
+    int64_t flops;
+    int64_t memory_ops;
 
 #if BUILD_TORCH2PNNX
     Attribute(const at::Tensor& t);
