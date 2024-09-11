@@ -362,6 +362,9 @@ int main(int argc, char** argv)
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
     pnnx_graph.python(pnnxpypath, pnnxbinpath);
+    
+    fprintf(stderr, "float ops = %dM\n", pnnx_graph.calculate_flops_M());
+    fprintf(stderr, "memory ops = %dM\n", pnnx_graph.calculate_memops_M());
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
@@ -382,7 +385,5 @@ int main(int argc, char** argv)
 
     //     pnnx_graph2.load("pnnx.param", "pnnx.bin");
     //     pnnx_graph2.save("pnnx2.param", "pnnx2.bin");
-    fprintf(stderr, "float ops = %dM\n", pnnx_graph.calculate_flops_M());
-    fprintf(stderr, "memory ops = %dM\n", pnnx_graph.calculate_memops_M());
     return 0;
 }
