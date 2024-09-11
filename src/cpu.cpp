@@ -2533,7 +2533,7 @@ int cpu_support_x86_avx2()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx2 && !is_cpu_x86_avx2_disabled;
+    return g_cpu_support_x86_avx2 && !is_cpu_x86_avx2_disabled && !is_cpu_x86_avx_disabled;
 #else
     return 0;
 #endif
@@ -2543,7 +2543,7 @@ int cpu_support_x86_avx_vnni()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx_vnni && !is_cpu_x86_avx_vnni_disabled;
+    return g_cpu_support_x86_avx_vnni && !is_cpu_x86_avx_vnni_disabled && !is_cpu_x86_avx_disabled;
 #else
     return 0;
 #endif
@@ -2553,7 +2553,7 @@ int cpu_support_x86_avx512()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512 && !is_cpu_x86_avx512_disabled;
+    return g_cpu_support_x86_avx512 && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled;
 #else
     return 0;
 #endif
@@ -2563,7 +2563,7 @@ int cpu_support_x86_avx512_vnni()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512_vnni && !is_cpu_x86_avx512_vnni_disabled;
+    return g_cpu_support_x86_avx512_vnni && !is_cpu_x86_avx512_vnni_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled;
 #else
     return 0;
 #endif
@@ -2573,7 +2573,7 @@ int cpu_support_x86_avx512_bf16()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512_bf16 && !is_cpu_x86_avx512_bf16_disabled;
+    return g_cpu_support_x86_avx512_bf16 && !is_cpu_x86_avx512_bf16_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled;
 #else
     return 0;
 #endif
@@ -2583,7 +2583,7 @@ int cpu_support_x86_avx512_fp16()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512_fp16 && !is_cpu_x86_avx512_fp16_disabled;
+    return g_cpu_support_x86_avx512_fp16 && !is_cpu_x86_avx512_fp16_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled;
 #else
     return 0;
 #endif
@@ -2622,7 +2622,7 @@ int cpu_support_loongarch_lasx()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __loongarch64
-    return (g_hwcaps & HWCAP_LOONGARCH_LASX) && !is_cpu_loongarch_lasx_disabled;
+    return (g_hwcaps & HWCAP_LOONGARCH_LASX) && !is_cpu_loongarch_lasx_disabled && !is_cpu_loongarch_lsx_disabled;
 #else
     return 0;
 #endif
