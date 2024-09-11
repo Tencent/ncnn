@@ -1443,12 +1443,10 @@ static std::string make_index_expression(const Operator* op)
     return index_expr;
 }
 
-int Graph::calculate_flops_M()
+void Graph::flops_memops_sum()
 {
-    long long flops = 0;
     for(auto op:ops)
     {
-        fprintf(stderr, "op->type %s\n", op->type.c_str());
         if(op->type[0] == 'F')
         {
             std::string sub_type = op->type.substr(2);
@@ -1459,6 +1457,7 @@ int Graph::calculate_flops_M()
                 int l = op->inputs[0]->shape[2];
                 int o = op->params.at("output_size").ai[0];
                 flops += n * c * l * o;
+                memops += n * c * l + n * c * o;
             }
             else if(sub_type == "adaptive_avg_pool2d")
             {
@@ -1469,6 +1468,7 @@ int Graph::calculate_flops_M()
                 int oh = op->params.at("output_size").ai[0];
                 int ow = op->params.at("output_size").ai[1];
                 flops += n * c * h * w * oh * ow;
+                memops += n * c * h * w + n * c * oh * ow;
             }
             else if(sub_type == "adaptive_avg_pool3d")
             {
@@ -1481,6 +1481,7 @@ int Graph::calculate_flops_M()
                 int oh = op->params.at("output_size").ai[1];
                 int ow = op->params.at("output_size").ai[2];
                 flops += n * c * d * h * w * od * oh * ow;
+                memops += n * c * d * h * w + n * c * od * oh * ow;
             }
             else if(sub_type == "adaptive_max_pool1d")
             {
@@ -1489,6 +1490,7 @@ int Graph::calculate_flops_M()
                 int l = op->inputs[0]->shape[2];
                 int o = op->params.at("output_size").ai[0];
                 flops += n * c * l * o;
+                memops += n * c * l + n * c * o;
             }
             else if(sub_type == "adaptive_max_pool2d")
             {
@@ -1499,6 +1501,7 @@ int Graph::calculate_flops_M()
                 int oh = op->params.at("output_size").ai[0];
                 int ow = op->params.at("output_size").ai[1];
                 flops += n * c * h * w * oh * ow;
+                memops += n * c * h * w + n * c * oh * ow;
             }
             else if(sub_type == "adaptive_max_pool3d")
             {
@@ -1511,71 +1514,28 @@ int Graph::calculate_flops_M()
                 int oh = op->params.at("output_size").ai[1];
                 int ow = op->params.at("output_size").ai[2];
                 flops += n * c * d * h * w * od * oh * ow;
+                memops += n * c * d * h * w + n * c * od * oh * ow;
             }
-        }
-    }
-    return int(flops / 1e6);
-}
-
-int Graph::calculate_memops_M()
-{
-    long long mem = 0;
-    for(auto op : ops)
-    {
-        if(op->type[0] == 'F')
-        {
-            std::string sub_type = op->type.substr(2);
-            if(sub_type == "adaptive_avg_pool1d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int l = op->inputs[0]->shape[2];
-                int o = op->params.at("output_size").ai[0];
-                mem += n * c * l * o;
-            }
-            else if(sub_type == "adaptive_avg_pool2d")
+            else if(sub_type == "celu")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
                 int h = op->inputs[0]->shape[2];
                 int w = op->inputs[0]->shape[3];
-                int oh = op->params.at("output_size").ai[0];
-                int ow = op->params.at("output_size").ai[1];
-                mem += n * c * h * w * oh * ow;
+                flops += n * c * h * w;
+                memops += 2 * n * c * h * w;
             }
-            else if(sub_type == "adaptive_avg_pool3d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int d = op->inputs[0]->shape[2];
-                int h = op->inputs[0]->shape[3];
-                int w = op->inputs[0]->shape[4];
-                int od = op->params.at("output_size").ai[0];
-                int oh = op->params.at("output_size").ai[1];
-                int ow = op->params.at("output_size").ai[2];
-                mem += n * c * d * h * w * od * oh * ow;
-            }
-            else if(sub_type == "adaptive_max_pool1d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int l = op->inputs[0]->shape[2];
-                int o = op->params.at("output_size").ai[0];
-                mem += n * c * l * o;
-            }
-            else if(sub_type == "adaptive_max_pool2d")
+            else if(sub_type == "elu")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
                 int h = op->inputs[0]->shape[2];
                 int w = op->inputs[0]->shape[3];
-                int oh = op->params.at("output_size").ai[0];
-                int ow = op->params.at("output_size").ai[1];
-                mem += n * c * h * w * oh * ow;
+                flops += n * c * h * w;
+                memops += 2 * n * c * h * w;
             }
         }
     }
-    return int(mem / 1e6);
 }
 
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
