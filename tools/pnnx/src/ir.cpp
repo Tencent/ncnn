@@ -1447,6 +1447,7 @@ void Graph::flops_memops_sum()
 {
     for(auto op:ops)
     {
+        fprintf(stderr, "op->type: %s\n", op->type.c_str());
         if(op->type[0] == 'F')
         {
             std::string sub_type = op->type.substr(2);
