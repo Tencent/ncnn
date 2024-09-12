@@ -366,6 +366,8 @@ int main(int argc, char** argv)
     pnnx_graph.flops_memops_sum();
     fprintf(stderr, "float ops = %.3fM\n", double(pnnx_graph.flops) / 1e6);
     fprintf(stderr, "mem ops = %.3fM\n", double(pnnx_graph.memops) / 1e6);
+    fprintf(stderr, "extra float ops = %.3fM\n", double(pnnx_graph.extra_flops) / 1e6);
+    fprintf(stderr, "extra mem ops = %.3fM\n", double(pnnx_graph.extra_memops) / 1e6);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);

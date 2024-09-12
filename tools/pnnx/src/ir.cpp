@@ -23,7 +23,6 @@
 #include <sstream>
 #include <string>
 #include <stack>
-#include <vector>
 
 #include "storezip.h"
 #include "utils.h"
@@ -1445,13 +1444,13 @@ static std::string make_index_expression(const Operator* op)
 
 void Graph::flops_memops_sum()
 {
-    for(auto op:ops)
+    for (auto op : ops)
     {
         fprintf(stderr, "op->type: %s\n", op->type.c_str());
-        if(op->type[0] == 'F')
+        if (op->type[0] == 'F')
         {
             std::string sub_type = op->type.substr(2);
-            if(sub_type == "adaptive_avg_pool1d")
+            if (sub_type == "adaptive_avg_pool1d")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
@@ -1460,7 +1459,7 @@ void Graph::flops_memops_sum()
                 flops += n * c * l * o;
                 memops += n * c * l + n * c * o;
             }
-            else if(sub_type == "adaptive_avg_pool2d")
+            else if (sub_type == "adaptive_avg_pool2d")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
@@ -1471,7 +1470,7 @@ void Graph::flops_memops_sum()
                 flops += n * c * h * w * oh * ow;
                 memops += n * c * h * w + n * c * oh * ow;
             }
-            else if(sub_type == "adaptive_avg_pool3d")
+            else if (sub_type == "adaptive_avg_pool3d")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
@@ -1484,7 +1483,58 @@ void Graph::flops_memops_sum()
                 flops += n * c * d * h * w * od * oh * ow;
                 memops += n * c * d * h * w + n * c * od * oh * ow;
             }
-            else if(sub_type == "adaptive_max_pool1d")
+            else if (sub_type == "avg_pool1d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int l = op->inputs[0]->shape[2];
+                int k = op->params.at("kernel_size").ai[0];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int o = (l + 2 * p - k) / s + 1;
+                flops += n * c * l * k;
+                memops += n * c * l + n * c * o;
+            }
+            else if (sub_type == "avg_pool2d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int h = op->inputs[0]->shape[2];
+                int w = op->inputs[0]->shape[3];
+                int kh = op->params.at("kernel_size").ai[0];
+                int kw = op->params.at("kernel_size").ai[1];
+                int sh = op->params.at("stride").ai[0];
+                int sw = op->params.at("stride").ai[1];
+                int ph = op->params.at("padding").ai[0];
+                int pw = op->params.at("padding").ai[1];
+                int oh = (h + 2 * ph - kh) / sh + 1;
+                int ow = (w + 2 * pw - kw) / sw + 1;
+                flops += n * c * h * w * kh * kw;
+                memops += n * c * h * w + n * c * oh * ow;
+            }
+            else if (sub_type == "avg_pool3d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int d = op->inputs[0]->shape[2];
+                int h = op->inputs[0]->shape[3];
+                int w = op->inputs[0]->shape[4];
+                int kd = op->params.at("kernel_size").ai[0];
+                int kh = op->params.at("kernel_size").ai[1];
+                int kw = op->params.at("kernel_size").ai[2];
+                int sd = op->params.at("stride").ai[0];
+                int sh = op->params.at("stride").ai[1];
+                int sw = op->params.at("stride").ai[2];
+                int pd = op->params.at("padding").ai[0];
+                int ph = op->params.at("padding").ai[1];
+                int pw = op->params.at("padding").ai[2];
+                int od = (d + 2 * pd - kd) / sd + 1;
+                int oh = (h + 2 * ph - kh) / sh + 1;
+                int ow = (w + 2 * pw - kw) / sw + 1;
+                flops += n * c * d * h * w * kd * kh * kw;
+                memops += n * c * d * h * w + n * c * od * oh * ow;
+            }
+            else if (sub_type == "adaptive_max_pool1d")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
@@ -1493,7 +1543,7 @@ void Graph::flops_memops_sum()
                 flops += n * c * l * o;
                 memops += n * c * l + n * c * o;
             }
-            else if(sub_type == "adaptive_max_pool2d")
+            else if (sub_type == "adaptive_max_pool2d")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
@@ -1504,7 +1554,7 @@ void Graph::flops_memops_sum()
                 flops += n * c * h * w * oh * ow;
                 memops += n * c * h * w + n * c * oh * ow;
             }
-            else if(sub_type == "adaptive_max_pool3d")
+            else if (sub_type == "adaptive_max_pool3d")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
@@ -1517,23 +1567,492 @@ void Graph::flops_memops_sum()
                 flops += n * c * d * h * w * od * oh * ow;
                 memops += n * c * d * h * w + n * c * od * oh * ow;
             }
-            else if(sub_type == "celu")
+            else if (sub_type == "max_pool1d")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
-                int h = op->inputs[0]->shape[2];
-                int w = op->inputs[0]->shape[3];
-                flops += n * c * h * w;
-                memops += 2 * n * c * h * w;
+                int l = op->inputs[0]->shape[2];
+                int k = op->params.at("kernel_size").ai[0];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int o = (l + 2 * p - k) / s + 1;
+                flops += n * c * l * k;
+                memops += n * c * l + n * c * o;
             }
-            else if(sub_type == "elu")
+            else if (sub_type == "max_pool2d")
             {
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
                 int h = op->inputs[0]->shape[2];
                 int w = op->inputs[0]->shape[3];
-                flops += n * c * h * w;
-                memops += 2 * n * c * h * w;
+                int kh = op->params.at("kernel_size").ai[0];
+                int kw = op->params.at("kernel_size").ai[1];
+                int sh = op->params.at("stride").ai[0];
+                int sw = op->params.at("stride").ai[1];
+                int ph = op->params.at("padding").ai[0];
+                int pw = op->params.at("padding").ai[1];
+                int oh = (h + 2 * ph - kh) / sh + 1;
+                int ow = (w + 2 * pw - kw) / sw + 1;
+                flops += n * c * h * w * kh * kw;
+                memops += n * c * h * w + n * c * oh * ow;
+            }
+            else if (sub_type == "max_pool3d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int d = op->inputs[0]->shape[2];
+                int h = op->inputs[0]->shape[3];
+                int w = op->inputs[0]->shape[4];
+                int kd = op->params.at("kernel_size").ai[0];
+                int kh = op->params.at("kernel_size").ai[1];
+                int kw = op->params.at("kernel_size").ai[2];
+                int sd = op->params.at("stride").ai[0];
+                int sh = op->params.at("stride").ai[1];
+                int sw = op->params.at("stride").ai[2];
+                int pd = op->params.at("padding").ai[0];
+                int ph = op->params.at("padding").ai[1];
+                int pw = op->params.at("padding").ai[2];
+                int od = (d + 2 * pd - kd) / sd + 1;
+                int oh = (h + 2 * ph - kh) / sh + 1;
+                int ow = (w + 2 * pw - kw) / sw + 1;
+                flops += n * c * d * h * w * kd * kh * kw;
+                memops += n * c * d * h * w + n * c * od * oh * ow;
+            }
+            else if (sub_type == "lp_pool1d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int l = op->inputs[0]->shape[2];
+                int k = op->params.at("kernel_size").i;
+                int p = op->params.at("p").i;
+                if (p == 1)
+                {
+                    extra_flops += 2 * n * c * l * k;
+                }
+                else if (p == 2)
+                {
+                    extra_flops += 3 * n * c * l * k;
+                }
+                extra_memops += 2 * n * c * l;
+            }
+            else if (sub_type == "lp_pool2d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int h = op->inputs[0]->shape[2];
+                int w = op->inputs[0]->shape[3];
+                int kh = op->params.at("kernel_size").ai[0];
+                int kw = op->params.at("kernel_size").ai[1];
+                int p = op->params.at("p").i;
+                if (p == 1)
+                {
+                    extra_flops += 2 * n * c * h * w * kh * kw;
+                }
+                else if (p == 2)
+                {
+                    extra_flops += 3 * n * c * h * w * kh * kw;
+                }
+                extra_memops += 2 * n * c * h * w;
+            }
+            else if (sub_type == "lp_pool3d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int d = op->inputs[0]->shape[2];
+                int h = op->inputs[0]->shape[3];
+                int w = op->inputs[0]->shape[4];
+                int kd = op->params.at("kernel_size").ai[0];
+                int kh = op->params.at("kernel_size").ai[1];
+                int kw = op->params.at("kernel_size").ai[2];
+                int p = op->params.at("p").i;
+                if (p == 1)
+                {
+                    extra_flops += 2 * n * c * d * h * w * kd * kh * kw;
+                }
+                else if (p == 2)
+                {
+                    extra_flops += 3 * n * c * d * h * w * kd * kh * kw;
+                }
+                extra_memops += 2 * n * c * d * h * w;
+            }
+            else if (
+                sub_type == "elu" ||
+                sub_type == "celu" ||
+                sub_type == "gelu" ||
+                sub_type == "glu" ||
+                sub_type == "hardshrink" ||
+                sub_type == "hardsigmoid" ||
+                sub_type == "hardswish" ||
+                sub_type == "hardtanh" ||
+                sub_type == "leaky_relu" ||
+                sub_type == "prelu" ||
+                sub_type == "relu" ||
+                sub_type == "relu6" ||
+                sub_type == "rrelu" ||
+                sub_type == "mish" ||
+                sub_type == "normalize" ||
+                sub_type == "batch_norm" ||
+                sub_type == "group_norm" ||
+                sub_type == "instance_norm" ||
+                sub_type == "layer_norm"
+                )
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int num_elements = 1;
+                for (size_t i = 2; i < op->inputs[0]->shape.size(); ++i)
+                {
+                    num_elements *= op->inputs[0]->shape[i];
+                }
+                if(sub_type == "elu")
+                {
+                    extra_flops += 2 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "celu")
+                {
+                    extra_flops += 3 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "gelu")
+                {
+                    extra_flops += 3 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "glu")
+                {
+                    int l = op->inputs[0]->shape[2];
+                    int o = op->outputs[0]->shape[2];
+                    extra_flops += n * c * l * o;
+                    extra_memops += 2 * n * c * l + n * o;
+                }
+                else if(sub_type == "hardshrink")
+                {
+                    extra_flops += 2 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "hardsigmoid")
+                {
+                    extra_flops += 6 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "hardswish")
+                {
+                    extra_flops += 5 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "hardtanh")
+                {
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "leaky_relu")
+                {
+                    extra_flops += 2 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "prelu")
+                {
+                    extra_flops += 2 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "relu")
+                {
+                    extra_flops += n * c * num_elements;
+                    extra_memops += n * c * num_elements;
+                }
+                else if(sub_type == "relu6")
+                {
+                    extra_memops += n * c * num_elements;
+                }
+                else if(sub_type == "rrelu")
+                {
+                    extra_flops += n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "mish")
+                {
+                    extra_flops += 2 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(sub_type == "normalize")
+                {
+                    extra_flops += 7 * n * c * num_elements + 3;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+                else if(
+                    sub_type == "batch_norm" ||
+                    sub_type == "group_norm" ||
+                    sub_type == "instance_norm" ||
+                    sub_type == "layer_norm"
+                    )
+                {
+                    extra_flops += 7 * n * c * num_elements;
+                    extra_memops += 2 * n * c * num_elements;
+                }
+            }
+            else if (sub_type == "conv1d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int l = op->inputs[0]->shape[2];
+                int k = op->inputs[1]->shape[0];
+                int o = op->outputs[0]->shape[2];
+                flops += 2 * n * c * l * k * o;
+                memops += 2 * n * c * l * k + n * o;
+            }
+            else if (sub_type == "conv2d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int h = op->inputs[0]->shape[2];
+                int w = op->inputs[0]->shape[3];
+                int kh = op->inputs[1]->shape[2];
+                int kw = op->inputs[1]->shape[3];
+                int o = op->outputs[0]->shape[2];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int g = op->params.at("groups").i;
+                flops += 2 * n * c * h * w * kh * kw * o / g;
+                memops += 2 * n * c * h * w * kh * kw / g + n * o * h * w;
+            }
+            else if (sub_type == "conv3d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int d = op->inputs[0]->shape[2];
+                int h = op->inputs[0]->shape[3];
+                int w = op->inputs[0]->shape[4];
+                int kd = op->inputs[1]->shape[2];
+                int kh = op->inputs[1]->shape[3];
+                int kw = op->inputs[1]->shape[4];
+                int o = op->outputs[0]->shape[2];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int g = op->params.at("groups").i;
+                flops += 2 * n * c * d * h * w * kd * kh * kw * o / g;
+                memops += 2 * n * c * d * h * w * kd * kh * kw / g + n * o * d * h * w;
+            }
+            else if (sub_type == "conv_transpose1d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int l = op->inputs[0]->shape[2];
+                int k = op->inputs[1]->shape[0];
+                int o = op->outputs[0]->shape[2];
+                flops += 2 * n * c * l * k * o;
+                memops += 2 * n * c * l * k + n * o;
+            }
+            else if (sub_type == "conv_transpose2d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int h = op->inputs[0]->shape[2];
+                int w = op->inputs[0]->shape[3];
+                int kh = op->inputs[1]->shape[2];
+                int kw = op->inputs[1]->shape[3];
+                int o = op->outputs[0]->shape[2];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int g = op->params.at("groups").i;
+                flops += 2 * n * c * h * w * kh * kw * o / g;
+                memops += 2 * n * c * h * w * kh * kw / g + n * o * h * w;
+            }
+            else if (sub_type == "conv_transpose3d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int d = op->inputs[0]->shape[2];
+                int h = op->inputs[0]->shape[3];
+                int w = op->inputs[0]->shape[4];
+                int kd = op->inputs[1]->shape[2];
+                int kh = op->inputs[1]->shape[3];
+                int kw = op->inputs[1]->shape[4];
+                int o = op->outputs[0]->shape[2];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int g = op->params.at("groups").i;
+                flops += 2 * n * c * d * h * w * kd * kh * kw * o / g;
+                memops += 2 * n * c * d * h * w * kd * kh * kw / g + n * o * d * h * w;
+            }
+            else if (sub_type == "embedding")
+            {
+                int n = op->inputs[0]->shape[0];
+                int l = op->inputs[0]->shape[1];
+                int c = op->params.at("num_embeddings").i;
+                int e = op->params.at("embedding_dim").i;
+                extra_flops += n * l * e;
+                extra_memops += n * l + n * e;
+            }
+            else if (sub_type == "linear")
+            {
+                int n = op->inputs[0]->shape[0];
+                int i = op->inputs[0]->shape[1];
+                int o = op->outputs[0]->shape[1];
+                flops += 2 * n * i * o;
+                memops += 2 * n * i + n * o;
+            }
+            else if (sub_type == "log_softmax")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int l = op->inputs[0]->shape[2];
+                extra_flops += 2 * n * c * l;
+                extra_memops += 2 * n * c * l;
+            }
+            else if (sub_type == "logsigmoid")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int l = op->inputs[0]->shape[2];
+                extra_flops += 2 * n * c * l;
+                extra_memops += 2 * n * c * l;
+            }
+            else if (sub_type == "scaled_dot_product_attention")
+            {
+                int n = op->inputs[0]->shape[0];
+                int l = op->inputs[0]->shape[1];
+                int d = op->inputs[0]->shape[2];
+                flops += 2 * n * l * l + n * l * d + n * l * l * d;
+                memops += 2 * n * l * d + 3 * n * l * l + n * l;
+            }
+        }
+
+        else if (op->type.substr(0, 2) == "nn")
+        {
+            std::string sub_type = op->type.substr(3);
+            if (
+                sub_type == "BatchNorm1d" ||
+                sub_type == "BatchNorm2d" ||
+                sub_type == "BatchNorm3d"
+                )
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int num_elements = 1;
+                for (size_t i = 2; i < op->inputs[0]->shape.size(); ++i)
+                {
+                    num_elements *= op->inputs[0]->shape[i];
+                }
+                extra_flops += 7 * n * c * num_elements;
+                extra_memops += 2 * n * c * num_elements;
+            }
+            else if (sub_type == "Conv1d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int l = op->inputs[0]->shape[2];
+                int k = op->inputs[1]->shape[0];
+                int o = op->outputs[0]->shape[2];
+                flops += 2 * n * c * l * k * o;
+                memops += 2 * n * c * l * k + n * o;
+            }
+            else if (sub_type == "Conv2d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int h = op->inputs[0]->shape[2];
+                int w = op->inputs[0]->shape[3];
+                int kh = op->inputs[1]->shape[2];
+                int kw = op->inputs[1]->shape[3];
+                int o = op->outputs[0]->shape[2];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int g = op->params.at("groups").i;
+                flops += 2 * n * c * h * w * kh * kw * o / g;
+                memops += 2 * n * c * h * w * kh * kw / g + n * o * h * w;
+            }
+            else if (sub_type == "Conv3d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int d = op->inputs[0]->shape[2];
+                int h = op->inputs[0]->shape[3];
+                int w = op->inputs[0]->shape[4];
+                int kd = op->inputs[1]->shape[2];
+                int kh = op->inputs[1]->shape[3];
+                int kw = op->inputs[1]->shape[4];
+                int o = op->outputs[0]->shape[2];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int g = op->params.at("groups").i;
+                flops += 2 * n * c * d * h * w * kd * kh * kw * o / g;
+                memops += 2 * n * c * d * h * w * kd * kh * kw / g + n * o * d * h * w;
+            }
+            else if (sub_type == "ConvTranspose1d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int l = op->inputs[0]->shape[2];
+                int k = op->inputs[1]->shape[0];
+                int o = op->outputs[0]->shape[2];
+                flops += 2 * n * c * l * k * o;
+                memops += 2 * n * c * l * k + n * o;
+            }
+            else if (sub_type == "ConvTranspose2d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int h = op->inputs[0]->shape[2];
+                int w = op->inputs[0]->shape[3];
+                int kh = op->inputs[1]->shape[2];
+                int kw = op->inputs[1]->shape[3];
+                int o = op->outputs[0]->shape[2];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int g = op->params.at("groups").i;
+                flops += 2 * n * c * h * w * kh * kw * o / g;
+                memops += 2 * n * c * h * w * kh * kw / g + n * o * h * w;
+            }
+            else if (sub_type == "PReLU")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int num_elements = 1;
+                for (size_t i = 2; i < op->inputs[0]->shape.size(); ++i)
+                {
+                    num_elements *= op->inputs[0]->shape[i];
+                }
+                extra_flops += 2 * n * c * num_elements;
+                extra_memops += 2 * n * c * num_elements;
+            }
+            else if (sub_type == "ConvTranspose3d")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int d = op->inputs[0]->shape[2];
+                int h = op->inputs[0]->shape[3];
+                int w = op->inputs[0]->shape[4];
+                int kd = op->inputs[1]->shape[2];
+                int kh = op->inputs[1]->shape[3];
+                int kw = op->inputs[1]->shape[4];
+                int o = op->outputs[0]->shape[2];
+                int s = op->params.at("stride").ai[0];
+                int p = op->params.at("padding").ai[0];
+                int g = op->params.at("groups").i;
+                flops += 2 * n * c * d * h * w * kd * kh * kw * o / g;
+                memops += 2 * n * c * d * h * w * kd * kh * kw / g + n * o * d * h * w;
+            }
+            else if (sub_type == "Embedding")
+            {
+                int n = op->inputs[0]->shape[0];
+                int l = op->inputs[0]->shape[1];
+                int c = op->params.at("num_embeddings").i;
+                int e = op->params.at("embedding_dim").i;
+                extra_flops += 2 * n * l * e;
+                extra_memops += 2 * n * l + n * e;
+            }
+            else if (sub_type == "GroupNorm" || sub_type == "InstanceNorm" || sub_type == "LayerNorm")
+            {
+                int n = op->inputs[0]->shape[0];
+                int c = op->inputs[0]->shape[1];
+                int num_elements = 1;
+                for (size_t i = 2; i < op->inputs[0]->shape.size(); ++i)
+                {
+                    num_elements *= op->inputs[0]->shape[i];
+                }
+
+                extra_flops += 7 * n * c * num_elements;
+                extra_memops += 2 * n * c * num_elements;
             }
         }
     }
@@ -1630,10 +2149,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     for (size_t i = 0; i < param.ai.size(); i++)
                     {
                         if ((op->type == "nn.AdaptiveAvgPool2d"
-                                || op->type == "nn.AdaptiveAvgPool3d"
-                                || op->type == "nn.AdaptiveMaxPool2d"
-                                || op->type == "nn.AdaptiveMaxPool3d")
-                                && it.first == "output_size" && param.ai[i] == 0)
+                             || op->type == "nn.AdaptiveAvgPool3d"
+                             || op->type == "nn.AdaptiveMaxPool2d"
+                             || op->type == "nn.AdaptiveMaxPool3d")
+                            && it.first == "output_size" && param.ai[i] == 0)
                         {
                             fprintf(pyfp, "None");
                         }
@@ -2386,10 +2905,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         for (size_t i = 0; i < param.ai.size(); i++)
                         {
                             if ((op->type == "F.adaptive_avg_pool2d"
-                                    || op->type == "F.adaptive_avg_pool3d"
-                                    || op->type == "F.adaptive_max_pool2d"
-                                    || op->type == "F.adaptive_max_pool3d")
-                                    && it.first == "output_size" && param.ai[i] == 0)
+                                 || op->type == "F.adaptive_avg_pool3d"
+                                 || op->type == "F.adaptive_max_pool2d"
+                                 || op->type == "F.adaptive_max_pool3d")
+                                && it.first == "output_size" && param.ai[i] == 0)
                             {
                                 fprintf(pyfp, "None");
                             }
