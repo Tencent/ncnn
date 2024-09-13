@@ -2160,6 +2160,12 @@ int cpu_support_arm_vfpv4()
 int cpu_support_arm_asimdhp()
 {
     try_initialize_global_cpu_info();
+    // 检查环境变量 NCNN_ISA
+    const char* ncnnIsaEnv = std::getenv("NCNN_ISA");
+    if (ncnnIsaEnv && strstr(ncnnIsaEnv, "+asimdhp") != nullptr)
+    {
+        return true;
+    }
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_asimdhp;
