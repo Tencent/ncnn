@@ -14,8 +14,11 @@
 
 #include "ir.h"
 
+#include <cstddef>
 #include <cstdio>
+#include <functional>
 #include <limits.h>
+#include <numeric>
 #include <stdint.h>
 #include <string.h>
 #include <algorithm>
@@ -23,6 +26,7 @@
 #include <sstream>
 #include <string>
 #include <stack>
+#include <vector>
 
 #include "storezip.h"
 #include "utils.h"
@@ -1488,9 +1492,9 @@ void Graph::flops_memops_sum()
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
                 int l = op->inputs[0]->shape[2];
-                int k = op->params.at("kernel_size").ai[0];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
+                int k = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[0] : 1;
+                int s = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int p = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
                 int o = (l + 2 * p - k) / s + 1;
                 flops += n * c * l * k;
                 memops += n * c * l + n * c * o;
@@ -1501,12 +1505,12 @@ void Graph::flops_memops_sum()
                 int c = op->inputs[0]->shape[1];
                 int h = op->inputs[0]->shape[2];
                 int w = op->inputs[0]->shape[3];
-                int kh = op->params.at("kernel_size").ai[0];
-                int kw = op->params.at("kernel_size").ai[1];
-                int sh = op->params.at("stride").ai[0];
-                int sw = op->params.at("stride").ai[1];
-                int ph = op->params.at("padding").ai[0];
-                int pw = op->params.at("padding").ai[1];
+                int kh = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[0] : 1;
+                int kw = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[1] : 1;
+                int sh = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int sw = op->has_param("stride") ? op->params.at("stride").ai[1] : 1;
+                int ph = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
+                int pw = op->has_param("padding") ? op->params.at("padding").ai[1] : 0;
                 int oh = (h + 2 * ph - kh) / sh + 1;
                 int ow = (w + 2 * pw - kw) / sw + 1;
                 flops += n * c * h * w * kh * kw;
@@ -1519,15 +1523,15 @@ void Graph::flops_memops_sum()
                 int d = op->inputs[0]->shape[2];
                 int h = op->inputs[0]->shape[3];
                 int w = op->inputs[0]->shape[4];
-                int kd = op->params.at("kernel_size").ai[0];
-                int kh = op->params.at("kernel_size").ai[1];
-                int kw = op->params.at("kernel_size").ai[2];
-                int sd = op->params.at("stride").ai[0];
-                int sh = op->params.at("stride").ai[1];
-                int sw = op->params.at("stride").ai[2];
-                int pd = op->params.at("padding").ai[0];
-                int ph = op->params.at("padding").ai[1];
-                int pw = op->params.at("padding").ai[2];
+                int kd = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[0] : 1;
+                int kh = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[1] : 1;
+                int kw = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[2] : 1;
+                int sd = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int sh = op->has_param("stride") ? op->params.at("stride").ai[1] : 1;
+                int sw = op->has_param("stride") ? op->params.at("stride").ai[2] : 1;
+                int pd = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
+                int ph = op->has_param("padding") ? op->params.at("padding").ai[1] : 0;
+                int pw = op->has_param("padding") ? op->params.at("padding").ai[2] : 0;
                 int od = (d + 2 * pd - kd) / sd + 1;
                 int oh = (h + 2 * ph - kh) / sh + 1;
                 int ow = (w + 2 * pw - kw) / sw + 1;
@@ -1572,9 +1576,9 @@ void Graph::flops_memops_sum()
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
                 int l = op->inputs[0]->shape[2];
-                int k = op->params.at("kernel_size").ai[0];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
+                int k = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[0] : 1;
+                int s = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int p = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
                 int o = (l + 2 * p - k) / s + 1;
                 flops += n * c * l * k;
                 memops += n * c * l + n * c * o;
@@ -1585,12 +1589,12 @@ void Graph::flops_memops_sum()
                 int c = op->inputs[0]->shape[1];
                 int h = op->inputs[0]->shape[2];
                 int w = op->inputs[0]->shape[3];
-                int kh = op->params.at("kernel_size").ai[0];
-                int kw = op->params.at("kernel_size").ai[1];
-                int sh = op->params.at("stride").ai[0];
-                int sw = op->params.at("stride").ai[1];
-                int ph = op->params.at("padding").ai[0];
-                int pw = op->params.at("padding").ai[1];
+                int kh = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[0] : 1;
+                int kw = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[1] : 1;
+                int sh = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int sw = op->has_param("stride") ? op->params.at("stride").ai[1] : 1;
+                int ph = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
+                int pw = op->has_param("padding") ? op->params.at("padding").ai[1] : 0;
                 int oh = (h + 2 * ph - kh) / sh + 1;
                 int ow = (w + 2 * pw - kw) / sw + 1;
                 flops += n * c * h * w * kh * kw;
@@ -1603,192 +1607,24 @@ void Graph::flops_memops_sum()
                 int d = op->inputs[0]->shape[2];
                 int h = op->inputs[0]->shape[3];
                 int w = op->inputs[0]->shape[4];
-                int kd = op->params.at("kernel_size").ai[0];
-                int kh = op->params.at("kernel_size").ai[1];
-                int kw = op->params.at("kernel_size").ai[2];
-                int sd = op->params.at("stride").ai[0];
-                int sh = op->params.at("stride").ai[1];
-                int sw = op->params.at("stride").ai[2];
-                int pd = op->params.at("padding").ai[0];
-                int ph = op->params.at("padding").ai[1];
-                int pw = op->params.at("padding").ai[2];
+                int kd = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[0] : 1;
+                int kh = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[1] : 1;
+                int kw = op->has_param("kernel_size") ? op->params.at("kernel_size").ai[2] : 1;
+                int sd = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int sh = op->has_param("stride") ? op->params.at("stride").ai[1] : 1;
+                int sw = op->has_param("stride") ? op->params.at("stride").ai[2] : 1;
+                int pd = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
+                int ph = op->has_param("padding") ? op->params.at("padding").ai[1] : 0;
+                int pw = op->has_param("padding") ? op->params.at("padding").ai[2] : 0;
                 int od = (d + 2 * pd - kd) / sd + 1;
                 int oh = (h + 2 * ph - kh) / sh + 1;
                 int ow = (w + 2 * pw - kw) / sw + 1;
                 flops += n * c * d * h * w * kd * kh * kw;
                 memops += n * c * d * h * w + n * c * od * oh * ow;
             }
-            else if (sub_type == "lp_pool1d")
+            else if (sub_type == "prelu" || sub_type == "leaky_relu")
             {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int l = op->inputs[0]->shape[2];
-                int k = op->params.at("kernel_size").i;
-                int p = op->params.at("p").i;
-                if (p == 1)
-                {
-                    extra_flops += 2 * n * c * l * k;
-                }
-                else if (p == 2)
-                {
-                    extra_flops += 3 * n * c * l * k;
-                }
-                extra_memops += 2 * n * c * l;
-            }
-            else if (sub_type == "lp_pool2d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int h = op->inputs[0]->shape[2];
-                int w = op->inputs[0]->shape[3];
-                int kh = op->params.at("kernel_size").ai[0];
-                int kw = op->params.at("kernel_size").ai[1];
-                int p = op->params.at("p").i;
-                if (p == 1)
-                {
-                    extra_flops += 2 * n * c * h * w * kh * kw;
-                }
-                else if (p == 2)
-                {
-                    extra_flops += 3 * n * c * h * w * kh * kw;
-                }
-                extra_memops += 2 * n * c * h * w;
-            }
-            else if (sub_type == "lp_pool3d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int d = op->inputs[0]->shape[2];
-                int h = op->inputs[0]->shape[3];
-                int w = op->inputs[0]->shape[4];
-                int kd = op->params.at("kernel_size").ai[0];
-                int kh = op->params.at("kernel_size").ai[1];
-                int kw = op->params.at("kernel_size").ai[2];
-                int p = op->params.at("p").i;
-                if (p == 1)
-                {
-                    extra_flops += 2 * n * c * d * h * w * kd * kh * kw;
-                }
-                else if (p == 2)
-                {
-                    extra_flops += 3 * n * c * d * h * w * kd * kh * kw;
-                }
-                extra_memops += 2 * n * c * d * h * w;
-            }
-            else if (
-                sub_type == "elu" ||
-                sub_type == "celu" ||
-                sub_type == "gelu" ||
-                sub_type == "glu" ||
-                sub_type == "hardshrink" ||
-                sub_type == "hardsigmoid" ||
-                sub_type == "hardswish" ||
-                sub_type == "hardtanh" ||
-                sub_type == "leaky_relu" ||
-                sub_type == "prelu" ||
-                sub_type == "relu" ||
-                sub_type == "relu6" ||
-                sub_type == "rrelu" ||
-                sub_type == "mish" ||
-                sub_type == "normalize" ||
-                sub_type == "batch_norm" ||
-                sub_type == "group_norm" ||
-                sub_type == "instance_norm" ||
-                sub_type == "layer_norm"
-                )
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int num_elements = 1;
-                for (size_t i = 2; i < op->inputs[0]->shape.size(); ++i)
-                {
-                    num_elements *= op->inputs[0]->shape[i];
-                }
-                if(sub_type == "elu")
-                {
-                    extra_flops += 2 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "celu")
-                {
-                    extra_flops += 3 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "gelu")
-                {
-                    extra_flops += 3 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "glu")
-                {
-                    int l = op->inputs[0]->shape[2];
-                    int o = op->outputs[0]->shape[2];
-                    extra_flops += n * c * l * o;
-                    extra_memops += 2 * n * c * l + n * o;
-                }
-                else if(sub_type == "hardshrink")
-                {
-                    extra_flops += 2 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "hardsigmoid")
-                {
-                    extra_flops += 6 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "hardswish")
-                {
-                    extra_flops += 5 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "hardtanh")
-                {
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "leaky_relu")
-                {
-                    extra_flops += 2 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "prelu")
-                {
-                    extra_flops += 2 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "relu")
-                {
-                    extra_flops += n * c * num_elements;
-                    extra_memops += n * c * num_elements;
-                }
-                else if(sub_type == "relu6")
-                {
-                    extra_memops += n * c * num_elements;
-                }
-                else if(sub_type == "rrelu")
-                {
-                    extra_flops += n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "mish")
-                {
-                    extra_flops += 2 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(sub_type == "normalize")
-                {
-                    extra_flops += 7 * n * c * num_elements + 3;
-                    extra_memops += 2 * n * c * num_elements;
-                }
-                else if(
-                    sub_type == "batch_norm" ||
-                    sub_type == "group_norm" ||
-                    sub_type == "instance_norm" ||
-                    sub_type == "layer_norm"
-                    )
-                {
-                    extra_flops += 7 * n * c * num_elements;
-                    extra_memops += 2 * n * c * num_elements;
-                }
+
             }
             else if (sub_type == "conv1d")
             {
@@ -1809,9 +1645,9 @@ void Graph::flops_memops_sum()
                 int kh = op->inputs[1]->shape[2];
                 int kw = op->inputs[1]->shape[3];
                 int o = op->outputs[0]->shape[2];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
-                int g = op->params.at("groups").i;
+                int s = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int p = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
+                int g = op->has_param("groups") ? op->params.at("groups").i : 1;
                 flops += 2 * n * c * h * w * kh * kw * o / g;
                 memops += 2 * n * c * h * w * kh * kw / g + n * o * h * w;
             }
@@ -1826,9 +1662,9 @@ void Graph::flops_memops_sum()
                 int kh = op->inputs[1]->shape[3];
                 int kw = op->inputs[1]->shape[4];
                 int o = op->outputs[0]->shape[2];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
-                int g = op->params.at("groups").i;
+                int s = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int p = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
+                int g = op->has_param("groups") ? op->params.at("groups").i : 1;
                 flops += 2 * n * c * d * h * w * kd * kh * kw * o / g;
                 memops += 2 * n * c * d * h * w * kd * kh * kw / g + n * o * d * h * w;
             }
@@ -1851,9 +1687,9 @@ void Graph::flops_memops_sum()
                 int kh = op->inputs[1]->shape[2];
                 int kw = op->inputs[1]->shape[3];
                 int o = op->outputs[0]->shape[2];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
-                int g = op->params.at("groups").i;
+                int s = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int p = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
+                int g = op->has_param("groups") ? op->params.at("groups").i : 1;
                 flops += 2 * n * c * h * w * kh * kw * o / g;
                 memops += 2 * n * c * h * w * kh * kw / g + n * o * h * w;
             }
@@ -1868,20 +1704,15 @@ void Graph::flops_memops_sum()
                 int kh = op->inputs[1]->shape[3];
                 int kw = op->inputs[1]->shape[4];
                 int o = op->outputs[0]->shape[2];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
-                int g = op->params.at("groups").i;
+                int s = op->has_param("stride") ? op->params.at("stride").ai[0] : 1;
+                int p = op->has_param("padding") ? op->params.at("padding").ai[0] : 0;
+                int g = op->has_param("groups") ? op->params.at("groups").i : 1;
                 flops += 2 * n * c * d * h * w * kd * kh * kw * o / g;
                 memops += 2 * n * c * d * h * w * kd * kh * kw / g + n * o * d * h * w;
             }
             else if (sub_type == "embedding")
             {
-                int n = op->inputs[0]->shape[0];
-                int l = op->inputs[0]->shape[1];
-                int c = op->params.at("num_embeddings").i;
-                int e = op->params.at("embedding_dim").i;
-                extra_flops += n * l * e;
-                extra_memops += n * l + n * e;
+                /*todo*/
             }
             else if (sub_type == "linear")
             {
@@ -1920,139 +1751,362 @@ void Graph::flops_memops_sum()
         else if (op->type.substr(0, 2) == "nn")
         {
             std::string sub_type = op->type.substr(3);
-            if (
-                sub_type == "BatchNorm1d" ||
-                sub_type == "BatchNorm2d" ||
-                sub_type == "BatchNorm3d"
-                )
+            if (sub_type == "BatchNorm1d"
+                || sub_type == "BatchNorm2d"
+                || sub_type == "BatchNorm3d"
+                || sub_type == "GroupNorm"
+                || sub_type == "LayerNorm"
+                || sub_type == "InstanceNorm1d"
+                || sub_type == "InstanceNorm2d"
+                || sub_type == "InstanceNorm3d")
             {
+                std::vector<int> shape = op->inputs[0]->shape;
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
-                int num_elements = 1;
-                for (size_t i = 2; i < op->inputs[0]->shape.size(); ++i)
+                int num_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+                if((op->has_param("affine") && op->params.at("affine").b)
+                    || (op->has_param("elementwise_affine") && op->params.at("elementwise_affine").b))
                 {
-                    num_elements *= op->inputs[0]->shape[i];
+                    extra_flops += 2 * num_elements;
+                    extra_memops += 2 * (num_elements + n * c);
                 }
-                extra_flops += 7 * n * c * num_elements;
-                extra_memops += 2 * n * c * num_elements;
-            }
-            else if (sub_type == "Conv1d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int l = op->inputs[0]->shape[2];
-                int k = op->inputs[1]->shape[0];
-                int o = op->outputs[0]->shape[2];
-                flops += 2 * n * c * l * k * o;
-                memops += 2 * n * c * l * k + n * o;
-            }
-            else if (sub_type == "Conv2d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int h = op->inputs[0]->shape[2];
-                int w = op->inputs[0]->shape[3];
-                int kh = op->inputs[1]->shape[2];
-                int kw = op->inputs[1]->shape[3];
-                int o = op->outputs[0]->shape[2];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
-                int g = op->params.at("groups").i;
-                flops += 2 * n * c * h * w * kh * kw * o / g;
-                memops += 2 * n * c * h * w * kh * kw / g + n * o * h * w;
-            }
-            else if (sub_type == "Conv3d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int d = op->inputs[0]->shape[2];
-                int h = op->inputs[0]->shape[3];
-                int w = op->inputs[0]->shape[4];
-                int kd = op->inputs[1]->shape[2];
-                int kh = op->inputs[1]->shape[3];
-                int kw = op->inputs[1]->shape[4];
-                int o = op->outputs[0]->shape[2];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
-                int g = op->params.at("groups").i;
-                flops += 2 * n * c * d * h * w * kd * kh * kw * o / g;
-                memops += 2 * n * c * d * h * w * kd * kh * kw / g + n * o * d * h * w;
-            }
-            else if (sub_type == "ConvTranspose1d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int l = op->inputs[0]->shape[2];
-                int k = op->inputs[1]->shape[0];
-                int o = op->outputs[0]->shape[2];
-                flops += 2 * n * c * l * k * o;
-                memops += 2 * n * c * l * k + n * o;
-            }
-            else if (sub_type == "ConvTranspose2d")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int h = op->inputs[0]->shape[2];
-                int w = op->inputs[0]->shape[3];
-                int kh = op->inputs[1]->shape[2];
-                int kw = op->inputs[1]->shape[3];
-                int o = op->outputs[0]->shape[2];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
-                int g = op->params.at("groups").i;
-                flops += 2 * n * c * h * w * kh * kw * o / g;
-                memops += 2 * n * c * h * w * kh * kw / g + n * o * h * w;
-            }
-            else if (sub_type == "PReLU")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int num_elements = 1;
-                for (size_t i = 2; i < op->inputs[0]->shape.size(); ++i)
+                else
                 {
-                    num_elements *= op->inputs[0]->shape[i];
+                    extra_flops += num_elements;
+                    extra_memops += num_elements;
                 }
-                extra_flops += 2 * n * c * num_elements;
-                extra_memops += 2 * n * c * num_elements;
             }
-            else if (sub_type == "ConvTranspose3d")
+            else if (sub_type == "Conv1d"
+                    || sub_type == "Conv2d"
+                    || sub_type == "Conv3d"
+                    || sub_type == "ConvTranspose1d"
+                    || sub_type == "ConvTranspose2d"
+                    || sub_type == "ConvTranspose3d")
             {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int d = op->inputs[0]->shape[2];
-                int h = op->inputs[0]->shape[3];
-                int w = op->inputs[0]->shape[4];
-                int kd = op->inputs[1]->shape[2];
-                int kh = op->inputs[1]->shape[3];
-                int kw = op->inputs[1]->shape[4];
-                int o = op->outputs[0]->shape[2];
-                int s = op->params.at("stride").ai[0];
-                int p = op->params.at("padding").ai[0];
-                int g = op->params.at("groups").i;
-                flops += 2 * n * c * d * h * w * kd * kh * kw * o / g;
-                memops += 2 * n * c * d * h * w * kd * kh * kw / g + n * o * d * h * w;
-            }
-            else if (sub_type == "Embedding")
-            {
-                int n = op->inputs[0]->shape[0];
-                int l = op->inputs[0]->shape[1];
-                int c = op->params.at("num_embeddings").i;
-                int e = op->params.at("embedding_dim").i;
-                extra_flops += 2 * n * l * e;
-                extra_memops += 2 * n * l + n * e;
-            }
-            else if (sub_type == "GroupNorm" || sub_type == "InstanceNorm" || sub_type == "LayerNorm")
-            {
-                int n = op->inputs[0]->shape[0];
-                int c = op->inputs[0]->shape[1];
-                int num_elements = 1;
-                for (size_t i = 2; i < op->inputs[0]->shape.size(); ++i)
+                int c = op->params.at("in_channels").i;
+                std::vector<int> k = op->params.at("kernel_size").ai;
+                std::vector<int> input_shape = op->inputs[0]->shape;
+                std::vector<int> output_shape = op->outputs[0]->shape;
+                int g = op->params["groups"].i;
+                int input_size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
+                int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+                int kernel_size = std::accumulate(k.begin() + 2, k.end(), 1, std::multiplies<int>());
+                flops += output_size * c * kernel_size / g; 
+                memops += input_size + output_size + std::accumulate(k.begin(), k.end(), 1, std::multiplies<int>()) * c / g;
+                if(op->has_param("bias"))
                 {
-                    num_elements *= op->inputs[0]->shape[i];
+                    flops += output_size;
+                    memops += output_size;
+                }
+            }
+            else if (sub_type == "AvgPool1d"
+                    || sub_type == "AvgPool2d"
+                    || sub_type == "AvgPool3d")
+            {
+                std::vector<int> input_shape = op->inputs[0]->shape;
+                std::vector<int> output_shape = op->outputs[0]->shape;
+                int input_size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
+                int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+                flops += input_size;
+                memops += input_size + output_size;
+            }
+            else if (sub_type == "AdaptiveAvgPool1d"
+                    || sub_type == "AdaptiveAvgPool2d"
+                    || sub_type == "AdaptiveAvgPool3d")
+            {
+                std::vector<int> input_shape = op->inputs[0]->shape;
+                std::vector<int> output_shape = op->outputs[0]->shape;
+                int input_size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
+                int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+                std::vector<int> kernel_size;
+                for(size_t i = 2; i < input_shape.size(); i++)
+                {
+                    kernel_size.emplace_back(output_shape[i] / input_shape[i]);
+                }
+                flops += (std::accumulate(kernel_size.begin(), kernel_size.end(), 1, std::multiplies<int>()) + 1) * output_size;
+                memops += input_size + output_size;
+            }
+            else if(sub_type == "PReLU"
+                    || sub_type == "ELU"
+                    || sub_type == "LeakyReLU"
+                    || sub_type == "GELU")
+            {
+                std::vector<int> shape = op->outputs[0]->shape;
+                int n = shape[0];
+                int num_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+                extra_flops += num_elements;
+                if(sub_type == "PReLU")
+                {
+                    extra_memops += 2 * num_elements + n * op->params["num_parameters"].i;
+                }
+                else
+                {
+                    extra_memops += 2 * num_elements;
+                }
+            }
+            else if(sub_type == "Tanh")
+            {
+                std::vector<int> shape = op->outputs[0]->shape;
+                int num_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+                extra_flops += 2 * num_elements;
+                extra_memops += 2 * num_elements;
+            }
+            else if (sub_type == "Linear")
+            {
+                std::vector<int> input_shape = op->inputs[0]->shape;
+                int input_size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
+                std::vector<int> output_shape = op->outputs[0]->shape;
+                int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+                int in_features = op->params.at("in_features").i;
+                int out_features = op->params.at("out_features").i;
+                int bias = op->has_param("bias") ? out_features : 0;
+                flops += (in_features * out_features + bias) * input_size / in_features;
+                memops += input_size + output_size + output_size * (bias ? 1 : 0);
+            }
+            else if (sub_type == "Upsample"
+                    || sub_type == "UnsampleBilinear2d"
+                    || sub_type == "UnsampleNearest2d")
+            {
+                std::vector<int> input_shape = op->inputs[0]->shape;
+                int input_size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
+                std::vector<int> output_shape = op->outputs[0]->shape;
+                int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+                std::string mode;
+                if(sub_type == "Unsample")
+                {
+                    mode = op->has_param("mode") ? op->params.at("mode").s : "nearest";
+                }
+                else if(sub_type == "UnsampleBilinear2d")
+                {
+                    mode = "bilinear";
+                }
+                else if(sub_type == "UnsampleNearest2d")
+                {
+                    mode = "nearest";
                 }
 
-                extra_flops += 7 * n * c * num_elements;
-                extra_memops += 2 * n * c * num_elements;
+                if(mode == "nearest")
+                {
+                    extra_flops += input_size;
+                    extra_memops += input_size + output_size;
+                }
+                else if(mode == "linear")
+                {
+                    extra_flops += 5 * output_size;
+                    extra_memops += 2 * input_size + output_size;
+                }
+                else if(mode == "bilinear")
+                {
+                    extra_flops += 11 * output_size;
+                    extra_memops += 4 * input_size + output_size;
+                }
+                else if(mode == "bicubic")
+                {
+                    extra_flops += (224 + 35) * output_size;
+                    extra_memops += 16 * input_size + output_size;
+                }
+                else if(mode == "trilinear")
+                {
+                    extra_flops += (13 * 2 + 5) * input_size;
+                    extra_memops += 8 * input_size + output_size;
+                }
+            }
+            else if(sub_type == "RNN")
+            {
+                bool bi = op->has_param("bidirectional") && op->params.at("bidirectional").b;
+                bool bias = op->has_param("bias") && op->params.at("bias").b;
+                int input_size = op->params.at("input_size").i;
+                int hidden_size = op->params.at("hidden_size").i;
+                int flops1 = hidden_size * (input_size + hidden_size) + hidden_size;
+                if(bias)
+                {
+                    flops1 += 2 * hidden_size;
+                }
+                if(bi)
+                {
+                    flops1 *= 2;
+                }
+
+                int num_layers = op->params.at("num_layers").i;
+                int flops2 = 0;
+                if(bi)
+                {
+                    flops2 = 3 * hidden_size * hidden_size + hidden_size;
+                    if(bias)
+                    {
+                        flops2 += 2 * hidden_size;
+                    }
+                    flops2 *= 2 * num_layers;
+                }
+                else
+                {
+                    flops2 = 2 * hidden_size * hidden_size + hidden_size;
+                    if(bias)
+                    {
+                        flops2 += 2 * hidden_size;
+                    }
+                    flops2 *= num_layers;
+                }
+                bool batch_first = op->has_param("batch_first") && op->params.at("batch_first").b;
+                int batch_size = batch_first ? op->inputs[0]->shape[0] : op->inputs[0]->shape[1];
+                int num_steps = batch_first ? op->inputs[0]->shape[1] : op->inputs[0]->shape[0];
+                flops += (flops1 + flops2) * num_steps * batch_size;
+                memops += num_steps * batch_size * input_size;
+                memops += 2 * num_steps * batch_size * hidden_size * num_layers * (bi ? 2 : 1);
+                if(bias)
+                {
+                    memops += 2 * hidden_size * num_layers * (bi ? 2 : 1);
+                }
+            }
+            else if(sub_type == "LSTM")
+            {
+                bool bi = op->has_param("bidirectional") && op->params.at("bidirectional").b;
+                bool bias = op->has_param("bias") && op->params.at("bias").b;
+                int input_size = op->params.at("input_size").i;
+                int hidden_size = op->params.at("hidden_size").i;
+                int flops1 = 4 * hidden_size * (input_size + hidden_size) + 4 * hidden_size;
+                if(bias)
+                {
+                    flops1 += 8 * hidden_size;
+                }
+                if(bi)
+                {
+                    flops1 *= 2;
+                }
+                flops1 += 4 * hidden_size;
+
+                int num_layers = op->params.at("num_layers").i;
+                int flops2 = 0;
+                if(bi)
+                {
+                    flops2 = 12 * hidden_size * hidden_size + 4 * hidden_size;
+                    if(bias)
+                    {
+                        flops2 += 8 * hidden_size;
+                    }
+                    flops2 += 4 * hidden_size;
+                    flops2 *= 2 * num_layers;
+                }
+                else
+                {
+                    flops2 = 4 * hidden_size * hidden_size + 4 * hidden_size;
+                    if(bias)
+                    {
+                        flops2 += 8 * hidden_size;
+                    }
+                    flops2 += 4 * hidden_size;
+                    flops2 *= num_layers;
+                }
+                bool batch_first = op->has_param("batch_first") && op->params.at("batch_first").b;
+                int batch_size = batch_first ? op->inputs[0]->shape[0] : op->inputs[0]->shape[1];
+                int num_steps = batch_first ? op->inputs[0]->shape[1] : op->inputs[0]->shape[0];
+                flops += (flops1 + flops2) * num_steps * batch_size;
+                memops += num_steps * batch_size * input_size;
+                memops += 2 * num_steps * batch_size * hidden_size * num_layers * (bi ? 2 : 1);
+                if(bias)
+                {
+                    memops += 8 * hidden_size * num_layers * (bi ? 2 : 1);
+                }
+            }
+            else if (sub_type == "GRU")
+            {
+                bool bi = op->has_param("bidirectional") && op->params.at("bidirectional").b;
+                bool bias = op->has_param("bias") && op->params.at("bias").b;
+                int input_size = op->params.at("input_size").i;
+                int hidden_size = op->params.at("hidden_size").i;
+                int flops1 = 3 * hidden_size * (input_size + hidden_size) + 3 * hidden_size;
+                if(bias)
+                {
+                    flops1 += 6 * hidden_size;
+                }
+                flops1 += 4 * hidden_size;
+                if(bi)
+                {
+                    flops1 *= 2;
+                }
+
+                int num_layers = op->params.at("num_layers").i;
+                int flops2 = 0;
+                if(bi)
+                {
+                    flops2 = 9 * hidden_size * hidden_size + 3 * hidden_size;
+                    if(bias)
+                    {
+                        flops2 += 6 * hidden_size;
+                    }
+                    flops2 += 4 * hidden_size;
+                    flops2 *= 2 * num_layers;
+                }
+                else
+                {
+                    flops2 = 6 * hidden_size * hidden_size + 3 * hidden_size;
+                    if(bias)
+                    {
+                        flops2 += 6 * hidden_size;
+                    }
+                    flops2 += 4 * hidden_size;
+                    flops2 *= num_layers;
+                }
+                bool batch_first = op->has_param("batch_first") && op->params.at("batch_first").b;
+                int batch_size = batch_first ? op->inputs[0]->shape[0] : op->inputs[0]->shape[1];
+                int num_steps = batch_first ? op->inputs[0]->shape[1] : op->inputs[0]->shape[0];
+                flops += (flops1 + flops2) * num_steps * batch_size;
+                memops += num_steps * batch_size * input_size;
+                memops += 2 * num_steps * batch_size * hidden_size * num_layers * (bi ? 2 : 1);
+                if(bias)
+                {
+                    memops += 6 * hidden_size * num_layers * (bi ? 2 : 1);
+                }
+            }
+            else if(sub_type == "MultiheadAttention")
+            {
+                bool batch_first = op->has_param("batch_first") && op->params.at("batch_first").b;
+                int batch_size = batch_first ? op->inputs[0]->shape[0] : op->inputs[0]->shape[1];
+                int qlen = batch_first ? op->inputs[0]->shape[1] : op->inputs[0]->shape[0];
+                int klen = batch_first ? op->inputs[1]->shape[1] : op->inputs[1]->shape[0];
+                int d_model = op->params.at("embed_dim").i;
+                int num_heads = op->params.at("num_heads").i;
+                int head_dim = d_model / num_heads;
+                bool bias = op->params.at("bias").b;
+
+                // Linear transformations for Q, K, V
+                int flops_qkv = 3 * batch_size * qlen * d_model * d_model;
+                if (bias)
+                {
+                    flops_qkv += 3 * batch_size * qlen * d_model;
+                }
+
+                // Scaled dot-product attention
+                int flops_attention = batch_size * num_heads * qlen * klen * head_dim;
+
+                // Linear transformation for output
+                int flops_output = batch_size * qlen * d_model * d_model;
+                if (bias)
+                {
+                    flops_output += batch_size * qlen * d_model;
+                }
+
+                flops += flops_qkv + flops_attention + flops_output;
+
+                // Memory operations for Q, K, V
+                int memops_qkv = 3 * batch_size * qlen * d_model;
+                if (bias)
+                {
+                    memops_qkv += 3 * d_model;
+                }
+
+                // Memory operations for attention weights
+                int memops_attention = batch_size * num_heads * qlen * klen;
+
+                // Memory operations for output
+                int memops_output = batch_size * qlen * d_model;
+                if (bias)
+                {
+                    memops_output += d_model;
+                }
+
+                // Total memory operations
+                memops += memops_qkv + memops_attention + memops_output;
             }
         }
     }
