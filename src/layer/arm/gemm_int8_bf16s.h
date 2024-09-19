@@ -255,7 +255,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 int8x8_t _r5 = float2int8(_p9, _pd);
                 int8x8_t _r6 = float2int8(_pa, _pe);
                 int8x8_t _r7 = float2int8(_pb, _pf);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p8, _p9);
@@ -270,7 +270,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                 vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
                 vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + 16);
@@ -349,7 +349,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + A_hstep * 4);
@@ -479,7 +479,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 int8x8_t _r5 = float2int8(_pa, _pb);
                 int8x8_t _r6 = float2int8(_pc, _pd);
                 int8x8_t _r7 = float2int8(_pe, _pf);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p2);
                 int8x8_t _r1 = float2int8(_p4, _p6);
                 int8x8_t _r2 = float2int8(_p8, _pa);
@@ -489,7 +489,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 int8x8_t _r6 = float2int8(_p9, _pb);
                 int8x8_t _r7 = float2int8(_pd, _pf);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p2));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p4, _p6));
                 int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p8, _pa));
@@ -545,7 +545,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
                 int8x8_t _r3 = float2int8(_p6, _p7);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
                 int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p4, _p5));
@@ -659,7 +659,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 int8x8_t _r1 = float2int8(_p1, _p5);
                 int8x8_t _r2 = float2int8(_p2, _p6);
                 int8x8_t _r3 = float2int8(_p3, _p7);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
@@ -668,7 +668,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + 16);
@@ -715,7 +715,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 int8x8_t _r1 = float2int8(_p2, _p3);
 
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
@@ -804,13 +804,13 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
                 int8x8_t _r3 = float2int8(_p6, _p7);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p2);
                 int8x8_t _r1 = float2int8(_p4, _p6);
                 int8x8_t _r2 = float2int8(_p1, _p3);
                 int8x8_t _r3 = float2int8(_p5, _p7);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p2));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p4, _p6));
                 int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p1, _p3));
@@ -844,7 +844,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
                 int16x4x2_t _t01 = vuzp_s16(_t0, _t1);
@@ -937,11 +937,11 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #if __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p2);
                 int8x8_t _r1 = float2int8(_p1, _p3);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 float32x4_t _t0 = vcombine_f32(vget_low_f32(_p0), vget_low_f32(_p2));
                 float32x4_t _t1 = vcombine_f32(vget_high_f32(_p0), vget_high_f32(_p2));
                 float32x4_t _t2 = vcombine_f32(vget_low_f32(_p1), vget_low_f32(_p3));
@@ -966,7 +966,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 float32x4_t _t0 = vcombine_f32(vget_low_f32(_p0), vget_low_f32(_p1));
                 float32x4_t _t1 = vcombine_f32(vget_high_f32(_p0), vget_high_f32(_p1));
                 int8x8_t _r0 = float2int8(_t0, _t1);
@@ -986,16 +986,16 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 pp += 4;
                 p0 += 2;
             }
-#endif // __ARM_NEON
-            // for (; kk + 1 < max_kk; kk += 2)
-            // {
-            //     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale0);
-            //     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale0);
-            //     pp[2] = float2int8(bfloat16_to_float32(p0[A_hstep]) * scale1);
-            //     pp[3] = float2int8(bfloat16_to_float32(p0[A_hstep + 1]) * scale1);
-            //     pp += 4;
-            //     p0 += 2;
-            // }
+#endif // __ARM_NEON                                                          \
+// for (; kk + 1 < max_kk; kk += 2)                                       \
+// {                                                                      \
+//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale0);           \
+//     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale0);           \
+//     pp[2] = float2int8(bfloat16_to_float32(p0[A_hstep]) * scale1);     \
+//     pp[3] = float2int8(bfloat16_to_float32(p0[A_hstep + 1]) * scale1); \
+//     pp += 4;                                                           \
+//     p0 += 2;                                                           \
+// }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale0);
@@ -1054,14 +1054,14 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 pp += 8;
                 p0 += 8;
             }
-#endif // __ARM_NEON
-            // for (; kk + 1 < max_kk; kk += 2)
-            // {
-            //     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-            //     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);
-            //     pp += 2;
-            //     p0 += 2;
-            // }
+#endif // __ARM_NEON                                               \
+// for (; kk + 1 < max_kk; kk += 2)                            \
+// {                                                           \
+//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale); \
+//     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale); \
+//     pp += 2;                                                \
+//     p0 += 2;                                                \
+// }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
@@ -1395,7 +1395,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                 vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
                 vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
@@ -1410,7 +1410,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
                 vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
@@ -1468,7 +1468,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 #if __ARM_FEATURE_DOTPROD
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x8_t _r01 = vreinterpretq_s16_s8(vcombine_s8(_r0, _r1));
                 int16x8_t _r23 = vreinterpretq_s16_s8(vcombine_s8(_r2, _r3));
                 int16x8x2_t _rr = vuzpq_s16(_r01, _r23);
@@ -1550,7 +1550,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _r0123.val[3] = vcombine_s8(_r37.val[0], _r37.val[1]);
 
                 vst4q_s8(pp, _r0123);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8x4_t _r0123;
                 _r0123.val[0] = _r0;
                 _r0123.val[1] = _r1;
@@ -1565,7 +1565,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 vst4_s8(pp, _r0123);
                 vst4_s8(pp + 32, _r4567);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16x2_t _r01;
                 _r01.val[0] = vcombine_s8(_r0, _r2);
                 _r01.val[1] = vcombine_s8(_r1, _r3);
@@ -1612,7 +1612,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _r0123.val[3] = float2int8(_p6, _p7);
 
                 vst4_s8(pp, _r0123);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16x2_t _r01;
                 _r01.val[0] = vcombine_s8(float2int8(_p0, _p1), float2int8(_p4, _p5));
                 _r01.val[1] = vcombine_s8(float2int8(_p2, _p3), float2int8(_p6, _p7));
@@ -1704,13 +1704,13 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 int8x8_t _r1 = float2int8(_p1, _p5);
                 int8x8_t _r2 = float2int8(_p2, _p6);
                 int8x8_t _r3 = float2int8(_p3, _p7);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
                 int8x8_t _r3 = float2int8(_p6, _p7);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
                 int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p4, _p5));
@@ -1746,7 +1746,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
                 int16x4x2_t _t01 = vuzp_s16(_t0, _t1);
@@ -1796,7 +1796,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _r0123.val[3] = float2int8(_p37.val[0], _p37.val[1]);
 
                 vst4_s8(pp, _r0123);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8x4_t _r0123;
                 _r0123.val[0] = float2int8(_p0, _p4);
                 _r0123.val[1] = float2int8(_p1, _p5);
@@ -1805,7 +1805,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 
                 vst4_s8(pp, _r0123);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16x2_t _r01;
                 _r01.val[0] = vcombine_s8(float2int8(_p0, _p2), float2int8(_p4, _p6));
                 _r01.val[1] = vcombine_s8(float2int8(_p1, _p3), float2int8(_p5, _p7));
@@ -1835,7 +1835,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 int8x8_t _r23 = float2int8(_p2, _p3);
 
                 vst1q_s8(pp, vcombine_s8(_r01, _r23));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x8x2_t _r01;
                 _r01.val[0] = float2int8(_p0, _p2);
                 _r01.val[1] = float2int8(_p1, _p3);
@@ -1910,11 +1910,11 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 #if __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p2);
                 int8x8_t _r1 = float2int8(_p1, _p3);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p2));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p1, _p3));
                 int16x4x2_t _t01 = vzip_s16(_t0, _t1);
@@ -1938,7 +1938,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r01 = float2int8(_p0, _p1);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 float32x4_t _t0 = vcombine_f32(vget_low_f32(_p0), vget_low_f32(_p1));
                 float32x4_t _t1 = vcombine_f32(vget_high_f32(_p0), vget_high_f32(_p1));
                 int8x8_t _r01 = float2int8(_t0, _t1);
@@ -1994,13 +1994,13 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 int8x8x2_t _r01 = vuzp_s8(_r0, _r1);
 
                 vst1q_s8(pp, vcombine_s8(_r01.val[0], _r01.val[1]));
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8x2_t _r01 = vtrn_s8(_r0, _r1);
                 int8x8x2_t _rr01 = vuzp_s8(_r01.val[0], _r01.val[1]);
 
                 vst1q_s8(pp, vcombine_s8(_rr01.val[0], _rr01.val[1]));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = uint16x8_t();
                 _p = vsetq_lane_u16(p0[0], _p, 0);
                 _p = vsetq_lane_u16(p0[1], _p, 1);
@@ -2059,7 +2059,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 
                 float32x4x2_t _pp = vuzpq_f32(_p01, _p23);
                 int8x8_t _r01 = float2int8(_pp.val[0], _pp.val[1]);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = uint16x8_t();
                 _p = vsetq_lane_u16(p0[0], _p, 0);
                 _p = vsetq_lane_u16(p0[1], _p, 1);
@@ -2226,14 +2226,14 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 pp += 8;
                 p0 += A_hstep * 8;
             }
-#endif // __ARM_NEON
-            // for (; kk + 1 < max_kk; kk += 2)
-            // {
-            //     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-            //     pp[1] = float2int8(bfloat16_to_float32(p0[A_hstep]) * scale);
-            //     pp += 2;
-            //     p0 += A_hstep * 2;
-            // }
+#endif // __ARM_NEON                                                     \
+// for (; kk + 1 < max_kk; kk += 2)                                  \
+// {                                                                 \
+//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);       \
+//     pp[1] = float2int8(bfloat16_to_float32(p0[A_hstep]) * scale); \
+//     pp += 2;                                                      \
+//     p0 += A_hstep * 2;                                            \
+// }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
@@ -2315,7 +2315,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 int8x8_t _r5 = float2int8(_p9, _pd);
                 int8x8_t _r6 = float2int8(_pa, _pe);
                 int8x8_t _r7 = float2int8(_pb, _pf);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p8, _p9);
@@ -2330,7 +2330,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                 vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
                 vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + 16);
@@ -2409,7 +2409,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + B_hstep * 4);
@@ -2538,7 +2538,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 int8x8_t _r5 = float2int8(_pa, _pb);
                 int8x8_t _r6 = float2int8(_pc, _pd);
                 int8x8_t _r7 = float2int8(_pe, _pf);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p2);
                 int8x8_t _r1 = float2int8(_p4, _p6);
                 int8x8_t _r2 = float2int8(_p8, _pa);
@@ -2548,7 +2548,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 int8x8_t _r6 = float2int8(_p9, _pb);
                 int8x8_t _r7 = float2int8(_pd, _pf);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p2));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p4, _p6));
                 int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p8, _pa));
@@ -2604,7 +2604,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
                 int8x8_t _r3 = float2int8(_p6, _p7);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
                 int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p4, _p5));
@@ -2714,7 +2714,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 int8x8_t _r1 = float2int8(_p1, _p5);
                 int8x8_t _r2 = float2int8(_p2, _p6);
                 int8x8_t _r3 = float2int8(_p3, _p7);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
@@ -2723,7 +2723,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + 16);
@@ -2770,7 +2770,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 int8x8_t _r1 = float2int8(_p2, _p3);
 
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
@@ -2859,13 +2859,13 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
                 int8x8_t _r3 = float2int8(_p6, _p7);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p2);
                 int8x8_t _r1 = float2int8(_p4, _p6);
                 int8x8_t _r2 = float2int8(_p1, _p3);
                 int8x8_t _r3 = float2int8(_p5, _p7);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p2));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p4, _p6));
                 int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p1, _p3));
@@ -2899,7 +2899,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
                 int16x4x2_t _t01 = vuzp_s16(_t0, _t1);
@@ -2985,11 +2985,11 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #if __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p2);
                 int8x8_t _r1 = float2int8(_p1, _p3);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 float32x4_t _t0 = vcombine_f32(vget_low_f32(_p0), vget_low_f32(_p2));
                 float32x4_t _t1 = vcombine_f32(vget_high_f32(_p0), vget_high_f32(_p2));
                 float32x4_t _t2 = vcombine_f32(vget_low_f32(_p1), vget_low_f32(_p3));
@@ -3014,7 +3014,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 float32x4_t _t0 = vcombine_f32(vget_low_f32(_p0), vget_low_f32(_p1));
                 float32x4_t _t1 = vcombine_f32(vget_high_f32(_p0), vget_high_f32(_p1));
                 int8x8_t _r0 = float2int8(_t0, _t1);
@@ -3034,16 +3034,16 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 4;
                 p0 += 2;
             }
-#endif // __ARM_NEON
-            // for (; kk + 1 < max_kk; kk += 2)
-            // {
-            //     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-            //     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);
-            //     pp[2] = float2int8(bfloat16_to_float32(p0[B_hstep]) * scale);
-            //     pp[3] = float2int8(bfloat16_to_float32(p0[B_hstep + 1]) * scale);
-            //     pp += 4;
-            //     p0 += 2;
-            // }
+#endif // __ARM_NEON                                                         \
+// for (; kk + 1 < max_kk; kk += 2)                                      \
+// {                                                                     \
+//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);           \
+//     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);           \
+//     pp[2] = float2int8(bfloat16_to_float32(p0[B_hstep]) * scale);     \
+//     pp[3] = float2int8(bfloat16_to_float32(p0[B_hstep + 1]) * scale); \
+//     pp += 4;                                                          \
+//     p0 += 2;                                                          \
+// }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
@@ -3099,14 +3099,14 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 8;
                 p0 += 8;
             }
-#endif // __ARM_NEON
-            // for (; kk + 1 < max_kk; kk += 2)
-            // {
-            //     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-            //     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);
-            //     pp += 2;
-            //     p0 += 2;
-            // }
+#endif // __ARM_NEON                                               \
+// for (; kk + 1 < max_kk; kk += 2)                            \
+// {                                                           \
+//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale); \
+//     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale); \
+//     pp += 2;                                                \
+//     p0 += 2;                                                \
+// }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
@@ -3215,7 +3215,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
                 vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
                 vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
@@ -3230,7 +3230,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
                 vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
@@ -3288,7 +3288,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
 #if __ARM_FEATURE_DOTPROD
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x8_t _r01 = vreinterpretq_s16_s8(vcombine_s8(_r0, _r1));
                 int16x8_t _r23 = vreinterpretq_s16_s8(vcombine_s8(_r2, _r3));
                 int16x8x2_t _rr = vuzpq_s16(_r01, _r23);
@@ -3370,7 +3370,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 _r0123.val[3] = vcombine_s8(_r37.val[0], _r37.val[1]);
 
                 vst4q_s8(pp, _r0123);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8x4_t _r0123;
                 _r0123.val[0] = _r0;
                 _r0123.val[1] = _r1;
@@ -3385,7 +3385,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 vst4_s8(pp, _r0123);
                 vst4_s8(pp + 32, _r4567);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16x2_t _r01;
                 _r01.val[0] = vcombine_s8(_r0, _r2);
                 _r01.val[1] = vcombine_s8(_r1, _r3);
@@ -3432,7 +3432,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 _r0123.val[3] = float2int8(_p6, _p7);
 
                 vst4_s8(pp, _r0123);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16x2_t _r01;
                 _r01.val[0] = vcombine_s8(float2int8(_p0, _p1), float2int8(_p4, _p5));
                 _r01.val[1] = vcombine_s8(float2int8(_p2, _p3), float2int8(_p6, _p7));
@@ -3522,13 +3522,13 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 int8x8_t _r1 = float2int8(_p1, _p5);
                 int8x8_t _r2 = float2int8(_p2, _p6);
                 int8x8_t _r3 = float2int8(_p3, _p7);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
                 int8x8_t _r2 = float2int8(_p4, _p5);
                 int8x8_t _r3 = float2int8(_p6, _p7);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
                 int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p4, _p5));
@@ -3564,7 +3564,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
                 int16x4x2_t _t01 = vuzp_s16(_t0, _t1);
@@ -3614,7 +3614,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 _r0123.val[3] = float2int8(_p37.val[0], _p37.val[1]);
 
                 vst4_s8(pp, _r0123);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8x4_t _r0123;
                 _r0123.val[0] = float2int8(_p0, _p4);
                 _r0123.val[1] = float2int8(_p1, _p5);
@@ -3623,7 +3623,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
 
                 vst4_s8(pp, _r0123);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16x2_t _r01;
                 _r01.val[0] = vcombine_s8(float2int8(_p0, _p2), float2int8(_p4, _p6));
                 _r01.val[1] = vcombine_s8(float2int8(_p1, _p3), float2int8(_p5, _p7));
@@ -3652,7 +3652,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 int8x8_t _r23 = float2int8(_p2, _p3);
 
                 vst1q_s8(pp, vcombine_s8(_r01, _r23));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x8x2_t _r01;
                 _r01.val[0] = float2int8(_p0, _p2);
                 _r01.val[1] = float2int8(_p1, _p3);
@@ -3717,11 +3717,11 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
 #if __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p2);
                 int8x8_t _r1 = float2int8(_p1, _p3);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p2));
                 int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p1, _p3));
                 int16x4x2_t _t01 = vzip_s16(_t0, _t1);
@@ -3745,7 +3745,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
 
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r01 = float2int8(_p0, _p1);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 float32x4_t _t0 = vcombine_f32(vget_low_f32(_p0), vget_low_f32(_p1));
                 float32x4_t _t1 = vcombine_f32(vget_high_f32(_p0), vget_high_f32(_p1));
                 int8x8_t _r01 = float2int8(_t0, _t1);
@@ -3800,13 +3800,13 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 int8x8x2_t _r01 = vuzp_s8(_r0, _r1);
 
                 vst1q_s8(pp, vcombine_s8(_r01.val[0], _r01.val[1]));
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int8x8x2_t _r01 = vtrn_s8(_r0, _r1);
                 int8x8x2_t _rr01 = vuzp_s8(_r01.val[0], _r01.val[1]);
 
                 vst1q_s8(pp, vcombine_s8(_rr01.val[0], _rr01.val[1]));
 #endif // __ARM_FEATURE_MATMUL_INT8
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = uint16x8_t();
                 _p = vsetq_lane_u16(p0[0], _p, 0);
                 _p = vsetq_lane_u16(p0[1], _p, 1);
@@ -3865,7 +3865,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
 
                 float32x4x2_t _pp = vuzpq_f32(_p01, _p23);
                 int8x8_t _r01 = float2int8(_pp.val[0], _pp.val[1]);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = uint16x8_t();
                 _p = vsetq_lane_u16(p0[0], _p, 0);
                 _p = vsetq_lane_u16(p0[1], _p, 1);
@@ -4029,14 +4029,14 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 8;
                 p0 += B_hstep * 8;
             }
-#endif // __ARM_NEON
-            // for (; kk + 1 < max_kk; kk += 2)
-            // {
-            //     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-            //     pp[1] = float2int8(bfloat16_to_float32(p0[B_hstep]) * scale);
-            //     pp += 2;
-            //     p0 += B_hstep * 2;
-            // }
+#endif // __ARM_NEON                                                     \
+// for (; kk + 1 < max_kk; kk += 2)                                  \
+// {                                                                 \
+//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);       \
+//     pp[1] = float2int8(bfloat16_to_float32(p0[B_hstep]) * scale); \
+//     pp += 2;                                                      \
+//     p0 += B_hstep * 2;                                            \
+// }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
@@ -7185,7 +7185,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _sume = vcombine_s32(vget_high_s32(_t4.val[1]), vget_high_s32(_t5.val[1]));
                     _sumf = vcombine_s32(vget_high_s32(_t6.val[1]), vget_high_s32(_t7.val[1]));
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c2 d3
@@ -7474,7 +7474,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _sum6 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
                     _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c2 d3
@@ -8429,7 +8429,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _sum6 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
                     _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c2 d3
