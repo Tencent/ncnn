@@ -986,16 +986,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 pp += 4;
                 p0 += 2;
             }
-#endif // __ARM_NEON                                                          \
-// for (; kk + 1 < max_kk; kk += 2)                                       \
-// {                                                                      \
-//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale0);           \
-//     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale0);           \
-//     pp[2] = float2int8(bfloat16_to_float32(p0[A_hstep]) * scale1);     \
-//     pp[3] = float2int8(bfloat16_to_float32(p0[A_hstep + 1]) * scale1); \
-//     pp += 4;                                                           \
-//     p0 += 2;                                                           \
-// }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale0);
@@ -1054,14 +1045,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 pp += 8;
                 p0 += 8;
             }
-#endif // __ARM_NEON                                               \
-// for (; kk + 1 < max_kk; kk += 2)                            \
-// {                                                           \
-//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale); \
-//     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale); \
-//     pp += 2;                                                \
-//     p0 += 2;                                                \
-// }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
@@ -2226,14 +2210,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 pp += 8;
                 p0 += A_hstep * 8;
             }
-#endif // __ARM_NEON                                                     \
-// for (; kk + 1 < max_kk; kk += 2)                                  \
-// {                                                                 \
-//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);       \
-//     pp[1] = float2int8(bfloat16_to_float32(p0[A_hstep]) * scale); \
-//     pp += 2;                                                      \
-//     p0 += A_hstep * 2;                                            \
-// }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
@@ -3034,16 +3011,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 4;
                 p0 += 2;
             }
-#endif // __ARM_NEON                                                         \
-// for (; kk + 1 < max_kk; kk += 2)                                      \
-// {                                                                     \
-//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);           \
-//     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);           \
-//     pp[2] = float2int8(bfloat16_to_float32(p0[B_hstep]) * scale);     \
-//     pp[3] = float2int8(bfloat16_to_float32(p0[B_hstep + 1]) * scale); \
-//     pp += 4;                                                          \
-//     p0 += 2;                                                          \
-// }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
@@ -3099,14 +3067,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 8;
                 p0 += 8;
             }
-#endif // __ARM_NEON                                               \
-// for (; kk + 1 < max_kk; kk += 2)                            \
-// {                                                           \
-//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale); \
-//     pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale); \
-//     pp += 2;                                                \
-//     p0 += 2;                                                \
-// }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
@@ -4029,14 +3990,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 8;
                 p0 += B_hstep * 8;
             }
-#endif // __ARM_NEON                                                     \
-// for (; kk + 1 < max_kk; kk += 2)                                  \
-// {                                                                 \
-//     pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);       \
-//     pp[1] = float2int8(bfloat16_to_float32(p0[B_hstep]) * scale); \
-//     pp += 2;                                                      \
-//     p0 += B_hstep * 2;                                            \
-// }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
