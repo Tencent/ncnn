@@ -1450,7 +1450,6 @@ void Graph::flops_memops_sum()
 {
     for (auto op : ops)
     {
-        fprintf(stderr, "op->type: %s\n", op->type.c_str());
         if (op->type[0] == 'F')
         {
             std::string sub_type = op->type.substr(2);
@@ -1878,6 +1877,50 @@ void Graph::flops_memops_sum()
 
                 // Total memory operations
                 memops += memops_qkv + memops_attention + memops_output;
+            }
+        }
+
+        else if (op->type.substr(0, 5) == "torch")
+        {
+            std::string sub_type = op->type.substr(6);
+            if(sub_type == "matmul"
+                || sub_type == "mm"
+                || sub_type == "bmm")
+            {
+                std::vector<int> input_shape_1 = op->inputs[0]->shape;
+                std::vector<int> input_shape_2 = op->inputs[1]->shape;
+                int input_size_1 = std::accumulate(input_shape_1.begin(), input_shape_1.end(), 1, std::multiplies<int>());
+                int input_size_2 = std::accumulate(input_shape_2.begin(), input_shape_2.end(), 1, std::multiplies<int>());
+                std::vector<int> output_shape = op->outputs[0]->shape;
+                int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+                flops += input_size_1 * input_shape_2.back();
+                memops += input_size_1 + input_size_2 + output_size;
+            }
+            else if (sub_type == "addmm"
+                    || sub_type == "baddbmm")
+            {
+                std::vector<int> input_shape = op->inputs[0]->shape;
+                std::vector<int> mat_shape_1 = op->inputs[1]->shape;
+                std::vector<int> mat_shape_2 = op->inputs[2]->shape;
+                int input_size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
+                int mat_size_1 = std::accumulate(mat_shape_1.begin(), mat_shape_1.end(), 1, std::multiplies<int>());
+                int mat_size_2 = std::accumulate(mat_shape_2.begin(), mat_shape_2.end(), 1, std::multiplies<int>());
+                std::vector<int> output_shape = op->outputs[0]->shape;
+                int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+                flops += input_size + mat_size_1 * mat_shape_2.back();
+                memops += input_size + mat_size_1 + mat_size_2 + output_size;
+            }
+            else if (sub_type == "mul"
+                    || sub_type == "add")
+            {
+                std::vector<int> input_shape_1 = op->inputs[0]->shape;
+                std::vector<int> input_shape_2 = op->inputs[1]->shape;
+                int input_size_1 = std::accumulate(input_shape_1.begin(), input_shape_1.end(), 1, std::multiplies<int>());
+                int input_size_2 = std::accumulate(input_shape_2.begin(), input_shape_2.end(), 1, std::multiplies<int>());
+                std::vector<int> output_shape = op->outputs[0]->shape;
+                int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+                flops += output_size;
+                memops += input_size_1 + input_size_2 + output_size;
             }
         }
     }
