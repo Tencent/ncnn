@@ -452,6 +452,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 float32x4_t _pe = bfloat2float(vget_low_u16(_w));
                 float32x4_t _pf = bfloat2float(vget_high_u16(_w));
 
+#if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale0, 0);
                 _p1 = vmulq_laneq_f32(_p1, _scale0, 0);
                 _p2 = vmulq_laneq_f32(_p2, _scale0, 1);
@@ -468,6 +469,24 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 _pd = vmulq_laneq_f32(_pd, _scale1, 2);
                 _pe = vmulq_laneq_f32(_pe, _scale1, 3);
                 _pf = vmulq_laneq_f32(_pf, _scale1, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale0), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale0), 0);
+                _p2 = vmulq_lane_f32(_p2, vget_low_f32(_scale0), 1);
+                _p3 = vmulq_lane_f32(_p3, vget_low_f32(_scale0), 1);
+                _p4 = vmulq_lane_f32(_p4, vget_high_f32(_scale0), 0);
+                _p5 = vmulq_lane_f32(_p5, vget_high_f32(_scale0), 0);
+                _p6 = vmulq_lane_f32(_p6, vget_high_f32(_scale0), 1);
+                _p7 = vmulq_lane_f32(_p7, vget_high_f32(_scale0), 1);
+                _p8 = vmulq_lane_f32(_p8, vget_low_f32(_scale1), 0);
+                _p9 = vmulq_lane_f32(_p9, vget_low_f32(_scale1), 0);
+                _pa = vmulq_lane_f32(_pa, vget_low_f32(_scale1), 1);
+                _pb = vmulq_lane_f32(_pb, vget_low_f32(_scale1), 1);
+                _pc = vmulq_lane_f32(_pc, vget_high_f32(_scale1), 0);
+                _pd = vmulq_lane_f32(_pd, vget_high_f32(_scale1), 0);
+                _pe = vmulq_lane_f32(_pe, vget_high_f32(_scale1), 1);
+                _pf = vmulq_lane_f32(_pf, vget_high_f32(_scale1), 1);
+#endif
 
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
@@ -531,6 +550,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 float32x4_t _p6 = bfloat2float(vld1_u16(p0 + A_hstep * 6));
                 float32x4_t _p7 = bfloat2float(vld1_u16(p0 + A_hstep * 7));
 
+#if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale0, 0);
                 _p1 = vmulq_laneq_f32(_p1, _scale0, 1);
                 _p2 = vmulq_laneq_f32(_p2, _scale0, 2);
@@ -539,6 +559,16 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 _p5 = vmulq_laneq_f32(_p5, _scale1, 1);
                 _p6 = vmulq_laneq_f32(_p6, _scale1, 2);
                 _p7 = vmulq_laneq_f32(_p7, _scale1, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale0), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale0), 1);
+                _p2 = vmulq_lane_f32(_p2, vget_high_f32(_scale0), 0);
+                _p3 = vmulq_lane_f32(_p3, vget_high_f32(_scale0), 1);
+                _p4 = vmulq_lane_f32(_p4, vget_low_f32(_scale1), 0);
+                _p5 = vmulq_lane_f32(_p5, vget_low_f32(_scale1), 1);
+                _p6 = vmulq_lane_f32(_p6, vget_high_f32(_scale1), 0);
+                _p7 = vmulq_lane_f32(_p7, vget_high_f32(_scale1), 1);
+#endif
 
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
@@ -789,6 +819,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
                 float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
 
+#if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale, 0);
                 _p1 = vmulq_laneq_f32(_p1, _scale, 0);
                 _p2 = vmulq_laneq_f32(_p2, _scale, 1);
@@ -797,6 +828,16 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 _p5 = vmulq_laneq_f32(_p5, _scale, 2);
                 _p6 = vmulq_laneq_f32(_p6, _scale, 3);
                 _p7 = vmulq_laneq_f32(_p7, _scale, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale), 0);
+                _p2 = vmulq_lane_f32(_p2, vget_low_f32(_scale), 1);
+                _p3 = vmulq_lane_f32(_p3, vget_low_f32(_scale), 1);
+                _p4 = vmulq_lane_f32(_p4, vget_high_f32(_scale), 0);
+                _p5 = vmulq_lane_f32(_p5, vget_high_f32(_scale), 0);
+                _p6 = vmulq_lane_f32(_p6, vget_high_f32(_scale), 1);
+                _p7 = vmulq_lane_f32(_p7, vget_high_f32(_scale), 1);
+#endif
 
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
@@ -836,10 +877,17 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 float32x4_t _p2 = bfloat2float(vld1_u16(p0 + A_hstep * 2));
                 float32x4_t _p3 = bfloat2float(vld1_u16(p0 + A_hstep * 3));
 
+#if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale, 0);
                 _p1 = vmulq_laneq_f32(_p1, _scale, 1);
                 _p2 = vmulq_laneq_f32(_p2, _scale, 2);
                 _p3 = vmulq_laneq_f32(_p3, _scale, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale), 1);
+                _p2 = vmulq_lane_f32(_p2, vget_high_f32(_scale), 0);
+                _p3 = vmulq_lane_f32(_p3, vget_high_f32(_scale), 1);
+#endif
 
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
@@ -1347,6 +1395,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 float32x4_t _pe = bfloat2float(vget_low_u16(_w));
                 float32x4_t _pf = bfloat2float(vget_high_u16(_w));
 
+#if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale0, 0);
                 _p1 = vmulq_laneq_f32(_p1, _scale0, 1);
                 _p2 = vmulq_laneq_f32(_p2, _scale0, 2);
@@ -1363,6 +1412,24 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _pd = vmulq_laneq_f32(_pd, _scale1, 1);
                 _pe = vmulq_laneq_f32(_pe, _scale1, 2);
                 _pf = vmulq_laneq_f32(_pf, _scale1, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale0), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale0), 1);
+                _p2 = vmulq_lane_f32(_p2, vget_high_f32(_scale0), 0);
+                _p3 = vmulq_lane_f32(_p3, vget_high_f32(_scale0), 1);
+                _p4 = vmulq_lane_f32(_p4, vget_low_f32(_scale1), 0);
+                _p5 = vmulq_lane_f32(_p5, vget_low_f32(_scale1), 1);
+                _p6 = vmulq_lane_f32(_p6, vget_high_f32(_scale1), 0);
+                _p7 = vmulq_lane_f32(_p7, vget_high_f32(_scale1), 1);
+                _p8 = vmulq_lane_f32(_p8, vget_low_f32(_scale0), 0);
+                _p9 = vmulq_lane_f32(_p9, vget_low_f32(_scale0), 1);
+                _pa = vmulq_lane_f32(_pa, vget_high_f32(_scale0), 0);
+                _pb = vmulq_lane_f32(_pb, vget_high_f32(_scale0), 1);
+                _pc = vmulq_lane_f32(_pc, vget_low_f32(_scale1), 0);
+                _pd = vmulq_lane_f32(_pd, vget_low_f32(_scale1), 1);
+                _pe = vmulq_lane_f32(_pe, vget_high_f32(_scale1), 0);
+                _pf = vmulq_lane_f32(_pf, vget_high_f32(_scale1), 1);
+#endif
 
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
@@ -1435,6 +1502,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
                 float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
 
+#if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale0, 0);
                 _p1 = vmulq_laneq_f32(_p1, _scale0, 1);
                 _p2 = vmulq_laneq_f32(_p2, _scale0, 2);
@@ -1443,6 +1511,16 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _p5 = vmulq_laneq_f32(_p5, _scale1, 1);
                 _p6 = vmulq_laneq_f32(_p6, _scale1, 2);
                 _p7 = vmulq_laneq_f32(_p7, _scale1, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale0), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale0), 1);
+                _p2 = vmulq_lane_f32(_p2, vget_high_f32(_scale0), 0);
+                _p3 = vmulq_lane_f32(_p3, vget_high_f32(_scale0), 1);
+                _p4 = vmulq_lane_f32(_p4, vget_low_f32(_scale1), 0);
+                _p5 = vmulq_lane_f32(_p5, vget_low_f32(_scale1), 1);
+                _p6 = vmulq_lane_f32(_p6, vget_high_f32(_scale1), 0);
+                _p7 = vmulq_lane_f32(_p7, vget_high_f32(_scale1), 1);
+#endif
 
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
@@ -1673,6 +1751,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
                 float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
 
+#if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale, 0);
                 _p1 = vmulq_laneq_f32(_p1, _scale, 1);
                 _p2 = vmulq_laneq_f32(_p2, _scale, 2);
@@ -1681,6 +1760,16 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _p5 = vmulq_laneq_f32(_p5, _scale, 1);
                 _p6 = vmulq_laneq_f32(_p6, _scale, 2);
                 _p7 = vmulq_laneq_f32(_p7, _scale, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale), 1);
+                _p2 = vmulq_lane_f32(_p2, vget_high_f32(_scale), 0);
+                _p3 = vmulq_lane_f32(_p3, vget_high_f32(_scale), 1);
+                _p4 = vmulq_lane_f32(_p4, vget_low_f32(_scale), 0);
+                _p5 = vmulq_lane_f32(_p5, vget_low_f32(_scale), 1);
+                _p6 = vmulq_lane_f32(_p6, vget_high_f32(_scale), 0);
+                _p7 = vmulq_lane_f32(_p7, vget_high_f32(_scale), 1);
+#endif
 
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
@@ -1722,10 +1811,17 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
                 float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
 
+#if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale, 0);
                 _p1 = vmulq_laneq_f32(_p1, _scale, 1);
                 _p2 = vmulq_laneq_f32(_p2, _scale, 2);
                 _p3 = vmulq_laneq_f32(_p3, _scale, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale), 1);
+                _p2 = vmulq_lane_f32(_p2, vget_high_f32(_scale), 0);
+                _p3 = vmulq_lane_f32(_p3, vget_high_f32(_scale), 1);
+#endif
 
 #if __ARM_FEATURE_DOTPROD
                 int8x8_t _r0 = float2int8(_p0, _p1);
@@ -7508,6 +7604,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
+#if __aarch64__
                         float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
                         float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
                         float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
@@ -7516,6 +7613,16 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                         float32x4_t _cc5 = vdupq_laneq_f32(_c1, 1);
                         float32x4_t _cc6 = vdupq_laneq_f32(_c1, 2);
                         float32x4_t _cc7 = vdupq_laneq_f32(_c1, 3);
+#else
+                        float32x4_t _cc0 = vdupq_lane_f32(vget_low_f32(_c0), 0);
+                        float32x4_t _cc1 = vdupq_lane_f32(vget_low_f32(_c0), 1);
+                        float32x4_t _cc2 = vdupq_lane_f32(vget_high_f32(_c0), 0);
+                        float32x4_t _cc3 = vdupq_lane_f32(vget_high_f32(_c0), 1);
+                        float32x4_t _cc4 = vdupq_lane_f32(vget_low_f32(_c1), 0);
+                        float32x4_t _cc5 = vdupq_lane_f32(vget_low_f32(_c1), 1);
+                        float32x4_t _cc6 = vdupq_lane_f32(vget_high_f32(_c1), 0);
+                        float32x4_t _cc7 = vdupq_lane_f32(vget_high_f32(_c1), 1);
+#endif
                         _f0 = vaddq_f32(_f0, _cc0);
                         _f1 = vaddq_f32(_f1, _cc1);
                         _f2 = vaddq_f32(_f2, _cc2);
@@ -8607,10 +8714,17 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
+#if __aarch64__
                         float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
                         float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
                         float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
                         float32x4_t _cc3 = vdupq_laneq_f32(_c0, 3);
+#else
+                        float32x4_t _cc0 = vdupq_lane_f32(vget_low_f32(_c0), 0);
+                        float32x4_t _cc1 = vdupq_lane_f32(vget_low_f32(_c0), 1);
+                        float32x4_t _cc2 = vdupq_lane_f32(vget_high_f32(_c0), 0);
+                        float32x4_t _cc3 = vdupq_lane_f32(vget_high_f32(_c0), 1);
+#endif
                         _f0 = vaddq_f32(_f0, _cc0);
                         _f1 = vaddq_f32(_f1, _cc1);
                         _f2 = vaddq_f32(_f2, _cc2);
