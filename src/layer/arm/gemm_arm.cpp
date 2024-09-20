@@ -6160,21 +6160,6 @@ int Gemm_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 // 1xN
                 broadcast_type_C = 4;
             }
-
-            // pre-multiply C with beta
-            if (beta != 1.f)
-            {
-                Mat CT_data;
-                CT_data.create_like(C, opt.workspace_allocator);
-
-                const int size = C.total() * C.elempack;
-                for (int i = 0; i < size; i++)
-                {
-                    CT_data[i] = C[i] * beta;
-                }
-
-                C = CT_data;
-            }
         }
     }
 
@@ -6242,22 +6227,8 @@ int Gemm_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
         const Mat& B = bottom_blobs[1];
         ret = gemm_arm_int8(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
-    if (ret != 0)
-        return ret;
 
-    // multiply top_blob with alpha
-    if (alpha != 1.f)
-    {
-        const int size = top_blob.total() * out_elempack;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            top_blob[i] *= alpha;
-        }
-    }
-
-    return 0;
+    return ret;
 }
 #endif
 
