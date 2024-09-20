@@ -52,8 +52,7 @@ int InnerProduct_riscv::create_pipeline(const Option& opt)
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        // TODO implement int8
-        return 0;
+        return create_pipeline_int8_riscv(opt);
     }
 #endif
 
@@ -149,7 +148,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         Option opt_unpacked = opt;
         opt_unpacked.use_packing_layout = false;
-        return InnerProduct::forward_int8(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
+        return forward_int8_riscv(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
     }
 #endif
 
@@ -1092,4 +1091,313 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 }
 #endif // __riscv_vector && __riscv_zfh
 
+#if NCNN_INT8
+int InnerProduct_riscv::create_pipeline_int8_riscv(const Option& opt)
+{
+    const int num_input = weight_data_size / num_output;
+
+    int out_elempack = 1;
+
+    // src = inch-outch
+    // dst = pb-inch-outch/pb
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        weight_data_tm.create(num_input, num_output / out_elempack, (size_t)out_elempack, out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
+            signed char* g0 = weight_data_tm.row<signed char>(q / out_elempack);
+
+            for (int p = 0; p < num_input; p++)
+            {
+                for (int j = 0; j < out_elempack; j++)
+                {
+                    *g0++ = weight_data_r2.row<signed char>(q + j)[p];
+                }
+            }
+        }
+    }
+
+    scale_in_data.create(num_output);
+    for (int p = 0; p < num_output; p++)
+    {
+        // dequantize
+        float scale_in;
+        if (weight_data_int8_scales[p] == 0)
+            scale_in = 0;
+        else
+            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+        scale_in_data[p] = scale_in;
+    }
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
+
+    return 0;
+}
+
+int InnerProduct_riscv::forward_int8_riscv(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+#if __riscv_vector
+    const int packn = csrr_vlenb();
+#endif
+    const int num_input = weight_data_size / num_output;
+
+    int elembits = bottom_blob.elembits();
+
+    Mat bottom_blob_int8 = bottom_blob;
+    if (elembits != 8)
+    {
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+    }
+
+    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input)
+    {
+        // gemm
+        Mat bottom_blob_int8_unpacked;
+        Option opt_unpack = opt;
+        opt_unpack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob_int8, bottom_blob_int8_unpacked, 1, opt_unpack);
+
+        int h = bottom_blob_int8_unpacked.h;
+
+        int out_elempack = 1;
+
+        int outh = h / out_elempack;
+
+        top_blob.create(num_output, outh, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        int num_output_elempack = 1;
+
+        if (num_output_elempack == 1 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < outh; j++)
+            {
+                float* outptr = top_blob.row(j);
+#if __riscv_vector
+                int nn_num_output = num_output / packn ? num_output / packn - 1 : 0;
+                int remain_num_output_start = nn_num_output * packn;
+                
+                for (int pp = 0; pp < nn_num_output; pp++)
+                {
+                    int p = pp * packn;
+
+                    size_t vl = vsetvl_e8m1(packn);
+                    vint32m4_t _sum = vmv_v_x_i32m4(0, vl);
+
+                    const signed char* kptr = weight_data_tm.row<const signed char>(p);
+                    const signed char* m = bottom_blob_int8_unpacked.row<const signed char>(j);
+
+                    for (int i = 0; i < num_input; i++)
+                    {
+                        vint16m2_t _kptr = vwcvt_x_x_v_i16m2(vlse8_v_i8m1(kptr, num_input, vl), vl);
+                        _sum = vwmacc_vx_i32m4(_sum, *m, _kptr, vl);
+                        m++;
+                        kptr++;
+                    }
+
+                    vfloat32m4_t _sumfp32;
+                    if (bias_term)
+                        _sumfp32 = vle32_v_f32m4((const float *)bias_data + p, vl);
+                    else
+                        _sumfp32 = vfmv_v_f_f32m4(0.f, vl);
+
+                    _sumfp32 = vfmacc_vv_f32m4(_sumfp32, vreinterpret_v_i32m4_f32m4(_sum),
+                         vle32_v_f32m4((const float *)scale_in_data + p, vl), vl);
+                    
+                    _sumfp32 = activation_ps(_sumfp32, activation_type, activation_params, vl);
+
+                    vse32_v_f32m4((float*)outptr, _sumfp32, vl);
+                }
+#else
+                int remain_num_output_start = 0;
+#endif
+
+                for (int p = remain_num_output_start; p < num_output; p++)
+                {
+                    const signed char* kptr = weight_data_tm.row<const signed char>(p);
+                    const signed char* m = bottom_blob_int8_unpacked.row<const signed char>(j);
+
+                    int sum = 0;
+
+                    int i = 0;
+                    for (; i < num_input; i++)
+                    {
+                        sum += *m++ * *kptr++;
+                    }
+
+                    // dequantize and relu
+                    float sumfp32 = sum * scale_in_data[p];
+
+                    if (bias_term)
+                        sumfp32 += bias_data[p];
+
+                    outptr[0] = activation_ss(sumfp32, activation_type, activation_params);
+                    outptr += 1;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    Mat bottom_blob_int8_flattened = bottom_blob_int8;
+    if (bottom_blob_int8.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+        flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+    }
+
+    //     int elempack = bottom_blob_int8_flattened.elempack;
+
+    int out_elempack = 1;
+    //     size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (out_elempack == 1)
+    {
+#if __riscv_vector
+        int nn_num_output = num_output / packn ? num_output / packn - 1 : 0;
+        int remain_num_output_start = nn_num_output * packn;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp = 0; pp < nn_num_output; pp++)
+        {
+            int p = pp * packn;
+
+            size_t vl = vsetvl_e8m1(packn);
+            vint32m4_t _sum = vmv_v_x_i32m4(0, vl);
+
+            const signed char* w = weight_data_tm.row<const signed char>(p);
+
+            const signed char* m = bottom_blob_int8_flattened;
+
+            int n = num_input;
+            while (n > 0)
+            {
+                vint16m2_t _w = vwcvt_x_x_v_i16m2(vlse8_v_i8m1(w, num_input, vl), vl);
+                _sum = vwmacc_vx_i32m4(_sum, *m, _w, vl);
+
+                m += 1;
+                w += 1;
+                n -= 1;
+            }
+
+            vfloat32m4_t sumfp32;
+            if (bias_term)
+                sumfp32 = vle32_v_f32m4((const float *)bias_data + p, vl);
+            else
+                sumfp32 = vfmv_v_f_f32m4(0.f, vl);
+
+            sumfp32 = vfmacc_vv_f32m4(sumfp32, vreinterpret_v_i32m4_f32m4(_sum),
+                 vle32_v_f32m4((const float *)scale_in_data + p, vl), vl);
+
+            sumfp32 = activation_ps(sumfp32, activation_type, activation_params, vl);
+
+            vse32_v_f32m4((float*)top_blob + p, sumfp32, vl);
+        }
+#else
+        int nn_num_output = num_output / 4;
+        int remain_num_output_start = nn_num_output * 4;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp = 0; pp < nn_num_output; pp++)
+        {
+            int p = pp * 4;
+
+            int sum0 = 0;
+            int sum1 = 0;
+            int sum2 = 0;
+            int sum3 = 0;
+
+            const signed char* w0 = weight_data_tm.row<const signed char>(p);
+            const signed char* w1 = weight_data_tm.row<const signed char>(p + 1);
+            const signed char* w2 = weight_data_tm.row<const signed char>(p + 2);
+            const signed char* w3 = weight_data_tm.row<const signed char>(p + 3);
+
+            const signed char* m = bottom_blob_int8_flattened;
+
+            for (int i = 0; i < num_input; i++)
+            {
+                sum0 += *m * *w0;
+                sum1 += *m * *w1;
+                sum2 += *m * *w2;
+                sum3 += *m * *w3;
+
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+            }
+            
+            float sumfp32_0 = sum0 * scale_in_data[p];
+            float sumfp32_1 = sum1 * scale_in_data[p + 1];
+            float sumfp32_2 = sum2 * scale_in_data[p + 2];
+            float sumfp32_3 = sum3 * scale_in_data[p + 3];
+
+            if (bias_term)
+            {
+                sumfp32_0 += bias_data[p];
+                sumfp32_1 += bias_data[p + 1];
+                sumfp32_2 += bias_data[p + 2];
+                sumfp32_3 += bias_data[p + 3];
+            }
+
+            sumfp32_0 = activation_ss(sumfp32_0, activation_type, activation_params);
+            sumfp32_1 = activation_ss(sumfp32_1, activation_type, activation_params);
+            sumfp32_2 = activation_ss(sumfp32_2, activation_type, activation_params);
+            sumfp32_3 = activation_ss(sumfp32_3, activation_type, activation_params);
+
+            top_blob[p] = sumfp32_0;
+            top_blob[p + 1] = sumfp32_1;
+            top_blob[p + 2] = sumfp32_2;
+            top_blob[p + 3] = sumfp32_3;
+        }
+#endif // __riscv_vector
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = remain_num_output_start; p < num_output; p++)
+        {
+            int sum = 0;
+
+            const signed char* kptr = weight_data_tm.row<const signed char>(p);
+            const signed char* sptr = bottom_blob_int8_flattened;
+
+            for (int i = 0; i < num_input; i++)
+            {
+                sum += *sptr * *kptr;
+
+                sptr += 1;
+                kptr += 1;
+            }
+
+            // dequantize and relu
+            float sumfp32 = sum * scale_in_data[p];
+
+            if (bias_term)
+                sumfp32 += bias_data[p];
+
+            sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
+
+            top_blob[p] = sumfp32;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
 } // namespace ncnn
