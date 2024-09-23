@@ -47,7 +47,7 @@ Gemm_arm::Gemm_arm()
 #endif // __ARM_NEON
 
 #if NCNN_BF16
-    support_bf16_storage = true;
+    // support_bf16_storage = true;
 #endif
 
     nT = 0;
@@ -5303,7 +5303,7 @@ int Gemm_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif // NCNN_BF16
 
 #if NCNN_INT8
-static int gemm_arm_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_arm_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     // NCNN_LOGE("gemm_arm_int8");
 
@@ -5532,14 +5532,14 @@ static int gemm_arm_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob
                 if (top_blob.elembits() == 16)
                     transpose_unpack_output_tile_int32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
                 else
-                    transpose_unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
+                    transpose_unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta);
             }
             else
             {
                 if (top_blob.elembits() == 16)
                     unpack_output_tile_int32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
                 else
-                    unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
+                    unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta);
             }
         }
     }
@@ -5547,7 +5547,7 @@ static int gemm_arm_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob
     return 0;
 }
 
-static int gemm_AT_arm_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_AT_arm_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     // NCNN_LOGE("gemm_AT_arm_int8");
 
@@ -5730,14 +5730,14 @@ static int gemm_AT_arm_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& 
                 if (top_blob.elembits() == 16)
                     transpose_unpack_output_tile_int32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
                 else
-                    transpose_unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
+                    transpose_unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta);
             }
             else
             {
                 if (top_blob.elembits() == 16)
                     unpack_output_tile_int32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
                 else
-                    unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
+                    unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta);
             }
         }
     }
@@ -5745,7 +5745,7 @@ static int gemm_AT_arm_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& 
     return 0;
 }
 
-static int gemm_BT_arm_int8(const Mat& A, const Mat& BT, float B_int8_scale, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_BT_arm_int8(const Mat& A, const Mat& BT, float B_int8_scale, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     // NCNN_LOGE("gemm_BT_arm_int8");
 
@@ -5851,14 +5851,14 @@ static int gemm_BT_arm_int8(const Mat& A, const Mat& BT, float B_int8_scale, con
                 if (top_blob.elembits() == 16)
                     transpose_unpack_output_tile_int32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
                 else
-                    transpose_unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
+                    transpose_unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta);
             }
             else
             {
                 if (top_blob.elembits() == 16)
                     unpack_output_tile_int32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
                 else
-                    unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
+                    unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta);
             }
         }
     }
@@ -5866,7 +5866,7 @@ static int gemm_BT_arm_int8(const Mat& A, const Mat& BT, float B_int8_scale, con
     return 0;
 }
 
-static int gemm_AT_BT_arm_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& BT, float B_int8_scale, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_AT_BT_arm_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& BT, float B_int8_scale, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     // NCNN_LOGE("gemm_AT_BT_arm_int8");
 
@@ -5925,14 +5925,14 @@ static int gemm_AT_BT_arm_int8(const Mat& AT, const Mat& A_int8_scales, const Ma
                 if (top_blob.elembits() == 16)
                     transpose_unpack_output_tile_int32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
                 else
-                    transpose_unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
+                    transpose_unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta);
             }
             else
             {
                 if (top_blob.elembits() == 16)
                     unpack_output_tile_int32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
                 else
-                    unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales);
+                    unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta);
             }
         }
     }
@@ -6027,29 +6027,6 @@ int Gemm_arm::create_pipeline_int8(const Option& opt)
     if (constantC && constant_broadcast_type_C != -1)
     {
         CT_data = C_data;
-
-#if __ARM_NEON
-        if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
-        {
-            int C_elempack = constantM % 4 == 0 ? 4 : 1;
-            convert_packing(C_data, CT_data, C_elempack, opt);
-        }
-#endif // __ARM_NEON
-
-        // pre-multiply C with beta
-        if (beta != 1.f)
-        {
-            Mat C2;
-            C2.create_like(CT_data);
-
-            const int size = CT_data.total() * CT_data.elempack;
-            for (int i = 0; i < size; i++)
-            {
-                C2[i] = CT_data[i] * beta;
-            }
-
-            CT_data = C2;
-        }
 
 #if NCNN_BF16
         if (support_bf16_storage && opt.use_bf16_storage)
@@ -6209,23 +6186,23 @@ int Gemm_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     int ret = 0;
     if (constantA && constantB)
     {
-        ret = gemm_AT_BT_arm_int8(AT_data, A_data_int8_scales, BT_data, B_data_int8_scale, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_BT_arm_int8(AT_data, A_data_int8_scales, BT_data, B_data_int8_scale, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantA)
     {
         const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_arm_int8(AT_data, A_data_int8_scales, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_arm_int8(AT_data, A_data_int8_scales, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_arm_int8(A, BT_data, B_data_int8_scale, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_BT_arm_int8(A, BT_data, B_data_int8_scale, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        ret = gemm_arm_int8(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_arm_int8(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
 
     return ret;

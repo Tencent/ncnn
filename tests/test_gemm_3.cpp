@@ -16,14 +16,6 @@
 
 static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int output_N1M = 0)
 {
-    alpha = 1.f; //TODO
-
-    // transA = 0;//TODO FIXME HACK
-    // transB = 1;//TODO FIXME HACK
-    // constantA = 0;//TODO FIXME HACK
-    // constantB = 0;//TODO FIXME HACK
-    // output_transpose = 0;//TODO FIXME HACK
-
     ncnn::ParamDict pd;
     pd.set(0, alpha);
     pd.set(1, 1.f); // beta
@@ -56,8 +48,6 @@ static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int tran
         Randomize(a[i], -10.f, 10.f);
     }
 
-    // fprintf(stderr, "test_gemm_int8 M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_elemtype, output_transpose, constantA, constantB, output_N1M);
-
     int ret = test_layer("Gemm", pd, weights, a);
     if (ret != 0)
     {
@@ -69,16 +59,6 @@ static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int tran
 
 static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int constantC)
 {
-    alpha = 1.f; //TODO
-    beta = 1.f;  //TODO
-
-    // transA = 0;//TODO FIXME HACK
-    // transB = 1;//TODO FIXME HACK
-    // constantA = 0;//TODO FIXME HACK
-    // constantB = 0;//TODO FIXME HACK
-    // constantC = 0;//TODO FIXME HACK
-    // output_transpose = 0;//TODO FIXME HACK
-
     int broadcast_type_C = 0;
     if (C.dims == 1 && C.w == 1)
     {
@@ -146,7 +126,6 @@ static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float al
         Randomize(a[i], -10.f, 10.f);
     }
 
-    // fprintf(stderr, "test_gemm_int8_bias M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d constantC=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_elemtype, output_transpose, constantA, constantB, constantC);
     int ret = test_layer("Gemm", pd, weights, a);
     if (ret != 0)
     {
@@ -158,45 +137,26 @@ static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float al
 
 static int test_gemm_0(int M, int N, int K)
 {
-    // return 0
-    //        || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 0, 0, 0)
-    //        || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 0, 0, 0)
-    //        || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 0, 0, 0)
-    //        || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 0, 0, 0)
-    //
-    //        || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 0, 0, 0, 1)
-    //        || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 0, 0, 0, 1)
-    //        || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 0, 0, 0, 1)
-    //        || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 0, 0, 0, 1)
-    //
-    //        || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 1, 0, 0)
-    //        || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 1, 0, 0)
-    //        || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 1, 0, 0)
-    //        || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 1, 0, 0)
-    //
-    //        || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 1, 0, 0, 1)
-    //        || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 1, 0, 0, 1)
-    //        || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 1, 0, 0, 1)
-    //        || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 1, 0, 0, 1);
-
     return 0
            || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 0, 0, 0)
-           || test_gemm_int8(M, N, K, 3.1f, 1, 1, 0, 1, 1, 0)
-           || test_gemm_int8(M, N, K, 4.1f, 0, 0, 1, 0, 0, 1)
-           || test_gemm_int8(M, N, K, 5.1f, 1, 0, 1, 1, 1, 1)
-           || test_gemm_int8(M, N, K, 2.1f, 0, 1, 2, 0, 1, 0)
-           || test_gemm_int8(M, N, K, 3.1f, 1, 1, 2, 1, 0, 1)
-           || test_gemm_int8(M, N, K, 4.1f, 0, 0, 3, 0, 1, 1)
-           || test_gemm_int8(M, N, K, 5.1f, 1, 0, 3, 1, 0, 0)
+           || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 0, 0, 0)
+           || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 0, 0, 0)
+           || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 0, 0, 0)
 
            || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 0, 0, 0, 1)
-           || test_gemm_int8(M, N, K, 3.1f, 1, 1, 0, 1, 1, 0, 1)
-           || test_gemm_int8(M, N, K, 4.1f, 0, 0, 1, 0, 0, 1, 1)
-           || test_gemm_int8(M, N, K, 5.1f, 1, 0, 1, 1, 1, 1, 1)
-           || test_gemm_int8(M, N, K, 2.1f, 0, 1, 2, 0, 1, 0, 1)
-           || test_gemm_int8(M, N, K, 3.1f, 1, 1, 2, 1, 0, 1, 1)
-           || test_gemm_int8(M, N, K, 4.1f, 0, 0, 3, 0, 1, 1, 1)
-           || test_gemm_int8(M, N, K, 5.1f, 1, 0, 3, 1, 0, 0, 1);
+           || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 0, 0, 0, 1)
+           || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 0, 0, 0, 1)
+           || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 0, 0, 0, 1)
+
+           || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 1, 0, 0)
+           || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 1, 0, 0)
+           || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 1, 0, 0)
+           || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 1, 0, 0)
+
+           || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 1, 0, 0, 1)
+           || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 1, 0, 0, 1)
+           || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 1, 0, 0, 1)
+           || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 1, 0, 0, 1);
 }
 
 static int test_gemm_1(int M, int N, int K)
@@ -268,16 +228,6 @@ int main()
         int K = mnk[i][2];
 
         int ret = test_gemm_0(M, N, K) || test_gemm_1(M, N, K);
-
-        // int ret = test_gemm_0(M, N, K);
-
-        // ncnn::Mat C(N, M);
-        // Randomize(C, -1000.f, 1000.f);
-        //
-        // fprintf(stderr, "C %f\n", C[0]);
-        //
-        // int ret = test_gemm_int8_bias(M, N, K, C, 1.f, 1.f, 0, 0, 0, 0, 0, 0, 1);
-
         if (ret != 0)
             return 0;
     }
