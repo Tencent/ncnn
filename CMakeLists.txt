@@ -687,7 +687,7 @@ if(NCNN_VULKAN)
             endif()
         endif()
 
-        if (TARGET glslang AND TARGET SPIRV)
+        if(TARGET glslang AND TARGET SPIRV)
             get_property(glslang_location TARGET glslang PROPERTY LOCATION)
             get_property(SPIRV_location TARGET SPIRV PROPERTY LOCATION)
             message(STATUS "Found glslang: ${glslang_location} (found version \"${glslang_VERSION}\")")
