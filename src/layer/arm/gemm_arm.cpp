@@ -47,7 +47,7 @@ Gemm_arm::Gemm_arm()
 #endif // __ARM_NEON
 
 #if NCNN_BF16
-    // support_bf16_storage = true;
+    support_bf16_storage = true;
 #endif
 
     nT = 0;
@@ -6033,6 +6033,15 @@ int Gemm_arm::create_pipeline_int8(const Option& opt)
         {
             Mat C2;
             ncnn::cast_float32_to_bfloat16(CT_data, C2);
+            CT_data = C2;
+        }
+#endif
+
+#if __ARM_NEON
+        if (constant_broadcast_type_C == 3 && opt.use_packing_layout && CT_data.h % 4 == 0)
+        {
+            Mat C2;
+            ncnn::convert_packing(CT_data, C2, 4, opt);
             CT_data = C2;
         }
 #endif
