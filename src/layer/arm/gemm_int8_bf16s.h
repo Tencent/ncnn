@@ -10143,10 +10143,17 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     {
                         float32x4_t _c = bfloat2float(vld1_u16(pC));
                         _c = vmulq_n_f32(_c, beta);
+#if __aarch64__
                         _c0 = vdupq_laneq_f32(_c, 0);
                         float32x4_t _c1 = vdupq_laneq_f32(_c, 1);
                         float32x4_t _c2 = vdupq_laneq_f32(_c, 2);
                         float32x4_t _c3 = vdupq_laneq_f32(_c, 3);
+#else
+                        _c0 = vdupq_lane_f32(vget_low_f32(_c), 0);
+                        float32x4_t _c1 = vdupq_lane_f32(vget_low_f32(_c), 1);
+                        float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c), 0);
+                        float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c), 1);
+#endif
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                         _f2 = vaddq_f32(_f2, _c2);
