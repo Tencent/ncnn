@@ -58,8 +58,6 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
-    NCNN_LOGE("pack_A_tile %d %d %d %d  %d %d", i, max_ii, k, max_kk, elempack, A_hstep);
-
     float* pp = AT;
 
     int ii = 0;
@@ -6033,15 +6031,6 @@ int Gemm_arm::create_pipeline_int8(const Option& opt)
         {
             Mat C2;
             ncnn::cast_float32_to_bfloat16(CT_data, C2);
-            CT_data = C2;
-        }
-#endif
-
-#if __ARM_NEON
-        if (constant_broadcast_type_C == 3 && opt.use_packing_layout && CT_data.h % 4 == 0)
-        {
-            Mat C2;
-            ncnn::convert_packing(CT_data, C2, 4, opt);
             CT_data = C2;
         }
 #endif
