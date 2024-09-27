@@ -14,7 +14,7 @@
 
 #include "testutil.h"
 
-static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int output_N1M = 0)
+static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int output_N1M)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
@@ -138,25 +138,35 @@ static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float al
 static int test_gemm_0(int M, int N, int K)
 {
     return 0
-           || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 0, 0, 0)
-           || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 0, 0, 0)
-           || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 0, 0, 0)
-           || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 0, 0, 0)
+           || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 0, 0, 0, 0)
+           || test_gemm_int8(M, N, K, 3.1f, 1, 1, 0, 0, 0, 0, 0)
+           || test_gemm_int8(M, N, K, 4.1f, 0, 0, 0, 0, 0, 0, 1)
+           || test_gemm_int8(M, N, K, 5.1f, 1, 0, 0, 0, 0, 0, 1)
 
-           || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 0, 0, 0, 1)
-           || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 0, 0, 0, 1)
-           || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 0, 0, 0, 1)
-           || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 0, 0, 0, 1)
+           || test_gemm_int8(M, N, K, 0.2f, 0, 1, 0, 0, 1, 0, 1)
+           || test_gemm_int8(M, N, K, 0.3f, 1, 1, 0, 0, 1, 0, 1)
+           || test_gemm_int8(M, N, K, 0.4f, 0, 0, 0, 0, 0, 1, 0)
+           || test_gemm_int8(M, N, K, 0.5f, 0, 1, 0, 0, 0, 1, 0)
 
-           || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 1, 0, 0)
-           || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 1, 0, 0)
-           || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 1, 0, 0)
-           || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 1, 0, 0)
+           || test_gemm_int8(M, N, K, 1.2f, 0, 1, 0, 0, 1, 1, 0)
+           || test_gemm_int8(M, N, K, 1.3f, 1, 1, 0, 0, 1, 1, 1)
+           || test_gemm_int8(M, N, K, 1.4f, 0, 0, 0, 0, 1, 1, 0)
+           || test_gemm_int8(M, N, K, 1.5f, 1, 0, 0, 0, 1, 1, 1)
 
-           || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 1, 0, 0, 1)
-           || test_gemm_int8(M, N, K, 2.1f, 1, 1, 0, 1, 0, 0, 1)
-           || test_gemm_int8(M, N, K, 2.1f, 0, 0, 0, 1, 0, 0, 1)
-           || test_gemm_int8(M, N, K, 2.1f, 1, 0, 0, 1, 0, 0, 1);
+           || test_gemm_int8(M, N, K, -1.2f, 0, 1, 0, 1, 0, 0, 0)
+           || test_gemm_int8(M, N, K, -1.3f, 1, 1, 0, 1, 0, 0, 0)
+           || test_gemm_int8(M, N, K, -1.4f, 0, 0, 0, 1, 0, 0, 1)
+           || test_gemm_int8(M, N, K, -1.5f, 1, 0, 0, 1, 0, 0, 1)
+
+           || test_gemm_int8(M, N, K, -2.0f, 0, 1, 0, 1, 1, 0, 1)
+           || test_gemm_int8(M, N, K, -3.0f, 1, 1, 0, 1, 1, 0, 1)
+           || test_gemm_int8(M, N, K, -4.0f, 0, 0, 0, 1, 0, 1, 0)
+           || test_gemm_int8(M, N, K, -5.0f, 0, 1, 0, 1, 0, 1, 0)
+
+           || test_gemm_int8(M, N, K, -2.1f, 0, 1, 0, 1, 1, 1, 0)
+           || test_gemm_int8(M, N, K, -3.1f, 1, 1, 0, 1, 1, 1, 1)
+           || test_gemm_int8(M, N, K, -4.1f, 0, 0, 0, 1, 1, 1, 0)
+           || test_gemm_int8(M, N, K, -5.1f, 1, 0, 0, 1, 1, 1, 1);
 }
 
 static int test_gemm_1(int M, int N, int K)
@@ -165,16 +175,16 @@ static int test_gemm_1(int M, int N, int K)
            || test_gemm_int8_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 0, 0, 0, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 1, 1, 0, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 0, 2, 1, 0, 0, 0)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 1, 3, 1, 0, 0, 0)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 0, 0, 0, 0, 0, 0)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 1, 1, 0, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 5.1f, -0.8f, 1, 1, 3, 1, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 2.1f, -0.5f, 0, 0, 0, 0, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N), 3.1f, -0.6f, 0, 1, 1, 0, 0, 0, 0)
 
-           || test_gemm_int8_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 0, 2, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 1, 3, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 0, 0, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 1, 1, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 0, 2, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 1, 3, 0, 1, 1, 1);
+           || test_gemm_int8_bias(M, N, K, RandomMat(1), -2.1f, 0.5f, 0, 0, 2, 0, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(M), -3.1f, 0.6f, 0, 1, 3, 0, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(1, M), -4.1f, 0.7f, 1, 0, 0, 1, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), -5.1f, -0.8f, 1, 1, 1, 1, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 2, 0, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N), -3.1f, -0.6f, 0, 1, 3, 0, 1, 1, 1);
 }
 
 int main()
@@ -230,35 +240,6 @@ int main()
         int ret = test_gemm_0(M, N, K) || test_gemm_1(M, N, K);
         if (ret != 0)
             return 0;
-    }
-
-    for (int M = 1; M <= 15; M++)
-    {
-        for (int N = 1; N <= 15; N++)
-        {
-            for (int K = 1; K <= 15; K++)
-            {
-                // int ret = 0
-                //           || test_gemm_0(M, N, K)
-                //           || test_gemm_1(M, N, K);
-
-                // int ret = test_gemm_0(M, N, K);
-
-                ncnn::Mat C(N, M);
-                Randomize(C, -100.f, 100.f);
-
-                // fprintf(stderr, "C %f\n", C[0]);
-
-                int ret = test_gemm_int8_bias(M, N, K, C, 1.f, 1.f, 0, 0, 0, 0, 0, 0, 1);
-
-                if (ret != 0)
-                    return 0;
-
-                ret = test_gemm_0(M, N, K) || test_gemm_1(M, N, K);
-                if (ret != 0)
-                    return 0;
-            }
-        }
     }
 
     return 0;
