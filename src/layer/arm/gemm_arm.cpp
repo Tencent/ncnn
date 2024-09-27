@@ -5469,7 +5469,7 @@ static int gemm_arm_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob
     if (topT.empty())
         return -100;
 
-    const struct gemm_arm_int8_omp_args args = { TILE_M, TILE_N, TILE_K, broadcast_type_C, transA, output_transpose, alpha, beta };
+    const struct gemm_arm_int8_omp_args args = {TILE_M, TILE_N, TILE_K, broadcast_type_C, transA, output_transpose, alpha, beta};
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -5720,7 +5720,7 @@ static int gemm_AT_arm_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& 
     if (topT.empty())
         return -100;
 
-    const struct gemm_arm_int8_omp_args args = { TILE_M, TILE_N, TILE_K, broadcast_type_C, 0, output_transpose, alpha, beta };
+    const struct gemm_arm_int8_omp_args args = {TILE_M, TILE_N, TILE_K, broadcast_type_C, 0, output_transpose, alpha, beta};
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -5812,7 +5812,7 @@ static int gemm_BT_arm_int8(const Mat& A, const Mat& BT, float B_int8_scale, con
     if (topT.empty())
         return -100;
 
-    const struct gemm_arm_int8_omp_args args = { TILE_M, TILE_N, TILE_K, broadcast_type_C, transA, output_transpose, alpha, beta };
+    const struct gemm_arm_int8_omp_args args = {TILE_M, TILE_N, TILE_K, broadcast_type_C, transA, output_transpose, alpha, beta};
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -5938,7 +5938,7 @@ static int gemm_AT_BT_arm_int8(const Mat& AT, const Mat& A_int8_scales, const Ma
     if (topT.empty())
         return -100;
 
-    const struct gemm_arm_int8_omp_args args = { TILE_M, TILE_N, TILE_K, broadcast_type_C, 0, output_transpose, alpha, beta };
+    const struct gemm_arm_int8_omp_args args = {TILE_M, TILE_N, TILE_K, broadcast_type_C, 0, output_transpose, alpha, beta};
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
