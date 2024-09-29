@@ -5976,16 +5976,16 @@ int Gemm_arm::create_pipeline_int8(const Option& opt)
         else
 #endif
 #if NCNN_VFPV4
-        if (ncnn::cpu_support_arm_vfpv4())
-        {
-            use_bf16 = opt.use_bf16_storage;
-            use_fp16 = opt.use_fp16_storage && !opt.use_bf16_storage;
-        }
-        else
+            if (ncnn::cpu_support_arm_vfpv4())
+            {
+                use_bf16 = opt.use_bf16_storage;
+                use_fp16 = opt.use_fp16_storage && !opt.use_bf16_storage;
+            }
+            else
 #endif
-        {
-            input_elemtype = 1; // fp32
-        }
+            {
+                input_elemtype = 1; // fp32
+            }
 
         if (use_fp16) input_elemtype = 2;
         if (use_bf16) input_elemtype = 3;
