@@ -2862,4 +2862,173 @@ const Operand* Graph::get_operand(const std::string& name) const
     return 0;
 }
 
+
+// 卷积层
+void calculate_conv_flops_and_memory(const pnnx::Operator& op)
+{
+    int input_channels = op.params.at("input_channels").i;
+    int input_height = op.params.at("input_height").i;
+    int input_width = op.params.at("input_width").i;
+
+    int kernel_size = op.params.at("kernel_size").i;
+    int stride = op.params.at("stride").i;
+    int padding = op.params.at("padding").i;
+    int output_channels = op.params.at("output_channels").i;
+
+    int output_height = (input_height + 2 * padding - kernel_size) / stride + 1;
+    int output_width = (input_width + 2 * padding - kernel_size) / stride + 1;
+
+    int64_t flops = output_height * output_width * output_channels * input_channels * kernel_size * kernel_size;
+    op.attrs["flops"] = pnnx::Attribute(flops); //属性初始化
+
+    int64_t memory_ops = flops;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+// 全连接层
+void calculate_fc_flops_and_memory(const pnnx::Operator& op)
+{
+    int input_size = op.params.at("input_size").i;
+    int output_size = op.params.at("output_size").i;
+
+    // FLOPS = 2 * (input_size * output_size) (乘法和加法)
+    int64_t flops = 2 * input_size * output_size;
+    op.attrs["flops"] = pnnx::Attribute(flops);
+
+    int64_t memory_ops = flops;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+// 池化层
+void calculate_pool_flops_and_memory(const pnnx::Operator& op)
+{
+    int input_height = op.params.at("input_height").i;
+    int input_width = op.params.at("input_width").i;
+    int kernel_size = op.params.at("kernel_size").i;
+    int stride = op.params.at("stride").i;
+    int padding = op.params.at("padding").i;
+    int output_height = (input_height + 2 * padding - kernel_size) / stride + 1;
+    int output_width = (input_width + 2 * padding - kernel_size) / stride + 1;
+
+    int64_t flops = output_height * output_width;
+    op.attrs["flops"] = pnnx::Attribute(flops);
+    int64_t memory_ops = flops;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+// 激活层
+void calculate_activation_flops_and_memory(const pnnx::Operator& op)
+{
+    int input_size = op.params.at("input_size").i;
+    int64_t flops = input_size;
+    op.attrs["flops"] = pnnx::Attribute(flops);
+    int64_t memory_ops = flops;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+// 批量归一化层
+void calculate_bn_flops_and_memory(const pnnx::Operator& op)
+{
+    int input_channels = op.params.at("input_channels").i;
+    int input_height = op.params.at("input_height").i;
+    int input_width = op.params.at("input_width").i;
+    // FLOPS = 5 * input_channels * (input_height * input_width) (归一化计算)
+    int64_t flops = 5 * input_channels * (input_height * input_width);
+    op.attrs["flops"] = pnnx::Attribute(flops);
+    int64_t memory_ops = flops;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+// 丢弃层
+void calculate_dropout_flops_and_memory(const pnnx::Operator& op)
+{
+    int64_t flops = 0;
+    op.attrs["flops"] = pnnx::Attribute(flops);
+    int64_t memory_ops = op.params.at("input_size").i;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+// LSTM Layer
+void calculate_lstm_flops_and_memory(const pnnx::Operator& op)
+{
+    int input_size = op.params.at("input_size").i;
+    int hidden_size = op.params.at("hidden_size").i;
+    int64_t flops = 4 * input_size * hidden_size;
+    op.attrs["flops"] = pnnx::Attribute(flops);
+    int64_t memory_ops = flops;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+// Embedding Layer
+void calculate_embedding_flops_and_memory(const pnnx::Operator& op)
+{
+    int input_vocab_size = op.params.at("vocab_size").i;
+    int embedding_size = op.params.at("embedding_size").i;
+    int64_t flops = input_vocab_size * embedding_size;
+    op.attrs["flops"] = pnnx::Attribute(flops);
+    int64_t memory_ops = flops;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+// Layer Normalization Layer
+void calculate_layer_norm_flops_and_memory(const pnnx::Operator& op)
+{
+    int input_elements = op.params.at("input_elements").i;
+    // 层归一化涉及归一化和缩放操作，每个元素两次操作（一次减去均值，一次除以方差）
+    int64_t flops = 2 * input_elements;
+    op.attrs["flops"] = pnnx::Attribute(flops);
+    int64_t memory_ops = flops;
+    op.attrs["memory_ops"] = pnnx::Attribute(memory_ops);
+}
+
+void calculate_flops_and_memory_for_operator(Operator* op)
+{
+    if (op->type == "Convolution")
+    {
+        calculate_conv_flops_and_memory(op);
+    }
+    else if (op->type == "FullyConnected")
+    {
+        calculate_fc_flops_and_memory(op);
+    }
+    else if (op->type == "Pooling")
+    {
+        calculate_pool_flops_and_memory(op);
+    }
+    else if (op->type == "Activation")
+    {
+        calculate_activation_flops_and_memory(op);
+    }
+    else if (op->type == "BatchNormalization")
+    {
+        calculate_bn_flops_and_memory(op);
+    }
+    else if (op->type == "LSTM")
+    {
+        calculate_lstm_flops_and_memory(op);
+    }
+    else if (op->type == "Embedding")
+    {
+        calculate_embedding_flops_and_memory(op);
+    }
+    else if (op->type == "LayerNormalization")
+    {
+        calculate_layer_norm_flops_and_memory(op);
+    }
+}
+void Graph::calculate_total_flops_and_memory_ops()
+{
+    int64_t total_flops = 0;
+    int64_t total_memory_ops = 0;
+
+    for (Operator* op : ops)
+    {
+        calculate_flops_and_memory_for_operator(op);
+        total_flops += op->flops;
+        total_memory_ops += op->memory_ops;
+    }
+    std::cerr << "Total FLOPS: " << total_flops / 1e6 << "M" << std::endl;
+    std::cerr << "Total Memory Operations: " << total_memory_ops / 1e6 << "M" << std::endl;
+}
+
 } // namespace pnnx
