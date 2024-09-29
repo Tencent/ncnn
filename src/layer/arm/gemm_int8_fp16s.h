@@ -28,8 +28,22 @@ void unpack_output_tile_int32_to_fp16_asimddp(const Mat& topT, const Mat& C, Mat
 void transpose_unpack_output_tile_int32_to_fp16_asimddp(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void compute_A_tile_fp16_int8_scales_asimdhp(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii);
+void transpose_compute_A_tile_fp16_int8_scales_asimdhp(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii);
+void compute_B_fp16_int8_scale_asimdhp(const Mat& B, float& scale);
+#endif
+
 static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
 {
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_asimdhp())
+    {
+        compute_A_tile_fp16_int8_scales_asimdhp(A, scales, B_scale, out_descales, i, max_ii);
+        return;
+    }
+#endif
+
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
     const int K = A.w;
@@ -51,6 +65,20 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
 
         for (int ii = 0; ii + 7 < max_ii; ii += 8)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+            const __fp16* p0 = (const __fp16*)A + (i + ii) * A_hstep;
+
+            float16x8_t _absmax = vdupq_n_f16((__fp16)0.f);
+            int kk = 0;
+            for (; kk < K; kk++)
+            {
+                float16x8_t _p = vld1q_f16(p0);
+                _absmax = vmaxq_f16(_absmax, vabsq_f16(_p));
+                p0 += 8;
+            }
+            float32x4_t _absmax0 = vcvt_f32_f16(vget_low_f16(_absmax));
+            float32x4_t _absmax1 = vcvt_f32_f16(vget_high_f16(_absmax));
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep;
 
             float32x4_t _absmax0 = vdupq_n_f32(0.f);
@@ -83,6 +111,7 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 p0 += 8;
             }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 #if __aarch64__
             float32x4_t _scale0 = vdivq_f32(_v127, _absmax0);
@@ -138,6 +167,19 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
 
         for (int ii = 0; ii + 3 < max_ii; ii += 4)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+            const __fp16* p0 = (const __fp16*)A + (i + ii) * A_hstep;
+
+            float16x4_t _absmax = vdup_n_f16((__fp16)0.f);
+            int kk = 0;
+            for (; kk < K; kk++)
+            {
+                float16x4_t _p = vld1_f16(p0);
+                _absmax = vmax_f16(_absmax, vabs_f16(_p));
+                p0 += 4;
+            }
+            float32x4_t _absmax0 = vcvt_f32_f16(_absmax);
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep;
 
             float32x4_t _absmax0 = vdupq_n_f32(0.f);
@@ -177,6 +219,7 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p));
                 p0 += 4;
             }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 #if __aarch64__
             float32x4_t _scale = vdivq_f32(_v127, _absmax0);
@@ -215,6 +258,26 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
     {
         for (int ii = 0; ii < max_ii; ii++)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+            const __fp16* p0 = (const __fp16*)A + (i + ii) * A_hstep;
+
+            __fp16 absmax = 0.f;
+            int kk = 0;
+            float16x8_t _absmax = vdupq_n_f16((__fp16)0.f);
+            for (; kk + 7 < K; kk += 8)
+            {
+                float16x8_t _p = vld1q_f16(p0);
+                _absmax = vmaxq_f16(_absmax, vabsq_f16(_p));
+                p0 += 8;
+            }
+            float16x4_t _aa = vmax_f16(vget_low_f16(_absmax), vget_high_f16(_absmax));
+            absmax = (__fp16)vmaxvq_f32(vcvt_f32_f16(_aa));
+            for (; kk < K; kk++)
+            {
+                absmax = std::max(absmax, (__fp16)fabs(p0[0]));
+                p0++;
+            }
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep;
 
             float absmax = 0.f;
@@ -256,14 +319,19 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p));
                 p0 += 4;
             }
+#if __aarch64__
+            absmax = vmaxvq_f32(_absmax0);
+#else
             float32x2_t _aa = vmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
             absmax = std::max(absmax, std::max(vget_lane_f32(_aa, 0), vget_lane_f32(_aa, 1)));
+#endif
 #endif // __ARM_NEON
             for (; kk < K; kk++)
             {
                 absmax = std::max(absmax, (float)fabs(float16_to_float32(p0[0])));
                 p0++;
             }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
             ps[0] = 127.f / absmax;
             pods[0] = absmax / v127_B_scale;
@@ -1360,6 +1428,14 @@ static void pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 
 static void transpose_compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
 {
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_asimdhp())
+    {
+        transpose_compute_A_tile_fp16_int8_scales_asimdhp(A, scales, B_scale, out_descales, i, max_ii);
+        return;
+    }
+#endif
+
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
     const int K = A.dims == 3 ? A.c : A.h;
@@ -1385,6 +1461,20 @@ static void transpose_compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales,
         // TODO unroll 2
         for (; ii < max_ii; ii++)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+            const __fp16* p0 = (const __fp16*)A + (i + ii) * 8;
+
+            float16x8_t _absmax = vdupq_n_f16((__fp16)0.f);
+            int kk = 0;
+            for (; kk < K; kk++)
+            {
+                float16x8_t _p = vld1q_f16(p0);
+                _absmax = vmaxq_f16(_absmax, vabsq_f16(_p));
+                p0 += A_hstep * 8;
+            }
+            float16x4_t _aa = vmax_f16(vget_low_f16(_absmax), vget_high_f16(_absmax));
+            float absmax = vmaxvq_f32(vcvt_f32_f16(_aa));
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * 8;
 
             float32x4_t _absmax0 = vdupq_n_f32(0.f);
@@ -1420,6 +1510,7 @@ static void transpose_compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales,
             _absmax0 = vmaxq_f32(_absmax0, _absmax1);
             float32x2_t _aa = vmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
             float absmax = std::max(vget_lane_f32(_aa, 0), vget_lane_f32(_aa, 1));
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
             ps[0] = 127.f / absmax;
             pods[0] = absmax / v127_B_scale;
@@ -2894,6 +2985,14 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
 
 static void compute_B_fp16_int8_scale(const Mat& B, float& scale)
 {
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_asimdhp())
+    {
+        compute_B_fp16_int8_scale_asimdhp(B, scale);
+        return;
+    }
+#endif
+
     float absmax = 0.f;
 #if __ARM_NEON
     float32x4_t _absmax = vdupq_n_f32(0.f);
