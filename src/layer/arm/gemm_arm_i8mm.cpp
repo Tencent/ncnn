@@ -19,6 +19,7 @@
 namespace ncnn {
 
 #include "gemm_int8.h"
+#include "gemm_int8_fp16s.h"
 
 #if NCNN_BF16
 #include "gemm_int8_bf16s.h"
@@ -67,6 +68,26 @@ void transpose_pack_B_tile_fp32_to_int8_i8mm(const Mat& B, Mat& BT, int j, int m
 void gemm_transB_packed_tile_int8_i8mm(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk)
 {
     gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+}
+
+void pack_A_tile_fp16_to_int8_i8mm(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
+{
+    pack_A_tile_fp16_to_int8(A, AT, i, max_ii, k, max_kk, scales);
+}
+
+void transpose_pack_A_tile_fp16_to_int8_i8mm(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
+{
+    transpose_pack_A_tile_fp16_to_int8(A, AT, i, max_ii, k, max_kk, scales);
+}
+
+void pack_B_tile_fp16_to_int8_i8mm(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+{
+    pack_B_tile_fp16_to_int8(B, BT, j, max_jj, k, max_kk, scale);
+}
+
+void transpose_pack_B_tile_fp16_to_int8_i8mm(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+{
+    transpose_pack_B_tile_fp16_to_int8(B, BT, j, max_jj, k, max_kk, scale);
 }
 
 #if NCNN_BF16

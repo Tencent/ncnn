@@ -51,6 +51,8 @@ public:
     Mat AT_data;
     Mat BT_data;
     Mat CT_data;
+
+    int input_elemtype; // 0=auto 1=fp32 2=fp16 3=bf16
 };
 
 } // namespace ncnn

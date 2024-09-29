@@ -3932,6 +3932,42 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     }
 }
 
+static void compute_B_fp32_int8_scale(const Mat& B, float& scale)
+{
+    float absmax = 0.f;
+#if __ARM_NEON
+    float32x4_t _absmax = vdupq_n_f32(0.f);
+#endif
+    for (int i = 0; i < (B.dims == 3 ? B.c : B.h); i++)
+    {
+        const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+        const float* ptr = (const float*)B + i * B_hstep * B.elempack;
+
+        const int size = B.w * B.elempack;
+
+        int j = 0;
+#if __ARM_NEON
+        for (; j + 3 < size; j += 4)
+        {
+            float32x4_t _p = vld1q_f32(ptr);
+            _absmax = vmaxq_f32(_absmax, vabsq_f32(_p));
+            ptr += 4;
+        }
+#endif
+        for (; j < size; j++)
+        {
+            absmax = std::max(absmax, (float)fabs(ptr[0]));
+            ptr++;
+        }
+    }
+#if __ARM_NEON
+    float32x2_t _aa = vmax_f32(vget_low_f32(_absmax), vget_high_f32(_absmax));
+    absmax = std::max(absmax, std::max(vget_lane_f32(_aa, 0), vget_lane_f32(_aa, 1)));
+#endif
+
+    scale = absmax == 0.f ? 1.f : 127.f / absmax;
+}
+
 static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8

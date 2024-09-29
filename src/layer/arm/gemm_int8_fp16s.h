@@ -13,28 +13,28 @@
 // specific language governing permissions and limitations under the License.
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
-void pack_A_tile_bf16_to_int8_i8mm(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
-void transpose_pack_A_tile_bf16_to_int8_i8mm(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
-void pack_B_tile_bf16_to_int8_i8mm(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
-void transpose_pack_B_tile_bf16_to_int8_i8mm(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
+void pack_A_tile_fp16_to_int8_i8mm(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
+void transpose_pack_A_tile_fp16_to_int8_i8mm(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
+void pack_B_tile_fp16_to_int8_i8mm(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
+void transpose_pack_B_tile_fp16_to_int8_i8mm(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
-void pack_A_tile_bf16_to_int8_asimddp(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
-void transpose_pack_A_tile_bf16_to_int8_asimddp(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
-void pack_B_tile_bf16_to_int8_asimddp(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
-void transpose_pack_B_tile_bf16_to_int8_asimddp(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
-void unpack_output_tile_int32_to_bf16_asimddp(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta);
-void transpose_unpack_output_tile_int32_to_bf16_asimddp(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta);
+void pack_A_tile_fp16_to_int8_asimddp(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
+void transpose_pack_A_tile_fp16_to_int8_asimddp(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
+void pack_B_tile_fp16_to_int8_asimddp(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
+void transpose_pack_B_tile_fp16_to_int8_asimddp(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
+void unpack_output_tile_int32_to_fp16_asimddp(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta);
+void transpose_unpack_output_tile_int32_to_fp16_asimddp(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta);
 #endif
 
-static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
+static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
 {
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
     const int K = A.w;
 
-    // NCNN_LOGE("compute_A_tile_bf16_int8_scales %d %d", max_ii, elempack);
+    // NCNN_LOGE("compute_A_tile_fp16_int8_scales %d %d", max_ii, elempack);
 
     const float v127_B_scale = 127.f * B_scale;
 
@@ -42,6 +42,93 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
     float* pods = out_descales;
 
 #if __ARM_NEON
+    if (elempack == 8)
+    {
+#if __aarch64__
+        float32x4_t _v127 = vdupq_n_f32(127.f);
+        float32x4_t _v127_B_scale = vdupq_n_f32(v127_B_scale);
+#endif
+
+        for (int ii = 0; ii + 7 < max_ii; ii += 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep;
+
+            float32x4_t _absmax0 = vdupq_n_f32(0.f);
+            float32x4_t _absmax1 = vdupq_n_f32(0.f);
+            float32x4_t _absmax2 = vdupq_n_f32(0.f);
+            float32x4_t _absmax3 = vdupq_n_f32(0.f);
+            int kk = 0;
+            for (; kk + 1 < K; kk += 2)
+            {
+                uint16x8_t _p01 = vld1q_u16(p0);
+                uint16x8_t _p23 = vld1q_u16(p0 + 8);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p23));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p23));
+                _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
+                _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
+                _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_p2));
+                _absmax3 = vmaxq_f32(_absmax3, vabsq_f32(_p3));
+                p0 += 16;
+            }
+            _absmax0 = vmaxq_f32(_absmax0, _absmax2);
+            _absmax1 = vmaxq_f32(_absmax1, _absmax3);
+            for (; kk < K; kk++)
+            {
+                uint16x8_t _p01 = vld1q_u16(p0);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+                _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
+                _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
+                p0 += 8;
+            }
+
+#if __aarch64__
+            float32x4_t _scale0 = vdivq_f32(_v127, _absmax0);
+            float32x4_t _scale1 = vdivq_f32(_v127, _absmax1);
+            float32x4_t _out_descale0 = vdivq_f32(_absmax0, _v127_B_scale);
+            float32x4_t _out_descale1 = vdivq_f32(_absmax1, _v127_B_scale);
+
+            vst1q_f32(ps, _scale0);
+            vst1q_f32(ps + 4, _scale1);
+            vst1q_f32(pods, _out_descale0);
+            vst1q_f32(pods + 4, _out_descale1);
+#else
+            // float32x4_t _recp_absmax = vrecpeq_f32(_absmax0);
+            // _recp_absmax = vmulq_f32(vrecpsq_f32(_absmax0, _recp_absmax), _recp_absmax);
+            // _recp_absmax = vmulq_f32(vrecpsq_f32(_absmax0, _recp_absmax), _recp_absmax);
+            // _recp_absmax = vmulq_f32(vrecpsq_f32(_absmax0, _recp_absmax), _recp_absmax);
+            // float32x4_t _scale = vmulq_f32(_v127, _recp_absmax);
+            // float32x4_t _out_descale = vmulq_f32(_absmax0, _recp_v127_B_scale);
+
+            float tmp[8];
+            vst1q_f32(tmp, _absmax0);
+            vst1q_f32(tmp + 4, _absmax1);
+
+            ps[0] = 127.f / tmp[0];
+            ps[1] = 127.f / tmp[1];
+            ps[2] = 127.f / tmp[2];
+            ps[3] = 127.f / tmp[3];
+            ps[4] = 127.f / tmp[4];
+            ps[5] = 127.f / tmp[5];
+            ps[6] = 127.f / tmp[6];
+            ps[7] = 127.f / tmp[7];
+
+            pods[0] = tmp[0] / v127_B_scale;
+            pods[1] = tmp[1] / v127_B_scale;
+            pods[2] = tmp[2] / v127_B_scale;
+            pods[3] = tmp[3] / v127_B_scale;
+            pods[4] = tmp[4] / v127_B_scale;
+            pods[5] = tmp[5] / v127_B_scale;
+            pods[6] = tmp[6] / v127_B_scale;
+            pods[7] = tmp[7] / v127_B_scale;
+
+#endif
+            ps += 8;
+            pods += 8;
+        }
+    }
     if (elempack == 4)
     {
 #if __aarch64__
@@ -62,10 +149,10 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_p2));
@@ -77,8 +164,8 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
             for (; kk + 1 < K; kk += 2)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 p0 += 8;
@@ -86,7 +173,7 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
             _absmax0 = vmaxq_f32(_absmax0, _absmax1);
             for (; kk < K; kk++)
             {
-                float32x4_t _p = bfloat2float(vld1_u16(p0));
+                float32x4_t _p = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p));
                 p0 += 4;
             }
@@ -141,10 +228,10 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_p2));
@@ -156,8 +243,8 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
             for (; kk + 7 < K; kk += 8)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 p0 += 8;
@@ -165,7 +252,7 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
             _absmax0 = vmaxq_f32(_absmax0, _absmax1);
             for (; kk + 3 < K; kk += 4)
             {
-                float32x4_t _p = bfloat2float(vld1_u16(p0));
+                float32x4_t _p = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p));
                 p0 += 4;
             }
@@ -174,7 +261,7 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
 #endif // __ARM_NEON
             for (; kk < K; kk++)
             {
-                absmax = std::max(absmax, (float)fabs(bfloat16_to_float32(p0[0])));
+                absmax = std::max(absmax, (float)fabs(float16_to_float32(p0[0])));
                 p0++;
             }
 
@@ -186,12 +273,12 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
     }
 }
 
-static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
+static void pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_i8mm())
     {
-        pack_A_tile_bf16_to_int8_i8mm(A, AT, i, max_ii, k, max_kk, scales);
+        pack_A_tile_fp16_to_int8_i8mm(A, AT, i, max_ii, k, max_kk, scales);
         return;
     }
 #endif
@@ -199,7 +286,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_asimddp())
     {
-        pack_A_tile_bf16_to_int8_asimddp(A, AT, i, max_ii, k, max_kk, scales);
+        pack_A_tile_fp16_to_int8_asimddp(A, AT, i, max_ii, k, max_kk, scales);
         return;
     }
 #endif
@@ -207,7 +294,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
-    // NCNN_LOGE("pack_A_tile_bf16_to_int8 %d %d", max_ii, elempack);
+    // NCNN_LOGE("pack_A_tile_fp16_to_int8 %d %d", max_ii, elempack);
 
     signed char* pp = AT;
 
@@ -220,6 +307,173 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         float32x4_t _scale0 = vld1q_f32((const float*)scales + ii);
         float32x4_t _scale1 = vld1q_f32((const float*)scales + ii + 4);
 
+        if (elempack == 8)
+        {
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                uint16x8_t _r = vld1q_u16(p0 + 16);
+                uint16x8_t _s = vld1q_u16(p0 + 24);
+                uint16x8_t _t = vld1q_u16(p0 + 32);
+                uint16x8_t _u = vld1q_u16(p0 + 40);
+                uint16x8_t _v = vld1q_u16(p0 + 48);
+                uint16x8_t _w = vld1q_u16(p0 + 56);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
+
+                _p0 = vmulq_f32(_p0, _scale0);
+                _p1 = vmulq_f32(_p1, _scale1);
+                _p2 = vmulq_f32(_p2, _scale0);
+                _p3 = vmulq_f32(_p3, _scale1);
+                _p4 = vmulq_f32(_p4, _scale0);
+                _p5 = vmulq_f32(_p5, _scale1);
+                _p6 = vmulq_f32(_p6, _scale0);
+                _p7 = vmulq_f32(_p7, _scale1);
+                _p8 = vmulq_f32(_p8, _scale0);
+                _p9 = vmulq_f32(_p9, _scale1);
+                _pa = vmulq_f32(_pa, _scale0);
+                _pb = vmulq_f32(_pb, _scale1);
+                _pc = vmulq_f32(_pc, _scale0);
+                _pd = vmulq_f32(_pd, _scale1);
+                _pe = vmulq_f32(_pe, _scale0);
+                _pf = vmulq_f32(_pf, _scale1);
+
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                int8x8x2_t _p04 = vzip_s8(float2int8(_p0, _p1), float2int8(_p8, _p9));
+                int8x8x2_t _p15 = vzip_s8(float2int8(_p2, _p3), float2int8(_pa, _pb));
+                int8x8x2_t _p26 = vzip_s8(float2int8(_p4, _p5), float2int8(_pc, _pd));
+                int8x8x2_t _p37 = vzip_s8(float2int8(_p6, _p7), float2int8(_pe, _pf));
+
+                int8x16x4_t _rr;
+                _rr.val[0] = vcombine_s8(_p04.val[0], _p04.val[1]);
+                _rr.val[1] = vcombine_s8(_p15.val[0], _p15.val[1]);
+                _rr.val[2] = vcombine_s8(_p26.val[0], _p26.val[1]);
+                _rr.val[3] = vcombine_s8(_p37.val[0], _p37.val[1]);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int8x16x4_t _rr;
+                _rr.val[0] = vcombine_s8(float2int8(_p0, _p1), float2int8(_p8, _p9));
+                _rr.val[1] = vcombine_s8(float2int8(_p2, _p3), float2int8(_pa, _pb));
+                _rr.val[2] = vcombine_s8(float2int8(_p4, _p5), float2int8(_pc, _pd));
+                _rr.val[3] = vcombine_s8(float2int8(_p6, _p7), float2int8(_pe, _pf));
+#endif // __ARM_FEATURE_MATMUL_INT8
+
+                vst4q_s8(pp, _rr);
+#else  // __ARM_FEATURE_DOTPROD
+                int8x16x2_t _r01;
+                _r01.val[0] = vcombine_s8(float2int8(_p0, _p1), float2int8(_p4, _p5));
+                _r01.val[1] = vcombine_s8(float2int8(_p2, _p3), float2int8(_p6, _p7));
+                int8x16x2_t _r23;
+                _r23.val[0] = vcombine_s8(float2int8(_p8, _p9), float2int8(_pc, _pd));
+                _r23.val[1] = vcombine_s8(float2int8(_pa, _pb), float2int8(_pe, _pf));
+
+                vst2q_s8(pp, _r01);
+                vst2q_s8(pp + 32, _r23);
+#endif // __ARM_FEATURE_DOTPROD
+
+                pp += 64;
+                p0 += 64;
+            }
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                uint16x8_t _r = vld1q_u16(p0 + 16);
+                uint16x8_t _s = vld1q_u16(p0 + 24);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+
+                _p0 = vmulq_f32(_p0, _scale0);
+                _p1 = vmulq_f32(_p1, _scale1);
+                _p2 = vmulq_f32(_p2, _scale0);
+                _p3 = vmulq_f32(_p3, _scale1);
+                _p4 = vmulq_f32(_p4, _scale0);
+                _p5 = vmulq_f32(_p5, _scale1);
+                _p6 = vmulq_f32(_p6, _scale0);
+                _p7 = vmulq_f32(_p7, _scale1);
+
+#if __ARM_FEATURE_DOTPROD
+                int8x8x4_t _r0123;
+                _r0123.val[0] = float2int8(_p0, _p1);
+                _r0123.val[1] = float2int8(_p2, _p3);
+                _r0123.val[2] = float2int8(_p4, _p5);
+                _r0123.val[3] = float2int8(_p6, _p7);
+
+                vst4_s8(pp, _r0123);
+#else  // __ARM_FEATURE_DOTPROD
+                int8x16x2_t _r01;
+                _r01.val[0] = vcombine_s8(float2int8(_p0, _p1), float2int8(_p4, _p5));
+                _r01.val[1] = vcombine_s8(float2int8(_p2, _p3), float2int8(_p6, _p7));
+
+                vst2q_s8(pp, _r01);
+#endif // __ARM_FEATURE_DOTPROD
+
+                pp += 32;
+                p0 += 32;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x8_t _p01 = vld1q_u16(p0);
+                uint16x8_t _p23 = vld1q_u16(p0 + 8);
+
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p23));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p23));
+
+                _p0 = vmulq_f32(_p0, _scale0);
+                _p1 = vmulq_f32(_p1, _scale1);
+                _p2 = vmulq_f32(_p2, _scale0);
+                _p3 = vmulq_f32(_p3, _scale1);
+
+                int8x8x2_t _r01;
+                _r01.val[0] = float2int8(_p0, _p1);
+                _r01.val[1] = float2int8(_p2, _p3);
+
+                vst2_s8(pp, _r01);
+
+                pp += 16;
+                p0 += 16;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                uint16x8_t _p01 = vld1q_u16(p0);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+
+                _p0 = vmulq_f32(_p0, _scale0);
+                _p1 = vmulq_f32(_p1, _scale1);
+
+                int8x8_t _r01 = float2int8(_p0, _p1);
+
+                vst1_s8(pp, _r01);
+
+                pp += 8;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             int kk = 0;
@@ -229,22 +483,22 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 uint16x8x4_t _p = vld4q_u16(p0);
                 uint16x8x4_t _q = vld4q_u16(p0 + A_hstep * 4);
 
-                float32x4_t _p0 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_p.val[0])), _scale0, 0);
-                float32x4_t _p1 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_p.val[1])), _scale0, 1);
-                float32x4_t _p2 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_p.val[2])), _scale0, 2);
-                float32x4_t _p3 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_p.val[3])), _scale0, 3);
-                float32x4_t _p4 = vmulq_laneq_f32(bfloat2float(vget_high_u16(_p.val[0])), _scale0, 0);
-                float32x4_t _p5 = vmulq_laneq_f32(bfloat2float(vget_high_u16(_p.val[1])), _scale0, 1);
-                float32x4_t _p6 = vmulq_laneq_f32(bfloat2float(vget_high_u16(_p.val[2])), _scale0, 2);
-                float32x4_t _p7 = vmulq_laneq_f32(bfloat2float(vget_high_u16(_p.val[3])), _scale0, 3);
-                float32x4_t _p8 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_q.val[0])), _scale1, 0);
-                float32x4_t _p9 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_q.val[1])), _scale1, 1);
-                float32x4_t _pa = vmulq_laneq_f32(bfloat2float(vget_low_u16(_q.val[2])), _scale1, 2);
-                float32x4_t _pb = vmulq_laneq_f32(bfloat2float(vget_low_u16(_q.val[3])), _scale1, 3);
-                float32x4_t _pc = vmulq_laneq_f32(bfloat2float(vget_high_u16(_q.val[0])), _scale1, 0);
-                float32x4_t _pd = vmulq_laneq_f32(bfloat2float(vget_high_u16(_q.val[1])), _scale1, 1);
-                float32x4_t _pe = vmulq_laneq_f32(bfloat2float(vget_high_u16(_q.val[2])), _scale1, 2);
-                float32x4_t _pf = vmulq_laneq_f32(bfloat2float(vget_high_u16(_q.val[3])), _scale1, 3);
+                float32x4_t _p0 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[0])), _scale0, 0);
+                float32x4_t _p1 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[1])), _scale0, 1);
+                float32x4_t _p2 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[2])), _scale0, 2);
+                float32x4_t _p3 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[3])), _scale0, 3);
+                float32x4_t _p4 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[0])), _scale0, 0);
+                float32x4_t _p5 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[1])), _scale0, 1);
+                float32x4_t _p6 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[2])), _scale0, 2);
+                float32x4_t _p7 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[3])), _scale0, 3);
+                float32x4_t _p8 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q.val[0])), _scale1, 0);
+                float32x4_t _p9 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q.val[1])), _scale1, 1);
+                float32x4_t _pa = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q.val[2])), _scale1, 2);
+                float32x4_t _pb = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q.val[3])), _scale1, 3);
+                float32x4_t _pc = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q.val[0])), _scale1, 0);
+                float32x4_t _pd = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q.val[1])), _scale1, 1);
+                float32x4_t _pe = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q.val[2])), _scale1, 2);
+                float32x4_t _pf = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q.val[3])), _scale1, 3);
 
 #if __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p4);
@@ -279,22 +533,22 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 uint16x8_t _u = vld1q_u16(p0 + A_hstep * 4 + 8);
                 uint16x8_t _v = vld1q_u16(p0 + A_hstep * 4 + 16);
                 uint16x8_t _w = vld1q_u16(p0 + A_hstep * 4 + 24);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
-                float32x4_t _p8 = bfloat2float(vget_low_u16(_t));
-                float32x4_t _p9 = bfloat2float(vget_high_u16(_t));
-                float32x4_t _pa = bfloat2float(vget_low_u16(_u));
-                float32x4_t _pb = bfloat2float(vget_high_u16(_u));
-                float32x4_t _pc = bfloat2float(vget_low_u16(_v));
-                float32x4_t _pd = bfloat2float(vget_high_u16(_v));
-                float32x4_t _pe = bfloat2float(vget_low_u16(_w));
-                float32x4_t _pf = bfloat2float(vget_high_u16(_w));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale0);
@@ -333,14 +587,14 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 uint16x4x4_t _p = vld4_u16(p0);
                 uint16x4x4_t _q = vld4_u16(p0 + A_hstep * 4);
 
-                float32x4_t _p0 = vmulq_laneq_f32(bfloat2float(_p.val[0]), _scale0, 0);
-                float32x4_t _p1 = vmulq_laneq_f32(bfloat2float(_p.val[1]), _scale0, 1);
-                float32x4_t _p2 = vmulq_laneq_f32(bfloat2float(_p.val[2]), _scale0, 2);
-                float32x4_t _p3 = vmulq_laneq_f32(bfloat2float(_p.val[3]), _scale0, 3);
-                float32x4_t _p4 = vmulq_laneq_f32(bfloat2float(_q.val[0]), _scale1, 0);
-                float32x4_t _p5 = vmulq_laneq_f32(bfloat2float(_q.val[1]), _scale1, 1);
-                float32x4_t _p6 = vmulq_laneq_f32(bfloat2float(_q.val[2]), _scale1, 2);
-                float32x4_t _p7 = vmulq_laneq_f32(bfloat2float(_q.val[3]), _scale1, 3);
+                float32x4_t _p0 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale0, 0);
+                float32x4_t _p1 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale0, 1);
+                float32x4_t _p2 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale0, 2);
+                float32x4_t _p3 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale0, 3);
+                float32x4_t _p4 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_q.val[0]), _scale1, 0);
+                float32x4_t _p5 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_q.val[1]), _scale1, 1);
+                float32x4_t _p6 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_q.val[2]), _scale1, 2);
+                float32x4_t _p7 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_q.val[3]), _scale1, 3);
 
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
@@ -354,14 +608,14 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + A_hstep * 4);
                 uint16x8_t _s = vld1q_u16(p0 + A_hstep * 4 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale0);
@@ -387,10 +641,10 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + A_hstep * 4);
 
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p0n = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p1n = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p0n = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p1n = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p0n = vmulq_f32(_p0n, _scale0);
@@ -408,8 +662,8 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             }
             for (; kk < max_kk; kk++)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep * 4));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale1);
@@ -435,22 +689,22 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 uint16x8_t _u = vld1q_u16(p0 + A_hstep * 5);
                 uint16x8_t _v = vld1q_u16(p0 + A_hstep * 6);
                 uint16x8_t _w = vld1q_u16(p0 + A_hstep * 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
-                float32x4_t _p8 = bfloat2float(vget_low_u16(_t));
-                float32x4_t _p9 = bfloat2float(vget_high_u16(_t));
-                float32x4_t _pa = bfloat2float(vget_low_u16(_u));
-                float32x4_t _pb = bfloat2float(vget_high_u16(_u));
-                float32x4_t _pc = bfloat2float(vget_low_u16(_v));
-                float32x4_t _pd = bfloat2float(vget_high_u16(_v));
-                float32x4_t _pe = bfloat2float(vget_low_u16(_w));
-                float32x4_t _pf = bfloat2float(vget_high_u16(_w));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
 
 #if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale0, 0);
@@ -541,14 +795,14 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + A_hstep * 2));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + A_hstep * 3));
-                float32x4_t _p4 = bfloat2float(vld1_u16(p0 + A_hstep * 4));
-                float32x4_t _p5 = bfloat2float(vld1_u16(p0 + A_hstep * 5));
-                float32x4_t _p6 = bfloat2float(vld1_u16(p0 + A_hstep * 6));
-                float32x4_t _p7 = bfloat2float(vld1_u16(p0 + A_hstep * 7));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 2));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 5));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 6));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 7));
 
 #if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale0, 0);
@@ -614,10 +868,10 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 _q = vsetq_lane_u16(p0[A_hstep * 6 + 1], _q, 5);
                 _q = vsetq_lane_u16(p0[A_hstep * 7], _q, 6);
                 _q = vsetq_lane_u16(p0[A_hstep * 7 + 1], _q, 7);
-                float32x4_t _p01 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p23 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p45 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p67 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p01 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p23 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p45 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p67 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 float32x4x2_t _scale01 = vzipq_f32(_scale0, _scale0);
                 float32x4x2_t _scale23 = vzipq_f32(_scale1, _scale1);
@@ -646,8 +900,8 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 _p = vsetq_lane_u16(p0[A_hstep * 5], _p, 5);
                 _p = vsetq_lane_u16(p0[A_hstep * 6], _p, 6);
                 _p = vsetq_lane_u16(p0[A_hstep * 7], _p, 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale1);
@@ -675,14 +929,14 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #if __ARM_FEATURE_DOTPROD
                 uint16x8x4_t _p = vld4q_u16(p0);
 
-                float32x4_t _p0 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_p.val[0])), _scale, 0);
-                float32x4_t _p1 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_p.val[1])), _scale, 1);
-                float32x4_t _p2 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_p.val[2])), _scale, 2);
-                float32x4_t _p3 = vmulq_laneq_f32(bfloat2float(vget_low_u16(_p.val[3])), _scale, 3);
-                float32x4_t _p4 = vmulq_laneq_f32(bfloat2float(vget_high_u16(_p.val[0])), _scale, 0);
-                float32x4_t _p5 = vmulq_laneq_f32(bfloat2float(vget_high_u16(_p.val[1])), _scale, 1);
-                float32x4_t _p6 = vmulq_laneq_f32(bfloat2float(vget_high_u16(_p.val[2])), _scale, 2);
-                float32x4_t _p7 = vmulq_laneq_f32(bfloat2float(vget_high_u16(_p.val[3])), _scale, 3);
+                float32x4_t _p0 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[0])), _scale, 0);
+                float32x4_t _p1 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[1])), _scale, 1);
+                float32x4_t _p2 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[2])), _scale, 2);
+                float32x4_t _p3 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[3])), _scale, 3);
+                float32x4_t _p4 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[0])), _scale, 0);
+                float32x4_t _p5 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[1])), _scale, 1);
+                float32x4_t _p6 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[2])), _scale, 2);
+                float32x4_t _p7 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[3])), _scale, 3);
 
 #if __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p4);
@@ -703,14 +957,14 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + 16);
                 uint16x8_t _s = vld1q_u16(p0 + 24);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -736,10 +990,10 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #if __ARM_FEATURE_DOTPROD
                 uint16x4x4_t _p = vld4_u16(p0);
 
-                float32x4_t _p0 = vmulq_laneq_f32(bfloat2float(_p.val[0]), _scale, 0);
-                float32x4_t _p1 = vmulq_laneq_f32(bfloat2float(_p.val[1]), _scale, 1);
-                float32x4_t _p2 = vmulq_laneq_f32(bfloat2float(_p.val[2]), _scale, 2);
-                float32x4_t _p3 = vmulq_laneq_f32(bfloat2float(_p.val[3]), _scale, 3);
+                float32x4_t _p0 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale, 0);
+                float32x4_t _p1 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale, 1);
+                float32x4_t _p2 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale, 2);
+                float32x4_t _p3 = vmulq_laneq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale, 3);
 
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
@@ -748,10 +1002,10 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -771,8 +1025,8 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             for (; kk + 1 < max_kk; kk += 2)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -788,7 +1042,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             }
             for (; kk < max_kk; kk++)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
                 _p0 = vmulq_f32(_p0, _scale);
                 int8x8_t _r0 = float2int8(_p0, _p0);
 
@@ -810,14 +1064,14 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 uint16x8_t _q = vld1q_u16(p0 + A_hstep);
                 uint16x8_t _r = vld1q_u16(p0 + A_hstep * 2);
                 uint16x8_t _s = vld1q_u16(p0 + A_hstep * 3);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
 #if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale, 0);
@@ -872,10 +1126,10 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + A_hstep * 2));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + A_hstep * 3));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 2));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3));
 
 #if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale, 0);
@@ -916,8 +1170,8 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 _p = vsetq_lane_u16(p0[A_hstep * 2 + 1], _p, 5);
                 _p = vsetq_lane_u16(p0[A_hstep * 3], _p, 6);
                 _p = vsetq_lane_u16(p0[A_hstep * 3 + 1], _p, 7);
-                float32x4_t _p01 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p23 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p01 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p23 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 float32x4x2_t _scale01 = vzipq_f32(_scale, _scale);
 
@@ -938,7 +1192,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 _p = vset_lane_u16(p0[A_hstep], _p, 1);
                 _p = vset_lane_u16(p0[A_hstep * 2], _p, 2);
                 _p = vset_lane_u16(p0[A_hstep * 3], _p, 3);
-                float32x4_t _p0 = bfloat2float(_p);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)_p);
 
                 _p0 = vmulq_f32(_p0, _scale);
                 int8x8_t _r0 = float2int8(_p0, _p0);
@@ -971,10 +1225,10 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + A_hstep);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale0);
@@ -1006,8 +1260,8 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale1);
@@ -1027,18 +1281,18 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale0);
-                pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale0);
-                pp[2] = float2int8(bfloat16_to_float32(p0[A_hstep]) * scale1);
-                pp[3] = float2int8(bfloat16_to_float32(p0[A_hstep + 1]) * scale1);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale0);
+                pp[1] = float2int8(float16_to_float32(p0[1]) * scale0);
+                pp[2] = float2int8(float16_to_float32(p0[A_hstep]) * scale1);
+                pp[3] = float2int8(float16_to_float32(p0[A_hstep + 1]) * scale1);
                 pp += 4;
                 p0 += 2;
             }
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale0);
-                pp[1] = float2int8(bfloat16_to_float32(p0[A_hstep]) * scale1);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale0);
+                pp[1] = float2int8(float16_to_float32(p0[A_hstep]) * scale1);
                 pp += 2;
                 p0++;
             }
@@ -1059,10 +1313,10 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -1080,8 +1334,8 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -1096,7 +1350,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
                 pp += 1;
                 p0++;
             }
@@ -1104,13 +1358,13 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     }
 }
 
-static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
+static void transpose_compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
 {
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
     const int K = A.dims == 3 ? A.c : A.h;
 
-    // NCNN_LOGE("transpose_compute_A_tile_bf16_int8_scales %d %d", max_ii, elempack);
+    // NCNN_LOGE("transpose_compute_A_tile_fp16_int8_scales %d %d", max_ii, elempack);
 
     const float v127_B_scale = 127.f * B_scale;
 
@@ -1125,6 +1379,54 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
     float* pods = out_descales;
 
 #if __ARM_NEON
+    if (elempack == 8)
+    {
+        int ii = 0;
+        // TODO unroll 2
+        for (; ii < max_ii; ii++)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * 8;
+
+            float32x4_t _absmax0 = vdupq_n_f32(0.f);
+            float32x4_t _absmax1 = vdupq_n_f32(0.f);
+            float32x4_t _absmax2 = vdupq_n_f32(0.f);
+            float32x4_t _absmax3 = vdupq_n_f32(0.f);
+            int kk = 0;
+            for (; kk + 1 < K; kk += 2)
+            {
+                uint16x8_t _p01 = vld1q_u16(p0);
+                uint16x8_t _p23 = vld1q_u16(p0 + A_hstep * 8);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p23));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p23));
+                _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
+                _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
+                _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_p2));
+                _absmax3 = vmaxq_f32(_absmax3, vabsq_f32(_p3));
+                p0 += A_hstep * 16;
+            }
+            _absmax0 = vmaxq_f32(_absmax0, _absmax2);
+            _absmax1 = vmaxq_f32(_absmax1, _absmax3);
+            for (; kk < K; kk++)
+            {
+                uint16x8_t _p01 = vld1q_u16(p0);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+                _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
+                _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
+                p0 += A_hstep * 8;
+            }
+            _absmax0 = vmaxq_f32(_absmax0, _absmax1);
+            float32x2_t _aa = vmax_f32(vget_low_f32(_absmax0), vget_high_f32(_absmax0));
+            float absmax = std::max(vget_lane_f32(_aa, 0), vget_lane_f32(_aa, 1));
+
+            ps[0] = 127.f / absmax;
+            pods[0] = absmax / v127_B_scale;
+            ps++;
+            pods++;
+        }
+    }
     if (elempack == 4)
     {
         int ii = 0;
@@ -1140,10 +1442,10 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_p2));
@@ -1200,10 +1502,10 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
             int kk = 0;
             for (; kk + 3 < K; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep * 4));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + A_hstep * 8));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + A_hstep * 12));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 8));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 12));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_p2));
@@ -1214,8 +1516,8 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
             _absmax1 = vmaxq_f32(_absmax1, _absmax3);
             for (; kk + 1 < K; kk += 2)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep * 4));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 p0 += A_hstep * 8;
@@ -1223,7 +1525,7 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
             _absmax0 = vmaxq_f32(_absmax0, _absmax1);
             for (; kk < K; kk++)
             {
-                float32x4_t _p = bfloat2float(vld1_u16(p0));
+                float32x4_t _p = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p));
                 p0 += A_hstep * 4;
             }
@@ -1252,10 +1554,10 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
             int kk = 0;
             for (; kk + 3 < K; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + A_hstep * 2));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + A_hstep * 3));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 2));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 _absmax2 = vmaxq_f32(_absmax2, vabsq_f32(_p2));
@@ -1266,8 +1568,8 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
             _absmax1 = vmaxq_f32(_absmax1, _absmax3);
             for (; kk + 1 < K; kk += 2)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p0));
                 _absmax1 = vmaxq_f32(_absmax1, vabsq_f32(_p1));
                 p0 += A_hstep * 2;
@@ -1275,7 +1577,7 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
             _absmax0 = vmaxq_f32(_absmax0, _absmax1);
             for (; kk < K; kk++)
             {
-                float32x4_t _p = bfloat2float(vld1_u16(p0));
+                float32x4_t _p = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
                 _absmax0 = vmaxq_f32(_absmax0, vabsq_f32(_p));
                 p0 += A_hstep;
             }
@@ -1319,7 +1621,7 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
             float absmax = 0.f;
             for (int kk = 0; kk < K; kk++)
             {
-                absmax = std::max(absmax, (float)fabs(bfloat16_to_float32(p0[0])));
+                absmax = std::max(absmax, (float)fabs(float16_to_float32(p0[0])));
                 p0 += A_hstep;
             }
 
@@ -1331,12 +1633,12 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
     }
 }
 
-static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
+static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_i8mm())
     {
-        transpose_pack_A_tile_bf16_to_int8_i8mm(A, AT, i, max_ii, k, max_kk, scales);
+        transpose_pack_A_tile_fp16_to_int8_i8mm(A, AT, i, max_ii, k, max_kk, scales);
         return;
     }
 #endif
@@ -1344,7 +1646,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_asimddp())
     {
-        transpose_pack_A_tile_bf16_to_int8_asimddp(A, AT, i, max_ii, k, max_kk, scales);
+        transpose_pack_A_tile_fp16_to_int8_asimddp(A, AT, i, max_ii, k, max_kk, scales);
         return;
     }
 #endif
@@ -1352,7 +1654,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
-    // NCNN_LOGE("transpose_pack_A_tile_bf16_to_int8 %d %d", max_ii, elempack);
+    // NCNN_LOGE("transpose_pack_A_tile_fp16_to_int8 %d %d", max_ii, elempack);
 
     signed char* pp = AT;
 
@@ -1365,6 +1667,129 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
         float32x4_t _scale0 = vld1q_f32((const float*)scales + ii);
         float32x4_t _scale1 = vld1q_f32((const float*)scales + ii + 4);
 
+        if (elempack == 8)
+        {
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                uint16x8_t _r = vld1q_u16(p0 + 16);
+                uint16x8_t _s = vld1q_u16(p0 + 24);
+                uint16x8_t _t = vld1q_u16(p0 + 32);
+                uint16x8_t _u = vld1q_u16(p0 + 40);
+                uint16x8_t _v = vld1q_u16(p0 + 48);
+                uint16x8_t _w = vld1q_u16(p0 + 56);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
+
+#if __aarch64__
+                _p0 = vmulq_laneq_f32(_p0, _scale0, 0);
+                _p1 = vmulq_laneq_f32(_p1, _scale0, 0);
+                _p2 = vmulq_laneq_f32(_p2, _scale0, 1);
+                _p3 = vmulq_laneq_f32(_p3, _scale0, 1);
+                _p4 = vmulq_laneq_f32(_p4, _scale0, 2);
+                _p5 = vmulq_laneq_f32(_p5, _scale0, 2);
+                _p6 = vmulq_laneq_f32(_p6, _scale0, 3);
+                _p7 = vmulq_laneq_f32(_p7, _scale0, 3);
+                _p8 = vmulq_laneq_f32(_p8, _scale1, 0);
+                _p9 = vmulq_laneq_f32(_p9, _scale1, 0);
+                _pa = vmulq_laneq_f32(_pa, _scale1, 1);
+                _pb = vmulq_laneq_f32(_pb, _scale1, 1);
+                _pc = vmulq_laneq_f32(_pc, _scale1, 2);
+                _pd = vmulq_laneq_f32(_pd, _scale1, 2);
+                _pe = vmulq_laneq_f32(_pe, _scale1, 3);
+                _pf = vmulq_laneq_f32(_pf, _scale1, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale0), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale0), 0);
+                _p2 = vmulq_lane_f32(_p2, vget_low_f32(_scale0), 1);
+                _p3 = vmulq_lane_f32(_p3, vget_low_f32(_scale0), 1);
+                _p4 = vmulq_lane_f32(_p4, vget_high_f32(_scale0), 0);
+                _p5 = vmulq_lane_f32(_p5, vget_high_f32(_scale0), 0);
+                _p6 = vmulq_lane_f32(_p6, vget_high_f32(_scale0), 1);
+                _p7 = vmulq_lane_f32(_p7, vget_high_f32(_scale0), 1);
+                _p8 = vmulq_lane_f32(_p8, vget_low_f32(_scale1), 0);
+                _p9 = vmulq_lane_f32(_p9, vget_low_f32(_scale1), 0);
+                _pa = vmulq_lane_f32(_pa, vget_low_f32(_scale1), 1);
+                _pb = vmulq_lane_f32(_pb, vget_low_f32(_scale1), 1);
+                _pc = vmulq_lane_f32(_pc, vget_high_f32(_scale1), 0);
+                _pd = vmulq_lane_f32(_pd, vget_high_f32(_scale1), 0);
+                _pe = vmulq_lane_f32(_pe, vget_high_f32(_scale1), 1);
+                _pf = vmulq_lane_f32(_pf, vget_high_f32(_scale1), 1);
+#endif
+
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p1);
+                int8x8_t _r1 = float2int8(_p2, _p3);
+                int8x8_t _r2 = float2int8(_p4, _p5);
+                int8x8_t _r3 = float2int8(_p6, _p7);
+                int8x8_t _r4 = float2int8(_p8, _p9);
+                int8x8_t _r5 = float2int8(_pa, _pb);
+                int8x8_t _r6 = float2int8(_pc, _pd);
+                int8x8_t _r7 = float2int8(_pe, _pf);
+
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+                vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
+                vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p8);
+                int8x8_t _r1 = float2int8(_p1, _p9);
+                int8x8_t _r2 = float2int8(_p2, _pa);
+                int8x8_t _r3 = float2int8(_p3, _pb);
+                int8x8_t _r4 = float2int8(_p4, _pc);
+                int8x8_t _r5 = float2int8(_p5, _pd);
+                int8x8_t _r6 = float2int8(_p6, _pe);
+                int8x8_t _r7 = float2int8(_p7, _pf);
+
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+                vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
+                vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
+#endif // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_DOTPROD
+                int8x8_t _r0 = float2int8(_p0, _p1);
+                int8x8_t _r1 = float2int8(_p2, _p3);
+                int8x8_t _r2 = float2int8(_p4, _p5);
+                int8x8_t _r3 = float2int8(_p6, _p7);
+                int8x8_t _r4 = float2int8(_p8, _p9);
+                int8x8_t _r5 = float2int8(_pa, _pb);
+                int8x8_t _r6 = float2int8(_pc, _pd);
+                int8x8_t _r7 = float2int8(_pe, _pf);
+
+                int16x8_t _r01 = vreinterpretq_s16_s8(vcombine_s8(_r0, _r1));
+                int16x8_t _r23 = vreinterpretq_s16_s8(vcombine_s8(_r2, _r3));
+                int16x8_t _r45 = vreinterpretq_s16_s8(vcombine_s8(_r4, _r5));
+                int16x8_t _r67 = vreinterpretq_s16_s8(vcombine_s8(_r6, _r7));
+                int16x8x2_t _rr0 = vuzpq_s16(_r01, _r23);
+                int16x8x2_t _rr1 = vuzpq_s16(_r45, _r67);
+
+                vst1q_s8(pp, vreinterpretq_s8_s16(_rr0.val[0]));
+                vst1q_s8(pp + 16, vreinterpretq_s8_s16(_rr0.val[1]));
+                vst1q_s8(pp + 32, vreinterpretq_s8_s16(_rr1.val[0]));
+                vst1q_s8(pp + 48, vreinterpretq_s8_s16(_rr1.val[1]));
+#endif // __ARM_FEATURE_DOTPROD
+
+                pp += 64;
+                p0 += A_hstep * 8;
+            }
+        }
         if (elempack == 4)
         {
             int kk = 0;
@@ -1378,22 +1803,22 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 uint16x8_t _u = vld1q_u16(p0 + A_hstep * 4 + 8);
                 uint16x8_t _v = vld1q_u16(p0 + A_hstep * 4 + 16);
                 uint16x8_t _w = vld1q_u16(p0 + A_hstep * 4 + 24);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
-                float32x4_t _p8 = bfloat2float(vget_low_u16(_t));
-                float32x4_t _p9 = bfloat2float(vget_high_u16(_t));
-                float32x4_t _pa = bfloat2float(vget_low_u16(_u));
-                float32x4_t _pb = bfloat2float(vget_high_u16(_u));
-                float32x4_t _pc = bfloat2float(vget_low_u16(_v));
-                float32x4_t _pd = bfloat2float(vget_high_u16(_v));
-                float32x4_t _pe = bfloat2float(vget_low_u16(_w));
-                float32x4_t _pf = bfloat2float(vget_high_u16(_w));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
 
 #if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale0, 0);
@@ -1493,14 +1918,14 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + 16);
                 uint16x8_t _s = vld1q_u16(p0 + 24);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
 #if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale0, 0);
@@ -1556,22 +1981,22 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 uint16x8_t _u = vld1q_u16(p0 + A_hstep * 5);
                 uint16x8_t _v = vld1q_u16(p0 + A_hstep * 6);
                 uint16x8_t _w = vld1q_u16(p0 + A_hstep * 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
-                float32x4_t _p8 = bfloat2float(vget_low_u16(_t));
-                float32x4_t _p9 = bfloat2float(vget_high_u16(_t));
-                float32x4_t _pa = bfloat2float(vget_low_u16(_u));
-                float32x4_t _pb = bfloat2float(vget_high_u16(_u));
-                float32x4_t _pc = bfloat2float(vget_low_u16(_v));
-                float32x4_t _pd = bfloat2float(vget_high_u16(_v));
-                float32x4_t _pe = bfloat2float(vget_low_u16(_w));
-                float32x4_t _pf = bfloat2float(vget_high_u16(_w));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale1);
@@ -1648,14 +2073,14 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 uint16x8_t _q = vld1q_u16(p0 + A_hstep);
                 uint16x8_t _r = vld1q_u16(p0 + A_hstep * 2);
                 uint16x8_t _s = vld1q_u16(p0 + A_hstep * 3);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale1);
@@ -1690,10 +2115,10 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + A_hstep);
 
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale1);
@@ -1712,8 +2137,8 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             for (; kk < max_kk; kk++)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale1);
@@ -1733,6 +2158,76 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 
         float32x4_t _scale = vld1q_f32((const float*)scales + ii);
 
+        if (elempack == 8)
+        {
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                uint16x8_t _r = vld1q_u16(p0 + 16);
+                uint16x8_t _s = vld1q_u16(p0 + 24);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+
+#if __aarch64__
+                _p0 = vmulq_laneq_f32(_p0, _scale, 0);
+                _p1 = vmulq_laneq_f32(_p1, _scale, 0);
+                _p2 = vmulq_laneq_f32(_p2, _scale, 1);
+                _p3 = vmulq_laneq_f32(_p3, _scale, 1);
+                _p4 = vmulq_laneq_f32(_p4, _scale, 2);
+                _p5 = vmulq_laneq_f32(_p5, _scale, 2);
+                _p6 = vmulq_laneq_f32(_p6, _scale, 3);
+                _p7 = vmulq_laneq_f32(_p7, _scale, 3);
+#else
+                _p0 = vmulq_lane_f32(_p0, vget_low_f32(_scale), 0);
+                _p1 = vmulq_lane_f32(_p1, vget_low_f32(_scale), 0);
+                _p2 = vmulq_lane_f32(_p2, vget_low_f32(_scale), 1);
+                _p3 = vmulq_lane_f32(_p3, vget_low_f32(_scale), 1);
+                _p4 = vmulq_lane_f32(_p4, vget_high_f32(_scale), 0);
+                _p5 = vmulq_lane_f32(_p5, vget_high_f32(_scale), 0);
+                _p6 = vmulq_lane_f32(_p6, vget_high_f32(_scale), 1);
+                _p7 = vmulq_lane_f32(_p7, vget_high_f32(_scale), 1);
+#endif
+
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p1);
+                int8x8_t _r1 = float2int8(_p2, _p3);
+                int8x8_t _r2 = float2int8(_p4, _p5);
+                int8x8_t _r3 = float2int8(_p6, _p7);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p4);
+                int8x8_t _r1 = float2int8(_p1, _p5);
+                int8x8_t _r2 = float2int8(_p2, _p6);
+                int8x8_t _r3 = float2int8(_p3, _p7);
+#endif // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_DOTPROD
+                int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p4));
+                int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p1, _p5));
+                int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p2, _p6));
+                int16x4_t _t3 = vreinterpret_s16_s8(float2int8(_p3, _p7));
+                int16x4x2_t _t01 = vuzp_s16(_t0, _t1);
+                int16x4x2_t _t23 = vuzp_s16(_t2, _t3);
+                int8x8_t _r0 = vreinterpret_s8_s16(_t01.val[0]);
+                int8x8_t _r1 = vreinterpret_s8_s16(_t01.val[1]);
+                int8x8_t _r2 = vreinterpret_s8_s16(_t23.val[0]);
+                int8x8_t _r3 = vreinterpret_s8_s16(_t23.val[1]);
+#endif // __ARM_FEATURE_DOTPROD
+
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+
+                pp += 32;
+                p0 += A_hstep * 8;
+            }
+        }
         if (elempack == 4)
         {
             int kk = 0;
@@ -1742,14 +2237,14 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + A_hstep * 4);
                 uint16x8_t _s = vld1q_u16(p0 + A_hstep * 4 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
 #if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale, 0);
@@ -1806,10 +2301,10 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
 #if __aarch64__
                 _p0 = vmulq_laneq_f32(_p0, _scale, 0);
@@ -1845,14 +2340,14 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + A_hstep * 2));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + A_hstep * 3));
-                float32x4_t _p4 = bfloat2float(vld1_u16(p0 + A_hstep * 4));
-                float32x4_t _p5 = bfloat2float(vld1_u16(p0 + A_hstep * 5));
-                float32x4_t _p6 = bfloat2float(vld1_u16(p0 + A_hstep * 6));
-                float32x4_t _p7 = bfloat2float(vld1_u16(p0 + A_hstep * 7));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 2));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 5));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 6));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 7));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -1898,10 +2393,10 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + A_hstep * 2));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + A_hstep * 3));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 2));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 3));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -1928,8 +2423,8 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -1945,7 +2440,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             }
             for (; kk < max_kk; kk++)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
                 _p0 = vmulq_f32(_p0, _scale);
                 int8x8_t _r0 = float2int8(_p0, _p0);
 
@@ -1969,6 +2464,45 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 #if __ARM_NEON
         float32x4_t _scale0 = vdupq_n_f32(scale0);
         float32x4_t _scale1 = vdupq_n_f32(scale1);
+        if (elempack == 8)
+        {
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+
+                _p0 = vmulq_f32(_p0, _scale0);
+                _p1 = vmulq_f32(_p1, _scale0);
+                _p2 = vmulq_f32(_p2, _scale1);
+                _p3 = vmulq_f32(_p3, _scale1);
+
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p1);
+                int8x8_t _r1 = float2int8(_p2, _p3);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p2);
+                int8x8_t _r1 = float2int8(_p1, _p3);
+#endif // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_DOTPROD
+                int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
+                int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
+                int16x4x2_t _t01 = vzip_s16(_t0, _t1);
+                int8x8_t _r0 = vreinterpret_s8_s16(_t01.val[0]);
+                int8x8_t _r1 = vreinterpret_s8_s16(_t01.val[1]);
+#endif // __ARM_FEATURE_DOTPROD
+
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+
+                pp += 16;
+                p0 += A_hstep * 8;
+            }
+        }
         if (elempack == 4)
         {
             int kk = 0;
@@ -1976,10 +2510,10 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + A_hstep * 4);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale1);
@@ -2010,8 +2544,8 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale0);
                 _p1 = vmulq_f32(_p1, _scale1);
@@ -2057,10 +2591,10 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _q = vsetq_lane_u16(p0[A_hstep * 6 + 1], _q, 5);
                 _q = vsetq_lane_u16(p0[A_hstep * 7], _q, 6);
                 _q = vsetq_lane_u16(p0[A_hstep * 7 + 1], _q, 7);
-                float32x4_t _p01 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p23 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p45 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p67 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p01 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p23 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p45 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p67 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p01 = vmulq_f32(_p01, _scale);
                 _p23 = vmulq_f32(_p23, _scale);
@@ -2099,10 +2633,10 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _q = vsetq_lane_u16(p0[A_hstep * 5 + 1], _q, 5);
                 _q = vsetq_lane_u16(p0[A_hstep * 7], _q, 6);
                 _q = vsetq_lane_u16(p0[A_hstep * 7 + 1], _q, 7);
-                float32x4_t _p02 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p46 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p13 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p57 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p02 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p46 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p13 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p57 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p02 = vmulq_f32(_p02, _scale);
                 _p46 = vmulq_f32(_p46, _scale);
@@ -2131,8 +2665,8 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _p = vsetq_lane_u16(p0[A_hstep * 2 + 1], _p, 5);
                 _p = vsetq_lane_u16(p0[A_hstep * 3], _p, 6);
                 _p = vsetq_lane_u16(p0[A_hstep * 3 + 1], _p, 7);
-                float32x4_t _p01 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p23 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p01 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p23 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p01 = vmulq_f32(_p01, _scale);
                 _p23 = vmulq_f32(_p23, _scale);
@@ -2149,8 +2683,8 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _p = vsetq_lane_u16(p0[A_hstep + 1], _p, 5);
                 _p = vsetq_lane_u16(p0[A_hstep * 3], _p, 6);
                 _p = vsetq_lane_u16(p0[A_hstep * 3 + 1], _p, 7);
-                float32x4_t _p02 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p13 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p02 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p13 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p02 = vmulq_f32(_p02, _scale);
                 _p13 = vmulq_f32(_p13, _scale);
@@ -2166,18 +2700,18 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale0);
-                pp[1] = float2int8(bfloat16_to_float32(p0[A_hstep + 0]) * scale0);
-                pp[2] = float2int8(bfloat16_to_float32(p0[1]) * scale1);
-                pp[3] = float2int8(bfloat16_to_float32(p0[A_hstep + 1]) * scale1);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale0);
+                pp[1] = float2int8(float16_to_float32(p0[A_hstep + 0]) * scale0);
+                pp[2] = float2int8(float16_to_float32(p0[1]) * scale1);
+                pp[3] = float2int8(float16_to_float32(p0[A_hstep + 1]) * scale1);
                 pp += 4;
                 p0 += A_hstep * 2;
             }
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale0);
-                pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale1);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale0);
+                pp[1] = float2int8(float16_to_float32(p0[1]) * scale1);
                 pp += 2;
                 p0 += A_hstep;
             }
@@ -2191,15 +2725,17 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 
 #if __ARM_NEON
         float32x4_t _scale = vdupq_n_f32(scale);
-        if (elempack == 4)
+        if (elempack == 8)
         {
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep * 4));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + A_hstep * 8));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + A_hstep * 12));
+                uint16x8_t _p01 = vld1q_u16(p0);
+                uint16x8_t _p23 = vld1q_u16(p0 + A_hstep * 8);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p23));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p23));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2216,8 +2752,47 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             }
             for (; kk + 7 < max_kk; kk += 8)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + A_hstep * 4));
+                uint16x8_t _p01 = vld1q_u16(p0);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+
+                int8x8_t _r01 = float2int8(_p0, _p1);
+
+                vst1_s8(pp, _r01);
+                pp += 8;
+                p0 += A_hstep * 8;
+            }
+        }
+        if (elempack == 4)
+        {
+            int kk = 0;
+            for (; kk + 15 < max_kk; kk += 16)
+            {
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 8));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 12));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
+
+                int8x8_t _r01 = float2int8(_p0, _p1);
+                int8x8_t _r23 = float2int8(_p2, _p3);
+
+                vst1q_s8(pp, vcombine_s8(_r01, _r23));
+
+                pp += 16;
+                p0 += A_hstep * 16;
+            }
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + A_hstep * 4));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2231,10 +2806,10 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-                pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);
-                pp[2] = float2int8(bfloat16_to_float32(p0[2]) * scale);
-                pp[3] = float2int8(bfloat16_to_float32(p0[3]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
+                pp[1] = float2int8(float16_to_float32(p0[1]) * scale);
+                pp[2] = float2int8(float16_to_float32(p0[2]) * scale);
+                pp[3] = float2int8(float16_to_float32(p0[3]) * scale);
                 pp += 4;
                 p0 += A_hstep * 4;
             }
@@ -2264,10 +2839,10 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _q = vsetq_lane_u16(p0[A_hstep * 13], _q, 5);
                 _q = vsetq_lane_u16(p0[A_hstep * 14], _q, 6);
                 _q = vsetq_lane_u16(p0[A_hstep * 15], _q, 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2293,8 +2868,8 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
                 _p = vsetq_lane_u16(p0[A_hstep * 5], _p, 5);
                 _p = vsetq_lane_u16(p0[A_hstep * 6], _p, 6);
                 _p = vsetq_lane_u16(p0[A_hstep * 7], _p, 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2309,7 +2884,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
                 pp += 1;
                 p0 += A_hstep;
             }
@@ -2317,7 +2892,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
     }
 }
 
-static void compute_B_bf16_int8_scale(const Mat& B, float& scale)
+static void compute_B_fp16_int8_scale(const Mat& B, float& scale)
 {
     float absmax = 0.f;
 #if __ARM_NEON
@@ -2335,22 +2910,22 @@ static void compute_B_bf16_int8_scale(const Mat& B, float& scale)
         for (; j + 7 < size; j += 8)
         {
             uint16x8_t _p = vld1q_u16(ptr);
-            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+            float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+            float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
             _absmax = vmaxq_f32(_absmax, vabsq_f32(_p0));
             _absmax = vmaxq_f32(_absmax, vabsq_f32(_p1));
             ptr += 8;
         }
         for (; j + 3 < size; j += 4)
         {
-            float32x4_t _p = bfloat2float(vld1_u16(ptr));
+            float32x4_t _p = vcvt_f32_f16((float16x4_t)vld1_u16(ptr));
             _absmax = vmaxq_f32(_absmax, vabsq_f32(_p));
             ptr += 4;
         }
 #endif
         for (; j < size; j++)
         {
-            absmax = std::max(absmax, (float)fabs(bfloat16_to_float32(ptr[0])));
+            absmax = std::max(absmax, (float)fabs(float16_to_float32(ptr[0])));
             ptr++;
         }
     }
@@ -2362,12 +2937,12 @@ static void compute_B_bf16_int8_scale(const Mat& B, float& scale)
     scale = absmax == 0.f ? 1.f : 127.f / absmax;
 }
 
-static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+static void pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_i8mm())
     {
-        pack_B_tile_bf16_to_int8_i8mm(B, BT, j, max_jj, k, max_kk, scale);
+        pack_B_tile_fp16_to_int8_i8mm(B, BT, j, max_jj, k, max_kk, scale);
         return;
     }
 #endif
@@ -2375,7 +2950,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_asimddp())
     {
-        pack_B_tile_bf16_to_int8_asimddp(B, BT, j, max_jj, k, max_kk, scale);
+        pack_B_tile_fp16_to_int8_asimddp(B, BT, j, max_jj, k, max_kk, scale);
         return;
     }
 #endif
@@ -2383,7 +2958,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
 
-    // NCNN_LOGE("pack_B_tile_bf16_to_int8 %d %d", max_jj, elempack);
+    // NCNN_LOGE("pack_B_tile_fp16_to_int8 %d %d", max_jj, elempack);
 
     signed char* pp = BT;
 
@@ -2398,6 +2973,173 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
     {
         const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * elempack;
 
+        if (elempack == 8)
+        {
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                uint16x8_t _r = vld1q_u16(p0 + 16);
+                uint16x8_t _s = vld1q_u16(p0 + 24);
+                uint16x8_t _t = vld1q_u16(p0 + 32);
+                uint16x8_t _u = vld1q_u16(p0 + 40);
+                uint16x8_t _v = vld1q_u16(p0 + 48);
+                uint16x8_t _w = vld1q_u16(p0 + 56);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
+                _p4 = vmulq_f32(_p4, _scale);
+                _p5 = vmulq_f32(_p5, _scale);
+                _p6 = vmulq_f32(_p6, _scale);
+                _p7 = vmulq_f32(_p7, _scale);
+                _p8 = vmulq_f32(_p8, _scale);
+                _p9 = vmulq_f32(_p9, _scale);
+                _pa = vmulq_f32(_pa, _scale);
+                _pb = vmulq_f32(_pb, _scale);
+                _pc = vmulq_f32(_pc, _scale);
+                _pd = vmulq_f32(_pd, _scale);
+                _pe = vmulq_f32(_pe, _scale);
+                _pf = vmulq_f32(_pf, _scale);
+
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                int8x8x2_t _p04 = vzip_s8(float2int8(_p0, _p1), float2int8(_p8, _p9));
+                int8x8x2_t _p15 = vzip_s8(float2int8(_p2, _p3), float2int8(_pa, _pb));
+                int8x8x2_t _p26 = vzip_s8(float2int8(_p4, _p5), float2int8(_pc, _pd));
+                int8x8x2_t _p37 = vzip_s8(float2int8(_p6, _p7), float2int8(_pe, _pf));
+
+                int8x16x4_t _rr;
+                _rr.val[0] = vcombine_s8(_p04.val[0], _p04.val[1]);
+                _rr.val[1] = vcombine_s8(_p15.val[0], _p15.val[1]);
+                _rr.val[2] = vcombine_s8(_p26.val[0], _p26.val[1]);
+                _rr.val[3] = vcombine_s8(_p37.val[0], _p37.val[1]);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int8x16x4_t _rr;
+                _rr.val[0] = vcombine_s8(float2int8(_p0, _p1), float2int8(_p8, _p9));
+                _rr.val[1] = vcombine_s8(float2int8(_p2, _p3), float2int8(_pa, _pb));
+                _rr.val[2] = vcombine_s8(float2int8(_p4, _p5), float2int8(_pc, _pd));
+                _rr.val[3] = vcombine_s8(float2int8(_p6, _p7), float2int8(_pe, _pf));
+#endif // __ARM_FEATURE_MATMUL_INT8
+
+                vst4q_s8(pp, _rr);
+#else  // __ARM_FEATURE_DOTPROD
+                int8x16x2_t _r01;
+                _r01.val[0] = vcombine_s8(float2int8(_p0, _p1), float2int8(_p4, _p5));
+                _r01.val[1] = vcombine_s8(float2int8(_p2, _p3), float2int8(_p6, _p7));
+                int8x16x2_t _r23;
+                _r23.val[0] = vcombine_s8(float2int8(_p8, _p9), float2int8(_pc, _pd));
+                _r23.val[1] = vcombine_s8(float2int8(_pa, _pb), float2int8(_pe, _pf));
+
+                vst2q_s8(pp, _r01);
+                vst2q_s8(pp + 32, _r23);
+#endif // __ARM_FEATURE_DOTPROD
+
+                pp += 64;
+                p0 += 64;
+            }
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                uint16x8_t _r = vld1q_u16(p0 + 16);
+                uint16x8_t _s = vld1q_u16(p0 + 24);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
+                _p4 = vmulq_f32(_p4, _scale);
+                _p5 = vmulq_f32(_p5, _scale);
+                _p6 = vmulq_f32(_p6, _scale);
+                _p7 = vmulq_f32(_p7, _scale);
+
+#if __ARM_FEATURE_DOTPROD
+                int8x8x4_t _r0123;
+                _r0123.val[0] = float2int8(_p0, _p1);
+                _r0123.val[1] = float2int8(_p2, _p3);
+                _r0123.val[2] = float2int8(_p4, _p5);
+                _r0123.val[3] = float2int8(_p6, _p7);
+
+                vst4_s8(pp, _r0123);
+#else  // __ARM_FEATURE_DOTPROD
+                int8x16x2_t _r01;
+                _r01.val[0] = vcombine_s8(float2int8(_p0, _p1), float2int8(_p4, _p5));
+                _r01.val[1] = vcombine_s8(float2int8(_p2, _p3), float2int8(_p6, _p7));
+
+                vst2q_s8(pp, _r01);
+#endif // __ARM_FEATURE_DOTPROD
+
+                pp += 32;
+                p0 += 32;
+            }
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x8_t _p01 = vld1q_u16(p0);
+                uint16x8_t _p23 = vld1q_u16(p0 + 8);
+
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p23));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p23));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
+
+                int8x8x2_t _r01;
+                _r01.val[0] = float2int8(_p0, _p1);
+                _r01.val[1] = float2int8(_p2, _p3);
+
+                vst2_s8(pp, _r01);
+
+                pp += 16;
+                p0 += 16;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                uint16x8_t _p01 = vld1q_u16(p0);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+
+                int8x8_t _r01 = float2int8(_p0, _p1);
+
+                vst1_s8(pp, _r01);
+
+                pp += 8;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             int kk = 0;
@@ -2407,22 +3149,22 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 uint16x8x4_t _p = vld4q_u16(p0);
                 uint16x8x4_t _q = vld4q_u16(p0 + B_hstep * 4);
 
-                float32x4_t _p0 = vmulq_f32(bfloat2float(vget_low_u16(_p.val[0])), _scale);
-                float32x4_t _p1 = vmulq_f32(bfloat2float(vget_low_u16(_p.val[1])), _scale);
-                float32x4_t _p2 = vmulq_f32(bfloat2float(vget_low_u16(_p.val[2])), _scale);
-                float32x4_t _p3 = vmulq_f32(bfloat2float(vget_low_u16(_p.val[3])), _scale);
-                float32x4_t _p4 = vmulq_f32(bfloat2float(vget_high_u16(_p.val[0])), _scale);
-                float32x4_t _p5 = vmulq_f32(bfloat2float(vget_high_u16(_p.val[1])), _scale);
-                float32x4_t _p6 = vmulq_f32(bfloat2float(vget_high_u16(_p.val[2])), _scale);
-                float32x4_t _p7 = vmulq_f32(bfloat2float(vget_high_u16(_p.val[3])), _scale);
-                float32x4_t _p8 = vmulq_f32(bfloat2float(vget_low_u16(_q.val[0])), _scale);
-                float32x4_t _p9 = vmulq_f32(bfloat2float(vget_low_u16(_q.val[1])), _scale);
-                float32x4_t _pa = vmulq_f32(bfloat2float(vget_low_u16(_q.val[2])), _scale);
-                float32x4_t _pb = vmulq_f32(bfloat2float(vget_low_u16(_q.val[3])), _scale);
-                float32x4_t _pc = vmulq_f32(bfloat2float(vget_high_u16(_q.val[0])), _scale);
-                float32x4_t _pd = vmulq_f32(bfloat2float(vget_high_u16(_q.val[1])), _scale);
-                float32x4_t _pe = vmulq_f32(bfloat2float(vget_high_u16(_q.val[2])), _scale);
-                float32x4_t _pf = vmulq_f32(bfloat2float(vget_high_u16(_q.val[3])), _scale);
+                float32x4_t _p0 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[0])), _scale);
+                float32x4_t _p1 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[1])), _scale);
+                float32x4_t _p2 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[2])), _scale);
+                float32x4_t _p3 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[3])), _scale);
+                float32x4_t _p4 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[0])), _scale);
+                float32x4_t _p5 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[1])), _scale);
+                float32x4_t _p6 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[2])), _scale);
+                float32x4_t _p7 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[3])), _scale);
+                float32x4_t _p8 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q.val[0])), _scale);
+                float32x4_t _p9 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q.val[1])), _scale);
+                float32x4_t _pa = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q.val[2])), _scale);
+                float32x4_t _pb = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_q.val[3])), _scale);
+                float32x4_t _pc = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q.val[0])), _scale);
+                float32x4_t _pd = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q.val[1])), _scale);
+                float32x4_t _pe = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q.val[2])), _scale);
+                float32x4_t _pf = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_q.val[3])), _scale);
 
 #if __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p4);
@@ -2457,22 +3199,22 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 uint16x8_t _u = vld1q_u16(p0 + B_hstep * 4 + 8);
                 uint16x8_t _v = vld1q_u16(p0 + B_hstep * 4 + 16);
                 uint16x8_t _w = vld1q_u16(p0 + B_hstep * 4 + 24);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
-                float32x4_t _p8 = bfloat2float(vget_low_u16(_t));
-                float32x4_t _p9 = bfloat2float(vget_high_u16(_t));
-                float32x4_t _pa = bfloat2float(vget_low_u16(_u));
-                float32x4_t _pb = bfloat2float(vget_high_u16(_u));
-                float32x4_t _pc = bfloat2float(vget_low_u16(_v));
-                float32x4_t _pd = bfloat2float(vget_high_u16(_v));
-                float32x4_t _pe = bfloat2float(vget_low_u16(_w));
-                float32x4_t _pf = bfloat2float(vget_high_u16(_w));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2511,14 +3253,14 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 uint16x4x4_t _p = vld4_u16(p0);
                 uint16x4x4_t _q = vld4_u16(p0 + B_hstep * 4);
 
-                float32x4_t _p0 = vmulq_f32(bfloat2float(_p.val[0]), _scale);
-                float32x4_t _p1 = vmulq_f32(bfloat2float(_p.val[1]), _scale);
-                float32x4_t _p2 = vmulq_f32(bfloat2float(_p.val[2]), _scale);
-                float32x4_t _p3 = vmulq_f32(bfloat2float(_p.val[3]), _scale);
-                float32x4_t _p4 = vmulq_f32(bfloat2float(_q.val[0]), _scale);
-                float32x4_t _p5 = vmulq_f32(bfloat2float(_q.val[1]), _scale);
-                float32x4_t _p6 = vmulq_f32(bfloat2float(_q.val[2]), _scale);
-                float32x4_t _p7 = vmulq_f32(bfloat2float(_q.val[3]), _scale);
+                float32x4_t _p0 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale);
+                float32x4_t _p1 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale);
+                float32x4_t _p2 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale);
+                float32x4_t _p3 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale);
+                float32x4_t _p4 = vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[0]), _scale);
+                float32x4_t _p5 = vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[1]), _scale);
+                float32x4_t _p6 = vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[2]), _scale);
+                float32x4_t _p7 = vmulq_f32(vcvt_f32_f16((float16x4_t)_q.val[3]), _scale);
 
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
@@ -2532,14 +3274,14 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + B_hstep * 4);
                 uint16x8_t _s = vld1q_u16(p0 + B_hstep * 4 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2564,10 +3306,10 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + B_hstep * 4);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2585,8 +3327,8 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             }
             for (; kk < max_kk; kk++)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + B_hstep * 4));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 4));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2612,22 +3354,22 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 uint16x8_t _u = vld1q_u16(p0 + B_hstep * 5);
                 uint16x8_t _v = vld1q_u16(p0 + B_hstep * 6);
                 uint16x8_t _w = vld1q_u16(p0 + B_hstep * 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
-                float32x4_t _p8 = bfloat2float(vget_low_u16(_t));
-                float32x4_t _p9 = bfloat2float(vget_high_u16(_t));
-                float32x4_t _pa = bfloat2float(vget_low_u16(_u));
-                float32x4_t _pb = bfloat2float(vget_high_u16(_u));
-                float32x4_t _pc = bfloat2float(vget_low_u16(_v));
-                float32x4_t _pd = bfloat2float(vget_high_u16(_v));
-                float32x4_t _pe = bfloat2float(vget_low_u16(_w));
-                float32x4_t _pf = bfloat2float(vget_high_u16(_w));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2699,14 +3441,14 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + B_hstep));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + B_hstep * 2));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + B_hstep * 3));
-                float32x4_t _p4 = bfloat2float(vld1_u16(p0 + B_hstep * 4));
-                float32x4_t _p5 = bfloat2float(vld1_u16(p0 + B_hstep * 5));
-                float32x4_t _p6 = bfloat2float(vld1_u16(p0 + B_hstep * 6));
-                float32x4_t _p7 = bfloat2float(vld1_u16(p0 + B_hstep * 7));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 2));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 3));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 4));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 5));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 6));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 7));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2761,10 +3503,10 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 _q = vsetq_lane_u16(p0[B_hstep * 6 + 1], _q, 5);
                 _q = vsetq_lane_u16(p0[B_hstep * 7], _q, 6);
                 _q = vsetq_lane_u16(p0[B_hstep * 7 + 1], _q, 7);
-                float32x4_t _p01 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p23 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p45 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p67 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p01 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p23 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p45 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p67 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p01 = vmulq_f32(_p01, _scale);
                 _p23 = vmulq_f32(_p23, _scale);
@@ -2790,8 +3532,8 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 _p = vsetq_lane_u16(p0[B_hstep * 5], _p, 5);
                 _p = vsetq_lane_u16(p0[B_hstep * 6], _p, 6);
                 _p = vsetq_lane_u16(p0[B_hstep * 7], _p, 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2818,14 +3560,14 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #if __ARM_FEATURE_DOTPROD
                 uint16x8x4_t _p = vld4q_u16(p0);
 
-                float32x4_t _p0 = vmulq_f32(bfloat2float(vget_low_u16(_p.val[0])), _scale);
-                float32x4_t _p1 = vmulq_f32(bfloat2float(vget_low_u16(_p.val[1])), _scale);
-                float32x4_t _p2 = vmulq_f32(bfloat2float(vget_low_u16(_p.val[2])), _scale);
-                float32x4_t _p3 = vmulq_f32(bfloat2float(vget_low_u16(_p.val[3])), _scale);
-                float32x4_t _p4 = vmulq_f32(bfloat2float(vget_high_u16(_p.val[0])), _scale);
-                float32x4_t _p5 = vmulq_f32(bfloat2float(vget_high_u16(_p.val[1])), _scale);
-                float32x4_t _p6 = vmulq_f32(bfloat2float(vget_high_u16(_p.val[2])), _scale);
-                float32x4_t _p7 = vmulq_f32(bfloat2float(vget_high_u16(_p.val[3])), _scale);
+                float32x4_t _p0 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[0])), _scale);
+                float32x4_t _p1 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[1])), _scale);
+                float32x4_t _p2 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[2])), _scale);
+                float32x4_t _p3 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_low_u16(_p.val[3])), _scale);
+                float32x4_t _p4 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[0])), _scale);
+                float32x4_t _p5 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[1])), _scale);
+                float32x4_t _p6 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[2])), _scale);
+                float32x4_t _p7 = vmulq_f32(vcvt_f32_f16((float16x4_t)vget_high_u16(_p.val[3])), _scale);
 
 #if __ARM_FEATURE_MATMUL_INT8
                 int8x8_t _r0 = float2int8(_p0, _p4);
@@ -2846,14 +3588,14 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + 16);
                 uint16x8_t _s = vld1q_u16(p0 + 24);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2879,10 +3621,10 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #if __ARM_FEATURE_DOTPROD
                 uint16x4x4_t _p = vld4_u16(p0);
 
-                float32x4_t _p0 = vmulq_f32(bfloat2float(_p.val[0]), _scale);
-                float32x4_t _p1 = vmulq_f32(bfloat2float(_p.val[1]), _scale);
-                float32x4_t _p2 = vmulq_f32(bfloat2float(_p.val[2]), _scale);
-                float32x4_t _p3 = vmulq_f32(bfloat2float(_p.val[3]), _scale);
+                float32x4_t _p0 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[0]), _scale);
+                float32x4_t _p1 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[1]), _scale);
+                float32x4_t _p2 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[2]), _scale);
+                float32x4_t _p3 = vmulq_f32(vcvt_f32_f16((float16x4_t)_p.val[3]), _scale);
 
                 int8x8_t _r0 = float2int8(_p0, _p1);
                 int8x8_t _r1 = float2int8(_p2, _p3);
@@ -2891,10 +3633,10 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #else  // __ARM_FEATURE_DOTPROD
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2914,8 +3656,8 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             for (; kk + 1 < max_kk; kk += 2)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -2931,7 +3673,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             }
             for (; kk < max_kk; kk++)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
                 _p0 = vmulq_f32(_p0, _scale);
                 int8x8_t _r0 = float2int8(_p0, _p0);
 
@@ -2953,14 +3695,14 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 uint16x8_t _q = vld1q_u16(p0 + B_hstep);
                 uint16x8_t _r = vld1q_u16(p0 + B_hstep * 2);
                 uint16x8_t _s = vld1q_u16(p0 + B_hstep * 3);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3004,10 +3746,10 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + B_hstep));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + B_hstep * 2));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + B_hstep * 3));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 2));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 3));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3041,8 +3783,8 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 _p = vsetq_lane_u16(p0[B_hstep * 2 + 1], _p, 5);
                 _p = vsetq_lane_u16(p0[B_hstep * 3], _p, 6);
                 _p = vsetq_lane_u16(p0[B_hstep * 3 + 1], _p, 7);
-                float32x4_t _p01 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p23 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p01 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p23 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p01 = vmulq_f32(_p01, _scale);
                 _p23 = vmulq_f32(_p23, _scale);
@@ -3061,7 +3803,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 _p = vset_lane_u16(p0[B_hstep], _p, 1);
                 _p = vset_lane_u16(p0[B_hstep * 2], _p, 2);
                 _p = vset_lane_u16(p0[B_hstep * 3], _p, 3);
-                float32x4_t _p0 = bfloat2float(_p);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)_p);
 
                 _p0 = vmulq_f32(_p0, _scale);
                 int8x8_t _r0 = float2int8(_p0, _p0);
@@ -3089,10 +3831,10 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + B_hstep);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3124,8 +3866,8 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + B_hstep));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3145,18 +3887,18 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-                pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);
-                pp[2] = float2int8(bfloat16_to_float32(p0[B_hstep]) * scale);
-                pp[3] = float2int8(bfloat16_to_float32(p0[B_hstep + 1]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
+                pp[1] = float2int8(float16_to_float32(p0[1]) * scale);
+                pp[2] = float2int8(float16_to_float32(p0[B_hstep]) * scale);
+                pp[3] = float2int8(float16_to_float32(p0[B_hstep + 1]) * scale);
                 pp += 4;
                 p0 += 2;
             }
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-                pp[1] = float2int8(bfloat16_to_float32(p0[B_hstep]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
+                pp[1] = float2int8(float16_to_float32(p0[B_hstep]) * scale);
                 pp += 2;
                 p0++;
             }
@@ -3174,10 +3916,10 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3195,8 +3937,8 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3211,7 +3953,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
                 pp += 1;
                 p0++;
             }
@@ -3219,12 +3961,12 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
     }
 }
 
-static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_i8mm())
     {
-        transpose_pack_B_tile_bf16_to_int8_i8mm(B, BT, j, max_jj, k, max_kk, scale);
+        transpose_pack_B_tile_fp16_to_int8_i8mm(B, BT, j, max_jj, k, max_kk, scale);
         return;
     }
 #endif
@@ -3232,7 +3974,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_asimddp())
     {
-        transpose_pack_B_tile_bf16_to_int8_asimddp(B, BT, j, max_jj, k, max_kk, scale);
+        transpose_pack_B_tile_fp16_to_int8_asimddp(B, BT, j, max_jj, k, max_kk, scale);
         return;
     }
 #endif
@@ -3240,7 +3982,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
 
-    // NCNN_LOGE("transpose_pack_B_tile_bf16_to_int8 %d %d", max_jj, elempack);
+    // NCNN_LOGE("transpose_pack_B_tile_fp16_to_int8 %d %d", max_jj, elempack);
 
     signed char* pp = BT;
 
@@ -3255,6 +3997,110 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
     {
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 
+        if (elempack == 8)
+        {
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                uint16x8_t _r = vld1q_u16(p0 + 16);
+                uint16x8_t _s = vld1q_u16(p0 + 24);
+                uint16x8_t _t = vld1q_u16(p0 + 32);
+                uint16x8_t _u = vld1q_u16(p0 + 40);
+                uint16x8_t _v = vld1q_u16(p0 + 48);
+                uint16x8_t _w = vld1q_u16(p0 + 56);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
+                _p4 = vmulq_f32(_p4, _scale);
+                _p5 = vmulq_f32(_p5, _scale);
+                _p6 = vmulq_f32(_p6, _scale);
+                _p7 = vmulq_f32(_p7, _scale);
+                _p8 = vmulq_f32(_p8, _scale);
+                _p9 = vmulq_f32(_p9, _scale);
+                _pa = vmulq_f32(_pa, _scale);
+                _pb = vmulq_f32(_pb, _scale);
+                _pc = vmulq_f32(_pc, _scale);
+                _pd = vmulq_f32(_pd, _scale);
+                _pe = vmulq_f32(_pe, _scale);
+                _pf = vmulq_f32(_pf, _scale);
+
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p1);
+                int8x8_t _r1 = float2int8(_p2, _p3);
+                int8x8_t _r2 = float2int8(_p4, _p5);
+                int8x8_t _r3 = float2int8(_p6, _p7);
+                int8x8_t _r4 = float2int8(_p8, _p9);
+                int8x8_t _r5 = float2int8(_pa, _pb);
+                int8x8_t _r6 = float2int8(_pc, _pd);
+                int8x8_t _r7 = float2int8(_pe, _pf);
+
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+                vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
+                vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p8);
+                int8x8_t _r1 = float2int8(_p1, _p9);
+                int8x8_t _r2 = float2int8(_p2, _pa);
+                int8x8_t _r3 = float2int8(_p3, _pb);
+                int8x8_t _r4 = float2int8(_p4, _pc);
+                int8x8_t _r5 = float2int8(_p5, _pd);
+                int8x8_t _r6 = float2int8(_p6, _pe);
+                int8x8_t _r7 = float2int8(_p7, _pf);
+
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+                vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
+                vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
+#endif // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_DOTPROD
+                int8x8_t _r0 = float2int8(_p0, _p1);
+                int8x8_t _r1 = float2int8(_p2, _p3);
+                int8x8_t _r2 = float2int8(_p4, _p5);
+                int8x8_t _r3 = float2int8(_p6, _p7);
+                int8x8_t _r4 = float2int8(_p8, _p9);
+                int8x8_t _r5 = float2int8(_pa, _pb);
+                int8x8_t _r6 = float2int8(_pc, _pd);
+                int8x8_t _r7 = float2int8(_pe, _pf);
+
+                int16x8_t _r01 = vreinterpretq_s16_s8(vcombine_s8(_r0, _r1));
+                int16x8_t _r23 = vreinterpretq_s16_s8(vcombine_s8(_r2, _r3));
+                int16x8_t _r45 = vreinterpretq_s16_s8(vcombine_s8(_r4, _r5));
+                int16x8_t _r67 = vreinterpretq_s16_s8(vcombine_s8(_r6, _r7));
+                int16x8x2_t _rr0 = vuzpq_s16(_r01, _r23);
+                int16x8x2_t _rr1 = vuzpq_s16(_r45, _r67);
+
+                vst1q_s8(pp, vreinterpretq_s8_s16(_rr0.val[0]));
+                vst1q_s8(pp + 16, vreinterpretq_s8_s16(_rr0.val[1]));
+                vst1q_s8(pp + 32, vreinterpretq_s8_s16(_rr1.val[0]));
+                vst1q_s8(pp + 48, vreinterpretq_s8_s16(_rr1.val[1]));
+#endif // __ARM_FEATURE_DOTPROD
+
+                pp += 64;
+                p0 += B_hstep * 8;
+            }
+        }
         if (elempack == 4)
         {
             int kk = 0;
@@ -3268,22 +4114,22 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 uint16x8_t _u = vld1q_u16(p0 + B_hstep * 4 + 8);
                 uint16x8_t _v = vld1q_u16(p0 + B_hstep * 4 + 16);
                 uint16x8_t _w = vld1q_u16(p0 + B_hstep * 4 + 24);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
-                float32x4_t _p8 = bfloat2float(vget_low_u16(_t));
-                float32x4_t _p9 = bfloat2float(vget_high_u16(_t));
-                float32x4_t _pa = bfloat2float(vget_low_u16(_u));
-                float32x4_t _pb = bfloat2float(vget_high_u16(_u));
-                float32x4_t _pc = bfloat2float(vget_low_u16(_v));
-                float32x4_t _pd = bfloat2float(vget_high_u16(_v));
-                float32x4_t _pe = bfloat2float(vget_low_u16(_w));
-                float32x4_t _pf = bfloat2float(vget_high_u16(_w));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3364,14 +4210,14 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + 16);
                 uint16x8_t _s = vld1q_u16(p0 + 24);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3416,22 +4262,22 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 uint16x8_t _u = vld1q_u16(p0 + B_hstep * 5);
                 uint16x8_t _v = vld1q_u16(p0 + B_hstep * 6);
                 uint16x8_t _w = vld1q_u16(p0 + B_hstep * 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
-                float32x4_t _p8 = bfloat2float(vget_low_u16(_t));
-                float32x4_t _p9 = bfloat2float(vget_high_u16(_t));
-                float32x4_t _pa = bfloat2float(vget_low_u16(_u));
-                float32x4_t _pb = bfloat2float(vget_high_u16(_u));
-                float32x4_t _pc = bfloat2float(vget_low_u16(_v));
-                float32x4_t _pd = bfloat2float(vget_high_u16(_v));
-                float32x4_t _pe = bfloat2float(vget_low_u16(_w));
-                float32x4_t _pf = bfloat2float(vget_high_u16(_w));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+                float32x4_t _p8 = vcvt_f32_f16((float16x4_t)vget_low_u16(_t));
+                float32x4_t _p9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_t));
+                float32x4_t _pa = vcvt_f32_f16((float16x4_t)vget_low_u16(_u));
+                float32x4_t _pb = vcvt_f32_f16((float16x4_t)vget_high_u16(_u));
+                float32x4_t _pc = vcvt_f32_f16((float16x4_t)vget_low_u16(_v));
+                float32x4_t _pd = vcvt_f32_f16((float16x4_t)vget_high_u16(_v));
+                float32x4_t _pe = vcvt_f32_f16((float16x4_t)vget_low_u16(_w));
+                float32x4_t _pf = vcvt_f32_f16((float16x4_t)vget_high_u16(_w));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3508,14 +4354,14 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 uint16x8_t _q = vld1q_u16(p0 + B_hstep);
                 uint16x8_t _r = vld1q_u16(p0 + B_hstep * 2);
                 uint16x8_t _s = vld1q_u16(p0 + B_hstep * 3);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3549,10 +4395,10 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + B_hstep);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3571,8 +4417,8 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             for (; kk < max_kk; kk++)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3591,6 +4437,65 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
     {
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 
+        if (elempack == 8)
+        {
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                uint16x8_t _r = vld1q_u16(p0 + 16);
+                uint16x8_t _s = vld1q_u16(p0 + 24);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
+                _p4 = vmulq_f32(_p4, _scale);
+                _p5 = vmulq_f32(_p5, _scale);
+                _p6 = vmulq_f32(_p6, _scale);
+                _p7 = vmulq_f32(_p7, _scale);
+
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p1);
+                int8x8_t _r1 = float2int8(_p2, _p3);
+                int8x8_t _r2 = float2int8(_p4, _p5);
+                int8x8_t _r3 = float2int8(_p6, _p7);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p4);
+                int8x8_t _r1 = float2int8(_p1, _p5);
+                int8x8_t _r2 = float2int8(_p2, _p6);
+                int8x8_t _r3 = float2int8(_p3, _p7);
+#endif // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_DOTPROD
+                int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p4));
+                int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p1, _p5));
+                int16x4_t _t2 = vreinterpret_s16_s8(float2int8(_p2, _p6));
+                int16x4_t _t3 = vreinterpret_s16_s8(float2int8(_p3, _p7));
+                int16x4x2_t _t01 = vuzp_s16(_t0, _t1);
+                int16x4x2_t _t23 = vuzp_s16(_t2, _t3);
+                int8x8_t _r0 = vreinterpret_s8_s16(_t01.val[0]);
+                int8x8_t _r1 = vreinterpret_s8_s16(_t01.val[1]);
+                int8x8_t _r2 = vreinterpret_s8_s16(_t23.val[0]);
+                int8x8_t _r3 = vreinterpret_s8_s16(_t23.val[1]);
+#endif // __ARM_FEATURE_DOTPROD
+
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+                vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
+
+                pp += 32;
+                p0 += B_hstep * 8;
+            }
+        }
         if (elempack == 4)
         {
             int kk = 0;
@@ -3600,14 +4505,14 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 uint16x8_t _q = vld1q_u16(p0 + 8);
                 uint16x8_t _r = vld1q_u16(p0 + B_hstep * 4);
                 uint16x8_t _s = vld1q_u16(p0 + B_hstep * 4 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-                float32x4_t _p4 = bfloat2float(vget_low_u16(_r));
-                float32x4_t _p5 = bfloat2float(vget_high_u16(_r));
-                float32x4_t _p6 = bfloat2float(vget_low_u16(_s));
-                float32x4_t _p7 = bfloat2float(vget_high_u16(_s));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_r));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_r));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_s));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_s));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3653,10 +4558,10 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + 8);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3685,14 +4590,14 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + B_hstep));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + B_hstep * 2));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + B_hstep * 3));
-                float32x4_t _p4 = bfloat2float(vld1_u16(p0 + B_hstep * 4));
-                float32x4_t _p5 = bfloat2float(vld1_u16(p0 + B_hstep * 5));
-                float32x4_t _p6 = bfloat2float(vld1_u16(p0 + B_hstep * 6));
-                float32x4_t _p7 = bfloat2float(vld1_u16(p0 + B_hstep * 7));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 2));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 3));
+                float32x4_t _p4 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 4));
+                float32x4_t _p5 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 5));
+                float32x4_t _p6 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 6));
+                float32x4_t _p7 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 7));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3738,10 +4643,10 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + B_hstep));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + B_hstep * 2));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + B_hstep * 3));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 2));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 3));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3767,8 +4672,8 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + B_hstep));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3783,10 +4688,10 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-                pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);
-                pp[2] = float2int8(bfloat16_to_float32(p0[2]) * scale);
-                pp[3] = float2int8(bfloat16_to_float32(p0[3]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
+                pp[1] = float2int8(float16_to_float32(p0[1]) * scale);
+                pp[2] = float2int8(float16_to_float32(p0[2]) * scale);
+                pp[3] = float2int8(float16_to_float32(p0[3]) * scale);
                 pp += 4;
                 p0 += B_hstep;
             }
@@ -3798,6 +4703,45 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 
 #if __ARM_NEON
+        if (elempack == 8)
+        {
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _p = vld1q_u16(p0);
+                uint16x8_t _q = vld1q_u16(p0 + 8);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
+
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p1);
+                int8x8_t _r1 = float2int8(_p2, _p3);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int8x8_t _r0 = float2int8(_p0, _p2);
+                int8x8_t _r1 = float2int8(_p1, _p3);
+#endif // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_DOTPROD
+                int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p1));
+                int16x4_t _t1 = vreinterpret_s16_s8(float2int8(_p2, _p3));
+                int16x4x2_t _t01 = vzip_s16(_t0, _t1);
+                int8x8_t _r0 = vreinterpret_s8_s16(_t01.val[0]);
+                int8x8_t _r1 = vreinterpret_s8_s16(_t01.val[1]);
+#endif // __ARM_FEATURE_DOTPROD
+
+                vst1q_s8(pp, vcombine_s8(_r0, _r1));
+
+                pp += 16;
+                p0 += B_hstep * 8;
+            }
+        }
         if (elempack == 4)
         {
             int kk = 0;
@@ -3805,10 +4749,10 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             {
                 uint16x8_t _p = vld1q_u16(p0);
                 uint16x8_t _q = vld1q_u16(p0 + B_hstep * 4);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3839,8 +4783,8 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             for (; kk + 3 < max_kk; kk += 4)
             {
                 uint16x8_t _p = vld1q_u16(p0);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -3885,10 +4829,10 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 _q = vsetq_lane_u16(p0[B_hstep * 6 + 1], _q, 5);
                 _q = vsetq_lane_u16(p0[B_hstep * 7], _q, 6);
                 _q = vsetq_lane_u16(p0[B_hstep * 7 + 1], _q, 7);
-                float32x4_t _p01 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p23 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p45 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p67 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p01 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p23 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p45 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p67 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p01 = vmulq_f32(_p01, _scale);
                 _p23 = vmulq_f32(_p23, _scale);
@@ -3927,10 +4871,10 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 _q = vsetq_lane_u16(p0[B_hstep * 5 + 1], _q, 5);
                 _q = vsetq_lane_u16(p0[B_hstep * 7], _q, 6);
                 _q = vsetq_lane_u16(p0[B_hstep * 7 + 1], _q, 7);
-                float32x4_t _p02 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p46 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p13 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p57 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p02 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p46 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p13 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p57 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p02 = vmulq_f32(_p02, _scale);
                 _p46 = vmulq_f32(_p46, _scale);
@@ -3959,8 +4903,8 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 _p = vsetq_lane_u16(p0[B_hstep * 2 + 1], _p, 5);
                 _p = vsetq_lane_u16(p0[B_hstep * 3], _p, 6);
                 _p = vsetq_lane_u16(p0[B_hstep * 3 + 1], _p, 7);
-                float32x4_t _p01 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p23 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p01 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p23 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p01 = vmulq_f32(_p01, _scale);
                 _p23 = vmulq_f32(_p23, _scale);
@@ -3977,8 +4921,8 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 _p = vsetq_lane_u16(p0[B_hstep + 1], _p, 5);
                 _p = vsetq_lane_u16(p0[B_hstep * 3], _p, 6);
                 _p = vsetq_lane_u16(p0[B_hstep * 3 + 1], _p, 7);
-                float32x4_t _p02 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p13 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p02 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p13 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p02 = vmulq_f32(_p02, _scale);
                 _p13 = vmulq_f32(_p13, _scale);
@@ -3994,18 +4938,18 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-                pp[1] = float2int8(bfloat16_to_float32(p0[B_hstep + 0]) * scale);
-                pp[2] = float2int8(bfloat16_to_float32(p0[1]) * scale);
-                pp[3] = float2int8(bfloat16_to_float32(p0[B_hstep + 1]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
+                pp[1] = float2int8(float16_to_float32(p0[B_hstep + 0]) * scale);
+                pp[2] = float2int8(float16_to_float32(p0[1]) * scale);
+                pp[3] = float2int8(float16_to_float32(p0[B_hstep + 1]) * scale);
                 pp += 4;
                 p0 += B_hstep * 2;
             }
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-                pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
+                pp[1] = float2int8(float16_to_float32(p0[1]) * scale);
                 pp += 2;
                 p0 += B_hstep;
             }
@@ -4016,15 +4960,17 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 
 #if __ARM_NEON
-        if (elempack == 4)
+        if (elempack == 8)
         {
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + B_hstep * 4));
-                float32x4_t _p2 = bfloat2float(vld1_u16(p0 + B_hstep * 8));
-                float32x4_t _p3 = bfloat2float(vld1_u16(p0 + B_hstep * 12));
+                uint16x8_t _p01 = vld1q_u16(p0);
+                uint16x8_t _p23 = vld1q_u16(p0 + B_hstep * 8);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p23));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p23));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -4041,8 +4987,47 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             }
             for (; kk + 7 < max_kk; kk += 8)
             {
-                float32x4_t _p0 = bfloat2float(vld1_u16(p0));
-                float32x4_t _p1 = bfloat2float(vld1_u16(p0 + B_hstep * 4));
+                uint16x8_t _p01 = vld1q_u16(p0);
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p01));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p01));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+
+                int8x8_t _r01 = float2int8(_p0, _p1);
+
+                vst1_s8(pp, _r01);
+                pp += 8;
+                p0 += B_hstep * 8;
+            }
+        }
+        if (elempack == 4)
+        {
+            int kk = 0;
+            for (; kk + 15 < max_kk; kk += 16)
+            {
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 4));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 8));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 12));
+
+                _p0 = vmulq_f32(_p0, _scale);
+                _p1 = vmulq_f32(_p1, _scale);
+                _p2 = vmulq_f32(_p2, _scale);
+                _p3 = vmulq_f32(_p3, _scale);
+
+                int8x8_t _r01 = float2int8(_p0, _p1);
+                int8x8_t _r23 = float2int8(_p2, _p3);
+
+                vst1q_s8(pp, vcombine_s8(_r01, _r23));
+
+                pp += 16;
+                p0 += B_hstep * 16;
+            }
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vld1_u16(p0));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vld1_u16(p0 + B_hstep * 4));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -4056,10 +5041,10 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
             }
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
-                pp[1] = float2int8(bfloat16_to_float32(p0[1]) * scale);
-                pp[2] = float2int8(bfloat16_to_float32(p0[2]) * scale);
-                pp[3] = float2int8(bfloat16_to_float32(p0[3]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
+                pp[1] = float2int8(float16_to_float32(p0[1]) * scale);
+                pp[2] = float2int8(float16_to_float32(p0[2]) * scale);
+                pp[3] = float2int8(float16_to_float32(p0[3]) * scale);
                 pp += 4;
                 p0 += B_hstep * 4;
             }
@@ -4089,10 +5074,10 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 _q = vsetq_lane_u16(p0[B_hstep * 13], _q, 5);
                 _q = vsetq_lane_u16(p0[B_hstep * 14], _q, 6);
                 _q = vsetq_lane_u16(p0[B_hstep * 15], _q, 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
+                float32x4_t _p2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_q));
+                float32x4_t _p3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_q));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -4118,8 +5103,8 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
                 _p = vsetq_lane_u16(p0[B_hstep * 5], _p, 5);
                 _p = vsetq_lane_u16(p0[B_hstep * 6], _p, 6);
                 _p = vsetq_lane_u16(p0[B_hstep * 7], _p, 7);
-                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_p));
+                float32x4_t _p1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_p));
 
                 _p0 = vmulq_f32(_p0, _scale);
                 _p1 = vmulq_f32(_p1, _scale);
@@ -4134,7 +5119,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
 #endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(bfloat16_to_float32(p0[0]) * scale);
+                pp[0] = float2int8(float16_to_float32(p0[0]) * scale);
                 pp += 1;
                 p0 += B_hstep;
             }
@@ -4142,12 +5127,12 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
     }
 }
 
-static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta)
+static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_asimddp())
     {
-        unpack_output_tile_int32_to_bf16_asimddp(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
+        unpack_output_tile_int32_to_fp16_asimddp(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
         return;
     }
 #endif
@@ -4159,7 +5144,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
     const int c_elempack = C.elempack;
     const unsigned short* pC = C;
 
-    // NCNN_LOGE("unpack_output_tile_int32_to_bf16  %d %d %d %d  %d  %d  %d", i, max_ii, j, max_jj, out_elempack, broadcast_type_C, c_elempack);
+    // NCNN_LOGE("unpack_output_tile_int32_to_fp16  %d %d %d %d  %d  %d  %d", i, max_ii, j, max_jj, out_elempack, broadcast_type_C, c_elempack);
 
     const int* pp = topT;
 
@@ -4178,14 +5163,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
         {
             if (broadcast_type_C == 0)
             {
-                _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
             }
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 pC = (const unsigned short*)C + i + ii;
                 uint16x8_t _c = vld1q_u16(pC);
-                _c0 = bfloat2float(vget_low_u16(_c));
-                _c1 = bfloat2float(vget_high_u16(_c));
+                _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                 _c0 = vmulq_n_f32(_c0, beta);
                 _c1 = vmulq_n_f32(_c1, beta);
             }
@@ -4429,14 +5414,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
                             uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
                             transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -4465,14 +5450,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c45 = vld1q_u16(pC + c_hstep * 6);
                             _c67 = vld1q_u16(pC + c_hstep * 7);
                             transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f8 = vaddq_f32(_f8, _c0);
@@ -4498,20 +5483,20 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             }
                             pC += 8;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x8_t _c01 = vld1q_u16(pC);
                             uint16x8_t _c23 = vld1q_u16(pC + 8);
                             uint16x8_t _c45 = vld1q_u16(pC + 16);
                             uint16x8_t _c67 = vld1q_u16(pC + 24);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -4539,14 +5524,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
                             _c45 = vld1q_u16(pC + c_hstep * 4 + 16);
                             _c67 = vld1q_u16(pC + c_hstep * 4 + 24);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f8 = vaddq_f32(_f8, _c0);
@@ -4572,12 +5557,86 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             }
                             pC += 32;
                         }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _c08 = vld1q_u16(pC);
+                            uint16x8_t _c19 = vld1q_u16(pC + 8);
+                            uint16x8_t _c2a = vld1q_u16(pC + 16);
+                            uint16x8_t _c3b = vld1q_u16(pC + 24);
+                            uint16x8_t _c4c = vld1q_u16(pC + 32);
+                            uint16x8_t _c5d = vld1q_u16(pC + 40);
+                            uint16x8_t _c6e = vld1q_u16(pC + 48);
+                            uint16x8_t _c7f = vld1q_u16(pC + 56);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c08));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c19));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c2a));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c3b));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c4c));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c5d));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c6e));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c7f));
+                            if (beta == 1.f)
+                            {
+                                _f0 = vaddq_f32(_f0, _c0);
+                                _f1 = vaddq_f32(_f1, _c1);
+                                _f2 = vaddq_f32(_f2, _c2);
+                                _f3 = vaddq_f32(_f3, _c3);
+                                _f4 = vaddq_f32(_f4, _c4);
+                                _f5 = vaddq_f32(_f5, _c5);
+                                _f6 = vaddq_f32(_f6, _c6);
+                                _f7 = vaddq_f32(_f7, _c7);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f0 = vmlaq_f32(_f0, _c0, _beta);
+                                _f1 = vmlaq_f32(_f1, _c1, _beta);
+                                _f2 = vmlaq_f32(_f2, _c2, _beta);
+                                _f3 = vmlaq_f32(_f3, _c3, _beta);
+                                _f4 = vmlaq_f32(_f4, _c4, _beta);
+                                _f5 = vmlaq_f32(_f5, _c5, _beta);
+                                _f6 = vmlaq_f32(_f6, _c6, _beta);
+                                _f7 = vmlaq_f32(_f7, _c7, _beta);
+                            }
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c08));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c19));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c2a));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c3b));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c4c));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c5d));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c6e));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c7f));
+                            if (beta == 1.f)
+                            {
+                                _f8 = vaddq_f32(_f8, _c0);
+                                _f9 = vaddq_f32(_f9, _c1);
+                                _fa = vaddq_f32(_fa, _c2);
+                                _fb = vaddq_f32(_fb, _c3);
+                                _fc = vaddq_f32(_fc, _c4);
+                                _fd = vaddq_f32(_fd, _c5);
+                                _fe = vaddq_f32(_fe, _c6);
+                                _ff = vaddq_f32(_ff, _c7);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f8 = vmlaq_f32(_f8, _c0, _beta);
+                                _f9 = vmlaq_f32(_f9, _c1, _beta);
+                                _fa = vmlaq_f32(_fa, _c2, _beta);
+                                _fb = vmlaq_f32(_fb, _c3, _beta);
+                                _fc = vmlaq_f32(_fc, _c4, _beta);
+                                _fd = vmlaq_f32(_fd, _c5, _beta);
+                                _fe = vmlaq_f32(_fe, _c6, _beta);
+                                _ff = vmlaq_f32(_ff, _c7, _beta);
+                            }
+                            pC += 64;
+                        }
                     }
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _cc = vld1q_u16(pC);
-                        float32x4_t _cc0 = bfloat2float(vget_low_u16(_cc));
-                        float32x4_t _cc1 = bfloat2float(vget_high_u16(_cc));
+                        float32x4_t _cc0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc));
+                        float32x4_t _cc1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -4633,14 +5692,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _ff = vmulq_f32(_ff, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + 16, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + 24, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f8), float2bfloat(_f9)));
-                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(float2bfloat(_fa), float2bfloat(_fb)));
-                vst1q_u16(p0 + out_hstep * 4 + 16, vcombine_u16(float2bfloat(_fc), float2bfloat(_fd)));
-                vst1q_u16(p0 + out_hstep * 4 + 24, vcombine_u16(float2bfloat(_fe), float2bfloat(_ff)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
+                vst1q_u16(p0 + 16, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f4), (uint16x4_t)vcvt_f16_f32(_f5)));
+                vst1q_u16(p0 + 24, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f6), (uint16x4_t)vcvt_f16_f32(_f7)));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f8), (uint16x4_t)vcvt_f16_f32(_f9)));
+                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_fa), (uint16x4_t)vcvt_f16_f32(_fb)));
+                vst1q_u16(p0 + out_hstep * 4 + 16, vcombine_u16((uint16x4_t)vcvt_f16_f32(_fc), (uint16x4_t)vcvt_f16_f32(_fd)));
+                vst1q_u16(p0 + out_hstep * 4 + 24, vcombine_u16((uint16x4_t)vcvt_f16_f32(_fe), (uint16x4_t)vcvt_f16_f32(_ff)));
 
                 pp += 64;
                 p0 += 32;
@@ -4757,10 +5816,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
                             uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
                             transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            float32x4_t _c2 = bfloat2float(_cc2);
-                            float32x4_t _c3 = bfloat2float(_cc3);
+                            _c0 = vcvt_f32_f16((float16x4_t)_cc0);
+                            _c1 = vcvt_f32_f16((float16x4_t)_cc1);
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)_cc2);
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)_cc3);
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -4781,10 +5840,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _cc2 = vld1_u16(pC + c_hstep * 6);
                             _cc3 = vld1_u16(pC + c_hstep * 7);
                             transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            _c2 = bfloat2float(_cc2);
-                            _c3 = bfloat2float(_cc3);
+                            _c0 = vcvt_f32_f16((float16x4_t)_cc0);
+                            _c1 = vcvt_f32_f16((float16x4_t)_cc1);
+                            _c2 = vcvt_f32_f16((float16x4_t)_cc2);
+                            _c3 = vcvt_f32_f16((float16x4_t)_cc3);
                             if (beta == 1.f)
                             {
                                 _f4 = vaddq_f32(_f4, _c0);
@@ -4802,14 +5861,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             }
                             pC += 4;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x8_t _c01 = vld1q_u16(pC);
                             uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -4827,10 +5886,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             }
                             _c01 = vld1q_u16(pC + c_hstep * 4);
                             _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             if (beta == 1.f)
                             {
                                 _f4 = vaddq_f32(_f4, _c0);
@@ -4848,10 +5907,56 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             }
                             pC += 16;
                         }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _c04 = vld1q_u16(pC);
+                            uint16x8_t _c15 = vld1q_u16(pC + 8);
+                            uint16x8_t _c26 = vld1q_u16(pC + 16);
+                            uint16x8_t _c37 = vld1q_u16(pC + 24);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c04));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c15));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c26));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c37));
+                            if (beta == 1.f)
+                            {
+                                _f0 = vaddq_f32(_f0, _c0);
+                                _f1 = vaddq_f32(_f1, _c1);
+                                _f2 = vaddq_f32(_f2, _c2);
+                                _f3 = vaddq_f32(_f3, _c3);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f0 = vmlaq_f32(_f0, _c0, _beta);
+                                _f1 = vmlaq_f32(_f1, _c1, _beta);
+                                _f2 = vmlaq_f32(_f2, _c2, _beta);
+                                _f3 = vmlaq_f32(_f3, _c3, _beta);
+                            }
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c04));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c15));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c26));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c37));
+                            if (beta == 1.f)
+                            {
+                                _f4 = vaddq_f32(_f4, _c0);
+                                _f5 = vaddq_f32(_f5, _c1);
+                                _f6 = vaddq_f32(_f6, _c2);
+                                _f7 = vaddq_f32(_f7, _c3);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f4 = vmlaq_f32(_f4, _c0, _beta);
+                                _f5 = vmlaq_f32(_f5, _c1, _beta);
+                                _f6 = vmlaq_f32(_f6, _c2, _beta);
+                                _f7 = vmlaq_f32(_f7, _c3, _beta);
+                            }
+                            pC += 32;
+                        }
                     }
                     if (broadcast_type_C == 4)
                     {
-                        float32x4_t _c = bfloat2float(vld1_u16(pC));
+                        float32x4_t _c = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c = vmulq_n_f32(_c, beta);
 #if __aarch64__
                         _c0 = vdupq_laneq_f32(_c, 0);
@@ -4889,10 +5994,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f7 = vmulq_f32(_f7, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f4), (uint16x4_t)vcvt_f16_f32(_f5)));
+                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f6), (uint16x4_t)vcvt_f16_f32(_f7)));
 
                 pp += 32;
                 p0 += 16;
@@ -4959,11 +6064,11 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     }
                     if (broadcast_type_C == 3)
                     {
-                        uint16x8_t _c01;
-                        uint16x8_t _c23;
+                        float32x4_t _c2;
+                        float32x4_t _c3;
                         if (c_elempack == 1)
                         {
-                            _c01 = uint16x8_t();
+                            uint16x8_t _c01 = uint16x8_t();
                             _c01 = vsetq_lane_u16(pC[0], _c01, 0);
                             _c01 = vsetq_lane_u16(pC[c_hstep], _c01, 1);
                             _c01 = vsetq_lane_u16(pC[c_hstep * 2], _c01, 2);
@@ -4972,7 +6077,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c01 = vsetq_lane_u16(pC[c_hstep + 1], _c01, 5);
                             _c01 = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c01, 6);
                             _c01 = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c01, 7);
-                            _c23 = uint16x8_t();
+                            uint16x8_t _c23 = uint16x8_t();
                             _c23 = vsetq_lane_u16(pC[c_hstep * 4], _c23, 0);
                             _c23 = vsetq_lane_u16(pC[c_hstep * 5], _c23, 1);
                             _c23 = vsetq_lane_u16(pC[c_hstep * 6], _c23, 2);
@@ -4981,18 +6086,32 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c23 = vsetq_lane_u16(pC[c_hstep * 5 + 1], _c23, 5);
                             _c23 = vsetq_lane_u16(pC[c_hstep * 6 + 1], _c23, 6);
                             _c23 = vsetq_lane_u16(pC[c_hstep * 7 + 1], _c23, 7);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             pC += 2;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
-                            _c01 = vld1q_u16(pC);
-                            _c23 = vld1q_u16(pC + c_hstep * 4);
+                            uint16x8_t _c01 = vld1q_u16(pC);
+                            uint16x8_t _c23 = vld1q_u16(pC + c_hstep * 4);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             pC += 8;
                         }
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _cc0 = vld1q_u16(pC);
+                            uint16x8_t _cc1 = vld1q_u16(pC + 8);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc1));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc1));
+                            pC += 16;
+                        }
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -5011,8 +6130,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
+                        _c1 = vdupq_n_f32(float16_to_float32(pC[1]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                         _f2 = vaddq_f32(_f2, _c0);
@@ -5030,8 +6149,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
 
                 pp += 16;
                 p0 += 8;
@@ -5069,15 +6188,22 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c01 = vsetq_lane_u16(pC[c_hstep * 5], _c01, 5);
                             _c01 = vsetq_lane_u16(pC[c_hstep * 6], _c01, 6);
                             _c01 = vsetq_lane_u16(pC[c_hstep * 7], _c01, 7);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
                             pC += 1;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 4));
                             pC += 4;
+                        }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _c = vld1q_u16(pC);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
+                            pC += 8;
                         }
                         if (beta == 1.f)
                         {
@@ -5093,7 +6219,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
                         pC += 1;
@@ -5107,8 +6233,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep * 4, float2bfloat(_f1));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + out_hstep * 4, (uint16x4_t)vcvt_f16_f32(_f1));
 
                 pp += 8;
                 p0 += 4;
@@ -5352,14 +6478,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
                             uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
                             uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -5387,14 +6513,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c23 = vld1q_u16(pC + c_hstep * 5);
                             _c45 = vld1q_u16(pC + c_hstep * 6);
                             _c67 = vld1q_u16(pC + c_hstep * 7);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f8 = vaddq_f32(_f8, _c0);
@@ -5420,17 +6546,17 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             }
                             pC += 8;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x8x4_t _cc0 = vld4q_u16(pC);
-                            _c0 = bfloat2float(vget_low_u16(_cc0.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc0.val[0]));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_cc0.val[1]));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_cc0.val[1]));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_cc0.val[2]));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_cc0.val[2]));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_cc0.val[3]));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_cc0.val[3]));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[0]));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[0]));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[1]));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[1]));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[2]));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[2]));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[3]));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[3]));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -5455,14 +6581,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                                 _f7 = vmlaq_f32(_f7, _c7, _beta);
                             }
                             _cc0 = vld4q_u16(pC + c_hstep * 4);
-                            _c0 = bfloat2float(vget_low_u16(_cc0.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc0.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_cc0.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_cc0.val[1]));
-                            _c4 = bfloat2float(vget_low_u16(_cc0.val[2]));
-                            _c5 = bfloat2float(vget_high_u16(_cc0.val[2]));
-                            _c6 = bfloat2float(vget_low_u16(_cc0.val[3]));
-                            _c7 = bfloat2float(vget_high_u16(_cc0.val[3]));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[0]));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[0]));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[1]));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[1]));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[2]));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[2]));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[3]));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[3]));
                             if (beta == 1.f)
                             {
                                 _f8 = vaddq_f32(_f8, _c0);
@@ -5488,12 +6614,64 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             }
                             pC += 32;
                         }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _cc0 = vld1q_u16(pC);
+                            uint16x8_t _cc1 = vld1q_u16(pC + 8);
+                            uint16x8_t _cc2 = vld1q_u16(pC + 16);
+                            uint16x8_t _cc3 = vld1q_u16(pC + 24);
+                            uint16x8_t _cc4 = vld1q_u16(pC + 32);
+                            uint16x8_t _cc5 = vld1q_u16(pC + 40);
+                            uint16x8_t _cc6 = vld1q_u16(pC + 48);
+                            uint16x8_t _cc7 = vld1q_u16(pC + 56);
+                            transpose8x8_u16(_cc0, _cc1, _cc2, _cc3, _cc4, _cc5, _cc6, _cc7);
+                            if (beta == 1.f)
+                            {
+                                _f0 = vaddq_f32(_f0, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0)));
+                                _f1 = vaddq_f32(_f1, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0)));
+                                _f2 = vaddq_f32(_f2, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc1)));
+                                _f3 = vaddq_f32(_f3, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc1)));
+                                _f4 = vaddq_f32(_f4, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc2)));
+                                _f5 = vaddq_f32(_f5, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc2)));
+                                _f6 = vaddq_f32(_f6, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc3)));
+                                _f7 = vaddq_f32(_f7, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc3)));
+                                _f8 = vaddq_f32(_f8, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc4)));
+                                _f9 = vaddq_f32(_f9, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc4)));
+                                _fa = vaddq_f32(_fa, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc5)));
+                                _fb = vaddq_f32(_fb, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc5)));
+                                _fc = vaddq_f32(_fc, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc6)));
+                                _fd = vaddq_f32(_fd, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc6)));
+                                _fe = vaddq_f32(_fe, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc7)));
+                                _ff = vaddq_f32(_ff, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc7)));
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f0 = vmlaq_f32(_f0, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0)), _beta);
+                                _f1 = vmlaq_f32(_f1, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0)), _beta);
+                                _f2 = vmlaq_f32(_f2, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc1)), _beta);
+                                _f3 = vmlaq_f32(_f3, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc1)), _beta);
+                                _f4 = vmlaq_f32(_f4, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc2)), _beta);
+                                _f5 = vmlaq_f32(_f5, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc2)), _beta);
+                                _f6 = vmlaq_f32(_f6, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc3)), _beta);
+                                _f7 = vmlaq_f32(_f7, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc3)), _beta);
+                                _f8 = vmlaq_f32(_f8, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc4)), _beta);
+                                _f9 = vmlaq_f32(_f9, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc4)), _beta);
+                                _fa = vmlaq_f32(_fa, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc5)), _beta);
+                                _fb = vmlaq_f32(_fb, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc5)), _beta);
+                                _fc = vmlaq_f32(_fc, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc6)), _beta);
+                                _fd = vmlaq_f32(_fd, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc6)), _beta);
+                                _fe = vmlaq_f32(_fe, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc7)), _beta);
+                                _ff = vmlaq_f32(_ff, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc7)), _beta);
+                            }
+                            pC += 32;
+                        }
                     }
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -5541,14 +6719,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _ff = vmulq_f32(_ff, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f8), float2bfloat(_f9)));
-                vst1q_u16(p0 + out_hstep * 5, vcombine_u16(float2bfloat(_fa), float2bfloat(_fb)));
-                vst1q_u16(p0 + out_hstep * 6, vcombine_u16(float2bfloat(_fc), float2bfloat(_fd)));
-                vst1q_u16(p0 + out_hstep * 7, vcombine_u16(float2bfloat(_fe), float2bfloat(_ff)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + out_hstep, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
+                vst1q_u16(p0 + out_hstep * 2, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f4), (uint16x4_t)vcvt_f16_f32(_f5)));
+                vst1q_u16(p0 + out_hstep * 3, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f6), (uint16x4_t)vcvt_f16_f32(_f7)));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f8), (uint16x4_t)vcvt_f16_f32(_f9)));
+                vst1q_u16(p0 + out_hstep * 5, vcombine_u16((uint16x4_t)vcvt_f16_f32(_fa), (uint16x4_t)vcvt_f16_f32(_fb)));
+                vst1q_u16(p0 + out_hstep * 6, vcombine_u16((uint16x4_t)vcvt_f16_f32(_fc), (uint16x4_t)vcvt_f16_f32(_fd)));
+                vst1q_u16(p0 + out_hstep * 7, vcombine_u16((uint16x4_t)vcvt_f16_f32(_fe), (uint16x4_t)vcvt_f16_f32(_ff)));
 
                 pp += 64;
                 p0 += 8;
@@ -5710,10 +6888,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     {
                         if (c_elempack == 1)
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 1));
-                            float32x4_t _c2 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            float32x4_t _c3 = bfloat2float(vld1_u16(pC + c_hstep * 3));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 1));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 2));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 3));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -5729,10 +6907,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                                 _f2 = vmlaq_f32(_f2, _c2, _beta);
                                 _f3 = vmlaq_f32(_f3, _c3, _beta);
                             }
-                            _c0 = bfloat2float(vld1_u16(pC + c_hstep * 4));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 5));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 6));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 7));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 4));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 5));
+                            _c2 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 6));
+                            _c3 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 7));
                             if (beta == 1.f)
                             {
                                 _f4 = vaddq_f32(_f4, _c0);
@@ -5750,46 +6928,78 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             }
                             pC += 4;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x4x4_t _cc0 = vld4_u16(pC);
                             if (beta == 1.f)
                             {
-                                _f0 = vaddq_f32(_f0, bfloat2float(_cc0.val[0]));
-                                _f1 = vaddq_f32(_f1, bfloat2float(_cc0.val[1]));
-                                _f2 = vaddq_f32(_f2, bfloat2float(_cc0.val[2]));
-                                _f3 = vaddq_f32(_f3, bfloat2float(_cc0.val[3]));
+                                _f0 = vaddq_f32(_f0, vcvt_f32_f16((float16x4_t)_cc0.val[0]));
+                                _f1 = vaddq_f32(_f1, vcvt_f32_f16((float16x4_t)_cc0.val[1]));
+                                _f2 = vaddq_f32(_f2, vcvt_f32_f16((float16x4_t)_cc0.val[2]));
+                                _f3 = vaddq_f32(_f3, vcvt_f32_f16((float16x4_t)_cc0.val[3]));
                             }
                             else
                             {
                                 float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, bfloat2float(_cc0.val[0]), _beta);
-                                _f1 = vmlaq_f32(_f1, bfloat2float(_cc0.val[1]), _beta);
-                                _f2 = vmlaq_f32(_f2, bfloat2float(_cc0.val[2]), _beta);
-                                _f3 = vmlaq_f32(_f3, bfloat2float(_cc0.val[3]), _beta);
+                                _f0 = vmlaq_f32(_f0, vcvt_f32_f16((float16x4_t)_cc0.val[0]), _beta);
+                                _f1 = vmlaq_f32(_f1, vcvt_f32_f16((float16x4_t)_cc0.val[1]), _beta);
+                                _f2 = vmlaq_f32(_f2, vcvt_f32_f16((float16x4_t)_cc0.val[2]), _beta);
+                                _f3 = vmlaq_f32(_f3, vcvt_f32_f16((float16x4_t)_cc0.val[3]), _beta);
                             }
                             _cc0 = vld4_u16(pC + c_hstep * 4);
                             if (beta == 1.f)
                             {
-                                _f4 = vaddq_f32(_f4, bfloat2float(_cc0.val[0]));
-                                _f5 = vaddq_f32(_f5, bfloat2float(_cc0.val[1]));
-                                _f6 = vaddq_f32(_f6, bfloat2float(_cc0.val[2]));
-                                _f7 = vaddq_f32(_f7, bfloat2float(_cc0.val[3]));
+                                _f4 = vaddq_f32(_f4, vcvt_f32_f16((float16x4_t)_cc0.val[0]));
+                                _f5 = vaddq_f32(_f5, vcvt_f32_f16((float16x4_t)_cc0.val[1]));
+                                _f6 = vaddq_f32(_f6, vcvt_f32_f16((float16x4_t)_cc0.val[2]));
+                                _f7 = vaddq_f32(_f7, vcvt_f32_f16((float16x4_t)_cc0.val[3]));
                             }
                             else
                             {
                                 float32x4_t _beta = vdupq_n_f32(beta);
-                                _f4 = vmlaq_f32(_f4, bfloat2float(_cc0.val[0]), _beta);
-                                _f5 = vmlaq_f32(_f5, bfloat2float(_cc0.val[1]), _beta);
-                                _f6 = vmlaq_f32(_f6, bfloat2float(_cc0.val[2]), _beta);
-                                _f7 = vmlaq_f32(_f7, bfloat2float(_cc0.val[3]), _beta);
+                                _f4 = vmlaq_f32(_f4, vcvt_f32_f16((float16x4_t)_cc0.val[0]), _beta);
+                                _f5 = vmlaq_f32(_f5, vcvt_f32_f16((float16x4_t)_cc0.val[1]), _beta);
+                                _f6 = vmlaq_f32(_f6, vcvt_f32_f16((float16x4_t)_cc0.val[2]), _beta);
+                                _f7 = vmlaq_f32(_f7, vcvt_f32_f16((float16x4_t)_cc0.val[3]), _beta);
                             }
                             pC += 16;
+                        }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _cc0 = vld1q_u16(pC);
+                            uint16x8_t _cc1 = vld1q_u16(pC + 8);
+                            uint16x8_t _cc2 = vld1q_u16(pC + 16);
+                            uint16x8_t _cc3 = vld1q_u16(pC + 24);
+                            transpose8x4_u16(_cc0, _cc1, _cc2, _cc3);
+                            if (beta == 1.f)
+                            {
+                                _f0 = vaddq_f32(_f0, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0)));
+                                _f1 = vaddq_f32(_f1, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0)));
+                                _f2 = vaddq_f32(_f2, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc1)));
+                                _f3 = vaddq_f32(_f3, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc1)));
+                                _f4 = vaddq_f32(_f4, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc2)));
+                                _f5 = vaddq_f32(_f5, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc2)));
+                                _f6 = vaddq_f32(_f6, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc3)));
+                                _f7 = vaddq_f32(_f7, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc3)));
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f0 = vmlaq_f32(_f0, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0)), _beta);
+                                _f1 = vmlaq_f32(_f1, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0)), _beta);
+                                _f2 = vmlaq_f32(_f2, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc1)), _beta);
+                                _f3 = vmlaq_f32(_f3, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc1)), _beta);
+                                _f4 = vmlaq_f32(_f4, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc2)), _beta);
+                                _f5 = vmlaq_f32(_f5, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc2)), _beta);
+                                _f6 = vmlaq_f32(_f6, vcvt_f32_f16((float16x4_t)vget_low_u16(_cc3)), _beta);
+                                _f7 = vmlaq_f32(_f7, vcvt_f32_f16((float16x4_t)vget_high_u16(_cc3)), _beta);
+                            }
+                            pC += 32;
                         }
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c0 = vmulq_n_f32(_c0, beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
@@ -5816,14 +7026,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f7 = vmulq_f32(_f7, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-                vst1_u16(p0 + out_hstep * 2, float2bfloat(_f2));
-                vst1_u16(p0 + out_hstep * 3, float2bfloat(_f3));
-                vst1_u16(p0 + out_hstep * 4, float2bfloat(_f4));
-                vst1_u16(p0 + out_hstep * 5, float2bfloat(_f5));
-                vst1_u16(p0 + out_hstep * 6, float2bfloat(_f6));
-                vst1_u16(p0 + out_hstep * 7, float2bfloat(_f7));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + out_hstep, (uint16x4_t)vcvt_f16_f32(_f1));
+                vst1_u16(p0 + out_hstep * 2, (uint16x4_t)vcvt_f16_f32(_f2));
+                vst1_u16(p0 + out_hstep * 3, (uint16x4_t)vcvt_f16_f32(_f3));
+                vst1_u16(p0 + out_hstep * 4, (uint16x4_t)vcvt_f16_f32(_f4));
+                vst1_u16(p0 + out_hstep * 5, (uint16x4_t)vcvt_f16_f32(_f5));
+                vst1_u16(p0 + out_hstep * 6, (uint16x4_t)vcvt_f16_f32(_f6));
+                vst1_u16(p0 + out_hstep * 7, (uint16x4_t)vcvt_f16_f32(_f7));
 
                 pp += 32;
                 p0 += 4;
@@ -5929,22 +7139,33 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _cc1 = vsetq_lane_u16(pC[c_hstep * 6 + 1], _cc1, 5);
                             _cc1 = vsetq_lane_u16(pC[c_hstep * 7], _cc1, 6);
                             _cc1 = vsetq_lane_u16(pC[c_hstep * 7 + 1], _cc1, 7);
-                            _c0 = bfloat2float(vget_low_u16(_cc0));
-                            _c1 = bfloat2float(vget_high_u16(_cc0));
-                            _c2 = bfloat2float(vget_low_u16(_cc1));
-                            _c3 = bfloat2float(vget_high_u16(_cc1));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc1));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc1));
                             pC += 2;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x8_t _cc0 = vld1q_u16(pC);
                             uint16x8_t _cc1 = vld1q_u16(pC + c_hstep * 4);
                             uint16x8x2_t _cc = vzipq_u16(vcombine_u16(vget_low_u16(_cc0), vget_low_u16(_cc1)), vcombine_u16(vget_high_u16(_cc0), vget_high_u16(_cc1)));
-                            _c0 = bfloat2float(vget_low_u16(_cc.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_cc.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_cc.val[1]));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc.val[0]));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc.val[0]));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc.val[1]));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc.val[1]));
                             pC += 8;
+                        }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _cc0 = vld1q_u16(pC);
+                            uint16x8_t _cc1 = vld1q_u16(pC + 8);
+                            uint16x8x2_t _cc = vzipq_u16(_cc0, _cc1);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc.val[0]));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc.val[0]));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc.val[1]));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc.val[1]));
+                            pC += 16;
                         }
                         if (beta == 1.f)
                         {
@@ -5969,7 +7190,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                         _c = vset_lane_u16(pC[1], _c, 1);
                         _c = vset_lane_u16(pC[0], _c, 2);
                         _c = vset_lane_u16(pC[1], _c, 3);
-                        _c0 = bfloat2float(_c);
+                        _c0 = vcvt_f32_f16((float16x4_t)_c);
                         _c0 = vmulq_n_f32(_c0, beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
@@ -5988,10 +7209,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                uint16x4_t _fb0 = float2bfloat(_f0);
-                uint16x4_t _fb1 = float2bfloat(_f1);
-                uint16x4_t _fb2 = float2bfloat(_f2);
-                uint16x4_t _fb3 = float2bfloat(_f3);
+                uint16x4_t _fb0 = (uint16x4_t)vcvt_f16_f32(_f0);
+                uint16x4_t _fb1 = (uint16x4_t)vcvt_f16_f32(_f1);
+                uint16x4_t _fb2 = (uint16x4_t)vcvt_f16_f32(_f2);
+                uint16x4_t _fb3 = (uint16x4_t)vcvt_f16_f32(_f3);
 
                 p0[0] = vget_lane_u16(_fb0, 0);
                 p0[1] = vget_lane_u16(_fb0, 1);
@@ -6046,15 +7267,22 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c = vsetq_lane_u16(pC[c_hstep * 5], _c, 5);
                             _c = vsetq_lane_u16(pC[c_hstep * 6], _c, 6);
                             _c = vsetq_lane_u16(pC[c_hstep * 7], _c, 7);
-                            _c0 = bfloat2float(vget_low_u16(_c));
-                            _c1 = bfloat2float(vget_high_u16(_c));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                             pC += 1;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 4));
                             pC += 4;
+                        }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _c = vld1q_u16(pC);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
+                            pC += 8;
                         }
                         if (beta == 1.f)
                         {
@@ -6070,7 +7298,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
                         pC += 1;
@@ -6084,8 +7312,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                uint16x4_t _fb0 = float2bfloat(_f0);
-                uint16x4_t _fb1 = float2bfloat(_f1);
+                uint16x4_t _fb0 = (uint16x4_t)vcvt_f16_f32(_f0);
+                uint16x4_t _fb1 = (uint16x4_t)vcvt_f16_f32(_f1);
 
                 p0[0] = vget_lane_u16(_fb0, 0);
                 p0[out_hstep] = vget_lane_u16(_fb0, 1);
@@ -6112,12 +7340,12 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
         {
             if (broadcast_type_C == 0)
             {
-                _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
             }
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 pC = (const unsigned short*)C + i + ii;
-                _c0 = bfloat2float(vld1_u16(pC));
+                _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                 _c0 = vmulq_n_f32(_c0, beta);
             }
             if (broadcast_type_C == 3)
@@ -6259,14 +7487,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c67 = vld1q_u16(pC + 24);
                             pC += 32;
                         }
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                        float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                        float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                        float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                        float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                        float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                        float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                        float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                        float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                        float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                        float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -6294,8 +7522,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
-                        float32x4_t _cc0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _cc1 = bfloat2float(vget_high_u16(_c));
+                        float32x4_t _cc0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _cc1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -6335,10 +7563,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f7 = vmulq_f32(_f7, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + 16, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + 24, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
+                vst1q_u16(p0 + 16, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f4), (uint16x4_t)vcvt_f16_f32(_f5)));
+                vst1q_u16(p0 + 24, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f6), (uint16x4_t)vcvt_f16_f32(_f7)));
 
                 pp += 32;
                 p0 += 32;
@@ -6418,20 +7646,20 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
                             uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
                             transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            _c2 = bfloat2float(_cc2);
-                            _c3 = bfloat2float(_cc3);
+                            _c0 = vcvt_f32_f16((float16x4_t)_cc0);
+                            _c1 = vcvt_f32_f16((float16x4_t)_cc1);
+                            _c2 = vcvt_f32_f16((float16x4_t)_cc2);
+                            _c3 = vcvt_f32_f16((float16x4_t)_cc3);
                             pC += 4;
                         }
                         else // if (c_elempack == 4)
                         {
                             uint16x8_t _c01 = vld1q_u16(pC);
                             uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             pC += 16;
                         }
                         if (beta == 1.f)
@@ -6452,7 +7680,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     }
                     if (broadcast_type_C == 4)
                     {
-                        float32x4_t _c = bfloat2float(vld1_u16(pC));
+                        float32x4_t _c = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c = vmulq_n_f32(_c, beta);
 #if __aarch64__
                         _c0 = vdupq_laneq_f32(_c, 0);
@@ -6482,8 +7710,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
 
                 pp += 16;
                 p0 += 16;
@@ -6550,8 +7778,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c = vld1q_u16(pC);
                             pC += 8;
                         }
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -6566,8 +7794,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        float32x4_t _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
+                        float32x4_t _c1 = vdupq_n_f32(float16_to_float32(pC[1]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                         pC += 2;
@@ -6581,7 +7809,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
 
                 pp += 8;
                 p0 += 8;
@@ -6617,12 +7845,12 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c = vld1_u16(pC);
                             pC += 4;
                         }
-                        _c0 = bfloat2float(_c);
+                        _c0 = vcvt_f32_f16((float16x4_t)_c);
                         _f0 = vmlaq_n_f32(_f0, _c0, beta);
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         pC += 1;
                     }
@@ -6630,7 +7858,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
 
                 _f0 = vmulq_n_f32(_f0, alpha);
 
-                vst1_u16(p0, float2bfloat(_f0));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
 
                 pp += 4;
                 p0 += 4;
@@ -6781,27 +8009,27 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
                             uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
                             uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             pC += 8;
                         }
                         else // if (c_elempack == 4)
                         {
                             uint16x8x4_t _cc = vld4q_u16(pC);
-                            _c0 = bfloat2float(vget_low_u16(_cc.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_cc.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_cc.val[1]));
-                            _c4 = bfloat2float(vget_low_u16(_cc.val[2]));
-                            _c5 = bfloat2float(vget_high_u16(_cc.val[2]));
-                            _c6 = bfloat2float(vget_low_u16(_cc.val[3]));
-                            _c7 = bfloat2float(vget_high_u16(_cc.val[3]));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc.val[0]));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc.val[0]));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc.val[1]));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc.val[1]));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc.val[2]));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc.val[2]));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc.val[3]));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc.val[3]));
                             pC += 32;
                         }
                         if (beta == 1.f)
@@ -6831,8 +8059,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -6864,10 +8092,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f7 = vmulq_f32(_f7, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + out_hstep, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
+                vst1q_u16(p0 + out_hstep * 2, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f4), (uint16x4_t)vcvt_f16_f32(_f5)));
+                vst1q_u16(p0 + out_hstep * 3, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f6), (uint16x4_t)vcvt_f16_f32(_f7)));
 
                 pp += 32;
                 p0 += 8;
@@ -6972,19 +8200,19 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                         float32x4_t _c3;
                         if (c_elempack == 1)
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 3));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep));
+                            _c2 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 2));
+                            _c3 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 3));
                             pC += 4;
                         }
                         else // if (c_elempack == 4)
                         {
                             uint16x4x4_t _c = vld4_u16(pC);
-                            _c0 = bfloat2float(_c.val[0]);
-                            _c1 = bfloat2float(_c.val[1]);
-                            _c2 = bfloat2float(_c.val[2]);
-                            _c3 = bfloat2float(_c.val[3]);
+                            _c0 = vcvt_f32_f16((float16x4_t)_c.val[0]);
+                            _c1 = vcvt_f32_f16((float16x4_t)_c.val[1]);
+                            _c2 = vcvt_f32_f16((float16x4_t)_c.val[2]);
+                            _c3 = vcvt_f32_f16((float16x4_t)_c.val[3]);
                             pC += 16;
                         }
                         if (beta == 1.f)
@@ -7005,7 +8233,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c0 = vmulq_n_f32(_c0, beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
@@ -7024,10 +8252,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-                vst1_u16(p0 + out_hstep * 2, float2bfloat(_f2));
-                vst1_u16(p0 + out_hstep * 3, float2bfloat(_f3));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + out_hstep, (uint16x4_t)vcvt_f16_f32(_f1));
+                vst1_u16(p0 + out_hstep * 2, (uint16x4_t)vcvt_f16_f32(_f2));
+                vst1_u16(p0 + out_hstep * 3, (uint16x4_t)vcvt_f16_f32(_f3));
 
                 pp += 16;
                 p0 += 4;
@@ -7099,16 +8327,16 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c, 5);
                             _c = vsetq_lane_u16(pC[c_hstep * 3], _c, 6);
                             _c = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c, 7);
-                            _c0 = bfloat2float(vget_low_u16(_c));
-                            _c1 = bfloat2float(vget_high_u16(_c));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                             pC += 2;
                         }
                         else // if (c_elempack == 4)
                         {
                             uint16x8_t _c = vld1q_u16(pC);
                             uint16x4x2_t _c01 = vzip_u16(vget_low_u16(_c), vget_high_u16(_c));
-                            _c0 = bfloat2float(_c01.val[0]);
-                            _c1 = bfloat2float(_c01.val[1]);
+                            _c0 = vcvt_f32_f16((float16x4_t)_c01.val[0]);
+                            _c1 = vcvt_f32_f16((float16x4_t)_c01.val[1]);
                             pC += 8;
                         }
                         if (beta == 1.f)
@@ -7130,7 +8358,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                         _c = vset_lane_u16(pC[1], _c, 1);
                         _c = vset_lane_u16(pC[0], _c, 2);
                         _c = vset_lane_u16(pC[1], _c, 3);
-                        _c0 = bfloat2float(_c);
+                        _c0 = vcvt_f32_f16((float16x4_t)_c);
                         _c0 = vmulq_n_f32(_c0, beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
@@ -7145,8 +8373,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                uint16x4_t _fb0 = float2bfloat(_f0);
-                uint16x4_t _fb1 = float2bfloat(_f1);
+                uint16x4_t _fb0 = (uint16x4_t)vcvt_f16_f32(_f0);
+                uint16x4_t _fb1 = (uint16x4_t)vcvt_f16_f32(_f1);
 
                 p0[0] = vget_lane_u16(_fb0, 0);
                 p0[1] = vget_lane_u16(_fb0, 1);
@@ -7191,12 +8419,12 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _c = vld1_u16(pC);
                             pC += 4;
                         }
-                        _c0 = bfloat2float(_c);
+                        _c0 = vcvt_f32_f16((float16x4_t)_c);
                         _f0 = vmlaq_n_f32(_f0, _c0, beta);
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         pC += 1;
                     }
@@ -7204,7 +8432,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
 
                 _f0 = vmulq_n_f32(_f0, alpha);
 
-                uint16x4_t _fb0 = float2bfloat(_f0);
+                uint16x4_t _fb0 = (uint16x4_t)vcvt_f16_f32(_f0);
 
                 p0[0] = vget_lane_u16(_fb0, 0);
                 p0[out_hstep] = vget_lane_u16(_fb0, 1);
@@ -7238,7 +8466,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
         {
             if (broadcast_type_C == 0)
             {
-                c0 = bfloat16_to_float32(pC[0]) * beta;
+                c0 = float16_to_float32(pC[0]) * beta;
 #if __ARM_NEON
                 _c0 = vdupq_n_f32(c0);
 #endif
@@ -7246,8 +8474,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 pC = (const unsigned short*)C + i + ii;
-                c0 = bfloat16_to_float32(pC[0]) * beta;
-                c1 = bfloat16_to_float32(pC[1]) * beta;
+                c0 = float16_to_float32(pC[0]) * beta;
+                c1 = float16_to_float32(pC[1]) * beta;
 #if __ARM_NEON
                 _c0 = vdupq_n_f32(c0);
                 _c1 = vdupq_n_f32(c1);
@@ -7302,10 +8530,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                         // c_elempack == 1
                         uint16x8_t _c01 = vld1q_u16(pC);
                         uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                        float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                        float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -7326,8 +8554,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -7351,8 +8579,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + out_hstep, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
 
                 pp += 16;
                 p0 += 8;
@@ -7381,8 +8609,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     if (broadcast_type_C == 3)
                     {
                         // c_elempack == 1
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        float32x4_t _c1 = bfloat2float(vld1_u16(pC + c_hstep));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -7398,7 +8626,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c0 = vmulq_n_f32(_c0, beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
@@ -7413,8 +8641,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + out_hstep, (uint16x4_t)vcvt_f16_f32(_f1));
 
                 pp += 8;
                 p0 += 4;
@@ -7446,18 +8674,18 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     if (broadcast_type_C == 3)
                     {
                         // c_elempack == 1
-                        f00 += bfloat16_to_float32(pC[0]) * beta;
-                        f01 += bfloat16_to_float32(pC[1]) * beta;
-                        f10 += bfloat16_to_float32(pC[c_hstep]) * beta;
-                        f11 += bfloat16_to_float32(pC[c_hstep + 1]) * beta;
+                        f00 += float16_to_float32(pC[0]) * beta;
+                        f01 += float16_to_float32(pC[1]) * beta;
+                        f10 += float16_to_float32(pC[c_hstep]) * beta;
+                        f11 += float16_to_float32(pC[c_hstep + 1]) * beta;
                         pC += 2;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        f00 += bfloat16_to_float32(pC[0]) * beta;
-                        f01 += bfloat16_to_float32(pC[1]) * beta;
-                        f10 += bfloat16_to_float32(pC[0]) * beta;
-                        f11 += bfloat16_to_float32(pC[1]) * beta;
+                        f00 += float16_to_float32(pC[0]) * beta;
+                        f01 += float16_to_float32(pC[1]) * beta;
+                        f10 += float16_to_float32(pC[0]) * beta;
+                        f11 += float16_to_float32(pC[1]) * beta;
                         pC += 2;
                     }
                 }
@@ -7470,10 +8698,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     f11 *= alpha;
                 }
 
-                p0[0] = float32_to_bfloat16(f00);
-                p0[1] = float32_to_bfloat16(f01);
-                p0[out_hstep] = float32_to_bfloat16(f10);
-                p0[out_hstep + 1] = float32_to_bfloat16(f11);
+                p0[0] = float32_to_float16(f00);
+                p0[1] = float32_to_float16(f01);
+                p0[out_hstep] = float32_to_float16(f10);
+                p0[out_hstep + 1] = float32_to_float16(f11);
 
                 pp += 4;
                 p0 += 2;
@@ -7499,14 +8727,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     if (broadcast_type_C == 3)
                     {
                         // c_elempack == 1
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
-                        f1 += bfloat16_to_float32(pC[c_hstep]) * beta;
+                        f0 += float16_to_float32(pC[0]) * beta;
+                        f1 += float16_to_float32(pC[c_hstep]) * beta;
                         pC += 1;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
-                        f1 += bfloat16_to_float32(pC[0]) * beta;
+                        f0 += float16_to_float32(pC[0]) * beta;
+                        f1 += float16_to_float32(pC[0]) * beta;
                         pC += 1;
                     }
                 }
@@ -7517,8 +8745,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     f1 *= alpha;
                 }
 
-                p0[0] = float32_to_bfloat16(f0);
-                p0[out_hstep] = float32_to_bfloat16(f1);
+                p0[0] = float32_to_float16(f0);
+                p0[out_hstep] = float32_to_float16(f1);
 
                 pp += 2;
                 p0++;
@@ -7543,7 +8771,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
         {
             if (broadcast_type_C == 0)
             {
-                c0 = bfloat16_to_float32(pC[0]) * beta;
+                c0 = float16_to_float32(pC[0]) * beta;
 #if __ARM_NEON
                 _c0 = vdupq_n_f32(c0);
 #endif
@@ -7551,7 +8779,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 pC = (const unsigned short*)C + i + ii;
-                c0 = bfloat16_to_float32(pC[0]) * beta;
+                c0 = float16_to_float32(pC[0]) * beta;
 #if __ARM_NEON
                 _c0 = vdupq_n_f32(c0);
 #endif
@@ -7597,10 +8825,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                         // c_elempack == 1
                         uint16x8_t _c01 = vld1q_u16(pC);
                         uint16x8_t _c23 = vld1q_u16(pC + 8);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                        float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                        float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -7629,8 +8857,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
 
                 pp += 16;
                 p0 += 16;
@@ -7654,8 +8882,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     {
                         // c_elempack == 1
                         uint16x8_t _c01 = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -7678,7 +8906,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
 
                 pp += 8;
                 p0 += 8;
@@ -7696,7 +8924,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
                         // c_elempack == 1
-                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _f0 = vmlaq_n_f32(_f0, _c0, beta);
                         pC += 4;
                     }
@@ -7704,7 +8932,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
 
                 _f0 = vmulq_n_f32(_f0, alpha);
 
-                vst1_u16(p0, float2bfloat(_f0));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
 
                 pp += 4;
                 p0 += 4;
@@ -7723,8 +8951,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     {
                         // c_elempack == 1
                         float32x2_t _cc = float32x2_t();
-                        _cc = vset_lane_f32(bfloat16_to_float32(pC[0]), _cc, 0);
-                        _cc = vset_lane_f32(bfloat16_to_float32(pC[1]), _cc, 1);
+                        _cc = vset_lane_f32(float16_to_float32(pC[0]), _cc, 0);
+                        _cc = vset_lane_f32(float16_to_float32(pC[1]), _cc, 1);
                         _f0 = vmla_n_f32(_f0, _cc, beta);
                         pC += 2;
                     }
@@ -7732,8 +8960,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
 
                 _f0 = vmul_n_f32(_f0, alpha);
 
-                p0[0] = float32_to_bfloat16(vget_lane_f32(_f0, 0));
-                p0[1] = float32_to_bfloat16(vget_lane_f32(_f0, 1));
+                p0[0] = float32_to_float16(vget_lane_f32(_f0, 0));
+                p0[1] = float32_to_float16(vget_lane_f32(_f0, 1));
 
                 pp += 2;
                 p0 += 2;
@@ -7752,14 +8980,14 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
                         // c_elempack == 1
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
+                        f0 += float16_to_float32(pC[0]) * beta;
                         pC += 1;
                     }
                 }
 
                 f0 *= alpha;
 
-                p0[0] = float32_to_bfloat16(f0);
+                p0[0] = float32_to_float16(f0);
 
                 pp += 1;
                 p0++;
@@ -7768,12 +8996,12 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
     }
 }
 
-static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta)
+static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD && !__ARM_FEATURE_MATMUL_INT8
     if (ncnn::cpu_support_arm_asimddp())
     {
-        transpose_unpack_output_tile_int32_to_bf16_asimddp(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
+        transpose_unpack_output_tile_int32_to_fp16_asimddp(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
         return;
     }
 #endif
@@ -7785,7 +9013,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
     const int c_elempack = C.elempack;
     const unsigned short* pC = C;
 
-    // NCNN_LOGE("transpose_unpack_output_tile_int32_to_bf16  %d %d %d %d  %d  %d  %d", i, max_ii, j, max_jj, out_elempack, broadcast_type_C, c_elempack);
+    // NCNN_LOGE("transpose_unpack_output_tile_int32_to_fp16  %d %d %d %d  %d  %d  %d", i, max_ii, j, max_jj, out_elempack, broadcast_type_C, c_elempack);
 
     const int* pp = topT;
 
@@ -7804,14 +9032,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
         {
             if (broadcast_type_C == 0)
             {
-                _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
             }
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 pC = (const unsigned short*)C + i + ii;
                 uint16x8_t _c = vld1q_u16(pC);
-                _c0 = bfloat2float(vget_low_u16(_c));
-                _c1 = bfloat2float(vget_high_u16(_c));
+                _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                 _c0 = vmulq_n_f32(_c0, beta);
                 _c1 = vmulq_n_f32(_c1, beta);
             }
@@ -8060,14 +9288,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     {
                         if (c_elempack == 1)
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + 4));
-                            float32x4_t _c2 = bfloat2float(vld1_u16(pC + c_hstep));
-                            float32x4_t _c3 = bfloat2float(vld1_u16(pC + c_hstep + 4));
-                            float32x4_t _c4 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            float32x4_t _c5 = bfloat2float(vld1_u16(pC + c_hstep * 2 + 4));
-                            float32x4_t _c6 = bfloat2float(vld1_u16(pC + c_hstep * 3));
-                            float32x4_t _c7 = bfloat2float(vld1_u16(pC + c_hstep * 3 + 4));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + 4));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep + 4));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 2));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 2 + 4));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 3));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 3 + 4));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -8091,14 +9319,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                                 _f6 = vmlaq_f32(_f6, _c6, _beta);
                                 _f7 = vmlaq_f32(_f7, _c7, _beta);
                             }
-                            _c0 = bfloat2float(vld1_u16(pC + c_hstep * 4));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4 + 4));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 5));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 5 + 4));
-                            _c4 = bfloat2float(vld1_u16(pC + c_hstep * 6));
-                            _c5 = bfloat2float(vld1_u16(pC + c_hstep * 6 + 4));
-                            _c6 = bfloat2float(vld1_u16(pC + c_hstep * 7));
-                            _c7 = bfloat2float(vld1_u16(pC + c_hstep * 7 + 4));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 4));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 4 + 4));
+                            _c2 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 5));
+                            _c3 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 5 + 4));
+                            _c4 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 6));
+                            _c5 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 6 + 4));
+                            _c6 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 7));
+                            _c7 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 7 + 4));
                             if (beta == 1.f)
                             {
                                 _f8 = vaddq_f32(_f8, _c0);
@@ -8124,17 +9352,17 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             }
                             pC += 8;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x8x4_t _cc0 = vld4q_u16(pC);
-                            _c0 = bfloat2float(vget_low_u16(_cc0.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc0.val[0]));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_cc0.val[1]));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_cc0.val[1]));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_cc0.val[2]));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_cc0.val[2]));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_cc0.val[3]));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_cc0.val[3]));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[0]));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[0]));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[1]));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[1]));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[2]));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[2]));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[3]));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[3]));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -8159,14 +9387,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                                 _f7 = vmlaq_f32(_f7, _c7, _beta);
                             }
                             _cc0 = vld4q_u16(pC + c_hstep * 4);
-                            _c0 = bfloat2float(vget_low_u16(_cc0.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc0.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_cc0.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_cc0.val[1]));
-                            _c4 = bfloat2float(vget_low_u16(_cc0.val[2]));
-                            _c5 = bfloat2float(vget_high_u16(_cc0.val[2]));
-                            _c6 = bfloat2float(vget_low_u16(_cc0.val[3]));
-                            _c7 = bfloat2float(vget_high_u16(_cc0.val[3]));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[0]));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[0]));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[1]));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[1]));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[2]));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[2]));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0.val[3]));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0.val[3]));
                             if (beta == 1.f)
                             {
                                 _f8 = vaddq_f32(_f8, _c0);
@@ -8192,12 +9420,87 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             }
                             pC += 32;
                         }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _cc0 = vld1q_u16(pC);
+                            uint16x8_t _cc1 = vld1q_u16(pC + 8);
+                            uint16x8_t _cc2 = vld1q_u16(pC + 16);
+                            uint16x8_t _cc3 = vld1q_u16(pC + 24);
+                            uint16x8_t _cc4 = vld1q_u16(pC + 32);
+                            uint16x8_t _cc5 = vld1q_u16(pC + 40);
+                            uint16x8_t _cc6 = vld1q_u16(pC + 48);
+                            uint16x8_t _cc7 = vld1q_u16(pC + 56);
+                            transpose8x8_u16(_cc0, _cc1, _cc2, _cc3, _cc4, _cc5, _cc6, _cc7);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc1));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc1));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc2));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc2));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc3));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc3));
+                            if (beta == 1.f)
+                            {
+                                _f0 = vaddq_f32(_f0, _c0);
+                                _f1 = vaddq_f32(_f1, _c1);
+                                _f2 = vaddq_f32(_f2, _c2);
+                                _f3 = vaddq_f32(_f3, _c3);
+                                _f4 = vaddq_f32(_f4, _c4);
+                                _f5 = vaddq_f32(_f5, _c5);
+                                _f6 = vaddq_f32(_f6, _c6);
+                                _f7 = vaddq_f32(_f7, _c7);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f0 = vmlaq_f32(_f0, _c0, _beta);
+                                _f1 = vmlaq_f32(_f1, _c1, _beta);
+                                _f2 = vmlaq_f32(_f2, _c2, _beta);
+                                _f3 = vmlaq_f32(_f3, _c3, _beta);
+                                _f4 = vmlaq_f32(_f4, _c4, _beta);
+                                _f5 = vmlaq_f32(_f5, _c5, _beta);
+                                _f6 = vmlaq_f32(_f6, _c6, _beta);
+                                _f7 = vmlaq_f32(_f7, _c7, _beta);
+                            }
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc4));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc4));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc5));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc5));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc6));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc6));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc7));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc7));
+                            if (beta == 1.f)
+                            {
+                                _f8 = vaddq_f32(_f8, _c0);
+                                _f9 = vaddq_f32(_f9, _c1);
+                                _fa = vaddq_f32(_fa, _c2);
+                                _fb = vaddq_f32(_fb, _c3);
+                                _fc = vaddq_f32(_fc, _c4);
+                                _fd = vaddq_f32(_fd, _c5);
+                                _fe = vaddq_f32(_fe, _c6);
+                                _ff = vaddq_f32(_ff, _c7);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f8 = vmlaq_f32(_f8, _c0, _beta);
+                                _f9 = vmlaq_f32(_f9, _c1, _beta);
+                                _fa = vmlaq_f32(_fa, _c2, _beta);
+                                _fb = vmlaq_f32(_fb, _c3, _beta);
+                                _fc = vmlaq_f32(_fc, _c4, _beta);
+                                _fd = vmlaq_f32(_fd, _c5, _beta);
+                                _fe = vmlaq_f32(_fe, _c6, _beta);
+                                _ff = vmlaq_f32(_ff, _c7, _beta);
+                            }
+                            pC += 64;
+                        }
                     }
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -8245,14 +9548,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _ff = vmulq_f32(_ff, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f2)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f4), float2bfloat(_f6)));
-                vst1q_u16(p0 + 16, vcombine_u16(float2bfloat(_f8), float2bfloat(_fa)));
-                vst1q_u16(p0 + 24, vcombine_u16(float2bfloat(_fc), float2bfloat(_fe)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f1), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(float2bfloat(_f5), float2bfloat(_f7)));
-                vst1q_u16(p0 + out_hstep * 4 + 16, vcombine_u16(float2bfloat(_f9), float2bfloat(_fb)));
-                vst1q_u16(p0 + out_hstep * 4 + 24, vcombine_u16(float2bfloat(_fd), float2bfloat(_ff)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f2)));
+                vst1q_u16(p0 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f4), (uint16x4_t)vcvt_f16_f32(_f6)));
+                vst1q_u16(p0 + 16, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f8), (uint16x4_t)vcvt_f16_f32(_fa)));
+                vst1q_u16(p0 + 24, vcombine_u16((uint16x4_t)vcvt_f16_f32(_fc), (uint16x4_t)vcvt_f16_f32(_fe)));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f1), (uint16x4_t)vcvt_f16_f32(_f3)));
+                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f5), (uint16x4_t)vcvt_f16_f32(_f7)));
+                vst1q_u16(p0 + out_hstep * 4 + 16, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f9), (uint16x4_t)vcvt_f16_f32(_fb)));
+                vst1q_u16(p0 + out_hstep * 4 + 24, vcombine_u16((uint16x4_t)vcvt_f16_f32(_fd), (uint16x4_t)vcvt_f16_f32(_ff)));
                 pp += 64;
                 p0 += out_hstep * 8;
             }
@@ -8417,10 +9720,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     {
                         if (c_elempack == 1)
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep));
-                            float32x4_t _c2 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            float32x4_t _c3 = bfloat2float(vld1_u16(pC + c_hstep * 3));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 2));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 3));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -8436,10 +9739,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                                 _f2 = vmlaq_f32(_f2, _c2, _beta);
                                 _f3 = vmlaq_f32(_f3, _c3, _beta);
                             }
-                            _c0 = bfloat2float(vld1_u16(pC + c_hstep * 4));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 5));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 6));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 7));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 4));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 5));
+                            _c2 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 6));
+                            _c3 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 7));
                             if (beta == 1.f)
                             {
                                 _f4 = vaddq_f32(_f4, _c0);
@@ -8457,13 +9760,13 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             }
                             pC += 4;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x4x4_t _cc0 = vld4_u16(pC);
-                            _c0 = bfloat2float(_cc0.val[0]);
-                            _c1 = bfloat2float(_cc0.val[1]);
-                            float32x4_t _c2 = bfloat2float(_cc0.val[2]);
-                            float32x4_t _c3 = bfloat2float(_cc0.val[3]);
+                            _c0 = vcvt_f32_f16((float16x4_t)_cc0.val[0]);
+                            _c1 = vcvt_f32_f16((float16x4_t)_cc0.val[1]);
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)_cc0.val[2]);
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)_cc0.val[3]);
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -8480,10 +9783,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                                 _f3 = vmlaq_f32(_f3, _c3, _beta);
                             }
                             _cc0 = vld4_u16(pC + c_hstep * 4);
-                            _c0 = bfloat2float(_cc0.val[0]);
-                            _c1 = bfloat2float(_cc0.val[1]);
-                            _c2 = bfloat2float(_cc0.val[2]);
-                            _c3 = bfloat2float(_cc0.val[3]);
+                            _c0 = vcvt_f32_f16((float16x4_t)_cc0.val[0]);
+                            _c1 = vcvt_f32_f16((float16x4_t)_cc0.val[1]);
+                            _c2 = vcvt_f32_f16((float16x4_t)_cc0.val[2]);
+                            _c3 = vcvt_f32_f16((float16x4_t)_cc0.val[3]);
                             if (beta == 1.f)
                             {
                                 _f4 = vaddq_f32(_f4, _c0);
@@ -8501,10 +9804,57 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             }
                             pC += 16;
                         }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _cc0 = vld1q_u16(pC);
+                            uint16x8_t _cc1 = vld1q_u16(pC + 8);
+                            uint16x8_t _cc2 = vld1q_u16(pC + 16);
+                            uint16x8_t _cc3 = vld1q_u16(pC + 24);
+                            transpose8x4_u16(_cc0, _cc1, _cc2, _cc3);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc0));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc0));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc1));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc1));
+                            if (beta == 1.f)
+                            {
+                                _f0 = vaddq_f32(_f0, _c0);
+                                _f1 = vaddq_f32(_f1, _c1);
+                                _f2 = vaddq_f32(_f2, _c2);
+                                _f3 = vaddq_f32(_f3, _c3);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f0 = vmlaq_f32(_f0, _c0, _beta);
+                                _f1 = vmlaq_f32(_f1, _c1, _beta);
+                                _f2 = vmlaq_f32(_f2, _c2, _beta);
+                                _f3 = vmlaq_f32(_f3, _c3, _beta);
+                            }
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc2));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc2));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_cc3));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc3));
+                            if (beta == 1.f)
+                            {
+                                _f4 = vaddq_f32(_f4, _c0);
+                                _f5 = vaddq_f32(_f5, _c1);
+                                _f6 = vaddq_f32(_f6, _c2);
+                                _f7 = vaddq_f32(_f7, _c3);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f4 = vmlaq_f32(_f4, _c0, _beta);
+                                _f5 = vmlaq_f32(_f5, _c1, _beta);
+                                _f6 = vmlaq_f32(_f6, _c2, _beta);
+                                _f7 = vmlaq_f32(_f7, _c3, _beta);
+                            }
+                            pC += 32;
+                        }
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c0 = vmulq_n_f32(_c0, beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
@@ -8531,10 +9881,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f7 = vmulq_f32(_f7, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + 16, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + 24, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
+                vst1q_u16(p0 + 16, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f4), (uint16x4_t)vcvt_f16_f32(_f5)));
+                vst1q_u16(p0 + 24, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f6), (uint16x4_t)vcvt_f16_f32(_f7)));
                 pp += 32;
                 p0 += out_hstep * 4;
             }
@@ -8769,14 +10119,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
                             uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
                             transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -8805,14 +10155,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             _c45 = vld1q_u16(pC + c_hstep * 6);
                             _c67 = vld1q_u16(pC + c_hstep * 7);
                             transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f8 = vaddq_f32(_f8, _c0);
@@ -8838,20 +10188,20 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             }
                             pC += 8;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x8_t _c01 = vld1q_u16(pC);
                             uint16x8_t _c23 = vld1q_u16(pC + 8);
                             uint16x8_t _c45 = vld1q_u16(pC + 16);
                             uint16x8_t _c67 = vld1q_u16(pC + 24);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -8879,14 +10229,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
                             _c45 = vld1q_u16(pC + c_hstep * 4 + 16);
                             _c67 = vld1q_u16(pC + c_hstep * 4 + 24);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             if (beta == 1.f)
                             {
                                 _f8 = vaddq_f32(_f8, _c0);
@@ -8912,12 +10262,80 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             }
                             pC += 32;
                         }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _c08 = vld1q_u16(pC);
+                            uint16x8_t _c19 = vld1q_u16(pC + 8);
+                            uint16x8_t _c2a = vld1q_u16(pC + 16);
+                            uint16x8_t _c3b = vld1q_u16(pC + 24);
+                            uint16x8_t _c4c = vld1q_u16(pC + 32);
+                            uint16x8_t _c5d = vld1q_u16(pC + 40);
+                            uint16x8_t _c6e = vld1q_u16(pC + 48);
+                            uint16x8_t _c7f = vld1q_u16(pC + 56);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c08));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c19));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c2a));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c3b));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c4c));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c5d));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c6e));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c7f));
+                            float32x4_t _c8 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c08));
+                            float32x4_t _c9 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c19));
+                            float32x4_t _ca = vcvt_f32_f16((float16x4_t)vget_high_u16(_c2a));
+                            float32x4_t _cb = vcvt_f32_f16((float16x4_t)vget_high_u16(_c3b));
+                            float32x4_t _cc = vcvt_f32_f16((float16x4_t)vget_high_u16(_c4c));
+                            float32x4_t _cd = vcvt_f32_f16((float16x4_t)vget_high_u16(_c5d));
+                            float32x4_t _ce = vcvt_f32_f16((float16x4_t)vget_high_u16(_c6e));
+                            float32x4_t _cf = vcvt_f32_f16((float16x4_t)vget_high_u16(_c7f));
+
+                            if (beta == 1.f)
+                            {
+                                _f0 = vaddq_f32(_f0, _c0);
+                                _f1 = vaddq_f32(_f1, _c1);
+                                _f2 = vaddq_f32(_f2, _c2);
+                                _f3 = vaddq_f32(_f3, _c3);
+                                _f4 = vaddq_f32(_f4, _c4);
+                                _f5 = vaddq_f32(_f5, _c5);
+                                _f6 = vaddq_f32(_f6, _c6);
+                                _f7 = vaddq_f32(_f7, _c7);
+                                _f8 = vaddq_f32(_f8, _c8);
+                                _f9 = vaddq_f32(_f9, _c9);
+                                _fa = vaddq_f32(_fa, _ca);
+                                _fb = vaddq_f32(_fb, _cb);
+                                _fc = vaddq_f32(_fc, _cc);
+                                _fd = vaddq_f32(_fd, _cd);
+                                _fe = vaddq_f32(_fe, _ce);
+                                _ff = vaddq_f32(_ff, _cf);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f0 = vmlaq_f32(_f0, _c0, _beta);
+                                _f1 = vmlaq_f32(_f1, _c1, _beta);
+                                _f2 = vmlaq_f32(_f2, _c2, _beta);
+                                _f3 = vmlaq_f32(_f3, _c3, _beta);
+                                _f4 = vmlaq_f32(_f4, _c4, _beta);
+                                _f5 = vmlaq_f32(_f5, _c5, _beta);
+                                _f6 = vmlaq_f32(_f6, _c6, _beta);
+                                _f7 = vmlaq_f32(_f7, _c7, _beta);
+                                _f8 = vmlaq_f32(_f8, _c8, _beta);
+                                _f9 = vmlaq_f32(_f9, _c9, _beta);
+                                _fa = vmlaq_f32(_fa, _ca, _beta);
+                                _fb = vmlaq_f32(_fb, _cb, _beta);
+                                _fc = vmlaq_f32(_fc, _cc, _beta);
+                                _fd = vmlaq_f32(_fd, _cd, _beta);
+                                _fe = vmlaq_f32(_fe, _ce, _beta);
+                                _ff = vmlaq_f32(_ff, _cf, _beta);
+                            }
+                            pC += 64;
+                        }
                     }
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
-                        float32x4_t _cc0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _cc1 = bfloat2float(vget_high_u16(_c));
+                        float32x4_t _cc0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _cc1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -8973,14 +10391,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _ff = vmulq_f32(_ff, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f8)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f1), float2bfloat(_f9)));
-                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(float2bfloat(_f2), float2bfloat(_fa)));
-                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(float2bfloat(_f3), float2bfloat(_fb)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f4), float2bfloat(_fc)));
-                vst1q_u16(p0 + out_hstep * 5, vcombine_u16(float2bfloat(_f5), float2bfloat(_fd)));
-                vst1q_u16(p0 + out_hstep * 6, vcombine_u16(float2bfloat(_f6), float2bfloat(_fe)));
-                vst1q_u16(p0 + out_hstep * 7, vcombine_u16(float2bfloat(_f7), float2bfloat(_ff)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f8)));
+                vst1q_u16(p0 + out_hstep, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f1), (uint16x4_t)vcvt_f16_f32(_f9)));
+                vst1q_u16(p0 + out_hstep * 2, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_fa)));
+                vst1q_u16(p0 + out_hstep * 3, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f3), (uint16x4_t)vcvt_f16_f32(_fb)));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f4), (uint16x4_t)vcvt_f16_f32(_fc)));
+                vst1q_u16(p0 + out_hstep * 5, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f5), (uint16x4_t)vcvt_f16_f32(_fd)));
+                vst1q_u16(p0 + out_hstep * 6, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f6), (uint16x4_t)vcvt_f16_f32(_fe)));
+                vst1q_u16(p0 + out_hstep * 7, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f7), (uint16x4_t)vcvt_f16_f32(_ff)));
 
                 pp += 64;
                 p0 += out_hstep * 8;
@@ -9099,10 +10517,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
                             uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
                             transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            float32x4_t _c2 = bfloat2float(_cc2);
-                            float32x4_t _c3 = bfloat2float(_cc3);
+                            _c0 = vcvt_f32_f16((float16x4_t)_cc0);
+                            _c1 = vcvt_f32_f16((float16x4_t)_cc1);
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)_cc2);
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)_cc3);
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -9123,10 +10541,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             _cc2 = vld1_u16(pC + c_hstep * 6);
                             _cc3 = vld1_u16(pC + c_hstep * 7);
                             transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            _c2 = bfloat2float(_cc2);
-                            _c3 = bfloat2float(_cc3);
+                            _c0 = vcvt_f32_f16((float16x4_t)_cc0);
+                            _c1 = vcvt_f32_f16((float16x4_t)_cc1);
+                            _c2 = vcvt_f32_f16((float16x4_t)_cc2);
+                            _c3 = vcvt_f32_f16((float16x4_t)_cc3);
                             if (beta == 1.f)
                             {
                                 _f4 = vaddq_f32(_f4, _c0);
@@ -9144,14 +10562,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             }
                             pC += 4;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x8_t _c01 = vld1q_u16(pC);
                             uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             if (beta == 1.f)
                             {
                                 _f0 = vaddq_f32(_f0, _c0);
@@ -9169,10 +10587,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             }
                             _c01 = vld1q_u16(pC + c_hstep * 4);
                             _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             if (beta == 1.f)
                             {
                                 _f4 = vaddq_f32(_f4, _c0);
@@ -9190,10 +10608,49 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             }
                             pC += 16;
                         }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _c04 = vld1q_u16(pC);
+                            uint16x8_t _c15 = vld1q_u16(pC + 8);
+                            uint16x8_t _c26 = vld1q_u16(pC + 16);
+                            uint16x8_t _c37 = vld1q_u16(pC + 24);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c04));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c15));
+                            float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c26));
+                            float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c37));
+                            float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c04));
+                            float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c15));
+                            float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c26));
+                            float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c37));
+                            if (beta == 1.f)
+                            {
+                                _f0 = vaddq_f32(_f0, _c0);
+                                _f1 = vaddq_f32(_f1, _c1);
+                                _f2 = vaddq_f32(_f2, _c2);
+                                _f3 = vaddq_f32(_f3, _c3);
+                                _f4 = vaddq_f32(_f4, _c4);
+                                _f5 = vaddq_f32(_f5, _c5);
+                                _f6 = vaddq_f32(_f6, _c6);
+                                _f7 = vaddq_f32(_f7, _c7);
+                            }
+                            else
+                            {
+                                float32x4_t _beta = vdupq_n_f32(beta);
+                                _f0 = vmlaq_f32(_f0, _c0, _beta);
+                                _f1 = vmlaq_f32(_f1, _c1, _beta);
+                                _f2 = vmlaq_f32(_f2, _c2, _beta);
+                                _f3 = vmlaq_f32(_f3, _c3, _beta);
+                                _f4 = vmlaq_f32(_f4, _c4, _beta);
+                                _f5 = vmlaq_f32(_f5, _c5, _beta);
+                                _f6 = vmlaq_f32(_f6, _c6, _beta);
+                                _f7 = vmlaq_f32(_f7, _c7, _beta);
+                            }
+                            pC += 32;
+                        }
                     }
                     if (broadcast_type_C == 4)
                     {
-                        float32x4_t _c = bfloat2float(vld1_u16(pC));
+                        float32x4_t _c = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c = vmulq_n_f32(_c, beta);
 #if __aarch64__
                         _c0 = vdupq_laneq_f32(_c, 0);
@@ -9231,10 +10688,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f7 = vmulq_f32(_f7, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f4)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f1), float2bfloat(_f5)));
-                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(float2bfloat(_f2), float2bfloat(_f6)));
-                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(float2bfloat(_f3), float2bfloat(_f7)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f4)));
+                vst1q_u16(p0 + out_hstep, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f1), (uint16x4_t)vcvt_f16_f32(_f5)));
+                vst1q_u16(p0 + out_hstep * 2, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f6)));
+                vst1q_u16(p0 + out_hstep * 3, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f3), (uint16x4_t)vcvt_f16_f32(_f7)));
 
                 pp += 32;
                 p0 += out_hstep * 4;
@@ -9325,21 +10782,31 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             _c23 = vsetq_lane_u16(pC[c_hstep * 6 + 1], _c23, 6);
                             _c23 = vsetq_lane_u16(pC[c_hstep * 7 + 1], _c23, 7);
 
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_low_u16(_c23));
-                            _c2 = bfloat2float(vget_high_u16(_c01));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             pC += 2;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
                             uint16x8_t _c01 = vld1q_u16(pC);
                             uint16x8_t _c23 = vld1q_u16(pC + c_hstep * 4);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             pC += 8;
+                        }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _c02 = vld1q_u16(pC);
+                            uint16x8_t _c13 = vld1q_u16(pC + 8);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c02));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c13));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c02));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c13));
+                            pC += 16;
                         }
                         if (beta == 1.f)
                         {
@@ -9359,8 +10826,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
+                        _c1 = vdupq_n_f32(float16_to_float32(pC[1]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                         _f2 = vaddq_f32(_f2, _c0);
@@ -9378,8 +10845,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f2)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f1), float2bfloat(_f3)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f2)));
+                vst1q_u16(p0 + out_hstep, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f1), (uint16x4_t)vcvt_f16_f32(_f3)));
 
                 pp += 16;
                 p0 += out_hstep * 2;
@@ -9414,15 +10881,22 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             _c01 = vsetq_lane_u16(pC[c_hstep * 5], _c01, 5);
                             _c01 = vsetq_lane_u16(pC[c_hstep * 6], _c01, 6);
                             _c01 = vsetq_lane_u16(pC[c_hstep * 7], _c01, 7);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
                             pC += 1;
                         }
-                        else // if (c_elempack == 4)
+                        else if (c_elempack == 4)
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 4));
                             pC += 4;
+                        }
+                        else // if (c_elempack == 8)
+                        {
+                            uint16x8_t _c = vld1q_u16(pC);
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
+                            pC += 8;
                         }
                         if (beta == 1.f)
                         {
@@ -9438,7 +10912,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
                         pC += 1;
@@ -9452,7 +10926,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
                 pp += 8;
                 p0 += out_hstep;
             }
@@ -9469,12 +10943,12 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
         {
             if (broadcast_type_C == 0)
             {
-                _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
             }
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 pC = (const unsigned short*)C + i + ii;
-                _c0 = bfloat2float(vld1_u16(pC));
+                _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                 _c0 = vmulq_n_f32(_c0, beta);
             }
             if (broadcast_type_C == 3)
@@ -9633,27 +11107,27 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
                             uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
                             uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                             pC += 8;
                         }
                         else // if (c_elempack == 4)
                         {
                             uint16x8x4_t _c = vld4q_u16(pC);
-                            _c0 = bfloat2float(vget_low_u16(_c.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_c.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_c.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_c.val[1]));
-                            _c4 = bfloat2float(vget_low_u16(_c.val[2]));
-                            _c5 = bfloat2float(vget_high_u16(_c.val[2]));
-                            _c6 = bfloat2float(vget_low_u16(_c.val[3]));
-                            _c7 = bfloat2float(vget_high_u16(_c.val[3]));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c.val[0]));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c.val[0]));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c.val[1]));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c.val[1]));
+                            _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c.val[2]));
+                            _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c.val[2]));
+                            _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c.val[3]));
+                            _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c.val[3]));
                             pC += 32;
                         }
                         if (beta == 1.f)
@@ -9683,8 +11157,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -9716,10 +11190,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f7 = vmulq_f32(_f7, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f2)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f4), float2bfloat(_f6)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f1), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(float2bfloat(_f5), float2bfloat(_f7)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f2)));
+                vst1q_u16(p0 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f4), (uint16x4_t)vcvt_f16_f32(_f6)));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f1), (uint16x4_t)vcvt_f16_f32(_f3)));
+                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f5), (uint16x4_t)vcvt_f16_f32(_f7)));
 
                 pp += 32;
                 p0 += out_hstep * 8;
@@ -9824,19 +11298,19 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                         float32x4_t _c3;
                         if (c_elempack == 1)
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 3));
+                            _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                            _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep));
+                            _c2 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 2));
+                            _c3 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep * 3));
                             pC += 4;
                         }
                         else // if (c_elempack == 4)
                         {
                             uint16x4x4_t _c = vld4_u16(pC);
-                            _c0 = bfloat2float(_c.val[0]);
-                            _c1 = bfloat2float(_c.val[1]);
-                            _c2 = bfloat2float(_c.val[2]);
-                            _c3 = bfloat2float(_c.val[3]);
+                            _c0 = vcvt_f32_f16((float16x4_t)_c.val[0]);
+                            _c1 = vcvt_f32_f16((float16x4_t)_c.val[1]);
+                            _c2 = vcvt_f32_f16((float16x4_t)_c.val[2]);
+                            _c3 = vcvt_f32_f16((float16x4_t)_c.val[3]);
                             pC += 16;
                         }
                         if (beta == 1.f)
@@ -9857,7 +11331,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c0 = vmulq_n_f32(_c0, beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
@@ -9876,8 +11350,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f1)));
+                vst1q_u16(p0 + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f2), (uint16x4_t)vcvt_f16_f32(_f3)));
 
                 pp += 16;
                 p0 += out_hstep * 4;
@@ -10012,14 +11486,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             _c67 = vld1q_u16(pC + 24);
                             pC += 32;
                         }
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                        float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                        float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                        float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                        float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                        float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                        float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
+                        float32x4_t _c4 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c45));
+                        float32x4_t _c5 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c45));
+                        float32x4_t _c6 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c67));
+                        float32x4_t _c7 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c67));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -10047,8 +11521,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
-                        float32x4_t _cc0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _cc1 = bfloat2float(vget_high_u16(_c));
+                        float32x4_t _cc0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _cc1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -10088,14 +11562,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f7 = vmulq_f32(_f7, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-                vst1_u16(p0 + out_hstep * 2, float2bfloat(_f2));
-                vst1_u16(p0 + out_hstep * 3, float2bfloat(_f3));
-                vst1_u16(p0 + out_hstep * 4, float2bfloat(_f4));
-                vst1_u16(p0 + out_hstep * 5, float2bfloat(_f5));
-                vst1_u16(p0 + out_hstep * 6, float2bfloat(_f6));
-                vst1_u16(p0 + out_hstep * 7, float2bfloat(_f7));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + out_hstep, (uint16x4_t)vcvt_f16_f32(_f1));
+                vst1_u16(p0 + out_hstep * 2, (uint16x4_t)vcvt_f16_f32(_f2));
+                vst1_u16(p0 + out_hstep * 3, (uint16x4_t)vcvt_f16_f32(_f3));
+                vst1_u16(p0 + out_hstep * 4, (uint16x4_t)vcvt_f16_f32(_f4));
+                vst1_u16(p0 + out_hstep * 5, (uint16x4_t)vcvt_f16_f32(_f5));
+                vst1_u16(p0 + out_hstep * 6, (uint16x4_t)vcvt_f16_f32(_f6));
+                vst1_u16(p0 + out_hstep * 7, (uint16x4_t)vcvt_f16_f32(_f7));
 
                 pp += 32;
                 p0 += out_hstep * 8;
@@ -10175,20 +11649,20 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
                             uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
                             transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            _c2 = bfloat2float(_cc2);
-                            _c3 = bfloat2float(_cc3);
+                            _c0 = vcvt_f32_f16((float16x4_t)_cc0);
+                            _c1 = vcvt_f32_f16((float16x4_t)_cc1);
+                            _c2 = vcvt_f32_f16((float16x4_t)_cc2);
+                            _c3 = vcvt_f32_f16((float16x4_t)_cc3);
                             pC += 4;
                         }
                         else // if (c_elempack == 4)
                         {
                             uint16x8_t _c01 = vld1q_u16(pC);
                             uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
+                            _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                            _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                            _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                            _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                             pC += 16;
                         }
                         if (beta == 1.f)
@@ -10209,7 +11683,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     }
                     if (broadcast_type_C == 4)
                     {
-                        float32x4_t _c = bfloat2float(vld1_u16(pC));
+                        float32x4_t _c = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c = vmulq_n_f32(_c, beta);
 #if __aarch64__
                         _c0 = vdupq_laneq_f32(_c, 0);
@@ -10239,10 +11713,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-                vst1_u16(p0 + out_hstep * 2, float2bfloat(_f2));
-                vst1_u16(p0 + out_hstep * 3, float2bfloat(_f3));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + out_hstep, (uint16x4_t)vcvt_f16_f32(_f1));
+                vst1_u16(p0 + out_hstep * 2, (uint16x4_t)vcvt_f16_f32(_f2));
+                vst1_u16(p0 + out_hstep * 3, (uint16x4_t)vcvt_f16_f32(_f3));
 
                 pp += 16;
                 p0 += out_hstep * 4;
@@ -10309,8 +11783,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             _c = vld1q_u16(pC);
                             pC += 8;
                         }
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -10325,8 +11799,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        float32x4_t _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
+                        float32x4_t _c1 = vdupq_n_f32(float16_to_float32(pC[1]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                         pC += 2;
@@ -10340,8 +11814,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + out_hstep, (uint16x4_t)vcvt_f16_f32(_f1));
 
                 pp += 8;
                 p0 += out_hstep * 2;
@@ -10377,12 +11851,12 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             _c = vld1_u16(pC);
                             pC += 4;
                         }
-                        _c0 = bfloat2float(_c);
+                        _c0 = vcvt_f32_f16((float16x4_t)_c);
                         _f0 = vmlaq_n_f32(_f0, _c0, beta);
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                        _c0 = vdupq_n_f32(float16_to_float32(pC[0]) * beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         pC += 1;
                     }
@@ -10390,7 +11864,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
 
                 _f0 = vmulq_n_f32(_f0, alpha);
 
-                vst1_u16(p0, float2bfloat(_f0));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
                 pp += 4;
                 p0 += out_hstep;
             }
@@ -10417,7 +11891,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
         {
             if (broadcast_type_C == 0)
             {
-                c0 = bfloat16_to_float32(pC[0]) * beta;
+                c0 = float16_to_float32(pC[0]) * beta;
 #if __ARM_NEON
                 _c0 = vdupq_n_f32(c0);
 #endif
@@ -10425,8 +11899,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 pC = (const unsigned short*)C + i + ii;
-                c0 = bfloat16_to_float32(pC[0]) * beta;
-                c1 = bfloat16_to_float32(pC[1]) * beta;
+                c0 = float16_to_float32(pC[0]) * beta;
+                c1 = float16_to_float32(pC[1]) * beta;
 #if __ARM_NEON
                 _c0 = vdupq_n_f32(c0);
                 _c1 = vdupq_n_f32(c1);
@@ -10481,10 +11955,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                         // c_elempack == 1
                         uint16x8_t _c01 = vld1q_u16(pC);
                         uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                        _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                        float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                        float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -10505,8 +11979,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     if (broadcast_type_C == 4)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta != 1.f)
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
@@ -10530,8 +12004,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f2)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f1), float2bfloat(_f3)));
+                vst1q_u16(p0, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f0), (uint16x4_t)vcvt_f16_f32(_f2)));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16((uint16x4_t)vcvt_f16_f32(_f1), (uint16x4_t)vcvt_f16_f32(_f3)));
 
                 pp += 16;
                 p0 += out_hstep * 8;
@@ -10563,8 +12037,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     if (broadcast_type_C == 3)
                     {
                         // c_elempack == 1
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _c1 = bfloat2float(vld1_u16(pC + c_hstep));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
+                        _c1 = vcvt_f32_f16((float16x4_t)vld1_u16(pC + c_hstep));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -10580,7 +12054,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _c0 = vmulq_n_f32(_c0, beta);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c0);
@@ -10595,8 +12069,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + 4, float2bfloat(_f1));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + 4, (uint16x4_t)vcvt_f16_f32(_f1));
 
                 pp += 8;
                 p0 += out_hstep * 4;
@@ -10654,10 +12128,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                         uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
                         uint16x4x2_t _c02 = vzip_u16(vget_low_u16(_c01), vget_low_u16(_c23));
                         uint16x4x2_t _c13 = vzip_u16(vget_high_u16(_c01), vget_high_u16(_c23));
-                        _c0 = bfloat2float(_c02.val[0]);
-                        float32x4_t _c1 = bfloat2float(_c02.val[1]);
-                        float32x4_t _c2 = bfloat2float(_c13.val[0]);
-                        float32x4_t _c3 = bfloat2float(_c13.val[1]);
+                        _c0 = vcvt_f32_f16((float16x4_t)_c02.val[0]);
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)_c02.val[1]);
+                        float32x4_t _c2 = vcvt_f32_f16((float16x4_t)_c13.val[0]);
+                        float32x4_t _c3 = vcvt_f32_f16((float16x4_t)_c13.val[1]);
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -10680,10 +12154,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                         uint16x8_t _c01 = vld1q_u16(pC);
                         uint16x4x2_t _cc0 = vzip_u16(vget_low_u16(_c01), vget_low_u16(_c01));
                         uint16x4x2_t _cc1 = vzip_u16(vget_high_u16(_c01), vget_high_u16(_c01));
-                        _c0 = bfloat2float(_cc0.val[0]);
-                        float32x4_t _c1 = bfloat2float(_cc0.val[1]);
-                        float32x4_t _c2 = bfloat2float(_cc1.val[0]);
-                        float32x4_t _c3 = bfloat2float(_cc1.val[1]);
+                        _c0 = vcvt_f32_f16((float16x4_t)_cc0.val[0]);
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)_cc0.val[1]);
+                        float32x4_t _c2 = vcvt_f32_f16((float16x4_t)_cc1.val[0]);
+                        float32x4_t _c3 = vcvt_f32_f16((float16x4_t)_cc1.val[1]);
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -10712,10 +12186,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
-                uint16x4_t _bf2 = float2bfloat(_f2);
-                uint16x4_t _bf3 = float2bfloat(_f3);
+                uint16x4_t _bf0 = (uint16x4_t)vcvt_f16_f32(_f0);
+                uint16x4_t _bf1 = (uint16x4_t)vcvt_f16_f32(_f1);
+                uint16x4_t _bf2 = (uint16x4_t)vcvt_f16_f32(_f2);
+                uint16x4_t _bf3 = (uint16x4_t)vcvt_f16_f32(_f3);
 
                 p0[0] = vget_lane_u16(_bf0, 0);
                 p0[1] = vget_lane_u16(_bf0, 1);
@@ -10772,8 +12246,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                         uint16x4_t _cc0 = vld1_u16(pC);
                         uint16x4_t _cc1 = vld1_u16(pC + c_hstep);
                         uint16x4x2_t _c01 = vzip_u16(_cc0, _cc1);
-                        _c0 = bfloat2float(_c01.val[0]);
-                        float32x4_t _c1 = bfloat2float(_c01.val[1]);
+                        _c0 = vcvt_f32_f16((float16x4_t)_c01.val[0]);
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)_c01.val[1]);
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -10791,8 +12265,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     {
                         uint16x4_t _c = vld1_u16(pC);
                         uint16x4x2_t _cc = vzip_u16(_c, _c);
-                        _c0 = bfloat2float(_cc.val[0]);
-                        float32x4_t _c1 = bfloat2float(_cc.val[1]);
+                        _c0 = vcvt_f32_f16((float16x4_t)_cc.val[0]);
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)_cc.val[1]);
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -10815,8 +12289,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
+                uint16x4_t _bf0 = (uint16x4_t)vcvt_f16_f32(_f0);
+                uint16x4_t _bf1 = (uint16x4_t)vcvt_f16_f32(_f1);
 
                 p0[0] = vget_lane_u16(_bf0, 0);
                 p0[1] = vget_lane_u16(_bf0, 1);
@@ -10859,16 +12333,16 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     if (broadcast_type_C == 3)
                     {
                         // c_elempack == 1
-                        f00 += bfloat16_to_float32(pC[0]) * beta;
-                        f01 += bfloat16_to_float32(pC[c_hstep]) * beta;
-                        f10 += bfloat16_to_float32(pC[1]) * beta;
-                        f11 += bfloat16_to_float32(pC[c_hstep + 1]) * beta;
+                        f00 += float16_to_float32(pC[0]) * beta;
+                        f01 += float16_to_float32(pC[c_hstep]) * beta;
+                        f10 += float16_to_float32(pC[1]) * beta;
+                        f11 += float16_to_float32(pC[c_hstep + 1]) * beta;
                         pC += 2;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        float c0 = bfloat16_to_float32(pC[0]) * beta;
-                        float c1 = bfloat16_to_float32(pC[1]) * beta;
+                        float c0 = float16_to_float32(pC[0]) * beta;
+                        float c1 = float16_to_float32(pC[1]) * beta;
                         f00 += c0;
                         f01 += c0;
                         f10 += c1;
@@ -10885,10 +12359,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     f11 *= alpha;
                 }
 
-                p0[0] = float32_to_bfloat16(f00);
-                p0[1] = float32_to_bfloat16(f01);
-                p0[out_hstep] = float32_to_bfloat16(f10);
-                p0[out_hstep + 1] = float32_to_bfloat16(f11);
+                p0[0] = float32_to_float16(f00);
+                p0[1] = float32_to_float16(f01);
+                p0[out_hstep] = float32_to_float16(f10);
+                p0[out_hstep + 1] = float32_to_float16(f11);
 
                 pp += 4;
                 p0 += out_hstep * 2;
@@ -10914,13 +12388,13 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     if (broadcast_type_C == 3)
                     {
                         // c_elempack == 1
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
-                        f1 += bfloat16_to_float32(pC[c_hstep]) * beta;
+                        f0 += float16_to_float32(pC[0]) * beta;
+                        f1 += float16_to_float32(pC[c_hstep]) * beta;
                         pC += 1;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        c0 = bfloat16_to_float32(pC[0]) * beta;
+                        c0 = float16_to_float32(pC[0]) * beta;
                         f0 += c0;
                         f1 += c0;
                         pC += 1;
@@ -10933,8 +12407,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     f1 *= alpha;
                 }
 
-                p0[0] = float32_to_bfloat16(f0);
-                p0[1] = float32_to_bfloat16(f1);
+                p0[0] = float32_to_float16(f0);
+                p0[1] = float32_to_float16(f1);
                 pp += 2;
                 p0 += out_hstep;
             }
@@ -10957,7 +12431,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
         {
             if (broadcast_type_C == 0)
             {
-                c0 = bfloat16_to_float32(pC[0]) * beta;
+                c0 = float16_to_float32(pC[0]) * beta;
 #if __ARM_NEON
                 _c0 = vdupq_n_f32(c0);
 #endif
@@ -10965,7 +12439,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 pC = (const unsigned short*)C + i + ii;
-                c0 = bfloat16_to_float32(pC[0]) * beta;
+                c0 = float16_to_float32(pC[0]) * beta;
 #if __ARM_NEON
                 _c0 = vdupq_n_f32(c0);
 #endif
@@ -11011,10 +12485,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                         // c_elempack == 1
                         uint16x8_t _c01 = vld1q_u16(pC);
                         uint16x8_t _c23 = vld1q_u16(pC + 8);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                        float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                        float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -11043,10 +12517,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep * 4, float2bfloat(_f1));
-                vst1_u16(p0 + out_hstep * 8, float2bfloat(_f2));
-                vst1_u16(p0 + out_hstep * 12, float2bfloat(_f3));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + out_hstep * 4, (uint16x4_t)vcvt_f16_f32(_f1));
+                vst1_u16(p0 + out_hstep * 8, (uint16x4_t)vcvt_f16_f32(_f2));
+                vst1_u16(p0 + out_hstep * 12, (uint16x4_t)vcvt_f16_f32(_f3));
                 pp += 16;
                 p0 += out_hstep * 16;
             }
@@ -11069,8 +12543,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     {
                         // c_elempack == 1
                         uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -11093,8 +12567,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep * 4, float2bfloat(_f1));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
+                vst1_u16(p0 + out_hstep * 4, (uint16x4_t)vcvt_f16_f32(_f1));
                 pp += 8;
                 p0 += out_hstep * 8;
             }
@@ -11110,7 +12584,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
-                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _f0 = vmlaq_n_f32(_f0, _c0, beta);
                         pC += 4;
                     }
@@ -11118,7 +12592,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
 
                 _f0 = vmulq_n_f32(_f0, alpha);
 
-                vst1_u16(p0, float2bfloat(_f0));
+                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
                 pp += 4;
                 p0 += out_hstep * 4;
             }
@@ -11154,10 +12628,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                         // c_elempack == 1
                         uint16x8_t _c01 = vld1q_u16(pC);
                         uint16x8_t _c23 = vld1q_u16(pC + 8);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c01));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c01));
+                        float32x4_t _c2 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c23));
+                        float32x4_t _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c23));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -11186,10 +12660,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
-                uint16x4_t _bf2 = float2bfloat(_f2);
-                uint16x4_t _bf3 = float2bfloat(_f3);
+                uint16x4_t _bf0 = (uint16x4_t)vcvt_f16_f32(_f0);
+                uint16x4_t _bf1 = (uint16x4_t)vcvt_f16_f32(_f1);
+                uint16x4_t _bf2 = (uint16x4_t)vcvt_f16_f32(_f2);
+                uint16x4_t _bf3 = (uint16x4_t)vcvt_f16_f32(_f3);
 
                 p0[0] = vget_lane_u16(_bf0, 0);
                 p0[out_hstep] = vget_lane_u16(_bf0, 1);
@@ -11230,8 +12704,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     {
                         // out_elempack == 1
                         uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                        _c0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_c));
+                        float32x4_t _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -11254,8 +12728,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
+                uint16x4_t _bf0 = (uint16x4_t)vcvt_f16_f32(_f0);
+                uint16x4_t _bf1 = (uint16x4_t)vcvt_f16_f32(_f1);
 
                 p0[0] = vget_lane_u16(_bf0, 0);
                 p0[out_hstep] = vget_lane_u16(_bf0, 1);
@@ -11282,7 +12756,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
                         // out_elempack == 1
-                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
                         _f0 = vmlaq_n_f32(_f0, _c0, beta);
                         pC += 4;
                     }
@@ -11290,7 +12764,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
 
                 _f0 = vmulq_n_f32(_f0, alpha);
 
-                uint16x4_t _bf0 = float2bfloat(_f0);
+                uint16x4_t _bf0 = (uint16x4_t)vcvt_f16_f32(_f0);
 
                 p0[0] = vget_lane_u16(_bf0, 0);
                 p0[out_hstep] = vget_lane_u16(_bf0, 1);
@@ -11314,8 +12788,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     {
                         // c_elempack == 1
                         float32x2_t _c = float32x2_t();
-                        _c = vset_lane_f32(bfloat16_to_float32(pC[0]), _c, 0);
-                        _c = vset_lane_f32(bfloat16_to_float32(pC[1]), _c, 1);
+                        _c = vset_lane_f32(float16_to_float32(pC[0]), _c, 0);
+                        _c = vset_lane_f32(float16_to_float32(pC[1]), _c, 1);
                         _f0 = vmla_n_f32(_f0, _c, beta);
                         pC += 2;
                     }
@@ -11323,8 +12797,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
 
                 _f0 = vmul_n_f32(_f0, alpha);
 
-                p0[0] = float32_to_bfloat16(vget_lane_f32(_f0, 0));
-                p0[out_hstep] = float32_to_bfloat16(vget_lane_f32(_f0, 1));
+                p0[0] = float32_to_float16(vget_lane_f32(_f0, 0));
+                p0[out_hstep] = float32_to_float16(vget_lane_f32(_f0, 1));
 
                 pp += 2;
                 p0 += out_hstep * 2;
@@ -11343,14 +12817,14 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
                         // c_elempack == 1
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
+                        f0 += float16_to_float32(pC[0]) * beta;
                         pC += 1;
                     }
                 }
 
                 f0 *= alpha;
 
-                p0[0] = float32_to_bfloat16(f0);
+                p0[0] = float32_to_float16(f0);
 
                 pp += 1;
                 p0 += out_hstep;
