@@ -68,16 +68,42 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const __fp16* p0 = (const __fp16*)A + (i + ii) * A_hstep;
 
-            float16x8_t _absmax = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax0 = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax1 = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax2 = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax3 = vdupq_n_f16((__fp16)0.f);
             int kk = 0;
+            for (; kk + 3 < K; kk += 4)
+            {
+                float16x8_t _p0 = vld1q_f16(p0);
+                float16x8_t _p1 = vld1q_f16(p0 + 8);
+                float16x8_t _p2 = vld1q_f16(p0 + 16);
+                float16x8_t _p3 = vld1q_f16(p0 + 24);
+                _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p0));
+                _amax1 = vmaxq_f16(_amax1, vabsq_f16(_p1));
+                _amax2 = vmaxq_f16(_amax2, vabsq_f16(_p2));
+                _amax3 = vmaxq_f16(_amax3, vabsq_f16(_p3));
+                p0 += 32;
+            }
+            _amax0 = vmaxq_f16(_amax0, _amax2);
+            _amax1 = vmaxq_f16(_amax1, _amax3);
+            for (; kk + 1 < K; kk += 2)
+            {
+                float16x8_t _p0 = vld1q_f16(p0);
+                float16x8_t _p1 = vld1q_f16(p0 + 8);
+                _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p0));
+                _amax1 = vmaxq_f16(_amax1, vabsq_f16(_p1));
+                p0 += 16;
+            }
+            _amax0 = vmaxq_f16(_amax0, _amax1);
             for (; kk < K; kk++)
             {
                 float16x8_t _p = vld1q_f16(p0);
-                _absmax = vmaxq_f16(_absmax, vabsq_f16(_p));
+                _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p));
                 p0 += 8;
             }
-            float32x4_t _absmax0 = vcvt_f32_f16(vget_low_f16(_absmax));
-            float32x4_t _absmax1 = vcvt_f32_f16(vget_high_f16(_absmax));
+            float32x4_t _absmax0 = vcvt_f32_f16(vget_low_f16(_amax0));
+            float32x4_t _absmax1 = vcvt_f32_f16(vget_high_f16(_amax0));
 #else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep;
 
@@ -170,15 +196,48 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const __fp16* p0 = (const __fp16*)A + (i + ii) * A_hstep;
 
-            float16x4_t _absmax = vdup_n_f16((__fp16)0.f);
+            float16x8_t _amax0 = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax1 = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax2 = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax3 = vdupq_n_f16((__fp16)0.f);
             int kk = 0;
+            for (; kk + 7 < K; kk += 8)
+            {
+                float16x8_t _p0 = vld1q_f16(p0);
+                float16x8_t _p1 = vld1q_f16(p0 + 8);
+                float16x8_t _p2 = vld1q_f16(p0 + 16);
+                float16x8_t _p3 = vld1q_f16(p0 + 24);
+                _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p0));
+                _amax1 = vmaxq_f16(_amax1, vabsq_f16(_p1));
+                _amax2 = vmaxq_f16(_amax2, vabsq_f16(_p2));
+                _amax3 = vmaxq_f16(_amax3, vabsq_f16(_p3));
+                p0 += 32;
+            }
+            _amax0 = vmaxq_f16(_amax0, _amax2);
+            _amax1 = vmaxq_f16(_amax1, _amax3);
+            for (; kk + 3 < K; kk += 4)
+            {
+                float16x8_t _p0 = vld1q_f16(p0);
+                float16x8_t _p1 = vld1q_f16(p0 + 8);
+                _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p0));
+                _amax1 = vmaxq_f16(_amax1, vabsq_f16(_p1));
+                p0 += 16;
+            }
+            _amax0 = vmaxq_f16(_amax0, _amax1);
+            for (; kk + 1 < K; kk += 2)
+            {
+                float16x8_t _p = vld1q_f16(p0);
+                _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p));
+                p0 += 8;
+            }
+            float16x4_t _amax = vmax_f16(vget_low_f16(_amax0), vget_high_f16(_amax0));
             for (; kk < K; kk++)
             {
                 float16x4_t _p = vld1_f16(p0);
-                _absmax = vmax_f16(_absmax, vabs_f16(_p));
+                _amax = vmax_f16(_amax, vabs_f16(_p));
                 p0 += 4;
             }
-            float32x4_t _absmax0 = vcvt_f32_f16(_absmax);
+            float32x4_t _absmax0 = vcvt_f32_f16(_amax);
 #else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep;
 
@@ -262,15 +321,41 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
             const __fp16* p0 = (const __fp16*)A + (i + ii) * A_hstep;
 
             __fp16 absmax = 0.f;
+            float16x8_t _amax0 = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax1 = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax2 = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _amax3 = vdupq_n_f16((__fp16)0.f);
             int kk = 0;
-            float16x8_t _absmax = vdupq_n_f16((__fp16)0.f);
+            for (; kk + 31 < K; kk += 32)
+            {
+                float16x8_t _p0 = vld1q_f16(p0);
+                float16x8_t _p1 = vld1q_f16(p0 + 8);
+                float16x8_t _p2 = vld1q_f16(p0 + 16);
+                float16x8_t _p3 = vld1q_f16(p0 + 24);
+                _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p0));
+                _amax1 = vmaxq_f16(_amax1, vabsq_f16(_p1));
+                _amax2 = vmaxq_f16(_amax2, vabsq_f16(_p2));
+                _amax3 = vmaxq_f16(_amax3, vabsq_f16(_p3));
+                p0 += 32;
+            }
+            _amax0 = vmaxq_f16(_amax0, _amax2);
+            _amax1 = vmaxq_f16(_amax1, _amax3);
+            for (; kk + 15 < K; kk += 16)
+            {
+                float16x8_t _p0 = vld1q_f16(p0);
+                float16x8_t _p1 = vld1q_f16(p0 + 8);
+                _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p0));
+                _amax1 = vmaxq_f16(_amax1, vabsq_f16(_p1));
+                p0 += 16;
+            }
+            _amax0 = vmaxq_f16(_amax0, _amax1);
             for (; kk + 7 < K; kk += 8)
             {
                 float16x8_t _p = vld1q_f16(p0);
-                _absmax = vmaxq_f16(_absmax, vabsq_f16(_p));
+                _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p));
                 p0 += 8;
             }
-            float16x4_t _aa = vmax_f16(vget_low_f16(_absmax), vget_high_f16(_absmax));
+            float16x4_t _aa = vmax_f16(vget_low_f16(_amax0), vget_high_f16(_amax0));
             absmax = (__fp16)vmaxvq_f32(vcvt_f32_f16(_aa));
             for (; kk < K; kk++)
             {
