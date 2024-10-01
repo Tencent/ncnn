@@ -99,6 +99,7 @@
 #include "layer/reorg.h"
 #include "layer/requantize.h"
 #include "layer/reshape.h"
+#include "layer/rmsnorm.h"
 #include "layer/rnn.h"
 #include "layer/roialign.h"
 #include "layer/roipooling.h"
@@ -1676,9 +1677,20 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", input_dim)
             fprintf_param_value(" 2=%d", bias_term)
             fprintf_param_value(" 3=%d", weight_data_size)
+            fprintf_param_value(" 18=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
+
+#if NCNN_INT8
+            // write int8_scale data
+            if (op->int8_scale_term)
+            {
+                ncnn::Mat weight_data_int8_scales(1);
+                weight_data_int8_scales[0] = op->weight_data_int8_scale;
+                fwrite_weight_data(weight_data_int8_scales, bp, 90, 100);
+            }
+#endif // NCNN_INT8
         }
         else if (layer->type == "Exp")
         {
@@ -2301,6 +2313,17 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 11=%d", d)
             fprintf_param_value(" 2=%d", c)
             fprintf_param_value(" 3=%d", permute)
+        }
+        else if (layer->type == "RMSNorm")
+        {
+            ncnn::RMSNorm* op = (ncnn::RMSNorm*)layer;
+            ncnn::RMSNorm* op_default = (ncnn::RMSNorm*)layer_default;
+
+            fprintf_param_value(" 0=%d", affine_size)
+            fprintf_param_value(" 1=%e", eps)
+            fprintf_param_value(" 2=%d", affine)
+
+            fwrite_weight_data(op->gamma_data, bp);
         }
         else if (layer->type == "RNN")
         {
