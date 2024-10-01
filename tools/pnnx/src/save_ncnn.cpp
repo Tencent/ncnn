@@ -624,8 +624,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
         // TODO unsqueeze
 
-        fprintf(cppfp, "    at::Tensor %s_t = at::zeros({%s.c, %s.d, %s.h, %s.w}, at::TensorOptions().dtype(at::k%s));\n", 
-            output_name.c_str(), output_name.c_str(), output_name.c_str(), output_name.c_str(), output_name.c_str(), type_to_libtorch_dtype_string(r->type));
+        fprintf(cppfp, "    at::Tensor %s_t = at::zeros({%s.c, %s.d, %s.h, %s.w}, at::TensorOptions().dtype(at::k%s));\n",
+                output_name.c_str(), output_name.c_str(), output_name.c_str(), output_name.c_str(), output_name.c_str(), type_to_libtorch_dtype_string(r->type));
         fprintf(cppfp, "    copy_mat2tensor(%s_t, %s, (size_t)%du);\n", output_name.c_str(), output_name.c_str(), type_to_elemsize(r->type));
     }
 
