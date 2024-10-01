@@ -133,6 +133,8 @@ public:
     int quantize_lstm();
     int quantize_gru();
 
+    int quantize_embed();
+
     int fuse_requantize();
 };
 
@@ -562,6 +564,55 @@ int NetQuantize::quantize_gru()
     return 0;
 }
 
+int NetQuantize::quantize_embed()
+{
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (layers[i]->type != "Embed")
+            continue;
+
+        // Embed - quantize weight from fp32 to int8
+        ncnn::Embed* embed = (ncnn::Embed*)layers[i];
+
+        fprintf(stderr, "quantize_embed %s\n", embed->name.c_str());
+
+        // TODO move to ncnn2table
+
+        const int num_output = embed->num_output;
+        const int input_dim = embed->input_dim;
+
+        ncnn::Mat weight_data_int8_scales(1);
+        {
+            const float* ptr = embed->weight_data;
+            float absmax = 0.f;
+            for (int i = 0; i < embed->weight_data.w; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(ptr[i]));
+            }
+
+            weight_data_int8_scales[0] = absmax == 0.f ? 1.f : 127 / absmax;
+        }
+
+        {
+            ncnn::Mat weight_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = embed->weight_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(embed->weight_data, weight_data_int8, weight_data_int8_scales, opt_q);
+            if (weight_data_int8.empty())
+                return -100;
+
+            embed->weight_data = weight_data_int8;
+        }
+
+        embed->int8_scale_term = 2;
+        embed->weight_data_int8_scale = weight_data_int8_scales[0];
+    }
+
+    return 0;
+}
+
 int NetQuantize::fuse_requantize()
 {
     const size_t layer_count = layers.size();
@@ -809,6 +860,7 @@ int main(int argc, char** argv)
     quantizer.quantize_rnn();
     quantizer.quantize_lstm();
     quantizer.quantize_gru();
+    quantizer.quantize_embed();
 
     quantizer.fuse_requantize();
 
