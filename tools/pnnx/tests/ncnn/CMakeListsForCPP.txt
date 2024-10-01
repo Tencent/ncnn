@@ -1,0 +1,13 @@
+cmake_minimum_required (VERSION 2.8)
+
+project(${FNAME})
+
+# set(Torch_DIR "/home/beqjal/libtorch/share/cmake/Torch")
+find_package(Torch REQUIRED)
+# set(ncnn_DIR "/home/beqjal/ncnn/build/install/lib/cmake/ncnn" CACHE PATH "/home/beqjal/ncnn/build/install/lib/cmake/ncnn/ncnnConfig.cmake")
+find_package(ncnn REQUIRED)
+
+add_executable(${FNAME} ${FNAME}.cpp)
+target_link_libraries(${FNAME} "${TORCH_LIBRARIES}")
+target_link_libraries(${FNAME} ncnn)
+set_property(TARGET ${FNAME} PROPERTY CXX_STANDARD 14)

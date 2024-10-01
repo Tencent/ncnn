@@ -63,7 +63,7 @@ static const char* type_to_libtorch_dtype_string(int type)
     if (type == 5)
     {
         fprintf(stderr, "replace ncnn input torch.long type with torch.int\n");
-        return "torch.int";
+        return "Int";
     }
     if (type == 6) return "Short";
     if (type == 7) return "Char";
@@ -526,30 +526,7 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
     // utils
 
-    fprintf(cppfp, "void print_mat(const ncnn::Mat& m)\n");
-    fprintf(cppfp, "{\n");
-    fprintf(cppfp, "    for (int q=0; q<m.c; q++)\n");
-    fprintf(cppfp, "    {\n");
-    fprintf(cppfp, "        const float* ptr = m.channel(q);\n");
-    fprintf(cppfp, "        for (int z=0; z<m.d; z++)\n");
-    fprintf(cppfp, "        {\n");
-    fprintf(cppfp, "            for (int y=0; y<m.h; y++)\n");
-    fprintf(cppfp, "            {\n");
-    fprintf(cppfp, "                for (int x=0; x<m.w; x++)\n");
-    fprintf(cppfp, "                {\n");
-    fprintf(cppfp, "                    fprintf(stderr, \"%%f \", ptr[x]);\n");
-    fprintf(cppfp, "                }\n");
-    fprintf(cppfp, "                ptr += m.w;\n");
-    fprintf(cppfp, "                fprintf(stderr, \"\\n\");\n");
-    fprintf(cppfp, "            }\n");
-    fprintf(cppfp, "            fprintf(stderr, \"\\n\");\n");
-    fprintf(cppfp, "        }\n");
-    fprintf(cppfp, "        fprintf(stderr, \"------------------------\\n\");\n");
-    fprintf(cppfp, "    }\n");
-    fprintf(cppfp, "}\n");
-
-
-    fprintf(cppfp, "void copy(const ncnn::Mat& m, const at::Tensor& t, size_t elemsize)\n");
+    fprintf(cppfp, "void copy_tensor2mat(const ncnn::Mat& m, const at::Tensor& t, size_t elemsize)\n");
     fprintf(cppfp, "{\n");
     fprintf(cppfp, "    void* t_ptr = t.data_ptr();\n");
     fprintf(cppfp, "    size_t step = m.d * m.h * m.w * elemsize;\n");
@@ -557,6 +534,18 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
     fprintf(cppfp, "    {\n");
     fprintf(cppfp, "        const char* ptr = m.channel(q);\n");
     fprintf(cppfp, "        memcpy((void*)ptr, t_ptr, step);\n");
+    fprintf(cppfp, "        t_ptr = (void*)((char*)t_ptr + step);\n");
+    fprintf(cppfp, "    }\n");
+    fprintf(cppfp, "}\n\n");
+
+    fprintf(cppfp, "void copy_mat2tensor(const at::Tensor& t, const ncnn::Mat& m, size_t elemsize)\n");
+    fprintf(cppfp, "{\n");
+    fprintf(cppfp, "    void* t_ptr = t.data_ptr();\n");
+    fprintf(cppfp, "    size_t step = m.d * m.h * m.w * elemsize;\n");
+    fprintf(cppfp, "    for (int q=0; q<m.c; q++)\n");
+    fprintf(cppfp, "    {\n");
+    fprintf(cppfp, "        const char* ptr = m.channel(q);\n");
+    fprintf(cppfp, "        memcpy(t_ptr, (void*)ptr, step);\n");
     fprintf(cppfp, "        t_ptr = (void*)((char*)t_ptr + step);\n");
     fprintf(cppfp, "    }\n");
     fprintf(cppfp, "}\n\n");
@@ -599,15 +588,15 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         }
 
         fprintf(cppfp, "    ncnn::Mat %s(", input_name.c_str());
-        for (size_t i = 0; i < r->shape.size(); i++)
+        for (int i = r->shape.size() - 1; i >= 0; i--)
         {
             // squeeze batch index
-            if (batch_index != 233 && i == batch_index && r->shape[r->shape.size() - 1 - i] == 1)
+            if (batch_index != 233 && i == batch_index && r->shape[i] == 1)
                 continue;
-            fprintf(cppfp, "%d, ", r->shape[r->shape.size() - 1 - i]);
+            fprintf(cppfp, "%d, ", r->shape[i]);
         }
         fprintf(cppfp, "(size_t)%du);\n", type_to_elemsize(r->type));
-        fprintf(cppfp, "    copy(%s, %s_t, (size_t)%du);\n", input_name.c_str(), input_name.c_str(), type_to_elemsize(r->type));
+        fprintf(cppfp, "    copy_tensor2mat(%s, %s_t, (size_t)%du);\n", input_name.c_str(), input_name.c_str(), type_to_elemsize(r->type));
     }
 
     fprintf(cppfp, "    ncnn::Extractor ex = net.create_extractor();\n");
@@ -635,11 +624,25 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
         // TODO unsqueeze
 
-        fprintf(cppfp, "    print_mat(%s);\n", output_name.c_str());
-        
+        fprintf(cppfp, "    at::Tensor %s_t = at::zeros({%s.c, %s.d, %s.h, %s.w}, at::TensorOptions().dtype(at::k%s));\n", 
+            output_name.c_str(), output_name.c_str(), output_name.c_str(), output_name.c_str(), output_name.c_str(), type_to_libtorch_dtype_string(r->type));
+        fprintf(cppfp, "    copy_mat2tensor(%s_t, %s, (size_t)%du);\n", output_name.c_str(), output_name.c_str(), type_to_elemsize(r->type));
     }
 
+    fprintf(cppfp, "    torch::save({");
+    for (int output_index = 0;; output_index++)
+    {
+        std::string output_name = std::string("out") + std::to_string(output_index);
+        const Operand* r = g.get_operand(output_name);
+        if (!r)
+            break;
+        if (output_index != 0)
+            fprintf(cppfp, ", ");
+        fprintf(cppfp, "%s_t", output_name.c_str());
+    }
+    fprintf(cppfp, "}, \"out.pt\");\n");
 
+    fprintf(cppfp, "\n");
     fprintf(cppfp, "    return 0;\n");
     fprintf(cppfp, "}\n");
 
