@@ -634,10 +634,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         fprintf(cppfp, "    ncnn::Mat %s;\n", output_name.c_str());
         fprintf(cppfp, "    ex.extract(\"%s\", %s);\n", output_name.c_str(), output_name.c_str());
 
-        fprintf(cppfp, "    at::Tensor %s_t = create_tensor_from_mat(%s).toType(at::k%s);\n", 
-            output_name.c_str(), output_name.c_str(), type_to_libtorch_dtype_string(r->type));
+        fprintf(cppfp, "    at::Tensor %s_t = create_tensor_from_mat(%s).toType(at::k%s);\n",
+                output_name.c_str(), output_name.c_str(), type_to_libtorch_dtype_string(r->type));
         fprintf(cppfp, "    copy_mat2tensor(%s_t, %s, (size_t)%du);\n", output_name.c_str(), output_name.c_str(), type_to_elemsize(r->type));
-        
+
         // unsqueeze batch index
         const int batch_index = r->params.at("__batch_index").i;
         if (batch_index != 233)
