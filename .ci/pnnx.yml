@@ -4,14 +4,12 @@ on:
     branches: [master]
     paths:
     - '.ci/pnnx.yml'
-    - 'src/layer/*'
     - 'tools/pnnx/**'
     - '!tools/pnnx/README.md'
   mr:
     target-branches: [master]
     paths:
     - '.ci/pnnx.yml'
-    - 'src/layer/*'
     - 'tools/pnnx/**'
     - '!tools/pnnx/README.md'
 concurrency:
@@ -196,7 +194,13 @@ jobs:
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
+        export Torch_DIR=${{ci.workspace}}/pnnx-deps-torch-install/share/cmake/Torch
+        export ncnn_DIR=$(pwd)/build/install/lib/cmake/ncnn
+        echo ${{ci.workspace}}/pnnx-deps-torch-install
+        echo $ncnn_DIR
+        ls
         cd tools/pnnx
+        cp tests/ncnn/CMakeListsForCPP.txt build/tests/ncnn/CMakeLists.txt
         cd build && ctest --output-on-failure -j 16
 
     - name: python-pnnx
