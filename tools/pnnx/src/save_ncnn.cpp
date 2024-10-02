@@ -72,7 +72,9 @@ static const char* type_to_libtorch_dtype_string(int type)
     if (type == 10) return "ComplexFloat";
     if (type == 11) return "ComplexDouble";
     if (type == 12) return "ComplexHalf";
-    return "null";
+
+    fprintf(stderr, "unknown type %d.\n", type);
+    return "Float";
 }
 
 static size_t type_to_elemsize(int type)
@@ -550,6 +552,16 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
     fprintf(cppfp, "    }\n");
     fprintf(cppfp, "}\n\n");
 
+    fprintf(cppfp, "at::Tensor create_tensor_from_mat(const ncnn::Mat& m)\n");
+    fprintf(cppfp, "{\n");
+    fprintf(cppfp, "    at::Tensor t;\n");
+    fprintf(cppfp, "    if (m.dims == 1) t = at::zeros({m.w});\n");
+    fprintf(cppfp, "    if (m.dims == 2) t = at::zeros({m.h, m.w});\n");
+    fprintf(cppfp, "    if (m.dims == 3) t = at::zeros({m.c, m.h, m.w});\n");
+    fprintf(cppfp, "    if (m.dims == 4) t = at::zeros({m.c, m.d, m.h, m.w});\n");
+    fprintf(cppfp, "    return t;\n");
+    fprintf(cppfp, "}\n\n");
+
     // test inference
 
     fprintf(cppfp, "int main(int argc, char** argv)\n");
@@ -622,11 +634,14 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         fprintf(cppfp, "    ncnn::Mat %s;\n", output_name.c_str());
         fprintf(cppfp, "    ex.extract(\"%s\", %s);\n", output_name.c_str(), output_name.c_str());
 
-        // TODO unsqueeze
-
-        fprintf(cppfp, "    at::Tensor %s_t = at::zeros({%s.c, %s.d, %s.h, %s.w}, at::TensorOptions().dtype(at::k%s));\n", 
-            output_name.c_str(), output_name.c_str(), output_name.c_str(), output_name.c_str(), output_name.c_str(), type_to_libtorch_dtype_string(r->type));
+        fprintf(cppfp, "    at::Tensor %s_t = create_tensor_from_mat(%s).toType(at::k%s);\n", 
+            output_name.c_str(), output_name.c_str(), type_to_libtorch_dtype_string(r->type));
         fprintf(cppfp, "    copy_mat2tensor(%s_t, %s, (size_t)%du);\n", output_name.c_str(), output_name.c_str(), type_to_elemsize(r->type));
+        
+        // unsqueeze batch index
+        const int batch_index = r->params.at("__batch_index").i;
+        if (batch_index != 233)
+            fprintf(cppfp, "    %s_t = %s_t.unsqueeze(%d);\n", output_name.c_str(), output_name.c_str(), batch_index);
     }
 
     fprintf(cppfp, "    torch::save({");

@@ -36,7 +36,13 @@ def test():
     import test_shufflenet_v2_x1_0_ncnn
     b = test_shufflenet_v2_x1_0_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-2, 1e-2)
+    # pnnx inference cpp
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_shufflenet_v2_x1_0_ncnn && make")
+    os.system("./build/test_shufflenet_v2_x1_0_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+    c = c[0]
+
+    return torch.allclose(a, b, 1e-2, 1e-2) and torch.allclose(a, c, 1e-2, 1e-2)
 
 if __name__ == "__main__":
     if test():

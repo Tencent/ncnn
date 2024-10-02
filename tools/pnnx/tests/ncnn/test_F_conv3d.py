@@ -50,7 +50,13 @@ def test():
     import test_F_conv3d_ncnn
     b = test_F_conv3d_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    # pnnx inference cpp
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_F_conv3d_ncnn && make")
+    os.system("./build/test_F_conv3d_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+    c = c[0]
+
+    return torch.allclose(a, b, 1e-4, 1e-4) and torch.allclose(a, c, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():
