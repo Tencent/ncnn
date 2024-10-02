@@ -233,11 +233,22 @@ def test():
     import test_ncnn_numpy_binaryop_broadcast_ncnn
     b = test_ncnn_numpy_binaryop_broadcast_ncnn.test_inference()
 
+    # ncnn cpp inference
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_ncnn_numpy_binaryop_broadcast_ncnn && make")
+    os.system("./build/test_ncnn_numpy_binaryop_broadcast_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+
     for a0, b0 in zip(a, b):
         # allclose may auto broadcast compare
         if a0.shape != b0.shape:
             return False
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    for a0, c0 in zip(a, c):
+        # allclose may auto broadcast compare
+        if a0.shape != c0.shape:
+            return False
+        if not torch.allclose(a0, c0, 1e-4, 1e-4):
             return False
     return True
 
