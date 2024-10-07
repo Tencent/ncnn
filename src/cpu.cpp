@@ -1880,14 +1880,16 @@ static int get_isa_env(const char* isa_flags)
 
     while (token != NULL)
     {
-        if (strcmp(token, isa_flags) == 0)
+        if (strcmp(token + 1, isa_flags) == 0)
         {
-            if (isa_flags[0] == '+')
-                return false;
-            if (isa_flags[0] == '-')
+            if (token[0] == '+')
             {
-                memmove(token, token + 1, strlen(token));
-                fprintf(stderr, "warning: %s disabled via environment variable!\n", token);
+                fprintf(stderr, "warning: %s enabled via environment variable!\n", isa_flags);
+                return 0;
+            }
+            if (token[0] == '-')
+            {
+                fprintf(stderr, "warning: %s disabled via environment variable!\n", isa_flags);
                 return 1;
             }
         }
@@ -1899,48 +1901,48 @@ static int get_isa_env(const char* isa_flags)
 }
 
 #if (__aarch64__ || __arm__)
-static int is_cpu_arm_cpuid_disabled = get_isa_env("-cpuid");
-static int is_cpu_arm_asimdhp_disabled = get_isa_env("-asimdhp");
-static int is_cpu_arm_asimddp_disabled = get_isa_env("-asimddp");
-static int is_cpu_arm_asimdfhm_disabled = get_isa_env("-asimdfhm");
-static int is_cpu_arm_bf16_disabled = get_isa_env("-bf16");
-static int is_cpu_arm_i8mm_disabled = get_isa_env("-i8mm");
-static int is_cpu_arm_sve_disabled = get_isa_env("-sve");
-static int is_cpu_arm_sve2_disabled = get_isa_env("-sve2");
-static int is_cpu_arm_svebf16_disabled = get_isa_env("-svebf16");
-static int is_cpu_arm_svei8mm_disabled = get_isa_env("-svei8mm");
-static int is_cpu_arm_svef32mm_disabled = get_isa_env("-svef32mm");
-static int is_cpu_arm_edsp_disabled = get_isa_env("-edsp");
-static int is_cpu_arm_vfpv4_disabled = get_isa_env("-vfpv4");
-static int is_cpu_arm_neon_disabled = get_isa_env("-neon");
+static int is_cpu_arm_cpuid_disabled = get_isa_env("cpuid");
+static int is_cpu_arm_asimdhp_disabled = get_isa_env("asimdhp");
+static int is_cpu_arm_asimddp_disabled = get_isa_env("asimddp");
+static int is_cpu_arm_asimdfhm_disabled = get_isa_env("asimdfhm");
+static int is_cpu_arm_bf16_disabled = get_isa_env("bf16");
+static int is_cpu_arm_i8mm_disabled = get_isa_env("i8mm");
+static int is_cpu_arm_sve_disabled = get_isa_env("sve");
+static int is_cpu_arm_sve2_disabled = get_isa_env("sve2");
+static int is_cpu_arm_svebf16_disabled = get_isa_env("svebf16");
+static int is_cpu_arm_svei8mm_disabled = get_isa_env("svei8mm");
+static int is_cpu_arm_svef32mm_disabled = get_isa_env("svef32mm");
+static int is_cpu_arm_edsp_disabled = get_isa_env("edsp");
+static int is_cpu_arm_vfpv4_disabled = get_isa_env("vfpv4");
+static int is_cpu_arm_neon_disabled = get_isa_env("neon");
 #endif
 
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-static int is_cpu_x86_avx_disabled = get_isa_env("-avx");
-static int is_cpu_x86_fma_disabled = get_isa_env("-fma");
-static int is_cpu_x86_xop_disabled = get_isa_env("-xop");
-static int is_cpu_x86_f16c_disabled = get_isa_env("-f16c");
-static int is_cpu_x86_avx2_disabled = get_isa_env("-avx2");
-static int is_cpu_x86_avx_vnni_disabled = get_isa_env("-avx_vnni");
-static int is_cpu_x86_avx512_disabled = get_isa_env("-avx512");
-static int is_cpu_x86_avx512_vnni_disabled = get_isa_env("-avx512_vnni");
-static int is_cpu_x86_avx512_bf16_disabled = get_isa_env("-avx512_bf16");
-static int is_cpu_x86_avx512_fp16_disabled = get_isa_env("-avx512_fp16");
+static int is_cpu_x86_avx_disabled = get_isa_env("avx");
+static int is_cpu_x86_fma_disabled = get_isa_env("fma");
+static int is_cpu_x86_xop_disabled = get_isa_env("xop");
+static int is_cpu_x86_f16c_disabled = get_isa_env("f16c");
+static int is_cpu_x86_avx2_disabled = get_isa_env("avx2");
+static int is_cpu_x86_avx_vnni_disabled = get_isa_env("avx_vnni");
+static int is_cpu_x86_avx512_disabled = get_isa_env("avx512");
+static int is_cpu_x86_avx512_vnni_disabled = get_isa_env("avx512_vnni");
+static int is_cpu_x86_avx512_bf16_disabled = get_isa_env("avx512_bf16");
+static int is_cpu_x86_avx512_fp16_disabled = get_isa_env("avx512_fp16");
 #endif
 
 #if __loongarch64
-static int is_cpu_loongarch_lsx_disabled = get_isa_env("-lsx");
-static int is_cpu_loongarch_lasx_disabled = get_isa_env("-lasx");
+static int is_cpu_loongarch_lsx_disabled = get_isa_env("lsx");
+static int is_cpu_loongarch_lasx_disabled = get_isa_env("lasx");
 #endif
 
 #if __mips__
-static int is_cpu_mips_msa_disabled = get_isa_env("-msa");
-static int is_cpu_loongson_mmi_disabled = get_isa_env("-mmi");
+static int is_cpu_mips_msa_disabled = get_isa_env("msa");
+static int is_cpu_loongson_mmi_disabled = get_isa_env("mmi");
 #endif
 
 #if __riscv
-static int is_cpu_riscv_v_disabled = get_isa_env("-rvv");
-static int is_cpu_riscv_zfh_disabled = get_isa_env("-zfh");
+static int is_cpu_riscv_v_disabled = get_isa_env("rvv");
+static int is_cpu_riscv_zfh_disabled = get_isa_env("zfh");
 #endif
 
 // the initialization
@@ -2493,7 +2495,7 @@ int cpu_support_x86_avx()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx && !is_cpu_x86_avx_disabled;
+    return g_cpu_support_x86_avx && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2503,7 +2505,7 @@ int cpu_support_x86_fma()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_fma && !is_cpu_x86_fma_disabled;
+    return g_cpu_support_x86_fma && !is_cpu_x86_fma_disabled && !is_cpu_x86_avx2_disabled && !is_cpu_x86_avx_disabled;
 #else
     return 0;
 #endif
@@ -2543,7 +2545,7 @@ int cpu_support_x86_avx_vnni()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx_vnni && !is_cpu_x86_avx_vnni_disabled && !is_cpu_x86_avx_disabled;
+    return g_cpu_support_x86_avx_vnni && !is_cpu_x86_avx_vnni_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2553,7 +2555,7 @@ int cpu_support_x86_avx512()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512 && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled;
+    return g_cpu_support_x86_avx512 && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2563,7 +2565,7 @@ int cpu_support_x86_avx512_vnni()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512_vnni && !is_cpu_x86_avx512_vnni_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled;
+    return g_cpu_support_x86_avx512_vnni && !is_cpu_x86_avx512_vnni_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2573,7 +2575,7 @@ int cpu_support_x86_avx512_bf16()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512_bf16 && !is_cpu_x86_avx512_bf16_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled;
+    return g_cpu_support_x86_avx512_bf16 && !is_cpu_x86_avx512_bf16_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2583,7 +2585,7 @@ int cpu_support_x86_avx512_fp16()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512_fp16 && !is_cpu_x86_avx512_fp16_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled;
+    return g_cpu_support_x86_avx512_fp16 && !is_cpu_x86_avx512_fp16_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
