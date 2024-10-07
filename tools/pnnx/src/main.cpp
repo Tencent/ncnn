@@ -363,6 +363,11 @@ int main(int argc, char** argv)
 
     pnnx_graph.python(pnnxpypath, pnnxbinpath);
 
+    // count float
+    pnnx_graph.flops_mem_count();
+    fprintf(stderr, "float ops: %lld\n", pnnx_graph.m.flops);
+    fprintf(stderr, "memory ops: %lld\n", pnnx_graph.m.memory_access);
+
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
 #else
