@@ -2864,7 +2864,6 @@ const Operand* Graph::get_operand(const std::string& name) const
 
 pnnx::ModelInfo Graph::flops_mem_count()
 {
-    pnnx::ModelInfo m;
     for (const Operator* op : ops)
     {
         if (op->type == "nn.Conv2d")
@@ -3009,6 +3008,546 @@ pnnx::ModelInfo Graph::flops_mem_count()
             kernel_avg = 1;
             m.flops += (kernel_add + kernel_avg) * (out_h * out_w) * in_c;
             m.memory_access += batch_size * in_c * (in_h * in_w + out_h * out_w)
+        }
+        else if (op->type == "nn.BatchNorm2d")
+        {
+            int in_n, in_c, in_h, in_w;
+            bool affine;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_h = op->inputs[0]->shape[2];
+            in_w = op->inputs[0]->shape[3];
+            affine = op->params.at("affine").b;
+            if (affine)
+            {
+                m.flops += 7 * in_n * in_c * in_h * in_w;
+                m.memory_access += 2 * in_n * in_c * in_h * in_w;
+            }
+            else
+            {
+                m.flops += 5 * in_n * in_c * in_h * in_w;
+                m.memory_access += 2 * in_n * in_c * in_h * in_w;
+            }
+        }
+        else if (op->type == "nn.AdaptiveAvgPool2d")
+        {
+            int in_n, in_c, in_h, in_w, out_h, out_w, k_h, k_w, kernel_add, kernel_avg;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_h = op->inputs[0]->shape[2];
+            in_w = op->inputs[0]->shape[3];
+            out_h = op->params.at("output_size").ai[0];
+            out_w = op->params.at("output_size").ai[1];
+            if (out_h == 0){
+                k_h = in_h;
+            }
+            else
+            {
+                k_h = (in_h + out_h -1) / out_h;
+            }
+
+            if (out_w == 0){
+                k_w = in_w;
+            }
+            else
+            {
+                k_w = (in_w + out_w -1) / out_w;
+            }
+            kernel_add = k_h * k_w - 1;
+            kernel_avg = 1;
+            m.flops += (kernel_add + kernel_avg) * out_h * out_w * in_c;
+            m.memory_access += in_n * in_c * (in_h * in_w + out_h * out_w);
+        }
+        else if (op->type == "nn.AdaptiveMaxPool2d")
+        {
+            int num_o, in_n, in_c, in_h, in_w, out_h, out_w;
+            num_o = op->params.at("return_indices").b ? 2 : 1;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_h = op->inputs[0]->shape[2];
+            in_w = op->inputs[0]->shape[3];
+            out_h = op->params.at("output_size").ai[0];
+            out_w = op->params.at("output_size").ai[1];
+            m.memory_access += in_n * in_c * (in_h * in_w + out_h * out_w * num_o);
+        }
+        else if (op->type == "nn.CELU")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.ELU")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.Embedding")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.Fold")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.GELU")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 12 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.GLU")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops +=  ( 5 * mem ) / 2;
+            m.memory_access += std::round(1.5 * mem);
+        }
+        else if (op->type == "nn.GroupNorm")
+        {
+            int num_g, in_n, in_c, in_size, mem = 1;
+            num_g = op->params.at("num_groups").i;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 2; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 9 * in_n * in_c * mem + 2 * in_n * num_g;
+            m.memory_access += 2 * in_n * in_c * mem + 2 * in_n * num_g;
+        }
+        else if (op->type == "nn.GRU")
+        {
+            int in_size, h_size, num_layers, batch, seq;
+            bool batch_first, bidirectional;
+            in_size = op->params.at("input_size").i;
+            h_size = op->params.at("hidden_size").i;
+            num_layers = op->params.at("num_layers").i;
+            batch_first = op->params.at("batch_first").b;
+            bidirectional = op->params.at("bidirectional").b;
+            batch = op->inputs[0]->shape[batch_first ? 0 : 1];
+            seq = op->inputs[0]->shape[batch_first ? 1 : 0];
+            if (bidirectional)
+            {
+                m.flops += 2 * num_layers * batch * seq * h_size * (3 * in_size + 7);
+            }
+            else
+            {
+                m.flops += num_layers * batch * seq * h_size * (3 * in_size + 7);
+            }
+            m.memory_access += num_layers * batch * seq * in_size;
+        }
+        else if (op->type == "nn.Hardsigmoid")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 2 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.Hardswish")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 3 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.Hardtanh")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.Identity")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.InstanceNorm2d")
+        {
+            if ( op->inputs[0]->shape.size() == 4)
+            {
+                int in_b, in_c, in_h, in_w;
+                bool affine;
+                in_b = op->inputs[0]->shape[0];
+                in_c = op->inputs[0]->shape[1];
+                in_h = op->inputs[0]->shape[2];
+                in_w = op->inputs[0]->shape[3];
+                affine = op->params.at("affine").b;
+                if (affine)
+                {
+                    m.flops += 7 * in_b * in_c * in_h * in_w;
+                    m.memory_access += 2 * in_b * in_c * in_h * in_w;
+                }
+                else
+                {
+                    m.flops += 5 * in_b * in_c * in_h * in_w;
+                    m.memory_access += 2 * in_b * in_c * in_h * in_w;
+                }
+            }
+        }
+        else if (op->type == "nn.LeakyReLU")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.LocalResponseNorm")
+        {
+            int in_size, mem = 1, size, in_n, in_c;
+            size = op->params.at("size").i;
+            in_size = op->inputs[0]->shape.size();
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            for (int index = 2; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += (size + 4) * in_n * in_c * mem;
+            m.memory_access += (2 + size) * in_n * in_c * mem;
+        }
+        else if (op->type == "nn.LogSigmoid")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 10 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.LogSoftmax")
+        {
+            int in_size, mem = 1, dim, in_n, in_c, in_h;
+            dim = op->params.at("dim").i;
+            in_size = op->inputs[0]->shape.size();
+            if (dim == 0)
+            {
+                in_n = op->inputs[0]->shape[0];
+                for (int index = 1; index < in_size; index++)
+                {
+                    mem *= op->inputs[0]->shape[index];
+                }
+                m.flops += ( 7 * in_n + 4 ) * mem;
+                m.memory_access += 2 * in_n * mem;
+            }
+            else if (dim == 1)
+            {
+                in_n = op->inputs[0]->shape[0];
+                in_c = op->inputs[0]->shape[1];
+                for (int index = 2; index < in_size; index++)
+                {
+                    mem *= op->inputs[0]->shape[index];
+                }
+                m.flops += ( 7 * in_c + 4 ) * in_n * mem;
+                m.memory_access += 2 * in_n * in_c * mem;
+            }
+            else if (dim == 2)
+            {
+                in_n = op->inputs[0]->shape[0];
+                in_c = op->inputs[0]->shape[1];
+                in_h = op->inputs[0]->shape[2];
+                for (int index = 3; index < in_size; index++)
+                {
+                    mem *= op->inputs[0]->shape[index];
+                }
+                m.flops += ( 7 * in_h + 4 ) * in_n * in_c * mem;
+                m.memory_access += 2 * in_n * in_c * in_h * mem;
+            }
+        }
+        else if (op->type == "nn.LSTM")
+        {
+            int hidden_size, num_layers, batch, seq, in_d;
+            bool batch_first;
+            hidden_size = op->params.at("hidden_size").i;
+            num_layers = op->params.at("num_layers").i;
+            batch_first = op->params.at("batch_first").b;
+            batch = op->inputs[0]->shape[batch_first ? 0 : 1];
+            seq = op->inputs[0]->shape[batch_first ? 1 : 0];
+            in_d = op->inputs[0]->shape[2];
+            m.flops += num_layers * batch * seq * hidden_size * (8 * (in_d + hidden_size) + 23);
+            m.memory_access += num_layers * batch * (seq * in_d + 12 * seq * hidden_size);
+        }
+        else if (op->type == "nn.Mish")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 5 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.PixelShuffle")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.PixelUnshuffle")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.ReflectionPad1d")
+        {
+            int pad_left, pad_right, in_size, in_w, mem = 1;
+            pad_left = op->params.at("padding").ai[0];
+            pad_right = op->params.at("padding").ai[1];
+            in_size = op->inputs[0]->shape.size();
+            in_w = op->inputs[0]->shape[-1];
+            for (int index = 0; index < in_size - 1; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += mem * in_w + mem * (in_w + pad_left + pad_right);
+        }
+        else if (op->type == "nn.ReflectionPad2d")
+        {
+            int pad_left, pad_right, pad_top, pad_bottom, in_size, in_w, in_h, mem = 1;
+            pad_left = op->params.at("padding").ai[0];
+            pad_right = op->params.at("padding").ai[1];
+            pad_top = op->params.at("padding").ai[2];
+            pad_bottom = op->params.at("padding").ai[3];
+            in_size = op->inputs[0]->shape.size();
+            in_h = op->inputs[0]->shape[-1];
+            in_w = op->inputs[0]->shape[-2];
+            for (int index = 0; index < in_size - 2; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += mem * in_w * in_h + mem * (in_w + pad_left + pad_right) * (in_h + pad_top + pad_bottom);
+        }
+        else if (op->type == "nn.ReLU")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.ReLU6")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.ReplicationPad2d")
+        {
+            int pad_left, pad_right, pad_top, pad_bottom, in_size, in_w, in_h, mem = 1;
+            pad_left = op->params.at("padding").ai[0];
+            pad_right = op->params.at("padding").ai[1];
+            pad_top = op->params.at("padding").ai[2];
+            pad_bottom = op->params.at("padding").ai[3];
+            in_size = op->inputs[0]->shape.size();
+            in_h = op->inputs[0]->shape[-1];
+            in_w = op->inputs[0]->shape[-2];
+            for (int index = 0; index < in_size - 2; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += mem * in_w * in_h + mem * (in_w + pad_left + pad_right) * (in_h + pad_top + pad_bottom);
+        }
+        else if (op->type == "nn.RNN")
+        {
+            int in_size, h_size, num_layers, batch, seq;
+            bool batch_first, bidirectional;
+            in_size = op->params.at("input_size").i;
+            h_size = op->params.at("hidden_size").i;
+            num_layers = op->params.at("num_layers").i;
+            batch_first = op->params.at("batch_first").b;
+            bidirectional = op->params.at("bidirectional").b;
+            batch = op->inputs[0]->shape[batch_first ? 0 : 1];
+            seq = op->inputs[0]->shape[batch_first ? 1 : 0];
+            if (bidirectional)
+            {
+                m.flops += 2 * batch * seq * 2 * (in_size * h_size + (num_layers - 1) * (h_size * h_size));
+            }
+            else
+            {
+                m.flops += batch * seq * 2 * (in_size * h_size + (num_layers - 1) * (h_size * h_size));
+            }
+            m.memory_access += batch * seq * (in_size + num_layers * h_size + h_size);
+
+        }
+        else if (op->type == "nn.SELU")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.Sigmoid")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 7 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.SiLU")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 8 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.Softmax")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 7 * mem - 1;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.Softmax2d")
+        {
+            int in_n, in_c, in_h, in_w;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_h = op->inputs[0]->shape[2];
+            in_w = op->inputs[0]->shape[3];
+            m.flops += in_n * in_c * (7 * in_h * in_w -1);
+            m.memory_access += 2 * in_n * in_c * in_h * in_w;
+        }
+        else if (op->type == "nn.Tanh")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 9 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.Unfold")
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.UpsamplingBilinear2d")
+        {
+            int in_n, in_c, in_h, in_w;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_h = op->inputs[0]->shape[2];
+            in_w = op->inputs[0]->shape[3];
+            if (op->params.find("size") != op->params.end())
+            {
+                int size_h = op->params.at("size").ai[0];
+                int size_w = op->params.at("size").ai[1];
+                m.flops += 4 * in_c * size_h * size_w;
+                m.memory_access +=  5 * in_c * size_h * size_w;
+            }
+            else
+            {
+                int scale_h = op->params.at("scale_factor").ai[0];
+                int scale_w = op->params.at("scale_factor").ai[1];
+                int out_h = in_h * scale_h;
+                int out_w = in_w * scale_w;
+                m.flops += 4 * in_c * out_h * out_w;
+                m.memory_access +=  5 * in_c * out_h * out_w;
+            }
+        }
+        else if (op->type == "torch.mm")
+        {
+            int first_h, first_w, second_h, second_w;
+            first_h = op->inputs[0]->shape[0];
+            first_w = op->inputs[0]->shape[1];
+            second_h = op->inputs[1]->shape[0];
+            second_w = op->inputs[1]->shape[1];
+            fprintf(stderr, "first_h: %d\n", first_h);//debug
+            fprintf(stderr, "first_w: %d\n", first_w);//debug
+            fprintf(stderr, "second_h: %d\n", second_h);//debug
+            fprintf(stderr, "second_w: %d\n", second_w);//debug
+            m.flops += first_h * second_w * (2 * first_w - 1);
+            m.memory_access +=  first_h * first_w + second_h * second_w + first_h * second_w;
         }
         else
         {

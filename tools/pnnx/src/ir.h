@@ -356,6 +356,7 @@ public:
     Operand* get_operand(const std::string& name);
     const Operand* get_operand(const std::string& name) const;
 
+    ModelInfo m;
     std::vector<Operator*> ops;
     std::vector<Operand*> operands;
 
