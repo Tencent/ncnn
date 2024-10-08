@@ -1577,7 +1577,7 @@ static void transpose_compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales,
             }
             float absmax0 = (float)vmaxvq_f16(_absmax0);
             float absmax1 = (float)vmaxvq_f16(_absmax1);
-#else  // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * 8;
 
             float32x4_t _absmax0 = vdupq_n_f32(0.f);
@@ -1660,7 +1660,7 @@ static void transpose_compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales,
                 p0 += A_hstep * 8;
             }
             float absmax = (float)vmaxvq_f16(_absmax0);
-#else  // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * 8;
 
             float32x4_t _absmax0 = vdupq_n_f32(0.f);
@@ -1976,7 +1976,7 @@ static void transpose_compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales,
                 p0 += A_hstep;
             }
             float32x4_t _absmax0 = vcvt_f32_f16(_amax);
-#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#else  // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const unsigned short* p0 = (const unsigned short*)A + (i + ii);
 
             float32x4_t _absmax0 = vdupq_n_f32(0.f);
@@ -3422,7 +3422,7 @@ static void compute_B_fp16_int8_scale(const Mat& B, float& scale)
     float16x8_t _absmax2 = vdupq_n_f16((__fp16)0.f);
     float16x8_t _absmax3 = vdupq_n_f16((__fp16)0.f);
     float16x4_t _amax = vdup_n_f16((__fp16)0.f);
-#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#else  // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     float32x4_t _absmax0 = vdupq_n_f32(0.f);
     float32x4_t _absmax1 = vdupq_n_f32(0.f);
     float32x4_t _absmax2 = vdupq_n_f32(0.f);
