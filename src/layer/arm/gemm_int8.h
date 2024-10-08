@@ -1854,7 +1854,7 @@ static void compute_A_tile_fp32_int8_scales(const Mat& A, Mat& scales, float B_s
 #endif // __ARM_NEON
             for (; kk < K; kk++)
             {
-                absmax = std::max(absmax, (float)fabs(p0[0]));
+                absmax = std::max(absmax, (float)fabsf(p0[0]));
                 p0++;
             }
 
@@ -3012,7 +3012,7 @@ static void transpose_compute_A_tile_fp32_int8_scales(const Mat& A, Mat& scales,
             float absmax = 0.f;
             for (int kk = 0; kk < K; kk++)
             {
-                absmax = std::max(absmax, (float)fabs(p0[0]));
+                absmax = std::max(absmax, (float)fabsf(p0[0]));
                 p0 += A_hstep;
             }
 
@@ -3956,7 +3956,7 @@ static void compute_B_fp32_int8_scale(const Mat& B, float& scale)
 #endif
         for (; j < size; j++)
         {
-            absmax = std::max(absmax, (float)fabs(ptr[0]));
+            absmax = std::max(absmax, (float)fabsf(ptr[0]));
             ptr++;
         }
     }

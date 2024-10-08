@@ -359,7 +359,7 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
             absmax = (__fp16)vmaxvq_f32(vcvt_f32_f16(_aa));
             for (; kk < K; kk++)
             {
-                absmax = std::max(absmax, (__fp16)fabs(p0[0]));
+                absmax = std::max(absmax, (__fp16)fabsf(p0[0]));
                 p0++;
             }
 #else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -413,7 +413,7 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
 #endif // __ARM_NEON
             for (; kk < K; kk++)
             {
-                absmax = std::max(absmax, (float)fabs(float16_to_float32(p0[0])));
+                absmax = std::max(absmax, (float)fabsf(float16_to_float32(p0[0])));
                 p0++;
             }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -2083,7 +2083,7 @@ static void transpose_compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales,
             absmax = (float)vmaxv_f16(_amax0);
             for (; kk < K; kk++)
             {
-                absmax = std::max(absmax, fabs((float)p0[0]));
+                absmax = std::max(absmax, (float)fabsf((float)p0[0]));
                 p0 += A_hstep;
             }
 #else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -2132,7 +2132,7 @@ static void transpose_compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales,
 #endif // __ARM_NEON
             for (; kk < K; kk++)
             {
-                absmax = std::max(absmax, (float)fabs(float16_to_float32(p0[0])));
+                absmax = std::max(absmax, (float)fabsf(float16_to_float32(p0[0])));
                 p0 += A_hstep;
             }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -3473,7 +3473,7 @@ static void compute_B_fp16_int8_scale(const Mat& B, float& scale)
         }
         for (; j < size; j++)
         {
-            absmax = std::max(absmax, fabs((float)ptr[0]));
+            absmax = std::max(absmax, (float)fabsf((float)ptr[0]));
             ptr++;
         }
 #else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -3513,7 +3513,7 @@ static void compute_B_fp16_int8_scale(const Mat& B, float& scale)
 #endif // __ARM_NEON
         for (; j < size; j++)
         {
-            absmax = std::max(absmax, (float)fabs(float16_to_float32(ptr[0])));
+            absmax = std::max(absmax, (float)fabsf(float16_to_float32(ptr[0])));
             ptr++;
         }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
