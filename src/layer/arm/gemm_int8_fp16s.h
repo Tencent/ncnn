@@ -320,7 +320,7 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             const __fp16* p0 = (const __fp16*)A + (i + ii) * A_hstep;
 
-            __fp16 absmax = 0.f;
+            float absmax = 0.f;
             float16x8_t _amax0 = vdupq_n_f16((__fp16)0.f);
             float16x8_t _amax1 = vdupq_n_f16((__fp16)0.f);
             float16x8_t _amax2 = vdupq_n_f16((__fp16)0.f);
@@ -356,10 +356,10 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
                 p0 += 8;
             }
             float16x4_t _aa = vmax_f16(vget_low_f16(_amax0), vget_high_f16(_amax0));
-            absmax = (__fp16)vmaxvq_f32(vcvt_f32_f16(_aa));
+            absmax = vmaxvq_f32(vcvt_f32_f16(_aa));
             for (; kk < K; kk++)
             {
-                absmax = std::max(absmax, (__fp16)fabsf(p0[0]));
+                absmax = std::max(absmax, (float)fabsf(p0[0]));
                 p0++;
             }
 #else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
