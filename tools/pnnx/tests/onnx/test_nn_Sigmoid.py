@@ -43,7 +43,7 @@ def test():
     z = torch.rand(1, 12, 24, 64)
     w = torch.rand(1, 12, 24, 32, 64)
 
-    a0, a1, a2, a3 = net(x, y, z, w)
+    a = net(x, y, z, w)
 
     # export onnx
     torch.onnx.export(net, (x, y, z, w), "test_nn_Sigmoid.onnx")
@@ -54,9 +54,12 @@ def test():
 
     # pnnx inference
     import test_nn_Sigmoid_pnnx
-    b0, b1, b2, b3 = test_nn_Sigmoid_pnnx.test_inference()
+    b = test_nn_Sigmoid_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)
+    for a0, b0 in zip(a, b):
+        if not torch.equal(a0, b0):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

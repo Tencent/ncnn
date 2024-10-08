@@ -1166,6 +1166,18 @@ static void functionize(Graph& graph)
             if (out0->consumers.size() == 1)
                 continue;
 
+            bool all_consumers_are_same = true;
+            for (size_t j = 1; j < out0->consumers.size(); j++)
+            {
+                if (out0->consumers[j] != out0->consumers[0])
+                {
+                    all_consumers_are_same = false;
+                    break;
+                }
+            }
+            if (all_consumers_are_same)
+                continue;
+
             for (int j = (int)out0->consumers.size() - 1; j > 0; j--)
             {
                 Operator* op1 = out0->consumers[j];

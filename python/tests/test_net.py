@@ -42,6 +42,32 @@ def test_net():
         assert len(net.blobs()) == 0 and len(net.layers()) == 0
 
 
+def test_net_mem():
+    modelbin = bytearray(303940)
+    modelbin[0:4] = 71,107,48,1
+    modelbin[180:184] = 71,107,48,1
+
+    with ncnn.Net() as net:
+        ret = net.load_param("tests/test.param")
+        net.load_model_mem(bytes(modelbin))
+        assert ret == 0 and len(net.blobs()) == 3 and len(net.layers()) == 3
+
+        input_names = net.input_names()
+        output_names = net.output_names()
+        assert len(input_names) > 0 and len(output_names) > 0
+
+        in_mat = ncnn.Mat((227, 227, 3))
+
+        with net.create_extractor() as ex:
+            ex.input("data", in_mat)
+            ret, out_mat = ex.extract("output")
+
+        assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1
+
+        net.clear()
+        assert len(net.blobs()) == 0 and len(net.layers()) == 0
+
+
 def test_net_vulkan():
     if not hasattr(ncnn, "get_gpu_count"):
         return

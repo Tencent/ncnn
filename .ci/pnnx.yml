@@ -4,12 +4,14 @@ on:
     branches: [master]
     paths:
     - '.ci/pnnx.yml'
+    - 'src/layer/*'
     - 'tools/pnnx/**'
     - '!tools/pnnx/README.md'
   mr:
     target-branches: [master]
     paths:
     - '.ci/pnnx.yml'
+    - 'src/layer/*'
     - 'tools/pnnx/**'
     - '!tools/pnnx/README.md'
 concurrency:
@@ -17,10 +19,10 @@ concurrency:
 
 variables:
   protobuf_version: 21.12
-  libtorch_version: 2.3.0
-  libtorchvision_version: 0.18.0
-  onnxruntime_version: 1.17.3
-  cache_date: 20240504
+  libtorch_version: 2.4.0
+  libtorchvision_version: 0.19.0
+  onnxruntime_version: 1.18.1
+  cache_date: 20240804
 
 jobs:
   ubuntu:
@@ -56,6 +58,9 @@ jobs:
 
           - torch-version: 2.3.0
             torchvision-version: 0.18.0
+
+          - torch-version: 2.4.0
+            torchvision-version: 0.19.0
 
     runs-on:
       pool-name: docker
@@ -160,7 +165,7 @@ jobs:
     - name: setup-pytorch
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
-        pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user onnx
         pip3 install --user onnxscript
 

@@ -71,6 +71,7 @@
 * [Reorg](#reorg)
 * [Requantize](#requantize)
 * [Reshape](#reshape)
+* [RMSNorm](#rmsnorm)
 * [RNN](#rnn)
 * [Scale](#scale)
 * [SELU](#selu)
@@ -836,11 +837,13 @@ y = embedding(x)
 | 1         | input_dim     | int   | 0         |                   |
 | 2         | bias_term     | int   | 0         |                   |
 | 3         | weight_data_size | int | 0        |                   |
+| 18        | int8_scale_term| int  | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | weight_data   | float | [weight_data_size]    |
 | bias_term     | float | [num_output]          |
+| weight_data_int8_scales| float | [1]          |
 
 # Exp
 ```
@@ -1669,6 +1672,26 @@ Reshape flag:
 - 0 = copy from bottom
 - -1 = remaining
 - -233 = drop this dim(default)
+
+# RMSNorm
+```
+split x along outmost axis into part x0, x1 ...
+root mean square normalize for each part x0, x1 ...
+y = x * gamma by elementwise
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | affine_size   | int   | 0         |                   |
+| 1         | eps           | float | 0.001f    | x = x / sqrt(var + eps) |
+| 2         | affine        | int   | 1         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| gamma_data    | float | [affine_size]         |
 
 # RNN
 Apply a single-layer RNN to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.

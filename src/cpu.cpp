@@ -47,10 +47,9 @@
 #include <emscripten/threading.h>
 #endif
 
-#if defined _WIN32 && !(defined __MINGW32__)
+#if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <powerbase.h>
 #endif
 
 #if defined __ANDROID__ || defined __linux__
@@ -130,8 +129,10 @@
 #include <immintrin.h>
 #endif
 
+#if (defined _WIN32 && (__aarch64__ || __arm__))
 #define RUAPU_IMPLEMENTATION
 #include "ruapu.h"
+#endif
 
 // topology info
 static int g_cpucount;
@@ -597,9 +598,6 @@ static int get_cpu_support_x86_avx2()
 
 static int get_cpu_support_x86_avx_vnni()
 {
-#if __APPLE__
-    return ruapu_supports("avxvnni");
-#else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
 
@@ -618,13 +616,16 @@ static int get_cpu_support_x86_avx_vnni()
 
     x86_cpuid_sublevel(7, 1, cpu_info);
     return cpu_info[0] & (1u << 4);
-#endif
 }
 
 static int get_cpu_support_x86_avx512()
 {
 #if __APPLE__
-    return ruapu_supports("avx512f") && ruapu_supports("avx512bw") && ruapu_supports("avx512cd") && ruapu_supports("avx512dq") && ruapu_supports("avx512vl");
+    return get_hw_capability("hw.optional.avx512f")
+           && get_hw_capability("hw.optional.avx512bw")
+           && get_hw_capability("hw.optional.avx512cd")
+           && get_hw_capability("hw.optional.avx512dq")
+           && get_hw_capability("hw.optional.avx512vl");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -654,7 +655,7 @@ static int get_cpu_support_x86_avx512()
 static int get_cpu_support_x86_avx512_vnni()
 {
 #if __APPLE__
-    return ruapu_supports("avx512vnni");
+    return get_hw_capability("hw.optional.avx512vnni");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -684,7 +685,7 @@ static int get_cpu_support_x86_avx512_vnni()
 static int get_cpu_support_x86_avx512_bf16()
 {
 #if __APPLE__
-    return ruapu_supports("avx512bf16");
+    return get_hw_capability("hw.optional.avx512bf16");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -710,7 +711,7 @@ static int get_cpu_support_x86_avx512_bf16()
 static int get_cpu_support_x86_avx512_fp16()
 {
 #if __APPLE__
-    return ruapu_supports("avx512fp16");
+    return get_hw_capability("hw.optional.avx512fp16");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -746,7 +747,7 @@ static int get_cpucount()
         count = emscripten_num_logical_cores();
     else
         count = 1;
-#elif (defined _WIN32 && !(defined __MINGW32__))
+#elif defined _WIN32
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
     count = system_info.dwNumberOfProcessors;
@@ -813,7 +814,7 @@ static int get_thread_siblings(int cpuid)
 static int get_physical_cpucount()
 {
     int count = 0;
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi == NULL)
@@ -1051,7 +1052,7 @@ static int get_big_cpu_data_cache_size(int level)
 static int get_cpu_level2_cachesize()
 {
     int size = 0;
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi != NULL)
@@ -1121,7 +1122,7 @@ static int get_cpu_level2_cachesize()
 static int get_cpu_level3_cachesize()
 {
     int size = 0;
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi != NULL)
@@ -1168,7 +1169,7 @@ static int get_cpu_level3_cachesize()
     return size;
 }
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
 static ncnn::CpuSet get_smt_cpu_mask()
 {
     ncnn::CpuSet smt_cpu_mask;
@@ -1262,7 +1263,7 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 
     return 0;
 }
-#endif // (defined _WIN32 && !(defined __MINGW32__))
+#endif // defined _WIN32
 
 #if defined __ANDROID__ || defined __linux__
 static int get_max_freq_khz(int cpuid)
@@ -1436,7 +1437,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         mask_all.enable(i);
     }
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     // get max freq mhz for all cores
     int max_freq_mhz_min = INT_MAX;
     int max_freq_mhz_max = 0;
@@ -1953,7 +1954,7 @@ static void initialize_global_cpu_info()
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
-#if (defined _WIN32 && (__aarch64__ || __arm__)) || __APPLE__
+#if (defined _WIN32 && (__aarch64__ || __arm__))
     if (!is_being_debugged())
     {
         ruapu_init();
@@ -2030,7 +2031,7 @@ static inline void try_initialize_global_cpu_info()
 
 namespace ncnn {
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
 CpuSet::CpuSet()
 {
     disable_all();
@@ -2799,7 +2800,7 @@ const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__ || (defined _WIN32 && !(defined __MINGW32__))
+#if defined __ANDROID__ || defined __linux__ || defined _WIN32
 #ifdef _OPENMP
     int num_threads = thread_affinity_mask.num_enabled();
 
