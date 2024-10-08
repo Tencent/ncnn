@@ -4249,11 +4249,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
 #if NCNN_INT8
     if (int8_scale_term)
     {
-        // support_packing = false;
-        // support_fp16_storage = false;
-        // support_bf16_storage = false;
         return create_pipeline_int8(opt);
-        // return 0;
     }
 #endif
 
