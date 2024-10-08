@@ -7421,59 +7421,57 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
-                // TODO neon optimize
-                float f00 = pp[0] * descale0;
-                float f01 = pp[1] * descale0;
-                float f10 = pp[2] * descale1;
-                float f11 = pp[3] * descale1;
+                int32x4_t _sum0 = vld1q_s32(pp);
+
+                float32x2x2_t _descale01 = vzip_f32(_descale, _descale);
+                float32x4_t _descale0011 = vcombine_f32(_descale01.val[0], _descale01.val[1]);
+
+                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0011);
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        f00 += c0;
-                        f01 += c0;
-                        f10 += c0;
-                        f11 += c0;
+                        _f0 = vaddq_f32(_f0, _c0);
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        f00 += c0;
-                        f01 += c0;
-                        f10 += c1;
-                        f11 += c1;
+                        float32x4_t _c0011 = vcombine_f32(vget_low_f32(_c0), vget_high_f32(_c1));
+                        _f0 = vaddq_f32(_f0, _c0011);
                     }
                     if (broadcast_type_C == 3)
                     {
                         // c_elempack == 1
-                        f00 += bfloat16_to_float32(pC[0]) * beta;
-                        f01 += bfloat16_to_float32(pC[1]) * beta;
-                        f10 += bfloat16_to_float32(pC[c_hstep]) * beta;
-                        f11 += bfloat16_to_float32(pC[c_hstep + 1]) * beta;
+                        uint16x4_t _c = uint16x4_t();
+                        _c = vset_lane_u16(pC[0], _c, 0);
+                        _c = vset_lane_u16(pC[1], _c, 1);
+                        _c = vset_lane_u16(pC[c_hstep], _c, 2);
+                        _c = vset_lane_u16(pC[c_hstep + 1], _c, 3);
+                        _c0 = bfloat2float(_c);
+                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
                         pC += 2;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        f00 += bfloat16_to_float32(pC[0]) * beta;
-                        f01 += bfloat16_to_float32(pC[1]) * beta;
-                        f10 += bfloat16_to_float32(pC[0]) * beta;
-                        f11 += bfloat16_to_float32(pC[1]) * beta;
+                        uint16x4_t _c = uint16x4_t();
+                        _c = vset_lane_u16(pC[0], _c, 0);
+                        _c = vset_lane_u16(pC[1], _c, 1);
+                        _c = vset_lane_u16(pC[0], _c, 2);
+                        _c = vset_lane_u16(pC[1], _c, 3);
+                        _c0 = bfloat2float(_c);
+                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
                         pC += 2;
                     }
                 }
 
-                if (alpha != 1.f)
-                {
-                    f00 *= alpha;
-                    f01 *= alpha;
-                    f10 *= alpha;
-                    f11 *= alpha;
-                }
+                _f0 = vmulq_n_f32(_f0, alpha);
 
-                p0[0] = float32_to_bfloat16(f00);
-                p0[1] = float32_to_bfloat16(f01);
-                p0[out_hstep] = float32_to_bfloat16(f10);
-                p0[out_hstep + 1] = float32_to_bfloat16(f11);
+                uint16x4_t _bf0 = float2bfloat(_f0);
+
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[1] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep + 1] = vget_lane_u16(_bf0, 3);
 
                 pp += 4;
                 p0 += 2;
@@ -10832,63 +10830,57 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
-                // TODO neon optimize
                 // a0 a1 b0 b1
+                int32x2x2_t _sum0 = vld2_s32(pp);
 
-                float f00 = pp[0] * descale0;
-                float f01 = pp[2] * descale1;
-                float f10 = pp[1] * descale0;
-                float f11 = pp[3] * descale1;
+                float32x4_t _descale = vcombine_f32(_descale01, _descale01);
+
+                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vcombine_s32(_sum0.val[0], _sum0.val[1])), _descale);
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        f00 += c0;
-                        f01 += c0;
-                        f10 += c0;
-                        f11 += c0;
+                        _f0 = vaddq_f32(_f0, _c0);
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        f00 += c0;
-                        f01 += c1;
-                        f10 += c0;
-                        f11 += c1;
+                        float32x4_t _cc = vzipq_f32(_c0, _c1).val[0];
+                        _f0 = vaddq_f32(_f0, _cc);
                     }
                     if (broadcast_type_C == 3)
                     {
                         // c_elempack == 1
-                        f00 += bfloat16_to_float32(pC[0]) * beta;
-                        f01 += bfloat16_to_float32(pC[c_hstep]) * beta;
-                        f10 += bfloat16_to_float32(pC[1]) * beta;
-                        f11 += bfloat16_to_float32(pC[c_hstep + 1]) * beta;
+                        uint16x4_t _c = uint16x4_t();
+                        _c = vset_lane_u16(pC[0], _c, 0);
+                        _c = vset_lane_u16(pC[c_hstep], _c, 1);
+                        _c = vset_lane_u16(pC[1], _c, 2);
+                        _c = vset_lane_u16(pC[c_hstep + 1], _c, 3);
+                        _c0 = bfloat2float(_c);
+                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
                         pC += 2;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        float c0 = bfloat16_to_float32(pC[0]) * beta;
-                        float c1 = bfloat16_to_float32(pC[1]) * beta;
-                        f00 += c0;
-                        f01 += c0;
-                        f10 += c1;
-                        f11 += c1;
+                        uint16x4_t _c = uint16x4_t();
+                        _c = vset_lane_u16(pC[0], _c, 0);
+                        _c = vset_lane_u16(pC[0], _c, 1);
+                        _c = vset_lane_u16(pC[1], _c, 2);
+                        _c = vset_lane_u16(pC[1], _c, 3);
+                        _c0 = bfloat2float(_c);
+                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
                         pC += 2;
                     }
                 }
 
-                if (alpha != 1.f)
-                {
-                    f00 *= alpha;
-                    f01 *= alpha;
-                    f10 *= alpha;
-                    f11 *= alpha;
-                }
+                _f0 = vmulq_n_f32(_f0, alpha);
 
-                p0[0] = float32_to_bfloat16(f00);
-                p0[1] = float32_to_bfloat16(f01);
-                p0[out_hstep] = float32_to_bfloat16(f10);
-                p0[out_hstep + 1] = float32_to_bfloat16(f11);
+                uint16x4_t _bf0 = float2bfloat(_f0);
+
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[1] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep + 1] = vget_lane_u16(_bf0, 3);
 
                 pp += 4;
                 p0 += out_hstep * 2;
