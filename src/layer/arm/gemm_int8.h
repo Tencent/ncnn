@@ -12352,10 +12352,21 @@ static void transpose_unpack_output_tile_int32_to_fp32(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1q_f32(p0, _f0);
-                vst1q_f32(p0 + out_hstep * 4, _f1);
-                vst1q_f32(p0 + out_hstep * 8, _f2);
-                vst1q_f32(p0 + out_hstep * 12, _f3);
+                if (out_hstep == 1)
+                {
+                    vst1q_f32(p0, _f0);
+                    vst1q_f32(p0 + 4, _f1);
+                    vst1q_f32(p0 + 8, _f2);
+                    vst1q_f32(p0 + 12, _f3);
+                }
+                else
+                {
+                    vst1q_f32(p0, _f0);
+                    vst1q_f32(p0 + out_hstep * 4, _f1);
+                    vst1q_f32(p0 + out_hstep * 8, _f2);
+                    vst1q_f32(p0 + out_hstep * 12, _f3);
+                }
+
                 pp += 16;
                 p0 += out_hstep * 16;
             }
@@ -12401,8 +12412,17 @@ static void transpose_unpack_output_tile_int32_to_fp32(const Mat& topT, const Ma
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1q_f32(p0, _f0);
-                vst1q_f32(p0 + out_hstep * 4, _f1);
+                if (out_hstep == 1)
+                {
+                    vst1q_f32(p0, _f0);
+                    vst1q_f32(p0 + 4, _f1);
+                }
+                else
+                {
+                    vst1q_f32(p0, _f0);
+                    vst1q_f32(p0 + out_hstep * 4, _f1);
+                }
+
                 pp += 8;
                 p0 += out_hstep * 8;
             }
@@ -12493,22 +12513,32 @@ static void transpose_unpack_output_tile_int32_to_fp32(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                p0[0] = vgetq_lane_f32(_f0, 0);
-                p0[out_hstep] = vgetq_lane_f32(_f0, 1);
-                p0[out_hstep * 2] = vgetq_lane_f32(_f0, 2);
-                p0[out_hstep * 3] = vgetq_lane_f32(_f0, 3);
-                p0[out_hstep * 4] = vgetq_lane_f32(_f1, 0);
-                p0[out_hstep * 5] = vgetq_lane_f32(_f1, 1);
-                p0[out_hstep * 6] = vgetq_lane_f32(_f1, 2);
-                p0[out_hstep * 7] = vgetq_lane_f32(_f1, 3);
-                p0[out_hstep * 8] = vgetq_lane_f32(_f2, 0);
-                p0[out_hstep * 9] = vgetq_lane_f32(_f2, 1);
-                p0[out_hstep * 10] = vgetq_lane_f32(_f2, 2);
-                p0[out_hstep * 11] = vgetq_lane_f32(_f2, 3);
-                p0[out_hstep * 12] = vgetq_lane_f32(_f3, 0);
-                p0[out_hstep * 13] = vgetq_lane_f32(_f3, 1);
-                p0[out_hstep * 14] = vgetq_lane_f32(_f3, 2);
-                p0[out_hstep * 15] = vgetq_lane_f32(_f3, 3);
+                if (out_hstep == 1)
+                {
+                    vst1q_f32(p0, _f0);
+                    vst1q_f32(p0 + 4, _f1);
+                    vst1q_f32(p0 + 8, _f2);
+                    vst1q_f32(p0 + 12, _f3);
+                }
+                else
+                {
+                    p0[0] = vgetq_lane_f32(_f0, 0);
+                    p0[out_hstep] = vgetq_lane_f32(_f0, 1);
+                    p0[out_hstep * 2] = vgetq_lane_f32(_f0, 2);
+                    p0[out_hstep * 3] = vgetq_lane_f32(_f0, 3);
+                    p0[out_hstep * 4] = vgetq_lane_f32(_f1, 0);
+                    p0[out_hstep * 5] = vgetq_lane_f32(_f1, 1);
+                    p0[out_hstep * 6] = vgetq_lane_f32(_f1, 2);
+                    p0[out_hstep * 7] = vgetq_lane_f32(_f1, 3);
+                    p0[out_hstep * 8] = vgetq_lane_f32(_f2, 0);
+                    p0[out_hstep * 9] = vgetq_lane_f32(_f2, 1);
+                    p0[out_hstep * 10] = vgetq_lane_f32(_f2, 2);
+                    p0[out_hstep * 11] = vgetq_lane_f32(_f2, 3);
+                    p0[out_hstep * 12] = vgetq_lane_f32(_f3, 0);
+                    p0[out_hstep * 13] = vgetq_lane_f32(_f3, 1);
+                    p0[out_hstep * 14] = vgetq_lane_f32(_f3, 2);
+                    p0[out_hstep * 15] = vgetq_lane_f32(_f3, 3);
+                }
 
                 pp += 16;
                 p0 += out_hstep * 16;
@@ -12555,14 +12585,22 @@ static void transpose_unpack_output_tile_int32_to_fp32(const Mat& topT, const Ma
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                p0[0] = vgetq_lane_f32(_f0, 0);
-                p0[out_hstep] = vgetq_lane_f32(_f0, 1);
-                p0[out_hstep * 2] = vgetq_lane_f32(_f0, 2);
-                p0[out_hstep * 3] = vgetq_lane_f32(_f0, 3);
-                p0[out_hstep * 4] = vgetq_lane_f32(_f1, 0);
-                p0[out_hstep * 5] = vgetq_lane_f32(_f1, 1);
-                p0[out_hstep * 6] = vgetq_lane_f32(_f1, 2);
-                p0[out_hstep * 7] = vgetq_lane_f32(_f1, 3);
+                if (out_hstep == 1)
+                {
+                    vst1q_f32(p0, _f0);
+                    vst1q_f32(p0 + 4, _f1);
+                }
+                else
+                {
+                    p0[0] = vgetq_lane_f32(_f0, 0);
+                    p0[out_hstep] = vgetq_lane_f32(_f0, 1);
+                    p0[out_hstep * 2] = vgetq_lane_f32(_f0, 2);
+                    p0[out_hstep * 3] = vgetq_lane_f32(_f0, 3);
+                    p0[out_hstep * 4] = vgetq_lane_f32(_f1, 0);
+                    p0[out_hstep * 5] = vgetq_lane_f32(_f1, 1);
+                    p0[out_hstep * 6] = vgetq_lane_f32(_f1, 2);
+                    p0[out_hstep * 7] = vgetq_lane_f32(_f1, 3);
+                }
 
                 pp += 8;
                 p0 += out_hstep * 8;
@@ -12588,10 +12626,17 @@ static void transpose_unpack_output_tile_int32_to_fp32(const Mat& topT, const Ma
 
                 _f0 = vmulq_n_f32(_f0, alpha);
 
-                p0[0] = vgetq_lane_f32(_f0, 0);
-                p0[out_hstep] = vgetq_lane_f32(_f0, 1);
-                p0[out_hstep * 2] = vgetq_lane_f32(_f0, 2);
-                p0[out_hstep * 3] = vgetq_lane_f32(_f0, 3);
+                if (out_hstep == 1)
+                {
+                    vst1q_f32(p0, _f0);
+                }
+                else
+                {
+                    p0[0] = vgetq_lane_f32(_f0, 0);
+                    p0[out_hstep] = vgetq_lane_f32(_f0, 1);
+                    p0[out_hstep * 2] = vgetq_lane_f32(_f0, 2);
+                    p0[out_hstep * 3] = vgetq_lane_f32(_f0, 3);
+                }
 
                 pp += 4;
                 p0 += out_hstep * 4;
@@ -12617,8 +12662,15 @@ static void transpose_unpack_output_tile_int32_to_fp32(const Mat& topT, const Ma
 
                 _f0 = vmul_n_f32(_f0, alpha);
 
-                p0[0] = vget_lane_f32(_f0, 0);
-                p0[out_hstep] = vget_lane_f32(_f0, 1);
+                if (out_hstep == 1)
+                {
+                    vst1_f32(p0, _f0);
+                }
+                else
+                {
+                    p0[0] = vget_lane_f32(_f0, 0);
+                    p0[out_hstep] = vget_lane_f32(_f0, 1);
+                }
 
                 pp += 2;
                 p0 += out_hstep * 2;

@@ -13113,10 +13113,24 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                     _f3 = vmulq_f32(_f3, _alpha);
                 }
 
-                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
-                vst1_u16(p0 + out_hstep * 4, (uint16x4_t)vcvt_f16_f32(_f1));
-                vst1_u16(p0 + out_hstep * 8, (uint16x4_t)vcvt_f16_f32(_f2));
-                vst1_u16(p0 + out_hstep * 12, (uint16x4_t)vcvt_f16_f32(_f3));
+                uint16x4_t _hf0 = (uint16x4_t)vcvt_f16_f32(_f0);
+                uint16x4_t _hf1 = (uint16x4_t)vcvt_f16_f32(_f1);
+                uint16x4_t _hf2 = (uint16x4_t)vcvt_f16_f32(_f2);
+                uint16x4_t _hf3 = (uint16x4_t)vcvt_f16_f32(_f3);
+
+                if (out_hstep == 1)
+                {
+                    vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
+                    vst1q_u16(p0 + 8, vcombine_u16(_hf2, _hf3));
+                }
+                else
+                {
+                    vst1_u16(p0, _hf0);
+                    vst1_u16(p0 + out_hstep * 4, _hf1);
+                    vst1_u16(p0 + out_hstep * 8, _hf2);
+                    vst1_u16(p0 + out_hstep * 12, _hf3);
+                }
+
                 pp += 16;
                 p0 += out_hstep * 16;
             }
@@ -13163,8 +13177,19 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                     _f1 = vmulq_f32(_f1, _alpha);
                 }
 
-                vst1_u16(p0, (uint16x4_t)vcvt_f16_f32(_f0));
-                vst1_u16(p0 + out_hstep * 4, (uint16x4_t)vcvt_f16_f32(_f1));
+                uint16x4_t _hf0 = (uint16x4_t)vcvt_f16_f32(_f0);
+                uint16x4_t _hf1 = (uint16x4_t)vcvt_f16_f32(_f1);
+
+                if (out_hstep == 1)
+                {
+                    vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
+                }
+                else
+                {
+                    vst1_u16(p0, _hf0);
+                    vst1_u16(p0 + out_hstep * 4, _hf1);
+                }
+
                 pp += 8;
                 p0 += out_hstep * 8;
             }
@@ -13261,22 +13286,30 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                 uint16x4_t _hf2 = (uint16x4_t)vcvt_f16_f32(_f2);
                 uint16x4_t _hf3 = (uint16x4_t)vcvt_f16_f32(_f3);
 
-                p0[0] = vget_lane_u16(_hf0, 0);
-                p0[out_hstep] = vget_lane_u16(_hf0, 1);
-                p0[out_hstep * 2] = vget_lane_u16(_hf0, 2);
-                p0[out_hstep * 3] = vget_lane_u16(_hf0, 3);
-                p0[out_hstep * 4] = vget_lane_u16(_hf1, 0);
-                p0[out_hstep * 5] = vget_lane_u16(_hf1, 1);
-                p0[out_hstep * 6] = vget_lane_u16(_hf1, 2);
-                p0[out_hstep * 7] = vget_lane_u16(_hf1, 3);
-                p0[out_hstep * 8] = vget_lane_u16(_hf2, 0);
-                p0[out_hstep * 9] = vget_lane_u16(_hf2, 1);
-                p0[out_hstep * 10] = vget_lane_u16(_hf2, 2);
-                p0[out_hstep * 11] = vget_lane_u16(_hf2, 3);
-                p0[out_hstep * 12] = vget_lane_u16(_hf3, 0);
-                p0[out_hstep * 13] = vget_lane_u16(_hf3, 1);
-                p0[out_hstep * 14] = vget_lane_u16(_hf3, 2);
-                p0[out_hstep * 15] = vget_lane_u16(_hf3, 3);
+                if (out_hstep == 1)
+                {
+                    vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
+                    vst1q_u16(p0 + 8, vcombine_u16(_hf2, _hf3));
+                }
+                else
+                {
+                    p0[0] = vget_lane_u16(_hf0, 0);
+                    p0[out_hstep] = vget_lane_u16(_hf0, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_hf0, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_hf0, 3);
+                    p0[out_hstep * 4] = vget_lane_u16(_hf1, 0);
+                    p0[out_hstep * 5] = vget_lane_u16(_hf1, 1);
+                    p0[out_hstep * 6] = vget_lane_u16(_hf1, 2);
+                    p0[out_hstep * 7] = vget_lane_u16(_hf1, 3);
+                    p0[out_hstep * 8] = vget_lane_u16(_hf2, 0);
+                    p0[out_hstep * 9] = vget_lane_u16(_hf2, 1);
+                    p0[out_hstep * 10] = vget_lane_u16(_hf2, 2);
+                    p0[out_hstep * 11] = vget_lane_u16(_hf2, 3);
+                    p0[out_hstep * 12] = vget_lane_u16(_hf3, 0);
+                    p0[out_hstep * 13] = vget_lane_u16(_hf3, 1);
+                    p0[out_hstep * 14] = vget_lane_u16(_hf3, 2);
+                    p0[out_hstep * 15] = vget_lane_u16(_hf3, 3);
+                }
 
                 pp += 16;
                 p0 += out_hstep * 16;
@@ -13327,14 +13360,21 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                 uint16x4_t _hf0 = (uint16x4_t)vcvt_f16_f32(_f0);
                 uint16x4_t _hf1 = (uint16x4_t)vcvt_f16_f32(_f1);
 
-                p0[0] = vget_lane_u16(_hf0, 0);
-                p0[out_hstep] = vget_lane_u16(_hf0, 1);
-                p0[out_hstep * 2] = vget_lane_u16(_hf0, 2);
-                p0[out_hstep * 3] = vget_lane_u16(_hf0, 3);
-                p0[out_hstep * 4] = vget_lane_u16(_hf1, 0);
-                p0[out_hstep * 5] = vget_lane_u16(_hf1, 1);
-                p0[out_hstep * 6] = vget_lane_u16(_hf1, 2);
-                p0[out_hstep * 7] = vget_lane_u16(_hf1, 3);
+                if (out_hstep == 1)
+                {
+                    vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
+                }
+                else
+                {
+                    p0[0] = vget_lane_u16(_hf0, 0);
+                    p0[out_hstep] = vget_lane_u16(_hf0, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_hf0, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_hf0, 3);
+                    p0[out_hstep * 4] = vget_lane_u16(_hf1, 0);
+                    p0[out_hstep * 5] = vget_lane_u16(_hf1, 1);
+                    p0[out_hstep * 6] = vget_lane_u16(_hf1, 2);
+                    p0[out_hstep * 7] = vget_lane_u16(_hf1, 3);
+                }
 
                 pp += 8;
                 p0 += out_hstep * 8;
@@ -13362,10 +13402,17 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
 
                 uint16x4_t _hf0 = (uint16x4_t)vcvt_f16_f32(_f0);
 
-                p0[0] = vget_lane_u16(_hf0, 0);
-                p0[out_hstep] = vget_lane_u16(_hf0, 1);
-                p0[out_hstep * 2] = vget_lane_u16(_hf0, 2);
-                p0[out_hstep * 3] = vget_lane_u16(_hf0, 3);
+                if (out_hstep == 1)
+                {
+                    vst1_u16(p0, _hf0);
+                }
+                else
+                {
+                    p0[0] = vget_lane_u16(_hf0, 0);
+                    p0[out_hstep] = vget_lane_u16(_hf0, 1);
+                    p0[out_hstep * 2] = vget_lane_u16(_hf0, 2);
+                    p0[out_hstep * 3] = vget_lane_u16(_hf0, 3);
+                }
 
                 pp += 4;
                 p0 += out_hstep * 4;
