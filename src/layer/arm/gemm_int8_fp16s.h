@@ -355,8 +355,7 @@ static void compute_A_tile_fp16_int8_scales(const Mat& A, Mat& scales, float B_s
                 _amax0 = vmaxq_f16(_amax0, vabsq_f16(_p));
                 p0 += 8;
             }
-            float16x4_t _aa = vmax_f16(vget_low_f16(_amax0), vget_high_f16(_amax0));
-            absmax = vmaxvq_f32(vcvt_f32_f16(_aa));
+            absmax = (float)vmaxvq_f16(_amax0);
             for (; kk < K; kk++)
             {
                 absmax = std::max(absmax, (float)fabsf(p0[0]));
