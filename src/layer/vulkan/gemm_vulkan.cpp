@@ -26,6 +26,19 @@ Gemm_vulkan::Gemm_vulkan()
     pipeline_gemm = 0;
 }
 
+int Gemm_vulkan::load_param(const ParamDict& pd)
+{
+    int ret = Gemm::load_param(pd);
+
+    if (int8_scale_term)
+    {
+        support_vulkan = false;
+        support_image_storage = false;
+    }
+
+    return ret;
+}
+
 int Gemm_vulkan::create_pipeline(const Option& opt)
 {
     // const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
