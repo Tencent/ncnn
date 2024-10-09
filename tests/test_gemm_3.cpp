@@ -239,7 +239,7 @@ int main()
 
         int ret = test_gemm_0(M, N, K) || test_gemm_1(M, N, K);
         if (ret != 0)
-            return 0;
+            return ret;
     }
 
     return 0;
