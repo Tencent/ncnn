@@ -1,7 +1,7 @@
 #include "cpu.h"
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Improved version of is_option_disabled function that doesn't modify the original string
 bool is_option_disabled(const char* options, const char* option)
@@ -17,7 +17,7 @@ bool is_option_disabled(const char* options, const char* option)
             disabled = true;
             break;
         }
-        token = strtok(nullptr, ",");
+        token = strtok(NULL, ",");
     }
 
     free(options_copy);
@@ -37,7 +37,7 @@ bool check_instruction_disabled(const char* options, const char* option, bool cp
 
 int main()
 {
-    const char* ncnn_isa = std::getenv("NCNN_ISA");
+    const char* ncnn_isa = getenv("NCNN_ISA");
 
     // Check if NCNN_ISA is set to disable certain options
     if (ncnn_isa)
