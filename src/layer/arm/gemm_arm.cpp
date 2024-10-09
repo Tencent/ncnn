@@ -5980,9 +5980,9 @@ int Gemm_arm::create_pipeline_int8(const Option& opt)
             else
 #endif
             {
-                input_elemtype = 1; // fp32
             }
 
+        input_elemtype = 1; // fp32
         if (use_fp16) input_elemtype = 2;
         if (use_bf16) input_elemtype = 3;
 
