@@ -3056,20 +3056,20 @@ static void convolution_gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, c
                 if (pC)
                 {
                     for (int r = 0; r < 12; r++)
-                        amx_ldz(false, 2*r, pC);
+                        amx_ldz(false, 2 * r, pC);
                 }
                 else
                 {
                     __fp16 sums[32];
                     memset(sums, 0, 32 * sizeof(__fp16));
                     for (int r = 0; r < 12; r++)
-                        amx_ldz(false, 2*r, sums);
+                        amx_ldz(false, 2 * r, sums);
                 }
             }
             else
             {
                 for (int r = 0; r < 12; r++)
-                    amx_ldz(false, 2*r, outptr + 8 * r);
+                    amx_ldz(false, 2 * r, outptr + 8 * r);
             }
 
             int kk = 0;
@@ -3088,8 +3088,9 @@ static void convolution_gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, c
                 if (out_elempack == 8)
                 {
                     __fp16 tmp[96 + 24];
-                    for (int r = 0; r < 12; r++) {
-                        amx_stz(false, 2*r, tmp + r * 8);
+                    for (int r = 0; r < 12; r++)
+                    {
+                        amx_stz(false, 2 * r, tmp + r * 8);
                     }
                     memcpy(outptr0, tmp, 96 * sizeof(__fp16));
                     outptr0 += 96;
@@ -3097,8 +3098,9 @@ static void convolution_gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, c
                 if (out_elempack == 4)
                 {
                     __fp16 tmp[32];
-                    for (int r = 0; r < 12; r++) {
-                        amx_stz(false, 2*r, tmp);
+                    for (int r = 0; r < 12; r++)
+                    {
+                        amx_stz(false, 2 * r, tmp);
                         float16x8_t _tmp = vld1q_f16(tmp);
                         vst1_f16(outptr0 + 4 * r, vget_low_f16(_tmp));
                         vst1_f16(outptr0 + out_hstep * 4 + 4 * r, vget_high_f16(_tmp));
@@ -3167,8 +3169,9 @@ static void convolution_gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, c
             else
             {
                 __fp16 tmp[32];
-                for (int r = 0; r < 12; r++) {
-                    amx_stz(false, 2*r, tmp);
+                for (int r = 0; r < 12; r++)
+                {
+                    amx_stz(false, 2 * r, tmp);
                     memcpy(outptr0 + 8 * r, tmp, 8 * sizeof(__fp16));
                 }
             }
@@ -4915,7 +4918,7 @@ static int convolution_im2col_gemm_fp16sa(const Mat& bottom_blob, Mat& top_blob,
                 bool k_end = k + TILE_K >= K;
 
 #if __aarch64__ && NCNN_APPLE_AMX
-// #if 0
+                // #if 0
                 if (amx_supported)
                 {
                     convolution_gemm_transB_packed_tile_fp16sa_amx(AT_tile, BT_tile, bias, topT_tile, top_blob, i, max_ii, j, max_jj, k, max_kk, k_end);
