@@ -14,6 +14,7 @@
 
 #include "testutil.h"
 
+#if NCNN_INT8
 static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int output_N1M)
 {
     ncnn::ParamDict pd;
@@ -186,11 +187,13 @@ static int test_gemm_1(int M, int N, int K)
            || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 2, 0, 1, 1, 1)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), -3.1f, -0.6f, 0, 1, 3, 0, 1, 1, 1);
 }
+#endif // NCNN_INT8
 
 int main()
 {
     SRAND(7767517);
 
+#if NCNN_INT8
     int mnk[][3] = {
         {1, 1, 1},
         {2, 2, 2},
@@ -241,6 +244,9 @@ int main()
         if (ret != 0)
             return ret;
     }
+#else
+    // test nothing for non-int8 build
+#endif
 
     return 0;
 }

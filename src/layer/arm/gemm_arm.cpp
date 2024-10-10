@@ -5980,6 +5980,7 @@ int Gemm_arm::create_pipeline_int8(const Option& opt)
             else
 #endif
             {
+                use_bf16 = opt.use_bf16_storage;
             }
 
         input_elemtype = 1; // fp32
