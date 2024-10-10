@@ -243,6 +243,13 @@ int main()
         int ret = test_gemm_0(M, N, K) || test_gemm_1(M, N, K);
         if (ret != 0)
             return ret;
+
+        if (M != N)
+        {
+            int ret = test_gemm_0(N, M, K) || test_gemm_1(N, M, K);
+            if (ret != 0)
+                return ret;
+        }
     }
 #else
     // test nothing for non-int8 build
