@@ -3947,6 +3947,14 @@ int Gemm_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
 int Gemm_riscv::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        support_packing = false;
+        return 0;
+    }
+#endif
+
     if (constantA)
     {
         const int M = constantM;
@@ -4070,6 +4078,13 @@ int Gemm_riscv::create_pipeline(const Option& opt)
 
 int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return Gemm::forward_int8(bottom_blobs, top_blobs, opt);
+    }
+#endif
+
     int M;
     int N;
     if (constantA && constantB)

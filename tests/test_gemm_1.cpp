@@ -120,13 +120,13 @@ int main()
 
             int ret = test_gemm_0(M, N, K, TILE_M, TILE_N, TILE_K);
             if (ret != 0)
-                return 0;
+                return ret;
         }
 
         // test no tiling
         int ret = test_gemm_0(M, N, K, 100, 100, 100);
         if (ret != 0)
-            return 0;
+            return ret;
     }
 
     return 0;
