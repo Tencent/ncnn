@@ -2260,14 +2260,14 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
                 vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
                 vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
 #else  // __ARM_FEATURE_MATMUL_INT8
-                int8x8_t _r0 = float2int8(_p0, _p8);
-                int8x8_t _r1 = float2int8(_p1, _p9);
-                int8x8_t _r2 = float2int8(_p2, _pa);
-                int8x8_t _r3 = float2int8(_p3, _pb);
-                int8x8_t _r4 = float2int8(_p4, _pc);
-                int8x8_t _r5 = float2int8(_p5, _pd);
-                int8x8_t _r6 = float2int8(_p6, _pe);
-                int8x8_t _r7 = float2int8(_p7, _pf);
+                int8x8_t _r0 = float2int8(_p0, _p2);
+                int8x8_t _r1 = float2int8(_p4, _p6);
+                int8x8_t _r2 = float2int8(_p8, _pa);
+                int8x8_t _r3 = float2int8(_pc, _pe);
+                int8x8_t _r4 = float2int8(_p1, _p3);
+                int8x8_t _r5 = float2int8(_p5, _p7);
+                int8x8_t _r6 = float2int8(_p9, _pb);
+                int8x8_t _r7 = float2int8(_pd, _pf);
 
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
@@ -2714,10 +2714,10 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
                 int8x8_t _r2 = float2int8(_p4, _p5);
                 int8x8_t _r3 = float2int8(_p6, _p7);
 #else  // __ARM_FEATURE_MATMUL_INT8
-                int8x8_t _r0 = float2int8(_p0, _p4);
-                int8x8_t _r1 = float2int8(_p1, _p5);
-                int8x8_t _r2 = float2int8(_p2, _p6);
-                int8x8_t _r3 = float2int8(_p3, _p7);
+                int8x8_t _r0 = float2int8(_p0, _p2);
+                int8x8_t _r1 = float2int8(_p4, _p6);
+                int8x8_t _r2 = float2int8(_p1, _p3);
+                int8x8_t _r3 = float2int8(_p5, _p7);
 #endif // __ARM_FEATURE_MATMUL_INT8
 #else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p4));
@@ -4663,14 +4663,14 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
                 vst1q_s8(pp + 32, vcombine_s8(_r4, _r5));
                 vst1q_s8(pp + 48, vcombine_s8(_r6, _r7));
 #else  // __ARM_FEATURE_MATMUL_INT8
-                int8x8_t _r0 = float2int8(_p0, _p8);
-                int8x8_t _r1 = float2int8(_p1, _p9);
-                int8x8_t _r2 = float2int8(_p2, _pa);
-                int8x8_t _r3 = float2int8(_p3, _pb);
-                int8x8_t _r4 = float2int8(_p4, _pc);
-                int8x8_t _r5 = float2int8(_p5, _pd);
-                int8x8_t _r6 = float2int8(_p6, _pe);
-                int8x8_t _r7 = float2int8(_p7, _pf);
+                int8x8_t _r0 = float2int8(_p0, _p2);
+                int8x8_t _r1 = float2int8(_p4, _p6);
+                int8x8_t _r2 = float2int8(_p8, _pa);
+                int8x8_t _r3 = float2int8(_pc, _pe);
+                int8x8_t _r4 = float2int8(_p1, _p3);
+                int8x8_t _r5 = float2int8(_p5, _p7);
+                int8x8_t _r6 = float2int8(_p9, _pb);
+                int8x8_t _r7 = float2int8(_pd, _pf);
 
                 vst1q_s8(pp, vcombine_s8(_r0, _r1));
                 vst1q_s8(pp + 16, vcombine_s8(_r2, _r3));
@@ -5074,10 +5074,10 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
                 int8x8_t _r2 = float2int8(_p4, _p5);
                 int8x8_t _r3 = float2int8(_p6, _p7);
 #else  // __ARM_FEATURE_MATMUL_INT8
-                int8x8_t _r0 = float2int8(_p0, _p4);
-                int8x8_t _r1 = float2int8(_p1, _p5);
-                int8x8_t _r2 = float2int8(_p2, _p6);
-                int8x8_t _r3 = float2int8(_p3, _p7);
+                int8x8_t _r0 = float2int8(_p0, _p2);
+                int8x8_t _r1 = float2int8(_p4, _p6);
+                int8x8_t _r2 = float2int8(_p1, _p3);
+                int8x8_t _r3 = float2int8(_p5, _p7);
 #endif // __ARM_FEATURE_MATMUL_INT8
 #else  // __ARM_FEATURE_DOTPROD
                 int16x4_t _t0 = vreinterpret_s16_s8(float2int8(_p0, _p4));
