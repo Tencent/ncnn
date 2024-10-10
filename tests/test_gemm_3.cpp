@@ -181,8 +181,12 @@ static int test_gemm_1(int M, int N, int K)
            || test_gemm_int8_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 0, 1, 1, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 5.1f, -0.8f, 1, 1, 2, 0, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 5.1f, -0.8f, 1, 1, 3, 1, 0, 0, 0)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 2.1f, -0.5f, 0, 0, 0, 0, 0, 0, 0)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 2.1f, -0.5f, 0, 0, 1, 1, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 1.f, 1.f, 1, 1, 0, 0, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 1.f, 1.f, 1, 1, 1, 1, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 2.1f, -0.5f, 0, 0, 2, 0, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 2.1f, -0.5f, 0, 0, 3, 1, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 0.8f, 1.f, 0, 0, 0, 0, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N), 0.8f, 1.f, 0, 0, 1, 1, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), 3.1f, -0.6f, 0, 1, 2, 0, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), 3.1f, -0.6f, 0, 1, 3, 1, 0, 0, 0)
 
@@ -194,8 +198,12 @@ static int test_gemm_1(int M, int N, int K)
            || test_gemm_int8_bias(M, N, K, RandomMat(1, M), -4.1f, 0.7f, 1, 0, 1, 1, 1, 1, 1)
            || test_gemm_int8_bias(M, N, K, RandomMat(N, M), -5.1f, -0.8f, 1, 1, 2, 0, 1, 1, 1)
            || test_gemm_int8_bias(M, N, K, RandomMat(N, M), -5.1f, -0.8f, 1, 1, 3, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 0, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 1, 1, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 1.f, 1.f, 1, 1, 0, 0, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 1.f, 1.f, 1, 1, 1, 1, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 2, 0, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 3, 1, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 0.8f, 1.f, 0, 0, 0, 0, 1, 1, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N), 0.8f, 1.f, 0, 0, 1, 1, 1, 1, 1)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), -3.1f, -0.6f, 0, 1, 2, 0, 1, 1, 1)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), -3.1f, -0.6f, 0, 1, 3, 1, 1, 1, 1);
 }
@@ -208,40 +216,40 @@ int main()
 #if NCNN_INT8
     int mnk[][3] = {
         {1, 1, 1},
+        {1, 1, 23},
+        {1, 1, 47},
+        {1, 23, 1},
+        {1, 23, 23},
+        {1, 31, 1},
+        {1, 35, 1},
+        {1, 35, 47},
+        {1, 47, 1},
         {2, 2, 2},
         {3, 3, 3},
         {4, 4, 4},
         {5, 5, 5},
         {6, 6, 6},
         {7, 7, 7},
+        {7, 31, 3},
         {8, 8, 8},
+        {12, 12, 23},
+        {12, 23, 12},
+        {12, 31, 12},
         {15, 15, 15},
         {16, 16, 16},
-        {31, 31, 31},
-        {40, 40, 40},
-        {1, 1, 23},
-        {1, 31, 1},
-        {23, 1, 1},
-        {12, 12, 23},
-        {12, 31, 12},
-        {23, 12, 12},
-        {1, 1, 47},
-        {1, 35, 1},
-        {47, 1, 1},
+        {19, 44, 7},
+        {20, 28, 7},
+        {23, 31, 1},
+        {23, 31, 23},
         {24, 24, 47},
         {24, 35, 24},
-        {47, 24, 24},
-        {1, 35, 47},
-        {23, 31, 1},
-        {23, 1, 23},
-        {23, 31, 23},
-        {31, 7, 3},
-        {28, 20, 7},
+        {24, 47, 24},
+        {31, 31, 31},
         {32, 32, 9},
-        {44, 19, 7},
-        {47, 35, 48},
-        {47, 48, 47},
-        {48, 35, 47}
+        {35, 47, 48},
+        {35, 48, 47},
+        {40, 40, 40},
+        {47, 48, 47}
     };
 
     int mnk_count = sizeof(mnk) / sizeof(int) / 3;

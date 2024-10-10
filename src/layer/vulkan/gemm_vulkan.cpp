@@ -223,33 +223,33 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         {
             vkdev->convert_packing(C0, C, 1, cmd, opt);
 
-            if (C0.dims == 1 && C0.w == 1)
+            if (C.dims == 1 && C.w == 1)
             {
                 // scalar
                 broadcast_type_C = 0;
             }
-            if (C0.dims == 1 && C0.w == M)
+            if (C.dims == 1 && C.w == M)
             {
                 // M
                 // auto broadcast from h to w is the ncnn-style convention
                 broadcast_type_C = 1;
             }
-            if (C0.dims == 1 && C0.w == N)
+            if (C.dims == 1 && C.w == N)
             {
                 // N
                 broadcast_type_C = 4;
             }
-            if (C0.dims == 2 && C0.w == 1 && C0.h == M)
+            if (C.dims == 2 && C.w == 1 && C.h == M)
             {
                 // Mx1
                 broadcast_type_C = 2;
             }
-            if (C0.dims == 2 && C0.w == N && C0.h == M)
+            if (C.dims == 2 && C.w == N && C.h == M)
             {
                 // MxN
                 broadcast_type_C = 3;
             }
-            if (C0.dims == 2 && C0.w == N && C0.h == 1)
+            if (C.dims == 2 && C.w == N && C.h == 1)
             {
                 // 1xN
                 broadcast_type_C = 4;
