@@ -4199,796 +4199,612 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
             }
         }
 
-        if (out_elempack == 4)
-        {
-            int jj = 0;
+        int jj = 0;
 #if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
-                int32x4_t _sum8 = vld1q_s32(pp + 32);
-                int32x4_t _sum9 = vld1q_s32(pp + 36);
-                int32x4_t _suma = vld1q_s32(pp + 40);
-                int32x4_t _sumb = vld1q_s32(pp + 44);
-                int32x4_t _sumc = vld1q_s32(pp + 48);
-                int32x4_t _sumd = vld1q_s32(pp + 52);
-                int32x4_t _sume = vld1q_s32(pp + 56);
-                int32x4_t _sumf = vld1q_s32(pp + 60);
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+            int32x4_t _sum4 = vld1q_s32(pp + 16);
+            int32x4_t _sum5 = vld1q_s32(pp + 20);
+            int32x4_t _sum6 = vld1q_s32(pp + 24);
+            int32x4_t _sum7 = vld1q_s32(pp + 28);
+            int32x4_t _sum8 = vld1q_s32(pp + 32);
+            int32x4_t _sum9 = vld1q_s32(pp + 36);
+            int32x4_t _suma = vld1q_s32(pp + 40);
+            int32x4_t _sumb = vld1q_s32(pp + 44);
+            int32x4_t _sumc = vld1q_s32(pp + 48);
+            int32x4_t _sumd = vld1q_s32(pp + 52);
+            int32x4_t _sume = vld1q_s32(pp + 56);
+            int32x4_t _sumf = vld1q_s32(pp + 60);
 
 #if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                //      e4 f4 g4 h4
-                //      e5 f5 g5 h5
-                //      e6 f6 g6 h6
-                //      e7 f7 g7 h7
-
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-                //      e4 f4 g4 h4
-                //      e5 f5 g5 h5
-                //      e6 f6 g6 h6
-                //      e7 f7 g7 h7
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
-                float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum8), _descale0);
-                float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum9), _descale0);
-                float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_suma), _descale0);
-                float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sumb), _descale0);
-                float32x4_t _f8 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale1);
-                float32x4_t _f9 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale1);
-                float32x4_t _fa = vmulq_f32(vcvtq_f32_s32(_sum6), _descale1);
-                float32x4_t _fb = vmulq_f32(vcvtq_f32_s32(_sum7), _descale1);
-                float32x4_t _fc = vmulq_f32(vcvtq_f32_s32(_sumc), _descale1);
-                float32x4_t _fd = vmulq_f32(vcvtq_f32_s32(_sumd), _descale1);
-                float32x4_t _fe = vmulq_f32(vcvtq_f32_s32(_sume), _descale1);
-                float32x4_t _ff = vmulq_f32(vcvtq_f32_s32(_sumf), _descale1);
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            //      e2 f2 g2 h2
+            //      e3 f3 g3 h3
+            //      a4 b4 c4 d4
+            //      a5 b5 c5 d5
+            //      a6 b6 c6 d6
+            //      a7 b7 c7 d7
+            //      e4 f4 g4 h4
+            //      e5 f5 g5 h5
+            //      e6 f6 g6 h6
+            //      e7 f7 g7 h7
 #else
-                // from
-                //      a0 b1 c2 d3
-                //      e4 f5 g6 h7
-                //      e0 f1 g2 h3
-                //      a4 b5 c6 d7
-                //      c0 d1 a2 b3
-                //      g4 h5 e6 f7
-                //      g0 h1 e2 f3
-                //      c4 d5 a6 b7
-                //      a3 b2 c1 d0
-                //      e7 f6 g5 h4
-                //      e3 f2 g1 h0
-                //      a7 b6 c5 d4
-                //      c3 d2 a1 b0
-                //      g7 h6 e5 f4
-                //      g3 h2 e1 f0
-                //      c7 d6 a5 b4
+            // from
+            //      a0 b1 c2 d3
+            //      e4 f5 g6 h7
+            //      e0 f1 g2 h3
+            //      a4 b5 c6 d7
+            //      c0 d1 a2 b3
+            //      g4 h5 e6 f7
+            //      g0 h1 e2 f3
+            //      c4 d5 a6 b7
+            //      a3 b2 c1 d0
+            //      e7 f6 g5 h4
+            //      e3 f2 g1 h0
+            //      a7 b6 c5 d4
+            //      c3 d2 a1 b0
+            //      g7 h6 e5 f4
+            //      g3 h2 e1 f0
+            //      c7 d6 a5 b4
 
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-                //      e4 f4 g4 h4
-                //      e5 f5 g5 h5
-                //      e6 f6 g6 h6
-                //      e7 f7 g7 h7
-                {
-                    _sum8 = vrev64q_s32(_sum8);
-                    _sum9 = vrev64q_s32(_sum9);
-                    _suma = vrev64q_s32(_suma);
-                    _sumb = vrev64q_s32(_sumb);
-                    _sumc = vrev64q_s32(_sumc);
-                    _sumd = vrev64q_s32(_sumd);
-                    _sume = vrev64q_s32(_sume);
-                    _sumf = vrev64q_s32(_sumf);
-                    _sum8 = vextq_s32(_sum8, _sum8, 2);
-                    _sum9 = vextq_s32(_sum9, _sum9, 2);
-                    _suma = vextq_s32(_suma, _suma, 2);
-                    _sumb = vextq_s32(_sumb, _sumb, 2);
-                    _sumc = vextq_s32(_sumc, _sumc, 2);
-                    _sumd = vextq_s32(_sumd, _sumd, 2);
-                    _sume = vextq_s32(_sume, _sume, 2);
-                    _sumf = vextq_s32(_sumf, _sumf, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sumc);
-                    int32x4x2_t _t1 = vzipq_s32(_sum4, _sum8);
-                    int32x4x2_t _t2 = vzipq_s32(_sum2, _sume);
-                    int32x4x2_t _t3 = vzipq_s32(_sum6, _suma);
-                    int32x4x2_t _t4 = vzipq_s32(_sum3, _sumf);
-                    int32x4x2_t _t5 = vzipq_s32(_sum7, _sumb);
-                    int32x4x2_t _t6 = vzipq_s32(_sum1, _sumd);
-                    int32x4x2_t _t7 = vzipq_s32(_sum5, _sum9);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t5.val[1]), vget_low_s32(_t4.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
-                    _sum8 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum9 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _suma = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sumb = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sumc = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
-                    _sumd = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
-                    _sume = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
-                    _sumf = vcombine_s32(vget_high_s32(_t7.val[1]), vget_high_s32(_t6.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum7 = vrev64q_s32(_sum7);
-                    _sum9 = vrev64q_s32(_sum9);
-                    _sumb = vrev64q_s32(_sumb);
-                    _sumd = vrev64q_s32(_sumd);
-                    _sumf = vrev64q_s32(_sumf);
-                }
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
-                float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale0);
-                float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale0);
-                float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale0);
-                float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale0);
-                float32x4_t _f8 = vmulq_f32(vcvtq_f32_s32(_sum8), _descale1);
-                float32x4_t _f9 = vmulq_f32(vcvtq_f32_s32(_sum9), _descale1);
-                float32x4_t _fa = vmulq_f32(vcvtq_f32_s32(_suma), _descale1);
-                float32x4_t _fb = vmulq_f32(vcvtq_f32_s32(_sumb), _descale1);
-                float32x4_t _fc = vmulq_f32(vcvtq_f32_s32(_sumc), _descale1);
-                float32x4_t _fd = vmulq_f32(vcvtq_f32_s32(_sumd), _descale1);
-                float32x4_t _fe = vmulq_f32(vcvtq_f32_s32(_sume), _descale1);
-                float32x4_t _ff = vmulq_f32(vcvtq_f32_s32(_sumf), _descale1);
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            //      e2 f2 g2 h2
+            //      e3 f3 g3 h3
+            //      a4 b4 c4 d4
+            //      a5 b5 c5 d5
+            //      a6 b6 c6 d6
+            //      a7 b7 c7 d7
+            //      e4 f4 g4 h4
+            //      e5 f5 g5 h5
+            //      e6 f6 g6 h6
+            //      e7 f7 g7 h7
+            {
+                _sum8 = vrev64q_s32(_sum8);
+                _sum9 = vrev64q_s32(_sum9);
+                _suma = vrev64q_s32(_suma);
+                _sumb = vrev64q_s32(_sumb);
+                _sumc = vrev64q_s32(_sumc);
+                _sumd = vrev64q_s32(_sumd);
+                _sume = vrev64q_s32(_sume);
+                _sumf = vrev64q_s32(_sumf);
+                _sum8 = vextq_s32(_sum8, _sum8, 2);
+                _sum9 = vextq_s32(_sum9, _sum9, 2);
+                _suma = vextq_s32(_suma, _suma, 2);
+                _sumb = vextq_s32(_sumb, _sumb, 2);
+                _sumc = vextq_s32(_sumc, _sumc, 2);
+                _sumd = vextq_s32(_sumd, _sumd, 2);
+                _sume = vextq_s32(_sume, _sume, 2);
+                _sumf = vextq_s32(_sumf, _sumf, 2);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sumc);
+                int32x4x2_t _t1 = vzipq_s32(_sum4, _sum8);
+                int32x4x2_t _t2 = vzipq_s32(_sum2, _sume);
+                int32x4x2_t _t3 = vzipq_s32(_sum6, _suma);
+                int32x4x2_t _t4 = vzipq_s32(_sum3, _sumf);
+                int32x4x2_t _t5 = vzipq_s32(_sum7, _sumb);
+                int32x4x2_t _t6 = vzipq_s32(_sum1, _sumd);
+                int32x4x2_t _t7 = vzipq_s32(_sum5, _sum9);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
+                _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
+                _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
+                _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
+                _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
+                _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
+                _sum9 = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
+                _suma = vcombine_s32(vget_low_s32(_t5.val[1]), vget_low_s32(_t4.val[1]));
+                _sumb = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
+                _sumc = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
+                _sumd = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
+                _sume = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
+                _sumf = vcombine_s32(vget_high_s32(_t7.val[1]), vget_high_s32(_t6.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum7 = vrev64q_s32(_sum7);
+                _sum9 = vrev64q_s32(_sum9);
+                _sumb = vrev64q_s32(_sumb);
+                _sumd = vrev64q_s32(_sumd);
+                _sumf = vrev64q_s32(_sumf);
+            }
 #endif
 
-                if (pC)
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
+            float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum8), _descale0);
+            float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum9), _descale0);
+            float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_suma), _descale0);
+            float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sumb), _descale0);
+            float32x4_t _f8 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale1);
+            float32x4_t _f9 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale1);
+            float32x4_t _fa = vmulq_f32(vcvtq_f32_s32(_sum6), _descale1);
+            float32x4_t _fb = vmulq_f32(vcvtq_f32_s32(_sum7), _descale1);
+            float32x4_t _fc = vmulq_f32(vcvtq_f32_s32(_sumc), _descale1);
+            float32x4_t _fd = vmulq_f32(vcvtq_f32_s32(_sumd), _descale1);
+            float32x4_t _fe = vmulq_f32(vcvtq_f32_s32(_sume), _descale1);
+            float32x4_t _ff = vmulq_f32(vcvtq_f32_s32(_sumf), _descale1);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                    _f8 = vaddq_f32(_f8, _c0);
+                    _f9 = vaddq_f32(_f9, _c0);
+                    _fa = vaddq_f32(_fa, _c0);
+                    _fb = vaddq_f32(_fb, _c0);
+                    _fc = vaddq_f32(_fc, _c0);
+                    _fd = vaddq_f32(_fd, _c0);
+                    _fe = vaddq_f32(_fe, _c0);
+                    _ff = vaddq_f32(_ff, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                    _f8 = vaddq_f32(_f8, _c1);
+                    _f9 = vaddq_f32(_f9, _c1);
+                    _fa = vaddq_f32(_fa, _c1);
+                    _fb = vaddq_f32(_fb, _c1);
+                    _fc = vaddq_f32(_fc, _c1);
+                    _fd = vaddq_f32(_fd, _c1);
+                    _fe = vaddq_f32(_fe, _c1);
+                    _ff = vaddq_f32(_ff, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                        _f8 = vaddq_f32(_f8, _c0);
-                        _f9 = vaddq_f32(_f9, _c0);
-                        _fa = vaddq_f32(_fa, _c0);
-                        _fb = vaddq_f32(_fb, _c0);
-                        _fc = vaddq_f32(_fc, _c0);
-                        _fd = vaddq_f32(_fd, _c0);
-                        _fe = vaddq_f32(_fe, _c0);
-                        _ff = vaddq_f32(_ff, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                        _f8 = vaddq_f32(_f8, _c1);
-                        _f9 = vaddq_f32(_f9, _c1);
-                        _fa = vaddq_f32(_fa, _c1);
-                        _fb = vaddq_f32(_fb, _c1);
-                        _fc = vaddq_f32(_fc, _c1);
-                        _fd = vaddq_f32(_fd, _c1);
-                        _fe = vaddq_f32(_fe, _c1);
-                        _ff = vaddq_f32(_ff, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
+                        uint16x8_t _c01 = vld1q_u16(pC);
+                        uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
+                        uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
+                        uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
+                        transpose8x4_u16(_c01, _c23, _c45, _c67);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
+                        float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
+                        float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
+                        float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                        if (beta == 1.f)
                         {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                            uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
-                            uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
-                            transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                                _f4 = vaddq_f32(_f4, _c4);
-                                _f5 = vaddq_f32(_f5, _c5);
-                                _f6 = vaddq_f32(_f6, _c6);
-                                _f7 = vaddq_f32(_f7, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                                _f4 = vmlaq_f32(_f4, _c4, _beta);
-                                _f5 = vmlaq_f32(_f5, _c5, _beta);
-                                _f6 = vmlaq_f32(_f6, _c6, _beta);
-                                _f7 = vmlaq_f32(_f7, _c7, _beta);
-                            }
-                            _c01 = vld1q_u16(pC + c_hstep * 4);
-                            _c23 = vld1q_u16(pC + c_hstep * 5);
-                            _c45 = vld1q_u16(pC + c_hstep * 6);
-                            _c67 = vld1q_u16(pC + c_hstep * 7);
-                            transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f8 = vaddq_f32(_f8, _c0);
-                                _f9 = vaddq_f32(_f9, _c1);
-                                _fa = vaddq_f32(_fa, _c2);
-                                _fb = vaddq_f32(_fb, _c3);
-                                _fc = vaddq_f32(_fc, _c4);
-                                _fd = vaddq_f32(_fd, _c5);
-                                _fe = vaddq_f32(_fe, _c6);
-                                _ff = vaddq_f32(_ff, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f8 = vmlaq_f32(_f8, _c0, _beta);
-                                _f9 = vmlaq_f32(_f9, _c1, _beta);
-                                _fa = vmlaq_f32(_fa, _c2, _beta);
-                                _fb = vmlaq_f32(_fb, _c3, _beta);
-                                _fc = vmlaq_f32(_fc, _c4, _beta);
-                                _fd = vmlaq_f32(_fd, _c5, _beta);
-                                _fe = vmlaq_f32(_fe, _c6, _beta);
-                                _ff = vmlaq_f32(_ff, _c7, _beta);
-                            }
-                            pC += 8;
+                            _f0 = vaddq_f32(_f0, _c0);
+                            _f1 = vaddq_f32(_f1, _c1);
+                            _f2 = vaddq_f32(_f2, _c2);
+                            _f3 = vaddq_f32(_f3, _c3);
+                            _f4 = vaddq_f32(_f4, _c4);
+                            _f5 = vaddq_f32(_f5, _c5);
+                            _f6 = vaddq_f32(_f6, _c6);
+                            _f7 = vaddq_f32(_f7, _c7);
                         }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            uint16x8_t _c45 = vld1q_u16(pC + 16);
-                            uint16x8_t _c67 = vld1q_u16(pC + 24);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                                _f4 = vaddq_f32(_f4, _c4);
-                                _f5 = vaddq_f32(_f5, _c5);
-                                _f6 = vaddq_f32(_f6, _c6);
-                                _f7 = vaddq_f32(_f7, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                                _f4 = vmlaq_f32(_f4, _c4, _beta);
-                                _f5 = vmlaq_f32(_f5, _c5, _beta);
-                                _f6 = vmlaq_f32(_f6, _c6, _beta);
-                                _f7 = vmlaq_f32(_f7, _c7, _beta);
-                            }
-                            _c01 = vld1q_u16(pC + c_hstep * 4);
-                            _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
-                            _c45 = vld1q_u16(pC + c_hstep * 4 + 16);
-                            _c67 = vld1q_u16(pC + c_hstep * 4 + 24);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f8 = vaddq_f32(_f8, _c0);
-                                _f9 = vaddq_f32(_f9, _c1);
-                                _fa = vaddq_f32(_fa, _c2);
-                                _fb = vaddq_f32(_fb, _c3);
-                                _fc = vaddq_f32(_fc, _c4);
-                                _fd = vaddq_f32(_fd, _c5);
-                                _fe = vaddq_f32(_fe, _c6);
-                                _ff = vaddq_f32(_ff, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f8 = vmlaq_f32(_f8, _c0, _beta);
-                                _f9 = vmlaq_f32(_f9, _c1, _beta);
-                                _fa = vmlaq_f32(_fa, _c2, _beta);
-                                _fb = vmlaq_f32(_fb, _c3, _beta);
-                                _fc = vmlaq_f32(_fc, _c4, _beta);
-                                _fd = vmlaq_f32(_fd, _c5, _beta);
-                                _fe = vmlaq_f32(_fe, _c6, _beta);
-                                _ff = vmlaq_f32(_ff, _c7, _beta);
-                            }
-                            pC += 32;
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _cc = vld1q_u16(pC);
-                        float32x4_t _cc0 = bfloat2float(vget_low_u16(_cc));
-                        float32x4_t _cc1 = bfloat2float(vget_high_u16(_cc));
-                        if (beta != 1.f)
+                        else
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
-                            _cc0 = vmulq_f32(_cc0, _beta);
-                            _cc1 = vmulq_f32(_cc1, _beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f2 = vmlaq_f32(_f2, _c2, _beta);
+                            _f3 = vmlaq_f32(_f3, _c3, _beta);
+                            _f4 = vmlaq_f32(_f4, _c4, _beta);
+                            _f5 = vmlaq_f32(_f5, _c5, _beta);
+                            _f6 = vmlaq_f32(_f6, _c6, _beta);
+                            _f7 = vmlaq_f32(_f7, _c7, _beta);
                         }
-                        _c0 = vdupq_laneq_f32(_cc0, 0);
-                        _c1 = vdupq_laneq_f32(_cc0, 1);
-                        float32x4_t _c2 = vdupq_laneq_f32(_cc0, 2);
-                        float32x4_t _c3 = vdupq_laneq_f32(_cc0, 3);
-                        float32x4_t _c4 = vdupq_laneq_f32(_cc1, 0);
-                        float32x4_t _c5 = vdupq_laneq_f32(_cc1, 1);
-                        float32x4_t _c6 = vdupq_laneq_f32(_cc1, 2);
-                        float32x4_t _c7 = vdupq_laneq_f32(_cc1, 3);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c2);
-                        _f3 = vaddq_f32(_f3, _c3);
-                        _f4 = vaddq_f32(_f4, _c4);
-                        _f5 = vaddq_f32(_f5, _c5);
-                        _f6 = vaddq_f32(_f6, _c6);
-                        _f7 = vaddq_f32(_f7, _c7);
-                        _f8 = vaddq_f32(_f8, _c0);
-                        _f9 = vaddq_f32(_f9, _c1);
-                        _fa = vaddq_f32(_fa, _c2);
-                        _fb = vaddq_f32(_fb, _c3);
-                        _fc = vaddq_f32(_fc, _c4);
-                        _fd = vaddq_f32(_fd, _c5);
-                        _fe = vaddq_f32(_fe, _c6);
-                        _ff = vaddq_f32(_ff, _c7);
+                        _c01 = vld1q_u16(pC + c_hstep * 4);
+                        _c23 = vld1q_u16(pC + c_hstep * 5);
+                        _c45 = vld1q_u16(pC + c_hstep * 6);
+                        _c67 = vld1q_u16(pC + c_hstep * 7);
+                        transpose8x4_u16(_c01, _c23, _c45, _c67);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c2 = bfloat2float(vget_low_u16(_c23));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
+                        _c4 = bfloat2float(vget_low_u16(_c45));
+                        _c5 = bfloat2float(vget_high_u16(_c45));
+                        _c6 = bfloat2float(vget_low_u16(_c67));
+                        _c7 = bfloat2float(vget_high_u16(_c67));
+                        if (beta == 1.f)
+                        {
+                            _f8 = vaddq_f32(_f8, _c0);
+                            _f9 = vaddq_f32(_f9, _c1);
+                            _fa = vaddq_f32(_fa, _c2);
+                            _fb = vaddq_f32(_fb, _c3);
+                            _fc = vaddq_f32(_fc, _c4);
+                            _fd = vaddq_f32(_fd, _c5);
+                            _fe = vaddq_f32(_fe, _c6);
+                            _ff = vaddq_f32(_ff, _c7);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f8 = vmlaq_f32(_f8, _c0, _beta);
+                            _f9 = vmlaq_f32(_f9, _c1, _beta);
+                            _fa = vmlaq_f32(_fa, _c2, _beta);
+                            _fb = vmlaq_f32(_fb, _c3, _beta);
+                            _fc = vmlaq_f32(_fc, _c4, _beta);
+                            _fd = vmlaq_f32(_fd, _c5, _beta);
+                            _fe = vmlaq_f32(_fe, _c6, _beta);
+                            _ff = vmlaq_f32(_ff, _c7, _beta);
+                        }
                         pC += 8;
                     }
+                    else // if (c_elempack == 4)
+                    {
+                        uint16x8_t _c01 = vld1q_u16(pC);
+                        uint16x8_t _c23 = vld1q_u16(pC + 8);
+                        uint16x8_t _c45 = vld1q_u16(pC + 16);
+                        uint16x8_t _c67 = vld1q_u16(pC + 24);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
+                        float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
+                        float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
+                        float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c0);
+                            _f1 = vaddq_f32(_f1, _c1);
+                            _f2 = vaddq_f32(_f2, _c2);
+                            _f3 = vaddq_f32(_f3, _c3);
+                            _f4 = vaddq_f32(_f4, _c4);
+                            _f5 = vaddq_f32(_f5, _c5);
+                            _f6 = vaddq_f32(_f6, _c6);
+                            _f7 = vaddq_f32(_f7, _c7);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f2 = vmlaq_f32(_f2, _c2, _beta);
+                            _f3 = vmlaq_f32(_f3, _c3, _beta);
+                            _f4 = vmlaq_f32(_f4, _c4, _beta);
+                            _f5 = vmlaq_f32(_f5, _c5, _beta);
+                            _f6 = vmlaq_f32(_f6, _c6, _beta);
+                            _f7 = vmlaq_f32(_f7, _c7, _beta);
+                        }
+                        _c01 = vld1q_u16(pC + c_hstep * 4);
+                        _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
+                        _c45 = vld1q_u16(pC + c_hstep * 4 + 16);
+                        _c67 = vld1q_u16(pC + c_hstep * 4 + 24);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c2 = bfloat2float(vget_low_u16(_c23));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
+                        _c4 = bfloat2float(vget_low_u16(_c45));
+                        _c5 = bfloat2float(vget_high_u16(_c45));
+                        _c6 = bfloat2float(vget_low_u16(_c67));
+                        _c7 = bfloat2float(vget_high_u16(_c67));
+                        if (beta == 1.f)
+                        {
+                            _f8 = vaddq_f32(_f8, _c0);
+                            _f9 = vaddq_f32(_f9, _c1);
+                            _fa = vaddq_f32(_fa, _c2);
+                            _fb = vaddq_f32(_fb, _c3);
+                            _fc = vaddq_f32(_fc, _c4);
+                            _fd = vaddq_f32(_fd, _c5);
+                            _fe = vaddq_f32(_fe, _c6);
+                            _ff = vaddq_f32(_ff, _c7);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f8 = vmlaq_f32(_f8, _c0, _beta);
+                            _f9 = vmlaq_f32(_f9, _c1, _beta);
+                            _fa = vmlaq_f32(_fa, _c2, _beta);
+                            _fb = vmlaq_f32(_fb, _c3, _beta);
+                            _fc = vmlaq_f32(_fc, _c4, _beta);
+                            _fd = vmlaq_f32(_fd, _c5, _beta);
+                            _fe = vmlaq_f32(_fe, _c6, _beta);
+                            _ff = vmlaq_f32(_ff, _c7, _beta);
+                        }
+                        pC += 32;
+                    }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
-                    _f8 = vmulq_f32(_f8, _alpha);
-                    _f9 = vmulq_f32(_f9, _alpha);
-                    _fa = vmulq_f32(_fa, _alpha);
-                    _fb = vmulq_f32(_fb, _alpha);
-                    _fc = vmulq_f32(_fc, _alpha);
-                    _fd = vmulq_f32(_fd, _alpha);
-                    _fe = vmulq_f32(_fe, _alpha);
-                    _ff = vmulq_f32(_ff, _alpha);
+                    uint16x8_t _cc = vld1q_u16(pC);
+                    float32x4_t _cc0 = bfloat2float(vget_low_u16(_cc));
+                    float32x4_t _cc1 = bfloat2float(vget_high_u16(_cc));
+                    if (beta != 1.f)
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _cc0 = vmulq_f32(_cc0, _beta);
+                        _cc1 = vmulq_f32(_cc1, _beta);
+                    }
+                    _c0 = vdupq_laneq_f32(_cc0, 0);
+                    _c1 = vdupq_laneq_f32(_cc0, 1);
+                    float32x4_t _c2 = vdupq_laneq_f32(_cc0, 2);
+                    float32x4_t _c3 = vdupq_laneq_f32(_cc0, 3);
+                    float32x4_t _c4 = vdupq_laneq_f32(_cc1, 0);
+                    float32x4_t _c5 = vdupq_laneq_f32(_cc1, 1);
+                    float32x4_t _c6 = vdupq_laneq_f32(_cc1, 2);
+                    float32x4_t _c7 = vdupq_laneq_f32(_cc1, 3);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    _f4 = vaddq_f32(_f4, _c4);
+                    _f5 = vaddq_f32(_f5, _c5);
+                    _f6 = vaddq_f32(_f6, _c6);
+                    _f7 = vaddq_f32(_f7, _c7);
+                    _f8 = vaddq_f32(_f8, _c0);
+                    _f9 = vaddq_f32(_f9, _c1);
+                    _fa = vaddq_f32(_fa, _c2);
+                    _fb = vaddq_f32(_fb, _c3);
+                    _fc = vaddq_f32(_fc, _c4);
+                    _fd = vaddq_f32(_fd, _c5);
+                    _fe = vaddq_f32(_fe, _c6);
+                    _ff = vaddq_f32(_ff, _c7);
+                    pC += 8;
                 }
+            }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + 16, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + 24, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f8), float2bfloat(_f9)));
-                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(float2bfloat(_fa), float2bfloat(_fb)));
-                vst1q_u16(p0 + out_hstep * 4 + 16, vcombine_u16(float2bfloat(_fc), float2bfloat(_fd)));
-                vst1q_u16(p0 + out_hstep * 4 + 24, vcombine_u16(float2bfloat(_fe), float2bfloat(_ff)));
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+                _f4 = vmulq_f32(_f4, _alpha);
+                _f5 = vmulq_f32(_f5, _alpha);
+                _f6 = vmulq_f32(_f6, _alpha);
+                _f7 = vmulq_f32(_f7, _alpha);
+                _f8 = vmulq_f32(_f8, _alpha);
+                _f9 = vmulq_f32(_f9, _alpha);
+                _fa = vmulq_f32(_fa, _alpha);
+                _fb = vmulq_f32(_fb, _alpha);
+                _fc = vmulq_f32(_fc, _alpha);
+                _fd = vmulq_f32(_fd, _alpha);
+                _fe = vmulq_f32(_fe, _alpha);
+                _ff = vmulq_f32(_ff, _alpha);
+            }
 
-                pp += 64;
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+            uint16x4_t _bf4 = float2bfloat(_f4);
+            uint16x4_t _bf5 = float2bfloat(_f5);
+            uint16x4_t _bf6 = float2bfloat(_f6);
+            uint16x4_t _bf7 = float2bfloat(_f7);
+            uint16x4_t _bf8 = float2bfloat(_f8);
+            uint16x4_t _bf9 = float2bfloat(_f9);
+            uint16x4_t _bfa = float2bfloat(_fa);
+            uint16x4_t _bfb = float2bfloat(_fb);
+            uint16x4_t _bfc = float2bfloat(_fc);
+            uint16x4_t _bfd = float2bfloat(_fd);
+            uint16x4_t _bfe = float2bfloat(_fe);
+            uint16x4_t _bff = float2bfloat(_ff);
+
+            if (out_elempack == 4)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
+                vst1q_u16(p0 + 16, vcombine_u16(_bf4, _bf5));
+                vst1q_u16(p0 + 24, vcombine_u16(_bf6, _bf7));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf8, _bf9));
+                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(_bfa, _bfb));
+                vst1q_u16(p0 + out_hstep * 4 + 16, vcombine_u16(_bfc, _bfd));
+                vst1q_u16(p0 + out_hstep * 4 + 24, vcombine_u16(_bfe, _bff));
                 p0 += 32;
             }
-#endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
+            else // if (out_elempack == 1)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
+                transpose4x4_u16(_bf0, _bf1, _bf2, _bf3);
+                transpose4x4_u16(_bf4, _bf5, _bf6, _bf7);
+                transpose4x4_u16(_bf8, _bf9, _bfa, _bfb);
+                transpose4x4_u16(_bfc, _bfd, _bfe, _bff);
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf4));
+                vst1q_u16(p0 + out_hstep, vcombine_u16(_bf1, _bf5));
+                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(_bf2, _bf6));
+                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(_bf3, _bf7));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf8, _bfc));
+                vst1q_u16(p0 + out_hstep * 5, vcombine_u16(_bf9, _bfd));
+                vst1q_u16(p0 + out_hstep * 6, vcombine_u16(_bfa, _bfe));
+                vst1q_u16(p0 + out_hstep * 7, vcombine_u16(_bfb, _bff));
+                p0 += 8;
+            }
+
+            pp += 64;
+        }
+#endif // __aarch64__
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+            int32x4_t _sum4 = vld1q_s32(pp + 16);
+            int32x4_t _sum5 = vld1q_s32(pp + 20);
+            int32x4_t _sum6 = vld1q_s32(pp + 24);
+            int32x4_t _sum7 = vld1q_s32(pp + 28);
 
 #if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            //      e2 f2 g2 h2
+            //      e3 f3 g3 h3
 #else
-                // from
-                //      a0 b1 c2 d3
-                //      e0 f1 g2 h3
-                //      c0 d1 a2 b3
-                //      g0 h1 e2 f3
-                //      a3 b2 c1 d0
-                //      e3 f2 g1 h0
-                //      c3 d2 a1 b0
-                //      g3 h2 e1 f0
+            // from
+            //      a0 b1 c2 d3
+            //      e0 f1 g2 h3
+            //      c0 d1 a2 b3
+            //      g0 h1 e2 f3
+            //      a3 b2 c1 d0
+            //      e3 f2 g1 h0
+            //      c3 d2 a1 b0
+            //      g3 h2 e1 f0
 
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-                {
-                    _sum4 = vrev64q_s32(_sum4);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum6 = vrev64q_s32(_sum6);
-                    _sum7 = vrev64q_s32(_sum7);
-                    _sum4 = vextq_s32(_sum4, _sum4, 2);
-                    _sum5 = vextq_s32(_sum5, _sum5, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
-                    int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
-                    int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum7 = vrev64q_s32(_sum7);
-                }
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            //      e2 f2 g2 h2
+            //      e3 f3 g3 h3
+            {
+                _sum4 = vrev64q_s32(_sum4);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum6 = vrev64q_s32(_sum6);
+                _sum7 = vrev64q_s32(_sum7);
+                _sum4 = vextq_s32(_sum4, _sum4, 2);
+                _sum5 = vextq_s32(_sum5, _sum5, 2);
+                _sum6 = vextq_s32(_sum6, _sum6, 2);
+                _sum7 = vextq_s32(_sum7, _sum7, 2);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
+                int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
+                int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
+                int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
+                _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
+                _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
+                _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
+                _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum7 = vrev64q_s32(_sum7);
+            }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
-                float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale1);
-                float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale1);
-                float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale1);
-                float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale1);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
+            float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale1);
+            float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale1);
+            float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale1);
+            float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale1);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c1);
+                    _f5 = vaddq_f32(_f5, _c1);
+                    _f6 = vaddq_f32(_f6, _c1);
+                    _f7 = vaddq_f32(_f7, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c1);
-                        _f5 = vaddq_f32(_f5, _c1);
-                        _f6 = vaddq_f32(_f6, _c1);
-                        _f7 = vaddq_f32(_f7, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
+                        uint16x4_t _cc0 = vld1_u16(pC);
+                        uint16x4_t _cc1 = vld1_u16(pC + c_hstep);
+                        uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
+                        uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
+                        transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
+                        _c0 = bfloat2float(_cc0);
+                        _c1 = bfloat2float(_cc1);
+                        float32x4_t _c2 = bfloat2float(_cc2);
+                        float32x4_t _c3 = bfloat2float(_cc3);
+                        if (beta == 1.f)
                         {
-                            uint16x4_t _cc0 = vld1_u16(pC);
-                            uint16x4_t _cc1 = vld1_u16(pC + c_hstep);
-                            uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
-                            uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
-                            transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            float32x4_t _c2 = bfloat2float(_cc2);
-                            float32x4_t _c3 = bfloat2float(_cc3);
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            }
-                            _cc0 = vld1_u16(pC + c_hstep * 4);
-                            _cc1 = vld1_u16(pC + c_hstep * 5);
-                            _cc2 = vld1_u16(pC + c_hstep * 6);
-                            _cc3 = vld1_u16(pC + c_hstep * 7);
-                            transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            _c2 = bfloat2float(_cc2);
-                            _c3 = bfloat2float(_cc3);
-                            if (beta == 1.f)
-                            {
-                                _f4 = vaddq_f32(_f4, _c0);
-                                _f5 = vaddq_f32(_f5, _c1);
-                                _f6 = vaddq_f32(_f6, _c2);
-                                _f7 = vaddq_f32(_f7, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f4 = vmlaq_f32(_f4, _c0, _beta);
-                                _f5 = vmlaq_f32(_f5, _c1, _beta);
-                                _f6 = vmlaq_f32(_f6, _c2, _beta);
-                                _f7 = vmlaq_f32(_f7, _c3, _beta);
-                            }
-                            pC += 4;
+                            _f0 = vaddq_f32(_f0, _c0);
+                            _f1 = vaddq_f32(_f1, _c1);
+                            _f2 = vaddq_f32(_f2, _c2);
+                            _f3 = vaddq_f32(_f3, _c3);
                         }
-                        else // if (c_elempack == 4)
+                        else
                         {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            }
-                            _c01 = vld1q_u16(pC + c_hstep * 4);
-                            _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            if (beta == 1.f)
-                            {
-                                _f4 = vaddq_f32(_f4, _c0);
-                                _f5 = vaddq_f32(_f5, _c1);
-                                _f6 = vaddq_f32(_f6, _c2);
-                                _f7 = vaddq_f32(_f7, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f4 = vmlaq_f32(_f4, _c0, _beta);
-                                _f5 = vmlaq_f32(_f5, _c1, _beta);
-                                _f6 = vmlaq_f32(_f6, _c2, _beta);
-                                _f7 = vmlaq_f32(_f7, _c3, _beta);
-                            }
-                            pC += 16;
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f2 = vmlaq_f32(_f2, _c2, _beta);
+                            _f3 = vmlaq_f32(_f3, _c3, _beta);
                         }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        float32x4_t _c = bfloat2float(vld1_u16(pC));
-                        _c = vmulq_n_f32(_c, beta);
-#if __aarch64__
-                        _c0 = vdupq_laneq_f32(_c, 0);
-                        _c1 = vdupq_laneq_f32(_c, 1);
-                        float32x4_t _c2 = vdupq_laneq_f32(_c, 2);
-                        float32x4_t _c3 = vdupq_laneq_f32(_c, 3);
-#else
-                        _c0 = vdupq_lane_f32(vget_low_f32(_c), 0);
-                        _c1 = vdupq_lane_f32(vget_low_f32(_c), 1);
-                        float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c), 0);
-                        float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c), 1);
-#endif
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c2);
-                        _f3 = vaddq_f32(_f3, _c3);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c1);
-                        _f6 = vaddq_f32(_f6, _c2);
-                        _f7 = vaddq_f32(_f7, _c3);
+                        _cc0 = vld1_u16(pC + c_hstep * 4);
+                        _cc1 = vld1_u16(pC + c_hstep * 5);
+                        _cc2 = vld1_u16(pC + c_hstep * 6);
+                        _cc3 = vld1_u16(pC + c_hstep * 7);
+                        transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
+                        _c0 = bfloat2float(_cc0);
+                        _c1 = bfloat2float(_cc1);
+                        _c2 = bfloat2float(_cc2);
+                        _c3 = bfloat2float(_cc3);
+                        if (beta == 1.f)
+                        {
+                            _f4 = vaddq_f32(_f4, _c0);
+                            _f5 = vaddq_f32(_f5, _c1);
+                            _f6 = vaddq_f32(_f6, _c2);
+                            _f7 = vaddq_f32(_f7, _c3);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f4 = vmlaq_f32(_f4, _c0, _beta);
+                            _f5 = vmlaq_f32(_f5, _c1, _beta);
+                            _f6 = vmlaq_f32(_f6, _c2, _beta);
+                            _f7 = vmlaq_f32(_f7, _c3, _beta);
+                        }
                         pC += 4;
                     }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
-
-                pp += 32;
-                p0 += 16;
-            }
-            for (; jj + 1 < max_jj; jj += 2)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-#if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-#else
-                // from
-                //      a0 b1 c0 d1
-                //      e0 f1 g0 h1
-                //      a1 b0 c1 d0
-                //      e1 f0 g1 h0
-
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                {
-                    _sum2 = vrev64q_s32(_sum2);
-                    _sum3 = vrev64q_s32(_sum3);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum2);
-                    int32x4x2_t _t1 = vzipq_s32(_sum1, _sum3);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t0.val[1]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t0.val[1]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[0]), vget_low_s32(_t1.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[0]), vget_high_s32(_t1.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale1);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale1);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
+                    else // if (c_elempack == 4)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c1);
-                        _f3 = vaddq_f32(_f3, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        uint16x8_t _c01;
-                        uint16x8_t _c23;
-                        if (c_elempack == 1)
-                        {
-                            _c01 = uint16x8_t();
-                            _c01 = vsetq_lane_u16(pC[0], _c01, 0);
-                            _c01 = vsetq_lane_u16(pC[c_hstep], _c01, 1);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 2], _c01, 2);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 3], _c01, 3);
-                            _c01 = vsetq_lane_u16(pC[1], _c01, 4);
-                            _c01 = vsetq_lane_u16(pC[c_hstep + 1], _c01, 5);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c01, 6);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c01, 7);
-                            _c23 = uint16x8_t();
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 4], _c23, 0);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 5], _c23, 1);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 6], _c23, 2);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 7], _c23, 3);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 4 + 1], _c23, 4);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 5 + 1], _c23, 5);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 6 + 1], _c23, 6);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 7 + 1], _c23, 7);
-                            pC += 2;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c01 = vld1q_u16(pC);
-                            _c23 = vld1q_u16(pC + c_hstep * 4);
-                            pC += 8;
-                        }
+                        uint16x8_t _c01 = vld1q_u16(pC);
+                        uint16x8_t _c23 = vld1q_u16(pC + 8);
                         _c0 = bfloat2float(vget_low_u16(_c01));
                         _c1 = bfloat2float(vget_high_u16(_c01));
                         float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
@@ -5008,1097 +4824,365 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                             _f2 = vmlaq_f32(_f2, _c2, _beta);
                             _f3 = vmlaq_f32(_f3, _c3, _beta);
                         }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c1);
-                        pC += 2;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-
-                pp += 16;
-                p0 += 8;
-            }
-            for (; jj < max_jj; jj++)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale1);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
-                        {
-                            uint16x8_t _c01 = uint16x8_t();
-                            _c01 = vsetq_lane_u16(pC[0], _c01, 0);
-                            _c01 = vsetq_lane_u16(pC[c_hstep], _c01, 1);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 2], _c01, 2);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 3], _c01, 3);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 4], _c01, 4);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 5], _c01, 5);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 6], _c01, 6);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 7], _c01, 7);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            pC += 1;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4));
-                            pC += 4;
-                        }
+                        _c01 = vld1q_u16(pC + c_hstep * 4);
+                        _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c2 = bfloat2float(vget_low_u16(_c23));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
                         if (beta == 1.f)
                         {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
+                            _f4 = vaddq_f32(_f4, _c0);
+                            _f5 = vaddq_f32(_f5, _c1);
+                            _f6 = vaddq_f32(_f6, _c2);
+                            _f7 = vaddq_f32(_f7, _c3);
                         }
                         else
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f4 = vmlaq_f32(_f4, _c0, _beta);
+                            _f5 = vmlaq_f32(_f5, _c1, _beta);
+                            _f6 = vmlaq_f32(_f6, _c2, _beta);
+                            _f7 = vmlaq_f32(_f7, _c3, _beta);
                         }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        pC += 1;
+                        pC += 16;
                     }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
+                    float32x4_t _c = bfloat2float(vld1_u16(pC));
+                    _c = vmulq_n_f32(_c, beta);
+#if __aarch64__
+                    _c0 = vdupq_laneq_f32(_c, 0);
+                    _c1 = vdupq_laneq_f32(_c, 1);
+                    float32x4_t _c2 = vdupq_laneq_f32(_c, 2);
+                    float32x4_t _c3 = vdupq_laneq_f32(_c, 3);
+#else
+                    _c0 = vdupq_lane_f32(vget_low_f32(_c), 0);
+                    _c1 = vdupq_lane_f32(vget_low_f32(_c), 1);
+                    float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c), 0);
+                    float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c), 1);
+#endif
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c1);
+                    _f6 = vaddq_f32(_f6, _c2);
+                    _f7 = vaddq_f32(_f7, _c3);
+                    pC += 4;
                 }
+            }
 
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep * 4, float2bfloat(_f1));
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+                _f4 = vmulq_f32(_f4, _alpha);
+                _f5 = vmulq_f32(_f5, _alpha);
+                _f6 = vmulq_f32(_f6, _alpha);
+                _f7 = vmulq_f32(_f7, _alpha);
+            }
 
-                pp += 8;
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+            uint16x4_t _bf4 = float2bfloat(_f4);
+            uint16x4_t _bf5 = float2bfloat(_f5);
+            uint16x4_t _bf6 = float2bfloat(_f6);
+            uint16x4_t _bf7 = float2bfloat(_f7);
+
+            if (out_elempack == 4)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf4, _bf5));
+                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(_bf6, _bf7));
+                p0 += 16;
+            }
+            else // if (out_elempack == 1)
+            {
+                transpose4x4_u16(_bf0, _bf1, _bf2, _bf3);
+                transpose4x4_u16(_bf4, _bf5, _bf6, _bf7);
+                vst1_u16(p0, _bf0);
+                vst1_u16(p0 + out_hstep, _bf1);
+                vst1_u16(p0 + out_hstep * 2, _bf2);
+                vst1_u16(p0 + out_hstep * 3, _bf3);
+                vst1_u16(p0 + out_hstep * 4, _bf4);
+                vst1_u16(p0 + out_hstep * 5, _bf5);
+                vst1_u16(p0 + out_hstep * 6, _bf6);
+                vst1_u16(p0 + out_hstep * 7, _bf7);
                 p0 += 4;
             }
+
+            pp += 32;
         }
-        if (out_elempack == 1)
+        for (; jj + 1 < max_jj; jj += 2)
         {
-            int jj = 0;
-#if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
-                int32x4_t _sum8 = vld1q_s32(pp + 32);
-                int32x4_t _sum9 = vld1q_s32(pp + 36);
-                int32x4_t _suma = vld1q_s32(pp + 40);
-                int32x4_t _sumb = vld1q_s32(pp + 44);
-                int32x4_t _sumc = vld1q_s32(pp + 48);
-                int32x4_t _sumd = vld1q_s32(pp + 52);
-                int32x4_t _sume = vld1q_s32(pp + 56);
-                int32x4_t _sumf = vld1q_s32(pp + 60);
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
 
 #if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                //      e4 f4 g4 h4
-                //      e5 f5 g5 h5
-                //      e6 f6 g6 h6
-                //      e7 f7 g7 h7
-
-                // to
-                //      a0 a1 a2 a3
-                //      a4 a5 a6 a7
-                //      b0 b1 b2 b3
-                //      b4 b5 b6 b7
-                //      c0 c1 c2 c3
-                //      c4 c5 c6 c7
-                //      d0 d1 d2 d3
-                //      d4 d5 d6 d7
-                //      e0 e1 e2 e3
-                //      e4 e5 e6 e7
-                //      f0 f1 f2 f3
-                //      f4 f5 f6 f7
-                //      g0 g1 g2 g3
-                //      g4 g5 g6 g7
-                //      h0 h1 h2 h3
-                //      h4 h5 h6 h7
-                {
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum3);
-                    int32x4x2_t _t2 = vzipq_s32(_sum8, _sum9);
-                    int32x4x2_t _t3 = vzipq_s32(_suma, _sumb);
-                    int32x4x2_t _t4 = vzipq_s32(_sum4, _sum5);
-                    int32x4x2_t _t5 = vzipq_s32(_sum6, _sum7);
-                    int32x4x2_t _t6 = vzipq_s32(_sumc, _sumd);
-                    int32x4x2_t _t7 = vzipq_s32(_sume, _sumf);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t0.val[1]), vget_low_s32(_t1.val[1]));
-                    _sum5 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
-                    _sum6 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
-                    _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
-                    _sum9 = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
-                    _suma = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
-                    _sumb = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
-                    _sumc = vcombine_s32(vget_low_s32(_t4.val[1]), vget_low_s32(_t5.val[1]));
-                    _sumd = vcombine_s32(vget_low_s32(_t6.val[1]), vget_low_s32(_t7.val[1]));
-                    _sume = vcombine_s32(vget_high_s32(_t4.val[1]), vget_high_s32(_t5.val[1]));
-                    _sumf = vcombine_s32(vget_high_s32(_t6.val[1]), vget_high_s32(_t7.val[1]));
-                }
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
 #else
-                // from
-                //      a0 b1 c2 d3
-                //      e4 f5 g6 h7
-                //      e0 f1 g2 h3
-                //      a4 b5 c6 d7
-                //      c0 d1 a2 b3
-                //      g4 h5 e6 f7
-                //      g0 h1 e2 f3
-                //      c4 d5 a6 b7
-                //      a3 b2 c1 d0
-                //      e7 f6 g5 h4
-                //      e3 f2 g1 h0
-                //      a7 b6 c5 d4
-                //      c3 d2 a1 b0
-                //      g7 h6 e5 f4
-                //      g3 h2 e1 f0
-                //      c7 d6 a5 b4
+            // from
+            //      a0 b1 c0 d1
+            //      e0 f1 g0 h1
+            //      a1 b0 c1 d0
+            //      e1 f0 g1 h0
 
-                // to
-                //      a0 a1 a2 a3
-                //      a4 a5 a6 a7
-                //      b0 b1 b2 b3
-                //      b4 b5 b6 b7
-                //      c0 c1 c2 c3
-                //      c4 c5 c6 c7
-                //      d0 d1 d2 d3
-                //      d4 d5 d6 d7
-                //      e0 e1 e2 e3
-                //      e4 e5 e6 e7
-                //      f0 f1 f2 f3
-                //      f4 f5 f6 f7
-                //      g0 g1 g2 g3
-                //      g4 g5 g6 g7
-                //      h0 h1 h2 h3
-                //      h4 h5 h6 h7
-                {
-                    _sum4 = vextq_s32(_sum4, _sum4, 2);
-                    _sum5 = vextq_s32(_sum5, _sum5, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    _sumc = vextq_s32(_sumc, _sumc, 2);
-                    _sumd = vextq_s32(_sumd, _sumd, 2);
-                    _sume = vextq_s32(_sume, _sume, 2);
-                    _sumf = vextq_s32(_sumf, _sumf, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sumc);
-                    int32x4x2_t _t1 = vzipq_s32(_sum4, _sum8);
-                    int32x4x2_t _t2 = vzipq_s32(_sum3, _sumf);
-                    int32x4x2_t _t3 = vzipq_s32(_sum7, _sumb);
-                    int32x4x2_t _t4 = vzipq_s32(_sum2, _sume);
-                    int32x4x2_t _t5 = vzipq_s32(_sum6, _suma);
-                    int32x4x2_t _t6 = vzipq_s32(_sum1, _sumd);
-                    int32x4x2_t _t7 = vzipq_s32(_sum5, _sum9);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum5 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum6 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
-                    _sum9 = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
-                    _suma = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
-                    _sumb = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
-                    _sumc = vcombine_s32(vget_low_s32(_t5.val[1]), vget_low_s32(_t4.val[1]));
-                    _sumd = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
-                    _sume = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
-                    _sumf = vcombine_s32(vget_high_s32(_t7.val[1]), vget_high_s32(_t6.val[1]));
-                    _sum2 = vrev64q_s32(_sum2);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum6 = vrev64q_s32(_sum6);
-                    _sum7 = vrev64q_s32(_sum7);
-                    _suma = vrev64q_s32(_suma);
-                    _sumb = vrev64q_s32(_sumb);
-                    _sume = vrev64q_s32(_sume);
-                    _sumf = vrev64q_s32(_sumf);
-                }
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            {
+                _sum2 = vrev64q_s32(_sum2);
+                _sum3 = vrev64q_s32(_sum3);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum2);
+                int32x4x2_t _t1 = vzipq_s32(_sum1, _sum3);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t0.val[1]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t0.val[1]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[0]), vget_low_s32(_t1.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[0]), vget_high_s32(_t1.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+            }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_laneq_f32(vcvtq_f32_s32(_sum0), _descale0, 0);
-                float32x4_t _f1 = vmulq_laneq_f32(vcvtq_f32_s32(_sum1), _descale0, 0);
-                float32x4_t _f2 = vmulq_laneq_f32(vcvtq_f32_s32(_sum2), _descale0, 1);
-                float32x4_t _f3 = vmulq_laneq_f32(vcvtq_f32_s32(_sum3), _descale0, 1);
-                float32x4_t _f4 = vmulq_laneq_f32(vcvtq_f32_s32(_sum4), _descale0, 2);
-                float32x4_t _f5 = vmulq_laneq_f32(vcvtq_f32_s32(_sum5), _descale0, 2);
-                float32x4_t _f6 = vmulq_laneq_f32(vcvtq_f32_s32(_sum6), _descale0, 3);
-                float32x4_t _f7 = vmulq_laneq_f32(vcvtq_f32_s32(_sum7), _descale0, 3);
-                float32x4_t _f8 = vmulq_laneq_f32(vcvtq_f32_s32(_sum8), _descale1, 0);
-                float32x4_t _f9 = vmulq_laneq_f32(vcvtq_f32_s32(_sum9), _descale1, 0);
-                float32x4_t _fa = vmulq_laneq_f32(vcvtq_f32_s32(_suma), _descale1, 1);
-                float32x4_t _fb = vmulq_laneq_f32(vcvtq_f32_s32(_sumb), _descale1, 1);
-                float32x4_t _fc = vmulq_laneq_f32(vcvtq_f32_s32(_sumc), _descale1, 2);
-                float32x4_t _fd = vmulq_laneq_f32(vcvtq_f32_s32(_sumd), _descale1, 2);
-                float32x4_t _fe = vmulq_laneq_f32(vcvtq_f32_s32(_sume), _descale1, 3);
-                float32x4_t _ff = vmulq_laneq_f32(vcvtq_f32_s32(_sumf), _descale1, 3);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale1);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale1);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c1);
+                    _f3 = vaddq_f32(_f3, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    uint16x8_t _c01;
+                    uint16x8_t _c23;
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                        _f8 = vaddq_f32(_f8, _c0);
-                        _f9 = vaddq_f32(_f9, _c0);
-                        _fa = vaddq_f32(_fa, _c0);
-                        _fb = vaddq_f32(_fb, _c0);
-                        _fc = vaddq_f32(_fc, _c0);
-                        _fd = vaddq_f32(_fd, _c0);
-                        _fe = vaddq_f32(_fe, _c0);
-                        _ff = vaddq_f32(_ff, _c0);
+                        _c01 = uint16x8_t();
+                        _c01 = vsetq_lane_u16(pC[0], _c01, 0);
+                        _c01 = vsetq_lane_u16(pC[c_hstep], _c01, 1);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 2], _c01, 2);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 3], _c01, 3);
+                        _c01 = vsetq_lane_u16(pC[1], _c01, 4);
+                        _c01 = vsetq_lane_u16(pC[c_hstep + 1], _c01, 5);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c01, 6);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c01, 7);
+                        _c23 = uint16x8_t();
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 4], _c23, 0);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 5], _c23, 1);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 6], _c23, 2);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 7], _c23, 3);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 4 + 1], _c23, 4);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 5 + 1], _c23, 5);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 6 + 1], _c23, 6);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 7 + 1], _c23, 7);
+                        pC += 2;
                     }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    else // if (c_elempack == 4)
                     {
-                        float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
-                        float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
-                        float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
-                        float32x4_t _cc3 = vdupq_laneq_f32(_c0, 3);
-                        float32x4_t _cc4 = vdupq_laneq_f32(_c1, 0);
-                        float32x4_t _cc5 = vdupq_laneq_f32(_c1, 1);
-                        float32x4_t _cc6 = vdupq_laneq_f32(_c1, 2);
-                        float32x4_t _cc7 = vdupq_laneq_f32(_c1, 3);
-                        _f0 = vaddq_f32(_f0, _cc0);
-                        _f1 = vaddq_f32(_f1, _cc0);
-                        _f2 = vaddq_f32(_f2, _cc1);
-                        _f3 = vaddq_f32(_f3, _cc1);
-                        _f4 = vaddq_f32(_f4, _cc2);
-                        _f5 = vaddq_f32(_f5, _cc2);
-                        _f6 = vaddq_f32(_f6, _cc3);
-                        _f7 = vaddq_f32(_f7, _cc3);
-                        _f8 = vaddq_f32(_f8, _cc4);
-                        _f9 = vaddq_f32(_f9, _cc4);
-                        _fa = vaddq_f32(_fa, _cc5);
-                        _fb = vaddq_f32(_fb, _cc5);
-                        _fc = vaddq_f32(_fc, _cc6);
-                        _fd = vaddq_f32(_fd, _cc6);
-                        _fe = vaddq_f32(_fe, _cc7);
-                        _ff = vaddq_f32(_ff, _cc7);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                            uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
-                            uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                                _f4 = vaddq_f32(_f4, _c4);
-                                _f5 = vaddq_f32(_f5, _c5);
-                                _f6 = vaddq_f32(_f6, _c6);
-                                _f7 = vaddq_f32(_f7, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                                _f4 = vmlaq_f32(_f4, _c4, _beta);
-                                _f5 = vmlaq_f32(_f5, _c5, _beta);
-                                _f6 = vmlaq_f32(_f6, _c6, _beta);
-                                _f7 = vmlaq_f32(_f7, _c7, _beta);
-                            }
-                            _c01 = vld1q_u16(pC + c_hstep * 4);
-                            _c23 = vld1q_u16(pC + c_hstep * 5);
-                            _c45 = vld1q_u16(pC + c_hstep * 6);
-                            _c67 = vld1q_u16(pC + c_hstep * 7);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f8 = vaddq_f32(_f8, _c0);
-                                _f9 = vaddq_f32(_f9, _c1);
-                                _fa = vaddq_f32(_fa, _c2);
-                                _fb = vaddq_f32(_fb, _c3);
-                                _fc = vaddq_f32(_fc, _c4);
-                                _fd = vaddq_f32(_fd, _c5);
-                                _fe = vaddq_f32(_fe, _c6);
-                                _ff = vaddq_f32(_ff, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f8 = vmlaq_f32(_f8, _c0, _beta);
-                                _f9 = vmlaq_f32(_f9, _c1, _beta);
-                                _fa = vmlaq_f32(_fa, _c2, _beta);
-                                _fb = vmlaq_f32(_fb, _c3, _beta);
-                                _fc = vmlaq_f32(_fc, _c4, _beta);
-                                _fd = vmlaq_f32(_fd, _c5, _beta);
-                                _fe = vmlaq_f32(_fe, _c6, _beta);
-                                _ff = vmlaq_f32(_ff, _c7, _beta);
-                            }
-                            pC += 8;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8x4_t _cc0 = vld4q_u16(pC);
-                            _c0 = bfloat2float(vget_low_u16(_cc0.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc0.val[0]));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_cc0.val[1]));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_cc0.val[1]));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_cc0.val[2]));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_cc0.val[2]));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_cc0.val[3]));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_cc0.val[3]));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                                _f4 = vaddq_f32(_f4, _c4);
-                                _f5 = vaddq_f32(_f5, _c5);
-                                _f6 = vaddq_f32(_f6, _c6);
-                                _f7 = vaddq_f32(_f7, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                                _f4 = vmlaq_f32(_f4, _c4, _beta);
-                                _f5 = vmlaq_f32(_f5, _c5, _beta);
-                                _f6 = vmlaq_f32(_f6, _c6, _beta);
-                                _f7 = vmlaq_f32(_f7, _c7, _beta);
-                            }
-                            _cc0 = vld4q_u16(pC + c_hstep * 4);
-                            _c0 = bfloat2float(vget_low_u16(_cc0.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc0.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_cc0.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_cc0.val[1]));
-                            _c4 = bfloat2float(vget_low_u16(_cc0.val[2]));
-                            _c5 = bfloat2float(vget_high_u16(_cc0.val[2]));
-                            _c6 = bfloat2float(vget_low_u16(_cc0.val[3]));
-                            _c7 = bfloat2float(vget_high_u16(_cc0.val[3]));
-                            if (beta == 1.f)
-                            {
-                                _f8 = vaddq_f32(_f8, _c0);
-                                _f9 = vaddq_f32(_f9, _c1);
-                                _fa = vaddq_f32(_fa, _c2);
-                                _fb = vaddq_f32(_fb, _c3);
-                                _fc = vaddq_f32(_fc, _c4);
-                                _fd = vaddq_f32(_fd, _c5);
-                                _fe = vaddq_f32(_fe, _c6);
-                                _ff = vaddq_f32(_ff, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f8 = vmlaq_f32(_f8, _c0, _beta);
-                                _f9 = vmlaq_f32(_f9, _c1, _beta);
-                                _fa = vmlaq_f32(_fa, _c2, _beta);
-                                _fb = vmlaq_f32(_fb, _c3, _beta);
-                                _fc = vmlaq_f32(_fc, _c4, _beta);
-                                _fd = vmlaq_f32(_fd, _c5, _beta);
-                                _fe = vmlaq_f32(_fe, _c6, _beta);
-                                _ff = vmlaq_f32(_ff, _c7, _beta);
-                            }
-                            pC += 32;
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta != 1.f)
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _c0 = vmulq_f32(_c0, _beta);
-                            _c1 = vmulq_f32(_c1, _beta);
-                        }
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c1);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c1);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c1);
-                        _f8 = vaddq_f32(_f8, _c0);
-                        _f9 = vaddq_f32(_f9, _c1);
-                        _fa = vaddq_f32(_fa, _c0);
-                        _fb = vaddq_f32(_fb, _c1);
-                        _fc = vaddq_f32(_fc, _c0);
-                        _fd = vaddq_f32(_fd, _c1);
-                        _fe = vaddq_f32(_fe, _c0);
-                        _ff = vaddq_f32(_ff, _c1);
+                        _c01 = vld1q_u16(pC);
+                        _c23 = vld1q_u16(pC + c_hstep * 4);
                         pC += 8;
                     }
+                    _c0 = bfloat2float(vget_low_u16(_c01));
+                    _c1 = bfloat2float(vget_high_u16(_c01));
+                    float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                    float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                        _f2 = vaddq_f32(_f2, _c2);
+                        _f3 = vaddq_f32(_f3, _c3);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
+                    }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
-                    _f8 = vmulq_f32(_f8, _alpha);
-                    _f9 = vmulq_f32(_f9, _alpha);
-                    _fa = vmulq_f32(_fa, _alpha);
-                    _fb = vmulq_f32(_fb, _alpha);
-                    _fc = vmulq_f32(_fc, _alpha);
-                    _fd = vmulq_f32(_fd, _alpha);
-                    _fe = vmulq_f32(_fe, _alpha);
-                    _ff = vmulq_f32(_ff, _alpha);
+                    _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                    _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c1);
+                    pC += 2;
                 }
+            }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f8), float2bfloat(_f9)));
-                vst1q_u16(p0 + out_hstep * 5, vcombine_u16(float2bfloat(_fa), float2bfloat(_fb)));
-                vst1q_u16(p0 + out_hstep * 6, vcombine_u16(float2bfloat(_fc), float2bfloat(_fd)));
-                vst1q_u16(p0 + out_hstep * 7, vcombine_u16(float2bfloat(_fe), float2bfloat(_ff)));
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
 
-                pp += 64;
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+
+            if (out_elempack == 4)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf2, _bf3));
                 p0 += 8;
             }
-#endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
+            else // if (out_elempack == 1)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
-
-#if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-
-                // to
-                //      a0 a1 a2 a3
-                //      b0 b1 b2 b3
-                //      c0 c1 c2 c3
-                //      d0 d1 d2 d3
-                //      e0 e1 e2 e3
-                //      f0 f1 f2 f3
-                //      g0 g1 g2 g3
-                //      h0 h1 h2 h3
-                {
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum3);
-                    int32x4x2_t _t2 = vzipq_s32(_sum4, _sum5);
-                    int32x4x2_t _t3 = vzipq_s32(_sum6, _sum7);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t0.val[1]), vget_low_s32(_t1.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
-                }
-#else
-                // from
-                //      a0 b1 c2 d3
-                //      e0 f1 g2 h3
-                //      c0 d1 a2 b3
-                //      g0 h1 e2 f3
-                //      a3 b2 c1 d0
-                //      e3 f2 g1 h0
-                //      c3 d2 a1 b0
-                //      g3 h2 e1 f0
-
-                // to
-                //      a0 a1 a2 a3
-                //      b0 b1 b2 b3
-                //      c0 c1 c2 c3
-                //      d0 d1 d2 d3
-                //      e0 e1 e2 e3
-                //      f0 f1 f2 f3
-                //      g0 g1 g2 g3
-                //      h0 h1 h2 h3
-                {
-                    _sum2 = vextq_s32(_sum2, _sum2, 2);
-                    _sum3 = vextq_s32(_sum3, _sum3, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
-                    int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
-                    int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum7 = vrev64q_s32(_sum7);
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-#if __aarch64__
-                float32x4_t _f0 = vmulq_laneq_f32(vcvtq_f32_s32(_sum0), _descale0, 0);
-                float32x4_t _f1 = vmulq_laneq_f32(vcvtq_f32_s32(_sum1), _descale0, 1);
-                float32x4_t _f2 = vmulq_laneq_f32(vcvtq_f32_s32(_sum2), _descale0, 2);
-                float32x4_t _f3 = vmulq_laneq_f32(vcvtq_f32_s32(_sum3), _descale0, 3);
-                float32x4_t _f4 = vmulq_laneq_f32(vcvtq_f32_s32(_sum4), _descale1, 0);
-                float32x4_t _f5 = vmulq_laneq_f32(vcvtq_f32_s32(_sum5), _descale1, 1);
-                float32x4_t _f6 = vmulq_laneq_f32(vcvtq_f32_s32(_sum6), _descale1, 2);
-                float32x4_t _f7 = vmulq_laneq_f32(vcvtq_f32_s32(_sum7), _descale1, 3);
-#else
-                float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), vget_low_f32(_descale0), 0);
-                float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), vget_low_f32(_descale0), 1);
-                float32x4_t _f2 = vmulq_lane_f32(vcvtq_f32_s32(_sum2), vget_high_f32(_descale0), 0);
-                float32x4_t _f3 = vmulq_lane_f32(vcvtq_f32_s32(_sum3), vget_high_f32(_descale0), 1);
-                float32x4_t _f4 = vmulq_lane_f32(vcvtq_f32_s32(_sum4), vget_low_f32(_descale1), 0);
-                float32x4_t _f5 = vmulq_lane_f32(vcvtq_f32_s32(_sum5), vget_low_f32(_descale1), 1);
-                float32x4_t _f6 = vmulq_lane_f32(vcvtq_f32_s32(_sum6), vget_high_f32(_descale1), 0);
-                float32x4_t _f7 = vmulq_lane_f32(vcvtq_f32_s32(_sum7), vget_high_f32(_descale1), 1);
-#endif
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-#if __aarch64__
-                        float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
-                        float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
-                        float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
-                        float32x4_t _cc3 = vdupq_laneq_f32(_c0, 3);
-                        float32x4_t _cc4 = vdupq_laneq_f32(_c1, 0);
-                        float32x4_t _cc5 = vdupq_laneq_f32(_c1, 1);
-                        float32x4_t _cc6 = vdupq_laneq_f32(_c1, 2);
-                        float32x4_t _cc7 = vdupq_laneq_f32(_c1, 3);
-#else
-                        float32x4_t _cc0 = vdupq_lane_f32(vget_low_f32(_c0), 0);
-                        float32x4_t _cc1 = vdupq_lane_f32(vget_low_f32(_c0), 1);
-                        float32x4_t _cc2 = vdupq_lane_f32(vget_high_f32(_c0), 0);
-                        float32x4_t _cc3 = vdupq_lane_f32(vget_high_f32(_c0), 1);
-                        float32x4_t _cc4 = vdupq_lane_f32(vget_low_f32(_c1), 0);
-                        float32x4_t _cc5 = vdupq_lane_f32(vget_low_f32(_c1), 1);
-                        float32x4_t _cc6 = vdupq_lane_f32(vget_high_f32(_c1), 0);
-                        float32x4_t _cc7 = vdupq_lane_f32(vget_high_f32(_c1), 1);
-#endif
-                        _f0 = vaddq_f32(_f0, _cc0);
-                        _f1 = vaddq_f32(_f1, _cc1);
-                        _f2 = vaddq_f32(_f2, _cc2);
-                        _f3 = vaddq_f32(_f3, _cc3);
-                        _f4 = vaddq_f32(_f4, _cc4);
-                        _f5 = vaddq_f32(_f5, _cc5);
-                        _f6 = vaddq_f32(_f6, _cc6);
-                        _f7 = vaddq_f32(_f7, _cc7);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
-                        {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 1));
-                            float32x4_t _c2 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            float32x4_t _c3 = bfloat2float(vld1_u16(pC + c_hstep * 3));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            }
-                            _c0 = bfloat2float(vld1_u16(pC + c_hstep * 4));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 5));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 6));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 7));
-                            if (beta == 1.f)
-                            {
-                                _f4 = vaddq_f32(_f4, _c0);
-                                _f5 = vaddq_f32(_f5, _c1);
-                                _f6 = vaddq_f32(_f6, _c2);
-                                _f7 = vaddq_f32(_f7, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f4 = vmlaq_f32(_f4, _c0, _beta);
-                                _f5 = vmlaq_f32(_f5, _c1, _beta);
-                                _f6 = vmlaq_f32(_f6, _c2, _beta);
-                                _f7 = vmlaq_f32(_f7, _c3, _beta);
-                            }
-                            pC += 4;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x4x4_t _cc0 = vld4_u16(pC);
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, bfloat2float(_cc0.val[0]));
-                                _f1 = vaddq_f32(_f1, bfloat2float(_cc0.val[1]));
-                                _f2 = vaddq_f32(_f2, bfloat2float(_cc0.val[2]));
-                                _f3 = vaddq_f32(_f3, bfloat2float(_cc0.val[3]));
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, bfloat2float(_cc0.val[0]), _beta);
-                                _f1 = vmlaq_f32(_f1, bfloat2float(_cc0.val[1]), _beta);
-                                _f2 = vmlaq_f32(_f2, bfloat2float(_cc0.val[2]), _beta);
-                                _f3 = vmlaq_f32(_f3, bfloat2float(_cc0.val[3]), _beta);
-                            }
-                            _cc0 = vld4_u16(pC + c_hstep * 4);
-                            if (beta == 1.f)
-                            {
-                                _f4 = vaddq_f32(_f4, bfloat2float(_cc0.val[0]));
-                                _f5 = vaddq_f32(_f5, bfloat2float(_cc0.val[1]));
-                                _f6 = vaddq_f32(_f6, bfloat2float(_cc0.val[2]));
-                                _f7 = vaddq_f32(_f7, bfloat2float(_cc0.val[3]));
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f4 = vmlaq_f32(_f4, bfloat2float(_cc0.val[0]), _beta);
-                                _f5 = vmlaq_f32(_f5, bfloat2float(_cc0.val[1]), _beta);
-                                _f6 = vmlaq_f32(_f6, bfloat2float(_cc0.val[2]), _beta);
-                                _f7 = vmlaq_f32(_f7, bfloat2float(_cc0.val[3]), _beta);
-                            }
-                            pC += 16;
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _c0 = vmulq_n_f32(_c0, beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                        pC += 4;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
-                }
-
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-                vst1_u16(p0 + out_hstep * 2, float2bfloat(_f2));
-                vst1_u16(p0 + out_hstep * 3, float2bfloat(_f3));
-                vst1_u16(p0 + out_hstep * 4, float2bfloat(_f4));
-                vst1_u16(p0 + out_hstep * 5, float2bfloat(_f5));
-                vst1_u16(p0 + out_hstep * 6, float2bfloat(_f6));
-                vst1_u16(p0 + out_hstep * 7, float2bfloat(_f7));
-
-                pp += 32;
-                p0 += 4;
-            }
-            for (; jj + 1 < max_jj; jj += 2)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-#if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-
-                // to
-                //      a0 a1 b0 b1
-                //      c0 c1 d0 d1
-                //      e0 e1 f0 f1
-                //      g0 g1 h0 h1
-                {
-                    int32x4x2_t _sum02 = vzipq_s32(_sum0, _sum1);
-                    int32x4x2_t _sum13 = vzipq_s32(_sum2, _sum3);
-                    _sum0 = _sum02.val[0];
-                    _sum1 = _sum02.val[1];
-                    _sum2 = _sum13.val[0];
-                    _sum3 = _sum13.val[1];
-                }
-#else
-                // from
-                //      a0 b1 c0 d1
-                //      e0 f1 g0 h1
-                //      a1 b0 c1 d0
-                //      e1 f0 g1 h0
-
-                // to
-                //      a0 a1 b0 b1
-                //      c0 c1 d0 d1
-                //      e0 e1 f0 f1
-                //      g0 g1 h0 h1
-                {
-                    int32x4x2_t _t0 = vuzpq_s32(_sum0, _sum1);
-                    int32x4x2_t _t1 = vuzpq_s32(_sum2, _sum3);
-                    int32x4x2_t _t2 = vzipq_s32(_t0.val[0], _t1.val[0]);
-                    int32x4x2_t _t3 = vzipq_s32(_t1.val[1], _t0.val[1]);
-                    _sum0 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-                float32x4x2_t _descale01 = vzipq_f32(_descale0, _descale0);
-                float32x4x2_t _descale23 = vzipq_f32(_descale1, _descale1);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale01.val[0]);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale01.val[1]);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale23.val[0]);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale23.val[1]);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        float32x4x2_t _cc0 = vzipq_f32(_c0, _c0);
-                        float32x4x2_t _cc1 = vzipq_f32(_c1, _c1);
-                        _f0 = vaddq_f32(_f0, _cc0.val[0]);
-                        _f1 = vaddq_f32(_f1, _cc0.val[1]);
-                        _f2 = vaddq_f32(_f2, _cc1.val[0]);
-                        _f3 = vaddq_f32(_f3, _cc1.val[1]);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4_t _c2;
-                        float32x4_t _c3;
-                        if (c_elempack == 1)
-                        {
-                            uint16x8_t _cc0 = uint16x8_t();
-                            _cc0 = vsetq_lane_u16(pC[0], _cc0, 0);
-                            _cc0 = vsetq_lane_u16(pC[1], _cc0, 1);
-                            _cc0 = vsetq_lane_u16(pC[c_hstep * 1], _cc0, 2);
-                            _cc0 = vsetq_lane_u16(pC[c_hstep * 1 + 1], _cc0, 3);
-                            _cc0 = vsetq_lane_u16(pC[c_hstep * 2], _cc0, 4);
-                            _cc0 = vsetq_lane_u16(pC[c_hstep * 2 + 1], _cc0, 5);
-                            _cc0 = vsetq_lane_u16(pC[c_hstep * 3], _cc0, 6);
-                            _cc0 = vsetq_lane_u16(pC[c_hstep * 3 + 1], _cc0, 7);
-                            uint16x8_t _cc1 = uint16x8_t();
-                            _cc1 = vsetq_lane_u16(pC[c_hstep * 4], _cc1, 0);
-                            _cc1 = vsetq_lane_u16(pC[c_hstep * 4 + 1], _cc1, 1);
-                            _cc1 = vsetq_lane_u16(pC[c_hstep * 5], _cc1, 2);
-                            _cc1 = vsetq_lane_u16(pC[c_hstep * 5 + 1], _cc1, 3);
-                            _cc1 = vsetq_lane_u16(pC[c_hstep * 6], _cc1, 4);
-                            _cc1 = vsetq_lane_u16(pC[c_hstep * 6 + 1], _cc1, 5);
-                            _cc1 = vsetq_lane_u16(pC[c_hstep * 7], _cc1, 6);
-                            _cc1 = vsetq_lane_u16(pC[c_hstep * 7 + 1], _cc1, 7);
-                            _c0 = bfloat2float(vget_low_u16(_cc0));
-                            _c1 = bfloat2float(vget_high_u16(_cc0));
-                            _c2 = bfloat2float(vget_low_u16(_cc1));
-                            _c3 = bfloat2float(vget_high_u16(_cc1));
-                            pC += 2;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8_t _cc0 = vld1q_u16(pC);
-                            uint16x8_t _cc1 = vld1q_u16(pC + c_hstep * 4);
-                            uint16x8x2_t _cc = vzipq_u16(vcombine_u16(vget_low_u16(_cc0), vget_low_u16(_cc1)), vcombine_u16(vget_high_u16(_cc0), vget_high_u16(_cc1)));
-                            _c0 = bfloat2float(vget_low_u16(_cc.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_cc.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_cc.val[1]));
-                            pC += 8;
-                        }
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x4_t _c = uint16x4_t();
-                        _c = vset_lane_u16(pC[0], _c, 0);
-                        _c = vset_lane_u16(pC[1], _c, 1);
-                        _c = vset_lane_u16(pC[0], _c, 2);
-                        _c = vset_lane_u16(pC[1], _c, 3);
-                        _c0 = bfloat2float(_c);
-                        _c0 = vmulq_n_f32(_c0, beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        pC += 2;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                }
-
-                uint16x4_t _fb0 = float2bfloat(_f0);
-                uint16x4_t _fb1 = float2bfloat(_f1);
-                uint16x4_t _fb2 = float2bfloat(_f2);
-                uint16x4_t _fb3 = float2bfloat(_f3);
-
-                p0[0] = vget_lane_u16(_fb0, 0);
-                p0[1] = vget_lane_u16(_fb0, 1);
-                p0[out_hstep] = vget_lane_u16(_fb0, 2);
-                p0[out_hstep + 1] = vget_lane_u16(_fb0, 3);
-                p0[out_hstep * 2] = vget_lane_u16(_fb1, 0);
-                p0[out_hstep * 2 + 1] = vget_lane_u16(_fb1, 1);
-                p0[out_hstep * 3] = vget_lane_u16(_fb1, 2);
-                p0[out_hstep * 3 + 1] = vget_lane_u16(_fb1, 3);
-                p0[out_hstep * 4] = vget_lane_u16(_fb2, 0);
-                p0[out_hstep * 4 + 1] = vget_lane_u16(_fb2, 1);
-                p0[out_hstep * 5] = vget_lane_u16(_fb2, 2);
-                p0[out_hstep * 5 + 1] = vget_lane_u16(_fb2, 3);
-                p0[out_hstep * 6] = vget_lane_u16(_fb3, 0);
-                p0[out_hstep * 6 + 1] = vget_lane_u16(_fb3, 1);
-                p0[out_hstep * 7] = vget_lane_u16(_fb3, 2);
-                p0[out_hstep * 7 + 1] = vget_lane_u16(_fb3, 3);
-
-                pp += 16;
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[1] = vget_lane_u16(_bf1, 0);
+                p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep + 1] = vget_lane_u16(_bf1, 1);
+                p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep * 2 + 1] = vget_lane_u16(_bf1, 2);
+                p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                p0[out_hstep * 3 + 1] = vget_lane_u16(_bf1, 3);
+                p0[out_hstep * 4] = vget_lane_u16(_bf2, 0);
+                p0[out_hstep * 4 + 1] = vget_lane_u16(_bf3, 0);
+                p0[out_hstep * 5] = vget_lane_u16(_bf2, 1);
+                p0[out_hstep * 5 + 1] = vget_lane_u16(_bf3, 1);
+                p0[out_hstep * 6] = vget_lane_u16(_bf2, 2);
+                p0[out_hstep * 6 + 1] = vget_lane_u16(_bf3, 2);
+                p0[out_hstep * 7] = vget_lane_u16(_bf2, 3);
+                p0[out_hstep * 7 + 1] = vget_lane_u16(_bf3, 3);
                 p0 += 2;
             }
-            for (; jj < max_jj; jj++)
+
+            pp += 16;
+        }
+        for (; jj < max_jj; jj++)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale1);
+
+            if (pC)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale1);
-
-                if (pC)
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
+                        uint16x8_t _c01 = uint16x8_t();
+                        _c01 = vsetq_lane_u16(pC[0], _c01, 0);
+                        _c01 = vsetq_lane_u16(pC[c_hstep], _c01, 1);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 2], _c01, 2);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 3], _c01, 3);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 4], _c01, 4);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 5], _c01, 5);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 6], _c01, 6);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 7], _c01, 7);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        pC += 1;
                     }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    else // if (c_elempack == 4)
+                    {
+                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4));
+                        pC += 4;
+                    }
+                    if (beta == 1.f)
                     {
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                     }
-                    if (broadcast_type_C == 3)
+                    else
                     {
-                        if (c_elempack == 1)
-                        {
-                            uint16x8_t _c = uint16x8_t();
-                            _c = vsetq_lane_u16(pC[0], _c, 0);
-                            _c = vsetq_lane_u16(pC[c_hstep], _c, 1);
-                            _c = vsetq_lane_u16(pC[c_hstep * 2], _c, 2);
-                            _c = vsetq_lane_u16(pC[c_hstep * 3], _c, 3);
-                            _c = vsetq_lane_u16(pC[c_hstep * 4], _c, 4);
-                            _c = vsetq_lane_u16(pC[c_hstep * 5], _c, 5);
-                            _c = vsetq_lane_u16(pC[c_hstep * 6], _c, 6);
-                            _c = vsetq_lane_u16(pC[c_hstep * 7], _c, 7);
-                            _c0 = bfloat2float(vget_low_u16(_c));
-                            _c1 = bfloat2float(vget_high_u16(_c));
-                            pC += 1;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4));
-                            pC += 4;
-                        }
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        pC += 1;
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
                     }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
+                    _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    pC += 1;
                 }
+            }
 
-                uint16x4_t _fb0 = float2bfloat(_f0);
-                uint16x4_t _fb1 = float2bfloat(_f1);
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+            }
 
-                p0[0] = vget_lane_u16(_fb0, 0);
-                p0[out_hstep] = vget_lane_u16(_fb0, 1);
-                p0[out_hstep * 2] = vget_lane_u16(_fb0, 2);
-                p0[out_hstep * 3] = vget_lane_u16(_fb0, 3);
-                p0[out_hstep * 4] = vget_lane_u16(_fb1, 0);
-                p0[out_hstep * 5] = vget_lane_u16(_fb1, 1);
-                p0[out_hstep * 6] = vget_lane_u16(_fb1, 2);
-                p0[out_hstep * 7] = vget_lane_u16(_fb1, 3);
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
 
-                pp += 8;
+            if (out_elempack == 4)
+            {
+                vst1_u16(p0, _bf0);
+                vst1_u16(p0 + out_hstep * 4, _bf1);
+                p0 += 4;
+            }
+            else // if (out_elempack == 1)
+            {
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                p0[out_hstep * 4] = vget_lane_u16(_bf1, 0);
+                p0[out_hstep * 5] = vget_lane_u16(_bf1, 1);
+                p0[out_hstep * 6] = vget_lane_u16(_bf1, 2);
+                p0[out_hstep * 7] = vget_lane_u16(_bf1, 3);
                 p0++;
             }
+
+            pp += 8;
         }
     }
     for (; ii + 3 < max_ii; ii += 4)
@@ -6130,186 +5214,143 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
             }
         }
 
-        if (out_elempack == 4)
-        {
-            int jj = 0;
+        int jj = 0;
 #if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+            int32x4_t _sum4 = vld1q_s32(pp + 16);
+            int32x4_t _sum5 = vld1q_s32(pp + 20);
+            int32x4_t _sum6 = vld1q_s32(pp + 24);
+            int32x4_t _sum7 = vld1q_s32(pp + 28);
 
 #if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      a4 b4 c4 d4
+            //      a5 b5 c5 d5
+            //      a6 b6 c6 d6
+            //      a7 b7 c7 d7
 #else
-                // from
-                //      a0 b1 c2 d3
-                //      a4 b5 c6 d7
-                //      c0 d1 a2 b3
-                //      c4 d5 a6 b7
-                //      a3 b2 c1 d0
-                //      a7 b6 c5 d4
-                //      c3 d2 a1 b0
-                //      c7 d6 a5 b4
+            // from
+            //      a0 b1 c2 d3
+            //      a4 b5 c6 d7
+            //      c0 d1 a2 b3
+            //      c4 d5 a6 b7
+            //      a3 b2 c1 d0
+            //      a7 b6 c5 d4
+            //      c3 d2 a1 b0
+            //      c7 d6 a5 b4
 
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                {
-                    _sum4 = vrev64q_s32(_sum4);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum6 = vrev64q_s32(_sum6);
-                    _sum7 = vrev64q_s32(_sum7);
-                    _sum4 = vextq_s32(_sum4, _sum4, 2);
-                    _sum5 = vextq_s32(_sum5, _sum5, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
-                    int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
-                    int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum7 = vrev64q_s32(_sum7);
-                }
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      a4 b4 c4 d4
+            //      a5 b5 c5 d5
+            //      a6 b6 c6 d6
+            //      a7 b7 c7 d7
+            {
+                _sum4 = vrev64q_s32(_sum4);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum6 = vrev64q_s32(_sum6);
+                _sum7 = vrev64q_s32(_sum7);
+                _sum4 = vextq_s32(_sum4, _sum4, 2);
+                _sum5 = vextq_s32(_sum5, _sum5, 2);
+                _sum6 = vextq_s32(_sum6, _sum6, 2);
+                _sum7 = vextq_s32(_sum7, _sum7, 2);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
+                int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
+                int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
+                int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
+                _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
+                _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
+                _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
+                _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum7 = vrev64q_s32(_sum7);
+            }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
-                float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale);
-                float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale);
-                float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale);
-                float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
+            float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale);
+            float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale);
+            float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale);
+            float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    uint16x8_t _c01;
+                    uint16x8_t _c23;
+                    uint16x8_t _c45;
+                    uint16x8_t _c67;
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
+                        _c01 = vld1q_u16(pC);
+                        _c23 = vld1q_u16(pC + c_hstep);
+                        _c45 = vld1q_u16(pC + c_hstep * 2);
+                        _c67 = vld1q_u16(pC + c_hstep * 3);
+                        transpose8x4_u16(_c01, _c23, _c45, _c67);
+                        pC += 8;
                     }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    else // if (c_elempack == 4)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
+                        _c01 = vld1q_u16(pC);
+                        _c23 = vld1q_u16(pC + 8);
+                        _c45 = vld1q_u16(pC + 16);
+                        _c67 = vld1q_u16(pC + 24);
+                        pC += 32;
                     }
-                    if (broadcast_type_C == 3)
+                    _c0 = bfloat2float(vget_low_u16(_c01));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
+                    float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                    float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                    float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
+                    float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
+                    float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
+                    float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                    if (beta == 1.f)
                     {
-                        uint16x8_t _c01;
-                        uint16x8_t _c23;
-                        uint16x8_t _c45;
-                        uint16x8_t _c67;
-                        if (c_elempack == 1)
-                        {
-                            _c01 = vld1q_u16(pC);
-                            _c23 = vld1q_u16(pC + c_hstep);
-                            _c45 = vld1q_u16(pC + c_hstep * 2);
-                            _c67 = vld1q_u16(pC + c_hstep * 3);
-                            transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            pC += 8;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c01 = vld1q_u16(pC);
-                            _c23 = vld1q_u16(pC + 8);
-                            _c45 = vld1q_u16(pC + 16);
-                            _c67 = vld1q_u16(pC + 24);
-                            pC += 32;
-                        }
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                        float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                        float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                        float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                        float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                            _f4 = vaddq_f32(_f4, _c4);
-                            _f5 = vaddq_f32(_f5, _c5);
-                            _f6 = vaddq_f32(_f6, _c6);
-                            _f7 = vaddq_f32(_f7, _c7);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            _f4 = vmlaq_f32(_f4, _c4, _beta);
-                            _f5 = vmlaq_f32(_f5, _c5, _beta);
-                            _f6 = vmlaq_f32(_f6, _c6, _beta);
-                            _f7 = vmlaq_f32(_f7, _c7, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c = vld1q_u16(pC);
-                        float32x4_t _cc0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _cc1 = bfloat2float(vget_high_u16(_c));
-                        if (beta != 1.f)
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _cc0 = vmulq_f32(_cc0, _beta);
-                            _cc1 = vmulq_f32(_cc1, _beta);
-                        }
-                        _c0 = vdupq_laneq_f32(_cc0, 0);
-                        float32x4_t _c1 = vdupq_laneq_f32(_cc0, 1);
-                        float32x4_t _c2 = vdupq_laneq_f32(_cc0, 2);
-                        float32x4_t _c3 = vdupq_laneq_f32(_cc0, 3);
-                        float32x4_t _c4 = vdupq_laneq_f32(_cc1, 0);
-                        float32x4_t _c5 = vdupq_laneq_f32(_cc1, 1);
-                        float32x4_t _c6 = vdupq_laneq_f32(_cc1, 2);
-                        float32x4_t _c7 = vdupq_laneq_f32(_cc1, 3);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                         _f2 = vaddq_f32(_f2, _c2);
@@ -6318,902 +5359,433 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
                         _f5 = vaddq_f32(_f5, _c5);
                         _f6 = vaddq_f32(_f6, _c6);
                         _f7 = vaddq_f32(_f7, _c7);
-                        pC += 8;
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
+                        _f4 = vmlaq_f32(_f4, _c4, _beta);
+                        _f5 = vmlaq_f32(_f5, _c5, _beta);
+                        _f6 = vmlaq_f32(_f6, _c6, _beta);
+                        _f7 = vmlaq_f32(_f7, _c7, _beta);
                     }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
+                    uint16x8_t _c = vld1q_u16(pC);
+                    float32x4_t _cc0 = bfloat2float(vget_low_u16(_c));
+                    float32x4_t _cc1 = bfloat2float(vget_high_u16(_c));
+                    if (beta != 1.f)
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _cc0 = vmulq_f32(_cc0, _beta);
+                        _cc1 = vmulq_f32(_cc1, _beta);
+                    }
+                    _c0 = vdupq_laneq_f32(_cc0, 0);
+                    float32x4_t _c1 = vdupq_laneq_f32(_cc0, 1);
+                    float32x4_t _c2 = vdupq_laneq_f32(_cc0, 2);
+                    float32x4_t _c3 = vdupq_laneq_f32(_cc0, 3);
+                    float32x4_t _c4 = vdupq_laneq_f32(_cc1, 0);
+                    float32x4_t _c5 = vdupq_laneq_f32(_cc1, 1);
+                    float32x4_t _c6 = vdupq_laneq_f32(_cc1, 2);
+                    float32x4_t _c7 = vdupq_laneq_f32(_cc1, 3);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    _f4 = vaddq_f32(_f4, _c4);
+                    _f5 = vaddq_f32(_f5, _c5);
+                    _f6 = vaddq_f32(_f6, _c6);
+                    _f7 = vaddq_f32(_f7, _c7);
+                    pC += 8;
                 }
+            }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + 16, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + 24, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+                _f4 = vmulq_f32(_f4, _alpha);
+                _f5 = vmulq_f32(_f5, _alpha);
+                _f6 = vmulq_f32(_f6, _alpha);
+                _f7 = vmulq_f32(_f7, _alpha);
+            }
 
-                pp += 32;
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+            uint16x4_t _bf4 = float2bfloat(_f4);
+            uint16x4_t _bf5 = float2bfloat(_f5);
+            uint16x4_t _bf6 = float2bfloat(_f6);
+            uint16x4_t _bf7 = float2bfloat(_f7);
+
+            if (out_elempack == 4)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
+                vst1q_u16(p0 + 16, vcombine_u16(_bf4, _bf5));
+                vst1q_u16(p0 + 24, vcombine_u16(_bf6, _bf7));
                 p0 += 32;
             }
-#endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
+            else // if (out_elempack == 1)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
+                transpose4x4_u16(_bf0, _bf1, _bf2, _bf3);
+                transpose4x4_u16(_bf4, _bf5, _bf6, _bf7);
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf4));
+                vst1q_u16(p0 + out_hstep, vcombine_u16(_bf1, _bf5));
+                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(_bf2, _bf6));
+                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(_bf3, _bf7));
+                p0 += 8;
+            }
+
+            pp += 32;
+        }
+#endif // __aarch64__
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
 
 #if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
 #else
-                // from
-                //      a0 b1 c2 d3
-                //      c0 d1 a2 b3
-                //      a3 b2 c1 d0
-                //      c3 d2 a1 b0
+            // from
+            //      a0 b1 c2 d3
+            //      c0 d1 a2 b3
+            //      a3 b2 c1 d0
+            //      c3 d2 a1 b0
 
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                {
-                    _sum2 = vrev64q_s32(_sum2);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum2 = vextq_s32(_sum2, _sum2, 2);
-                    _sum3 = vextq_s32(_sum3, _sum3, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum3);
-                    int32x4x2_t _t1 = vzipq_s32(_sum1, _sum2);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                }
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            {
+                _sum2 = vrev64q_s32(_sum2);
+                _sum3 = vrev64q_s32(_sum3);
+                _sum2 = vextq_s32(_sum2, _sum2, 2);
+                _sum3 = vextq_s32(_sum3, _sum3, 2);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum3);
+                int32x4x2_t _t1 = vzipq_s32(_sum1, _sum2);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+            }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    float32x4_t _c1;
+                    float32x4_t _c2;
+                    float32x4_t _c3;
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
+                        uint16x4_t _cc0 = vld1_u16(pC);
+                        uint16x4_t _cc1 = vld1_u16(pC + c_hstep * 1);
+                        uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
+                        uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
+                        transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
+                        _c0 = bfloat2float(_cc0);
+                        _c1 = bfloat2float(_cc1);
+                        _c2 = bfloat2float(_cc2);
+                        _c3 = bfloat2float(_cc3);
+                        pC += 4;
                     }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    else // if (c_elempack == 4)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
+                        uint16x8_t _c01 = vld1q_u16(pC);
+                        uint16x8_t _c23 = vld1q_u16(pC + 8);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c2 = bfloat2float(vget_low_u16(_c23));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
+                        pC += 16;
                     }
-                    if (broadcast_type_C == 3)
+                    if (beta == 1.f)
                     {
-                        float32x4_t _c1;
-                        float32x4_t _c2;
-                        float32x4_t _c3;
-                        if (c_elempack == 1)
-                        {
-                            uint16x4_t _cc0 = vld1_u16(pC);
-                            uint16x4_t _cc1 = vld1_u16(pC + c_hstep * 1);
-                            uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
-                            uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
-                            transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            _c2 = bfloat2float(_cc2);
-                            _c3 = bfloat2float(_cc3);
-                            pC += 4;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            pC += 16;
-                        }
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        float32x4_t _c = bfloat2float(vld1_u16(pC));
-                        _c = vmulq_n_f32(_c, beta);
-#if __aarch64__
-                        _c0 = vdupq_laneq_f32(_c, 0);
-                        float32x4_t _c1 = vdupq_laneq_f32(_c, 1);
-                        float32x4_t _c2 = vdupq_laneq_f32(_c, 2);
-                        float32x4_t _c3 = vdupq_laneq_f32(_c, 3);
-#else
-                        _c0 = vdupq_lane_f32(vget_low_f32(_c), 0);
-                        float32x4_t _c1 = vdupq_lane_f32(vget_low_f32(_c), 1);
-                        float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c), 0);
-                        float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c), 1);
-#endif
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                         _f2 = vaddq_f32(_f2, _c2);
                         _f3 = vaddq_f32(_f3, _c3);
-                        pC += 4;
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
                     }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
+                    float32x4_t _c = bfloat2float(vld1_u16(pC));
+                    _c = vmulq_n_f32(_c, beta);
+#if __aarch64__
+                    _c0 = vdupq_laneq_f32(_c, 0);
+                    float32x4_t _c1 = vdupq_laneq_f32(_c, 1);
+                    float32x4_t _c2 = vdupq_laneq_f32(_c, 2);
+                    float32x4_t _c3 = vdupq_laneq_f32(_c, 3);
+#else
+                    _c0 = vdupq_lane_f32(vget_low_f32(_c), 0);
+                    float32x4_t _c1 = vdupq_lane_f32(vget_low_f32(_c), 1);
+                    float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c), 0);
+                    float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c), 1);
+#endif
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    pC += 4;
                 }
+            }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
 
-                pp += 16;
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+
+            if (out_elempack == 4)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
                 p0 += 16;
             }
-            for (; jj + 1 < max_jj; jj += 2)
+            else // if (out_elempack == 1)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-
-#if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-#else
-                // from
-                //      a0 b1 c0 d1
-                //      a1 b0 c1 d0
-
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                {
-                    _sum1 = vrev64q_s32(_sum1);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t0.val[1]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t0.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        uint16x8_t _c;
-                        if (c_elempack == 1)
-                        {
-                            _c = uint16x8_t();
-                            _c = vsetq_lane_u16(pC[0], _c, 0);
-                            _c = vsetq_lane_u16(pC[c_hstep], _c, 1);
-                            _c = vsetq_lane_u16(pC[c_hstep * 2], _c, 2);
-                            _c = vsetq_lane_u16(pC[c_hstep * 3], _c, 3);
-                            _c = vsetq_lane_u16(pC[1], _c, 4);
-                            _c = vsetq_lane_u16(pC[c_hstep + 1], _c, 5);
-                            _c = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c, 6);
-                            _c = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c, 7);
-                            pC += 2;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c = vld1q_u16(pC);
-                            pC += 8;
-                        }
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        float32x4_t _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        pC += 2;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-
-                pp += 8;
-                p0 += 8;
-            }
-            for (; jj < max_jj; jj++)
-            {
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        uint16x4_t _c;
-                        if (c_elempack == 1)
-                        {
-                            _c = uint16x4_t();
-                            _c = vset_lane_u16(pC[0], _c, 0);
-                            _c = vset_lane_u16(pC[c_hstep], _c, 1);
-                            _c = vset_lane_u16(pC[c_hstep * 2], _c, 2);
-                            _c = vset_lane_u16(pC[c_hstep * 3], _c, 3);
-                            pC += 1;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c = vld1_u16(pC);
-                            pC += 4;
-                        }
-                        _c0 = bfloat2float(_c);
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        pC += 1;
-                    }
-                }
-
-                _f0 = vmulq_n_f32(_f0, alpha);
-
-                vst1_u16(p0, float2bfloat(_f0));
-
-                pp += 4;
+                transpose4x4_u16(_bf0, _bf1, _bf2, _bf3);
+                vst1_u16(p0, _bf0);
+                vst1_u16(p0 + out_hstep, _bf1);
+                vst1_u16(p0 + out_hstep * 2, _bf2);
+                vst1_u16(p0 + out_hstep * 3, _bf3);
                 p0 += 4;
             }
+
+            pp += 16;
         }
-        if (out_elempack == 1)
+        for (; jj + 1 < max_jj; jj += 2)
         {
-            int jj = 0;
-#if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
 
 #if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-
-                // to
-                //      a0 a1 a2 a3
-                //      a4 a5 a6 a7
-                //      b0 b1 b2 b3
-                //      b4 b5 b6 b7
-                //      c0 c1 c2 c3
-                //      c4 c5 c6 c7
-                //      d0 d1 d2 d3
-                //      d4 d5 d6 d7
-                {
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum3);
-                    int32x4x2_t _t2 = vzipq_s32(_sum4, _sum5);
-                    int32x4x2_t _t3 = vzipq_s32(_sum6, _sum7);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t0.val[1]), vget_low_s32(_t1.val[1]));
-                    _sum5 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
-                    _sum6 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
-                }
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
 #else
-                // from
-                //      a0 b1 c2 d3
-                //      a4 b5 c6 d7
-                //      c0 d1 a2 b3
-                //      c4 d5 a6 b7
-                //      a3 b2 c1 d0
-                //      a7 b6 c5 d4
-                //      c3 d2 a1 b0
-                //      c7 d6 a5 b4
+            // from
+            //      a0 b1 c0 d1
+            //      a1 b0 c1 d0
 
-                // to
-                //      a0 a1 a2 a3
-                //      a4 a5 a6 a7
-                //      b0 b1 b2 b3
-                //      b4 b5 b6 b7
-                //      c0 c1 c2 c3
-                //      c4 c5 c6 c7
-                //      d0 d1 d2 d3
-                //      d4 d5 d6 d7
-                {
-                    _sum2 = vextq_s32(_sum2, _sum2, 2);
-                    _sum3 = vextq_s32(_sum3, _sum3, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
-                    int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
-                    int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum5 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum6 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum2 = vrev64q_s32(_sum2);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum6 = vrev64q_s32(_sum6);
-                    _sum7 = vrev64q_s32(_sum7);
-                }
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            {
+                _sum1 = vrev64q_s32(_sum1);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t0.val[1]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t0.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+            }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_laneq_f32(vcvtq_f32_s32(_sum0), _descale, 0);
-                float32x4_t _f1 = vmulq_laneq_f32(vcvtq_f32_s32(_sum1), _descale, 0);
-                float32x4_t _f2 = vmulq_laneq_f32(vcvtq_f32_s32(_sum2), _descale, 1);
-                float32x4_t _f3 = vmulq_laneq_f32(vcvtq_f32_s32(_sum3), _descale, 1);
-                float32x4_t _f4 = vmulq_laneq_f32(vcvtq_f32_s32(_sum4), _descale, 2);
-                float32x4_t _f5 = vmulq_laneq_f32(vcvtq_f32_s32(_sum5), _descale, 2);
-                float32x4_t _f6 = vmulq_laneq_f32(vcvtq_f32_s32(_sum6), _descale, 3);
-                float32x4_t _f7 = vmulq_laneq_f32(vcvtq_f32_s32(_sum7), _descale, 3);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    uint16x8_t _c;
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
+                        _c = uint16x8_t();
+                        _c = vsetq_lane_u16(pC[0], _c, 0);
+                        _c = vsetq_lane_u16(pC[c_hstep], _c, 1);
+                        _c = vsetq_lane_u16(pC[c_hstep * 2], _c, 2);
+                        _c = vsetq_lane_u16(pC[c_hstep * 3], _c, 3);
+                        _c = vsetq_lane_u16(pC[1], _c, 4);
+                        _c = vsetq_lane_u16(pC[c_hstep + 1], _c, 5);
+                        _c = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c, 6);
+                        _c = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c, 7);
+                        pC += 2;
                     }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    else // if (c_elempack == 4)
                     {
-                        float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
-                        float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
-                        float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
-                        float32x4_t _cc3 = vdupq_laneq_f32(_c0, 3);
-                        _f0 = vaddq_f32(_f0, _cc0);
-                        _f1 = vaddq_f32(_f1, _cc0);
-                        _f2 = vaddq_f32(_f2, _cc1);
-                        _f3 = vaddq_f32(_f3, _cc1);
-                        _f4 = vaddq_f32(_f4, _cc2);
-                        _f5 = vaddq_f32(_f5, _cc2);
-                        _f6 = vaddq_f32(_f6, _cc3);
-                        _f7 = vaddq_f32(_f7, _cc3);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4_t _c1;
-                        float32x4_t _c2;
-                        float32x4_t _c3;
-                        float32x4_t _c4;
-                        float32x4_t _c5;
-                        float32x4_t _c6;
-                        float32x4_t _c7;
-                        if (c_elempack == 1)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                            uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
-                            uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
-                            pC += 8;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8x4_t _cc = vld4q_u16(pC);
-                            _c0 = bfloat2float(vget_low_u16(_cc.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_cc.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_cc.val[1]));
-                            _c4 = bfloat2float(vget_low_u16(_cc.val[2]));
-                            _c5 = bfloat2float(vget_high_u16(_cc.val[2]));
-                            _c6 = bfloat2float(vget_low_u16(_cc.val[3]));
-                            _c7 = bfloat2float(vget_high_u16(_cc.val[3]));
-                            pC += 32;
-                        }
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                            _f4 = vaddq_f32(_f4, _c4);
-                            _f5 = vaddq_f32(_f5, _c5);
-                            _f6 = vaddq_f32(_f6, _c6);
-                            _f7 = vaddq_f32(_f7, _c7);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            _f4 = vmlaq_f32(_f4, _c4, _beta);
-                            _f5 = vmlaq_f32(_f5, _c5, _beta);
-                            _f6 = vmlaq_f32(_f6, _c6, _beta);
-                            _f7 = vmlaq_f32(_f7, _c7, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta != 1.f)
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _c0 = vmulq_f32(_c0, _beta);
-                            _c1 = vmulq_f32(_c1, _beta);
-                        }
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c1);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c1);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c1);
+                        _c = vld1q_u16(pC);
                         pC += 8;
                     }
+                    _c0 = bfloat2float(vget_low_u16(_c));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                    }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
+                    _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                    float32x4_t _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    pC += 2;
                 }
+            }
 
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+            }
 
-                pp += 32;
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+
+            if (out_elempack == 4)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
                 p0 += 8;
             }
-#endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
+            else // if (out_elempack == 1)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-#if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-
-                // to
-                //      a0 a1 a2 a3
-                //      b0 b1 b2 b3
-                //      c0 c1 c2 c3
-                //      d0 d1 d2 d3
-                {
-                    int32x4x2_t _r01 = vzipq_s32(_sum0, _sum1);
-                    int32x4x2_t _r23 = vzipq_s32(_sum2, _sum3);
-                    _sum0 = vcombine_s32(vget_low_s32(_r01.val[0]), vget_low_s32(_r23.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_r01.val[0]), vget_high_s32(_r23.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_r01.val[1]), vget_low_s32(_r23.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_r01.val[1]), vget_high_s32(_r23.val[1]));
-                }
-#else
-                // from
-                //      a0 b1 c2 d3
-                //      c0 d1 a2 b3
-                //      a3 b2 c1 d0
-                //      c3 d2 a1 b0
-
-                // to
-                //      a0 a1 a2 a3
-                //      b0 b1 b2 b3
-                //      c0 c1 c2 c3
-                //      d0 d1 d2 d3
-                {
-                    _sum1 = vextq_s32(_sum1, _sum1, 2);
-                    _sum3 = vextq_s32(_sum3, _sum3, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum3);
-                    int32x4x2_t _t1 = vzipq_s32(_sum1, _sum2);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-#if __aarch64__
-                float32x4_t _f0 = vmulq_laneq_f32(vcvtq_f32_s32(_sum0), _descale, 0);
-                float32x4_t _f1 = vmulq_laneq_f32(vcvtq_f32_s32(_sum1), _descale, 1);
-                float32x4_t _f2 = vmulq_laneq_f32(vcvtq_f32_s32(_sum2), _descale, 2);
-                float32x4_t _f3 = vmulq_laneq_f32(vcvtq_f32_s32(_sum3), _descale, 3);
-#else
-                float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), vget_low_f32(_descale), 0);
-                float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), vget_low_f32(_descale), 1);
-                float32x4_t _f2 = vmulq_lane_f32(vcvtq_f32_s32(_sum2), vget_high_f32(_descale), 0);
-                float32x4_t _f3 = vmulq_lane_f32(vcvtq_f32_s32(_sum3), vget_high_f32(_descale), 1);
-#endif
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-#if __aarch64__
-                        float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
-                        float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
-                        float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
-                        float32x4_t _cc3 = vdupq_laneq_f32(_c0, 3);
-#else
-                        float32x4_t _cc0 = vdupq_lane_f32(vget_low_f32(_c0), 0);
-                        float32x4_t _cc1 = vdupq_lane_f32(vget_low_f32(_c0), 1);
-                        float32x4_t _cc2 = vdupq_lane_f32(vget_high_f32(_c0), 0);
-                        float32x4_t _cc3 = vdupq_lane_f32(vget_high_f32(_c0), 1);
-#endif
-                        _f0 = vaddq_f32(_f0, _cc0);
-                        _f1 = vaddq_f32(_f1, _cc1);
-                        _f2 = vaddq_f32(_f2, _cc2);
-                        _f3 = vaddq_f32(_f3, _cc3);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4_t _c1;
-                        float32x4_t _c2;
-                        float32x4_t _c3;
-                        if (c_elempack == 1)
-                        {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 3));
-                            pC += 4;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x4x4_t _c = vld4_u16(pC);
-                            _c0 = bfloat2float(_c.val[0]);
-                            _c1 = bfloat2float(_c.val[1]);
-                            _c2 = bfloat2float(_c.val[2]);
-                            _c3 = bfloat2float(_c.val[3]);
-                            pC += 16;
-                        }
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _c0 = vmulq_n_f32(_c0, beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        pC += 4;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                }
-
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-                vst1_u16(p0 + out_hstep * 2, float2bfloat(_f2));
-                vst1_u16(p0 + out_hstep * 3, float2bfloat(_f3));
-
-                pp += 16;
-                p0 += 4;
-            }
-            for (; jj + 1 < max_jj; jj += 2)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-
-#if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-
-                // to
-                //      a0 a1 b0 b1
-                //      c0 c1 d0 d1
-                {
-                    int32x4x2_t _sum01 = vzipq_s32(_sum0, _sum1);
-                    _sum0 = _sum01.val[0];
-                    _sum1 = _sum01.val[1];
-                }
-#else
-                // from
-                //      a0 b1 c0 d1
-                //      a1 b0 c1 d0
-
-                // to
-                //      a0 a1 b0 b1
-                //      c0 c1 d0 d1
-                {
-                    int32x4_t _t0 = vuzpq_s32(_sum0, _sum1).val[0];
-                    int32x4_t _t1 = vuzpq_s32(_sum1, _sum0).val[1];
-                    int32x4x2_t _t3 = vuzpq_s32(_t0, _t1);
-                    _sum0 = _t3.val[0];
-                    _sum1 = _t3.val[1];
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-                float32x4x2_t _descale01 = vzipq_f32(_descale, _descale);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale01.val[0]);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale01.val[1]);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        float32x4x2_t _cc0 = vzipq_f32(_c0, _c0);
-                        _f0 = vaddq_f32(_f0, _cc0.val[0]);
-                        _f1 = vaddq_f32(_f1, _cc0.val[1]);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4_t _c1;
-                        if (c_elempack == 1)
-                        {
-                            uint16x8_t _c = uint16x8_t();
-                            _c = vsetq_lane_u16(pC[0], _c, 0);
-                            _c = vsetq_lane_u16(pC[1], _c, 1);
-                            _c = vsetq_lane_u16(pC[c_hstep], _c, 2);
-                            _c = vsetq_lane_u16(pC[c_hstep + 1], _c, 3);
-                            _c = vsetq_lane_u16(pC[c_hstep * 2], _c, 4);
-                            _c = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c, 5);
-                            _c = vsetq_lane_u16(pC[c_hstep * 3], _c, 6);
-                            _c = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c, 7);
-                            _c0 = bfloat2float(vget_low_u16(_c));
-                            _c1 = bfloat2float(vget_high_u16(_c));
-                            pC += 2;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8_t _c = vld1q_u16(pC);
-                            uint16x4x2_t _c01 = vzip_u16(vget_low_u16(_c), vget_high_u16(_c));
-                            _c0 = bfloat2float(_c01.val[0]);
-                            _c1 = bfloat2float(_c01.val[1]);
-                            pC += 8;
-                        }
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x4_t _c = uint16x4_t();
-                        _c = vset_lane_u16(pC[0], _c, 0);
-                        _c = vset_lane_u16(pC[1], _c, 1);
-                        _c = vset_lane_u16(pC[0], _c, 2);
-                        _c = vset_lane_u16(pC[1], _c, 3);
-                        _c0 = bfloat2float(_c);
-                        _c0 = vmulq_n_f32(_c0, beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        pC += 2;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                }
-
-                uint16x4_t _fb0 = float2bfloat(_f0);
-                uint16x4_t _fb1 = float2bfloat(_f1);
-
-                p0[0] = vget_lane_u16(_fb0, 0);
-                p0[1] = vget_lane_u16(_fb0, 1);
-                p0[out_hstep] = vget_lane_u16(_fb0, 2);
-                p0[out_hstep + 1] = vget_lane_u16(_fb0, 3);
-                p0[out_hstep * 2] = vget_lane_u16(_fb1, 0);
-                p0[out_hstep * 2 + 1] = vget_lane_u16(_fb1, 1);
-                p0[out_hstep * 3] = vget_lane_u16(_fb1, 2);
-                p0[out_hstep * 3 + 1] = vget_lane_u16(_fb1, 3);
-
-                pp += 8;
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[1] = vget_lane_u16(_bf1, 0);
+                p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep + 1] = vget_lane_u16(_bf1, 1);
+                p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep * 2 + 1] = vget_lane_u16(_bf1, 2);
+                p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                p0[out_hstep * 3 + 1] = vget_lane_u16(_bf1, 3);
                 p0 += 2;
             }
-            for (; jj < max_jj; jj++)
-            {
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
 
-                if (pC)
+            pp += 8;
+        }
+        for (; jj < max_jj; jj++)
+        {
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    uint16x4_t _c;
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        uint16x4_t _c;
-                        if (c_elempack == 1)
-                        {
-                            _c = uint16x4_t();
-                            _c = vset_lane_u16(pC[0], _c, 0);
-                            _c = vset_lane_u16(pC[c_hstep], _c, 1);
-                            _c = vset_lane_u16(pC[c_hstep * 2], _c, 2);
-                            _c = vset_lane_u16(pC[c_hstep * 3], _c, 3);
-                            pC += 1;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c = vld1_u16(pC);
-                            pC += 4;
-                        }
-                        _c0 = bfloat2float(_c);
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        _f0 = vaddq_f32(_f0, _c0);
+                        _c = uint16x4_t();
+                        _c = vset_lane_u16(pC[0], _c, 0);
+                        _c = vset_lane_u16(pC[c_hstep], _c, 1);
+                        _c = vset_lane_u16(pC[c_hstep * 2], _c, 2);
+                        _c = vset_lane_u16(pC[c_hstep * 3], _c, 3);
                         pC += 1;
                     }
+                    else // if (c_elempack == 4)
+                    {
+                        _c = vld1_u16(pC);
+                        pC += 4;
+                    }
+                    _c0 = bfloat2float(_c);
+                    _f0 = vmlaq_n_f32(_f0, _c0, beta);
                 }
+                if (broadcast_type_C == 4)
+                {
+                    _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    pC += 1;
+                }
+            }
 
-                _f0 = vmulq_n_f32(_f0, alpha);
+            _f0 = vmulq_n_f32(_f0, alpha);
 
-                uint16x4_t _fb0 = float2bfloat(_f0);
+            uint16x4_t _bf0 = float2bfloat(_f0);
 
-                p0[0] = vget_lane_u16(_fb0, 0);
-                p0[out_hstep] = vget_lane_u16(_fb0, 1);
-                p0[out_hstep * 2] = vget_lane_u16(_fb0, 2);
-                p0[out_hstep * 3] = vget_lane_u16(_fb0, 3);
-
-                pp += 4;
+            if (out_elempack == 4)
+            {
+                vst1_u16(p0, _bf0);
+                p0 += 4;
+            }
+            else // if (out_elempack == 1)
+            {
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
                 p0++;
             }
+
+            pp += 4;
         }
     }
 #endif // __ARM_NEON
@@ -7264,263 +5836,260 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
             }
         }
 
-        // if (out_elempack == 1)
-        {
-            int jj = 0;
+        int jj = 0;
 #if __ARM_NEON
 #if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+
+            float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), _descale, 0);
+            float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), _descale, 0);
+            float32x4_t _f2 = vmulq_lane_f32(vcvtq_f32_s32(_sum2), _descale, 1);
+            float32x4_t _f3 = vmulq_lane_f32(vcvtq_f32_s32(_sum3), _descale, 1);
+
+            if (pC)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-                float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), _descale, 0);
-                float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), _descale, 0);
-                float32x4_t _f2 = vmulq_lane_f32(vcvtq_f32_s32(_sum2), _descale, 1);
-                float32x4_t _f3 = vmulq_lane_f32(vcvtq_f32_s32(_sum3), _descale, 1);
-
-                if (pC)
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c1);
+                    _f3 = vaddq_f32(_f3, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    uint16x8_t _c01 = vld1q_u16(pC);
+                    uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
+                    _c0 = bfloat2float(vget_low_u16(_c01));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
+                    float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                    float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                    if (beta == 1.f)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c1);
-                        _f3 = vaddq_f32(_f3, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        // c_elempack == 1
-                        uint16x8_t _c01 = vld1q_u16(pC);
-                        uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                        pC += 8;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta != 1.f)
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _c0 = vmulq_f32(_c0, _beta);
-                            _c1 = vmulq_f32(_c1, _beta);
-                        }
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c1);
-                        pC += 8;
+                        _f2 = vaddq_f32(_f2, _c2);
+                        _f3 = vaddq_f32(_f3, _c3);
                     }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
+                    }
+                    pC += 8;
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
+                    uint16x8_t _c = vld1q_u16(pC);
+                    _c0 = bfloat2float(vget_low_u16(_c));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                    if (beta != 1.f)
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _c0 = vmulq_f32(_c0, _beta);
+                        _c1 = vmulq_f32(_c1, _beta);
+                    }
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c1);
+                    pC += 8;
                 }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-
-                pp += 16;
-                p0 += 8;
             }
+
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
+
+            vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
+            vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
+
+            pp += 16;
+            p0 += 8;
+        }
 #endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+
+            float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), _descale, 0);
+            float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), _descale, 1);
+
+            if (pC)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-
-                float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), _descale, 0);
-                float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), _descale, 1);
-
-                if (pC)
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    _c0 = bfloat2float(vld1_u16(pC));
+                    float32x4_t _c1 = bfloat2float(vld1_u16(pC + c_hstep));
+                    if (beta == 1.f)
                     {
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                     }
-                    if (broadcast_type_C == 3)
+                    else
                     {
-                        // c_elempack == 1
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        float32x4_t _c1 = bfloat2float(vld1_u16(pC + c_hstep));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                        pC += 4;
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
                     }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _c0 = vmulq_n_f32(_c0, beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        pC += 4;
-                    }
+                    pC += 4;
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
+                    _c0 = bfloat2float(vld1_u16(pC));
+                    _c0 = vmulq_n_f32(_c0, beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    pC += 4;
                 }
-
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-
-                pp += 8;
-                p0 += 4;
             }
-            for (; jj + 1 < max_jj; jj += 2)
+
+            if (alpha != 1.f)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-
-                float32x2x2_t _descale01 = vzip_f32(_descale, _descale);
-                float32x4_t _descale0011 = vcombine_f32(_descale01.val[0], _descale01.val[1]);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0011);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        float32x4_t _c0011 = vcombine_f32(vget_low_f32(_c0), vget_high_f32(_c1));
-                        _f0 = vaddq_f32(_f0, _c0011);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        // c_elempack == 1
-                        uint16x4_t _c = uint16x4_t();
-                        _c = vset_lane_u16(pC[0], _c, 0);
-                        _c = vset_lane_u16(pC[1], _c, 1);
-                        _c = vset_lane_u16(pC[c_hstep], _c, 2);
-                        _c = vset_lane_u16(pC[c_hstep + 1], _c, 3);
-                        _c0 = bfloat2float(_c);
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                        pC += 2;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x4_t _c = uint16x4_t();
-                        _c = vset_lane_u16(pC[0], _c, 0);
-                        _c = vset_lane_u16(pC[1], _c, 1);
-                        _c = vset_lane_u16(pC[0], _c, 2);
-                        _c = vset_lane_u16(pC[1], _c, 3);
-                        _c0 = bfloat2float(_c);
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                        pC += 2;
-                    }
-                }
-
-                _f0 = vmulq_n_f32(_f0, alpha);
-
-                uint16x4_t _bf0 = float2bfloat(_f0);
-
-                p0[0] = vget_lane_u16(_bf0, 0);
-                p0[1] = vget_lane_u16(_bf0, 1);
-                p0[out_hstep] = vget_lane_u16(_bf0, 2);
-                p0[out_hstep + 1] = vget_lane_u16(_bf0, 3);
-
-                pp += 4;
-                p0 += 2;
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
             }
+
+            vst1_u16(p0, float2bfloat(_f0));
+            vst1_u16(p0 + out_hstep, float2bfloat(_f1));
+
+            pp += 8;
+            p0 += 4;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+
+            float32x2x2_t _descale01 = vzip_f32(_descale, _descale);
+            float32x4_t _descale0011 = vcombine_f32(_descale01.val[0], _descale01.val[1]);
+
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0011);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _c0011 = vcombine_f32(vget_low_f32(_c0), vget_high_f32(_c1));
+                    _f0 = vaddq_f32(_f0, _c0011);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    uint16x4_t _c = uint16x4_t();
+                    _c = vset_lane_u16(pC[0], _c, 0);
+                    _c = vset_lane_u16(pC[1], _c, 1);
+                    _c = vset_lane_u16(pC[c_hstep], _c, 2);
+                    _c = vset_lane_u16(pC[c_hstep + 1], _c, 3);
+                    _c0 = bfloat2float(_c);
+                    _f0 = vmlaq_n_f32(_f0, _c0, beta);
+                    pC += 2;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    uint16x4_t _c = uint16x4_t();
+                    _c = vset_lane_u16(pC[0], _c, 0);
+                    _c = vset_lane_u16(pC[1], _c, 1);
+                    _c = vset_lane_u16(pC[0], _c, 2);
+                    _c = vset_lane_u16(pC[1], _c, 3);
+                    _c0 = bfloat2float(_c);
+                    _f0 = vmlaq_n_f32(_f0, _c0, beta);
+                    pC += 2;
+                }
+            }
+
+            _f0 = vmulq_n_f32(_f0, alpha);
+
+            uint16x4_t _bf0 = float2bfloat(_f0);
+
+            p0[0] = vget_lane_u16(_bf0, 0);
+            p0[1] = vget_lane_u16(_bf0, 1);
+            p0[out_hstep] = vget_lane_u16(_bf0, 2);
+            p0[out_hstep + 1] = vget_lane_u16(_bf0, 3);
+
+            pp += 4;
+            p0 += 2;
+        }
 #endif // __ARM_NEON
-            for (; jj < max_jj; jj++)
+        for (; jj < max_jj; jj++)
+        {
+            float f0 = pp[0] * descale0;
+            float f1 = pp[1] * descale1;
+
+            if (pC)
             {
-                float f0 = pp[0] * descale0;
-                float f1 = pp[1] * descale1;
-
-                if (pC)
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
-                    {
-                        f0 += c0;
-                        f1 += c0;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        f0 += c0;
-                        f1 += c1;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        // c_elempack == 1
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
-                        f1 += bfloat16_to_float32(pC[c_hstep]) * beta;
-                        pC += 1;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
-                        f1 += bfloat16_to_float32(pC[0]) * beta;
-                        pC += 1;
-                    }
+                    f0 += c0;
+                    f1 += c0;
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    f0 *= alpha;
-                    f1 *= alpha;
+                    f0 += c0;
+                    f1 += c1;
                 }
-
-                p0[0] = float32_to_bfloat16(f0);
-                p0[out_hstep] = float32_to_bfloat16(f1);
-
-                pp += 2;
-                p0++;
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    f0 += bfloat16_to_float32(pC[0]) * beta;
+                    f1 += bfloat16_to_float32(pC[c_hstep]) * beta;
+                    pC += 1;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    f0 += bfloat16_to_float32(pC[0]) * beta;
+                    f1 += bfloat16_to_float32(pC[0]) * beta;
+                    pC += 1;
+                }
             }
+
+            if (alpha != 1.f)
+            {
+                f0 *= alpha;
+                f1 *= alpha;
+            }
+
+            p0[0] = float32_to_bfloat16(f0);
+            p0[out_hstep] = float32_to_bfloat16(f1);
+
+            pp += 2;
+            p0++;
         }
     }
     for (; ii < max_ii; ii += 1)
@@ -7565,203 +6134,200 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
             }
         }
 
-        // if (out_elempack == 1)
-        {
-            int jj = 0;
+        int jj = 0;
 #if __ARM_NEON
-            for (; jj + 15 < max_jj; jj += 16)
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
+
+            if (pC)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
-
-                if (pC)
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    // c_elempack == 1
+                    uint16x8_t _c01 = vld1q_u16(pC);
+                    uint16x8_t _c23 = vld1q_u16(pC + 8);
+                    _c0 = bfloat2float(vget_low_u16(_c01));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
+                    float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                    float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                    if (beta == 1.f)
                     {
                         _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                        _f2 = vaddq_f32(_f2, _c2);
+                        _f3 = vaddq_f32(_f3, _c3);
                     }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    else
                     {
-                        // c_elempack == 1
-                        uint16x8_t _c01 = vld1q_u16(pC);
-                        uint16x8_t _c23 = vld1q_u16(pC + 8);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                        pC += 16;
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
                     }
+                    pC += 16;
                 }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-
-                pp += 16;
-                p0 += 16;
             }
-            for (; jj + 7 < max_jj; jj += 8)
+
+            if (alpha != 1.f)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
 
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
+            vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
 
-                if (pC)
+            pp += 16;
+            p0 += 16;
+        }
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    // c_elempack == 1
+                    uint16x8_t _c01 = vld1q_u16(pC);
+                    _c0 = bfloat2float(vget_low_u16(_c01));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
+                    if (beta == 1.f)
                     {
                         _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
                     }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    else
                     {
-                        // c_elempack == 1
-                        uint16x8_t _c01 = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                        pC += 8;
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
                     }
+                    pC += 8;
                 }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-
-                pp += 8;
-                p0 += 8;
             }
-            for (; jj + 3 < max_jj; jj += 4)
+
+            if (alpha != 1.f)
             {
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        // c_elempack == 1
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                        pC += 4;
-                    }
-                }
-
-                _f0 = vmulq_n_f32(_f0, alpha);
-
-                vst1_u16(p0, float2bfloat(_f0));
-
-                pp += 4;
-                p0 += 4;
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
             }
-            for (; jj + 1 < max_jj; jj += 2)
+
+            vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
+
+            pp += 8;
+            p0 += 8;
+        }
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
+
+            if (pC)
             {
-                float32x2_t _f0 = vmul_f32(vcvt_f32_s32(vld1_s32(pp)), vget_low_f32(_descale));
-
-                if (pC)
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vadd_f32(_f0, vget_low_f32(_c0));
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        // c_elempack == 1
-                        float32x2_t _cc = float32x2_t();
-                        _cc = vset_lane_f32(bfloat16_to_float32(pC[0]), _cc, 0);
-                        _cc = vset_lane_f32(bfloat16_to_float32(pC[1]), _cc, 1);
-                        _f0 = vmla_n_f32(_f0, _cc, beta);
-                        pC += 2;
-                    }
+                    _f0 = vaddq_f32(_f0, _c0);
                 }
-
-                _f0 = vmul_n_f32(_f0, alpha);
-
-                p0[0] = float32_to_bfloat16(vget_lane_f32(_f0, 0));
-                p0[1] = float32_to_bfloat16(vget_lane_f32(_f0, 1));
-
-                pp += 2;
-                p0 += 2;
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    // c_elempack == 1
+                    _c0 = bfloat2float(vld1_u16(pC));
+                    _f0 = vmlaq_n_f32(_f0, _c0, beta);
+                    pC += 4;
+                }
             }
+
+            _f0 = vmulq_n_f32(_f0, alpha);
+
+            vst1_u16(p0, float2bfloat(_f0));
+
+            pp += 4;
+            p0 += 4;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            float32x2_t _f0 = vmul_f32(vcvt_f32_s32(vld1_s32(pp)), vget_low_f32(_descale));
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vadd_f32(_f0, vget_low_f32(_c0));
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    // c_elempack == 1
+                    float32x2_t _cc = float32x2_t();
+                    _cc = vset_lane_f32(bfloat16_to_float32(pC[0]), _cc, 0);
+                    _cc = vset_lane_f32(bfloat16_to_float32(pC[1]), _cc, 1);
+                    _f0 = vmla_n_f32(_f0, _cc, beta);
+                    pC += 2;
+                }
+            }
+
+            _f0 = vmul_n_f32(_f0, alpha);
+
+            p0[0] = float32_to_bfloat16(vget_lane_f32(_f0, 0));
+            p0[1] = float32_to_bfloat16(vget_lane_f32(_f0, 1));
+
+            pp += 2;
+            p0 += 2;
+        }
 #endif // __ARM_NEON
-            for (; jj < max_jj; jj++)
+        for (; jj < max_jj; jj++)
+        {
+            float f0 = pp[0] * descale;
+
+            if (pC)
             {
-                float f0 = pp[0] * descale;
-
-                if (pC)
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        f0 += c0;
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        // c_elempack == 1
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
-                        pC += 1;
-                    }
+                    f0 += c0;
                 }
-
-                f0 *= alpha;
-
-                p0[0] = float32_to_bfloat16(f0);
-
-                pp += 1;
-                p0++;
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    // c_elempack == 1
+                    f0 += bfloat16_to_float32(pC[0]) * beta;
+                    pC += 1;
+                }
             }
+
+            f0 *= alpha;
+
+            p0[0] = float32_to_bfloat16(f0);
+
+            pp += 1;
+            p0++;
         }
     }
 }
@@ -7823,1522 +6389,560 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
             }
         }
 
-        if (out_elempack == 4)
-        {
-            int jj = 0;
+        int jj = 0;
 #if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
-                int32x4_t _sum8 = vld1q_s32(pp + 32);
-                int32x4_t _sum9 = vld1q_s32(pp + 36);
-                int32x4_t _suma = vld1q_s32(pp + 40);
-                int32x4_t _sumb = vld1q_s32(pp + 44);
-                int32x4_t _sumc = vld1q_s32(pp + 48);
-                int32x4_t _sumd = vld1q_s32(pp + 52);
-                int32x4_t _sume = vld1q_s32(pp + 56);
-                int32x4_t _sumf = vld1q_s32(pp + 60);
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+            int32x4_t _sum4 = vld1q_s32(pp + 16);
+            int32x4_t _sum5 = vld1q_s32(pp + 20);
+            int32x4_t _sum6 = vld1q_s32(pp + 24);
+            int32x4_t _sum7 = vld1q_s32(pp + 28);
+            int32x4_t _sum8 = vld1q_s32(pp + 32);
+            int32x4_t _sum9 = vld1q_s32(pp + 36);
+            int32x4_t _suma = vld1q_s32(pp + 40);
+            int32x4_t _sumb = vld1q_s32(pp + 44);
+            int32x4_t _sumc = vld1q_s32(pp + 48);
+            int32x4_t _sumd = vld1q_s32(pp + 52);
+            int32x4_t _sume = vld1q_s32(pp + 56);
+            int32x4_t _sumf = vld1q_s32(pp + 60);
 
 #if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                //      e4 f4 g4 h4
-                //      e5 f5 g5 h5
-                //      e6 f6 g6 h6
-                //      e7 f7 g7 h7
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            //      e2 f2 g2 h2
+            //      e3 f3 g3 h3
+            //      a4 b4 c4 d4
+            //      a5 b5 c5 d5
+            //      a6 b6 c6 d6
+            //      a7 b7 c7 d7
+            //      e4 f4 g4 h4
+            //      e5 f5 g5 h5
+            //      e6 f6 g6 h6
+            //      e7 f7 g7 h7
+#else
+            // from
+            //      a0 b1 c2 d3
+            //      e4 f5 g6 h7
+            //      e0 f1 g2 h3
+            //      a4 b5 c6 d7
+            //      c0 d1 a2 b3
+            //      g4 h5 e6 f7
+            //      g0 h1 e2 f3
+            //      c4 d5 a6 b7
+            //      a3 b2 c1 d0
+            //      e7 f6 g5 h4
+            //      e3 f2 g1 h0
+            //      a7 b6 c5 d4
+            //      c3 d2 a1 b0
+            //      g7 h6 e5 f4
+            //      g3 h2 e1 f0
+            //      c7 d6 a5 b4
 
-                // to
-                //      a0 a1 a2 a3
-                //      a4 a5 a6 a7
-                //      b0 b1 b2 b3
-                //      b4 b5 b6 b7
-                //      c0 c1 c2 c3
-                //      c4 c5 c6 c7
-                //      d0 d1 d2 d3
-                //      d4 d5 d6 d7
-                //      e0 e1 e2 e3
-                //      e4 e5 e6 e7
-                //      f0 f1 f2 f3
-                //      f4 f5 f6 f7
-                //      g0 g1 g2 g3
-                //      g4 g5 g6 g7
-                //      h0 h1 h2 h3
-                //      h4 h5 h6 h7
-                {
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum3);
-                    int32x4x2_t _t2 = vzipq_s32(_sum8, _sum9);
-                    int32x4x2_t _t3 = vzipq_s32(_suma, _sumb);
-                    int32x4x2_t _t4 = vzipq_s32(_sum4, _sum5);
-                    int32x4x2_t _t5 = vzipq_s32(_sum6, _sum7);
-                    int32x4x2_t _t6 = vzipq_s32(_sumc, _sumd);
-                    int32x4x2_t _t7 = vzipq_s32(_sume, _sumf);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t0.val[1]), vget_low_s32(_t1.val[1]));
-                    _sum5 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
-                    _sum6 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
-                    _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
-                    _sum9 = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
-                    _suma = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
-                    _sumb = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
-                    _sumc = vcombine_s32(vget_low_s32(_t4.val[1]), vget_low_s32(_t5.val[1]));
-                    _sumd = vcombine_s32(vget_low_s32(_t6.val[1]), vget_low_s32(_t7.val[1]));
-                    _sume = vcombine_s32(vget_high_s32(_t4.val[1]), vget_high_s32(_t5.val[1]));
-                    _sumf = vcombine_s32(vget_high_s32(_t6.val[1]), vget_high_s32(_t7.val[1]));
-                }
-#else  // __ARM_FEATURE_DOTPROD
-
-                // from
-                //      a0 b1 c2 d3
-                //      e4 f5 g6 h7
-                //      e0 f1 g2 h3
-                //      a4 b5 c6 d7
-                //      c0 d1 a2 b3
-                //      g4 h5 e6 f7
-                //      g0 h1 e2 f3
-                //      c4 d5 a6 b7
-                //      a3 b2 c1 d0
-                //      e7 f6 g5 h4
-                //      e3 f2 g1 h0
-                //      a7 b6 c5 d4
-                //      c3 d2 a1 b0
-                //      g7 h6 e5 f4
-                //      g3 h2 e1 f0
-                //      c7 d6 a5 b4
-
-                // to
-                //      a0 a1 a2 a3
-                //      a4 a5 a6 a7
-                //      b0 b1 b2 b3
-                //      b4 b5 b6 b7
-                //      c0 c1 c2 c3
-                //      c4 c5 c6 c7
-                //      d0 d1 d2 d3
-                //      d4 d5 d6 d7
-                //      e0 e1 e2 e3
-                //      e4 e5 e6 e7
-                //      f0 f1 f2 f3
-                //      f4 f5 f6 f7
-                //      g0 g1 g2 g3
-                //      g4 g5 g6 g7
-                //      h0 h1 h2 h3
-                //      h4 h5 h6 h7
-                {
-                    _sum4 = vextq_s32(_sum4, _sum4, 2);
-                    _sum5 = vextq_s32(_sum5, _sum5, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    _sumc = vextq_s32(_sumc, _sumc, 2);
-                    _sumd = vextq_s32(_sumd, _sumd, 2);
-                    _sume = vextq_s32(_sume, _sume, 2);
-                    _sumf = vextq_s32(_sumf, _sumf, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sumc);
-                    int32x4x2_t _t1 = vzipq_s32(_sum4, _sum8);
-                    int32x4x2_t _t2 = vzipq_s32(_sum3, _sumf);
-                    int32x4x2_t _t3 = vzipq_s32(_sum7, _sumb);
-                    int32x4x2_t _t4 = vzipq_s32(_sum2, _sume);
-                    int32x4x2_t _t5 = vzipq_s32(_sum6, _suma);
-                    int32x4x2_t _t6 = vzipq_s32(_sum1, _sumd);
-                    int32x4x2_t _t7 = vzipq_s32(_sum5, _sum9);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum5 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum6 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
-                    _sum9 = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
-                    _suma = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
-                    _sumb = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
-                    _sumc = vcombine_s32(vget_low_s32(_t5.val[1]), vget_low_s32(_t4.val[1]));
-                    _sumd = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
-                    _sume = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
-                    _sumf = vcombine_s32(vget_high_s32(_t7.val[1]), vget_high_s32(_t6.val[1]));
-                    _sum2 = vrev64q_s32(_sum2);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum6 = vrev64q_s32(_sum6);
-                    _sum7 = vrev64q_s32(_sum7);
-                    _suma = vrev64q_s32(_suma);
-                    _sumb = vrev64q_s32(_sumb);
-                    _sume = vrev64q_s32(_sume);
-                    _sumf = vrev64q_s32(_sumf);
-                }
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      a4 b4 c4 d4
+            //      a5 b5 c5 d5
+            //      a6 b6 c6 d6
+            //      a7 b7 c7 d7
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            //      e2 f2 g2 h2
+            //      e3 f3 g3 h3
+            //      e4 f4 g4 h4
+            //      e5 f5 g5 h5
+            //      e6 f6 g6 h6
+            //      e7 f7 g7 h7
+            {
+                _sum8 = vrev64q_s32(_sum8);
+                _sum9 = vrev64q_s32(_sum9);
+                _suma = vrev64q_s32(_suma);
+                _sumb = vrev64q_s32(_sumb);
+                _sumc = vrev64q_s32(_sumc);
+                _sumd = vrev64q_s32(_sumd);
+                _sume = vrev64q_s32(_sume);
+                _sumf = vrev64q_s32(_sumf);
+                _sum8 = vextq_s32(_sum8, _sum8, 2);
+                _sum9 = vextq_s32(_sum9, _sum9, 2);
+                _suma = vextq_s32(_suma, _suma, 2);
+                _sumb = vextq_s32(_sumb, _sumb, 2);
+                _sumc = vextq_s32(_sumc, _sumc, 2);
+                _sumd = vextq_s32(_sumd, _sumd, 2);
+                _sume = vextq_s32(_sume, _sume, 2);
+                _sumf = vextq_s32(_sumf, _sumf, 2);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sumc);
+                int32x4x2_t _t1 = vzipq_s32(_sum4, _sum8);
+                int32x4x2_t _t2 = vzipq_s32(_sum2, _sume);
+                int32x4x2_t _t3 = vzipq_s32(_sum6, _suma);
+                int32x4x2_t _t4 = vzipq_s32(_sum3, _sumf);
+                int32x4x2_t _t5 = vzipq_s32(_sum7, _sumb);
+                int32x4x2_t _t6 = vzipq_s32(_sum1, _sumd);
+                int32x4x2_t _t7 = vzipq_s32(_sum5, _sum9);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
+                _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
+                _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
+                _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
+                _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
+                _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
+                _sum9 = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
+                _suma = vcombine_s32(vget_low_s32(_t5.val[1]), vget_low_s32(_t4.val[1]));
+                _sumb = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
+                _sumc = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
+                _sumd = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
+                _sume = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
+                _sumf = vcombine_s32(vget_high_s32(_t7.val[1]), vget_high_s32(_t6.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum7 = vrev64q_s32(_sum7);
+                _sum9 = vrev64q_s32(_sum9);
+                _sumb = vrev64q_s32(_sumb);
+                _sumd = vrev64q_s32(_sumd);
+                _sumf = vrev64q_s32(_sumf);
+            }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_laneq_f32(vcvtq_f32_s32(_sum0), _descale0, 0);
-                float32x4_t _f1 = vmulq_laneq_f32(vcvtq_f32_s32(_sum1), _descale0, 0);
-                float32x4_t _f2 = vmulq_laneq_f32(vcvtq_f32_s32(_sum2), _descale0, 1);
-                float32x4_t _f3 = vmulq_laneq_f32(vcvtq_f32_s32(_sum3), _descale0, 1);
-                float32x4_t _f4 = vmulq_laneq_f32(vcvtq_f32_s32(_sum4), _descale0, 2);
-                float32x4_t _f5 = vmulq_laneq_f32(vcvtq_f32_s32(_sum5), _descale0, 2);
-                float32x4_t _f6 = vmulq_laneq_f32(vcvtq_f32_s32(_sum6), _descale0, 3);
-                float32x4_t _f7 = vmulq_laneq_f32(vcvtq_f32_s32(_sum7), _descale0, 3);
-                float32x4_t _f8 = vmulq_laneq_f32(vcvtq_f32_s32(_sum8), _descale1, 0);
-                float32x4_t _f9 = vmulq_laneq_f32(vcvtq_f32_s32(_sum9), _descale1, 0);
-                float32x4_t _fa = vmulq_laneq_f32(vcvtq_f32_s32(_suma), _descale1, 1);
-                float32x4_t _fb = vmulq_laneq_f32(vcvtq_f32_s32(_sumb), _descale1, 1);
-                float32x4_t _fc = vmulq_laneq_f32(vcvtq_f32_s32(_sumc), _descale1, 2);
-                float32x4_t _fd = vmulq_laneq_f32(vcvtq_f32_s32(_sumd), _descale1, 2);
-                float32x4_t _fe = vmulq_laneq_f32(vcvtq_f32_s32(_sume), _descale1, 3);
-                float32x4_t _ff = vmulq_laneq_f32(vcvtq_f32_s32(_sumf), _descale1, 3);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
+            float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum8), _descale0);
+            float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum9), _descale0);
+            float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_suma), _descale0);
+            float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sumb), _descale0);
+            float32x4_t _f8 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale1);
+            float32x4_t _f9 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale1);
+            float32x4_t _fa = vmulq_f32(vcvtq_f32_s32(_sum6), _descale1);
+            float32x4_t _fb = vmulq_f32(vcvtq_f32_s32(_sum7), _descale1);
+            float32x4_t _fc = vmulq_f32(vcvtq_f32_s32(_sumc), _descale1);
+            float32x4_t _fd = vmulq_f32(vcvtq_f32_s32(_sumd), _descale1);
+            float32x4_t _fe = vmulq_f32(vcvtq_f32_s32(_sume), _descale1);
+            float32x4_t _ff = vmulq_f32(vcvtq_f32_s32(_sumf), _descale1);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                    _f8 = vaddq_f32(_f8, _c0);
+                    _f9 = vaddq_f32(_f9, _c0);
+                    _fa = vaddq_f32(_fa, _c0);
+                    _fb = vaddq_f32(_fb, _c0);
+                    _fc = vaddq_f32(_fc, _c0);
+                    _fd = vaddq_f32(_fd, _c0);
+                    _fe = vaddq_f32(_fe, _c0);
+                    _ff = vaddq_f32(_ff, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                    _f8 = vaddq_f32(_f8, _c1);
+                    _f9 = vaddq_f32(_f9, _c1);
+                    _fa = vaddq_f32(_fa, _c1);
+                    _fb = vaddq_f32(_fb, _c1);
+                    _fc = vaddq_f32(_fc, _c1);
+                    _fd = vaddq_f32(_fd, _c1);
+                    _fe = vaddq_f32(_fe, _c1);
+                    _ff = vaddq_f32(_ff, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                        _f8 = vaddq_f32(_f8, _c0);
-                        _f9 = vaddq_f32(_f9, _c0);
-                        _fa = vaddq_f32(_fa, _c0);
-                        _fb = vaddq_f32(_fb, _c0);
-                        _fc = vaddq_f32(_fc, _c0);
-                        _fd = vaddq_f32(_fd, _c0);
-                        _fe = vaddq_f32(_fe, _c0);
-                        _ff = vaddq_f32(_ff, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
-                        float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
-                        float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
-                        float32x4_t _cc3 = vdupq_laneq_f32(_c0, 3);
-                        float32x4_t _cc4 = vdupq_laneq_f32(_c1, 0);
-                        float32x4_t _cc5 = vdupq_laneq_f32(_c1, 1);
-                        float32x4_t _cc6 = vdupq_laneq_f32(_c1, 2);
-                        float32x4_t _cc7 = vdupq_laneq_f32(_c1, 3);
-                        _f0 = vaddq_f32(_f0, _cc0);
-                        _f1 = vaddq_f32(_f1, _cc0);
-                        _f2 = vaddq_f32(_f2, _cc1);
-                        _f3 = vaddq_f32(_f3, _cc1);
-                        _f4 = vaddq_f32(_f4, _cc2);
-                        _f5 = vaddq_f32(_f5, _cc2);
-                        _f6 = vaddq_f32(_f6, _cc3);
-                        _f7 = vaddq_f32(_f7, _cc3);
-                        _f8 = vaddq_f32(_f8, _cc4);
-                        _f9 = vaddq_f32(_f9, _cc4);
-                        _fa = vaddq_f32(_fa, _cc5);
-                        _fb = vaddq_f32(_fb, _cc5);
-                        _fc = vaddq_f32(_fc, _cc6);
-                        _fd = vaddq_f32(_fd, _cc6);
-                        _fe = vaddq_f32(_fe, _cc7);
-                        _ff = vaddq_f32(_ff, _cc7);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
+                        uint16x8_t _c01 = vld1q_u16(pC);
+                        uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
+                        uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
+                        uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
+                        transpose8x4_u16(_c01, _c23, _c45, _c67);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
+                        float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
+                        float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
+                        float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                        if (beta == 1.f)
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + 4));
-                            float32x4_t _c2 = bfloat2float(vld1_u16(pC + c_hstep));
-                            float32x4_t _c3 = bfloat2float(vld1_u16(pC + c_hstep + 4));
-                            float32x4_t _c4 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            float32x4_t _c5 = bfloat2float(vld1_u16(pC + c_hstep * 2 + 4));
-                            float32x4_t _c6 = bfloat2float(vld1_u16(pC + c_hstep * 3));
-                            float32x4_t _c7 = bfloat2float(vld1_u16(pC + c_hstep * 3 + 4));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                                _f4 = vaddq_f32(_f4, _c4);
-                                _f5 = vaddq_f32(_f5, _c5);
-                                _f6 = vaddq_f32(_f6, _c6);
-                                _f7 = vaddq_f32(_f7, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                                _f4 = vmlaq_f32(_f4, _c4, _beta);
-                                _f5 = vmlaq_f32(_f5, _c5, _beta);
-                                _f6 = vmlaq_f32(_f6, _c6, _beta);
-                                _f7 = vmlaq_f32(_f7, _c7, _beta);
-                            }
-                            _c0 = bfloat2float(vld1_u16(pC + c_hstep * 4));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4 + 4));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 5));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 5 + 4));
-                            _c4 = bfloat2float(vld1_u16(pC + c_hstep * 6));
-                            _c5 = bfloat2float(vld1_u16(pC + c_hstep * 6 + 4));
-                            _c6 = bfloat2float(vld1_u16(pC + c_hstep * 7));
-                            _c7 = bfloat2float(vld1_u16(pC + c_hstep * 7 + 4));
-                            if (beta == 1.f)
-                            {
-                                _f8 = vaddq_f32(_f8, _c0);
-                                _f9 = vaddq_f32(_f9, _c1);
-                                _fa = vaddq_f32(_fa, _c2);
-                                _fb = vaddq_f32(_fb, _c3);
-                                _fc = vaddq_f32(_fc, _c4);
-                                _fd = vaddq_f32(_fd, _c5);
-                                _fe = vaddq_f32(_fe, _c6);
-                                _ff = vaddq_f32(_ff, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f8 = vmlaq_f32(_f8, _c0, _beta);
-                                _f9 = vmlaq_f32(_f9, _c1, _beta);
-                                _fa = vmlaq_f32(_fa, _c2, _beta);
-                                _fb = vmlaq_f32(_fb, _c3, _beta);
-                                _fc = vmlaq_f32(_fc, _c4, _beta);
-                                _fd = vmlaq_f32(_fd, _c5, _beta);
-                                _fe = vmlaq_f32(_fe, _c6, _beta);
-                                _ff = vmlaq_f32(_ff, _c7, _beta);
-                            }
-                            pC += 8;
+                            _f0 = vaddq_f32(_f0, _c0);
+                            _f1 = vaddq_f32(_f1, _c1);
+                            _f2 = vaddq_f32(_f2, _c2);
+                            _f3 = vaddq_f32(_f3, _c3);
+                            _f4 = vaddq_f32(_f4, _c4);
+                            _f5 = vaddq_f32(_f5, _c5);
+                            _f6 = vaddq_f32(_f6, _c6);
+                            _f7 = vaddq_f32(_f7, _c7);
                         }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8x4_t _cc0 = vld4q_u16(pC);
-                            _c0 = bfloat2float(vget_low_u16(_cc0.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc0.val[0]));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_cc0.val[1]));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_cc0.val[1]));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_cc0.val[2]));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_cc0.val[2]));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_cc0.val[3]));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_cc0.val[3]));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                                _f4 = vaddq_f32(_f4, _c4);
-                                _f5 = vaddq_f32(_f5, _c5);
-                                _f6 = vaddq_f32(_f6, _c6);
-                                _f7 = vaddq_f32(_f7, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                                _f4 = vmlaq_f32(_f4, _c4, _beta);
-                                _f5 = vmlaq_f32(_f5, _c5, _beta);
-                                _f6 = vmlaq_f32(_f6, _c6, _beta);
-                                _f7 = vmlaq_f32(_f7, _c7, _beta);
-                            }
-                            _cc0 = vld4q_u16(pC + c_hstep * 4);
-                            _c0 = bfloat2float(vget_low_u16(_cc0.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_cc0.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_cc0.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_cc0.val[1]));
-                            _c4 = bfloat2float(vget_low_u16(_cc0.val[2]));
-                            _c5 = bfloat2float(vget_high_u16(_cc0.val[2]));
-                            _c6 = bfloat2float(vget_low_u16(_cc0.val[3]));
-                            _c7 = bfloat2float(vget_high_u16(_cc0.val[3]));
-                            if (beta == 1.f)
-                            {
-                                _f8 = vaddq_f32(_f8, _c0);
-                                _f9 = vaddq_f32(_f9, _c1);
-                                _fa = vaddq_f32(_fa, _c2);
-                                _fb = vaddq_f32(_fb, _c3);
-                                _fc = vaddq_f32(_fc, _c4);
-                                _fd = vaddq_f32(_fd, _c5);
-                                _fe = vaddq_f32(_fe, _c6);
-                                _ff = vaddq_f32(_ff, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f8 = vmlaq_f32(_f8, _c0, _beta);
-                                _f9 = vmlaq_f32(_f9, _c1, _beta);
-                                _fa = vmlaq_f32(_fa, _c2, _beta);
-                                _fb = vmlaq_f32(_fb, _c3, _beta);
-                                _fc = vmlaq_f32(_fc, _c4, _beta);
-                                _fd = vmlaq_f32(_fd, _c5, _beta);
-                                _fe = vmlaq_f32(_fe, _c6, _beta);
-                                _ff = vmlaq_f32(_ff, _c7, _beta);
-                            }
-                            pC += 32;
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta != 1.f)
+                        else
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
-                            _c0 = vmulq_f32(_c0, _beta);
-                            _c1 = vmulq_f32(_c1, _beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f2 = vmlaq_f32(_f2, _c2, _beta);
+                            _f3 = vmlaq_f32(_f3, _c3, _beta);
+                            _f4 = vmlaq_f32(_f4, _c4, _beta);
+                            _f5 = vmlaq_f32(_f5, _c5, _beta);
+                            _f6 = vmlaq_f32(_f6, _c6, _beta);
+                            _f7 = vmlaq_f32(_f7, _c7, _beta);
                         }
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c1);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c1);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c1);
-                        _f8 = vaddq_f32(_f8, _c0);
-                        _f9 = vaddq_f32(_f9, _c1);
-                        _fa = vaddq_f32(_fa, _c0);
-                        _fb = vaddq_f32(_fb, _c1);
-                        _fc = vaddq_f32(_fc, _c0);
-                        _fd = vaddq_f32(_fd, _c1);
-                        _fe = vaddq_f32(_fe, _c0);
-                        _ff = vaddq_f32(_ff, _c1);
+                        _c01 = vld1q_u16(pC + c_hstep * 4);
+                        _c23 = vld1q_u16(pC + c_hstep * 5);
+                        _c45 = vld1q_u16(pC + c_hstep * 6);
+                        _c67 = vld1q_u16(pC + c_hstep * 7);
+                        transpose8x4_u16(_c01, _c23, _c45, _c67);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c2 = bfloat2float(vget_low_u16(_c23));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
+                        _c4 = bfloat2float(vget_low_u16(_c45));
+                        _c5 = bfloat2float(vget_high_u16(_c45));
+                        _c6 = bfloat2float(vget_low_u16(_c67));
+                        _c7 = bfloat2float(vget_high_u16(_c67));
+                        if (beta == 1.f)
+                        {
+                            _f8 = vaddq_f32(_f8, _c0);
+                            _f9 = vaddq_f32(_f9, _c1);
+                            _fa = vaddq_f32(_fa, _c2);
+                            _fb = vaddq_f32(_fb, _c3);
+                            _fc = vaddq_f32(_fc, _c4);
+                            _fd = vaddq_f32(_fd, _c5);
+                            _fe = vaddq_f32(_fe, _c6);
+                            _ff = vaddq_f32(_ff, _c7);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f8 = vmlaq_f32(_f8, _c0, _beta);
+                            _f9 = vmlaq_f32(_f9, _c1, _beta);
+                            _fa = vmlaq_f32(_fa, _c2, _beta);
+                            _fb = vmlaq_f32(_fb, _c3, _beta);
+                            _fc = vmlaq_f32(_fc, _c4, _beta);
+                            _fd = vmlaq_f32(_fd, _c5, _beta);
+                            _fe = vmlaq_f32(_fe, _c6, _beta);
+                            _ff = vmlaq_f32(_ff, _c7, _beta);
+                        }
                         pC += 8;
                     }
+                    else // if (c_elempack == 4)
+                    {
+                        uint16x8_t _c01 = vld1q_u16(pC);
+                        uint16x8_t _c23 = vld1q_u16(pC + 8);
+                        uint16x8_t _c45 = vld1q_u16(pC + 16);
+                        uint16x8_t _c67 = vld1q_u16(pC + 24);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                        float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
+                        float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
+                        float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
+                        float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                        if (beta == 1.f)
+                        {
+                            _f0 = vaddq_f32(_f0, _c0);
+                            _f1 = vaddq_f32(_f1, _c1);
+                            _f2 = vaddq_f32(_f2, _c2);
+                            _f3 = vaddq_f32(_f3, _c3);
+                            _f4 = vaddq_f32(_f4, _c4);
+                            _f5 = vaddq_f32(_f5, _c5);
+                            _f6 = vaddq_f32(_f6, _c6);
+                            _f7 = vaddq_f32(_f7, _c7);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f0 = vmlaq_f32(_f0, _c0, _beta);
+                            _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f2 = vmlaq_f32(_f2, _c2, _beta);
+                            _f3 = vmlaq_f32(_f3, _c3, _beta);
+                            _f4 = vmlaq_f32(_f4, _c4, _beta);
+                            _f5 = vmlaq_f32(_f5, _c5, _beta);
+                            _f6 = vmlaq_f32(_f6, _c6, _beta);
+                            _f7 = vmlaq_f32(_f7, _c7, _beta);
+                        }
+                        _c01 = vld1q_u16(pC + c_hstep * 4);
+                        _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
+                        _c45 = vld1q_u16(pC + c_hstep * 4 + 16);
+                        _c67 = vld1q_u16(pC + c_hstep * 4 + 24);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c2 = bfloat2float(vget_low_u16(_c23));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
+                        _c4 = bfloat2float(vget_low_u16(_c45));
+                        _c5 = bfloat2float(vget_high_u16(_c45));
+                        _c6 = bfloat2float(vget_low_u16(_c67));
+                        _c7 = bfloat2float(vget_high_u16(_c67));
+                        if (beta == 1.f)
+                        {
+                            _f8 = vaddq_f32(_f8, _c0);
+                            _f9 = vaddq_f32(_f9, _c1);
+                            _fa = vaddq_f32(_fa, _c2);
+                            _fb = vaddq_f32(_fb, _c3);
+                            _fc = vaddq_f32(_fc, _c4);
+                            _fd = vaddq_f32(_fd, _c5);
+                            _fe = vaddq_f32(_fe, _c6);
+                            _ff = vaddq_f32(_ff, _c7);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f8 = vmlaq_f32(_f8, _c0, _beta);
+                            _f9 = vmlaq_f32(_f9, _c1, _beta);
+                            _fa = vmlaq_f32(_fa, _c2, _beta);
+                            _fb = vmlaq_f32(_fb, _c3, _beta);
+                            _fc = vmlaq_f32(_fc, _c4, _beta);
+                            _fd = vmlaq_f32(_fd, _c5, _beta);
+                            _fe = vmlaq_f32(_fe, _c6, _beta);
+                            _ff = vmlaq_f32(_ff, _c7, _beta);
+                        }
+                        pC += 32;
+                    }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
-                    _f8 = vmulq_f32(_f8, _alpha);
-                    _f9 = vmulq_f32(_f9, _alpha);
-                    _fa = vmulq_f32(_fa, _alpha);
-                    _fb = vmulq_f32(_fb, _alpha);
-                    _fc = vmulq_f32(_fc, _alpha);
-                    _fd = vmulq_f32(_fd, _alpha);
-                    _fe = vmulq_f32(_fe, _alpha);
-                    _ff = vmulq_f32(_ff, _alpha);
+                    uint16x8_t _c = vld1q_u16(pC);
+                    float32x4_t _cc0 = bfloat2float(vget_low_u16(_c));
+                    float32x4_t _cc1 = bfloat2float(vget_high_u16(_c));
+                    if (beta != 1.f)
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _cc0 = vmulq_f32(_cc0, _beta);
+                        _cc1 = vmulq_f32(_cc1, _beta);
+                    }
+                    _c0 = vdupq_laneq_f32(_cc0, 0);
+                    _c1 = vdupq_laneq_f32(_cc0, 1);
+                    float32x4_t _c2 = vdupq_laneq_f32(_cc0, 2);
+                    float32x4_t _c3 = vdupq_laneq_f32(_cc0, 3);
+                    float32x4_t _c4 = vdupq_laneq_f32(_cc1, 0);
+                    float32x4_t _c5 = vdupq_laneq_f32(_cc1, 1);
+                    float32x4_t _c6 = vdupq_laneq_f32(_cc1, 2);
+                    float32x4_t _c7 = vdupq_laneq_f32(_cc1, 3);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    _f4 = vaddq_f32(_f4, _c4);
+                    _f5 = vaddq_f32(_f5, _c5);
+                    _f6 = vaddq_f32(_f6, _c6);
+                    _f7 = vaddq_f32(_f7, _c7);
+                    _f8 = vaddq_f32(_f8, _c0);
+                    _f9 = vaddq_f32(_f9, _c1);
+                    _fa = vaddq_f32(_fa, _c2);
+                    _fb = vaddq_f32(_fb, _c3);
+                    _fc = vaddq_f32(_fc, _c4);
+                    _fd = vaddq_f32(_fd, _c5);
+                    _fe = vaddq_f32(_fe, _c6);
+                    _ff = vaddq_f32(_ff, _c7);
+                    pC += 8;
                 }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f2)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f4), float2bfloat(_f6)));
-                vst1q_u16(p0 + 16, vcombine_u16(float2bfloat(_f8), float2bfloat(_fa)));
-                vst1q_u16(p0 + 24, vcombine_u16(float2bfloat(_fc), float2bfloat(_fe)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f1), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(float2bfloat(_f5), float2bfloat(_f7)));
-                vst1q_u16(p0 + out_hstep * 4 + 16, vcombine_u16(float2bfloat(_f9), float2bfloat(_fb)));
-                vst1q_u16(p0 + out_hstep * 4 + 24, vcombine_u16(float2bfloat(_fd), float2bfloat(_ff)));
-                pp += 64;
-                p0 += out_hstep * 8;
             }
-#endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
+
+            if (alpha != 1.f)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
-
-#if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-
-                // to
-                //      a0 a1 a2 a3
-                //      b0 b1 b2 b3
-                //      c0 c1 c2 c3
-                //      d0 d1 d2 d3
-                //      e0 e1 e2 e3
-                //      f0 f1 f2 f3
-                //      g0 g1 g2 g3
-                //      h0 h1 h2 h3
-                {
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum3);
-                    int32x4x2_t _t2 = vzipq_s32(_sum4, _sum5);
-                    int32x4x2_t _t3 = vzipq_s32(_sum6, _sum7);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t0.val[1]), vget_low_s32(_t1.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
-                }
-#else  // __ARM_FEATURE_DOTPROD
-
-                // from
-                //      a0 b1 c2 d3
-                //      e0 f1 g2 h3
-                //      c0 d1 a2 b3
-                //      g0 h1 e2 f3
-                //      a3 b2 c1 d0
-                //      e3 f2 g1 h0
-                //      c3 d2 a1 b0
-                //      g3 h2 e1 f0
-
-                // to
-                //      a0 a1 a2 a3
-                //      b0 b1 b2 b3
-                //      c0 c1 c2 c3
-                //      d0 d1 d2 d3
-                //      e0 e1 e2 e3
-                //      f0 f1 f2 f3
-                //      g0 g1 g2 g3
-                //      h0 h1 h2 h3
-                {
-                    _sum2 = vextq_s32(_sum2, _sum2, 2);
-                    _sum3 = vextq_s32(_sum3, _sum3, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
-                    int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
-                    int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum7 = vrev64q_s32(_sum7);
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-#if __aarch64__
-                float32x4_t _f0 = vmulq_laneq_f32(vcvtq_f32_s32(_sum0), _descale0, 0);
-                float32x4_t _f1 = vmulq_laneq_f32(vcvtq_f32_s32(_sum1), _descale0, 1);
-                float32x4_t _f2 = vmulq_laneq_f32(vcvtq_f32_s32(_sum2), _descale0, 2);
-                float32x4_t _f3 = vmulq_laneq_f32(vcvtq_f32_s32(_sum3), _descale0, 3);
-                float32x4_t _f4 = vmulq_laneq_f32(vcvtq_f32_s32(_sum4), _descale1, 0);
-                float32x4_t _f5 = vmulq_laneq_f32(vcvtq_f32_s32(_sum5), _descale1, 1);
-                float32x4_t _f6 = vmulq_laneq_f32(vcvtq_f32_s32(_sum6), _descale1, 2);
-                float32x4_t _f7 = vmulq_laneq_f32(vcvtq_f32_s32(_sum7), _descale1, 3);
-#else
-                float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), vget_low_f32(_descale0), 0);
-                float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), vget_low_f32(_descale0), 1);
-                float32x4_t _f2 = vmulq_lane_f32(vcvtq_f32_s32(_sum2), vget_high_f32(_descale0), 0);
-                float32x4_t _f3 = vmulq_lane_f32(vcvtq_f32_s32(_sum3), vget_high_f32(_descale0), 1);
-                float32x4_t _f4 = vmulq_lane_f32(vcvtq_f32_s32(_sum4), vget_low_f32(_descale1), 0);
-                float32x4_t _f5 = vmulq_lane_f32(vcvtq_f32_s32(_sum5), vget_low_f32(_descale1), 1);
-                float32x4_t _f6 = vmulq_lane_f32(vcvtq_f32_s32(_sum6), vget_high_f32(_descale1), 0);
-                float32x4_t _f7 = vmulq_lane_f32(vcvtq_f32_s32(_sum7), vget_high_f32(_descale1), 1);
-#endif
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-#if __aarch64__
-                        float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
-                        float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
-                        float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
-                        float32x4_t _cc3 = vdupq_laneq_f32(_c0, 3);
-#else
-                        float32x4_t _cc0 = vdupq_lane_f32(vget_low_f32(_c0), 0);
-                        float32x4_t _cc1 = vdupq_lane_f32(vget_low_f32(_c0), 1);
-                        float32x4_t _cc2 = vdupq_lane_f32(vget_high_f32(_c0), 0);
-                        float32x4_t _cc3 = vdupq_lane_f32(vget_high_f32(_c0), 1);
-#endif
-                        _f0 = vaddq_f32(_f0, _cc0);
-                        _f1 = vaddq_f32(_f1, _cc1);
-                        _f2 = vaddq_f32(_f2, _cc2);
-                        _f3 = vaddq_f32(_f3, _cc3);
-#if __aarch64__
-                        _cc0 = vdupq_laneq_f32(_c1, 0);
-                        _cc1 = vdupq_laneq_f32(_c1, 1);
-                        _cc2 = vdupq_laneq_f32(_c1, 2);
-                        _cc3 = vdupq_laneq_f32(_c1, 3);
-#else
-                        _cc0 = vdupq_lane_f32(vget_low_f32(_c1), 0);
-                        _cc1 = vdupq_lane_f32(vget_low_f32(_c1), 1);
-                        _cc2 = vdupq_lane_f32(vget_high_f32(_c1), 0);
-                        _cc3 = vdupq_lane_f32(vget_high_f32(_c1), 1);
-#endif
-                        _f4 = vaddq_f32(_f4, _cc0);
-                        _f5 = vaddq_f32(_f5, _cc1);
-                        _f6 = vaddq_f32(_f6, _cc2);
-                        _f7 = vaddq_f32(_f7, _cc3);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
-                        {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep));
-                            float32x4_t _c2 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            float32x4_t _c3 = bfloat2float(vld1_u16(pC + c_hstep * 3));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            }
-                            _c0 = bfloat2float(vld1_u16(pC + c_hstep * 4));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 5));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 6));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 7));
-                            if (beta == 1.f)
-                            {
-                                _f4 = vaddq_f32(_f4, _c0);
-                                _f5 = vaddq_f32(_f5, _c1);
-                                _f6 = vaddq_f32(_f6, _c2);
-                                _f7 = vaddq_f32(_f7, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f4 = vmlaq_f32(_f4, _c0, _beta);
-                                _f5 = vmlaq_f32(_f5, _c1, _beta);
-                                _f6 = vmlaq_f32(_f6, _c2, _beta);
-                                _f7 = vmlaq_f32(_f7, _c3, _beta);
-                            }
-                            pC += 4;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x4x4_t _cc0 = vld4_u16(pC);
-                            _c0 = bfloat2float(_cc0.val[0]);
-                            _c1 = bfloat2float(_cc0.val[1]);
-                            float32x4_t _c2 = bfloat2float(_cc0.val[2]);
-                            float32x4_t _c3 = bfloat2float(_cc0.val[3]);
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            }
-                            _cc0 = vld4_u16(pC + c_hstep * 4);
-                            _c0 = bfloat2float(_cc0.val[0]);
-                            _c1 = bfloat2float(_cc0.val[1]);
-                            _c2 = bfloat2float(_cc0.val[2]);
-                            _c3 = bfloat2float(_cc0.val[3]);
-                            if (beta == 1.f)
-                            {
-                                _f4 = vaddq_f32(_f4, _c0);
-                                _f5 = vaddq_f32(_f5, _c1);
-                                _f6 = vaddq_f32(_f6, _c2);
-                                _f7 = vaddq_f32(_f7, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f4 = vmlaq_f32(_f4, _c0, _beta);
-                                _f5 = vmlaq_f32(_f5, _c1, _beta);
-                                _f6 = vmlaq_f32(_f6, _c2, _beta);
-                                _f7 = vmlaq_f32(_f7, _c3, _beta);
-                            }
-                            pC += 16;
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _c0 = vmulq_n_f32(_c0, beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                        pC += 4;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-                vst1q_u16(p0 + 16, vcombine_u16(float2bfloat(_f4), float2bfloat(_f5)));
-                vst1q_u16(p0 + 24, vcombine_u16(float2bfloat(_f6), float2bfloat(_f7)));
-                pp += 32;
-                p0 += out_hstep * 4;
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+                _f4 = vmulq_f32(_f4, _alpha);
+                _f5 = vmulq_f32(_f5, _alpha);
+                _f6 = vmulq_f32(_f6, _alpha);
+                _f7 = vmulq_f32(_f7, _alpha);
+                _f8 = vmulq_f32(_f8, _alpha);
+                _f9 = vmulq_f32(_f9, _alpha);
+                _fa = vmulq_f32(_fa, _alpha);
+                _fb = vmulq_f32(_fb, _alpha);
+                _fc = vmulq_f32(_fc, _alpha);
+                _fd = vmulq_f32(_fd, _alpha);
+                _fe = vmulq_f32(_fe, _alpha);
+                _ff = vmulq_f32(_ff, _alpha);
             }
+
+            uint16x8_t _bf0 = vcombine_u16(float2bfloat(_f0), float2bfloat(_f8));
+            uint16x8_t _bf1 = vcombine_u16(float2bfloat(_f1), float2bfloat(_f9));
+            uint16x8_t _bf2 = vcombine_u16(float2bfloat(_f2), float2bfloat(_fa));
+            uint16x8_t _bf3 = vcombine_u16(float2bfloat(_f3), float2bfloat(_fb));
+            uint16x8_t _bf4 = vcombine_u16(float2bfloat(_f4), float2bfloat(_fc));
+            uint16x8_t _bf5 = vcombine_u16(float2bfloat(_f5), float2bfloat(_fd));
+            uint16x8_t _bf6 = vcombine_u16(float2bfloat(_f6), float2bfloat(_fe));
+            uint16x8_t _bf7 = vcombine_u16(float2bfloat(_f7), float2bfloat(_ff));
+
+            if (out_elempack == 4)
+            {
+                uint16x8x4_t _bfa;
+                uint16x8x4_t _bfb;
+                _bfa.val[0] = _bf0;
+                _bfa.val[1] = _bf1;
+                _bfa.val[2] = _bf2;
+                _bfa.val[3] = _bf3;
+                _bfb.val[0] = _bf4;
+                _bfb.val[1] = _bf5;
+                _bfb.val[2] = _bf6;
+                _bfb.val[3] = _bf7;
+                vst4q_u16(p0, _bfa);
+                vst4q_u16(p0 + out_hstep * 4, _bfb);
+            }
+            else // if (out_elempack == 1)
+            {
+                vst1q_u16(p0, _bf0);
+                vst1q_u16(p0 + out_hstep, _bf1);
+                vst1q_u16(p0 + out_hstep * 2, _bf2);
+                vst1q_u16(p0 + out_hstep * 3, _bf3);
+                vst1q_u16(p0 + out_hstep * 4, _bf4);
+                vst1q_u16(p0 + out_hstep * 5, _bf5);
+                vst1q_u16(p0 + out_hstep * 6, _bf6);
+                vst1q_u16(p0 + out_hstep * 7, _bf7);
+            }
+
+            pp += 64;
+            p0 += out_hstep * 8;
         }
-        if (out_elempack == 1)
-        {
-            int jj = 0;
-#if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
-                int32x4_t _sum8 = vld1q_s32(pp + 32);
-                int32x4_t _sum9 = vld1q_s32(pp + 36);
-                int32x4_t _suma = vld1q_s32(pp + 40);
-                int32x4_t _sumb = vld1q_s32(pp + 44);
-                int32x4_t _sumc = vld1q_s32(pp + 48);
-                int32x4_t _sumd = vld1q_s32(pp + 52);
-                int32x4_t _sume = vld1q_s32(pp + 56);
-                int32x4_t _sumf = vld1q_s32(pp + 60);
-
-#if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                //      e4 f4 g4 h4
-                //      e5 f5 g5 h5
-                //      e6 f6 g6 h6
-                //      e7 f7 g7 h7
-
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-                //      e4 f4 g4 h4
-                //      e5 f5 g5 h5
-                //      e6 f6 g6 h6
-                //      e7 f7 g7 h7
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
-                float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum8), _descale0);
-                float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum9), _descale0);
-                float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_suma), _descale0);
-                float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sumb), _descale0);
-                float32x4_t _f8 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale1);
-                float32x4_t _f9 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale1);
-                float32x4_t _fa = vmulq_f32(vcvtq_f32_s32(_sum6), _descale1);
-                float32x4_t _fb = vmulq_f32(vcvtq_f32_s32(_sum7), _descale1);
-                float32x4_t _fc = vmulq_f32(vcvtq_f32_s32(_sumc), _descale1);
-                float32x4_t _fd = vmulq_f32(vcvtq_f32_s32(_sumd), _descale1);
-                float32x4_t _fe = vmulq_f32(vcvtq_f32_s32(_sume), _descale1);
-                float32x4_t _ff = vmulq_f32(vcvtq_f32_s32(_sumf), _descale1);
-#else
-                // from
-                //      a0 b1 c2 d3
-                //      e4 f5 g6 h7
-                //      e0 f1 g2 h3
-                //      a4 b5 c6 d7
-                //      c0 d1 a2 b3
-                //      g4 h5 e6 f7
-                //      g0 h1 e2 f3
-                //      c4 d5 a6 b7
-                //      a3 b2 c1 d0
-                //      e7 f6 g5 h4
-                //      e3 f2 g1 h0
-                //      a7 b6 c5 d4
-                //      c3 d2 a1 b0
-                //      g7 h6 e5 f4
-                //      g3 h2 e1 f0
-                //      c7 d6 a5 b4
-
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
-                //      e4 f4 g4 h4
-                //      e5 f5 g5 h5
-                //      e6 f6 g6 h6
-                //      e7 f7 g7 h7
-                {
-                    _sum8 = vrev64q_s32(_sum8);
-                    _sum9 = vrev64q_s32(_sum9);
-                    _suma = vrev64q_s32(_suma);
-                    _sumb = vrev64q_s32(_sumb);
-                    _sumc = vrev64q_s32(_sumc);
-                    _sumd = vrev64q_s32(_sumd);
-                    _sume = vrev64q_s32(_sume);
-                    _sumf = vrev64q_s32(_sumf);
-                    _sum8 = vextq_s32(_sum8, _sum8, 2);
-                    _sum9 = vextq_s32(_sum9, _sum9, 2);
-                    _suma = vextq_s32(_suma, _suma, 2);
-                    _sumb = vextq_s32(_sumb, _sumb, 2);
-                    _sumc = vextq_s32(_sumc, _sumc, 2);
-                    _sumd = vextq_s32(_sumd, _sumd, 2);
-                    _sume = vextq_s32(_sume, _sume, 2);
-                    _sumf = vextq_s32(_sumf, _sumf, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sumc);
-                    int32x4x2_t _t1 = vzipq_s32(_sum4, _sum8);
-                    int32x4x2_t _t2 = vzipq_s32(_sum2, _sume);
-                    int32x4x2_t _t3 = vzipq_s32(_sum6, _suma);
-                    int32x4x2_t _t4 = vzipq_s32(_sum3, _sumf);
-                    int32x4x2_t _t5 = vzipq_s32(_sum7, _sumb);
-                    int32x4x2_t _t6 = vzipq_s32(_sum1, _sumd);
-                    int32x4x2_t _t7 = vzipq_s32(_sum5, _sum9);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t5.val[1]), vget_low_s32(_t4.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
-                    _sum8 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum9 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _suma = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sumb = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sumc = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
-                    _sumd = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
-                    _sume = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
-                    _sumf = vcombine_s32(vget_high_s32(_t7.val[1]), vget_high_s32(_t6.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum7 = vrev64q_s32(_sum7);
-                    _sum9 = vrev64q_s32(_sum9);
-                    _sumb = vrev64q_s32(_sumb);
-                    _sumd = vrev64q_s32(_sumd);
-                    _sumf = vrev64q_s32(_sumf);
-                }
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
-                float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale0);
-                float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale0);
-                float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale0);
-                float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale0);
-                float32x4_t _f8 = vmulq_f32(vcvtq_f32_s32(_sum8), _descale1);
-                float32x4_t _f9 = vmulq_f32(vcvtq_f32_s32(_sum9), _descale1);
-                float32x4_t _fa = vmulq_f32(vcvtq_f32_s32(_suma), _descale1);
-                float32x4_t _fb = vmulq_f32(vcvtq_f32_s32(_sumb), _descale1);
-                float32x4_t _fc = vmulq_f32(vcvtq_f32_s32(_sumc), _descale1);
-                float32x4_t _fd = vmulq_f32(vcvtq_f32_s32(_sumd), _descale1);
-                float32x4_t _fe = vmulq_f32(vcvtq_f32_s32(_sume), _descale1);
-                float32x4_t _ff = vmulq_f32(vcvtq_f32_s32(_sumf), _descale1);
-#endif // __ARM_FEATURE_DOTPROD
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                        _f8 = vaddq_f32(_f8, _c0);
-                        _f9 = vaddq_f32(_f9, _c0);
-                        _fa = vaddq_f32(_fa, _c0);
-                        _fb = vaddq_f32(_fb, _c0);
-                        _fc = vaddq_f32(_fc, _c0);
-                        _fd = vaddq_f32(_fd, _c0);
-                        _fe = vaddq_f32(_fe, _c0);
-                        _ff = vaddq_f32(_ff, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                        _f8 = vaddq_f32(_f8, _c1);
-                        _f9 = vaddq_f32(_f9, _c1);
-                        _fa = vaddq_f32(_fa, _c1);
-                        _fb = vaddq_f32(_fb, _c1);
-                        _fc = vaddq_f32(_fc, _c1);
-                        _fd = vaddq_f32(_fd, _c1);
-                        _fe = vaddq_f32(_fe, _c1);
-                        _ff = vaddq_f32(_ff, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                            uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
-                            uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
-                            transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                                _f4 = vaddq_f32(_f4, _c4);
-                                _f5 = vaddq_f32(_f5, _c5);
-                                _f6 = vaddq_f32(_f6, _c6);
-                                _f7 = vaddq_f32(_f7, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                                _f4 = vmlaq_f32(_f4, _c4, _beta);
-                                _f5 = vmlaq_f32(_f5, _c5, _beta);
-                                _f6 = vmlaq_f32(_f6, _c6, _beta);
-                                _f7 = vmlaq_f32(_f7, _c7, _beta);
-                            }
-                            _c01 = vld1q_u16(pC + c_hstep * 4);
-                            _c23 = vld1q_u16(pC + c_hstep * 5);
-                            _c45 = vld1q_u16(pC + c_hstep * 6);
-                            _c67 = vld1q_u16(pC + c_hstep * 7);
-                            transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f8 = vaddq_f32(_f8, _c0);
-                                _f9 = vaddq_f32(_f9, _c1);
-                                _fa = vaddq_f32(_fa, _c2);
-                                _fb = vaddq_f32(_fb, _c3);
-                                _fc = vaddq_f32(_fc, _c4);
-                                _fd = vaddq_f32(_fd, _c5);
-                                _fe = vaddq_f32(_fe, _c6);
-                                _ff = vaddq_f32(_ff, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f8 = vmlaq_f32(_f8, _c0, _beta);
-                                _f9 = vmlaq_f32(_f9, _c1, _beta);
-                                _fa = vmlaq_f32(_fa, _c2, _beta);
-                                _fb = vmlaq_f32(_fb, _c3, _beta);
-                                _fc = vmlaq_f32(_fc, _c4, _beta);
-                                _fd = vmlaq_f32(_fd, _c5, _beta);
-                                _fe = vmlaq_f32(_fe, _c6, _beta);
-                                _ff = vmlaq_f32(_ff, _c7, _beta);
-                            }
-                            pC += 8;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            uint16x8_t _c45 = vld1q_u16(pC + 16);
-                            uint16x8_t _c67 = vld1q_u16(pC + 24);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                            float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                            float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                            float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                                _f4 = vaddq_f32(_f4, _c4);
-                                _f5 = vaddq_f32(_f5, _c5);
-                                _f6 = vaddq_f32(_f6, _c6);
-                                _f7 = vaddq_f32(_f7, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                                _f4 = vmlaq_f32(_f4, _c4, _beta);
-                                _f5 = vmlaq_f32(_f5, _c5, _beta);
-                                _f6 = vmlaq_f32(_f6, _c6, _beta);
-                                _f7 = vmlaq_f32(_f7, _c7, _beta);
-                            }
-                            _c01 = vld1q_u16(pC + c_hstep * 4);
-                            _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
-                            _c45 = vld1q_u16(pC + c_hstep * 4 + 16);
-                            _c67 = vld1q_u16(pC + c_hstep * 4 + 24);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
-                            if (beta == 1.f)
-                            {
-                                _f8 = vaddq_f32(_f8, _c0);
-                                _f9 = vaddq_f32(_f9, _c1);
-                                _fa = vaddq_f32(_fa, _c2);
-                                _fb = vaddq_f32(_fb, _c3);
-                                _fc = vaddq_f32(_fc, _c4);
-                                _fd = vaddq_f32(_fd, _c5);
-                                _fe = vaddq_f32(_fe, _c6);
-                                _ff = vaddq_f32(_ff, _c7);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f8 = vmlaq_f32(_f8, _c0, _beta);
-                                _f9 = vmlaq_f32(_f9, _c1, _beta);
-                                _fa = vmlaq_f32(_fa, _c2, _beta);
-                                _fb = vmlaq_f32(_fb, _c3, _beta);
-                                _fc = vmlaq_f32(_fc, _c4, _beta);
-                                _fd = vmlaq_f32(_fd, _c5, _beta);
-                                _fe = vmlaq_f32(_fe, _c6, _beta);
-                                _ff = vmlaq_f32(_ff, _c7, _beta);
-                            }
-                            pC += 32;
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c = vld1q_u16(pC);
-                        float32x4_t _cc0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _cc1 = bfloat2float(vget_high_u16(_c));
-                        if (beta != 1.f)
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _cc0 = vmulq_f32(_cc0, _beta);
-                            _cc1 = vmulq_f32(_cc1, _beta);
-                        }
-                        _c0 = vdupq_laneq_f32(_cc0, 0);
-                        _c1 = vdupq_laneq_f32(_cc0, 1);
-                        float32x4_t _c2 = vdupq_laneq_f32(_cc0, 2);
-                        float32x4_t _c3 = vdupq_laneq_f32(_cc0, 3);
-                        float32x4_t _c4 = vdupq_laneq_f32(_cc1, 0);
-                        float32x4_t _c5 = vdupq_laneq_f32(_cc1, 1);
-                        float32x4_t _c6 = vdupq_laneq_f32(_cc1, 2);
-                        float32x4_t _c7 = vdupq_laneq_f32(_cc1, 3);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c2);
-                        _f3 = vaddq_f32(_f3, _c3);
-                        _f4 = vaddq_f32(_f4, _c4);
-                        _f5 = vaddq_f32(_f5, _c5);
-                        _f6 = vaddq_f32(_f6, _c6);
-                        _f7 = vaddq_f32(_f7, _c7);
-                        _f8 = vaddq_f32(_f8, _c0);
-                        _f9 = vaddq_f32(_f9, _c1);
-                        _fa = vaddq_f32(_fa, _c2);
-                        _fb = vaddq_f32(_fb, _c3);
-                        _fc = vaddq_f32(_fc, _c4);
-                        _fd = vaddq_f32(_fd, _c5);
-                        _fe = vaddq_f32(_fe, _c6);
-                        _ff = vaddq_f32(_ff, _c7);
-                        pC += 8;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
-                    _f8 = vmulq_f32(_f8, _alpha);
-                    _f9 = vmulq_f32(_f9, _alpha);
-                    _fa = vmulq_f32(_fa, _alpha);
-                    _fb = vmulq_f32(_fb, _alpha);
-                    _fc = vmulq_f32(_fc, _alpha);
-                    _fd = vmulq_f32(_fd, _alpha);
-                    _fe = vmulq_f32(_fe, _alpha);
-                    _ff = vmulq_f32(_ff, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f8)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f1), float2bfloat(_f9)));
-                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(float2bfloat(_f2), float2bfloat(_fa)));
-                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(float2bfloat(_f3), float2bfloat(_fb)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f4), float2bfloat(_fc)));
-                vst1q_u16(p0 + out_hstep * 5, vcombine_u16(float2bfloat(_f5), float2bfloat(_fd)));
-                vst1q_u16(p0 + out_hstep * 6, vcombine_u16(float2bfloat(_f6), float2bfloat(_fe)));
-                vst1q_u16(p0 + out_hstep * 7, vcombine_u16(float2bfloat(_f7), float2bfloat(_ff)));
-
-                pp += 64;
-                p0 += out_hstep * 8;
-            }
 #endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+            int32x4_t _sum4 = vld1q_s32(pp + 16);
+            int32x4_t _sum5 = vld1q_s32(pp + 20);
+            int32x4_t _sum6 = vld1q_s32(pp + 24);
+            int32x4_t _sum7 = vld1q_s32(pp + 28);
 
 #if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            //      e2 f2 g2 h2
+            //      e3 f3 g3 h3
 
 #else
-                // from
-                //      a0 b1 c2 d3
-                //      e0 f1 g2 h3
-                //      c0 d1 a2 b3
-                //      g0 h1 e2 f3
-                //      a3 b2 c1 d0
-                //      e3 f2 g1 h0
-                //      c3 d2 a1 b0
-                //      g3 h2 e1 f0
+            // from
+            //      a0 b1 c2 d3
+            //      e0 f1 g2 h3
+            //      c0 d1 a2 b3
+            //      g0 h1 e2 f3
+            //      a3 b2 c1 d0
+            //      e3 f2 g1 h0
+            //      c3 d2 a1 b0
+            //      g3 h2 e1 f0
 
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                //      e2 f2 g2 h2
-                //      e3 f3 g3 h3
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            //      e2 f2 g2 h2
+            //      e3 f3 g3 h3
 
-                {
-                    _sum4 = vrev64q_s32(_sum4);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum6 = vrev64q_s32(_sum6);
-                    _sum7 = vrev64q_s32(_sum7);
-                    _sum4 = vextq_s32(_sum4, _sum4, 2);
-                    _sum5 = vextq_s32(_sum5, _sum5, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
-                    int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
-                    int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum7 = vrev64q_s32(_sum7);
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
-                float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale1);
-                float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale1);
-                float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale1);
-                float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale1);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c1);
-                        _f5 = vaddq_f32(_f5, _c1);
-                        _f6 = vaddq_f32(_f6, _c1);
-                        _f7 = vaddq_f32(_f7, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
-                        {
-                            uint16x4_t _cc0 = vld1_u16(pC);
-                            uint16x4_t _cc1 = vld1_u16(pC + c_hstep);
-                            uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
-                            uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
-                            transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            float32x4_t _c2 = bfloat2float(_cc2);
-                            float32x4_t _c3 = bfloat2float(_cc3);
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            }
-                            _cc0 = vld1_u16(pC + c_hstep * 4);
-                            _cc1 = vld1_u16(pC + c_hstep * 5);
-                            _cc2 = vld1_u16(pC + c_hstep * 6);
-                            _cc3 = vld1_u16(pC + c_hstep * 7);
-                            transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            _c2 = bfloat2float(_cc2);
-                            _c3 = bfloat2float(_cc3);
-                            if (beta == 1.f)
-                            {
-                                _f4 = vaddq_f32(_f4, _c0);
-                                _f5 = vaddq_f32(_f5, _c1);
-                                _f6 = vaddq_f32(_f6, _c2);
-                                _f7 = vaddq_f32(_f7, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f4 = vmlaq_f32(_f4, _c0, _beta);
-                                _f5 = vmlaq_f32(_f5, _c1, _beta);
-                                _f6 = vmlaq_f32(_f6, _c2, _beta);
-                                _f7 = vmlaq_f32(_f7, _c3, _beta);
-                            }
-                            pC += 4;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                            float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                            if (beta == 1.f)
-                            {
-                                _f0 = vaddq_f32(_f0, _c0);
-                                _f1 = vaddq_f32(_f1, _c1);
-                                _f2 = vaddq_f32(_f2, _c2);
-                                _f3 = vaddq_f32(_f3, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f0 = vmlaq_f32(_f0, _c0, _beta);
-                                _f1 = vmlaq_f32(_f1, _c1, _beta);
-                                _f2 = vmlaq_f32(_f2, _c2, _beta);
-                                _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            }
-                            _c01 = vld1q_u16(pC + c_hstep * 4);
-                            _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            if (beta == 1.f)
-                            {
-                                _f4 = vaddq_f32(_f4, _c0);
-                                _f5 = vaddq_f32(_f5, _c1);
-                                _f6 = vaddq_f32(_f6, _c2);
-                                _f7 = vaddq_f32(_f7, _c3);
-                            }
-                            else
-                            {
-                                float32x4_t _beta = vdupq_n_f32(beta);
-                                _f4 = vmlaq_f32(_f4, _c0, _beta);
-                                _f5 = vmlaq_f32(_f5, _c1, _beta);
-                                _f6 = vmlaq_f32(_f6, _c2, _beta);
-                                _f7 = vmlaq_f32(_f7, _c3, _beta);
-                            }
-                            pC += 16;
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        float32x4_t _c = bfloat2float(vld1_u16(pC));
-                        _c = vmulq_n_f32(_c, beta);
-#if __aarch64__
-                        _c0 = vdupq_laneq_f32(_c, 0);
-                        _c1 = vdupq_laneq_f32(_c, 1);
-                        float32x4_t _c2 = vdupq_laneq_f32(_c, 2);
-                        float32x4_t _c3 = vdupq_laneq_f32(_c, 3);
-#else
-                        _c0 = vdupq_lane_f32(vget_low_f32(_c), 0);
-                        _c1 = vdupq_lane_f32(vget_low_f32(_c), 1);
-                        float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c), 0);
-                        float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c), 1);
-#endif
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c2);
-                        _f3 = vaddq_f32(_f3, _c3);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c1);
-                        _f6 = vaddq_f32(_f6, _c2);
-                        _f7 = vaddq_f32(_f7, _c3);
-                        pC += 4;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f4)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f1), float2bfloat(_f5)));
-                vst1q_u16(p0 + out_hstep * 2, vcombine_u16(float2bfloat(_f2), float2bfloat(_f6)));
-                vst1q_u16(p0 + out_hstep * 3, vcombine_u16(float2bfloat(_f3), float2bfloat(_f7)));
-
-                pp += 32;
-                p0 += out_hstep * 4;
+            {
+                _sum4 = vrev64q_s32(_sum4);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum6 = vrev64q_s32(_sum6);
+                _sum7 = vrev64q_s32(_sum7);
+                _sum4 = vextq_s32(_sum4, _sum4, 2);
+                _sum5 = vextq_s32(_sum5, _sum5, 2);
+                _sum6 = vextq_s32(_sum6, _sum6, 2);
+                _sum7 = vextq_s32(_sum7, _sum7, 2);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
+                int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
+                int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
+                int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
+                _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
+                _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
+                _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
+                _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum7 = vrev64q_s32(_sum7);
             }
-            for (; jj + 1 < max_jj; jj += 2)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-#if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-#else
-                // from
-                //      a0 b1 c0 d1
-                //      e0 f1 g0 h1
-                //      a1 b0 c1 d0
-                //      e1 f0 g1 h0
-
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      e0 f0 g0 h0
-                //      e1 f1 g1 h1
-                {
-                    _sum2 = vrev64q_s32(_sum2);
-                    _sum3 = vrev64q_s32(_sum3);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum2);
-                    int32x4x2_t _t1 = vzipq_s32(_sum1, _sum3);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t0.val[1]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t0.val[1]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[0]), vget_low_s32(_t1.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[0]), vget_high_s32(_t1.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale1);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale1);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale0);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale0);
+            float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale1);
+            float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale1);
+            float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale1);
+            float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale1);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c1);
+                    _f5 = vaddq_f32(_f5, _c1);
+                    _f6 = vaddq_f32(_f6, _c1);
+                    _f7 = vaddq_f32(_f7, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c1);
-                        _f3 = vaddq_f32(_f3, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4_t _c2;
-                        float32x4_t _c3;
-                        if (c_elempack == 1)
-                        {
-                            uint16x8_t _c01 = uint16x8_t();
-                            _c01 = vsetq_lane_u16(pC[0], _c01, 0);
-                            _c01 = vsetq_lane_u16(pC[c_hstep], _c01, 1);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 2], _c01, 2);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 3], _c01, 3);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 4], _c01, 4);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 5], _c01, 5);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 6], _c01, 6);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 7], _c01, 7);
-
-                            uint16x8_t _c23 = uint16x8_t();
-                            _c23 = vsetq_lane_u16(pC[1], _c23, 0);
-                            _c23 = vsetq_lane_u16(pC[c_hstep + 1], _c23, 1);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c23, 2);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c23, 3);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 4 + 1], _c23, 4);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 5 + 1], _c23, 5);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 6 + 1], _c23, 6);
-                            _c23 = vsetq_lane_u16(pC[c_hstep * 7 + 1], _c23, 7);
-
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_low_u16(_c23));
-                            _c2 = bfloat2float(vget_high_u16(_c01));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            pC += 2;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + c_hstep * 4);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            pC += 8;
-                        }
+                        uint16x4_t _cc0 = vld1_u16(pC);
+                        uint16x4_t _cc1 = vld1_u16(pC + c_hstep);
+                        uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
+                        uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
+                        transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
+                        _c0 = bfloat2float(_cc0);
+                        _c1 = bfloat2float(_cc1);
+                        float32x4_t _c2 = bfloat2float(_cc2);
+                        float32x4_t _c3 = bfloat2float(_cc3);
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
@@ -9354,106 +6958,360 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                             _f2 = vmlaq_f32(_f2, _c2, _beta);
                             _f3 = vmlaq_f32(_f3, _c3, _beta);
                         }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c1);
-                        pC += 2;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f2)));
-                vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f1), float2bfloat(_f3)));
-
-                pp += 16;
-                p0 += out_hstep * 2;
-            }
-            for (; jj < max_jj; jj += 1)
-            {
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale0);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp + 4)), _descale1);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        if (c_elempack == 1)
+                        _cc0 = vld1_u16(pC + c_hstep * 4);
+                        _cc1 = vld1_u16(pC + c_hstep * 5);
+                        _cc2 = vld1_u16(pC + c_hstep * 6);
+                        _cc3 = vld1_u16(pC + c_hstep * 7);
+                        transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
+                        _c0 = bfloat2float(_cc0);
+                        _c1 = bfloat2float(_cc1);
+                        _c2 = bfloat2float(_cc2);
+                        _c3 = bfloat2float(_cc3);
+                        if (beta == 1.f)
                         {
-                            uint16x8_t _c01 = uint16x8_t();
-                            _c01 = vsetq_lane_u16(pC[0], _c01, 0);
-                            _c01 = vsetq_lane_u16(pC[c_hstep], _c01, 1);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 2], _c01, 2);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 3], _c01, 3);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 4], _c01, 4);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 5], _c01, 5);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 6], _c01, 6);
-                            _c01 = vsetq_lane_u16(pC[c_hstep * 7], _c01, 7);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            pC += 1;
+                            _f4 = vaddq_f32(_f4, _c0);
+                            _f5 = vaddq_f32(_f5, _c1);
+                            _f6 = vaddq_f32(_f6, _c2);
+                            _f7 = vaddq_f32(_f7, _c3);
                         }
-                        else // if (c_elempack == 4)
+                        else
                         {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4));
-                            pC += 4;
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f4 = vmlaq_f32(_f4, _c0, _beta);
+                            _f5 = vmlaq_f32(_f5, _c1, _beta);
+                            _f6 = vmlaq_f32(_f6, _c2, _beta);
+                            _f7 = vmlaq_f32(_f7, _c3, _beta);
                         }
+                        pC += 4;
+                    }
+                    else // if (c_elempack == 4)
+                    {
+                        uint16x8_t _c01 = vld1q_u16(pC);
+                        uint16x8_t _c23 = vld1q_u16(pC + 8);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
                         if (beta == 1.f)
                         {
                             _f0 = vaddq_f32(_f0, _c0);
                             _f1 = vaddq_f32(_f1, _c1);
+                            _f2 = vaddq_f32(_f2, _c2);
+                            _f3 = vaddq_f32(_f3, _c3);
                         }
                         else
                         {
                             float32x4_t _beta = vdupq_n_f32(beta);
                             _f0 = vmlaq_f32(_f0, _c0, _beta);
                             _f1 = vmlaq_f32(_f1, _c1, _beta);
+                            _f2 = vmlaq_f32(_f2, _c2, _beta);
+                            _f3 = vmlaq_f32(_f3, _c3, _beta);
                         }
+                        _c01 = vld1q_u16(pC + c_hstep * 4);
+                        _c23 = vld1q_u16(pC + c_hstep * 4 + 8);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c2 = bfloat2float(vget_low_u16(_c23));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
+                        if (beta == 1.f)
+                        {
+                            _f4 = vaddq_f32(_f4, _c0);
+                            _f5 = vaddq_f32(_f5, _c1);
+                            _f6 = vaddq_f32(_f6, _c2);
+                            _f7 = vaddq_f32(_f7, _c3);
+                        }
+                        else
+                        {
+                            float32x4_t _beta = vdupq_n_f32(beta);
+                            _f4 = vmlaq_f32(_f4, _c0, _beta);
+                            _f5 = vmlaq_f32(_f5, _c1, _beta);
+                            _f6 = vmlaq_f32(_f6, _c2, _beta);
+                            _f7 = vmlaq_f32(_f7, _c3, _beta);
+                        }
+                        pC += 16;
                     }
-                    if (broadcast_type_C == 4)
+                }
+                if (broadcast_type_C == 4)
+                {
+                    float32x4_t _c = bfloat2float(vld1_u16(pC));
+                    _c = vmulq_n_f32(_c, beta);
+#if __aarch64__
+                    _c0 = vdupq_laneq_f32(_c, 0);
+                    _c1 = vdupq_laneq_f32(_c, 1);
+                    float32x4_t _c2 = vdupq_laneq_f32(_c, 2);
+                    float32x4_t _c3 = vdupq_laneq_f32(_c, 3);
+#else
+                    _c0 = vdupq_lane_f32(vget_low_f32(_c), 0);
+                    _c1 = vdupq_lane_f32(vget_low_f32(_c), 1);
+                    float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c), 0);
+                    float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c), 1);
+#endif
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c1);
+                    _f6 = vaddq_f32(_f6, _c2);
+                    _f7 = vaddq_f32(_f7, _c3);
+                    pC += 4;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+                _f4 = vmulq_f32(_f4, _alpha);
+                _f5 = vmulq_f32(_f5, _alpha);
+                _f6 = vmulq_f32(_f6, _alpha);
+                _f7 = vmulq_f32(_f7, _alpha);
+            }
+
+            uint16x8_t _bf0 = vcombine_u16(float2bfloat(_f0), float2bfloat(_f4));
+            uint16x8_t _bf1 = vcombine_u16(float2bfloat(_f1), float2bfloat(_f5));
+            uint16x8_t _bf2 = vcombine_u16(float2bfloat(_f2), float2bfloat(_f6));
+            uint16x8_t _bf3 = vcombine_u16(float2bfloat(_f3), float2bfloat(_f7));
+
+            if (out_elempack == 4)
+            {
+                uint16x8x4_t _bf;
+                _bf.val[0] = _bf0;
+                _bf.val[1] = _bf1;
+                _bf.val[2] = _bf2;
+                _bf.val[3] = _bf3;
+                vst4q_u16(p0, _bf);
+            }
+            else // if (out_elempack == 1)
+            {
+                vst1q_u16(p0, _bf0);
+                vst1q_u16(p0 + out_hstep, _bf1);
+                vst1q_u16(p0 + out_hstep * 2, _bf2);
+                vst1q_u16(p0 + out_hstep * 3, _bf3);
+            }
+
+            pp += 32;
+            p0 += out_hstep * 4;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+
+#if __ARM_FEATURE_DOTPROD
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+#else
+            // from
+            //      a0 b1 c0 d1
+            //      e0 f1 g0 h1
+            //      a1 b0 c1 d0
+            //      e1 f0 g1 h0
+
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      e0 f0 g0 h0
+            //      e1 f1 g1 h1
+            {
+                _sum2 = vrev64q_s32(_sum2);
+                _sum3 = vrev64q_s32(_sum3);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum2);
+                int32x4x2_t _t1 = vzipq_s32(_sum1, _sum3);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t0.val[1]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t0.val[1]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[0]), vget_low_s32(_t1.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[0]), vget_high_s32(_t1.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+            }
+#endif // __ARM_FEATURE_DOTPROD
+
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale0);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale0);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale1);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale1);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c1);
+                    _f3 = vaddq_f32(_f3, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    float32x4_t _c2;
+                    float32x4_t _c3;
+                    if (c_elempack == 1)
                     {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                        uint16x8_t _c01 = uint16x8_t();
+                        _c01 = vsetq_lane_u16(pC[0], _c01, 0);
+                        _c01 = vsetq_lane_u16(pC[c_hstep], _c01, 1);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 2], _c01, 2);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 3], _c01, 3);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 4], _c01, 4);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 5], _c01, 5);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 6], _c01, 6);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 7], _c01, 7);
+
+                        uint16x8_t _c23 = uint16x8_t();
+                        _c23 = vsetq_lane_u16(pC[1], _c23, 0);
+                        _c23 = vsetq_lane_u16(pC[c_hstep + 1], _c23, 1);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c23, 2);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c23, 3);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 4 + 1], _c23, 4);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 5 + 1], _c23, 5);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 6 + 1], _c23, 6);
+                        _c23 = vsetq_lane_u16(pC[c_hstep * 7 + 1], _c23, 7);
+
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_low_u16(_c23));
+                        _c2 = bfloat2float(vget_high_u16(_c01));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
+                        pC += 2;
+                    }
+                    else // if (c_elempack == 4)
+                    {
+                        uint16x8_t _c01 = vld1q_u16(pC);
+                        uint16x8_t _c23 = vld1q_u16(pC + c_hstep * 4);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c2 = bfloat2float(vget_low_u16(_c23));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
+                        pC += 8;
+                    }
+                    if (beta == 1.f)
+                    {
                         _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                        _f2 = vaddq_f32(_f2, _c2);
+                        _f3 = vaddq_f32(_f3, _c3);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
+                    }
+                }
+                if (broadcast_type_C == 4)
+                {
+                    _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                    _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c1);
+                    pC += 2;
+                }
+            }
+
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
+
+            vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f2)));
+            vst1q_u16(p0 + out_hstep, vcombine_u16(float2bfloat(_f1), float2bfloat(_f3)));
+
+            pp += 16;
+            p0 += out_hstep * 2;
+        }
+        for (; jj < max_jj; jj += 1)
+        {
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale0);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp + 4)), _descale1);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    if (c_elempack == 1)
+                    {
+                        uint16x8_t _c01 = uint16x8_t();
+                        _c01 = vsetq_lane_u16(pC[0], _c01, 0);
+                        _c01 = vsetq_lane_u16(pC[c_hstep], _c01, 1);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 2], _c01, 2);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 3], _c01, 3);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 4], _c01, 4);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 5], _c01, 5);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 6], _c01, 6);
+                        _c01 = vsetq_lane_u16(pC[c_hstep * 7], _c01, 7);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
                         pC += 1;
                     }
+                    else // if (c_elempack == 4)
+                    {
+                        _c0 = bfloat2float(vld1_u16(pC));
+                        _c1 = bfloat2float(vld1_u16(pC + c_hstep * 4));
+                        pC += 4;
+                    }
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                    }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
+                    _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    pC += 1;
                 }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                pp += 8;
-                p0 += out_hstep;
             }
+
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+            }
+
+            vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
+            pp += 8;
+            p0 += out_hstep;
         }
     }
     for (; ii + 3 < max_ii; ii += 4)
@@ -9485,582 +7343,143 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
             }
         }
 
-        if (out_elempack == 4)
-        {
-            int jj = 0;
+        int jj = 0;
 #if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+            int32x4_t _sum4 = vld1q_s32(pp + 16);
+            int32x4_t _sum5 = vld1q_s32(pp + 20);
+            int32x4_t _sum6 = vld1q_s32(pp + 24);
+            int32x4_t _sum7 = vld1q_s32(pp + 28);
 
 #if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      a4 b4 c4 d4
+            //      a5 b5 c5 d5
+            //      a6 b6 c6 d6
+            //      a7 b7 c7 d7
+#else
+            // from
+            //      a0 b1 c2 d3
+            //      a4 b5 c6 d7
+            //      c0 d1 a2 b3
+            //      c4 d5 a6 b7
+            //      a3 b2 c1 d0
+            //      a7 b6 c5 d4
+            //      c3 d2 a1 b0
+            //      c7 d6 a5 b4
 
-                // to
-                //      a0 a1 a2 a3
-                //      a4 a5 a6 a7
-                //      b0 b1 b2 b3
-                //      b4 b5 b6 b7
-                //      c0 c1 c2 c3
-                //      c4 c5 c6 c7
-                //      d0 d1 d2 d3
-                //      d4 d5 d6 d7
-                {
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum3);
-                    int32x4x2_t _t2 = vzipq_s32(_sum4, _sum5);
-                    int32x4x2_t _t3 = vzipq_s32(_sum6, _sum7);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t0.val[1]), vget_low_s32(_t1.val[1]));
-                    _sum5 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
-                    _sum6 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
-                }
-#else  // __ARM_FEATURE_DOTPROD
-
-                // from
-                //      a0 b1 c2 d3
-                //      a4 b5 c6 d7
-                //      c0 d1 a2 b3
-                //      c4 d5 a6 b7
-                //      a3 b2 c1 d0
-                //      a7 b6 c5 d4
-                //      c3 d2 a1 b0
-                //      c7 d6 a5 b4
-
-                // to
-                //      a0 a1 a2 a3
-                //      a4 a5 a6 a7
-                //      b0 b1 b2 b3
-                //      b4 b5 b6 b7
-                //      c0 c1 c2 c3
-                //      c4 c5 c6 c7
-                //      d0 d1 d2 d3
-                //      d4 d5 d6 d7
-                {
-                    _sum2 = vextq_s32(_sum2, _sum2, 2);
-                    _sum3 = vextq_s32(_sum3, _sum3, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
-                    int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
-                    int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum5 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum6 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum2 = vrev64q_s32(_sum2);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum6 = vrev64q_s32(_sum6);
-                    _sum7 = vrev64q_s32(_sum7);
-                }
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            //      a4 b4 c4 d4
+            //      a5 b5 c5 d5
+            //      a6 b6 c6 d6
+            //      a7 b7 c7 d7
+            {
+                _sum4 = vrev64q_s32(_sum4);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum6 = vrev64q_s32(_sum6);
+                _sum7 = vrev64q_s32(_sum7);
+                _sum4 = vextq_s32(_sum4, _sum4, 2);
+                _sum5 = vextq_s32(_sum5, _sum5, 2);
+                _sum6 = vextq_s32(_sum6, _sum6, 2);
+                _sum7 = vextq_s32(_sum7, _sum7, 2);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
+                int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
+                int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
+                int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
+                _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
+                _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
+                _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
+                _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+                _sum5 = vrev64q_s32(_sum5);
+                _sum7 = vrev64q_s32(_sum7);
+            }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_laneq_f32(vcvtq_f32_s32(_sum0), _descale, 0);
-                float32x4_t _f1 = vmulq_laneq_f32(vcvtq_f32_s32(_sum1), _descale, 0);
-                float32x4_t _f2 = vmulq_laneq_f32(vcvtq_f32_s32(_sum2), _descale, 1);
-                float32x4_t _f3 = vmulq_laneq_f32(vcvtq_f32_s32(_sum3), _descale, 1);
-                float32x4_t _f4 = vmulq_laneq_f32(vcvtq_f32_s32(_sum4), _descale, 2);
-                float32x4_t _f5 = vmulq_laneq_f32(vcvtq_f32_s32(_sum5), _descale, 2);
-                float32x4_t _f6 = vmulq_laneq_f32(vcvtq_f32_s32(_sum6), _descale, 3);
-                float32x4_t _f7 = vmulq_laneq_f32(vcvtq_f32_s32(_sum7), _descale, 3);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
+            float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale);
+            float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale);
+            float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale);
+            float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                    _f4 = vaddq_f32(_f4, _c0);
+                    _f5 = vaddq_f32(_f5, _c0);
+                    _f6 = vaddq_f32(_f6, _c0);
+                    _f7 = vaddq_f32(_f7, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    uint16x8_t _c01;
+                    uint16x8_t _c23;
+                    uint16x8_t _c45;
+                    uint16x8_t _c67;
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
-                        float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
-                        float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
-                        float32x4_t _cc3 = vdupq_laneq_f32(_c0, 3);
-                        _f0 = vaddq_f32(_f0, _cc0);
-                        _f1 = vaddq_f32(_f1, _cc0);
-                        _f2 = vaddq_f32(_f2, _cc1);
-                        _f3 = vaddq_f32(_f3, _cc1);
-                        _f4 = vaddq_f32(_f4, _cc2);
-                        _f5 = vaddq_f32(_f5, _cc2);
-                        _f6 = vaddq_f32(_f6, _cc3);
-                        _f7 = vaddq_f32(_f7, _cc3);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4_t _c1;
-                        float32x4_t _c2;
-                        float32x4_t _c3;
-                        float32x4_t _c4;
-                        float32x4_t _c5;
-                        float32x4_t _c6;
-                        float32x4_t _c7;
-                        if (c_elempack == 1)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                            uint16x8_t _c45 = vld1q_u16(pC + c_hstep * 2);
-                            uint16x8_t _c67 = vld1q_u16(pC + c_hstep * 3);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            _c4 = bfloat2float(vget_low_u16(_c45));
-                            _c5 = bfloat2float(vget_high_u16(_c45));
-                            _c6 = bfloat2float(vget_low_u16(_c67));
-                            _c7 = bfloat2float(vget_high_u16(_c67));
-                            pC += 8;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8x4_t _c = vld4q_u16(pC);
-                            _c0 = bfloat2float(vget_low_u16(_c.val[0]));
-                            _c1 = bfloat2float(vget_high_u16(_c.val[0]));
-                            _c2 = bfloat2float(vget_low_u16(_c.val[1]));
-                            _c3 = bfloat2float(vget_high_u16(_c.val[1]));
-                            _c4 = bfloat2float(vget_low_u16(_c.val[2]));
-                            _c5 = bfloat2float(vget_high_u16(_c.val[2]));
-                            _c6 = bfloat2float(vget_low_u16(_c.val[3]));
-                            _c7 = bfloat2float(vget_high_u16(_c.val[3]));
-                            pC += 32;
-                        }
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                            _f4 = vaddq_f32(_f4, _c4);
-                            _f5 = vaddq_f32(_f5, _c5);
-                            _f6 = vaddq_f32(_f6, _c6);
-                            _f7 = vaddq_f32(_f7, _c7);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            _f4 = vmlaq_f32(_f4, _c4, _beta);
-                            _f5 = vmlaq_f32(_f5, _c5, _beta);
-                            _f6 = vmlaq_f32(_f6, _c6, _beta);
-                            _f7 = vmlaq_f32(_f7, _c7, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta != 1.f)
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _c0 = vmulq_f32(_c0, _beta);
-                            _c1 = vmulq_f32(_c1, _beta);
-                        }
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c1);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c1);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c1);
+                        _c01 = vld1q_u16(pC);
+                        _c23 = vld1q_u16(pC + c_hstep);
+                        _c45 = vld1q_u16(pC + c_hstep * 2);
+                        _c67 = vld1q_u16(pC + c_hstep * 3);
+                        transpose8x4_u16(_c01, _c23, _c45, _c67);
                         pC += 8;
                     }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f2)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f4), float2bfloat(_f6)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f1), float2bfloat(_f3)));
-                vst1q_u16(p0 + out_hstep * 4 + 8, vcombine_u16(float2bfloat(_f5), float2bfloat(_f7)));
-
-                pp += 32;
-                p0 += out_hstep * 8;
-            }
-#endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-#if __ARM_FEATURE_DOTPROD
-                // from
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-
-                // to
-                //      a0 a1 a2 a3
-                //      b0 b1 b2 b3
-                //      c0 c1 c2 c3
-                //      d0 d1 d2 d3
-                {
-                    int32x4x2_t _r01 = vzipq_s32(_sum0, _sum1);
-                    int32x4x2_t _r23 = vzipq_s32(_sum2, _sum3);
-                    _sum0 = vcombine_s32(vget_low_s32(_r01.val[0]), vget_low_s32(_r23.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_r01.val[0]), vget_high_s32(_r23.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_r01.val[1]), vget_low_s32(_r23.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_r01.val[1]), vget_high_s32(_r23.val[1]));
-                }
-#else
-                // from
-                //      a0 b1 c2 d3
-                //      c0 d1 a2 b3
-                //      a3 b2 c1 d0
-                //      c3 d2 a1 b0
-
-                // to
-                //      a0 a1 a2 a3
-                //      b0 b1 b2 b3
-                //      c0 c1 c2 c3
-                //      d0 d1 d2 d3
-                {
-                    _sum1 = vextq_s32(_sum1, _sum1, 2);
-                    _sum3 = vextq_s32(_sum3, _sum3, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum3);
-                    int32x4x2_t _t1 = vzipq_s32(_sum1, _sum2);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-#if __aarch64__
-                float32x4_t _f0 = vmulq_laneq_f32(vcvtq_f32_s32(_sum0), _descale, 0);
-                float32x4_t _f1 = vmulq_laneq_f32(vcvtq_f32_s32(_sum1), _descale, 1);
-                float32x4_t _f2 = vmulq_laneq_f32(vcvtq_f32_s32(_sum2), _descale, 2);
-                float32x4_t _f3 = vmulq_laneq_f32(vcvtq_f32_s32(_sum3), _descale, 3);
-#else
-                float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), vget_low_f32(_descale), 0);
-                float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), vget_low_f32(_descale), 1);
-                float32x4_t _f2 = vmulq_lane_f32(vcvtq_f32_s32(_sum2), vget_high_f32(_descale), 0);
-                float32x4_t _f3 = vmulq_lane_f32(vcvtq_f32_s32(_sum3), vget_high_f32(_descale), 1);
-#endif
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
+                    else // if (c_elempack == 4)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
+                        _c01 = vld1q_u16(pC);
+                        _c23 = vld1q_u16(pC + 8);
+                        _c45 = vld1q_u16(pC + 16);
+                        _c67 = vld1q_u16(pC + 24);
+                        pC += 32;
                     }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    _c0 = bfloat2float(vget_low_u16(_c01));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
+                    float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                    float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                    float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
+                    float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
+                    float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
+                    float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
+                    if (beta == 1.f)
                     {
-#if __aarch64__
-                        float32x4_t _cc0 = vdupq_laneq_f32(_c0, 0);
-                        float32x4_t _cc1 = vdupq_laneq_f32(_c0, 1);
-                        float32x4_t _cc2 = vdupq_laneq_f32(_c0, 2);
-                        float32x4_t _cc3 = vdupq_laneq_f32(_c0, 3);
-#else
-                        float32x4_t _cc0 = vdupq_lane_f32(vget_low_f32(_c0), 0);
-                        float32x4_t _cc1 = vdupq_lane_f32(vget_low_f32(_c0), 1);
-                        float32x4_t _cc2 = vdupq_lane_f32(vget_high_f32(_c0), 0);
-                        float32x4_t _cc3 = vdupq_lane_f32(vget_high_f32(_c0), 1);
-#endif
-                        _f0 = vaddq_f32(_f0, _cc0);
-                        _f1 = vaddq_f32(_f1, _cc1);
-                        _f2 = vaddq_f32(_f2, _cc2);
-                        _f3 = vaddq_f32(_f3, _cc3);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        float32x4_t _c1;
-                        float32x4_t _c2;
-                        float32x4_t _c3;
-                        if (c_elempack == 1)
-                        {
-                            _c0 = bfloat2float(vld1_u16(pC));
-                            _c1 = bfloat2float(vld1_u16(pC + c_hstep));
-                            _c2 = bfloat2float(vld1_u16(pC + c_hstep * 2));
-                            _c3 = bfloat2float(vld1_u16(pC + c_hstep * 3));
-                            pC += 4;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x4x4_t _c = vld4_u16(pC);
-                            _c0 = bfloat2float(_c.val[0]);
-                            _c1 = bfloat2float(_c.val[1]);
-                            _c2 = bfloat2float(_c.val[2]);
-                            _c3 = bfloat2float(_c.val[3]);
-                            pC += 16;
-                        }
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _c0 = vmulq_n_f32(_c0, beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        pC += 4;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f1)));
-                vst1q_u16(p0 + 8, vcombine_u16(float2bfloat(_f2), float2bfloat(_f3)));
-
-                pp += 16;
-                p0 += out_hstep * 4;
-            }
-        }
-        if (out_elempack == 1)
-        {
-            int jj = 0;
-#if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-                int32x4_t _sum4 = vld1q_s32(pp + 16);
-                int32x4_t _sum5 = vld1q_s32(pp + 20);
-                int32x4_t _sum6 = vld1q_s32(pp + 24);
-                int32x4_t _sum7 = vld1q_s32(pp + 28);
-
-#if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-#else
-                // from
-                //      a0 b1 c2 d3
-                //      a4 b5 c6 d7
-                //      c0 d1 a2 b3
-                //      c4 d5 a6 b7
-                //      a3 b2 c1 d0
-                //      a7 b6 c5 d4
-                //      c3 d2 a1 b0
-                //      c7 d6 a5 b4
-
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                //      a4 b4 c4 d4
-                //      a5 b5 c5 d5
-                //      a6 b6 c6 d6
-                //      a7 b7 c7 d7
-                {
-                    _sum4 = vrev64q_s32(_sum4);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum6 = vrev64q_s32(_sum6);
-                    _sum7 = vrev64q_s32(_sum7);
-                    _sum4 = vextq_s32(_sum4, _sum4, 2);
-                    _sum5 = vextq_s32(_sum5, _sum5, 2);
-                    _sum6 = vextq_s32(_sum6, _sum6, 2);
-                    _sum7 = vextq_s32(_sum7, _sum7, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum6);
-                    int32x4x2_t _t1 = vzipq_s32(_sum2, _sum4);
-                    int32x4x2_t _t2 = vzipq_s32(_sum1, _sum7);
-                    int32x4x2_t _t3 = vzipq_s32(_sum3, _sum5);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum4 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                    _sum5 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                    _sum6 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                    _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum5 = vrev64q_s32(_sum5);
-                    _sum7 = vrev64q_s32(_sum7);
-                }
-#endif // __ARM_FEATURE_DOTPROD
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
-                float32x4_t _f4 = vmulq_f32(vcvtq_f32_s32(_sum4), _descale);
-                float32x4_t _f5 = vmulq_f32(vcvtq_f32_s32(_sum5), _descale);
-                float32x4_t _f6 = vmulq_f32(vcvtq_f32_s32(_sum6), _descale);
-                float32x4_t _f7 = vmulq_f32(vcvtq_f32_s32(_sum7), _descale);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                        _f4 = vaddq_f32(_f4, _c0);
-                        _f5 = vaddq_f32(_f5, _c0);
-                        _f6 = vaddq_f32(_f6, _c0);
-                        _f7 = vaddq_f32(_f7, _c0);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        uint16x8_t _c01;
-                        uint16x8_t _c23;
-                        uint16x8_t _c45;
-                        uint16x8_t _c67;
-                        if (c_elempack == 1)
-                        {
-                            _c01 = vld1q_u16(pC);
-                            _c23 = vld1q_u16(pC + c_hstep);
-                            _c45 = vld1q_u16(pC + c_hstep * 2);
-                            _c67 = vld1q_u16(pC + c_hstep * 3);
-                            transpose8x4_u16(_c01, _c23, _c45, _c67);
-                            pC += 8;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c01 = vld1q_u16(pC);
-                            _c23 = vld1q_u16(pC + 8);
-                            _c45 = vld1q_u16(pC + 16);
-                            _c67 = vld1q_u16(pC + 24);
-                            pC += 32;
-                        }
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                        float32x4_t _c4 = bfloat2float(vget_low_u16(_c45));
-                        float32x4_t _c5 = bfloat2float(vget_high_u16(_c45));
-                        float32x4_t _c6 = bfloat2float(vget_low_u16(_c67));
-                        float32x4_t _c7 = bfloat2float(vget_high_u16(_c67));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                            _f4 = vaddq_f32(_f4, _c4);
-                            _f5 = vaddq_f32(_f5, _c5);
-                            _f6 = vaddq_f32(_f6, _c6);
-                            _f7 = vaddq_f32(_f7, _c7);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                            _f4 = vmlaq_f32(_f4, _c4, _beta);
-                            _f5 = vmlaq_f32(_f5, _c5, _beta);
-                            _f6 = vmlaq_f32(_f6, _c6, _beta);
-                            _f7 = vmlaq_f32(_f7, _c7, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c = vld1q_u16(pC);
-                        float32x4_t _cc0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _cc1 = bfloat2float(vget_high_u16(_c));
-                        if (beta != 1.f)
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _cc0 = vmulq_f32(_cc0, _beta);
-                            _cc1 = vmulq_f32(_cc1, _beta);
-                        }
-                        _c0 = vdupq_laneq_f32(_cc0, 0);
-                        float32x4_t _c1 = vdupq_laneq_f32(_cc0, 1);
-                        float32x4_t _c2 = vdupq_laneq_f32(_cc0, 2);
-                        float32x4_t _c3 = vdupq_laneq_f32(_cc0, 3);
-                        float32x4_t _c4 = vdupq_laneq_f32(_cc1, 0);
-                        float32x4_t _c5 = vdupq_laneq_f32(_cc1, 1);
-                        float32x4_t _c6 = vdupq_laneq_f32(_cc1, 2);
-                        float32x4_t _c7 = vdupq_laneq_f32(_cc1, 3);
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                         _f2 = vaddq_f32(_f2, _c2);
@@ -10069,329 +7488,413 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
                         _f5 = vaddq_f32(_f5, _c5);
                         _f6 = vaddq_f32(_f6, _c6);
                         _f7 = vaddq_f32(_f7, _c7);
-                        pC += 8;
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
+                        _f4 = vmlaq_f32(_f4, _c4, _beta);
+                        _f5 = vmlaq_f32(_f5, _c5, _beta);
+                        _f6 = vmlaq_f32(_f6, _c6, _beta);
+                        _f7 = vmlaq_f32(_f7, _c7, _beta);
                     }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                    _f4 = vmulq_f32(_f4, _alpha);
-                    _f5 = vmulq_f32(_f5, _alpha);
-                    _f6 = vmulq_f32(_f6, _alpha);
-                    _f7 = vmulq_f32(_f7, _alpha);
+                    uint16x8_t _c = vld1q_u16(pC);
+                    float32x4_t _cc0 = bfloat2float(vget_low_u16(_c));
+                    float32x4_t _cc1 = bfloat2float(vget_high_u16(_c));
+                    if (beta != 1.f)
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _cc0 = vmulq_f32(_cc0, _beta);
+                        _cc1 = vmulq_f32(_cc1, _beta);
+                    }
+                    _c0 = vdupq_laneq_f32(_cc0, 0);
+                    float32x4_t _c1 = vdupq_laneq_f32(_cc0, 1);
+                    float32x4_t _c2 = vdupq_laneq_f32(_cc0, 2);
+                    float32x4_t _c3 = vdupq_laneq_f32(_cc0, 3);
+                    float32x4_t _c4 = vdupq_laneq_f32(_cc1, 0);
+                    float32x4_t _c5 = vdupq_laneq_f32(_cc1, 1);
+                    float32x4_t _c6 = vdupq_laneq_f32(_cc1, 2);
+                    float32x4_t _c7 = vdupq_laneq_f32(_cc1, 3);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    _f4 = vaddq_f32(_f4, _c4);
+                    _f5 = vaddq_f32(_f5, _c5);
+                    _f6 = vaddq_f32(_f6, _c6);
+                    _f7 = vaddq_f32(_f7, _c7);
+                    pC += 8;
                 }
-
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-                vst1_u16(p0 + out_hstep * 2, float2bfloat(_f2));
-                vst1_u16(p0 + out_hstep * 3, float2bfloat(_f3));
-                vst1_u16(p0 + out_hstep * 4, float2bfloat(_f4));
-                vst1_u16(p0 + out_hstep * 5, float2bfloat(_f5));
-                vst1_u16(p0 + out_hstep * 6, float2bfloat(_f6));
-                vst1_u16(p0 + out_hstep * 7, float2bfloat(_f7));
-
-                pp += 32;
-                p0 += out_hstep * 8;
             }
-#endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
+
+            if (alpha != 1.f)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+                _f4 = vmulq_f32(_f4, _alpha);
+                _f5 = vmulq_f32(_f5, _alpha);
+                _f6 = vmulq_f32(_f6, _alpha);
+                _f7 = vmulq_f32(_f7, _alpha);
+            }
+
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+            uint16x4_t _bf4 = float2bfloat(_f4);
+            uint16x4_t _bf5 = float2bfloat(_f5);
+            uint16x4_t _bf6 = float2bfloat(_f6);
+            uint16x4_t _bf7 = float2bfloat(_f7);
+
+            if (out_elempack == 4)
+            {
+                uint16x4x4_t _bfa;
+                uint16x4x4_t _bfb;
+                _bfa.val[0] = _bf0;
+                _bfa.val[1] = _bf1;
+                _bfa.val[2] = _bf2;
+                _bfa.val[3] = _bf3;
+                _bfb.val[0] = _bf4;
+                _bfb.val[1] = _bf5;
+                _bfb.val[2] = _bf6;
+                _bfb.val[3] = _bf7;
+                vst4_u16(p0, _bfa);
+                vst4_u16(p0 + out_hstep * 4, _bfb);
+            }
+            else // if (out_elempack == 1)
+            {
+                vst1_u16(p0, _bf0);
+                vst1_u16(p0 + out_hstep, _bf1);
+                vst1_u16(p0 + out_hstep * 2, _bf2);
+                vst1_u16(p0 + out_hstep * 3, _bf3);
+                vst1_u16(p0 + out_hstep * 4, _bf4);
+                vst1_u16(p0 + out_hstep * 5, _bf5);
+                vst1_u16(p0 + out_hstep * 6, _bf6);
+                vst1_u16(p0 + out_hstep * 7, _bf7);
+            }
+
+            pp += 32;
+            p0 += out_hstep * 8;
+        }
+#endif // __aarch64__
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
 
 #if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
 #else
-                // from
-                //      a0 b1 c2 d3
-                //      c0 d1 a2 b3
-                //      a3 b2 c1 d0
-                //      c3 d2 a1 b0
+            // from
+            //      a0 b1 c2 d3
+            //      c0 d1 a2 b3
+            //      a3 b2 c1 d0
+            //      c3 d2 a1 b0
 
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-                {
-                    _sum2 = vrev64q_s32(_sum2);
-                    _sum3 = vrev64q_s32(_sum3);
-                    _sum2 = vextq_s32(_sum2, _sum2, 2);
-                    _sum3 = vextq_s32(_sum3, _sum3, 2);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum3);
-                    int32x4x2_t _t1 = vzipq_s32(_sum1, _sum2);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                    _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                    _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                    _sum3 = vrev64q_s32(_sum3);
-                }
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            //      a2 b2 c2 d2
+            //      a3 b3 c3 d3
+            {
+                _sum2 = vrev64q_s32(_sum2);
+                _sum3 = vrev64q_s32(_sum3);
+                _sum2 = vextq_s32(_sum2, _sum2, 2);
+                _sum3 = vextq_s32(_sum3, _sum3, 2);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum3);
+                int32x4x2_t _t1 = vzipq_s32(_sum1, _sum2);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+                _sum3 = vrev64q_s32(_sum3);
+            }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    float32x4_t _c1;
+                    float32x4_t _c2;
+                    float32x4_t _c3;
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
+                        uint16x4_t _cc0 = vld1_u16(pC);
+                        uint16x4_t _cc1 = vld1_u16(pC + c_hstep);
+                        uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
+                        uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
+                        transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
+                        _c0 = bfloat2float(_cc0);
+                        _c1 = bfloat2float(_cc1);
+                        _c2 = bfloat2float(_cc2);
+                        _c3 = bfloat2float(_cc3);
+                        pC += 4;
                     }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    else // if (c_elempack == 4)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
+                        uint16x8_t _c01 = vld1q_u16(pC);
+                        uint16x8_t _c23 = vld1q_u16(pC + 8);
+                        _c0 = bfloat2float(vget_low_u16(_c01));
+                        _c1 = bfloat2float(vget_high_u16(_c01));
+                        _c2 = bfloat2float(vget_low_u16(_c23));
+                        _c3 = bfloat2float(vget_high_u16(_c23));
+                        pC += 16;
                     }
-                    if (broadcast_type_C == 3)
+                    if (beta == 1.f)
                     {
-                        float32x4_t _c1;
-                        float32x4_t _c2;
-                        float32x4_t _c3;
-                        if (c_elempack == 1)
-                        {
-                            uint16x4_t _cc0 = vld1_u16(pC);
-                            uint16x4_t _cc1 = vld1_u16(pC + c_hstep);
-                            uint16x4_t _cc2 = vld1_u16(pC + c_hstep * 2);
-                            uint16x4_t _cc3 = vld1_u16(pC + c_hstep * 3);
-                            transpose4x4_u16(_cc0, _cc1, _cc2, _cc3);
-                            _c0 = bfloat2float(_cc0);
-                            _c1 = bfloat2float(_cc1);
-                            _c2 = bfloat2float(_cc2);
-                            _c3 = bfloat2float(_cc3);
-                            pC += 4;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            uint16x8_t _c01 = vld1q_u16(pC);
-                            uint16x8_t _c23 = vld1q_u16(pC + 8);
-                            _c0 = bfloat2float(vget_low_u16(_c01));
-                            _c1 = bfloat2float(vget_high_u16(_c01));
-                            _c2 = bfloat2float(vget_low_u16(_c23));
-                            _c3 = bfloat2float(vget_high_u16(_c23));
-                            pC += 16;
-                        }
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        float32x4_t _c = bfloat2float(vld1_u16(pC));
-                        _c = vmulq_n_f32(_c, beta);
-#if __aarch64__
-                        _c0 = vdupq_laneq_f32(_c, 0);
-                        float32x4_t _c1 = vdupq_laneq_f32(_c, 1);
-                        float32x4_t _c2 = vdupq_laneq_f32(_c, 2);
-                        float32x4_t _c3 = vdupq_laneq_f32(_c, 3);
-#else
-                        _c0 = vdupq_lane_f32(vget_low_f32(_c), 0);
-                        float32x4_t _c1 = vdupq_lane_f32(vget_low_f32(_c), 1);
-                        float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c), 0);
-                        float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c), 1);
-#endif
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                         _f2 = vaddq_f32(_f2, _c2);
                         _f3 = vaddq_f32(_f3, _c3);
-                        pC += 4;
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
                     }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
+                    float32x4_t _c = bfloat2float(vld1_u16(pC));
+                    _c = vmulq_n_f32(_c, beta);
+#if __aarch64__
+                    _c0 = vdupq_laneq_f32(_c, 0);
+                    float32x4_t _c1 = vdupq_laneq_f32(_c, 1);
+                    float32x4_t _c2 = vdupq_laneq_f32(_c, 2);
+                    float32x4_t _c3 = vdupq_laneq_f32(_c, 3);
+#else
+                    _c0 = vdupq_lane_f32(vget_low_f32(_c), 0);
+                    float32x4_t _c1 = vdupq_lane_f32(vget_low_f32(_c), 1);
+                    float32x4_t _c2 = vdupq_lane_f32(vget_high_f32(_c), 0);
+                    float32x4_t _c3 = vdupq_lane_f32(vget_high_f32(_c), 1);
+#endif
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c2);
+                    _f3 = vaddq_f32(_f3, _c3);
+                    pC += 4;
                 }
-
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-                vst1_u16(p0 + out_hstep * 2, float2bfloat(_f2));
-                vst1_u16(p0 + out_hstep * 3, float2bfloat(_f3));
-
-                pp += 16;
-                p0 += out_hstep * 4;
             }
-            for (; jj + 1 < max_jj; jj += 2)
+
+            if (alpha != 1.f)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
+
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+
+            if (out_elempack == 4)
+            {
+                uint16x4x4_t _bf;
+                _bf.val[0] = _bf0;
+                _bf.val[1] = _bf1;
+                _bf.val[2] = _bf2;
+                _bf.val[3] = _bf3;
+                vst4_u16(p0, _bf);
+            }
+            else // if (out_elempack == 1)
+            {
+                vst1_u16(p0, _bf0);
+                vst1_u16(p0 + out_hstep, _bf1);
+                vst1_u16(p0 + out_hstep * 2, _bf2);
+                vst1_u16(p0 + out_hstep * 3, _bf3);
+            }
+
+            pp += 16;
+            p0 += out_hstep * 4;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
 
 #if __ARM_FEATURE_DOTPROD
-                // from/to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
+            // from/to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
 #else
-                // from
-                //      a0 b1 c0 d1
-                //      a1 b0 c1 d0
+            // from
+            //      a0 b1 c0 d1
+            //      a1 b0 c1 d0
 
-                // to
-                //      a0 b0 c0 d0
-                //      a1 b1 c1 d1
-                {
-                    _sum1 = vrev64q_s32(_sum1);
-                    int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
-                    _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t0.val[1]));
-                    _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t0.val[1]));
-                    _sum1 = vrev64q_s32(_sum1);
-                }
+            // to
+            //      a0 b0 c0 d0
+            //      a1 b1 c1 d1
+            {
+                _sum1 = vrev64q_s32(_sum1);
+                int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
+                _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t0.val[1]));
+                _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t0.val[1]));
+                _sum1 = vrev64q_s32(_sum1);
+            }
 #endif // __ARM_FEATURE_DOTPROD
 
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
 
-                if (pC)
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    uint16x8_t _c;
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        uint16x8_t _c;
-                        if (c_elempack == 1)
-                        {
-                            _c = uint16x8_t();
-                            _c = vsetq_lane_u16(pC[0], _c, 0);
-                            _c = vsetq_lane_u16(pC[c_hstep], _c, 1);
-                            _c = vsetq_lane_u16(pC[c_hstep * 2], _c, 2);
-                            _c = vsetq_lane_u16(pC[c_hstep * 3], _c, 3);
-                            _c = vsetq_lane_u16(pC[1], _c, 4);
-                            _c = vsetq_lane_u16(pC[c_hstep + 1], _c, 5);
-                            _c = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c, 6);
-                            _c = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c, 7);
-                            pC += 2;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c = vld1q_u16(pC);
-                            pC += 8;
-                        }
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        float32x4_t _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c1);
+                        _c = uint16x8_t();
+                        _c = vsetq_lane_u16(pC[0], _c, 0);
+                        _c = vsetq_lane_u16(pC[c_hstep], _c, 1);
+                        _c = vsetq_lane_u16(pC[c_hstep * 2], _c, 2);
+                        _c = vsetq_lane_u16(pC[c_hstep * 3], _c, 3);
+                        _c = vsetq_lane_u16(pC[1], _c, 4);
+                        _c = vsetq_lane_u16(pC[c_hstep + 1], _c, 5);
+                        _c = vsetq_lane_u16(pC[c_hstep * 2 + 1], _c, 6);
+                        _c = vsetq_lane_u16(pC[c_hstep * 3 + 1], _c, 7);
                         pC += 2;
                     }
+                    else // if (c_elempack == 4)
+                    {
+                        _c = vld1q_u16(pC);
+                        pC += 8;
+                    }
+                    _c0 = bfloat2float(vget_low_u16(_c));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                    if (beta == 1.f)
+                    {
+                        _f0 = vaddq_f32(_f0, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                    }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                    }
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
+                    _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                    float32x4_t _c1 = vdupq_n_f32(bfloat16_to_float32(pC[1]) * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    pC += 2;
                 }
-
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + out_hstep, float2bfloat(_f1));
-
-                pp += 8;
-                p0 += out_hstep * 2;
             }
-            for (; jj < max_jj; jj += 1)
-            {
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
 
-                if (pC)
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+            }
+
+            vst1_u16(p0, float2bfloat(_f0));
+            vst1_u16(p0 + out_hstep, float2bfloat(_f1));
+
+            pp += 8;
+            p0 += out_hstep * 2;
+        }
+        for (; jj < max_jj; jj += 1)
+        {
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    uint16x4_t _c;
+                    if (c_elempack == 1)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        uint16x4_t _c;
-                        if (c_elempack == 1)
-                        {
-                            _c = uint16x4_t();
-                            _c = vset_lane_u16(pC[0], _c, 0);
-                            _c = vset_lane_u16(pC[c_hstep], _c, 1);
-                            _c = vset_lane_u16(pC[c_hstep * 2], _c, 2);
-                            _c = vset_lane_u16(pC[c_hstep * 3], _c, 3);
-                            pC += 1;
-                        }
-                        else // if (c_elempack == 4)
-                        {
-                            _c = vld1_u16(pC);
-                            pC += 4;
-                        }
-                        _c0 = bfloat2float(_c);
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
-                        _f0 = vaddq_f32(_f0, _c0);
+                        _c = uint16x4_t();
+                        _c = vset_lane_u16(pC[0], _c, 0);
+                        _c = vset_lane_u16(pC[c_hstep], _c, 1);
+                        _c = vset_lane_u16(pC[c_hstep * 2], _c, 2);
+                        _c = vset_lane_u16(pC[c_hstep * 3], _c, 3);
                         pC += 1;
                     }
+                    else // if (c_elempack == 4)
+                    {
+                        _c = vld1_u16(pC);
+                        pC += 4;
+                    }
+                    _c0 = bfloat2float(_c);
+                    _f0 = vmlaq_n_f32(_f0, _c0, beta);
                 }
-
-                _f0 = vmulq_n_f32(_f0, alpha);
-
-                vst1_u16(p0, float2bfloat(_f0));
-                pp += 4;
-                p0 += out_hstep;
+                if (broadcast_type_C == 4)
+                {
+                    _c0 = vdupq_n_f32(bfloat16_to_float32(pC[0]) * beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    pC += 1;
+                }
             }
+
+            _f0 = vmulq_n_f32(_f0, alpha);
+
+            vst1_u16(p0, float2bfloat(_f0));
+            pp += 4;
+            p0 += out_hstep;
         }
     }
 #endif // __ARM_NEON
@@ -10441,495 +7944,306 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
             }
         }
 
+        int jj = 0;
 #if __ARM_NEON
-        if (out_elempack == 4)
-        {
-            int jj = 0;
 #if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+
+            float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), _descale01, 0);
+            float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), _descale01, 0);
+            float32x4_t _f2 = vmulq_lane_f32(vcvtq_f32_s32(_sum2), _descale01, 1);
+            float32x4_t _f3 = vmulq_lane_f32(vcvtq_f32_s32(_sum3), _descale01, 1);
+
+            if (pC)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-                float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), _descale01, 0);
-                float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), _descale01, 0);
-                float32x4_t _f2 = vmulq_lane_f32(vcvtq_f32_s32(_sum2), _descale01, 1);
-                float32x4_t _f3 = vmulq_lane_f32(vcvtq_f32_s32(_sum3), _descale01, 1);
-
-                if (pC)
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c1);
+                    _f3 = vaddq_f32(_f3, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    uint16x8_t _c01 = vld1q_u16(pC);
+                    uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
+                    _c0 = bfloat2float(vget_low_u16(_c01));
+                    _c1 = bfloat2float(vget_high_u16(_c01));
+                    float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                    float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                    if (beta == 1.f)
                     {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c1);
-                        _f3 = vaddq_f32(_f3, _c1);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        // c_elempack == 1
-                        uint16x8_t _c01 = vld1q_u16(pC);
-                        uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                        pC += 8;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta != 1.f)
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _c0 = vmulq_f32(_c0, _beta);
-                            _c1 = vmulq_f32(_c1, _beta);
-                        }
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c1);
-                        pC += 8;
+                        _f2 = vaddq_f32(_f2, _c2);
+                        _f3 = vaddq_f32(_f3, _c3);
                     }
+                    else
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
+                    }
+                    pC += 8;
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
+                    uint16x8_t _c = vld1q_u16(pC);
+                    _c0 = bfloat2float(vget_low_u16(_c));
+                    _c1 = bfloat2float(vget_high_u16(_c));
+                    if (beta != 1.f)
+                    {
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _c0 = vmulq_f32(_c0, _beta);
+                        _c1 = vmulq_f32(_c1, _beta);
+                    }
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c1);
+                    pC += 8;
                 }
-
-                vst1q_u16(p0, vcombine_u16(float2bfloat(_f0), float2bfloat(_f2)));
-                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(float2bfloat(_f1), float2bfloat(_f3)));
-
-                pp += 16;
-                p0 += out_hstep * 8;
             }
+
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
+
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
+
+            if (out_elempack == 4)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf2));
+                vst1q_u16(p0 + out_hstep * 4, vcombine_u16(_bf1, _bf3));
+            }
+            else // if (out_elempack == 1)
+            {
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[1] = vget_lane_u16(_bf2, 0);
+                p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep + 1] = vget_lane_u16(_bf2, 1);
+                p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep * 2 + 1] = vget_lane_u16(_bf2, 2);
+                p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                p0[out_hstep * 3 + 1] = vget_lane_u16(_bf2, 3);
+                p0[out_hstep * 4] = vget_lane_u16(_bf1, 0);
+                p0[out_hstep * 4 + 1] = vget_lane_u16(_bf3, 0);
+                p0[out_hstep * 5] = vget_lane_u16(_bf1, 1);
+                p0[out_hstep * 5 + 1] = vget_lane_u16(_bf3, 1);
+                p0[out_hstep * 6] = vget_lane_u16(_bf1, 2);
+                p0[out_hstep * 6 + 1] = vget_lane_u16(_bf3, 2);
+                p0[out_hstep * 7] = vget_lane_u16(_bf1, 3);
+                p0[out_hstep * 7 + 1] = vget_lane_u16(_bf3, 3);
+            }
+
+            pp += 16;
+            p0 += out_hstep * 8;
+        }
 #endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            // a0 a1 a2 a3
+            // b0 b1 b2 b3
+
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+
+            float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), _descale01, 0);
+            float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), _descale01, 1);
+
+            if (pC)
             {
-                // a0 a1 a2 a3
-                // b0 b1 b2 b3
-
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-
-                float32x4_t _f0 = vmulq_lane_f32(vcvtq_f32_s32(_sum0), _descale01, 0);
-                float32x4_t _f1 = vmulq_lane_f32(vcvtq_f32_s32(_sum1), _descale01, 1);
-
-                if (pC)
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c1);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    _c0 = bfloat2float(vld1_u16(pC));
+                    _c1 = bfloat2float(vld1_u16(pC + c_hstep));
+                    if (beta == 1.f)
                     {
                         _f0 = vaddq_f32(_f0, _c0);
                         _f1 = vaddq_f32(_f1, _c1);
                     }
-                    if (broadcast_type_C == 3)
+                    else
                     {
-                        // c_elempack == 1
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _c1 = bfloat2float(vld1_u16(pC + c_hstep));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                        pC += 4;
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
                     }
-                    if (broadcast_type_C == 4)
-                    {
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _c0 = vmulq_n_f32(_c0, beta);
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        pC += 4;
-                    }
+                    pC += 4;
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
+                    _c0 = bfloat2float(vld1_u16(pC));
+                    _c0 = vmulq_n_f32(_c0, beta);
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    pC += 4;
                 }
-
-                vst1_u16(p0, float2bfloat(_f0));
-                vst1_u16(p0 + 4, float2bfloat(_f1));
-
-                pp += 8;
-                p0 += out_hstep * 4;
             }
+
+            if (alpha != 1.f)
+            {
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+            }
+
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+
+            if (out_elempack == 4)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+            }
+            else // if (out_elempack == 1)
+            {
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[1] = vget_lane_u16(_bf1, 0);
+                p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep + 1] = vget_lane_u16(_bf1, 1);
+                p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep * 2 + 1] = vget_lane_u16(_bf1, 2);
+                p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                p0[out_hstep * 3 + 1] = vget_lane_u16(_bf1, 3);
+            }
+
+            pp += 8;
+            p0 += out_hstep * 4;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            // a0 a1 b0 b1
+            int32x2x2_t _sum0 = vld2_s32(pp);
+
+            float32x4_t _descale = vcombine_f32(_descale01, _descale01);
+
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vcombine_s32(_sum0.val[0], _sum0.val[1])), _descale);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                }
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    float32x4_t _cc = vzipq_f32(_c0, _c1).val[0];
+                    _f0 = vaddq_f32(_f0, _cc);
+                }
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    uint16x4_t _c = uint16x4_t();
+                    _c = vset_lane_u16(pC[0], _c, 0);
+                    _c = vset_lane_u16(pC[c_hstep], _c, 1);
+                    _c = vset_lane_u16(pC[1], _c, 2);
+                    _c = vset_lane_u16(pC[c_hstep + 1], _c, 3);
+                    _c0 = bfloat2float(_c);
+                    _f0 = vmlaq_n_f32(_f0, _c0, beta);
+                    pC += 2;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    uint16x4_t _c = uint16x4_t();
+                    _c = vset_lane_u16(pC[0], _c, 0);
+                    _c = vset_lane_u16(pC[0], _c, 1);
+                    _c = vset_lane_u16(pC[1], _c, 2);
+                    _c = vset_lane_u16(pC[1], _c, 3);
+                    _c0 = bfloat2float(_c);
+                    _f0 = vmlaq_n_f32(_f0, _c0, beta);
+                    pC += 2;
+                }
+            }
+
+            _f0 = vmulq_n_f32(_f0, alpha);
+
+            uint16x4_t _bf0 = float2bfloat(_f0);
+
+            p0[0] = vget_lane_u16(_bf0, 0);
+            p0[1] = vget_lane_u16(_bf0, 1);
+            p0[out_hstep] = vget_lane_u16(_bf0, 2);
+            p0[out_hstep + 1] = vget_lane_u16(_bf0, 3);
+
+            pp += 4;
+            p0 += out_hstep * 2;
         }
 #endif // __ARM_NEON
-        if (out_elempack == 1)
+        for (; jj < max_jj; jj += 1)
         {
-            int jj = 0;
-#if __ARM_NEON
-#if __aarch64__
-            for (; jj + 7 < max_jj; jj += 8)
+            float f0 = pp[0] * descale0;
+            float f1 = pp[1] * descale1;
+
+            if (pC)
             {
-                // a0 a1 a2 a3
-                // a4 a5 a6 a7
-                // b0 b1 b2 b3
-                // b4 b5 b6 b7
-
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-                int32x4x2_t _sum02 = vzipq_s32(_sum0, _sum2);
-                int32x4x2_t _sum13 = vzipq_s32(_sum1, _sum3);
-
-                float32x4_t _descale = vcombine_f32(_descale01, _descale01);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum02.val[0]), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum02.val[1]), _descale);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum13.val[0]), _descale);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum13.val[1]), _descale);
-
-                if (pC)
+                if (broadcast_type_C == 0)
                 {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        float32x4_t _cc = vzipq_f32(_c0, _c1).val[0];
-                        _f0 = vaddq_f32(_f0, _cc);
-                        _f1 = vaddq_f32(_f1, _cc);
-                        _f2 = vaddq_f32(_f2, _cc);
-                        _f3 = vaddq_f32(_f3, _cc);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        // c_elempack == 1
-                        uint16x8_t _c01 = vld1q_u16(pC);
-                        uint16x8_t _c23 = vld1q_u16(pC + c_hstep);
-                        uint16x4x2_t _c02 = vzip_u16(vget_low_u16(_c01), vget_low_u16(_c23));
-                        uint16x4x2_t _c13 = vzip_u16(vget_high_u16(_c01), vget_high_u16(_c23));
-                        _c0 = bfloat2float(_c02.val[0]);
-                        float32x4_t _c1 = bfloat2float(_c02.val[1]);
-                        float32x4_t _c2 = bfloat2float(_c13.val[0]);
-                        float32x4_t _c3 = bfloat2float(_c13.val[1]);
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                        pC += 8;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x8_t _c01 = vld1q_u16(pC);
-                        uint16x4x2_t _cc0 = vzip_u16(vget_low_u16(_c01), vget_low_u16(_c01));
-                        uint16x4x2_t _cc1 = vzip_u16(vget_high_u16(_c01), vget_high_u16(_c01));
-                        _c0 = bfloat2float(_cc0.val[0]);
-                        float32x4_t _c1 = bfloat2float(_cc0.val[1]);
-                        float32x4_t _c2 = bfloat2float(_cc1.val[0]);
-                        float32x4_t _c3 = bfloat2float(_cc1.val[1]);
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                        pC += 8;
-                    }
+                    f0 += c0;
+                    f1 += c0;
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
+                    f0 += c0;
+                    f1 += c1;
                 }
-
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
-                uint16x4_t _bf2 = float2bfloat(_f2);
-                uint16x4_t _bf3 = float2bfloat(_f3);
-
-                p0[0] = vget_lane_u16(_bf0, 0);
-                p0[1] = vget_lane_u16(_bf0, 1);
-                p0[out_hstep] = vget_lane_u16(_bf0, 2);
-                p0[out_hstep + 1] = vget_lane_u16(_bf0, 3);
-                p0[out_hstep * 2] = vget_lane_u16(_bf1, 0);
-                p0[out_hstep * 2 + 1] = vget_lane_u16(_bf1, 1);
-                p0[out_hstep * 3] = vget_lane_u16(_bf1, 2);
-                p0[out_hstep * 3 + 1] = vget_lane_u16(_bf1, 3);
-                p0[out_hstep * 4] = vget_lane_u16(_bf2, 0);
-                p0[out_hstep * 4 + 1] = vget_lane_u16(_bf2, 1);
-                p0[out_hstep * 5] = vget_lane_u16(_bf2, 2);
-                p0[out_hstep * 5 + 1] = vget_lane_u16(_bf2, 3);
-                p0[out_hstep * 6] = vget_lane_u16(_bf3, 0);
-                p0[out_hstep * 6 + 1] = vget_lane_u16(_bf3, 1);
-                p0[out_hstep * 7] = vget_lane_u16(_bf3, 2);
-                p0[out_hstep * 7 + 1] = vget_lane_u16(_bf3, 3);
-
-                pp += 16;
-                p0 += out_hstep * 8;
+                if (broadcast_type_C == 3)
+                {
+                    // c_elempack == 1
+                    f0 += bfloat16_to_float32(pC[0]) * beta;
+                    f1 += bfloat16_to_float32(pC[c_hstep]) * beta;
+                    pC += 1;
+                }
+                if (broadcast_type_C == 4)
+                {
+                    c0 = bfloat16_to_float32(pC[0]) * beta;
+                    f0 += c0;
+                    f1 += c0;
+                    pC += 1;
+                }
             }
-#endif // __aarch64__
-            for (; jj + 3 < max_jj; jj += 4)
+
+            if (alpha != 1.f)
             {
-                // a0 a1 a2 a3
-                // b0 b1 b2 b3
-
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-
-                int32x4x2_t _sum01 = vzipq_s32(_sum0, _sum1);
-
-                float32x4_t _descale = vcombine_f32(_descale01, _descale01);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum01.val[0]), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum01.val[1]), _descale);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        float32x4_t _cc = vzipq_f32(_c0, _c1).val[0];
-                        _f0 = vaddq_f32(_f0, _cc);
-                        _f1 = vaddq_f32(_f1, _cc);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        // c_elempack == 1
-                        uint16x4_t _cc0 = vld1_u16(pC);
-                        uint16x4_t _cc1 = vld1_u16(pC + c_hstep);
-                        uint16x4x2_t _c01 = vzip_u16(_cc0, _cc1);
-                        _c0 = bfloat2float(_c01.val[0]);
-                        float32x4_t _c1 = bfloat2float(_c01.val[1]);
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                        pC += 4;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x4_t _c = vld1_u16(pC);
-                        uint16x4x2_t _cc = vzip_u16(_c, _c);
-                        _c0 = bfloat2float(_cc.val[0]);
-                        float32x4_t _c1 = bfloat2float(_cc.val[1]);
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                        pC += 4;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                }
-
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
-
-                p0[0] = vget_lane_u16(_bf0, 0);
-                p0[1] = vget_lane_u16(_bf0, 1);
-                p0[out_hstep] = vget_lane_u16(_bf0, 2);
-                p0[out_hstep + 1] = vget_lane_u16(_bf0, 3);
-                p0[out_hstep * 2] = vget_lane_u16(_bf1, 0);
-                p0[out_hstep * 2 + 1] = vget_lane_u16(_bf1, 1);
-                p0[out_hstep * 3] = vget_lane_u16(_bf1, 2);
-                p0[out_hstep * 3 + 1] = vget_lane_u16(_bf1, 3);
-
-                pp += 8;
-                p0 += out_hstep * 4;
+                f0 *= alpha;
+                f1 *= alpha;
             }
-            for (; jj + 1 < max_jj; jj += 2)
-            {
-                // a0 a1 b0 b1
-                int32x2x2_t _sum0 = vld2_s32(pp);
 
-                float32x4_t _descale = vcombine_f32(_descale01, _descale01);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vcombine_s32(_sum0.val[0], _sum0.val[1])), _descale);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        float32x4_t _cc = vzipq_f32(_c0, _c1).val[0];
-                        _f0 = vaddq_f32(_f0, _cc);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        // c_elempack == 1
-                        uint16x4_t _c = uint16x4_t();
-                        _c = vset_lane_u16(pC[0], _c, 0);
-                        _c = vset_lane_u16(pC[c_hstep], _c, 1);
-                        _c = vset_lane_u16(pC[1], _c, 2);
-                        _c = vset_lane_u16(pC[c_hstep + 1], _c, 3);
-                        _c0 = bfloat2float(_c);
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                        pC += 2;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        uint16x4_t _c = uint16x4_t();
-                        _c = vset_lane_u16(pC[0], _c, 0);
-                        _c = vset_lane_u16(pC[0], _c, 1);
-                        _c = vset_lane_u16(pC[1], _c, 2);
-                        _c = vset_lane_u16(pC[1], _c, 3);
-                        _c0 = bfloat2float(_c);
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                        pC += 2;
-                    }
-                }
-
-                _f0 = vmulq_n_f32(_f0, alpha);
-
-                uint16x4_t _bf0 = float2bfloat(_f0);
-
-                p0[0] = vget_lane_u16(_bf0, 0);
-                p0[1] = vget_lane_u16(_bf0, 1);
-                p0[out_hstep] = vget_lane_u16(_bf0, 2);
-                p0[out_hstep + 1] = vget_lane_u16(_bf0, 3);
-
-                pp += 4;
-                p0 += out_hstep * 2;
-            }
-#endif // __ARM_NEON
-            for (; jj < max_jj; jj += 1)
-            {
-                float f0 = pp[0] * descale0;
-                float f1 = pp[1] * descale1;
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        f0 += c0;
-                        f1 += c0;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        f0 += c0;
-                        f1 += c1;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        // c_elempack == 1
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
-                        f1 += bfloat16_to_float32(pC[c_hstep]) * beta;
-                        pC += 1;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        c0 = bfloat16_to_float32(pC[0]) * beta;
-                        f0 += c0;
-                        f1 += c0;
-                        pC += 1;
-                    }
-                }
-
-                if (alpha != 1.f)
-                {
-                    f0 *= alpha;
-                    f1 *= alpha;
-                }
-
-                p0[0] = float32_to_bfloat16(f0);
-                p0[1] = float32_to_bfloat16(f1);
-                pp += 2;
-                p0 += out_hstep;
-            }
+            p0[0] = float32_to_bfloat16(f0);
+            p0[1] = float32_to_bfloat16(f1);
+            pp += 2;
+            p0 += out_hstep;
         }
     }
     for (; ii < max_ii; ii += 1)
@@ -10973,427 +8287,267 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
             }
         }
 
+        int jj = 0;
 #if __ARM_NEON
-        if (out_elempack == 4)
+        for (; jj + 15 < max_jj; jj += 16)
         {
-            int jj = 0;
-            for (; jj + 15 < max_jj; jj += 16)
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+            int32x4_t _sum2 = vld1q_s32(pp + 8);
+            int32x4_t _sum3 = vld1q_s32(pp + 12);
+
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
+            float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
+
+            if (pC)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
-
-                if (pC)
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                    _f2 = vaddq_f32(_f2, _c0);
+                    _f3 = vaddq_f32(_f3, _c0);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    // c_elempack == 1
+                    uint16x8_t _c01 = vld1q_u16(pC);
+                    uint16x8_t _c23 = vld1q_u16(pC + 8);
+                    _c0 = bfloat2float(vget_low_u16(_c01));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
+                    float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
+                    float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
+                    if (beta == 1.f)
                     {
                         _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
+                        _f2 = vaddq_f32(_f2, _c2);
+                        _f3 = vaddq_f32(_f3, _c3);
                     }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    else
                     {
-                        // c_elempack == 1
-                        uint16x8_t _c01 = vld1q_u16(pC);
-                        uint16x8_t _c23 = vld1q_u16(pC + 8);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                        pC += 16;
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
+                        _f2 = vmlaq_f32(_f2, _c2, _beta);
+                        _f3 = vmlaq_f32(_f3, _c3, _beta);
                     }
+                    pC += 16;
                 }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
-                }
-
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
-                uint16x4_t _bf2 = float2bfloat(_f2);
-                uint16x4_t _bf3 = float2bfloat(_f3);
-
-                if (out_hstep == 1)
-                {
-                    vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
-                    vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
-                }
-                else
-                {
-                    vst1_u16(p0, _bf0);
-                    vst1_u16(p0 + out_hstep * 4, _bf1);
-                    vst1_u16(p0 + out_hstep * 8, _bf2);
-                    vst1_u16(p0 + out_hstep * 12, _bf3);
-                }
-
-                pp += 16;
-                p0 += out_hstep * 16;
             }
-            for (; jj + 7 < max_jj; jj += 8)
+
+            if (alpha != 1.f)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
+                _f2 = vmulq_f32(_f2, _alpha);
+                _f3 = vmulq_f32(_f3, _alpha);
+            }
 
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+            uint16x4_t _bf2 = float2bfloat(_f2);
+            uint16x4_t _bf3 = float2bfloat(_f3);
 
-                if (pC)
+            if (out_hstep == 1)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+                vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
+            }
+            else if (out_elempack == 4)
+            {
+                vst1_u16(p0, _bf0);
+                vst1_u16(p0 + out_hstep * 4, _bf1);
+                vst1_u16(p0 + out_hstep * 8, _bf2);
+                vst1_u16(p0 + out_hstep * 12, _bf3);
+            }
+            else if (out_elempack == 1)
+            {
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                p0[out_hstep * 4] = vget_lane_u16(_bf1, 0);
+                p0[out_hstep * 5] = vget_lane_u16(_bf1, 1);
+                p0[out_hstep * 6] = vget_lane_u16(_bf1, 2);
+                p0[out_hstep * 7] = vget_lane_u16(_bf1, 3);
+                p0[out_hstep * 8] = vget_lane_u16(_bf2, 0);
+                p0[out_hstep * 9] = vget_lane_u16(_bf2, 1);
+                p0[out_hstep * 10] = vget_lane_u16(_bf2, 2);
+                p0[out_hstep * 11] = vget_lane_u16(_bf2, 3);
+                p0[out_hstep * 12] = vget_lane_u16(_bf3, 0);
+                p0[out_hstep * 13] = vget_lane_u16(_bf3, 1);
+                p0[out_hstep * 14] = vget_lane_u16(_bf3, 2);
+                p0[out_hstep * 15] = vget_lane_u16(_bf3, 3);
+            }
+
+            pp += 16;
+            p0 += out_hstep * 16;
+        }
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            int32x4_t _sum0 = vld1q_s32(pp);
+            int32x4_t _sum1 = vld1q_s32(pp + 4);
+
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
+            float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    _f0 = vaddq_f32(_f0, _c0);
+                    _f1 = vaddq_f32(_f1, _c0);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    // c_elempack == 1
+                    uint16x8_t _c = vld1q_u16(pC);
+                    _c0 = bfloat2float(vget_low_u16(_c));
+                    float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
+                    if (beta == 1.f)
                     {
                         _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
+                        _f1 = vaddq_f32(_f1, _c1);
                     }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    else
                     {
-                        // c_elempack == 1
-                        uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                        pC += 8;
+                        float32x4_t _beta = vdupq_n_f32(beta);
+                        _f0 = vmlaq_f32(_f0, _c0, _beta);
+                        _f1 = vmlaq_f32(_f1, _c1, _beta);
                     }
+                    pC += 8;
                 }
-
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                }
-
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
-
-                if (out_hstep == 1)
-                {
-                    vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
-                }
-                else
-                {
-                    vst1_u16(p0, _bf0);
-                    vst1_u16(p0 + out_hstep * 4, _bf1);
-                }
-
-                pp += 8;
-                p0 += out_hstep * 8;
             }
-            for (; jj + 3 < max_jj; jj += 4)
+
+            if (alpha != 1.f)
             {
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                        pC += 4;
-                    }
-                }
-
-                _f0 = vmulq_n_f32(_f0, alpha);
-
-                vst1_u16(p0, float2bfloat(_f0));
-                pp += 4;
-                p0 += out_hstep * 4;
+                float32x4_t _alpha = vdupq_n_f32(alpha);
+                _f0 = vmulq_f32(_f0, _alpha);
+                _f1 = vmulq_f32(_f1, _alpha);
             }
+
+            uint16x4_t _bf0 = float2bfloat(_f0);
+            uint16x4_t _bf1 = float2bfloat(_f1);
+
+            if (out_hstep == 1)
+            {
+                vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
+            }
+            else if (out_elempack == 4)
+            {
+                vst1_u16(p0, _bf0);
+                vst1_u16(p0 + out_hstep * 4, _bf1);
+            }
+            else // if (out_elempack == 1)
+            {
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+                p0[out_hstep * 4] = vget_lane_u16(_bf1, 0);
+                p0[out_hstep * 5] = vget_lane_u16(_bf1, 1);
+                p0[out_hstep * 6] = vget_lane_u16(_bf1, 2);
+                p0[out_hstep * 7] = vget_lane_u16(_bf1, 3);
+            }
+
+            pp += 8;
+            p0 += out_hstep * 8;
+        }
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vaddq_f32(_f0, _c0);
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    _c0 = bfloat2float(vld1_u16(pC));
+                    _f0 = vmlaq_n_f32(_f0, _c0, beta);
+                    pC += 4;
+                }
+            }
+
+            _f0 = vmulq_n_f32(_f0, alpha);
+
+            uint16x4_t _bf0 = float2bfloat(_f0);
+
+            if (out_hstep == 1 || out_elempack == 4)
+            {
+                vst1_u16(p0, _bf0);
+            }
+            else // if (out_elempack == 1)
+            {
+                p0[0] = vget_lane_u16(_bf0, 0);
+                p0[out_hstep] = vget_lane_u16(_bf0, 1);
+                p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
+                p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
+            }
+
+            pp += 4;
+            p0 += out_hstep * 4;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            float32x2_t _f0 = vmul_f32(vcvt_f32_s32(vld1_s32(pp)), vget_low_f32(_descale));
+
+            if (pC)
+            {
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                {
+                    _f0 = vadd_f32(_f0, vget_low_f32(_c0));
+                }
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                {
+                    // c_elempack == 1
+                    float32x2_t _c = float32x2_t();
+                    _c = vset_lane_f32(bfloat16_to_float32(pC[0]), _c, 0);
+                    _c = vset_lane_f32(bfloat16_to_float32(pC[1]), _c, 1);
+                    _f0 = vmla_n_f32(_f0, _c, beta);
+                    pC += 2;
+                }
+            }
+
+            _f0 = vmul_n_f32(_f0, alpha);
+
+            p0[0] = float32_to_bfloat16(vget_lane_f32(_f0, 0));
+            p0[out_hstep] = float32_to_bfloat16(vget_lane_f32(_f0, 1));
+
+            pp += 2;
+            p0 += out_hstep * 2;
         }
 #endif // __ARM_NEON
-        if (out_elempack == 1)
+        for (; jj < max_jj; jj += 1)
         {
-            int jj = 0;
-#if __ARM_NEON
-            for (; jj + 15 < max_jj; jj += 16)
+            float f0 = pp[0] * descale;
+
+            if (pC)
             {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
-                int32x4_t _sum2 = vld1q_s32(pp + 8);
-                int32x4_t _sum3 = vld1q_s32(pp + 12);
-
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
-                float32x4_t _f2 = vmulq_f32(vcvtq_f32_s32(_sum2), _descale);
-                float32x4_t _f3 = vmulq_f32(vcvtq_f32_s32(_sum3), _descale);
-
-                if (pC)
+                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                        _f2 = vaddq_f32(_f2, _c0);
-                        _f3 = vaddq_f32(_f3, _c0);
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        // c_elempack == 1
-                        uint16x8_t _c01 = vld1q_u16(pC);
-                        uint16x8_t _c23 = vld1q_u16(pC + 8);
-                        _c0 = bfloat2float(vget_low_u16(_c01));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c01));
-                        float32x4_t _c2 = bfloat2float(vget_low_u16(_c23));
-                        float32x4_t _c3 = bfloat2float(vget_high_u16(_c23));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                            _f2 = vaddq_f32(_f2, _c2);
-                            _f3 = vaddq_f32(_f3, _c3);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                            _f2 = vmlaq_f32(_f2, _c2, _beta);
-                            _f3 = vmlaq_f32(_f3, _c3, _beta);
-                        }
-                        pC += 16;
-                    }
+                    f0 += c0;
                 }
-
-                if (alpha != 1.f)
+                if (broadcast_type_C == 3 || broadcast_type_C == 4)
                 {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                    _f2 = vmulq_f32(_f2, _alpha);
-                    _f3 = vmulq_f32(_f3, _alpha);
+                    // c_elempack == 1
+                    f0 += bfloat16_to_float32(pC[0]) * beta;
+                    pC += 1;
                 }
-
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
-                uint16x4_t _bf2 = float2bfloat(_f2);
-                uint16x4_t _bf3 = float2bfloat(_f3);
-
-                if (out_hstep == 1)
-                {
-                    vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
-                    vst1q_u16(p0 + 8, vcombine_u16(_bf2, _bf3));
-                }
-                else
-                {
-                    p0[0] = vget_lane_u16(_bf0, 0);
-                    p0[out_hstep] = vget_lane_u16(_bf0, 1);
-                    p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
-                    p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
-                    p0[out_hstep * 4] = vget_lane_u16(_bf1, 0);
-                    p0[out_hstep * 5] = vget_lane_u16(_bf1, 1);
-                    p0[out_hstep * 6] = vget_lane_u16(_bf1, 2);
-                    p0[out_hstep * 7] = vget_lane_u16(_bf1, 3);
-                    p0[out_hstep * 8] = vget_lane_u16(_bf2, 0);
-                    p0[out_hstep * 9] = vget_lane_u16(_bf2, 1);
-                    p0[out_hstep * 10] = vget_lane_u16(_bf2, 2);
-                    p0[out_hstep * 11] = vget_lane_u16(_bf2, 3);
-                    p0[out_hstep * 12] = vget_lane_u16(_bf3, 0);
-                    p0[out_hstep * 13] = vget_lane_u16(_bf3, 1);
-                    p0[out_hstep * 14] = vget_lane_u16(_bf3, 2);
-                    p0[out_hstep * 15] = vget_lane_u16(_bf3, 3);
-                }
-
-                pp += 16;
-                p0 += out_hstep * 16;
             }
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                int32x4_t _sum0 = vld1q_s32(pp);
-                int32x4_t _sum1 = vld1q_s32(pp + 4);
 
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(_sum0), _descale);
-                float32x4_t _f1 = vmulq_f32(vcvtq_f32_s32(_sum1), _descale);
+            f0 *= alpha;
 
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                        _f1 = vaddq_f32(_f1, _c0);
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        // out_elempack == 1
-                        uint16x8_t _c = vld1q_u16(pC);
-                        _c0 = bfloat2float(vget_low_u16(_c));
-                        float32x4_t _c1 = bfloat2float(vget_high_u16(_c));
-                        if (beta == 1.f)
-                        {
-                            _f0 = vaddq_f32(_f0, _c0);
-                            _f1 = vaddq_f32(_f1, _c1);
-                        }
-                        else
-                        {
-                            float32x4_t _beta = vdupq_n_f32(beta);
-                            _f0 = vmlaq_f32(_f0, _c0, _beta);
-                            _f1 = vmlaq_f32(_f1, _c1, _beta);
-                        }
-                        pC += 8;
-                    }
-                }
+            p0[0] = float32_to_bfloat16(f0);
 
-                if (alpha != 1.f)
-                {
-                    float32x4_t _alpha = vdupq_n_f32(alpha);
-                    _f0 = vmulq_f32(_f0, _alpha);
-                    _f1 = vmulq_f32(_f1, _alpha);
-                }
-
-                uint16x4_t _bf0 = float2bfloat(_f0);
-                uint16x4_t _bf1 = float2bfloat(_f1);
-
-                if (out_hstep == 1)
-                {
-                    vst1q_u16(p0, vcombine_u16(_bf0, _bf1));
-                }
-                else
-                {
-                    p0[0] = vget_lane_u16(_bf0, 0);
-                    p0[out_hstep] = vget_lane_u16(_bf0, 1);
-                    p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
-                    p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
-                    p0[out_hstep * 4] = vget_lane_u16(_bf1, 0);
-                    p0[out_hstep * 5] = vget_lane_u16(_bf1, 1);
-                    p0[out_hstep * 6] = vget_lane_u16(_bf1, 2);
-                    p0[out_hstep * 7] = vget_lane_u16(_bf1, 3);
-                }
-
-                pp += 8;
-                p0 += out_hstep * 8;
-            }
-            for (; jj + 3 < max_jj; jj += 4)
-            {
-                float32x4_t _f0 = vmulq_f32(vcvtq_f32_s32(vld1q_s32(pp)), _descale);
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vaddq_f32(_f0, _c0);
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        // out_elempack == 1
-                        _c0 = bfloat2float(vld1_u16(pC));
-                        _f0 = vmlaq_n_f32(_f0, _c0, beta);
-                        pC += 4;
-                    }
-                }
-
-                _f0 = vmulq_n_f32(_f0, alpha);
-
-                uint16x4_t _bf0 = float2bfloat(_f0);
-
-                if (out_hstep == 1)
-                {
-                    vst1_u16(p0, _bf0);
-                }
-                else
-                {
-                    p0[0] = vget_lane_u16(_bf0, 0);
-                    p0[out_hstep] = vget_lane_u16(_bf0, 1);
-                    p0[out_hstep * 2] = vget_lane_u16(_bf0, 2);
-                    p0[out_hstep * 3] = vget_lane_u16(_bf0, 3);
-                }
-
-                pp += 4;
-                p0 += out_hstep * 4;
-            }
-            for (; jj + 1 < max_jj; jj += 2)
-            {
-                float32x2_t _f0 = vmul_f32(vcvt_f32_s32(vld1_s32(pp)), vget_low_f32(_descale));
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _f0 = vadd_f32(_f0, vget_low_f32(_c0));
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        // c_elempack == 1
-                        float32x2_t _c = float32x2_t();
-                        _c = vset_lane_f32(bfloat16_to_float32(pC[0]), _c, 0);
-                        _c = vset_lane_f32(bfloat16_to_float32(pC[1]), _c, 1);
-                        _f0 = vmla_n_f32(_f0, _c, beta);
-                        pC += 2;
-                    }
-                }
-
-                _f0 = vmul_n_f32(_f0, alpha);
-
-                p0[0] = float32_to_bfloat16(vget_lane_f32(_f0, 0));
-                p0[out_hstep] = float32_to_bfloat16(vget_lane_f32(_f0, 1));
-
-                pp += 2;
-                p0 += out_hstep * 2;
-            }
-#endif // __ARM_NEON
-            for (; jj < max_jj; jj += 1)
-            {
-                float f0 = pp[0] * descale;
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        f0 += c0;
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        // c_elempack == 1
-                        f0 += bfloat16_to_float32(pC[0]) * beta;
-                        pC += 1;
-                    }
-                }
-
-                f0 *= alpha;
-
-                p0[0] = float32_to_bfloat16(f0);
-
-                pp += 1;
-                p0 += out_hstep;
-            }
+            pp += 1;
+            p0 += out_hstep;
         }
     }
 }
