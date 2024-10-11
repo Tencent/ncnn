@@ -6201,15 +6201,14 @@ int Gemm_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     if (opt.use_packing_layout)
     {
         int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
         if (cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
         {
             // TODO use output_elemtype
             out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
         }
-        else
-        {
-            out_elempack = outh % 4 == 0 ? 4 : 1;
-        }
+#endif
     }
 #endif // __ARM_NEON
 
