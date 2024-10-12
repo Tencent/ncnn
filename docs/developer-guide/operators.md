@@ -942,15 +942,18 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
+| 18        | int8_scale_term | int | 0         |                   |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| A_data        | float | [M, K] or [K, M]      |
-| B_data        | float | [N, K] or [K, N]      |
+| A_data        | float/fp16/int8 | [M, K] or [K, M] |
+| B_data        | float/fp16/int8 | [N, K] or [K, N] |
 | C_data        | float | [1], [M] or [N] or [1, M] or [N,1] or [N, M] |
+| A_data_int8_scales| float | [M]               |
+| B_data_int8_scales| float | [1]               |
 
 # GridSample
 ```
