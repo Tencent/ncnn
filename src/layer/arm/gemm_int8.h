@@ -14617,7 +14617,11 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
     int tile_size = (int)sqrtf((float)l2_cache_size / (2 * sizeof(signed char) + sizeof(int)));
 
     TILE_M = std::max(8, tile_size / 8 * 8);
+#if __aarch64__
+    TILE_N = std::max(8, tile_size / 8 * 8);
+#else
     TILE_N = std::max(4, tile_size / 4 * 4);
+#endif
     TILE_K = std::max(8, tile_size / 8 * 8);
 
     if (K > 0)
@@ -14630,7 +14634,11 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(signed char) / TILE_K);
 
             TILE_M = std::max(8, tile_size / 8 * 8);
+#if __aarch64__
+            TILE_N = std::max(8, tile_size / 8 * 8);
+#else
             TILE_N = std::max(4, tile_size / 4 * 4);
+#endif
         }
     }
 
@@ -14645,7 +14653,11 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
     if (N > 0)
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
+#if __aarch64__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
+#else
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+#endif
     }
 
     if (nT > 1)
@@ -14661,7 +14673,11 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 
     if (constant_TILE_N > 0)
     {
+#if __aarch64__
+        TILE_N = (constant_TILE_N + 7) / 8 * 8;
+#else
         TILE_N = (constant_TILE_N + 3) / 4 * 4;
+#endif
     }
 
     if (constant_TILE_K > 0)

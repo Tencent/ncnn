@@ -393,7 +393,7 @@ static void pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         float32x4_t _scale0 = vld1q_f32((const float*)scales + ii);
         float32x4_t _scale1 = vld1q_f32((const float*)scales + ii + 4);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -561,7 +561,7 @@ static void pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 p0 += 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -2038,7 +2038,7 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
         float32x4_t _scale0 = vld1q_f32((const float*)scales + ii);
         float32x4_t _scale1 = vld1q_f32((const float*)scales + ii + 4);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -2143,7 +2143,7 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
                 p0 += A_hstep * 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -2512,7 +2512,7 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
 
         float32x4_t _scale = vld1q_f32((const float*)scales + ii);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -2572,7 +2572,7 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
                 p0 += A_hstep * 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -2809,7 +2809,7 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
 #if __ARM_NEON
         float32x4_t _scale0 = vdupq_n_f32(scale0);
         float32x4_t _scale1 = vdupq_n_f32(scale1);
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -2849,7 +2849,7 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
                 p0 += A_hstep * 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -3072,7 +3072,7 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
 
 #if __ARM_NEON
         float32x4_t _scale = vdupq_n_f32(scale);
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -3114,7 +3114,7 @@ static void transpose_pack_A_tile_fp16_to_int8(const Mat& A, Mat& AT, int i, int
                 p0 += A_hstep * 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -3414,7 +3414,7 @@ static void pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
     {
         const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * elempack;
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -3582,7 +3582,7 @@ static void pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 p0 += 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -4440,7 +4440,7 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
     {
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -4545,7 +4545,7 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
                 p0 += B_hstep * 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -4882,7 +4882,7 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
     {
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -4942,7 +4942,7 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
                 p0 += B_hstep * 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -5150,7 +5150,7 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 
 #if __ARM_NEON
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -5190,7 +5190,7 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
                 p0 += B_hstep * 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -5409,7 +5409,7 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 
 #if __ARM_NEON
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
         if (elempack == 8)
         {
             int kk = 0;
@@ -5451,7 +5451,7 @@ static void transpose_pack_B_tile_fp16_to_int8(const Mat& B, Mat& BT, int j, int
                 p0 += B_hstep * 8;
             }
         }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
         if (elempack == 4)
         {
             int kk = 0;
@@ -5821,7 +5821,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                 }
                 if (broadcast_type_C == 3)
                 {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                     if (c_elempack == 8)
                     {
                         uint16x8_t _c08 = vld1q_u16(pC);
@@ -5896,7 +5896,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                         }
                         pC += 64;
                     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                     if (c_elempack == 4)
                     {
                         uint16x8_t _c01 = vld1q_u16(pC);
@@ -6125,7 +6125,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
             uint16x4_t _hfe = (uint16x4_t)vcvt_f16_f32(_fe);
             uint16x4_t _hff = (uint16x4_t)vcvt_f16_f32(_ff);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
             if (out_elempack == 8)
             {
                 vst1q_u16(p0, vcombine_u16(_hf0, _hf8));
@@ -6138,7 +6138,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                 vst1q_u16(p0 + 56, vcombine_u16(_hf7, _hff));
                 p0 += 64;
             }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
             if (out_elempack == 4)
             {
                 vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
@@ -6275,7 +6275,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                 }
                 if (broadcast_type_C == 3)
                 {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                     if (c_elempack == 8)
                     {
                         uint16x8_t _c04 = vld1q_u16(pC);
@@ -6322,7 +6322,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                         }
                         pC += 32;
                     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                     if (c_elempack == 4)
                     {
                         uint16x8_t _c01 = vld1q_u16(pC);
@@ -6471,7 +6471,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
             uint16x4_t _hf6 = (uint16x4_t)vcvt_f16_f32(_f6);
             uint16x4_t _hf7 = (uint16x4_t)vcvt_f16_f32(_f7);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
             if (out_elempack == 8)
             {
                 vst1q_u16(p0, vcombine_u16(_hf0, _hf4));
@@ -6480,7 +6480,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                 vst1q_u16(p0 + 24, vcombine_u16(_hf3, _hf7));
                 p0 += 32;
             }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
             if (out_elempack == 4)
             {
                 vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
@@ -6570,7 +6570,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                 {
                     float32x4_t _c2;
                     float32x4_t _c3;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                     if (c_elempack == 8)
                     {
                         uint16x8_t _cc0 = vld1q_u16(pC);
@@ -6581,7 +6581,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                         _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_cc1));
                         pC += 16;
                     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                     if (c_elempack == 4)
                     {
                         uint16x8_t _c01 = vld1q_u16(pC);
@@ -6660,14 +6660,14 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
             uint16x4_t _hf2 = (uint16x4_t)vcvt_f16_f32(_f2);
             uint16x4_t _hf3 = (uint16x4_t)vcvt_f16_f32(_f3);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
             if (out_elempack == 8)
             {
                 vst1q_u16(p0, vcombine_u16(_hf0, _hf2));
                 vst1q_u16(p0 + 8, vcombine_u16(_hf1, _hf3));
                 p0 += 16;
             }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
             if (out_elempack == 4)
             {
                 vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
@@ -6719,7 +6719,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                 }
                 if (broadcast_type_C == 3)
                 {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                     if (c_elempack == 8)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
@@ -6727,7 +6727,7 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
                         _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         pC += 8;
                     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                     if (c_elempack == 4)
                     {
                         _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
@@ -6780,13 +6780,13 @@ static void unpack_output_tile_int32_to_fp16(const Mat& topT, const Mat& C, Mat&
             uint16x4_t _hf0 = (uint16x4_t)vcvt_f16_f32(_f0);
             uint16x4_t _hf1 = (uint16x4_t)vcvt_f16_f32(_f1);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
             if (out_elempack == 8)
             {
                 vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
                 p0 += 8;
             }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
             if (out_elempack == 4)
             {
                 vst1_u16(p0, _hf0);
@@ -8199,7 +8199,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                 }
                 if (broadcast_type_C == 3)
                 {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                     if (c_elempack == 8)
                     {
                         uint16x8_t _c08 = vld1q_u16(pC);
@@ -8268,7 +8268,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                         }
                         pC += 64;
                     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                     if (c_elempack == 4)
                     {
                         uint16x8_t _c01 = vld1q_u16(pC);
@@ -8489,7 +8489,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
             uint16x8_t _hf6 = vcombine_u16((uint16x4_t)vcvt_f16_f32(_f6), (uint16x4_t)vcvt_f16_f32(_fe));
             uint16x8_t _hf7 = vcombine_u16((uint16x4_t)vcvt_f16_f32(_f7), (uint16x4_t)vcvt_f16_f32(_ff));
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
             if (out_elempack == 8)
             {
                 transpose8x8_u16(_hf0, _hf1, _hf2, _hf3, _hf4, _hf5, _hf6, _hf7);
@@ -8502,7 +8502,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                 vst1q_u16(p0 + 48, _hf6);
                 vst1q_u16(p0 + 56, _hf7);
             }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
             if (out_elempack == 4)
             {
                 uint16x8x4_t _hfa;
@@ -8640,7 +8640,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                 }
                 if (broadcast_type_C == 3)
                 {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                     if (c_elempack == 8)
                     {
                         uint16x8_t _c04 = vld1q_u16(pC);
@@ -8680,7 +8680,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                         }
                         pC += 32;
                     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                     if (c_elempack == 4)
                     {
                         uint16x8_t _c01 = vld1q_u16(pC);
@@ -8909,7 +8909,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                 {
                     float32x4_t _c2;
                     float32x4_t _c3;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                     if (c_elempack == 8)
                     {
                         uint16x8_t _c02 = vld1q_u16(pC);
@@ -8920,7 +8920,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                         _c3 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c13));
                         pC += 16;
                     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                     if (c_elempack == 4)
                     {
                         uint16x8_t _c01 = vld1q_u16(pC);
@@ -9021,7 +9021,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                 }
                 if (broadcast_type_C == 3)
                 {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                     if (c_elempack == 8)
                     {
                         uint16x8_t _c = vld1q_u16(pC);
@@ -9029,7 +9029,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                         _c1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_c));
                         pC += 8;
                     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                     if (c_elempack == 4)
                     {
                         _c0 = vcvt_f32_f16((float16x4_t)vld1_u16(pC));
@@ -9325,7 +9325,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
             uint16x4_t _hf6 = (uint16x4_t)vcvt_f16_f32(_f6);
             uint16x4_t _hf7 = (uint16x4_t)vcvt_f16_f32(_f7);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
             if (out_elempack == 8)
             {
                 transpose4x4_u16(_hf0, _hf1, _hf2, _hf3);
@@ -9335,7 +9335,7 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
                 vst1q_u16(p0 + 16, vcombine_u16(_hf2, _hf6));
                 vst1q_u16(p0 + 24, vcombine_u16(_hf3, _hf7));
             }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
             if (out_elempack == 4)
             {
                 uint16x4x4_t _hfa;
@@ -9815,13 +9815,13 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
             uint16x4_t _hf2 = (uint16x4_t)vcvt_f16_f32(_f2);
             uint16x4_t _hf3 = (uint16x4_t)vcvt_f16_f32(_f3);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
             if (out_elempack == 8)
             {
                 vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
                 vst1q_u16(p0 + 8, vcombine_u16(_hf2, _hf3));
             }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
             if (out_elempack == 4)
             {
                 vst1q_u16(p0, vcombine_u16(_hf0, _hf2));
@@ -10147,13 +10147,13 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
             }
             else
             {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                 if (out_elempack == 8)
                 {
                     vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
                     vst1q_u16(p0 + out_hstep * 8, vcombine_u16(_hf2, _hf3));
                 }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                 if (out_elempack == 4)
                 {
                     vst1_u16(p0, _hf0);
@@ -10237,12 +10237,12 @@ static void transpose_unpack_output_tile_int32_to_fp16(const Mat& topT, const Ma
             }
             else
             {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __aarch64__
                 if (out_elempack == 8)
                 {
                     vst1q_u16(p0, vcombine_u16(_hf0, _hf1));
                 }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __aarch64__
                 if (out_elempack == 4)
                 {
                     vst1_u16(p0, _hf0);
