@@ -2868,7 +2868,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
     {
         if (op->type == "nn.Conv1d" || op->type == "nn.ConvTranspose1d" && op->inputs[0]->shape.size() == 3)
         {
-            if(op->inputs[0]->type != 0)
+            if (op->inputs[0]->type != 0)
             {
                 int in_n, in_c, in_l, out_c, out_l, k_s, g;
                 bool bias;
@@ -2878,22 +2878,22 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 k_s = op->params.at("kernel_size").i;
                 out_c = op->params.at("out_channels").i;
                 out_l = op->outputs[0]->shape[2];
-                bias = op->params.at("bias").b;//bias
-                if(bias)
+                bias = op->params.at("bias").b; //bias
+                if (bias)
                 {
                     m.flops += in_n * 2 * in_c * k_s * out_c * out_l;
                     m.memory_access += in_n * (in_l * in_c + out_l * out_c + in_c * k_s * out_c + out_c);
                 }
                 else
                 {
-                    m.flops += in_n * (2 * in_c * k_s -1) * out_c * out_l;
+                    m.flops += in_n * (2 * in_c * k_s - 1) * out_c * out_l;
                     m.memory_access += in_n * (in_l * in_c + out_l * out_c + in_c * k_s * out_c);
                 }
             }
         }
         else if (op->type == "F.conv1d" || op->type == "F.conv_transpose1d" && op->inputs[0]->shape.size() == 3)
         {
-            if(op->inputs[0]->type != 0)
+            if (op->inputs[0]->type != 0)
             {
                 int in_n, in_c, in_l, out_c, out_l, k_s, g;
                 bool bias = true;
@@ -2911,21 +2911,21 @@ pnnx::ModelInfo Graph::flops_mem_count()
                         bias = false;
                     }
                 }
-                if(bias)
+                if (bias)
                 {
                     m.flops += in_n * 2 * in_c * k_s * out_c * out_l;
                     m.memory_access += in_n * (in_l * in_c + out_l * out_c + in_c * k_s * out_c + out_c);
                 }
                 else
                 {
-                    m.flops += in_n * (2 * in_c * k_s -1) * out_c * out_l;
+                    m.flops += in_n * (2 * in_c * k_s - 1) * out_c * out_l;
                     m.memory_access += in_n * (in_l * in_c + out_l * out_c + in_c * k_s * out_c);
                 }
             }
         }
         else if (op->type == "nn.Conv2d" || op->type == "nn.ConvTranspose2d" && op->inputs[0]->shape.size() == 4)
         {
-            if(op->inputs[0]->type != 0)
+            if (op->inputs[0]->type != 0)
             {
                 int in_n, in_c, in_h, in_w, out_c, out_h, out_w, k_h, k_w, g;
                 bool bias;
@@ -2938,22 +2938,22 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 out_c = op->params.at("out_channels").i;
                 out_h = op->outputs[0]->shape[2];
                 out_w = op->outputs[0]->shape[3];
-                bias = op->params.at("bias").b;//bias
-                if(bias)
+                bias = op->params.at("bias").b; //bias
+                if (bias)
                 {
                     m.flops += in_n * 2 * in_c * k_h * k_w * out_c * out_w * out_h;
                     m.memory_access += in_n * (in_w * in_h * in_c + out_w * out_h * out_c + in_c * k_h * k_w * out_c + out_c);
                 }
                 else
                 {
-                    m.flops += in_n * (2 * in_c * k_h * k_w -1) * out_c * out_w * out_h;
+                    m.flops += in_n * (2 * in_c * k_h * k_w - 1) * out_c * out_w * out_h;
                     m.memory_access += in_n * (in_w * in_h * in_c + out_w * out_h * out_c + k_h * k_w * in_c * out_c);
                 }
             }
         }
         else if (op->type == "F.conv2d" || op->type == "F.conv_transpose2d" && op->inputs[0]->shape.size() == 4)
         {
-            if(op->inputs[0]->type != 0)
+            if (op->inputs[0]->type != 0)
             {
                 int in_n, in_c, in_h, in_w, out_c, out_h, out_w, k_h, k_w, g;
                 bool bias = true;
@@ -2974,21 +2974,21 @@ pnnx::ModelInfo Graph::flops_mem_count()
                         bias = false;
                     }
                 }
-                if(bias)
+                if (bias)
                 {
                     m.flops += in_n * 2 * in_c * k_h * k_w * out_c * out_w * out_h;
                     m.memory_access += in_n * (in_w * in_h * in_c + out_w * out_h * out_c + in_c * k_h * k_w * out_c + out_c);
                 }
                 else
                 {
-                    m.flops += in_n * (2 * in_c * k_h * k_w -1) * out_c * out_w * out_h;
+                    m.flops += in_n * (2 * in_c * k_h * k_w - 1) * out_c * out_w * out_h;
                     m.memory_access += in_n * (in_w * in_h * in_c + out_w * out_h * out_c + k_h * k_w * in_c * out_c);
                 }
             }
         }
         else if (op->type == "nn.Conv3d" || op->type == "nn.ConvTranspose3d" && op->inputs[0]->shape.size() == 5)
         {
-            if(op->inputs[0]->type != 0)
+            if (op->inputs[0]->type != 0)
             {
                 int in_n, in_c, in_d, in_h, in_w, out_c, out_d, out_h, out_w, k_d, k_h, k_w, g;
                 bool bias;
@@ -3004,22 +3004,22 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 out_d = op->outputs[0]->shape[2];
                 out_h = op->outputs[0]->shape[3];
                 out_w = op->outputs[0]->shape[4];
-                bias = op->params.at("bias").b;//bias
-                if(bias)
+                bias = op->params.at("bias").b; //bias
+                if (bias)
                 {
                     m.flops += in_n * 2 * in_c * k_d * k_h * k_w * out_c * out_d * out_w * out_h;
                     m.memory_access += in_n * (in_d * in_w * in_h * in_c + out_d * out_w * out_h * out_c + in_c * k_d * k_h * k_w * out_c + out_c);
                 }
                 else
                 {
-                    m.flops += in_n * (2 * in_c * k_d * k_h * k_w -1) * out_c * out_d * out_w * out_h;
+                    m.flops += in_n * (2 * in_c * k_d * k_h * k_w - 1) * out_c * out_d * out_w * out_h;
                     m.memory_access += in_n * (in_d * in_w * in_h * in_c + out_d * out_w * out_h * out_c + in_c * k_d * k_h * k_w * out_c);
                 }
             }
         }
         else if (op->type == "F.conv3d" || op->type == "F.conv_transpose3d" && op->inputs[0]->shape.size() == 5)
         {
-            if(op->inputs[0]->type != 0)
+            if (op->inputs[0]->type != 0)
             {
                 int in_n, in_c, in_d, in_h, in_w, out_c, out_d, out_h, out_w, k_d, k_h, k_w, g;
                 bool bias = true;
@@ -3043,14 +3043,14 @@ pnnx::ModelInfo Graph::flops_mem_count()
                         bias = false;
                     }
                 }
-                if(bias)
+                if (bias)
                 {
                     m.flops += in_n * 2 * in_c * k_d * k_h * k_w * out_c * out_d * out_w * out_h;
                     m.memory_access += in_n * (in_d * in_w * in_h * in_c + out_d * out_w * out_h * out_c + in_c * k_d * k_h * k_w * out_c + out_c);
                 }
                 else
                 {
-                    m.flops += in_n * (2 * in_c * k_d * k_h * k_w -1) * out_c * out_d * out_w * out_h;
+                    m.flops += in_n * (2 * in_c * k_d * k_h * k_w - 1) * out_c * out_d * out_w * out_h;
                     m.memory_access += in_n * (in_d * in_w * in_h * in_c + out_d * out_w * out_h * out_c + in_c * k_d * k_h * k_w * out_c);
                 }
             }
@@ -3067,7 +3067,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             {
                 mem *= op->inputs[0]->shape[index];
             }
-            if(bias)
+            if (bias)
             {
                 m.flops += mem * 2 * in * out;
                 m.memory_access += mem * (in + out + in * out + 1);
@@ -3097,7 +3097,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                     bias = false;
                 }
             }
-            if(bias)
+            if (bias)
             {
                 m.flops += mem * 2 * in * out;
                 m.memory_access += mem * (in + out + in * out + 1);
@@ -3142,7 +3142,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             vdim = op->params.at("vdim").i;
             linear1 = q_l * embed_dim * embed_dim + k_s * embed_dim * Kdim + v_s * embed_dim * vdim;
             attention = q_l * k_s * embed_dim + 2 * q_l * k_s * num_heads + q_l * v_s * embed_dim;
-            linerar2 = q_l* embed_dim * embed_dim;
+            linerar2 = q_l * embed_dim * embed_dim;
             m.flops += linear1 + attention + linerar2;
             weights = embed_dim * embed_dim + embed_dim * Kdim + embed_dim * vdim + num_heads * vdim * embed_dim;
             in = q_l * embed_dim + k_s * Kdim + v_s * vdim;
@@ -3213,7 +3213,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 mem *= op->inputs[0]->shape[index];
             }
             m.flops += (kernel_add + kernel_avg) * out_l * mem;
-            m.memory_access += mem * (in_l+ out_l);
+            m.memory_access += mem * (in_l + out_l);
         }
         else if (op->type == "nn.AvgPool2d" || op->type == "F.avg_pool2d" && op->inputs[0]->shape.size() >= 2)
         {
@@ -3343,7 +3343,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             else
             {
-                k_l = (in_l + out_l -1) / out_l;
+                k_l = (in_l + out_l - 1) / out_l;
             }
             kernel_add = k_l - 1;
             kernel_avg = 1;
@@ -3366,7 +3366,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             else
             {
-                k_h = (in_h + out_h -1) / out_h;
+                k_h = (in_h + out_h - 1) / out_h;
             }
             if (out_w == 0)
             {
@@ -3375,7 +3375,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             else
             {
-                k_w = (in_w + out_w -1) / out_w;
+                k_w = (in_w + out_w - 1) / out_w;
             }
             kernel_add = k_h * k_w - 1;
             kernel_avg = 1;
@@ -3384,7 +3384,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
         }
         else if (op->type == "nn.AdaptiveAvgPool3d" || op->type == "F.adaptive_avg_pool3d" && op->inputs[0]->shape.size() == 5)
         {
-            int in_n, in_c, in_d, in_h, in_w,out_d, out_h, out_w, k_d, k_h, k_w, kernel_add, kernel_avg;
+            int in_n, in_c, in_d, in_h, in_w, out_d, out_h, out_w, k_d, k_h, k_w, kernel_add, kernel_avg;
             in_n = op->inputs[0]->shape[0];
             in_c = op->inputs[0]->shape[1];
             in_d = op->inputs[0]->shape[2];
@@ -3400,7 +3400,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             else
             {
-                k_d = (in_d + out_d -1) / out_d;
+                k_d = (in_d + out_d - 1) / out_d;
             }
             if (out_h == 0)
             {
@@ -3409,7 +3409,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             else
             {
-                k_h = (in_h + out_h -1) / out_h;
+                k_h = (in_h + out_h - 1) / out_h;
             }
             if (out_w == 0)
             {
@@ -3418,7 +3418,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             else
             {
-                k_w = (in_w + out_w -1) / out_w;
+                k_w = (in_w + out_w - 1) / out_w;
             }
             kernel_add = k_d * k_h * k_w - 1;
             kernel_avg = 1;
@@ -3461,7 +3461,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
         }
         else if (op->type == "nn.AdaptiveMaxPool3d" || op->type == "F.adaptive_max_pool3d" && op->inputs[0]->shape.size() == 5)
         {
-            int num_o, in_n, in_c,in_d, in_h, in_w, out_d, out_h, out_w;
+            int num_o, in_n, in_c, in_d, in_h, in_w, out_d, out_h, out_w;
             num_o = op->params.at("return_indices").b ? 2 : 1;
             in_n = op->inputs[0]->shape[0];
             in_c = op->inputs[0]->shape[1];
@@ -3756,7 +3756,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 {
                     mem *= op->inputs[0]->shape[index];
                 }
-                m.flops += ( 7 * in_n + 4 ) * mem;
+                m.flops += (7 * in_n + 4) * mem;
                 m.memory_access += 2 * in_n * mem;
             }
             else if (dim == 1)
@@ -3767,7 +3767,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 {
                     mem *= op->inputs[0]->shape[index];
                 }
-                m.flops += ( 7 * in_c + 4 ) * in_n * mem;
+                m.flops += (7 * in_c + 4) * in_n * mem;
                 m.memory_access += 2 * in_n * in_c * mem;
             }
             else if (dim == 2)
@@ -3779,7 +3779,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 {
                     mem *= op->inputs[0]->shape[index];
                 }
-                m.flops += ( 7 * in_h + 4 ) * in_n * in_c * mem;
+                m.flops += (7 * in_h + 4) * in_n * in_c * mem;
                 m.memory_access += 2 * in_n * in_c * in_h * mem;
             }
         }
@@ -3944,7 +3944,6 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 m.flops += batch * seq * 2 * (in_size * h_size + (num_layers - 1) * (h_size * h_size));
             }
             m.memory_access += batch * seq * (in_size + num_layers * h_size + h_size);
-
         }
         else if (op->type == "nn.SELU" || op->type == "F.selu" && op->inputs[0]->shape.size() >= 1)
         {
@@ -3996,7 +3995,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             in_c = op->inputs[0]->shape[1];
             in_h = op->inputs[0]->shape[2];
             in_w = op->inputs[0]->shape[3];
-            m.flops += in_n * in_c * (7 * in_h * in_w -1);
+            m.flops += in_n * in_c * (7 * in_h * in_w - 1);
             m.memory_access += 2 * in_n * in_c * in_h * in_w;
         }
         else if (op->type == "nn.Tanh" || op->type == "F.tanh" && op->inputs[0]->shape.size() >= 1)
@@ -4032,7 +4031,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 int size_h = op->params.at("size").ai[0];
                 int size_w = op->params.at("size").ai[1];
                 m.flops += 4 * in_c * size_h * size_w;
-                m.memory_access +=  5 * in_c * size_h * size_w;
+                m.memory_access += 5 * in_c * size_h * size_w;
             }
             else
             {
@@ -4041,7 +4040,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 int out_h = in_h * scale_h;
                 int out_w = in_w * scale_w;
                 m.flops += 4 * in_c * out_h * out_w;
-                m.memory_access +=  5 * in_c * out_h * out_w;
+                m.memory_access += 5 * in_c * out_h * out_w;
             }
         }
     }
