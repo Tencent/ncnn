@@ -2866,61 +2866,258 @@ pnnx::ModelInfo Graph::flops_mem_count()
 {
     for (const Operator* op : ops)
     {
-        if (op->type == "nn.Conv2d")
+        if (op->type == "nn.Conv1d" || op->type == "nn.ConvTranspose1d" && op->inputs[0]->shape.size() == 3)
         {
-            if (op->inputs[0]->type != 0)
+            if(op->inputs[0]->type != 0)
             {
-                int ci = op->inputs[0]->shape[1];
-                int kw = op->params.at("kernel_size").ai[0];
-                int kh = op->params.at("kernel_size").ai[1];
-                int co = op->params.at("out_channels").i;
-                int w = op->outputs[0]->shape[3];
-                int h = op->outputs[0]->shape[2];
-                int bias = op->params.at("bias").b ? 1 : 0;
-                int wi = op->inputs[0]->shape[2];
-                int hi = op->inputs[0]->shape[3];
-                int g = op->params.at("groups").i;
-                if (bias == 1)
+                int in_n, in_c, in_l, out_c, out_l, k_s, g;
+                bool bias;
+                in_n = op->inputs[0]->shape[0];
+                in_c = op->inputs[0]->shape[1];
+                in_l = op->inputs[0]->shape[2];
+                k_s = op->params.at("kernel_size").i;
+                out_c = op->params.at("out_channels").i;
+                out_l = op->outputs[0]->shape[2];
+                bias = op->params.at("bias").b;//bias
+                if(bias)
                 {
-                    m.flops += 2 * ci * kw * kh * co * w * h;
+                    m.flops += in_n * 2 * in_c * k_s * out_c * out_l;
+                    m.memory_access += in_n * (in_l * in_c + out_l * out_c + in_c * k_s * out_c + out_c);
                 }
                 else
                 {
-                    m.flops += (2 * ci * kw * kh - 1) * co * w * h;
+                    m.flops += in_n * (2 * in_c * k_s -1) * out_c * out_l;
+                    m.memory_access += in_n * (in_l * in_c + out_l * out_c + in_c * k_s * out_c);
                 }
-                int input_m = wi * hi * ci;
-                int output_m = w * h * co;
-                int weights_m = kw * kh * ci * co;
-                m.memory_access += input_m + output_m + weights_m;
             }
         }
-        else if (op->type == "nn.Linear")
+        else if (op->type == "F.conv1d" || op->type == "F.conv_transpose1d" && op->inputs[0]->shape.size() == 3)
         {
-            int in = op->params.at("in_features").i;
-            int out = op->params.at("out_features").i;
-            int bias = op->params.at("bias").b ? 1 : 0;
-            if (bias == 1)
+            if(op->inputs[0]->type != 0)
             {
-                m.flops += 2 * in * out;
+                int in_n, in_c, in_l, out_c, out_l, k_s, g;
+                bool bias = true;
+                in_n = op->inputs[0]->shape[0];
+                in_c = op->inputs[0]->shape[1];
+                in_l = op->inputs[0]->shape[2];
+                k_s = op->inputs[1]->shape[2];
+                out_c = op->outputs[0]->shape[1];
+                out_l = op->outputs[0]->shape[2];
+                if (op->params.find("bias") != op->params.end())
+                {
+                    std::string val = Parameter::encode_to_string(op->params.at("bias"));
+                    if (val == "None")
+                    {
+                        bias = false;
+                    }
+                }
+                if(bias)
+                {
+                    m.flops += in_n * 2 * in_c * k_s * out_c * out_l;
+                    m.memory_access += in_n * (in_l * in_c + out_l * out_c + in_c * k_s * out_c + out_c);
+                }
+                else
+                {
+                    m.flops += in_n * (2 * in_c * k_s -1) * out_c * out_l;
+                    m.memory_access += in_n * (in_l * in_c + out_l * out_c + in_c * k_s * out_c);
+                }
+            }
+        }
+        else if (op->type == "nn.Conv2d" || op->type == "nn.ConvTranspose2d" && op->inputs[0]->shape.size() == 4)
+        {
+            if(op->inputs[0]->type != 0)
+            {
+                int in_n, in_c, in_h, in_w, out_c, out_h, out_w, k_h, k_w, g;
+                bool bias;
+                in_n = op->inputs[0]->shape[0];
+                in_c = op->inputs[0]->shape[1];
+                in_h = op->inputs[0]->shape[2];
+                in_w = op->inputs[0]->shape[3];
+                k_h = op->params.at("kernel_size").ai[0];
+                k_w = op->params.at("kernel_size").ai[1];
+                out_c = op->params.at("out_channels").i;
+                out_h = op->outputs[0]->shape[2];
+                out_w = op->outputs[0]->shape[3];
+                bias = op->params.at("bias").b;//bias
+                if(bias)
+                {
+                    m.flops += in_n * 2 * in_c * k_h * k_w * out_c * out_w * out_h;
+                    m.memory_access += in_n * (in_w * in_h * in_c + out_w * out_h * out_c + in_c * k_h * k_w * out_c + out_c);
+                }
+                else
+                {
+                    m.flops += in_n * (2 * in_c * k_h * k_w -1) * out_c * out_w * out_h;
+                    m.memory_access += in_n * (in_w * in_h * in_c + out_w * out_h * out_c + k_h * k_w * in_c * out_c);
+                }
+            }
+        }
+        else if (op->type == "F.conv2d" || op->type == "F.conv_transpose2d" && op->inputs[0]->shape.size() == 4)
+        {
+            if(op->inputs[0]->type != 0)
+            {
+                int in_n, in_c, in_h, in_w, out_c, out_h, out_w, k_h, k_w, g;
+                bool bias = true;
+                in_n = op->inputs[0]->shape[0];
+                in_c = op->inputs[0]->shape[1];
+                in_h = op->inputs[0]->shape[2];
+                in_w = op->inputs[0]->shape[3];
+                k_h = op->inputs[1]->shape[2];
+                k_w = op->inputs[1]->shape[3];
+                out_c = op->outputs[0]->shape[1];
+                out_h = op->outputs[0]->shape[2];
+                out_w = op->outputs[0]->shape[3];
+                if (op->params.find("bias") != op->params.end())
+                {
+                    std::string val = Parameter::encode_to_string(op->params.at("bias"));
+                    if (val == "None")
+                    {
+                        bias = false;
+                    }
+                }
+                if(bias)
+                {
+                    m.flops += in_n * 2 * in_c * k_h * k_w * out_c * out_w * out_h;
+                    m.memory_access += in_n * (in_w * in_h * in_c + out_w * out_h * out_c + in_c * k_h * k_w * out_c + out_c);
+                }
+                else
+                {
+                    m.flops += in_n * (2 * in_c * k_h * k_w -1) * out_c * out_w * out_h;
+                    m.memory_access += in_n * (in_w * in_h * in_c + out_w * out_h * out_c + k_h * k_w * in_c * out_c);
+                }
+            }
+        }
+        else if (op->type == "nn.Conv3d" || op->type == "nn.ConvTranspose3d" && op->inputs[0]->shape.size() == 5)
+        {
+            if(op->inputs[0]->type != 0)
+            {
+                int in_n, in_c, in_d, in_h, in_w, out_c, out_d, out_h, out_w, k_d, k_h, k_w, g;
+                bool bias;
+                in_n = op->inputs[0]->shape[0];
+                in_c = op->inputs[0]->shape[1];
+                in_d = op->inputs[0]->shape[2];
+                in_h = op->inputs[0]->shape[3];
+                in_w = op->inputs[0]->shape[4];
+                k_d = op->params.at("kernel_size").ai[0];
+                k_h = op->params.at("kernel_size").ai[1];
+                k_w = op->params.at("kernel_size").ai[2];
+                out_c = op->outputs[0]->shape[1];
+                out_d = op->outputs[0]->shape[2];
+                out_h = op->outputs[0]->shape[3];
+                out_w = op->outputs[0]->shape[4];
+                bias = op->params.at("bias").b;//bias
+                if(bias)
+                {
+                    m.flops += in_n * 2 * in_c * k_d * k_h * k_w * out_c * out_d * out_w * out_h;
+                    m.memory_access += in_n * (in_d * in_w * in_h * in_c + out_d * out_w * out_h * out_c + in_c * k_d * k_h * k_w * out_c + out_c);
+                }
+                else
+                {
+                    m.flops += in_n * (2 * in_c * k_d * k_h * k_w -1) * out_c * out_d * out_w * out_h;
+                    m.memory_access += in_n * (in_d * in_w * in_h * in_c + out_d * out_w * out_h * out_c + in_c * k_d * k_h * k_w * out_c);
+                }
+            }
+        }
+        else if (op->type == "F.conv3d" || op->type == "F.conv_transpose3d" && op->inputs[0]->shape.size() == 5)
+        {
+            if(op->inputs[0]->type != 0)
+            {
+                int in_n, in_c, in_d, in_h, in_w, out_c, out_d, out_h, out_w, k_d, k_h, k_w, g;
+                bool bias = true;
+                in_n = op->inputs[0]->shape[0];
+                in_c = op->inputs[0]->shape[1];
+                in_d = op->inputs[0]->shape[2];
+                in_h = op->inputs[0]->shape[3];
+                in_w = op->inputs[0]->shape[4];
+                k_d = op->inputs[1]->shape[2];
+                k_h = op->inputs[1]->shape[3];
+                k_w = op->inputs[1]->shape[4];
+                out_c = op->outputs[0]->shape[1];
+                out_d = op->outputs[0]->shape[2];
+                out_h = op->outputs[0]->shape[3];
+                out_w = op->outputs[0]->shape[4];
+                if (op->params.find("bias") != op->params.end())
+                {
+                    std::string val = Parameter::encode_to_string(op->params.at("bias"));
+                    if (val == "None")
+                    {
+                        bias = false;
+                    }
+                }
+                if(bias)
+                {
+                    m.flops += in_n * 2 * in_c * k_d * k_h * k_w * out_c * out_d * out_w * out_h;
+                    m.memory_access += in_n * (in_d * in_w * in_h * in_c + out_d * out_w * out_h * out_c + in_c * k_d * k_h * k_w * out_c + out_c);
+                }
+                else
+                {
+                    m.flops += in_n * (2 * in_c * k_d * k_h * k_w -1) * out_c * out_d * out_w * out_h;
+                    m.memory_access += in_n * (in_d * in_w * in_h * in_c + out_d * out_w * out_h * out_c + in_c * k_d * k_h * k_w * out_c);
+                }
+            }
+        }
+        else if (op->type == "nn.Linear" && op->inputs[0]->shape.size() >= 1)
+        {
+            int in_size, in, out, mem = 1;
+            bool bias;
+            in = op->params.at("in_features").i;
+            out = op->params.at("out_features").i;
+            bias = op->params.at("bias").b;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size - 1; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            if(bias)
+            {
+                m.flops += mem * 2 * in * out;
+                m.memory_access += mem * (in + out + in * out + 1);
             }
             else
             {
-                m.flops += (2 * in - 1) * out;
+                m.flops += mem * (2 * in - 1) * out;
+                m.memory_access += mem * (in + out + in * out);
             }
-            m.memory_access += in + out + in * out;
         }
-        else if (op->type == "nn.MultiheadAttention")
+        else if (op->type == "F.linear" && op->inputs[0]->shape.size() >= 1)
         {
-            int in_size = op->inputs.size();
-
-            if (std::find(op->nputnames.begin(), op->inputnames.end(), "attn_mask") != op->inputnames.end())
+            int in_size, in, out, mem = 1;
+            bool bias = true;
+            in = op->inputs[1]->shape[1];
+            out = op->inputs[1]->shape[0];
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size - 1; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            if (op->params.find("bias") != op->params.end())
+            {
+                std::string val = Parameter::encode_to_string(op->params.at("bias"));
+                if (val == "None")
+                {
+                    bias = false;
+                }
+            }
+            if(bias)
+            {
+                m.flops += mem * 2 * in * out;
+                m.memory_access += mem * (in + out + in * out + 1);
+            }
+            else
+            {
+                m.flops += mem * (2 * in - 1) * out;
+                m.memory_access += mem * (in + out + in * out);
+            }
+        }
+        else if (op->type == "nn.MultiheadAttention" && op->inputs[0]->shape.size() == 3)
+        {
+            int in_size, q_l, k_s, v_s, num_heads, embed_dim, Kdim, vdim;
+            long long linear1, attention, linerar2, weights, in, attention_m, out;
+            bool batch_first = op->params.find("batch_first") != op->params.end() && op->params.at("batch_first").b;
+            in_size = op->inputs.size();
+            if (std::find(op->inputnames.begin(), op->inputnames.end(), "attn_mask") != op->inputnames.end())
             {
                 in_size -= 1;
             }
-
-            int q_l, k_s, v_s;
-            bool batch_first = op->params.find("batch_first") != op->params.end() && op->params.at("batch_first").b;
-
             if (in_size == 3)
             {
                 q_l = op->inputs[0]->shape[batch_first ? 1 : 0];
@@ -2939,77 +3136,148 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 k_s = q_l;
                 v_s = q_l;
             }
-
-            int num_heads = op->params.at("num_heads").i;
-            int embed_dim = op->params.at("embed_dim").i;
-            int Kdim = op->params.at("kdim").i;
-            int vdim = op->params.at("vdim").i;
-
-            long long linear1 = q_l * embed_dim * embed_dim + k_s * embed_dim * Kdim + v_s * embed_dim * vdim;
-            long long attention = q_l * k_s * embed_dim + 2 * q_l * k_s * num_heads + q_l * v_s * embed_dim;
-            long long linerar2 = q_l * embed_dim * embed_dim;
+            num_heads = op->params.at("num_heads").i;
+            embed_dim = op->params.at("embed_dim").i;
+            Kdim = op->params.at("kdim").i;
+            vdim = op->params.at("vdim").i;
+            linear1 = q_l * embed_dim * embed_dim + k_s * embed_dim * Kdim + v_s * embed_dim * vdim;
+            attention = q_l * k_s * embed_dim + 2 * q_l * k_s * num_heads + q_l * v_s * embed_dim;
+            linerar2 = q_l* embed_dim * embed_dim;
             m.flops += linear1 + attention + linerar2;
-
-            long long weights = embed_dim * embed_dim + embed_dim * Kdim + embed_dim * vdim + num_heads * vdim * embed_dim;
-            long long in = q_l * embed_dim + k_s * Kdim + v_s * vdim;
-            long long attention_m = q_l * embed_dim + k_s * Kdim + 2 * q_l * k_s + v_s * vdim;
-            long long out = q_l * embed_dim;
+            weights = embed_dim * embed_dim + embed_dim * Kdim + embed_dim * vdim + num_heads * vdim * embed_dim;
+            in = q_l * embed_dim + k_s * Kdim + v_s * vdim;
+            attention_m = q_l * embed_dim + k_s * Kdim + 2 * q_l * k_s + v_s * vdim;
+            out = q_l * embed_dim;
             m.memory_access += weights + in + attention_m + out;
         }
-        else if (op->type == "nn.MaxPool2d")
+        else if (op->type == "nn.MaxPool1d" || op->type == "F.max_pool1d" && op->inputs[0]->shape.size() >= 1)
         {
-            int num_o = op->params.at("return_indices").b ? 2 : 1;
-            int batch_size, in_c, in_h, in_w, out_h, out_w;
-            if (op->inputs[0]->shape.size() == 4)
+            int num_o, in_size, out_size, in_l, out_l, mem = 1;
+            num_o = op->params.at("return_indices").b ? 2 : 1;
+            in_size = op->inputs[0]->shape.size();
+            in_l = op->inputs[0]->shape[in_size - 1];
+            out_size = op->outputs[0]->shape.size();
+            out_l = op->outputs[0]->shape[out_size - 1];
+            for (int index = 0; index < in_size - 1; index++)
             {
-                batch_size = op->inputs[0]->shape[0];
-                in_c = op->inputs[0]->shape[1];
-                in_h = op->inputs[0]->shape[2];
-                in_w = op->inputs[0]->shape[3];
-                out_h = op->outputs[0]->shape[2];
-                out_w = op->outputs[0]->shape[3];
+                mem *= op->inputs[0]->shape[index];
             }
-            else if (op->inputs[0]->shape.size() == 3)
-            {
-                batch_size = 1;
-                in_c = op->inputs[0]->shape[0];
-                in_h = op->inputs[0]->shape[1];
-                in_w = op->inputs[0]->shape[2];
-                out_h = op->outputs[0]->shape[1];
-                out_w = op->outputs[0]->shape[2];
-            }
-            m.memory_access += batch_size * in_c * (in_h * in_w + out_h * out_w * num_o)
+            m.memory_access += mem * (in_l + out_l * num_o);
         }
-        else if (op->type == "nn.AvgPool2d")
+        else if (op->type == "nn.MaxPool2d" || op->type == "F.max_pool2d" && op->inputs[0]->shape.size() >= 2)
         {
-            int batch_size, in_c, in_h, in_w, out_h, out_w, k_h, k_w, kernel_add, kernel_avg;
-            if (op->inputs[0]->shape.size() == 4)
+            int num_o, in_size, out_size, in_h, in_w, out_h, out_w, mem = 1;
+            num_o = op->params.at("return_indices").b ? 2 : 1;
+            in_size = op->inputs[0]->shape.size();
+            in_h = op->inputs[0]->shape[in_size - 2];
+            in_w = op->inputs[0]->shape[in_size - 1];
+            out_size = op->outputs[0]->shape.size();
+            out_h = op->outputs[0]->shape[out_size - 2];
+            out_w = op->outputs[0]->shape[out_size - 1];
+            for (int index = 0; index < in_size - 2; index++)
             {
-                batch_size = op->inputs[0]->shape[0];
-                in_c = op->inputs[0]->shape[1];
-                in_h = op->inputs[0]->shape[2];
-                in_w = op->inputs[0]->shape[3];
-                out_h = op->outputs[0]->shape[2];
-                out_w = op->outputs[0]->shape[3];
+                mem *= op->inputs[0]->shape[index];
             }
-            else if (op->inputs[0]->shape.size() == 3)
+            m.memory_access += mem * (in_h * in_w + out_h * out_w * num_o);
+        }
+        else if (op->type == "nn.MaxPool3d" || op->type == "F.max_pool3d" && op->inputs[0]->shape.size() >= 3)
+        {
+            int num_o, in_size, out_size, in_d, in_h, in_w, out_d, out_h, out_w, mem = 1;
+            num_o = op->params.at("return_indices").b ? 2 : 1;
+            in_size = op->inputs[0]->shape.size();
+            in_d = op->inputs[0]->shape[in_size - 3];
+            in_h = op->inputs[0]->shape[in_size - 2];
+            in_w = op->inputs[0]->shape[in_size - 1];
+            out_size = op->outputs[0]->shape.size();
+            out_d = op->outputs[0]->shape[out_size - 3];
+            out_h = op->outputs[0]->shape[out_size - 2];
+            out_w = op->outputs[0]->shape[out_size - 1];
+            for (int index = 0; index < in_size - 3; index++)
             {
-                batch_size = 1;
-                in_c = op->inputs[0]->shape[0];
-                in_h = op->inputs[0]->shape[1];
-                in_w = op->inputs[0]->shape[2];
-                out_h = op->outputs[0]->shape[1];
-                out_w = op->outputs[0]->shape[2];
+                mem *= op->inputs[0]->shape[index];
             }
+            m.memory_access += mem * (in_d * in_h * in_w + out_d * out_h * out_w * num_o);
+        }
+        else if (op->type == "nn.AvgPool1d" || op->type == "F.avg_pool1d" && op->inputs[0]->shape.size() >= 1)
+        {
+            int in_size, out_size, in_l, out_l, k_l, kernel_add, kernel_avg, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            in_l = op->inputs[0]->shape[in_size - 1];
+            out_size = op->outputs[0]->shape.size();
+            out_l = op->outputs[0]->shape[out_size - 1];
+            k_l = op->params.at("kernel_size").i;
+            kernel_add = k_l - 1;
+            kernel_avg = 1;
+            for (int index = 0; index < in_size - 1; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += (kernel_add + kernel_avg) * out_l * mem;
+            m.memory_access += mem * (in_l+ out_l);
+        }
+        else if (op->type == "nn.AvgPool2d" || op->type == "F.avg_pool2d" && op->inputs[0]->shape.size() >= 2)
+        {
+            int in_size, out_size, in_h, in_w, out_h, out_w, k_h, k_w, kernel_add, kernel_avg, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            in_h = op->inputs[0]->shape[in_size - 2];
+            in_w = op->inputs[0]->shape[in_size - 1];
+            out_size = op->outputs[0]->shape.size();
+            out_h = op->outputs[0]->shape[out_size - 2];
+            out_w = op->outputs[0]->shape[out_size - 1];
             k_h = op->params.at("kernel_size").ai[0];
             k_w = op->params.at("kernel_size").ai[1];
-
             kernel_add = k_h * k_w - 1;
             kernel_avg = 1;
-            m.flops += (kernel_add + kernel_avg) * (out_h * out_w) * in_c;
-            m.memory_access += batch_size * in_c * (in_h * in_w + out_h * out_w)
+            for (int index = 0; index < in_size - 2; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += (kernel_add + kernel_avg) * (out_h * out_w) * mem;
+            m.memory_access += mem * (in_h * in_w + out_h * out_w);
         }
-        else if (op->type == "nn.BatchNorm2d")
+        else if (op->type == "nn.AvgPool3d" || op->type == "F.avg_pool3d" && op->inputs[0]->shape.size() >= 3)
+        {
+            int in_size, out_size, in_d, in_h, in_w, out_d, out_h, out_w, k_d, k_h, k_w, kernel_add, kernel_avg, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            in_d = op->inputs[0]->shape[in_size - 3];
+            in_h = op->inputs[0]->shape[in_size - 2];
+            in_w = op->inputs[0]->shape[in_size - 1];
+            out_size = op->outputs[0]->shape.size();
+            out_d = op->outputs[0]->shape[out_size - 3];
+            out_h = op->outputs[0]->shape[out_size - 2];
+            out_w = op->outputs[0]->shape[out_size - 1];
+            k_d = op->params.at("kernel_size").ai[0];
+            k_h = op->params.at("kernel_size").ai[1];
+            k_w = op->params.at("kernel_size").ai[2];
+            kernel_add = k_d * k_h * k_w - 1;
+            kernel_avg = 1;
+            for (int index = 0; index < in_size - 3; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += (kernel_add + kernel_avg) * (out_d * out_h * out_w) * mem;
+            m.memory_access += mem * (in_d * in_h * in_w + out_d * out_h * out_w);
+        }
+        else if (op->type == "nn.BatchNorm1d" && op->inputs[0]->shape.size() == 3)
+        {
+            int in_n, in_c, in_l;
+            bool affine;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_l = op->inputs[0]->shape[2];
+            affine = op->params.at("affine").b;
+            if (affine)
+            {
+                m.flops += 7 * in_n * in_c * in_l;
+                m.memory_access += 2 * in_n * in_c * in_l;
+            }
+            else
+            {
+                m.flops += 5 * in_n * in_c * in_l;
+                m.memory_access += 2 * in_n * in_c * in_l;
+            }
+        }
+        else if (op->type == "nn.BatchNorm2d" && op->inputs[0]->shape.size() == 4)
         {
             int in_n, in_c, in_h, in_w;
             bool affine;
@@ -3029,7 +3297,60 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 m.memory_access += 2 * in_n * in_c * in_h * in_w;
             }
         }
-        else if (op->type == "nn.AdaptiveAvgPool2d")
+        else if (op->type == "nn.BatchNorm3d" && op->inputs[0]->shape.size() == 5)
+        {
+            int in_n, in_c, in_d, in_h, in_w;
+            bool affine;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_d = op->inputs[0]->shape[2];
+            in_h = op->inputs[0]->shape[3];
+            in_w = op->inputs[0]->shape[4];
+            affine = op->params.at("affine").b;
+            if (affine)
+            {
+                m.flops += 7 * in_n * in_c * in_d * in_h * in_w;
+                m.memory_access += 2 * in_n * in_c * in_d * in_h * in_w;
+            }
+            else
+            {
+                m.flops += 5 * in_n * in_c * in_d * in_h * in_w;
+                m.memory_access += 2 * in_n * in_c * in_d * in_h * in_w;
+            }
+        }
+        else if (op->type == "F.batch_norm" && op->inputs[0]->shape.size() >= 1)
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 5 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.AdaptiveAvgPool1d" || op->type == "F.adaptive_avg_pool1d" && op->inputs[0]->shape.size() == 3)
+        {
+            int in_n, in_c, in_l, out_l, k_l, kernel_add, kernel_avg;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_l = op->inputs[0]->shape[2];
+            out_l = op->params.at("output_size").i;
+            if (out_l == 0)
+            {
+                k_l = 1;
+                out_l = in_l;
+            }
+            else
+            {
+                k_l = (in_l + out_l -1) / out_l;
+            }
+            kernel_add = k_l - 1;
+            kernel_avg = 1;
+            m.flops += (kernel_add + kernel_avg) * out_l * in_c * in_n;
+            m.memory_access += in_n * in_c * (in_l + out_l);
+        }
+        else if (op->type == "nn.AdaptiveAvgPool2d" || op->type == "F.adaptive_avg_pool2d" && op->inputs[0]->shape.size() == 4)
         {
             int in_n, in_c, in_h, in_w, out_h, out_w, k_h, k_w, kernel_add, kernel_avg;
             in_n = op->inputs[0]->shape[0];
@@ -3040,27 +3361,85 @@ pnnx::ModelInfo Graph::flops_mem_count()
             out_w = op->params.at("output_size").ai[1];
             if (out_h == 0)
             {
-                k_h = in_h;
+                k_h = 1;
+                out_h = in_h;
             }
             else
             {
-                k_h = (in_h + out_h - 1) / out_h;
+                k_h = (in_h + out_h -1) / out_h;
             }
-
             if (out_w == 0)
             {
-                k_w = in_w;
+                k_w = 1;
+                out_w = in_w;
             }
             else
             {
-                k_w = (in_w + out_w - 1) / out_w;
+                k_w = (in_w + out_w -1) / out_w;
             }
             kernel_add = k_h * k_w - 1;
             kernel_avg = 1;
             m.flops += (kernel_add + kernel_avg) * out_h * out_w * in_c;
             m.memory_access += in_n * in_c * (in_h * in_w + out_h * out_w);
         }
-        else if (op->type == "nn.AdaptiveMaxPool2d")
+        else if (op->type == "nn.AdaptiveAvgPool3d" || op->type == "F.adaptive_avg_pool3d" && op->inputs[0]->shape.size() == 5)
+        {
+            int in_n, in_c, in_d, in_h, in_w,out_d, out_h, out_w, k_d, k_h, k_w, kernel_add, kernel_avg;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_d = op->inputs[0]->shape[2];
+            in_h = op->inputs[0]->shape[3];
+            in_w = op->inputs[0]->shape[4];
+            out_d = op->params.at("output_size").ai[0];
+            out_h = op->params.at("output_size").ai[1];
+            out_w = op->params.at("output_size").ai[2];
+            if (out_d == 0)
+            {
+                k_d = 1;
+                out_d = in_d;
+            }
+            else
+            {
+                k_d = (in_d + out_d -1) / out_d;
+            }
+            if (out_h == 0)
+            {
+                k_h = 1;
+                out_h = in_h;
+            }
+            else
+            {
+                k_h = (in_h + out_h -1) / out_h;
+            }
+            if (out_w == 0)
+            {
+                k_w = 1;
+                out_w = in_w;
+            }
+            else
+            {
+                k_w = (in_w + out_w -1) / out_w;
+            }
+            kernel_add = k_d * k_h * k_w - 1;
+            kernel_avg = 1;
+            m.flops += (kernel_add + kernel_avg) * out_d * out_h * out_w * in_c * in_n;
+            m.memory_access += in_n * in_c * (in_d * in_h * in_w + out_d * out_h * out_w);
+        }
+        else if (op->type == "nn.AdaptiveMaxPool1d" || op->type == "F.adaptive_max_pool1d" && op->inputs[0]->shape.size() == 3)
+        {
+            int num_o, in_n, in_c, in_l, out_l;
+            num_o = op->params.at("return_indices").b ? 2 : 1;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_l = op->inputs[0]->shape[2];
+            out_l = op->params.at("output_size").i;
+            if (out_l == 0)
+            {
+                out_l = in_l;
+            }
+            m.memory_access += in_n * in_c * (in_l + out_l * num_o);
+        }
+        else if (op->type == "nn.AdaptiveMaxPool2d" || op->type == "F.adaptive_max_pool2d" && op->inputs[0]->shape.size() == 4)
         {
             int num_o, in_n, in_c, in_h, in_w, out_h, out_w;
             num_o = op->params.at("return_indices").b ? 2 : 1;
@@ -3070,9 +3449,43 @@ pnnx::ModelInfo Graph::flops_mem_count()
             in_w = op->inputs[0]->shape[3];
             out_h = op->params.at("output_size").ai[0];
             out_w = op->params.at("output_size").ai[1];
+            if (out_h == 0)
+            {
+                out_h = in_h;
+            }
+            if (out_w == 0)
+            {
+                out_w = in_w;
+            }
             m.memory_access += in_n * in_c * (in_h * in_w + out_h * out_w * num_o);
         }
-        else if (op->type == "nn.CELU")
+        else if (op->type == "nn.AdaptiveMaxPool3d" || op->type == "F.adaptive_max_pool3d" && op->inputs[0]->shape.size() == 5)
+        {
+            int num_o, in_n, in_c,in_d, in_h, in_w, out_d, out_h, out_w;
+            num_o = op->params.at("return_indices").b ? 2 : 1;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_d = op->inputs[0]->shape[2];
+            in_h = op->inputs[0]->shape[3];
+            in_w = op->inputs[0]->shape[4];
+            out_d = op->params.at("output_size").ai[0];
+            out_h = op->params.at("output_size").ai[1];
+            out_w = op->params.at("output_size").ai[2];
+            if (out_d == 0)
+            {
+                out_d = in_d;
+            }
+            if (out_h == 0)
+            {
+                out_h = in_h;
+            }
+            if (out_w == 0)
+            {
+                out_w = in_w;
+            }
+            m.memory_access += in_n * in_c * (in_d * in_h * in_w + out_d * out_h * out_w * num_o);
+        }
+        else if (op->type == "nn.CELU" || op->type == "F.celu" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3082,7 +3495,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.ELU")
+        else if (op->type == "nn.ELU" || op->type == "F.elu" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3092,7 +3505,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.Embedding")
+        else if (op->type == "nn.Embedding" || op->type == "F.embedding" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3102,7 +3515,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.Fold")
+        else if (op->type == "nn.Fold" || op->type == "F.fold" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3112,7 +3525,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.GELU")
+        else if (op->type == "nn.GELU" || op->type == "F.gelu" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3123,7 +3536,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 12 * mem;
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.GLU")
+        else if (op->type == "nn.GLU" || op->type == "F.glu" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3131,10 +3544,10 @@ pnnx::ModelInfo Graph::flops_mem_count()
             {
                 mem *= op->inputs[0]->shape[index];
             }
-            m.flops += (5 * mem) / 2;
+            m.flops += std::round(2.5 * mem);
             m.memory_access += std::round(1.5 * mem);
         }
-        else if (op->type == "nn.GroupNorm")
+        else if (op->type == "nn.GroupNorm" && op->inputs[0]->shape.size() >= 2)
         {
             int num_g, in_n, in_c, in_size, mem = 1;
             num_g = op->params.at("num_groups").i;
@@ -3148,7 +3561,21 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 9 * in_n * in_c * mem + 2 * in_n * num_g;
             m.memory_access += 2 * in_n * in_c * mem + 2 * in_n * num_g;
         }
-        else if (op->type == "nn.GRU")
+        else if (op->type == "F.group_norm" && op->inputs[0]->shape.size() >= 2)
+        {
+            int num_g, in_n, in_c, in_size, mem = 1;
+            num_g = op->params.at("num_groups").i;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 2; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 9 * in_n * in_c * mem + 2 * in_n * num_g;
+            m.memory_access += 2 * in_n * in_c * mem + 2 * in_n * num_g;
+        }
+        else if (op->type == "nn.GRU" && op->inputs[0]->shape.size() == 3)
         {
             int in_size, h_size, num_layers, batch, seq;
             bool batch_first, bidirectional;
@@ -3169,7 +3596,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += num_layers * batch * seq * in_size;
         }
-        else if (op->type == "nn.Hardsigmoid")
+        else if (op->type == "nn.Hardsigmoid" || op->type == "F.hardsigmoid" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3180,7 +3607,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 2 * mem;
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.Hardswish")
+        else if (op->type == "nn.Hardswish" || op->type == "F.hardswish" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3191,7 +3618,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 3 * mem;
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.Hardtanh")
+        else if (op->type == "nn.Hardtanh" || op->type == "F.hardtanh" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3201,7 +3628,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.Identity")
+        else if (op->type == "nn.Identity" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3211,30 +3638,78 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.InstanceNorm2d")
+        else if (op->type == "nn.InstanceNorm1d" && op->inputs[0]->shape.size() == 3)
         {
-            if (op->inputs[0]->shape.size() == 4)
+            int in_n, in_c, in_l;
+            bool affine;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_l = op->inputs[0]->shape[2];
+            affine = op->params.at("affine").b;
+            if (affine)
             {
-                int in_b, in_c, in_h, in_w;
-                bool affine;
-                in_b = op->inputs[0]->shape[0];
-                in_c = op->inputs[0]->shape[1];
-                in_h = op->inputs[0]->shape[2];
-                in_w = op->inputs[0]->shape[3];
-                affine = op->params.at("affine").b;
-                if (affine)
-                {
-                    m.flops += 7 * in_b * in_c * in_h * in_w;
-                    m.memory_access += 2 * in_b * in_c * in_h * in_w;
-                }
-                else
-                {
-                    m.flops += 5 * in_b * in_c * in_h * in_w;
-                    m.memory_access += 2 * in_b * in_c * in_h * in_w;
-                }
+                m.flops += 7 * in_n * in_c * in_l;
+                m.memory_access += 2 * in_n * in_c * in_l;
+            }
+            else
+            {
+                m.flops += 5 * in_n * in_c * in_l;
+                m.memory_access += 2 * in_n * in_c * in_l;
             }
         }
-        else if (op->type == "nn.LeakyReLU")
+        else if (op->type == "nn.InstanceNorm2d" && op->inputs[0]->shape.size() == 4)
+        {
+            int in_n, in_c, in_h, in_w;
+            bool affine;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_h = op->inputs[0]->shape[2];
+            in_w = op->inputs[0]->shape[3];
+            affine = op->params.at("affine").b;
+            if (affine)
+            {
+                m.flops += 7 * in_n * in_c * in_h * in_w;
+                m.memory_access += 2 * in_n * in_c * in_h * in_w;
+            }
+            else
+            {
+                m.flops += 5 * in_n * in_c * in_h * in_w;
+                m.memory_access += 2 * in_n * in_c * in_h * in_w;
+            }
+        }
+        else if (op->type == "nn.InstanceNorm3d" && op->inputs[0]->shape.size() == 5)
+        {
+            int in_n, in_c, in_d, in_h, in_w;
+            bool affine;
+            in_n = op->inputs[0]->shape[0];
+            in_c = op->inputs[0]->shape[1];
+            in_d = op->inputs[0]->shape[2];
+            in_h = op->inputs[0]->shape[3];
+            in_w = op->inputs[0]->shape[4];
+            affine = op->params.at("affine").b;
+            if (affine)
+            {
+                m.flops += 7 * in_n * in_c * in_d * in_h * in_w;
+                m.memory_access += 2 * in_n * in_c * in_d * in_h * in_w;
+            }
+            else
+            {
+                m.flops += 5 * in_n * in_c * in_d * in_h * in_w;
+                m.memory_access += 2 * in_n * in_c * in_d * in_h * in_w;
+            }
+        }
+        else if (op->type == "F.instance_norm" && op->inputs[0]->shape.size() >= 1)
+        {
+            int in_size, mem = 1;
+            in_size = op->inputs[0]->shape.size();
+            for (int index = 0; index < in_size; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.flops += 5 * mem;
+            m.memory_access += 2 * mem;
+        }
+        else if (op->type == "nn.LeakyReLU" || op->type == "F.leaky_relu" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3244,7 +3719,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.LocalResponseNorm")
+        else if (op->type == "nn.LocalResponseNorm" && op->inputs[0]->shape.size() >= 2)
         {
             int in_size, mem = 1, size, in_n, in_c;
             size = op->params.at("size").i;
@@ -3258,7 +3733,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += (size + 4) * in_n * in_c * mem;
             m.memory_access += (2 + size) * in_n * in_c * mem;
         }
-        else if (op->type == "nn.LogSigmoid")
+        else if (op->type == "nn.LogSigmoid" || op->type == "F.logsigmoid" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3269,7 +3744,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 10 * mem;
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.LogSoftmax")
+        else if (op->type == "nn.LogSoftmax" || op->type == "F.log_softmax" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1, dim, in_n, in_c, in_h;
             dim = op->params.at("dim").i;
@@ -3281,7 +3756,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 {
                     mem *= op->inputs[0]->shape[index];
                 }
-                m.flops += (7 * in_n + 4) * mem;
+                m.flops += ( 7 * in_n + 4 ) * mem;
                 m.memory_access += 2 * in_n * mem;
             }
             else if (dim == 1)
@@ -3292,7 +3767,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 {
                     mem *= op->inputs[0]->shape[index];
                 }
-                m.flops += (7 * in_c + 4) * in_n * mem;
+                m.flops += ( 7 * in_c + 4 ) * in_n * mem;
                 m.memory_access += 2 * in_n * in_c * mem;
             }
             else if (dim == 2)
@@ -3304,11 +3779,11 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 {
                     mem *= op->inputs[0]->shape[index];
                 }
-                m.flops += (7 * in_h + 4) * in_n * in_c * mem;
+                m.flops += ( 7 * in_h + 4 ) * in_n * in_c * mem;
                 m.memory_access += 2 * in_n * in_c * in_h * mem;
             }
         }
-        else if (op->type == "nn.LSTM")
+        else if (op->type == "nn.LSTM" && op->inputs[0]->shape.size() == 3)
         {
             int hidden_size, num_layers, batch, seq, in_d;
             bool batch_first;
@@ -3321,7 +3796,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += num_layers * batch * seq * hidden_size * (8 * (in_d + hidden_size) + 23);
             m.memory_access += num_layers * batch * (seq * in_d + 12 * seq * hidden_size);
         }
-        else if (op->type == "nn.Mish")
+        else if (op->type == "nn.Mish" || op->type == "F.mish" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3332,7 +3807,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 5 * mem;
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.PixelShuffle")
+        else if (op->type == "nn.PixelShuffle" || op->type == "F.pixel_shuffle" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3342,7 +3817,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.PixelUnshuffle")
+        else if (op->type == "nn.PixelUnshuffle" || op->type == "F.pixel_unshuffle" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3352,20 +3827,20 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.ReflectionPad1d")
+        else if (op->type == "nn.ReflectionPad1d" && op->inputs[0]->shape.size() >= 1)
         {
             int pad_left, pad_right, in_size, in_w, mem = 1;
             pad_left = op->params.at("padding").ai[0];
             pad_right = op->params.at("padding").ai[1];
             in_size = op->inputs[0]->shape.size();
-            in_w = op->inputs[0]->shape[-1];
+            in_w = op->inputs[0]->shape[in_size - 1];
             for (int index = 0; index < in_size - 1; index++)
             {
                 mem *= op->inputs[0]->shape[index];
             }
             m.memory_access += mem * in_w + mem * (in_w + pad_left + pad_right);
         }
-        else if (op->type == "nn.ReflectionPad2d")
+        else if (op->type == "nn.ReflectionPad2d" && op->inputs[0]->shape.size() >= 2)
         {
             int pad_left, pad_right, pad_top, pad_bottom, in_size, in_w, in_h, mem = 1;
             pad_left = op->params.at("padding").ai[0];
@@ -3373,15 +3848,15 @@ pnnx::ModelInfo Graph::flops_mem_count()
             pad_top = op->params.at("padding").ai[2];
             pad_bottom = op->params.at("padding").ai[3];
             in_size = op->inputs[0]->shape.size();
-            in_h = op->inputs[0]->shape[-1];
-            in_w = op->inputs[0]->shape[-2];
+            in_h = op->inputs[0]->shape[in_size - 2];
+            in_w = op->inputs[0]->shape[in_size - 1];
             for (int index = 0; index < in_size - 2; index++)
             {
                 mem *= op->inputs[0]->shape[index];
             }
             m.memory_access += mem * in_w * in_h + mem * (in_w + pad_left + pad_right) * (in_h + pad_top + pad_bottom);
         }
-        else if (op->type == "nn.ReLU")
+        else if (op->type == "nn.ReLU" || op->type == "F.relu" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3391,7 +3866,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.ReLU6")
+        else if (op->type == "nn.ReLU6" || op->type == "F.relu6" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3401,7 +3876,20 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.ReplicationPad2d")
+        else if (op->type == "nn.ReplicationPad1d" && op->inputs[0]->shape.size() == 3)
+        {
+            int pad_left, pad_right, in_size, in_l, mem = 1;
+            pad_left = op->params.at("padding").ai[0];
+            pad_right = op->params.at("padding").ai[1];
+            in_size = op->inputs[0]->shape.size();
+            in_l = op->inputs[0]->shape[in_size - 1];
+            for (int index = 0; index < in_size - 1; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += mem * in_l + mem * (in_l + pad_left + pad_right);
+        }
+        else if (op->type == "nn.ReplicationPad2d" && op->inputs[0]->shape.size() == 4)
         {
             int pad_left, pad_right, pad_top, pad_bottom, in_size, in_w, in_h, mem = 1;
             pad_left = op->params.at("padding").ai[0];
@@ -3409,15 +3897,34 @@ pnnx::ModelInfo Graph::flops_mem_count()
             pad_top = op->params.at("padding").ai[2];
             pad_bottom = op->params.at("padding").ai[3];
             in_size = op->inputs[0]->shape.size();
-            in_h = op->inputs[0]->shape[-1];
-            in_w = op->inputs[0]->shape[-2];
+            in_h = op->inputs[0]->shape[in_size - 2];
+            in_w = op->inputs[0]->shape[in_size - 1];
             for (int index = 0; index < in_size - 2; index++)
             {
                 mem *= op->inputs[0]->shape[index];
             }
             m.memory_access += mem * in_w * in_h + mem * (in_w + pad_left + pad_right) * (in_h + pad_top + pad_bottom);
         }
-        else if (op->type == "nn.RNN")
+        else if (op->type == "nn.ReplicationPad3d" && op->inputs[0]->shape.size() == 5)
+        {
+            int pad_front, pad_back, pad_left, pad_right, pad_top, pad_bottom, in_size, in_d, in_h, in_w, mem = 1;
+            pad_left = op->params.at("padding").ai[0];
+            pad_right = op->params.at("padding").ai[1];
+            pad_top = op->params.at("padding").ai[2];
+            pad_bottom = op->params.at("padding").ai[3];
+            pad_front = op->params.at("padding").ai[4];
+            pad_back = op->params.at("padding").ai[5];
+            in_size = op->inputs[0]->shape.size();
+            in_d = op->inputs[0]->shape[in_size - 3];
+            in_h = op->inputs[0]->shape[in_size - 2];
+            in_w = op->inputs[0]->shape[in_size - 1];
+            for (int index = 0; index < in_size - 3; index++)
+            {
+                mem *= op->inputs[0]->shape[index];
+            }
+            m.memory_access += mem * in_d * in_h * in_w + mem * (in_d + pad_front + pad_back) * (in_h + pad_top + pad_bottom) * (in_w + pad_left + pad_right);
+        }
+        else if (op->type == "nn.RNN" && op->inputs[0]->shape.size() == 3)
         {
             int in_size, h_size, num_layers, batch, seq;
             bool batch_first, bidirectional;
@@ -3437,8 +3944,9 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 m.flops += batch * seq * 2 * (in_size * h_size + (num_layers - 1) * (h_size * h_size));
             }
             m.memory_access += batch * seq * (in_size + num_layers * h_size + h_size);
+
         }
-        else if (op->type == "nn.SELU")
+        else if (op->type == "nn.SELU" || op->type == "F.selu" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3448,7 +3956,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.Sigmoid")
+        else if (op->type == "nn.Sigmoid" || op->type == "F.sigmoid" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3459,7 +3967,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 7 * mem;
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.SiLU")
+        else if (op->type == "nn.SiLU" || op->type == "F.silu" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3470,7 +3978,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 8 * mem;
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.Softmax")
+        else if (op->type == "nn.Softmax" || op->type == "F.softmax" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3481,17 +3989,17 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 7 * mem - 1;
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.Softmax2d")
+        else if (op->type == "nn.Softmax2d" && op->inputs[0]->shape.size() == 4)
         {
             int in_n, in_c, in_h, in_w;
             in_n = op->inputs[0]->shape[0];
             in_c = op->inputs[0]->shape[1];
             in_h = op->inputs[0]->shape[2];
             in_w = op->inputs[0]->shape[3];
-            m.flops += in_n * in_c * (7 * in_h * in_w - 1);
+            m.flops += in_n * in_c * (7 * in_h * in_w -1);
             m.memory_access += 2 * in_n * in_c * in_h * in_w;
         }
-        else if (op->type == "nn.Tanh")
+        else if (op->type == "nn.Tanh" || op->type == "F.tanh" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3502,7 +4010,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             m.flops += 9 * mem;
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.Unfold")
+        else if (op->type == "nn.Unfold" || op->type == "F.unfold" && op->inputs[0]->shape.size() >= 1)
         {
             int in_size, mem = 1;
             in_size = op->inputs[0]->shape.size();
@@ -3512,7 +4020,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             m.memory_access += 2 * mem;
         }
-        else if (op->type == "nn.UpsamplingBilinear2d")
+        else if (op->type == "nn.UpsamplingBilinear2d" || op->type == "F.upsample_bilinear" && op->inputs[0]->shape.size() == 4)
         {
             int in_n, in_c, in_h, in_w;
             in_n = op->inputs[0]->shape[0];
@@ -3524,7 +4032,7 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 int size_h = op->params.at("size").ai[0];
                 int size_w = op->params.at("size").ai[1];
                 m.flops += 4 * in_c * size_h * size_w;
-                m.memory_access += 5 * in_c * size_h * size_w;
+                m.memory_access +=  5 * in_c * size_h * size_w;
             }
             else
             {
@@ -3533,25 +4041,8 @@ pnnx::ModelInfo Graph::flops_mem_count()
                 int out_h = in_h * scale_h;
                 int out_w = in_w * scale_w;
                 m.flops += 4 * in_c * out_h * out_w;
-                m.memory_access += 5 * in_c * out_h * out_w;
+                m.memory_access +=  5 * in_c * out_h * out_w;
             }
-        }
-        else if (op->type == "torch.mm")
-        {
-            int first_h, first_w, second_h, second_w;
-            first_h = op->inputs[0]->shape[0];
-            first_w = op->inputs[0]->shape[1];
-            second_h = op->inputs[1]->shape[0];
-            second_w = op->inputs[1]->shape[1];
-            fprintf(stderr, "first_h: %d\n", first_h);   //debug
-            fprintf(stderr, "first_w: %d\n", first_w);   //debug
-            fprintf(stderr, "second_h: %d\n", second_h); //debug
-            fprintf(stderr, "second_w: %d\n", second_w); //debug
-            m.flops += first_h * second_w * (2 * first_w - 1);
-            m.memory_access += first_h * first_w + second_h * second_w + first_h * second_w;
-        }
-        else
-        {
         }
     }
 
