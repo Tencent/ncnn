@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -14,7 +14,8 @@
 
 #include "testutil.h"
 
-static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose)
+#if NCNN_INT8
+static int test_gemm_int8(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
@@ -22,6 +23,7 @@ static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, fl
     pd.set(2, transA);
     pd.set(3, transB);
     pd.set(14, output_transpose);
+    pd.set(18, 2); // int8_scale_term
 
     pd.set(20, TILE_M);
     pd.set(21, TILE_N);
@@ -33,13 +35,13 @@ static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, fl
     a[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
     a[1] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
 
-    Randomize(a[0]);
-    Randomize(a[1]);
+    Randomize(a[0], -10.f, 10.f);
+    Randomize(a[1], -10.f, 10.f);
 
     int ret = test_layer("Gemm", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gemm failed M=%d N=%d K=%d TILE_M=%d TILE_N=%d TILE_K=%d alpha=%f transA=%d transB=%d output_transpose=%d\n", M, N, K, TILE_M, TILE_N, TILE_K, alpha, transA, transB, output_transpose);
+        fprintf(stderr, "test_gemm_int8 failed M=%d N=%d K=%d TILE_M=%d TILE_N=%d TILE_K=%d alpha=%f transA=%d transB=%d output_transpose=%d\n", M, N, K, TILE_M, TILE_N, TILE_K, alpha, transA, transB, output_transpose);
     }
 
     return ret;
@@ -48,20 +50,22 @@ static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, fl
 static int test_gemm_0(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K)
 {
     return 0
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 0)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 0)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 0)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 0)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 1)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 1)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 1)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 1);
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 0)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 0)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 0)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 0)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 1)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 1)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 1)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 1);
 }
+#endif // NCNN_INT8
 
 int main()
 {
     SRAND(7767517);
 
+#if NCNN_INT8
     int mnk[][3] = {
         {1, 1, 1},
         {2, 2, 2},
@@ -128,6 +132,9 @@ int main()
         if (ret != 0)
             return ret;
     }
+#else
+    // test nothing for non-int8 build
+#endif
 
     return 0;
 }

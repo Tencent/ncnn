@@ -4,12 +4,14 @@ on:
     branches: [master]
     paths:
     - '.ci/pnnx.yml'
+    - 'src/layer/*'
     - 'tools/pnnx/**'
     - '!tools/pnnx/README.md'
   mr:
     target-branches: [master]
     paths:
     - '.ci/pnnx.yml'
+    - 'src/layer/*'
     - 'tools/pnnx/**'
     - '!tools/pnnx/README.md'
 concurrency:
