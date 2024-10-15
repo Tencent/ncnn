@@ -662,6 +662,7 @@ if(onnxruntime_FOUND)
     set(pnnx_pass_onnx_SRCS
         pass_onnx/canonicalize.cpp
         pass_onnx/dead_code_elimination.cpp
+        pass_onnx/eliminate_initializer_input.cpp
         pass_onnx/eliminate_noop.cpp
         pass_onnx/fold_constants.cpp
         pass_onnx/inline_containers.cpp
