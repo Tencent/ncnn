@@ -43,7 +43,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
     {
         support_packing = false;
 
-        opt.use_packing_layout = false;// TODO enable packing
+        opt.use_packing_layout = false; // TODO enable packing
     }
 
     {
@@ -257,7 +257,7 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
     Option opt = _opt;
     if (int8_scale_term)
     {
-        opt.use_packing_layout = false;// TODO enable packing
+        opt.use_packing_layout = false; // TODO enable packing
     }
 
     if (qk_softmax)
@@ -321,7 +321,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     Option opt = _opt;
     if (int8_scale_term)
     {
-        opt.use_packing_layout = false;// TODO enable packing
+        opt.use_packing_layout = false; // TODO enable packing
     }
 
     Mat attn_mask_blob_unpacked;
