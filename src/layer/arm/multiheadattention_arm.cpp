@@ -28,7 +28,7 @@ MultiHeadAttention_arm::MultiHeadAttention_arm()
 #endif
 #endif // __ARM_NEON
 
-    support_bf16_storage = false;
+    support_bf16_storage = false;// TODO enable bf16 when gemm has proper out_elemtype support
 
     q_gemm = 0;
     k_gemm = 0;
