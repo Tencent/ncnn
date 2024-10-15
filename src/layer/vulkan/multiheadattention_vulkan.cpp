@@ -43,6 +43,19 @@ MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
     pipeline_multiheadattention_qkv_cross_pack4to1 = 0;
 }
 
+int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
+{
+    int ret = MultiHeadAttention::load_param(pd);
+
+    if (int8_scale_term)
+    {
+        support_vulkan = false;
+        support_image_storage = false;
+    }
+
+    return ret;
+}
+
 int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 {
     const int embed_dim_per_head = embed_dim / num_heads;
