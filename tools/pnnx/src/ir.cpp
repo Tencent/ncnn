@@ -1461,18 +1461,18 @@ void Graph::flops_memops_sum()
                 int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
                 int out_features = op->attrs.at("data").shape[0];
                 flops += input_size * out_features;
-                if(op->has_param("bias"))
+                if (op->has_param("bias"))
                 {
                     flops += out_features;
                 }
                 memops += input_size + output_size;
             }
             else if (sub_type == "avgpool1d"
-                    || sub_type == "avgpool2d"
-                    || sub_type == "avgpool3d"
-                    || sub_type == "adaptive_avgpool1d"
-                    || sub_type == "adaptive_avgpool2d"
-                    || sub_type == "adaptive_avgpool3d")
+                     || sub_type == "avgpool2d"
+                     || sub_type == "avgpool3d"
+                     || sub_type == "adaptive_avgpool1d"
+                     || sub_type == "adaptive_avgpool2d"
+                     || sub_type == "adaptive_avgpool3d")
             {
                 std::vector<int> input_shape = op->inputs[0]->shape;
                 std::vector<int> output_shape = op->outputs[0]->shape;
@@ -1482,11 +1482,11 @@ void Graph::flops_memops_sum()
                 memops += input_size + output_size;
             }
             else if (sub_type == "prelu"
-                    || sub_type == "elu"
-                    || sub_type == "leaky_relu"
-                    || sub_type == "gelu"
-                    || sub_type == "silu"
-                    || sub_type == "softmax")
+                     || sub_type == "elu"
+                     || sub_type == "leaky_relu"
+                     || sub_type == "gelu"
+                     || sub_type == "silu"
+                     || sub_type == "softmax")
             {
                 std::vector<int> input_shape = op->inputs[0]->shape;
                 std::vector<int> output_shape = op->outputs[0]->shape;
@@ -1496,8 +1496,8 @@ void Graph::flops_memops_sum()
                 extra_memops += input_size + output_size;
             }
             else if (sub_type == "unsample"
-                    || sub_type == "upsample_nearest"
-                    || sub_type == "upsample_bilinear")
+                     || sub_type == "upsample_nearest"
+                     || sub_type == "upsample_bilinear")
             {
                 std::vector<int> input_shape = op->inputs[0]->shape;
                 std::vector<int> output_shape = op->outputs[0]->shape;
@@ -1534,7 +1534,7 @@ void Graph::flops_memops_sum()
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
                 int num_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
-                if((op->has_param("affine") && op->params.at("affine").b)
+                if ((op->has_param("affine") && op->params.at("affine").b)
                     || (op->has_param("elementwise_affine") && op->params.at("elementwise_affine").b))
                 {
                     extra_flops += 2 * num_elements;
@@ -1547,11 +1547,11 @@ void Graph::flops_memops_sum()
                 }
             }
             else if (sub_type == "Conv1d"
-                    || sub_type == "Conv2d"
-                    || sub_type == "Conv3d"
-                    || sub_type == "ConvTranspose1d"
-                    || sub_type == "ConvTranspose2d"
-                    || sub_type == "ConvTranspose3d")
+                     || sub_type == "Conv2d"
+                     || sub_type == "Conv3d"
+                     || sub_type == "ConvTranspose1d"
+                     || sub_type == "ConvTranspose2d"
+                     || sub_type == "ConvTranspose3d")
             {
                 int c = op->params.at("in_channels").i;
                 std::vector<int> k = op->params.at("kernel_size").ai;
@@ -1561,17 +1561,17 @@ void Graph::flops_memops_sum()
                 int input_size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
                 int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
                 int kernel_size = std::accumulate(k.begin() + 2, k.end(), 1, std::multiplies<int>());
-                flops += output_size * c * kernel_size / g; 
+                flops += output_size * c * kernel_size / g;
                 memops += input_size + output_size + std::accumulate(k.begin(), k.end(), 1, std::multiplies<int>()) * c / g;
-                if(op->has_param("bias"))
+                if (op->has_param("bias"))
                 {
                     flops += output_size;
                     memops += output_size;
                 }
             }
             else if (sub_type == "AvgPool1d"
-                    || sub_type == "AvgPool2d"
-                    || sub_type == "AvgPool3d")
+                     || sub_type == "AvgPool2d"
+                     || sub_type == "AvgPool3d")
             {
                 std::vector<int> input_shape = op->inputs[0]->shape;
                 std::vector<int> output_shape = op->outputs[0]->shape;
@@ -1581,31 +1581,31 @@ void Graph::flops_memops_sum()
                 memops += input_size + output_size;
             }
             else if (sub_type == "AdaptiveAvgPool1d"
-                    || sub_type == "AdaptiveAvgPool2d"
-                    || sub_type == "AdaptiveAvgPool3d")
+                     || sub_type == "AdaptiveAvgPool2d"
+                     || sub_type == "AdaptiveAvgPool3d")
             {
                 std::vector<int> input_shape = op->inputs[0]->shape;
                 std::vector<int> output_shape = op->outputs[0]->shape;
                 int input_size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
                 int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
                 std::vector<int> kernel_size;
-                for(size_t i = 2; i < input_shape.size(); i++)
+                for (size_t i = 2; i < input_shape.size(); i++)
                 {
                     kernel_size.emplace_back(output_shape[i] / input_shape[i]);
                 }
                 flops += (std::accumulate(kernel_size.begin(), kernel_size.end(), 1, std::multiplies<int>()) + 1) * output_size;
                 memops += input_size + output_size;
             }
-            else if(sub_type == "PReLU"
-                    || sub_type == "ELU"
-                    || sub_type == "LeakyReLU"
-                    || sub_type == "GELU")
+            else if (sub_type == "PReLU"
+                     || sub_type == "ELU"
+                     || sub_type == "LeakyReLU"
+                     || sub_type == "GELU")
             {
                 std::vector<int> shape = op->outputs[0]->shape;
                 int n = shape[0];
                 int num_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
                 extra_flops += num_elements;
-                if(sub_type == "PReLU")
+                if (sub_type == "PReLU")
                 {
                     extra_memops += 2 * num_elements + n * op->params["num_parameters"].i;
                 }
@@ -1614,7 +1614,7 @@ void Graph::flops_memops_sum()
                     extra_memops += 2 * num_elements;
                 }
             }
-            else if(sub_type == "Tanh")
+            else if (sub_type == "Tanh")
             {
                 std::vector<int> shape = op->outputs[0]->shape;
                 int num_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
@@ -1634,75 +1634,75 @@ void Graph::flops_memops_sum()
                 memops += input_size + output_size + output_size * (bias ? 1 : 0);
             }
             else if (sub_type == "Upsample"
-                    || sub_type == "UnsampleBilinear2d"
-                    || sub_type == "UnsampleNearest2d")
+                     || sub_type == "UnsampleBilinear2d"
+                     || sub_type == "UnsampleNearest2d")
             {
                 std::vector<int> input_shape = op->inputs[0]->shape;
                 int input_size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
                 std::vector<int> output_shape = op->outputs[0]->shape;
                 int output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
                 std::string mode;
-                if(sub_type == "Unsample")
+                if (sub_type == "Unsample")
                 {
                     mode = op->has_param("mode") ? op->params.at("mode").s : "nearest";
                 }
-                else if(sub_type == "UnsampleBilinear2d")
+                else if (sub_type == "UnsampleBilinear2d")
                 {
                     mode = "bilinear";
                 }
-                else if(sub_type == "UnsampleNearest2d")
+                else if (sub_type == "UnsampleNearest2d")
                 {
                     mode = "nearest";
                 }
 
-                if(mode == "nearest")
+                if (mode == "nearest")
                 {
                     extra_flops += input_size;
                     extra_memops += input_size + output_size;
                 }
-                else if(mode == "linear")
+                else if (mode == "linear")
                 {
                     extra_flops += 5 * output_size;
                     extra_memops += 2 * input_size + output_size;
                 }
-                else if(mode == "bilinear")
+                else if (mode == "bilinear")
                 {
                     extra_flops += 11 * output_size;
                     extra_memops += 4 * input_size + output_size;
                 }
-                else if(mode == "bicubic")
+                else if (mode == "bicubic")
                 {
                     extra_flops += (224 + 35) * output_size;
                     extra_memops += 16 * input_size + output_size;
                 }
-                else if(mode == "trilinear")
+                else if (mode == "trilinear")
                 {
                     extra_flops += (13 * 2 + 5) * input_size;
                     extra_memops += 8 * input_size + output_size;
                 }
             }
-            else if(sub_type == "RNN")
+            else if (sub_type == "RNN")
             {
                 bool bi = op->has_param("bidirectional") && op->params.at("bidirectional").b;
                 bool bias = op->has_param("bias") && op->params.at("bias").b;
                 int input_size = op->params.at("input_size").i;
                 int hidden_size = op->params.at("hidden_size").i;
                 int flops1 = hidden_size * (input_size + hidden_size) + hidden_size;
-                if(bias)
+                if (bias)
                 {
                     flops1 += 2 * hidden_size;
                 }
-                if(bi)
+                if (bi)
                 {
                     flops1 *= 2;
                 }
 
                 int num_layers = op->params.at("num_layers").i;
                 int flops2 = 0;
-                if(bi)
+                if (bi)
                 {
                     flops2 = 3 * hidden_size * hidden_size + hidden_size;
-                    if(bias)
+                    if (bias)
                     {
                         flops2 += 2 * hidden_size;
                     }
@@ -1711,7 +1711,7 @@ void Graph::flops_memops_sum()
                 else
                 {
                     flops2 = 2 * hidden_size * hidden_size + hidden_size;
-                    if(bias)
+                    if (bias)
                     {
                         flops2 += 2 * hidden_size;
                     }
@@ -1723,23 +1723,23 @@ void Graph::flops_memops_sum()
                 flops += (flops1 + flops2) * num_steps * batch_size;
                 memops += num_steps * batch_size * input_size;
                 memops += 2 * num_steps * batch_size * hidden_size * num_layers * (bi ? 2 : 1);
-                if(bias)
+                if (bias)
                 {
                     memops += 2 * hidden_size * num_layers * (bi ? 2 : 1);
                 }
             }
-            else if(sub_type == "LSTM")
+            else if (sub_type == "LSTM")
             {
                 bool bi = op->has_param("bidirectional") && op->params.at("bidirectional").b;
                 bool bias = op->has_param("bias") && op->params.at("bias").b;
                 int input_size = op->params.at("input_size").i;
                 int hidden_size = op->params.at("hidden_size").i;
                 int flops1 = 4 * hidden_size * (input_size + hidden_size) + 4 * hidden_size;
-                if(bias)
+                if (bias)
                 {
                     flops1 += 8 * hidden_size;
                 }
-                if(bi)
+                if (bi)
                 {
                     flops1 *= 2;
                 }
@@ -1747,10 +1747,10 @@ void Graph::flops_memops_sum()
 
                 int num_layers = op->params.at("num_layers").i;
                 int flops2 = 0;
-                if(bi)
+                if (bi)
                 {
                     flops2 = 12 * hidden_size * hidden_size + 4 * hidden_size;
-                    if(bias)
+                    if (bias)
                     {
                         flops2 += 8 * hidden_size;
                     }
@@ -1760,7 +1760,7 @@ void Graph::flops_memops_sum()
                 else
                 {
                     flops2 = 4 * hidden_size * hidden_size + 4 * hidden_size;
-                    if(bias)
+                    if (bias)
                     {
                         flops2 += 8 * hidden_size;
                     }
@@ -1773,7 +1773,7 @@ void Graph::flops_memops_sum()
                 flops += (flops1 + flops2) * num_steps * batch_size;
                 memops += num_steps * batch_size * input_size;
                 memops += 2 * num_steps * batch_size * hidden_size * num_layers * (bi ? 2 : 1);
-                if(bias)
+                if (bias)
                 {
                     memops += 8 * hidden_size * num_layers * (bi ? 2 : 1);
                 }
@@ -1785,22 +1785,22 @@ void Graph::flops_memops_sum()
                 int input_size = op->params.at("input_size").i;
                 int hidden_size = op->params.at("hidden_size").i;
                 int flops1 = 3 * hidden_size * (input_size + hidden_size) + 3 * hidden_size;
-                if(bias)
+                if (bias)
                 {
                     flops1 += 6 * hidden_size;
                 }
                 flops1 += 4 * hidden_size;
-                if(bi)
+                if (bi)
                 {
                     flops1 *= 2;
                 }
 
                 int num_layers = op->params.at("num_layers").i;
                 int flops2 = 0;
-                if(bi)
+                if (bi)
                 {
                     flops2 = 9 * hidden_size * hidden_size + 3 * hidden_size;
-                    if(bias)
+                    if (bias)
                     {
                         flops2 += 6 * hidden_size;
                     }
@@ -1810,7 +1810,7 @@ void Graph::flops_memops_sum()
                 else
                 {
                     flops2 = 6 * hidden_size * hidden_size + 3 * hidden_size;
-                    if(bias)
+                    if (bias)
                     {
                         flops2 += 6 * hidden_size;
                     }
@@ -1823,12 +1823,12 @@ void Graph::flops_memops_sum()
                 flops += (flops1 + flops2) * num_steps * batch_size;
                 memops += num_steps * batch_size * input_size;
                 memops += 2 * num_steps * batch_size * hidden_size * num_layers * (bi ? 2 : 1);
-                if(bias)
+                if (bias)
                 {
                     memops += 6 * hidden_size * num_layers * (bi ? 2 : 1);
                 }
             }
-            else if(sub_type == "MultiheadAttention")
+            else if (sub_type == "MultiheadAttention")
             {
                 bool batch_first = op->has_param("batch_first") && op->params.at("batch_first").b;
                 int batch_size = batch_first ? op->inputs[0]->shape[0] : op->inputs[0]->shape[1];
@@ -1883,7 +1883,7 @@ void Graph::flops_memops_sum()
         else if (op->type.substr(0, 5) == "torch")
         {
             std::string sub_type = op->type.substr(6);
-            if(sub_type == "matmul"
+            if (sub_type == "matmul"
                 || sub_type == "mm"
                 || sub_type == "bmm")
             {
@@ -1897,7 +1897,7 @@ void Graph::flops_memops_sum()
                 memops += input_size_1 + input_size_2 + output_size;
             }
             else if (sub_type == "addmm"
-                    || sub_type == "baddbmm")
+                     || sub_type == "baddbmm")
             {
                 std::vector<int> input_shape = op->inputs[0]->shape;
                 std::vector<int> mat_shape_1 = op->inputs[1]->shape;
@@ -1911,7 +1911,7 @@ void Graph::flops_memops_sum()
                 memops += input_size + mat_size_1 + mat_size_2 + output_size;
             }
             else if (sub_type == "mul"
-                    || sub_type == "add")
+                     || sub_type == "add")
             {
                 std::vector<int> input_shape_1 = op->inputs[0]->shape;
                 std::vector<int> input_shape_2 = op->inputs[1]->shape;

@@ -362,7 +362,7 @@ int main(int argc, char** argv)
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
     pnnx_graph.python(pnnxpypath, pnnxbinpath);
-    
+
     pnnx_graph.flops_memops_sum();
     fprintf(stderr, "float ops = %.3fM\n", double(pnnx_graph.flops) / 1e6);
     fprintf(stderr, "mem ops = %.3fM\n", double(pnnx_graph.memops) / 1e6);
