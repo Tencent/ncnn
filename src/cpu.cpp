@@ -793,7 +793,7 @@ static int get_thread_siblings(int cpuid)
     char path[256];
     sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpuid);
 
-    FILE* fp = 0;//fopen(path, "rb");
+    FILE* fp = 0; //fopen(path, "rb");
     if (fp)
     {
         int thread_siblings = -1;
