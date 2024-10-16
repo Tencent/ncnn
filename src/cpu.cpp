@@ -793,20 +793,66 @@ static int get_thread_siblings(int cpuid)
     char path[256];
     sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpuid);
 
-    FILE* fp = fopen(path, "rb");
-    if (!fp)
-        return -1;
-
-    int thread_siblings = -1;
-    int nscan = fscanf(fp, "%x", &thread_siblings);
-    if (nscan != 1)
+    FILE* fp = 0;//fopen(path, "rb");
+    if (fp)
     {
-        // ignore
+        int thread_siblings = -1;
+        int nscan = fscanf(fp, "%x", &thread_siblings);
+        if (nscan != 1)
+        {
+            // ignore
+        }
+
+        fclose(fp);
+
+        return thread_siblings;
     }
 
-    fclose(fp);
+    // second try, parse from human-readable thread_siblings_list
+    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuid);
 
-    return thread_siblings;
+    fp = fopen(path, "rb");
+    if (fp)
+    {
+        int thread_siblings = -1;
+
+        int id0;
+        char sep;
+        int id1;
+
+        int nscan = fscanf(fp, "%d", &id0);
+        if (nscan == 1)
+        {
+            thread_siblings = (1 << id0);
+
+            while (fscanf(fp, "%c%d", &sep, &id1) == 2)
+            {
+                if (sep == ',')
+                {
+                    thread_siblings |= (1 << id1);
+                }
+                if (sep == '-' && id0 < id1)
+                {
+                    for (int i = id0 + 1; i <= id1; i++)
+                    {
+                        thread_siblings |= (1 << i);
+                    }
+                }
+
+                id0 = id1;
+            }
+        }
+        else
+        {
+            // ignore
+        }
+
+        fclose(fp);
+
+        return thread_siblings;
+    }
+
+    return -1;
 }
 #endif // defined __ANDROID__ || defined __linux__
 
@@ -868,6 +914,11 @@ static int get_physical_cpucount()
             thread_set.push_back(thread_siblings);
             count++;
         }
+    }
+    if (count == 0)
+    {
+        // cannot resolve siblings, fallback to all cpu count
+        count = g_cpucount;
     }
 #elif __APPLE__
     size_t len = sizeof(count);
