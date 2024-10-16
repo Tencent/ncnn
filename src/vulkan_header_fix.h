@@ -1220,14 +1220,15 @@ typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKH
 #endif // VK_KHR_cooperative_matrix
 
 #ifndef VK_KHR_driver_properties
-#define VK_KHR_driver_properties 1
-#define VK_MAX_DRIVER_NAME_SIZE           256U
-#define VK_MAX_DRIVER_INFO_SIZE           256U
-#define VK_MAX_DRIVER_NAME_SIZE_KHR       VK_MAX_DRIVER_NAME_SIZE
-#define VK_MAX_DRIVER_INFO_SIZE_KHR       VK_MAX_DRIVER_INFO_SIZE
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES   (VkStructureType)1000196000
+#define VK_KHR_driver_properties                                1
+#define VK_MAX_DRIVER_NAME_SIZE                                 256U
+#define VK_MAX_DRIVER_INFO_SIZE                                 256U
+#define VK_MAX_DRIVER_NAME_SIZE_KHR                             VK_MAX_DRIVER_NAME_SIZE
+#define VK_MAX_DRIVER_INFO_SIZE_KHR                             VK_MAX_DRIVER_INFO_SIZE
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES     (VkStructureType)1000196000
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES
-typedef enum VkDriverId {
+typedef enum VkDriverId
+{
     VK_DRIVER_ID_AMD_PROPRIETARY = 1,
     VK_DRIVER_ID_AMD_OPEN_SOURCE = 2,
     VK_DRIVER_ID_MESA_RADV = 3,
@@ -1256,19 +1257,21 @@ typedef enum VkDriverId {
     VK_DRIVER_ID_MESA_AGXV = 26,
     VK_DRIVER_ID_MAX_ENUM = 0x7FFFFFFF
 } VkDriverId;
-typedef struct VkConformanceVersion {
-    uint8_t    major;
-    uint8_t    minor;
-    uint8_t    subminor;
-    uint8_t    patch;
+typedef struct VkConformanceVersion
+{
+    uint8_t major;
+    uint8_t minor;
+    uint8_t subminor;
+    uint8_t patch;
 } VkConformanceVersion;
-typedef struct VkPhysicalDeviceDriverProperties {
-    VkStructureType         sType;
-    void*                   pNext;
-    VkDriverId              driverID;
-    char                    driverName[VK_MAX_DRIVER_NAME_SIZE];
-    char                    driverInfo[VK_MAX_DRIVER_INFO_SIZE];
-    VkConformanceVersion    conformanceVersion;
+typedef struct VkPhysicalDeviceDriverProperties
+{
+    VkStructureType sType;
+    void* pNext;
+    VkDriverId driverID;
+    char driverName[VK_MAX_DRIVER_NAME_SIZE];
+    char driverInfo[VK_MAX_DRIVER_INFO_SIZE];
+    VkConformanceVersion conformanceVersion;
 } VkPhysicalDeviceDriverProperties;
 typedef VkDriverId VkDriverIdKHR;
 typedef VkConformanceVersion VkConformanceVersionKHR;
