@@ -4022,11 +4022,24 @@ pnnx::ModelInfo Graph::flops_mem_count()
         else if (op->type == "nn.UpsamplingBilinear2d" || op->type == "F.upsample_bilinear" && op->inputs[0]->shape.size() == 4)
         {
             int in_n, in_c, in_h, in_w;
+            bool has_size = false;
             in_n = op->inputs[0]->shape[0];
             in_c = op->inputs[0]->shape[1];
             in_h = op->inputs[0]->shape[2];
             in_w = op->inputs[0]->shape[3];
             if (op->params.find("size") != op->params.end())
+            {
+                std::string val = Parameter::encode_to_string(op->params.at("size"));
+                if (val == "None")
+                {
+                    has_size = false;
+                }
+                else
+                {
+                    has_size = true;
+                }
+            }
+            if (has_size)
             {
                 int size_h = op->params.at("size").ai[0];
                 int size_w = op->params.at("size").ai[1];
@@ -4035,8 +4048,8 @@ pnnx::ModelInfo Graph::flops_mem_count()
             }
             else
             {
-                int scale_h = op->params.at("scale_factor").ai[0];
-                int scale_w = op->params.at("scale_factor").ai[1];
+                int scale_h = op->params.at("scale_factor").af[0];
+                int scale_w = op->params.at("scale_factor").af[1];
                 int out_h = in_h * scale_h;
                 int out_w = in_w * scale_w;
                 m.flops += 4 * in_c * out_h * out_w;
