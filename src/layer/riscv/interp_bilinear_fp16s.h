@@ -131,14 +131,14 @@ static void resize_bilinear_image_fp16s(const Mat& src, Mat& dst, float* alpha, 
         int n = w;
         while (n > 0)
         {
-            size_t vl = vsetvl_e16m4(n);
+            size_t vl = __riscv_vsetvl_e16m4(n);
 
-            vfloat32m8_t _rows0 = vle32_v_f32m8(rows0p, vl);
-            vfloat32m8_t _rows1 = vle32_v_f32m8(rows1p, vl);
+            vfloat32m8_t _rows0 = __riscv_vle32_v_f32m8(rows0p, vl);
+            vfloat32m8_t _rows1 = __riscv_vle32_v_f32m8(rows1p, vl);
 
-            vfloat32m8_t _Dp = vfmacc_vf_f32m8(vfmul_vf_f32m8(_rows0, b0, vl), b1, _rows1, vl);
+            vfloat32m8_t _Dp = __riscv_vfmacc_vf_f32m8(__riscv_vfmul_vf_f32m8(_rows0, b0, vl), b1, _rows1, vl);
 
-            vse16_v_f16m4(Dp, vfncvt_f_f_w_f16m4(_Dp, vl), vl);
+            __riscv_vse16_v_f16m4(Dp, __riscv_vfncvt_f_f_w_f16m4(_Dp, vl), vl);
 
             Dp += vl;
             rows0p += vl;
@@ -232,14 +232,14 @@ static void resize_bilinear_image_fp16sa(const Mat& src, Mat& dst, __fp16* alpha
         int n = w;
         while (n > 0)
         {
-            size_t vl = vsetvl_e16m8(n);
+            size_t vl = __riscv_vsetvl_e16m8(n);
 
-            vfloat16m8_t _rows0 = vle16_v_f16m8(rows0p, vl);
-            vfloat16m8_t _rows1 = vle16_v_f16m8(rows1p, vl);
+            vfloat16m8_t _rows0 = __riscv_vle16_v_f16m8(rows0p, vl);
+            vfloat16m8_t _rows1 = __riscv_vle16_v_f16m8(rows1p, vl);
 
-            vfloat16m8_t _Dp = vfmacc_vf_f16m8(vfmul_vf_f16m8(_rows0, b0, vl), b1, _rows1, vl);
+            vfloat16m8_t _Dp = __riscv_vfmacc_vf_f16m8(__riscv_vfmul_vf_f16m8(_rows0, b0, vl), b1, _rows1, vl);
 
-            vse16_v_f16m8(Dp, _Dp, vl);
+            __riscv_vse16_v_f16m8(Dp, _Dp, vl);
 
             Dp += vl;
             rows0p += vl;
