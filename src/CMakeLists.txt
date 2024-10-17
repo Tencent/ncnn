@@ -30,6 +30,7 @@ set(ncnn_SRCS
     mat_pixel_drawing.cpp
     mat_pixel_resize.cpp
     mat_pixel_rotate.cpp
+    transform.cpp
     modelbin.cpp
     net.cpp
     option.cpp
@@ -687,6 +688,7 @@ if(NCNN_INSTALL_SDK)
         layer_shader_type.h
         layer_type.h
         mat.h
+        transform.h
         modelbin.h
         net.h
         option.h
