@@ -23,6 +23,7 @@
 #endif // __wasi__
 #include <stdio.h>
 #include <string.h>
+#include <iostream>
 
 #ifdef _OPENMP
 #if NCNN_SIMPLEOMP
@@ -617,8 +618,14 @@ static int get_cpu_support_x86_avx_vnni()
     return cpu_info[0] & (1u << 4);
 }
 
+static int g_force_avx512_disabled = 0;
 static int get_cpu_support_x86_avx512()
 {
+    if (g_force_avx512_disabled == 1)
+    {
+        std::cerr << "AVX512 support is disabled due to environment variable setting." << std::endl;
+        return 0;
+    }
 #if __APPLE__
     return get_hw_capability("hw.optional.avx512f")
            && get_hw_capability("hw.optional.avx512bw")
@@ -1919,6 +1926,14 @@ static void initialize_global_cpu_info()
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
+    // 检查环境变量并设置 g_force_avx512_disabled
+    const char* env_ncnn_x86_avx512 = std::getenv("NCNN_X86_AVX512");
+    if (env_ncnn_x86_avx512 && atoi(env_ncnn_x86_avx512) == 0)
+    {
+        g_force_avx512_disabled = 1;
+        std::cerr << "AVX512 support is disabled due to environment variable setting." << std::endl;
+    }
+
 #if (defined _WIN32 && (__aarch64__ || __arm__))
     if (!is_being_debugged())
     {
@@ -2196,6 +2211,12 @@ int cpu_support_arm_vfpv4()
 int cpu_support_arm_asimdhp()
 {
     try_initialize_global_cpu_info();
+    // 检查环境变量 NCNN_ISA
+    const char* ncnnIsaEnv = std::getenv("NCNN_ISA");
+    if (ncnnIsaEnv && strstr(ncnnIsaEnv, "+asimdhp") != nullptr)
+    {
+        return true;
+    }
 #if __aarch64__
 #if defined _WIN32
     return g_cpu_support_arm_asimdhp;
