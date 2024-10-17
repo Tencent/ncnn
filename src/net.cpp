@@ -1677,7 +1677,7 @@ int Net::load_param_bin(const DataReader& dr)
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev) d->vkdev = get_gpu_device();
-        if (!d->vkdev) opt.use_vulkan_compute = false; // no vulkan device, fallback to cpu
+        if (!d->vkdev || !d->vkdev->is_valid()) opt.use_vulkan_compute = false; // no valid vulkan device, fallback to cpu
     }
     if (opt.use_vulkan_compute)
     {
