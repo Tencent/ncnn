@@ -2321,7 +2321,8 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
     dummy_image_readonly.release();
 #endif
 
-    if (dummy_allocator) {
+    if (dummy_allocator)
+    {
         delete dummy_allocator;
         dummy_allocator = 0;
     }
