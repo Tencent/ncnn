@@ -50,6 +50,26 @@ static inline int csrr_vlenb()
     return a;
 }
 
+static inline int fcsr_frrm()
+{
+    int a = 0;
+    asm volatile("frrm %0"
+                 : "=r"(a)
+                 :
+                 : "memory");
+    return a;
+}
+
+static inline int fcsr_fsrm(int frm)
+{
+    int a = 0;
+    asm volatile("fsrm %0, %1"
+                 : "=r"(a)
+                 : "r"(frm)
+                 : "memory");
+    return a;
+}
+
 static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
 {
     const int packn = csrr_vlenb() / 4;
@@ -615,5 +635,36 @@ static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
     _r3h = vle32_v_f32m1(ptr + 7 * 4, vl);
 }
 #endif
+#if NCNN_INT8
+#if __riscv_vector
+static inline vint8m1_t float2int8(vfloat32m4_t _v, size_t vl) 
+{ 
+    int a = fcsr_fsrm(4);
+    vint16m2_t _vi16 = vfncvt_x_f_w_i16m2(_v, vl);
+    fcsr_fsrm(a);
+    _vi16 = vmax_vx_i16m2(_vi16, -127, vl);
+    _vi16 = vmin_vx_i16m2(_vi16, 127, vl);
+    return vncvt_x_x_w_i8m1(_vi16, vl);
+}
+
+static inline vint8m2_t float2int8(vfloat32m8_t _v, size_t vl) 
+{ 
+    int a = fcsr_fsrm(4);
+    vint16m4_t _vi16 = vfncvt_x_f_w_i16m4(_v, vl);
+    fcsr_fsrm(a);
+    _vi16 = vmax_vx_i16m4(_vi16, -127, vl);
+    _vi16 = vmin_vx_i16m4(_vi16, 127, vl);
+    return vncvt_x_x_w_i8m2(_vi16, vl);
+}
+#endif // __riscv_vector
+
+static inline signed char float2int8(float v)
+{
+    int int32 = round(v);
+    if (int32 > 127) return 127;
+    if (int32 < -127) return -127;
+    return (signed char)int32;
+}
+#endif // NCNN_INT8
 
 #endif // RISCV_USABILITY_H
