@@ -341,6 +341,7 @@ public:
     const GpuInfo& info;
 
     VkDevice vkdevice() const;
+    bool is_valid() const;
 
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 
