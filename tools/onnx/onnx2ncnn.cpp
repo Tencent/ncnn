@@ -3800,6 +3800,10 @@ For more information, please refer to https://github.com/pnnx/pnnx\n");
         {
             fprintf(pp, "%-16s", "InstanceNorm");
         }
+        else if (op == "IsNaN")
+        {
+            fprintf(pp, "%-16s", "IsNaN");
+        }
         else if (op == "LayerNorm")
         {
             fprintf(pp, "%-16s", "LayerNorm");
@@ -4878,6 +4882,10 @@ For more information, please refer to https://github.com/pnnx/pnnx\n");
                 fwrite_tensor_proto_data(scale, bp);
                 fwrite_tensor_proto_data(B, bp);
             }
+        }
+        else if (op == "IsNaN")
+        {
+            // no-op
         }
         else if (op == "LayerNorm")
         {
