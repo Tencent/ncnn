@@ -18,6 +18,8 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "arm_usability.h"
+
 namespace ncnn {
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
