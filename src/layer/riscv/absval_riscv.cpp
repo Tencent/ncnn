@@ -13,38 +13,39 @@
 // specific language governing permissions and limitations under the License.
 
 #include "absval_riscv.h"
+#include "cpu.h"
 
 #if __riscv_vector
 #include <riscv_vector.h>
-
-static inline vfloat32m8_t vfabs_v_f32m8_absval(vfloat32m8_t op1, size_t vl)
-{
-    return vfsgnjx_vv_f32m8(op1, op1, vl);
-}
-static inline vfloat16m8_t vfabs_v_f16m8_absval(vfloat16m8_t op1, size_t vl)
-{
-    return vfsgnjx_vv_f16m8(op1, op1, vl);
-}
 #endif // __riscv_vector
 
 namespace ncnn {
+
+#include "absval_fp16.h"
 
 AbsVal_riscv::AbsVal_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
-    support_fp16_storage = true;
+#if NCNN_ZVFH || NCNN_XTHEADVECTOR
+    support_fp16_storage = cpu_support_riscv_zvfh() || cpu_support_riscv_xtheadvector();
 #endif
 #endif // __riscv_vector
 }
 
+#if __riscv_vector
+static inline vfloat32m8_t __riscv_vfabs_v_f32m8_absval(vfloat32m8_t op1, size_t vl)
+{
+    return __riscv_vfsgnjx_vv_f32m8(op1, op1, vl);
+}
+#endif // __riscv_vector
+
 int AbsVal_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector
     int elembits = bottom_top_blob.elembits();
 
-    if (opt.use_fp16_storage && elembits == 16)
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_inplace_fp16s(bottom_top_blob, opt);
     }
@@ -66,11 +67,11 @@ int AbsVal_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int n = size;
         while (n > 0)
         {
-            size_t vl = vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(n);
 
-            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-            _p = vfabs_v_f32m8_absval(_p, vl);
-            vse32_v_f32m8(ptr, _p, vl);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+            _p = __riscv_vfabs_v_f32m8_absval(_p, vl);
+            __riscv_vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
             n -= vl;
@@ -88,37 +89,12 @@ int AbsVal_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector
 int AbsVal_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = bottom_top_blob.channel(q);
-
-        int n = size;
-        while (n > 0)
-        {
-            size_t vl = vsetvl_e16m8(n);
-
-            vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-            _p = vfabs_v_f16m8_absval(_p, vl);
-            vse16_v_f16m8(ptr, _p, vl);
-
-            ptr += vl;
-            n -= vl;
-        }
-    }
-
+    absval_fp16(bottom_top_blob, opt);
     return 0;
 }
-#endif
+#endif // __riscv_vector
 
 } // namespace ncnn

@@ -40,6 +40,14 @@ make -j4
 make install
 popd
 
+##### android riscv64
+mkdir -p build-android-riscv64
+pushd build-android-riscv64
+cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI="riscv64" -DANDROID_PLATFORM=android-35 -DNCNN_VULKAN=ON ..
+make -j4
+make install
+popd
+
 ##### linux of hisiv300 (forgot the chip name) toolchain with neon and openmp
 mkdir -p build-hisiv300-linux
 pushd build-hisiv300-linux
