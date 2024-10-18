@@ -93,6 +93,12 @@ NCNN_EXPORT int cpu_support_x86_f16c();
 NCNN_EXPORT int cpu_support_x86_avx2();
 // avx_vnni = x86 avx vnni
 NCNN_EXPORT int cpu_support_x86_avx_vnni();
+// avx_vnni_int8 = x86 avx vnni int8
+NCNN_EXPORT int cpu_support_x86_avx_vnni_int8();
+// avx_vnni_int16 = x86 avx vnni int16
+NCNN_EXPORT int cpu_support_x86_avx_vnni_int16();
+// avx_ne_convert = x86 avx ne convert
+NCNN_EXPORT int cpu_support_x86_avx_ne_convert();
 // avx512 = x86 avx512f + avx512cd + avx512bw + avx512dq + avx512vl
 NCNN_EXPORT int cpu_support_x86_avx512();
 // avx512_vnni = x86 avx512 vnni
