@@ -406,7 +406,7 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
         if (elembits == 16)
         {
 #if NCNN_ARM82
-            if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
+            if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && op->support_fp16_storage)
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
