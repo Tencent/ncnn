@@ -2259,10 +2259,7 @@ public:
 class VulkanDevicePrivate
 {
 public:
-    VulkanDevicePrivate(VulkanDevice* _vkdev)
-        : vkdev(_vkdev)
-    {
-    }
+    VulkanDevicePrivate(VulkanDevice* _vkdev);
     VulkanDevice* const vkdev;
 
     // dummy buffer and image
@@ -2317,7 +2314,21 @@ public:
     // to pack1 | pack4 | pack8
     mutable ncnn::Packing_vulkan* uop_packing[2][2][3][3][3];
     mutable Mutex uop_lock;
+
+    // device is valid and sucessfully initialized
+    bool valid;
 };
+
+VulkanDevicePrivate::VulkanDevicePrivate(VulkanDevice* _vkdev)
+    : vkdev(_vkdev)
+{
+    device = 0;
+    texelfetch_sampler = 0;
+    dummy_allocator = 0;
+    pipeline_cache = 0;
+    valid = false;
+    memset(uop_packing, 0, sizeof(uop_packing));
+}
 
 int VulkanDevicePrivate::create_dummy_buffer_image()
 {
@@ -2357,7 +2368,11 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
     dummy_image_readonly.release();
 #endif
 
-    delete dummy_allocator;
+    if (dummy_allocator)
+    {
+        delete dummy_allocator;
+        dummy_allocator = 0;
+    }
 }
 
 const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
@@ -2702,6 +2717,7 @@ VulkanDevice::VulkanDevice(int device_index)
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateDevice failed %d", ret);
+        return;
     }
 
     init_device_extension();
@@ -2761,7 +2777,6 @@ VulkanDevice::VulkanDevice(int device_index)
         samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
         samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;
 
-        d->texelfetch_sampler = 0;
         ret = vkCreateSampler(d->device, &samplerCreateInfo, 0, &d->texelfetch_sampler);
         if (ret != VK_SUCCESS)
         {
@@ -2773,11 +2788,12 @@ VulkanDevice::VulkanDevice(int device_index)
     if (cret != 0)
     {
         NCNN_LOGE("VulkanDevice create_dummy_buffer_image failed %d", cret);
+        return;
     }
 
     d->pipeline_cache = new PipelineCache(this);
 
-    memset(d->uop_packing, 0, sizeof(d->uop_packing));
+    d->valid = true;
 }
 
 VulkanDevice::~VulkanDevice()
@@ -2802,9 +2818,15 @@ VulkanDevice::~VulkanDevice()
     }
     d->staging_allocators.clear();
 
-    delete d->pipeline_cache;
+    if (d->pipeline_cache)
+    {
+        delete d->pipeline_cache;
+    }
 
-    vkDestroyDevice(d->device, 0);
+    if (d->device)
+    {
+        vkDestroyDevice(d->device, 0);
+    }
 
     delete d;
 }
@@ -2822,6 +2844,11 @@ VulkanDevice& VulkanDevice::operator=(const VulkanDevice&)
 VkDevice VulkanDevice::vkdevice() const
 {
     return d->device;
+}
+
+bool VulkanDevice::is_valid() const
+{
+    return d->valid;
 }
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
