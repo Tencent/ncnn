@@ -116,7 +116,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 ptr1 += 8;
 
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < size - 1; i++)
                 {
                     __m256 _p0 = _mm256_loadu_ps(ptr0);
                     __m256 _p1 = _mm256_loadu_ps(ptr1);
@@ -133,6 +133,21 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     ptr0 += 16;
                     ptr1 += 16;
                     outptr += 16;
+                }
+
+                for (int i = 0; i < 16; i++)
+                {
+                    if (i % 2)
+                    {
+                        *outptr = *ptr1;
+                        ptr1 += 1;
+                    }
+                    else
+                    {
+                        *outptr = *ptr0;
+                        ptr0 += 1;
+                    }
+                    outptr += 1;
                 }
             }
 
@@ -372,7 +387,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 ptr1 += 4;
 
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < size - 1; i++)
                 {
                     __m128 _p0 = _mm_loadu_ps(ptr0);
                     __m128 _p1 = _mm_loadu_ps(ptr1);
@@ -386,6 +401,21 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     ptr0 += 8;
                     ptr1 += 8;
                     outptr += 8;
+                }
+
+                for (int i = 0; i < 8; i++)
+                {
+                    if (i % 2)
+                    {
+                        *outptr = *ptr1;
+                        ptr1 += 1;
+                    }
+                    else
+                    {
+                        *outptr = *ptr0;
+                        ptr0 += 1;
+                    }
+                    outptr += 1;
                 }
             }
 
@@ -607,7 +637,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 ptr1 += 2;
 
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < size - 1; i++)
                 {
                     __m128 _p0 = _mm_loadu_ps(ptr0);
                     __m128 _p1 = _mm_loadu_ps(ptr1);
@@ -619,6 +649,21 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     ptr0 += 4;
                     ptr1 += 4;
                     outptr += 4;
+                }
+
+                for (int i = 0; i < 4; i++)
+                {
+                    if (i % 2)
+                    {
+                        *outptr = *ptr1;
+                        ptr1 += 1;
+                    }
+                    else
+                    {
+                        *outptr = *ptr0;
+                        ptr0 += 1;
+                    }
+                    outptr += 1;
                 }
             }
 
