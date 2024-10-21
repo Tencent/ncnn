@@ -1724,8 +1724,8 @@ static void compute_A_tile_fp32_int8_scales(const Mat& A, Mat& scales, float B_s
 
     const float v127_B_scale = 127.f * B_scale;
 
-    float* ps = scales;
-    float* pods = out_descales;
+    float* ps = (float*)scales + i;
+    float* pods = (float*)out_descales + i;
 
 #if __ARM_NEON
     if (elempack == 4)
@@ -2750,8 +2750,8 @@ static void transpose_compute_A_tile_fp32_int8_scales(const Mat& A, Mat& scales,
 #endif
 #endif
 
-    float* ps = scales;
-    float* pods = out_descales;
+    float* ps = (float*)scales + i;
+    float* pods = (float*)out_descales + i;
 
 #if __ARM_NEON
     if (elempack == 4)
