@@ -4404,7 +4404,6 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (int8_scale_term)
     {
         return forward_int8(bottom_blobs, top_blobs, opt);
-        // return Gemm::forward_int8(bottom_blobs, top_blobs, opt);
     }
 #endif
 
