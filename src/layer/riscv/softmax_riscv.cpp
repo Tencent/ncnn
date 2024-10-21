@@ -33,7 +33,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int elempack = bottom_top_blob.elempack;
 
     int positive_axis = axis < 0 ? dims + axis : axis;
-#ifdef __riscv_vector
+#if __riscv_vector
     if (dims == 1) // positive_axis == 0
     {
         int w = bottom_top_blob.w;
@@ -44,13 +44,13 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         float* ptr_vol = ptr;
         while (n > 0)
         {
-            size_t vl = vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(n);
 
-            vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
-            vfloat32m1_t _max = vfmv_s_f_f32m1(vundefined_f32m1(), max, vl);
-            _max = vfredmax_vs_f32m8_f32m1(_max, _p, /* scalar*/ _max, vl);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_vol, vl);
+            vfloat32m1_t _max = __riscv_vfmv_s_f_f32m1(max, vl);
+            _max = __riscv_vfredmax_vs_f32m8_f32m1(_p, _max, vl);
 
-            max = vfmv_f_s_f32m1_f32(_max);
+            max = __riscv_vfmv_f_s_f32m1_f32(_max);
             ptr_vol += vl;
             n -= vl;
         }
@@ -61,16 +61,16 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         ptr_vol = ptr;
         while (n > 0)
         {
-            size_t vl = vsetvl_e32m8(n);
-            vfloat32m1_t _sum = vfmv_s_f_f32m1(vundefined_f32m1(), sum, vl);
-            vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            vfloat32m1_t _sum = __riscv_vfmv_s_f_f32m1(sum, vl);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_vol, vl);
 
-            _p = vfsub_vf_f32m8(_p, max, vl);
+            _p = __riscv_vfsub_vf_f32m8(_p, max, vl);
             _p = exp_ps(_p, vl);
-            _sum = vfredusum_vs_f32m8_f32m1(_sum, _p, /*scalar*/ _sum, vl);
+            _sum = __riscv_vfredusum_vs_f32m8_f32m1(_p, _sum, vl);
 
-            vse32_v_f32m8(ptr_vol, _p, vl);
-            sum = vfmv_f_s_f32m1_f32(_sum);
+            __riscv_vse32_v_f32m8(ptr_vol, _p, vl);
+            sum = __riscv_vfmv_f_s_f32m1_f32(_sum);
             ptr_vol += vl;
             n -= vl;
         }
@@ -80,11 +80,11 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         ptr_vol = ptr;
         while (n > 0)
         {
-            size_t vl = vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(n);
 
-            vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
-            _p = vfdiv_vf_f32m8(_p, sum, vl);
-            vse32_v_f32m8(ptr_vol, _p, vl);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_vol, vl);
+            _p = __riscv_vfdiv_vf_f32m8(_p, sum, vl);
+            __riscv_vse32_v_f32m8(ptr_vol, _p, vl);
 
             n -= vl;
             ptr_vol += vl;
@@ -112,14 +112,14 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = w * elempack;
             while (n > 0)
             {
-                size_t vl = vsetvl_e32m8(n);
+                size_t vl = __riscv_vsetvl_e32m8(n);
 
-                vfloat32m8_t _max = vle32_v_f32m8(ptr_max, vl);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                vfloat32m8_t _max = __riscv_vle32_v_f32m8(ptr_max, vl);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
 
-                _max = vfmax_vv_f32m8(_max, _p, vl);
+                _max = __riscv_vfmax_vv_f32m8(_max, _p, vl);
 
-                vse32_v_f32m8(ptr_max, _max, vl);
+                __riscv_vse32_v_f32m8(ptr_max, _max, vl);
                 ptr += vl;
                 ptr_max += vl;
                 n -= vl;
@@ -141,18 +141,18 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             while (n > 0)
             {
-                size_t vl = vsetvl_e32m8(n);
+                size_t vl = __riscv_vsetvl_e32m8(n);
 
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                vfloat32m8_t _max = vle32_v_f32m8(ptr_max, vl);
-                vfloat32m8_t _sum = vle32_v_f32m8(ptr_sum, vl);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                vfloat32m8_t _max = __riscv_vle32_v_f32m8(ptr_max, vl);
+                vfloat32m8_t _sum = __riscv_vle32_v_f32m8(ptr_sum, vl);
 
-                _p = vfsub_vv_f32m8(_p, _max, vl);
+                _p = __riscv_vfsub_vv_f32m8(_p, _max, vl);
                 _p = exp_ps(_p, vl);
-                _sum = vfadd_vv_f32m8(_sum, _p, vl);
+                _sum = __riscv_vfadd_vv_f32m8(_sum, _p, vl);
 
-                vse32_v_f32m8(ptr, _p, vl);
-                vse32_v_f32m8(ptr_sum, _sum, vl);
+                __riscv_vse32_v_f32m8(ptr, _p, vl);
+                __riscv_vse32_v_f32m8(ptr_sum, _sum, vl);
                 n -= vl;
                 ptr_max += vl;
                 ptr_sum += vl;
@@ -168,13 +168,13 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = w * elempack;
             while (n > 0)
             {
-                size_t vl = vsetvl_e32m8(n);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                vfloat32m8_t _sum = vle32_v_f32m8(ptr_sum, vl);
+                size_t vl = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                vfloat32m8_t _sum = __riscv_vle32_v_f32m8(ptr_sum, vl);
 
-                _p = vfdiv_vv_f32m8(_p, _sum, vl);
+                _p = __riscv_vfdiv_vv_f32m8(_p, _sum, vl);
 
-                vse32_v_f32m8(ptr, _p, vl);
+                __riscv_vse32_v_f32m8(ptr, _p, vl);
                 n -= vl;
                 ptr += vl;
                 ptr_sum += vl;
@@ -198,13 +198,13 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float* ptr1 = ptr;
             while (n1 > 0)
             {
-                size_t vl = vsetvl_e32m8(n1);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr1, vl);
-                vfloat32m1_t _m = vfmv_s_f_f32m1(vundefined_f32m1(), m, vl);
+                size_t vl = __riscv_vsetvl_e32m8(n1);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr1, vl);
+                vfloat32m1_t _m = __riscv_vfmv_s_f_f32m1(m, vl);
 
-                _m = vfredmax_vs_f32m8_f32m1(_m, _p, _m, vl);
+                _m = __riscv_vfredmax_vs_f32m8_f32m1(_p, _m, vl);
 
-                m = vfmv_f_s_f32m1_f32(_m);
+                m = __riscv_vfmv_f_s_f32m1_f32(_m);
                 ptr1 += vl;
                 n1 -= vl;
             }
@@ -215,15 +215,15 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float* ptr2 = ptr;
             while (n2 > 0)
             {
-                size_t vl = vsetvl_e32m8(n2);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr2, vl);
-                vfloat32m1_t _s = vfmv_s_f_f32m1(vundefined_f32m1(), s, vl);
+                size_t vl = __riscv_vsetvl_e32m8(n2);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr2, vl);
+                vfloat32m1_t _s = __riscv_vfmv_s_f_f32m1(s, vl);
 
-                _p = exp_ps(vfsub_vf_f32m8(_p, m, vl), vl);
-                _s = vfredusum_vs_f32m8_f32m1(_s, _p, _s, vl);
+                _p = exp_ps(__riscv_vfsub_vf_f32m8(_p, m, vl), vl);
+                _s = __riscv_vfredusum_vs_f32m8_f32m1(_p, _s, vl);
 
-                vse32_v_f32m8(ptr2, _p, vl);
-                s = vfmv_f_s_f32m1_f32(_s);
+                __riscv_vse32_v_f32m8(ptr2, _p, vl);
+                s = __riscv_vfmv_f_s_f32m1_f32(_s);
                 ptr2 += vl;
                 n2 -= vl;
             }
@@ -233,13 +233,13 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float* ptr3 = ptr;
             while (n3 > 0)
             {
-                size_t vl = vsetvl_e32m8(n3);
+                size_t vl = __riscv_vsetvl_e32m8(n3);
 
-                vfloat32m8_t _p = vle32_v_f32m8(ptr3, vl);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr3, vl);
 
-                _p = vfdiv_vf_f32m8(_p, s, vl);
+                _p = __riscv_vfdiv_vf_f32m8(_p, s, vl);
 
-                vse32_v_f32m8(ptr3, _p, vl);
+                __riscv_vse32_v_f32m8(ptr3, _p, vl);
                 n3 -= vl;
                 ptr3 += vl;
             }
@@ -269,12 +269,12 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = size * elempack;
             while (n > 0)
             {
-                size_t vl = vsetvl_e32m8(n);
+                size_t vl = __riscv_vsetvl_e32m8(n);
 
-                vfloat32m8_t _max = vle32_v_f32m8(max, vl);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                _max = vfmax_vv_f32m8(_max, _p, vl);
-                vse32_v_f32m8(ptr_max, _max, vl);
+                vfloat32m8_t _max = __riscv_vle32_v_f32m8(max, vl);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                _max = __riscv_vfmax_vv_f32m8(_max, _p, vl);
+                __riscv_vse32_v_f32m8(ptr_max, _max, vl);
 
                 ptr += vl;
                 ptr_max += vl;
@@ -295,14 +295,14 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = size * elempack;
             while (n > 0)
             {
-                size_t vl = vsetvl_e32m8(n);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                vfloat32m8_t _max = vle32_v_f32m8(ptr_max, vl);
-                vfloat32m8_t _sum = vle32_v_f32m8(ptr_sum, vl);
-                _p = exp_ps(vfsub_vv_f32m8(_p, _max, vl), vl);
-                _sum = vfadd_vv_f32m8(_sum, _p, vl);
-                vse32_v_f32m8(ptr, _p, vl);
-                vse32_v_f32m8(ptr_sum, _sum, vl);
+                size_t vl = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                vfloat32m8_t _max = __riscv_vle32_v_f32m8(ptr_max, vl);
+                vfloat32m8_t _sum = __riscv_vle32_v_f32m8(ptr_sum, vl);
+                _p = exp_ps(__riscv_vfsub_vv_f32m8(_p, _max, vl), vl);
+                _sum = __riscv_vfadd_vv_f32m8(_sum, _p, vl);
+                __riscv_vse32_v_f32m8(ptr, _p, vl);
+                __riscv_vse32_v_f32m8(ptr_sum, _sum, vl);
 
                 n -= vl;
                 ptr += vl;
@@ -319,12 +319,12 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = size * elempack;
             while (n > 0)
             {
-                size_t vl = vsetvl_e32m8(n);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                vfloat32m8_t _sum = vle32_v_f32m8(ptr_sum, vl);
+                size_t vl = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                vfloat32m8_t _sum = __riscv_vle32_v_f32m8(ptr_sum, vl);
 
-                _p = vfdiv_vv_f32m8(_p, _sum, vl);
-                vse32_v_f32m8(ptr, _p, vl);
+                _p = __riscv_vfdiv_vv_f32m8(_p, _sum, vl);
+                __riscv_vse32_v_f32m8(ptr, _p, vl);
 
                 ptr_sum += vl;
                 ptr += vl;
@@ -358,12 +358,12 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _maxptr = vle32_v_f32m8(maxptr_vol, vl);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                    size_t vl = __riscv_vsetvl_e32m8(n);
+                    vfloat32m8_t _maxptr = __riscv_vle32_v_f32m8(maxptr_vol, vl);
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
 
-                    _maxptr = vfmax_vv_f32m8(_maxptr, _p, vl);
-                    vse32_v_f32m8(maxptr_vol, _maxptr, vl);
+                    _maxptr = __riscv_vfmax_vv_f32m8(_maxptr, _p, vl);
+                    __riscv_vse32_v_f32m8(maxptr_vol, _maxptr, vl);
 
                     ptr += vl;
                     maxptr_vol += vl;
@@ -392,16 +392,16 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 while (n)
                 {
-                    size_t vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _maxptr = vle32_v_f32m8(maxptr_vol, vl);
-                    vfloat32m8_t _sumptr = vle32_v_f32m8(sumptr_vol, vl);
+                    size_t vl = __riscv_vsetvl_e32m8(n);
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                    vfloat32m8_t _maxptr = __riscv_vle32_v_f32m8(maxptr_vol, vl);
+                    vfloat32m8_t _sumptr = __riscv_vle32_v_f32m8(sumptr_vol, vl);
 
-                    _p = exp_ps(vfsub_vv_f32m8(_p, _maxptr, vl), vl);
-                    _sumptr = vfadd_vv_f32m8(_sumptr, _p, vl);
+                    _p = exp_ps(__riscv_vfsub_vv_f32m8(_p, _maxptr, vl), vl);
+                    _sumptr = __riscv_vfadd_vv_f32m8(_sumptr, _p, vl);
 
-                    vse32_v_f32m8(ptr, _p, vl);
-                    vse32_v_f32m8(sumptr_vol, _sumptr, vl);
+                    __riscv_vse32_v_f32m8(ptr, _p, vl);
+                    __riscv_vse32_v_f32m8(sumptr_vol, _sumptr, vl);
                     n -= vl;
                     sumptr_vol += vl;
                     maxptr_vol += vl;
@@ -422,13 +422,13 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _sumptr = vle32_v_f32m8(sumptr_vol, vl);
+                    size_t vl = __riscv_vsetvl_e32m8(n);
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                    vfloat32m8_t _sumptr = __riscv_vle32_v_f32m8(sumptr_vol, vl);
 
-                    _p = vfdiv_vv_f32m8(_p, _sumptr, vl);
+                    _p = __riscv_vfdiv_vv_f32m8(_p, _sumptr, vl);
 
-                    vse32_v_f32m8(ptr, _p, vl);
+                    __riscv_vse32_v_f32m8(ptr, _p, vl);
                     n -= vl;
                     sumptr_vol += vl;
                     ptr += vl;
@@ -457,12 +457,12 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 float* ptr_1 = ptr;
                 while (n1 > 0)
                 {
-                    size_t vl = vsetvl_e32m8(n1);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr_1, vl);
-                    vfloat32m1_t _scalar_max = vfmv_s_f_f32m1(vundefined_f32m1(), max, vl);
-                    _scalar_max = vfredmax_vs_f32m8_f32m1(_scalar_max, _p, _scalar_max, vl);
+                    size_t vl = __riscv_vsetvl_e32m8(n1);
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_1, vl);
+                    vfloat32m1_t _scalar_max = __riscv_vfmv_s_f_f32m1(max, vl);
+                    _scalar_max = __riscv_vfredmax_vs_f32m8_f32m1(_p, _scalar_max, vl);
 
-                    max = vfmv_f_s_f32m1_f32(_scalar_max);
+                    max = __riscv_vfmv_f_s_f32m1_f32(_scalar_max);
                     n1 -= vl;
                     ptr_1 += vl;
                 }
@@ -473,15 +473,15 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 float* ptr_2 = ptr;
                 while (n2 > 0)
                 {
-                    size_t vl = vsetvl_e32m8(n2);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr_2, vl);
-                    vfloat32m1_t _scalar_sum = vfmv_s_f_f32m1(vundefined_f32m1(), sum, vl);
+                    size_t vl = __riscv_vsetvl_e32m8(n2);
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_2, vl);
+                    vfloat32m1_t _scalar_sum = __riscv_vfmv_s_f_f32m1(sum, vl);
 
-                    _p = exp_ps(vfsub_vf_f32m8(_p, max, vl), vl);
-                    _scalar_sum = vfredusum_vs_f32m8_f32m1(_scalar_sum, _p, _scalar_sum, vl);
+                    _p = exp_ps(__riscv_vfsub_vf_f32m8(_p, max, vl), vl);
+                    _scalar_sum = __riscv_vfredusum_vs_f32m8_f32m1(_p, _scalar_sum, vl);
 
-                    vse32_v_f32m8(ptr_2, _p, vl);
-                    sum = vfmv_f_s_f32m1_f32(_scalar_sum);
+                    __riscv_vse32_v_f32m8(ptr_2, _p, vl);
+                    sum = __riscv_vfmv_f_s_f32m1_f32(_scalar_sum);
                     n2 -= vl;
                     ptr_2 += vl;
                 }
@@ -491,12 +491,12 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 float* ptr_3 = ptr;
                 while (n3 > 0)
                 {
-                    size_t vl = vsetvl_e32m8(n3);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr_3, vl);
+                    size_t vl = __riscv_vsetvl_e32m8(n3);
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_3, vl);
 
-                    _p = vfdiv_vf_f32m8(_p, sum, vl);
+                    _p = __riscv_vfdiv_vf_f32m8(_p, sum, vl);
 
-                    vse32_v_f32m8(ptr_3, _p, vl);
+                    __riscv_vse32_v_f32m8(ptr_3, _p, vl);
                     n3 -= vl;
                     ptr_3 += vl;
                 }

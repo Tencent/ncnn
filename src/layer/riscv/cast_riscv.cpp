@@ -24,7 +24,7 @@ Cast_riscv::Cast_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
+#if __riscv_zvfh
     support_fp16_storage = true;
 #endif
 #endif // __riscv_vector
@@ -89,7 +89,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
     int size = w * h * d * elempack;
 
-#if __riscv_vector && __riscv_zfh
+#if __riscv_vector && __riscv_zvfh
     if (type_from == 1 && type_to == 2)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -101,11 +101,11 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             int n = size;
             while (n > 0)
             {
-                size_t vl = vsetvl_e32m8(n);
+                size_t vl = __riscv_vsetvl_e32m8(n);
 
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                vfloat16m4_t _outp = vfncvt_f_f_w_f16m4(_p, vl);
-                vse16_v_f16m4(outptr, _outp, vl);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                vfloat16m4_t _outp = __riscv_vfncvt_f_f_w_f16m4(_p, vl);
+                __riscv_vse16_v_f16m4(outptr, _outp, vl);
 
                 ptr += vl;
                 outptr += vl;
@@ -125,11 +125,11 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             int n = size;
             while (n > 0)
             {
-                size_t vl = vsetvl_e16m4(n);
+                size_t vl = __riscv_vsetvl_e16m4(n);
 
-                vfloat16m4_t _p = vle16_v_f16m4(ptr, vl);
-                vfloat32m8_t _outp = vfwcvt_f_f_v_f32m8(_p, vl);
-                vse32_v_f32m8(outptr, _outp, vl);
+                vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
+                vfloat32m8_t _outp = __riscv_vfwcvt_f_f_v_f32m8(_p, vl);
+                __riscv_vse32_v_f32m8(outptr, _outp, vl);
 
                 ptr += vl;
                 outptr += vl;
@@ -137,7 +137,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             }
         }
     }
-#endif // __riscv_vector && __riscv_zfh
+#endif // __riscv_vector && __riscv_zvfh
 
     if (type_from == 3 && type_to == 1)
     {
