@@ -61,8 +61,16 @@ def test():
     import test_F_avg_pool2d_ncnn
     b = test_F_avg_pool2d_ncnn.test_inference()
 
+    # pnnx inference cpp
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_F_avg_pool2d_ncnn && make")
+    os.system("./build/test_F_avg_pool2d_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    for a0, c0 in zip(a, c):
+        if not torch.allclose(a0, c0, 1e-4, 1e-4):
             return False
     return True
 

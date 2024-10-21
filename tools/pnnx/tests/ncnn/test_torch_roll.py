@@ -49,11 +49,19 @@ def test():
     import test_torch_roll_ncnn
     b = test_torch_roll_ncnn.test_inference()
 
+    # pnnx inference cpp
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_torch_roll_ncnn && make")
+    os.system("./build/test_torch_roll_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+
     print(x)
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             print(a0)
             print(b0)
+            return False
+    for a0, c0 in zip(a, c):
+        if not torch.equal(a0, c0):
             return False
     return True
 

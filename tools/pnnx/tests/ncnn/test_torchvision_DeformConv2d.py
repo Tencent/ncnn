@@ -56,7 +56,13 @@ def test():
     import test_torchvision_DeformConv2d_ncnn
     b0, b1 = test_torchvision_DeformConv2d_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    # pnnx inference cpp
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_torchvision_DeformConv2d_ncnn && make")
+    os.system("./build/test_torchvision_DeformConv2d_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+    c0, c1 = c
+
+    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a0, c0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a1, c1, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

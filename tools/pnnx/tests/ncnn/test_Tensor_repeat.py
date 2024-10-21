@@ -52,8 +52,16 @@ def test():
     import test_Tensor_repeat_ncnn
     b = test_Tensor_repeat_ncnn.test_inference()
 
+    # pnnx inference cpp
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_Tensor_repeat_ncnn && make")
+    os.system("./build/test_Tensor_repeat_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
+            return False
+    for a0, c0 in zip(a, c):
+        if not torch.equal(a0, c0):
             return False
     return True
 

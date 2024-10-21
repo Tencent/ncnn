@@ -103,7 +103,13 @@ def test():
     import test_F_grid_sample_ncnn
     b0, b1, b2, b3 = test_F_grid_sample_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-6, 1e-6) and torch.allclose(a1, b1, 1e-6, 1e-6) and torch.allclose(a2, b2, 1e-6, 1e-6) and torch.allclose(a3, b3, 1e-6, 1e-6)
+    # pnnx inference cpp
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_F_grid_sample_ncnn && make")
+    os.system("./build/test_F_grid_sample_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+    c0, c1, c2, c3 = c
+
+    return torch.allclose(a0, b0, 1e-6, 1e-6) and torch.allclose(a0, c0, 1e-6, 1e-6) and torch.allclose(a1, b1, 1e-6, 1e-6) and torch.allclose(a1, c1, 1e-6, 1e-6) and torch.allclose(a2, b2, 1e-6, 1e-6) and torch.allclose(a2, c2, 1e-6, 1e-6) and torch.allclose(a3, b3, 1e-6, 1e-6) and torch.allclose(a3, c3, 1e-6, 1e-6)
 
 if __name__ == "__main__":
     if test():
