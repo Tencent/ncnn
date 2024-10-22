@@ -14,7 +14,7 @@
 
 #include "testutil.h"
 
-#define OP_TYPE_MAX 12
+#define OP_TYPE_MAX 13
 
 static int op_type = 0;
 
