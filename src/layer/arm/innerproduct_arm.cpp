@@ -23,6 +23,10 @@
 #include "arm_activation.h"
 #include "arm_usability.h"
 
+#if __aarch64__ && NCNN_APPLE_AMX
+#include "amx_usability.h"
+#endif
+
 #include "cpu.h"
 
 namespace ncnn {
@@ -142,6 +146,12 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
 
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+// #if __aarch64__ && NCNN_APPLE_AMX
+//         AMX_SET();
+//         uint8_t arr[256];
+//         AMX_LDX(arr);
+//         AMX_CLR();
+// #endif
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
@@ -369,6 +379,68 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     }
 
                     int i = 0;
+#if __aarch64__ && NCNN_APPLE_AMX
+                    amx_set();
+
+                    float _sums[32] = {0};
+                    amx_ldz(true, 0, _sums);
+                    for (; i + 31 < num_input; i += 32)
+                    {
+                        amx_ldx(true, 0, m);
+                        amx_ldy(true, 0, kptr);
+                        amx_fma32(true, 0, 0, 0);
+                        amx_fma32(true, 64, 64, 1);
+
+                        m += 32;
+                        kptr += 32;
+                    }
+                    amx_stz(true, 0, _sums);
+#if __ARM_NEON
+                    {
+                        float32x4_t _sum = vdupq_n_f32(0.f);
+                        for (int q = 0; q < 8; q++)
+                        {
+                            _sum = vaddq_f32(_sum, vld1q_f32(_sums + q * 4));
+                        }
+                        sum += vaddvq_f32(_sum);
+                        memset(_sums, 0, 16 * sizeof(float));
+                    }
+#else
+                    for (int q = 0; q < 32; q++)
+                    {
+                        sum += _sums[q];
+                        _sums[q] = 0;
+                    }
+#endif
+                    amx_ldz(false, 0, _sums);
+                    for (; i + 15 < num_input; i += 16)
+                    {
+                        amx_ldx(false, 0, m);
+                        amx_ldy(false, 0, kptr);
+                        amx_fma32(true, 0, 0, 0);
+
+                        m += 16;
+                        kptr += 16;
+                    }
+                    amx_stz(false, 0, _sums);
+#if __ARM_NEON
+                    {
+                        float32x4_t _sum = vdupq_n_f32(0.f);
+                        for (int q = 0; q < 4; q++)
+                        {
+                            _sum = vaddq_f32(_sum, vld1q_f32(_sums + q * 4));
+                        }
+                        sum += vaddvq_f32(_sum);
+                    }
+#else
+                    for (int q = 0; q < 16; q++)
+                    {
+                        sum += _sums[q];
+                    }
+#endif
+                    amx_clr();
+#endif
+
 #if __ARM_NEON
                     float32x4_t _sum = vdupq_n_f32(0.f);
                     for (; i + 3 < num_input; i += 4)
