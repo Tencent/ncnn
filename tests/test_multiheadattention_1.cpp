@@ -55,7 +55,7 @@ static int test_multiheadattention_int8(const ncnn::Mat& q, const ncnn::Mat& k, 
         as.push_back(RandomMat(k.h, q.h));
     }
 
-    float epsilon = 0.15;
+    float epsilon = 0.1;
 
     int ret = test_layer("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
@@ -98,7 +98,7 @@ static int test_multiheadattention_int8_samekv(const ncnn::Mat& q, const ncnn::M
     as[0] = q;
     as[1] = kv;
 
-    float epsilon = 0.15;
+    float epsilon = 0.1;
 
     int ret = test_layer("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
@@ -139,7 +139,7 @@ static int test_multiheadattention_int8_sameqkv(const ncnn::Mat& a, int embed_di
     std::vector<ncnn::Mat> as(1);
     as[0] = a;
 
-    float epsilon = 0.15;
+    float epsilon = 0.1;
 
     int ret = test_layer("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)

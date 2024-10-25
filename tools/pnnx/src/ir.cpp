@@ -2390,6 +2390,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         fprintf(pyfp, "def export_torchscript():\n");
         fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2455,6 +2456,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         fprintf(pyfp, "def export_onnx():\n");
         fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2576,6 +2578,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");

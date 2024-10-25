@@ -418,12 +418,14 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 std::vector<c10::ShapeSymbol> sizes1 = type1->symbolic_sizes().sizes().value();
                 std::vector<c10::ShapeSymbol> sizes2 = type2->symbolic_sizes().sizes().value();
 
+                bool is_shape_static = true;
                 for (size_t i = 0; i < sizes1.size(); i++)
                 {
                     if (sizes1[i] == sizes2[i])
                         continue;
 
                     sizes1[i] = c10::ShapeSymbol::fromStaticSize(-1);
+                    is_shape_static = false;
                 }
 
                 auto finaltype = type1->withSymbolicShapes(c10::SymbolicShape(sizes1));
@@ -431,7 +433,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 v->setType(finaltype);
 
                 // check if value that does not depend on inputs
-                if (value_link_input_map.find(v->debugName()) == value_link_input_map.end() && value_link_output(v, g_outputs))
+                if (is_shape_static && value_link_input_map.find(v->debugName()) == value_link_input_map.end() && value_link_output(v, g_outputs))
                 {
                     // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
                     foldable_constants.insert(v->debugName());
