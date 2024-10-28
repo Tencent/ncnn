@@ -741,7 +741,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 pp[12] = float2int8(p0[6] * scale6);
                 pp[13] = float2int8(p0[14] * scale6);
                 pp[14] = float2int8(p0[7] * scale7);
-                pp[15] = float2int8(p0[15]* scale7);
+                pp[15] = float2int8(p0[15] * scale7);
                 pp += 16;
 #else
                 pp1[0] = float2int8(p0[4] * scale4);
@@ -2553,7 +2553,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _f5 = _mm256_shuffle_ps(_f5, _f5, _MM_SHUFFLE(2, 1, 0, 3));
                 _f7 = _mm256_shuffle_ps(_f7, _f7, _MM_SHUFFLE(2, 1, 0, 3));
             }
-#else // __AVX2__
+#else  // __AVX2__
             __m256 _f0 = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)pp));
             __m256 _f1 = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)(pp + 8)));
             __m256 _f2 = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)(pp + 16)));
@@ -2629,7 +2629,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _tmp5 = _mm256_unpacklo_ps(_f5, _f6);
                 _tmp6 = _mm256_unpackhi_ps(_f5, _f6);
                 _tmp7 = _mm256_unpackhi_ps(_f4, _f7);
-
 
                 // 00 10 11 21 40 50 51 61
                 // 20 30 31 01 60 70 71 41
@@ -6208,7 +6207,6 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 #else
             TILE_N = std::max(1, tile_size);
 #endif
-
         }
     }
 
