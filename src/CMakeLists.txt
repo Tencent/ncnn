@@ -403,6 +403,11 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
                 target_compile_options(ncnn PRIVATE -msimd128)
             endif()
         endif()
+
+        if(NCNN_COMPILER_SUPPORT_X86_RECIP_NONE)
+            # recip optimization causes precision loss
+            target_compile_options(ncnn PRIVATE -mrecip=none)
+        endif()
     endif()
 
     if(NOT NCNN_RUNTIME_CPU AND NCNN_AVX512)
