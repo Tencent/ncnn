@@ -517,6 +517,8 @@ else()
 
         unset(CMAKE_REQUIRED_FLAGS)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
+        check_cxx_compiler_flag("-mrecip=none" NCNN_COMPILER_SUPPORT_X86_RECIP_NONE)
+
         check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_AVX)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mfma -mf16c")
@@ -543,6 +545,8 @@ else()
 
         unset(CMAKE_REQUIRED_FLAGS)
     else()
+        check_cxx_compiler_flag("-mrecip=none" NCNN_COMPILER_SUPPORT_X86_RECIP_NONE)
+
         check_cxx_compiler_flag("-mavx" NCNN_COMPILER_SUPPORT_X86_AVX)
 
         set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c")
