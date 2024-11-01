@@ -35,7 +35,7 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 128, 6, 8)
 
-    a0 = net(x)
+    a = net(x)
 
     # export torchscript
     mod = torch.jit.trace(net, x)
@@ -47,9 +47,15 @@ def test():
 
     # ncnn inference
     import test_nn_PixelShuffle_ncnn
-    b0 = test_nn_PixelShuffle_ncnn.test_inference()
+    b = test_nn_PixelShuffle_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4)
+    # pnnx inference cpp
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_nn_PixelShuffle_ncnn && make")
+    os.system("./build/test_nn_PixelShuffle_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+    c = c[0]
+
+    return torch.allclose(a, b, 1e-4, 1e-4) and torch.allclose(a, c, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

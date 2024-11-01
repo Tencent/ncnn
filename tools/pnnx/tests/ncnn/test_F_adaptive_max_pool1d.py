@@ -46,9 +46,16 @@ def test():
     import test_F_adaptive_max_pool1d_ncnn
     b = test_F_adaptive_max_pool1d_ncnn.test_inference()
 
-    b = b.reshape_as(a)
+    # pnnx inference cpp
+    os.system("mkdir -p build && cd build && cmake .. -DFNAME=test_F_adaptive_max_pool1d_ncnn && make")
+    os.system("./build/test_F_adaptive_max_pool1d_ncnn")
+    c = list(torch.jit.load("out.pt").parameters())
+    c = c[0]
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    b = b.reshape_as(a)
+    c = c.reshape_as(a)
+
+    return torch.allclose(a, b, 1e-4, 1e-4) and torch.allclose(a, c, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

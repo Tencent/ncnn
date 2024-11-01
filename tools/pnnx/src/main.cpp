@@ -226,6 +226,7 @@ int main(int argc, char** argv)
     std::string ncnnparampath = ptbase + ".ncnn.param";
     std::string ncnnbinpath = ptbase + ".ncnn.bin";
     std::string ncnnpypath = ptbase + "_ncnn.py";
+    std::string ncnncpppath = ptbase + "_ncnn.cpp";
     int fp16 = 1;
     int optlevel = 2;
     std::string device = "cpu";
@@ -267,6 +268,8 @@ int main(int argc, char** argv)
             ncnnbinpath = std::string(value);
         if (strcmp(key, "ncnnpy") == 0)
             ncnnpypath = std::string(value);
+        if (strcmp(key, "ncnncpp") == 0)
+            ncnncpppath = std::string(value);
         if (strcmp(key, "fp16") == 0)
             fp16 = atoi(value);
         if (strcmp(key, "optlevel") == 0)
@@ -292,6 +295,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "ncnnparam = %s\n", ncnnparampath.c_str());
         fprintf(stderr, "ncnnbin = %s\n", ncnnbinpath.c_str());
         fprintf(stderr, "ncnnpy = %s\n", ncnnpypath.c_str());
+        fprintf(stderr, "ncnncpp = %s\n", ncnncpppath.c_str());
         fprintf(stderr, "fp16 = %d\n", fp16);
         fprintf(stderr, "optlevel = %d\n", optlevel);
         fprintf(stderr, "device = %s\n", device.c_str());
@@ -375,7 +379,7 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, ncnncpppath, fp16);
     }
 
     //     pnnx::Graph pnnx_graph2;
