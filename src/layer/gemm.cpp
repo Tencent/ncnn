@@ -241,9 +241,17 @@ static void gemm_transB_int8(const Mat& A_int8, const Mat& BT_int8, const Mat& A
             int sum = 0;
             for (int k = 0; k < K; k++)
             {
-                // NCNN_LOGE("ptrA[%d] %d", k, ptrA[k]);
+                // if (M==4 && N==7)
+                // {
+                //     NCNN_LOGE("ptrA[%d] %d %d", k, ptrA[k], ptrBT[k]);
+                // }
                 sum += ptrA[k] * ptrBT[k];
             }
+
+            // if (M==4 && N==7)
+            // {
+            //     NCNN_LOGE("sum %d", sum);
+            // }
 
             float sum_fp32 = sum * descale;
 
@@ -501,10 +509,10 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 absmax = std::max(absmax, (float)fabs(ptr[k]));
             }
 
-            // NCNN_LOGE("A[%d] absmax %f", i, absmax);
-
             float A_int8_scale = absmax == 0.f ? 1.f : 127.f / absmax;
             A_int8_scales[i] = A_int8_scale;
+
+            // NCNN_LOGE("A[%d] absmax %.9f   %.9f", i, absmax, A_int8_scale);
 
             signed char* ptrAi = A_int8.row<signed char>(i);
 
