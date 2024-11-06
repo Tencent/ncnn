@@ -1051,7 +1051,7 @@ static std::string expand_expression(const Operator* op)
                  || t == "torch.long")
         {
             std::string unaryop = t;
-            if (t == "int") unaryop = "";// but the explicit int() causes troubles in tracing
+            if (t == "int") unaryop = ""; // but the explicit int() causes troubles in tracing
             if (t == "abs") unaryop = "torch.abs";
             if (t == "acos") unaryop = "torch.acos";
             if (t == "acosh") unaryop = "torch.acosh";
