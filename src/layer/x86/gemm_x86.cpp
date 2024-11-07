@@ -7638,7 +7638,19 @@ static int gemm_x86_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
+    Mat ATX;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+    if (TILE_K >= 4 && (ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni()))
+    {
+        int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
+        // NCNN_LOGE("w_shift_count = %d", w_shift_count);
+        ATX.create(TILE_K * TILE_M + w_shift_count * 4, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
+    }
+    else
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+    {
+        ATX.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
+    }
     if (ATX.empty())
         return -100;
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 1u, opt.workspace_allocator);
@@ -7891,7 +7903,18 @@ static int gemm_BT_x86_int8(const Mat& A, const Mat& BT, float B_int8_scale, con
 
     // NCNN_LOGE("scale %.4f  %.4f", A_int8_scale, B_int8_scale);
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
+    Mat ATX;
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+    if (TILE_K >= 4 && (ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni()))
+    {
+        int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
+        ATX.create(TILE_K * TILE_M + w_shift_count * 4, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
+    }
+    else
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+    {
+        ATX.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
+    }
     if (ATX.empty())
         return -100;
 
@@ -8053,7 +8076,17 @@ int Gemm_x86::create_pipeline_int8(const Option& opt)
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
-        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 1u, (Allocator*)0);
+#if NCNN_AVX512VNNI || NCNN_AVXVNNI
+        if (TILE_K >= 4 && (ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni()))
+        {
+            int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
+            AT_data.create(TILE_K * TILE_M + w_shift_count * 4, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 1u, (Allocator*)0);
+        }
+        else
+#endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
+        {
+            AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 1u, (Allocator*)0);
+        }
         if (AT_data.empty())
             return -100;
 
