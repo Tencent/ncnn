@@ -2382,7 +2382,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
-    // NCNN_LOGE("pack_A_tile_fp32_to_int8 %d %d", max_ii, elempack);
+    // NCNN_LOGE("pack_A_tile_fp32_to_int8 %d %d %d", max_ii, max_kk, elempack);
 
     signed char* pp = (signed char*)AT;
 
@@ -4251,7 +4251,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
-    NCNN_LOGE("transpose_pack_A_tile_fp32_to_int8 %d %d", max_ii, elempack);
+    // NCNN_LOGE("transpose_pack_A_tile_fp32_to_int8 %d %d", max_ii, elempack);
 
     signed char* pp = (signed char*)AT;
 
@@ -11711,7 +11711,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
     const int c_elempack = C.elempack;
     const float* pC = C;
 
-    NCNN_LOGE("unpack_output_tile_int32_to_fp32  %d %d %d %d  %d  %d  %d  %d", i, max_ii, j, max_jj, out_elempack, broadcast_type_C, c_elempack, output_transpose);
+    // NCNN_LOGE("unpack_output_tile_int32_to_fp32  %d %d %d %d  %d  %d  %d  %d", i, max_ii, j, max_jj, out_elempack, broadcast_type_C, c_elempack, output_transpose);
 
     // const int* pp = topT;
 
@@ -16904,7 +16904,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
     }
 #endif
 
-    NCNN_LOGE("gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
+    // NCNN_LOGE("gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const signed char* pAT = AT_tile;
     const signed char* pBT = BT_tile;

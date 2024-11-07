@@ -7621,7 +7621,7 @@ struct gemm_x86_int8_omp_args
 
 static int gemm_x86_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
-    NCNN_LOGE("gemm_x86_int8");
+    // NCNN_LOGE("gemm_x86_int8");
 
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
@@ -7644,7 +7644,7 @@ static int gemm_x86_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob
     {
         int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
         // NCNN_LOGE("w_shift_count = %d", w_shift_count);
-        ATX.create(TILE_K * TILE_M + w_shift_count * 4, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
+        ATX.create((TILE_K + w_shift_count * 4) * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
     }
     else
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
@@ -7769,7 +7769,7 @@ static int gemm_x86_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob
 
 static int gemm_AT_x86_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
-    NCNN_LOGE("gemm_AT_x86_int8");
+    // NCNN_LOGE("gemm_AT_x86_int8");
 
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
@@ -7878,7 +7878,7 @@ static int gemm_AT_x86_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& 
 
 static int gemm_BT_x86_int8(const Mat& A, const Mat& BT, float B_int8_scale, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
-    NCNN_LOGE("gemm_BT_x86_int8");
+    // NCNN_LOGE("gemm_BT_x86_int8");
 
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
 
@@ -7908,7 +7908,7 @@ static int gemm_BT_x86_int8(const Mat& A, const Mat& BT, float B_int8_scale, con
     if (TILE_K >= 4 && (ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni()))
     {
         int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
-        ATX.create(TILE_K * TILE_M + w_shift_count * 4, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
+        ATX.create((TILE_K + w_shift_count * 4) * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
     }
     else
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
@@ -7993,7 +7993,7 @@ static int gemm_BT_x86_int8(const Mat& A, const Mat& BT, float B_int8_scale, con
 
 static int gemm_AT_BT_x86_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& BT, float B_int8_scale, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
-    NCNN_LOGE("gemm_AT_BT_x86_int8");
+    // NCNN_LOGE("gemm_AT_BT_x86_int8");
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
@@ -8080,7 +8080,7 @@ int Gemm_x86::create_pipeline_int8(const Option& opt)
         if (TILE_K >= 4 && (ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni()))
         {
             int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
-            AT_data.create(TILE_K * TILE_M + w_shift_count * 4, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 1u, (Allocator*)0);
+            AT_data.create((TILE_K + w_shift_count * 4) * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 1u, (Allocator*)0);
         }
         else
 #endif // NCNN_AVX512VNNI || NCNN_AVXVNNI
