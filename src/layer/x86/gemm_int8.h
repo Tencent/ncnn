@@ -4853,7 +4853,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[15] = w_shiftf * 127;
                 pp += 64;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 15 < max_kk; kk += 16)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -5442,7 +5442,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[15] = w_shiftf * 127;
                 pp += 64;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -5763,7 +5763,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[15] = w_shiftf * 127;
                 pp += 64;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -6388,7 +6388,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[7] = w_shift7 * 127;
                 pp += 32;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 15 < max_kk; kk += 16)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -7309,7 +7309,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[3] = w_shift3 * 127;
                 pp += 16;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 15 < max_kk; kk += 16)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -7478,7 +7478,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[3] = w_shift3 * 127;
                 pp += 16;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -7576,7 +7576,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[3] = w_shift3 * 127;
                 pp += 16;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -7769,7 +7769,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 w_shift1 += pp[16 + 13];
                 w_shift1 += pp[16 + 14];
                 w_shift1 += pp[16 + 15];
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
                 pp[0] = float2int8(p0[0] * scale0);
                 pp[1] = float2int8(p0[1] * scale0);
                 pp[2] = float2int8(p0[16] * scale1);
@@ -7865,7 +7865,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 w_shift1 += pp[13];
                 w_shift1 += pp[14];
                 w_shift1 += pp[15];
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
                 pp[0] = float2int8(p0[0] * scale0);
                 pp[1] = float2int8(p0[1] * scale0);
                 pp[2] = float2int8(p0[8] * scale1);
@@ -7922,7 +7922,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 w_shift1 += pp[5];
                 w_shift1 += pp[6];
                 w_shift1 += pp[7];
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
                 pp[0] = float2int8(p0[0] * scale0);
                 pp[1] = float2int8(p0[1] * scale0);
                 pp[2] = float2int8(p0[4] * scale1);
@@ -9546,7 +9546,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 256;
                 p0 += B_hstep * 16;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 15 < max_kk; kk += 16)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -9967,7 +9967,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 128;
                 p0 += B_hstep * 8;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -10186,7 +10186,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 64;
                 p0 += B_hstep * 4;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -10546,7 +10546,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 128;
                 p0 += B_hstep * 16;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 15 < max_kk; kk += 16)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -10766,7 +10766,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 64;
                 p0 += B_hstep * 8;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -10887,7 +10887,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 32;
                 p0 += B_hstep * 4;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -11092,7 +11092,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 64;
                 p0 += B_hstep * 16;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 15 < max_kk; kk += 16)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -11216,7 +11216,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 32;
                 p0 += B_hstep * 8;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -11287,7 +11287,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 16;
                 p0 += B_hstep * 4;
             }
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -11413,7 +11413,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[16 + 13] = float2int8(p0[29] * scale) + 127;
                 pp[16 + 14] = float2int8(p0[30] * scale) + 127;
                 pp[16 + 15] = float2int8(p0[31] * scale) + 127;
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
                 pp[0] = float2int8(p0[0] * scale);
                 pp[1] = float2int8(p0[1] * scale);
                 pp[2] = float2int8(p0[16] * scale);
@@ -11481,7 +11481,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[13] = float2int8(p0[13] * scale) + 127;
                 pp[14] = float2int8(p0[14] * scale) + 127;
                 pp[15] = float2int8(p0[15] * scale) + 127;
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
                 pp[0] = float2int8(p0[0] * scale);
                 pp[1] = float2int8(p0[1] * scale);
                 pp[2] = float2int8(p0[8] * scale);
@@ -11518,7 +11518,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[5] = float2int8(p0[5] * scale) + 127;
                 pp[6] = float2int8(p0[6] * scale) + 127;
                 pp[7] = float2int8(p0[7] * scale) + 127;
-#else // __AVX512VNNI__
+#else  // __AVX512VNNI__
                 pp[0] = float2int8(p0[0] * scale);
                 pp[1] = float2int8(p0[1] * scale);
                 pp[2] = float2int8(p0[4] * scale);
