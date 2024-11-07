@@ -200,8 +200,8 @@ jobs:
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
-        cd tools/pnnx
-        cd build && ctest --output-on-failure -j 16
+        cd tools/pnnx/build
+        ctest --output-on-failure -j 16
 
     - name: python-pnnx
       run: |
