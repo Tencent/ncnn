@@ -14083,14 +14083,14 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     }
                     if (c_elempack == 1)
                     {
-                    // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
-                    // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
-                    // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
-                    // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
-                    // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
-                    // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
-                    // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
-                    // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
+                        // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
+                        // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
+                        // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
+                        // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
+                        // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
+                        // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
+                        // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
+                        // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
 
                         _c0_avx512 = _mm512_loadu_ps(pC);
                         _c1_avx512 = _mm512_loadu_ps(pC + c_hstep);
@@ -15442,13 +15442,12 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _f3 = _mm512_castpd_ps(_mm512_unpackhi_pd(_mm512_castps_pd(_tmp3), _mm512_castps_pd(_tmp2)));
                 _f1 = _mm512_permute_ps(_f1, _MM_SHUFFLE(2, 1, 0, 3));
                 _f3 = _mm512_permute_ps(_f3, _MM_SHUFFLE(2, 1, 0, 3));
-
             }
 
-           _f0 = _mm512_mul_ps(_f0, _descale_avx512);
-           _f1 = _mm512_mul_ps(_f1, _descale_avx512);
-           _f2 = _mm512_mul_ps(_f2, _descale_avx512);
-           _f3 = _mm512_mul_ps(_f3, _descale_avx512);
+            _f0 = _mm512_mul_ps(_f0, _descale_avx512);
+            _f1 = _mm512_mul_ps(_f1, _descale_avx512);
+            _f2 = _mm512_mul_ps(_f2, _descale_avx512);
+            _f3 = _mm512_mul_ps(_f3, _descale_avx512);
 
             if (pC)
             {
