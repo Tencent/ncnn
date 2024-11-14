@@ -24,7 +24,7 @@ void transpose_pack_B_tile_fp32_to_int8_avx512vnni(const Mat& B, Mat& BT, int j,
 void gemm_transB_packed_tile_int8_avx512vnni(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
 void pack_A_tile_int8_avxvnni(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 void transpose_pack_A_tile_int8_avxvnni(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 void pack_B_tile_int8_avxvnni(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
@@ -85,7 +85,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         pack_A_tile_int8_avxvnni(A, AT, i, max_ii, k, max_kk);
@@ -427,7 +427,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         const signed char* p7 = A.row<const signed char>(i + ii + 7) + k;
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         int w_shift0 = 0;
         int w_shift1 = 0;
         int w_shift2 = 0;
@@ -524,7 +524,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             ((int*)pp)[7] = w_shift7 * 127;
             pp += 32;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -583,7 +583,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         const signed char* p3 = A.row<const signed char>(i + ii + 3) + k;
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         int w_shift0 = 0;
         int w_shift1 = 0;
         int w_shift2 = 0;
@@ -636,7 +636,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             ((int*)pp)[3] = w_shift3 * 127;
             pp += 16;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -674,7 +674,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 
         int kk = 0;
 #if __SSE2__
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         int w_shift0 = 0;
         int w_shift1 = 0;
         for (; kk + 3 < max_kk; kk += 4)
@@ -705,7 +705,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             ((int*)pp)[1] = w_shift1 * 127;
             pp += 8;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -731,7 +731,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         const signed char* p0 = A.row<const signed char>(i + ii) + k;
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         int w_shift = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
@@ -751,7 +751,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             ((int*)pp)[0] = w_shift * 127;
             pp += 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk < max_kk; kk++)
         {
             pp[0] = p0[0];
@@ -771,7 +771,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         transpose_pack_A_tile_int8_avxvnni(A, AT, i, max_ii, k, max_kk);
@@ -1045,7 +1045,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         const signed char* p0 = A.row<const signed char>(k) + (i + ii);
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         int w_shift0 = 0;
         int w_shift1 = 0;
         int w_shift2 = 0;
@@ -1135,7 +1135,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
             ((int*)pp)[7] = w_shift7 * 127;
             pp += 32;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -1177,7 +1177,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         const signed char* p0 = A.row<const signed char>(k) + (i + ii);
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         int w_shift0 = 0;
         int w_shift1 = 0;
         int w_shift2 = 0;
@@ -1227,7 +1227,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
             ((int*)pp)[3] = w_shift3 * 127;
             pp += 16;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -1258,7 +1258,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
 
         int kk = 0;
 #if __SSE2__
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         int w_shift0 = 0;
         int w_shift1 = 0;
         for (; kk + 3 < max_kk; kk += 4)
@@ -1288,7 +1288,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
             ((int*)pp)[1] = w_shift1 * 127;
             pp += 8;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -1312,7 +1312,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         const signed char* p0 = A.row<const signed char>(k) + (i + ii);
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         int w_shift = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
@@ -1332,7 +1332,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
             ((int*)pp)[0] = w_shift * 127;
             pp += 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk < max_kk; kk++)
         {
             pp[0] = p0[0];
@@ -1352,7 +1352,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         pack_B_tile_int8_avxvnni(B, BT, j, max_jj, k, max_kk);
@@ -1584,7 +1584,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         const signed char* p7 = B.row<const signed char>(j + jj + 7) + k;
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0] + 127;
@@ -1629,7 +1629,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             p6 += 4;
             p7 += 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -1688,7 +1688,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         const signed char* p3 = B.row<const signed char>(j + jj + 3) + k;
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0] + 127;
@@ -1713,7 +1713,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             p2 += 4;
             p3 += 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -1751,7 +1751,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
         int kk = 0;
 #if __SSE2__
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0] + 127;
@@ -1766,7 +1766,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             p0 += 4;
             p1 += 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -1792,7 +1792,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         const signed char* p0 = B.row<const signed char>(j + jj) + k;
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0] + 127;
@@ -1802,7 +1802,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             pp += 4;
             p0 += 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk < max_kk; kk++)
         {
             pp[0] = p0[0];
@@ -1822,7 +1822,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         transpose_pack_B_tile_int8_avxvnni(B, BT, j, max_jj, k, max_kk);
@@ -1985,7 +1985,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         const signed char* p0 = B.row<const signed char>(k) + (j + jj);
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0] + 127;
@@ -2023,7 +2023,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
             pp += 32;
             p0 += B_hstep * 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -2065,7 +2065,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         const signed char* p0 = B.row<const signed char>(k) + (j + jj);
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0] + 127;
@@ -2087,7 +2087,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
             pp += 16;
             p0 += B_hstep * 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -2118,7 +2118,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
 
         int kk = 0;
 #if __SSE2__
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0] + 127;
@@ -2132,7 +2132,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
             pp += 8;
             p0 += B_hstep * 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -2156,7 +2156,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         const signed char* p0 = B.row<const signed char>(k) + (j + jj);
 
         int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0] + 127;
@@ -2166,7 +2166,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
             pp += 4;
             p0 += B_hstep * 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk < max_kk; kk++)
         {
             pp[0] = p0[0];
@@ -2308,7 +2308,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         pack_A_tile_fp32_to_int8_avxvnni(A, AT, i, max_ii, k, max_kk, scales);
@@ -3330,7 +3330,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -3420,7 +3420,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 ((int*)pp)[7] = w_shift7 * 127;
                 pp += 32;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -3481,7 +3481,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -3571,7 +3571,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 ((int*)pp)[7] = w_shift7 * 127;
                 pp += 32;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -3632,7 +3632,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -3722,7 +3722,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 ((int*)pp)[7] = w_shift7 * 127;
                 pp += 32;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -3801,7 +3801,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -3851,7 +3851,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 ((int*)pp)[3] = w_shift3 * 127;
                 pp += 16;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -3880,7 +3880,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -3930,7 +3930,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 ((int*)pp)[3] = w_shift3 * 127;
                 pp += 16;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -3969,7 +3969,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         {
             int kk = 0;
 #if __SSE2__
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -3999,7 +3999,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 ((int*)pp)[1] = w_shift1 * 127;
                 pp += 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -4028,7 +4028,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         // if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -4048,7 +4048,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 ((int*)pp)[0] = w_shift * 127;
                 pp += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -4179,7 +4179,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         transpose_pack_A_tile_fp32_to_int8_avxvnni(A, AT, i, max_ii, k, max_kk, scales);
@@ -6483,7 +6483,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -6640,7 +6640,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[7] = w_shift7 * 127;
                 pp += 32;
             }
-#else // __AVX512VNNI__
+#else // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -6769,12 +6769,12 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
 
                 p0 += A_hstep * 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -6864,7 +6864,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[7] = w_shift7 * 127;
                 pp += 32;
             }
-#else // __AVX512VNNI__
+#else // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -6930,12 +6930,12 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
 #endif
                 p0 += A_hstep * 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -7025,7 +7025,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[7] = w_shift7 * 127;
                 pp += 32;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -7342,7 +7342,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -7427,7 +7427,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[3] = w_shift3 * 127;
                 pp += 16;
             }
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -7469,13 +7469,13 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 pp += 32;
                 p0 += A_hstep * 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
 #endif // __AVX__
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -7525,7 +7525,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[3] = w_shift3 * 127;
                 pp += 16;
             }
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -7548,12 +7548,12 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 pp += 16;
                 p0 += A_hstep * 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             int w_shift2 = 0;
@@ -7603,7 +7603,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[3] = w_shift3 * 127;
                 pp += 16;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -7775,13 +7775,13 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
                 pp[0] = float2int8(p0[0] * scale0);
                 pp[1] = float2int8(p0[1] * scale0);
                 pp[2] = float2int8(p0[2] * scale0);
@@ -7814,7 +7814,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 w_shift1 += pp[13];
                 w_shift1 += pp[14];
                 w_shift1 += pp[15];
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                 pp[0] = float2int8(p0[0] * scale0);
                 pp[1] = float2int8(p0[1] * scale0);
                 pp[2] = float2int8(p0[8] * scale1);
@@ -7831,30 +7831,30 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 pp[13] = float2int8(p0[7] * scale0);
                 pp[14] = float2int8(p0[14] * scale1);
                 pp[15] = float2int8(p0[15] * scale1);
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
                 pp += 16;
                 p0 += A_hstep * 8;
             }
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             if (max_kk >= 4)
             {
                 ((int*)pp)[0] = w_shift0 * 127;
                 ((int*)pp)[1] = w_shift1 * 127;
                 pp += 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
 #endif // __AVX__
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
                 pp[0] = float2int8(p0[0] * scale0);
                 pp[1] = float2int8(p0[1] * scale0);
                 pp[2] = float2int8(p0[2] * scale0);
@@ -7871,7 +7871,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 w_shift1 += pp[5];
                 w_shift1 += pp[6];
                 w_shift1 += pp[7];
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                 pp[0] = float2int8(p0[0] * scale0);
                 pp[1] = float2int8(p0[1] * scale0);
                 pp[2] = float2int8(p0[4] * scale1);
@@ -7880,18 +7880,18 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 pp[5] = float2int8(p0[3] * scale0);
                 pp[6] = float2int8(p0[6] * scale1);
                 pp[7] = float2int8(p0[7] * scale1);
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
                 pp += 8;
                 p0 += A_hstep * 4;
             }
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             if (max_kk >= 4)
             {
                 ((int*)pp)[0] = w_shift0 * 127;
                 ((int*)pp)[1] = w_shift1 * 127;
                 pp += 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
 #endif // __SSE2__
         if (elempack == 1)
@@ -7900,7 +7900,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
 
             int kk = 0;
 #if __SSE2__
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift0 = 0;
             int w_shift1 = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -7930,7 +7930,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[1] = w_shift1 * 127;
                 pp += 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale0);
@@ -8022,9 +8022,9 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift = 0;
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -8035,7 +8035,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 pp[5] = float2int8(p0[5] * scale);
                 pp[6] = float2int8(p0[6] * scale);
                 pp[7] = float2int8(p0[7] * scale);
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
                 w_shift += pp[0];
                 w_shift += pp[1];
                 w_shift += pp[2];
@@ -8044,53 +8044,53 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 w_shift += pp[5];
                 w_shift += pp[6];
                 w_shift += pp[7];
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
                 pp += 8;
                 p0 += A_hstep * 8;
             }
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             if (max_kk >= 4)
             {
                 ((int*)pp)[0] = w_shift * 127;
                 pp += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
 #endif // __AVX__
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift = 0;
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale);
                 pp[1] = float2int8(p0[1] * scale);
                 pp[2] = float2int8(p0[2] * scale);
                 pp[3] = float2int8(p0[3] * scale);
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
                 w_shift += pp[0];
                 w_shift += pp[1];
                 w_shift += pp[2];
                 w_shift += pp[3];
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
                 pp += 4;
                 p0 += A_hstep * 4;
             }
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             if (max_kk >= 4)
             {
                 ((int*)pp)[0] = w_shift * 127;
                 pp += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
 #endif // __SSE2__
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             int w_shift = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -8110,7 +8110,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 ((int*)pp)[0] = w_shift * 127;
                 pp += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -8196,7 +8196,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         pack_B_tile_fp32_to_int8_avxvnni(B, BT, j, max_jj, k, max_kk, scale);
@@ -8772,7 +8772,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -8810,7 +8810,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 32;
                 p0 += 32;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -8852,7 +8852,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -8890,7 +8890,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 32;
                 p0 += 16;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -8931,7 +8931,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -8969,7 +8969,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 32;
                 p0 += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -9016,7 +9016,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -9039,7 +9039,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 16;
                 p0 += 16;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -9068,7 +9068,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -9091,7 +9091,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 16;
                 p0 += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -9127,7 +9127,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         {
             int kk = 0;
 #if __SSE2__
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -9141,7 +9141,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 8;
                 p0 += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -9168,7 +9168,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         // if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -9178,7 +9178,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 4;
                 p0 += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -9199,7 +9199,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         transpose_pack_B_tile_fp32_to_int8_avxvnni(B, BT, j, max_jj, k, max_kk, scale);
@@ -10643,7 +10643,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -10715,7 +10715,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 64;
                 p0 += B_hstep * 8;
             }
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -10792,13 +10792,13 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
 
                 p0 += B_hstep * 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
 #endif // __AVX__
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -10836,7 +10836,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 32;
                 p0 += B_hstep * 4;
             }
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -10876,12 +10876,12 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 32;
                 p0 += B_hstep * 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -10919,7 +10919,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 32;
                 p0 += B_hstep * 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -11125,7 +11125,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -11165,7 +11165,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 32;
                 p0 += B_hstep * 8;
             }
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -11207,13 +11207,13 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 32;
                 p0 += B_hstep * 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
 #endif // __AVX__
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -11236,7 +11236,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 16;
                 p0 += B_hstep * 4;
             }
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -11259,12 +11259,12 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 16;
                 p0 += B_hstep * 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
         }
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -11287,7 +11287,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 16;
                 p0 += B_hstep * 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -11413,7 +11413,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
                 pp[0] = float2int8(p0[0] * scale) + 127;
                 pp[1] = float2int8(p0[1] * scale) + 127;
                 pp[2] = float2int8(p0[2] * scale) + 127;
@@ -11430,7 +11430,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[13] = float2int8(p0[13] * scale) + 127;
                 pp[14] = float2int8(p0[14] * scale) + 127;
                 pp[15] = float2int8(p0[15] * scale) + 127;
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                 pp[0] = float2int8(p0[0] * scale);
                 pp[1] = float2int8(p0[1] * scale);
                 pp[2] = float2int8(p0[8] * scale);
@@ -11447,7 +11447,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[13] = float2int8(p0[7] * scale);
                 pp[14] = float2int8(p0[14] * scale);
                 pp[15] = float2int8(p0[15] * scale);
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
                 pp += 16;
                 p0 += B_hstep * 8;
             }
@@ -11458,7 +11458,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
                 pp[0] = float2int8(p0[0] * scale) + 127;
                 pp[1] = float2int8(p0[1] * scale) + 127;
                 pp[2] = float2int8(p0[2] * scale) + 127;
@@ -11467,7 +11467,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[5] = float2int8(p0[5] * scale) + 127;
                 pp[6] = float2int8(p0[6] * scale) + 127;
                 pp[7] = float2int8(p0[7] * scale) + 127;
-#else  // __AVX512VNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                 pp[0] = float2int8(p0[0] * scale);
                 pp[1] = float2int8(p0[1] * scale);
                 pp[2] = float2int8(p0[4] * scale);
@@ -11476,7 +11476,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[5] = float2int8(p0[3] * scale);
                 pp[6] = float2int8(p0[6] * scale);
                 pp[7] = float2int8(p0[7] * scale);
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
                 pp += 8;
                 p0 += B_hstep * 4;
             }
@@ -11486,7 +11486,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         {
             int kk = 0;
 #if __SSE2__
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -11500,7 +11500,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 8;
                 p0 += B_hstep * 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -11584,7 +11584,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[5] = float2int8(p0[5] * scale);
                 pp[6] = float2int8(p0[6] * scale);
                 pp[7] = float2int8(p0[7] * scale);
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
                 pp[0] += 127;
                 pp[1] += 127;
                 pp[2] += 127;
@@ -11593,7 +11593,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[5] += 127;
                 pp[6] += 127;
                 pp[7] += 127;
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
                 pp += 8;
                 p0 += B_hstep * 8;
             }
@@ -11608,12 +11608,12 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp[1] = float2int8(p0[1] * scale);
                 pp[2] = float2int8(p0[2] * scale);
                 pp[3] = float2int8(p0[3] * scale);
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
                 pp[0] += 127;
                 pp[1] += 127;
                 pp[2] += 127;
                 pp[3] += 127;
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
                 pp += 4;
                 p0 += B_hstep * 4;
             }
@@ -11622,7 +11622,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = float2int8(p0[0] * scale) + 127;
@@ -11632,7 +11632,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 4;
                 p0 += B_hstep * 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float2int8(p0[0] * scale);
@@ -17146,7 +17146,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         gemm_transB_packed_tile_int8_avxvnni(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
@@ -18081,7 +18081,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
@@ -18115,7 +18115,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum7 = _mm256_sub_epi32(_sum7, _w_shift1);
                 pA += 32;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
@@ -18238,7 +18238,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
@@ -18263,7 +18263,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum3 = _mm256_sub_epi32(_sum3, _w_shift1);
                 pA += 32;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
@@ -18346,7 +18346,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m256i _pA = _mm256_loadu_si256((const __m256i*)pA);
@@ -18364,7 +18364,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum1 = _mm256_sub_epi32(_sum1, _w_shift);
                 pA += 32;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
@@ -18431,7 +18431,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m256i _pA = _mm256_loadu_si256((const __m256i*)pA);
@@ -18446,7 +18446,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum0 = _mm256_sub_epi32(_sum0, _w_shift);
                 pA += 32;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
@@ -18484,12 +18484,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         }
 
         pAT += max_kk * 8;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         if (max_kk >= 4)
         {
             pAT += 32;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
     }
 #endif // __AVX2__
     for (; ii + 3 < max_ii; ii += 4)
@@ -18648,7 +18648,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _pA0 = _mm_loadu_si128((const __m128i*)pA);
@@ -18682,7 +18682,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum7 = _mm_sub_epi32(_sum7, _w_shift1);
                 pA += 16;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_castpd_si128(_mm_load1_pd((const double*)pA));
@@ -18848,7 +18848,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _pA0 = _mm_loadu_si128((const __m128i*)pA);
@@ -18872,7 +18872,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum3 = _mm_sub_epi32(_sum3, _w_shift1);
                 pA += 16;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_loadl_epi64((const __m128i*)pA);
@@ -18993,7 +18993,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
@@ -19011,7 +19011,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum1 = _mm_sub_epi32(_sum1, _w_shift);
                 pA += 16;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_loadl_epi64((const __m128i*)pA);
@@ -19106,7 +19106,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
 
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
@@ -19121,7 +19121,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum0 = _mm_sub_epi32(_sum0, _w_shift);
                 pA += 16;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_loadl_epi64((const __m128i*)pA);
@@ -19177,12 +19177,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         }
 
         pAT += max_kk * 4;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         if (max_kk >= 4)
         {
             pAT += 16;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
     }
 #endif // __SSE2__
     for (; ii + 1 < max_ii; ii += 2)
@@ -19304,7 +19304,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _pA0 = _mm_castpd_si128(_mm_load1_pd((const double*)pA));
@@ -19328,7 +19328,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum3 = _mm_sub_epi32(_sum3, _w_shift1);
                 pA += 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
@@ -19431,7 +19431,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _pA = _mm_castpd_si128(_mm_load1_pd((const double*)pA));
@@ -19449,7 +19449,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum1 = _mm_sub_epi32(_sum1, _w_shift);
                 pA += 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
@@ -19541,7 +19541,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 sum00 += pA[0] * ((unsigned char*)pB)[0];
@@ -19573,7 +19573,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 sum11 = sum11 - w_shift1;
                 pA += 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 sum00 += pA[0] * pB[0];
@@ -19623,7 +19623,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 sum0 += pA[0] * ((unsigned char*)pB)[0];
@@ -19645,7 +19645,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 sum1 = sum1 - w_shift1;
                 pA += 8;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 sum0 += pA[0] * pB[0];
@@ -19670,12 +19670,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         }
 
         pAT += max_kk * 2;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         if (max_kk >= 4)
         {
             pAT += 8;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
     }
     for (; ii < max_ii; ii += 1)
     {
@@ -19767,7 +19767,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
@@ -19785,7 +19785,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum1 = _mm_sub_epi32(_sum1, _w_shift);
                 pA += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_set1_epi16(((const short*)pA)[0]);
@@ -19856,7 +19856,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
@@ -19871,7 +19871,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum0 = _mm_sub_epi32(_sum0, _w_shift);
                 pA += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
@@ -19941,7 +19941,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 sum0 += pA[0] * ((unsigned char*)pB)[0];
@@ -19962,7 +19962,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 sum1 = sum1 - w_shift;
                 pA += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 sum0 += pA[0] * pB[0];
@@ -20000,7 +20000,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
                 sum += pA[0] * ((unsigned char*)pB)[0];
@@ -20016,7 +20016,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 sum = sum - w_shift;
                 pA += 4;
             }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk < max_kk; kk += 1)
             {
                 sum += pA[0] * pB[0];
@@ -20030,12 +20030,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         }
 
         pAT += max_kk;
-#if __AVX512VNNI__
+#if __AVX512VNNI__ || __AVXVNNI__
         if (max_kk >= 4)
         {
             pAT += 4;
         }
-#endif // __AVX512VNNI__
+#endif // __AVX512VNNI__ || __AVXVNNI__
     }
 }
 
