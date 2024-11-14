@@ -1084,4 +1084,12 @@ static NCNN_FORCEINLINE __m256 abs256_ps(__m256 x)
     return _mm256_and_ps(abs_mask, x);
 }
 
+static NCNN_FORCEINLINE __m256 remainder256_ps(__m256 x, __m256 y)
+{
+    const __m256 div_result = _mm256_div_ps(x, y);
+    const __m256 floor_result = _mm256_floor_ps(div_result);
+    const __m256 mul_result = _mm256_mul_ps(y, floor_result);
+    return _mm256_sub_ps(x, mul_result);
+}
+
 #endif // AVX_MATHFUN_H

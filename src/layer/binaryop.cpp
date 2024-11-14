@@ -237,6 +237,17 @@ struct binary_op_ratan2
     }
 };
 
+struct binary_op_remainder
+{
+    float operator()(const float& x, const float& y) const
+    {
+        const float div_result = x / y;
+        const float floor_result = floorf(div_result);
+        const float mul_result = floor_result * y;
+        return x - mul_result;
+    }
+};
+
 static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
     if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast<binary_op_add>(a, b, c, opt);
@@ -251,6 +262,7 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast<binary_op_pow>(b, a, c, opt);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast<binary_op_atan2>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast<binary_op_atan2>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_broadcast<binary_op_remainder>(a, b, c, opt);
 
     // should never reach here
 }
@@ -269,6 +281,7 @@ static void binary_op_scalar_inplace(Mat& bottom_top_blob, float b, int op_type,
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_scalar_inplace<binary_op_rpow>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_scalar_inplace<binary_op_atan2>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_scalar_inplace<binary_op_ratan2>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_scalar_inplace<binary_op_remainder>(bottom_top_blob, b, opt);
 
     // should never reach here
 }

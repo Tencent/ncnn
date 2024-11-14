@@ -253,6 +253,11 @@ void main()
         res[1] = atan(v2[1], v1[1]);
 #endif
     }
+    if (op_type == 12)
+    {
+        res[0] = v1[0] - floorf(v1[0] / v2[0]) * v2[0];
+        res[1] = v1[1] - floorf(v1[1] / v2[1]) * v2[1];
+    }
 
 #if NCNN_image_shader
     image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);

@@ -1154,4 +1154,17 @@ static NCNN_FORCEINLINE __m128 abs_ps(__m128 x)
     return _mm_and_ps(abs_mask, x);
 }
 
+static NCNN_FORCEINLINE __m128 remainder_ps(__m128 x, __m128 y)
+{
+    const __m128 div_result = _mm_div_ps(x, y);
+    // Need SSE4.1
+    // const __m128 floor_result = _mm_floor_ps(div_result);
+    const __m128 trunc_result = _mm_cvtepi32_ps(_mm_cvttps_epi32(div_result));
+    const __m128 cmp = _mm_cmplt_ps(div_result, trunc_result);
+    const __m128 one = _mm_set1_ps(1.0f);
+    const __m128 floor_result = _mm_sub_ps(trunc_result, _mm_and_ps(cmp, one));
+    const __m128 mul_result = _mm_mul_ps(y, floor_result);
+    return _mm_sub_ps(x, mul_result);
+}
+
 #endif // SSE_MATHFUN_H

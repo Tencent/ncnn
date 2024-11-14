@@ -789,6 +789,35 @@ struct binary_op_ratan2
 #endif // __SSE2__
 };
 
+struct binary_op_remainder
+{
+    float func(const float& x, const float& y) const
+    {
+        const float div_result = x / y;
+        const float floor_result = floorf(div_result);
+        const float mul_result = floor_result * y;
+        return x - mul_result;
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x, const __m128& y) const
+    {
+        return remainder_ps(x, y);
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x, const __m256& y) const
+    {
+        return remainder256_ps(x, y);
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x, const __m512& y) const
+    {
+        return remainder512_ps(x, y);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
 } // namespace BinaryOp_x86_functor
 
 static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr, int aw, int bw, int ap, int bp, int op_type)
@@ -807,6 +836,7 @@ static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr,
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_vector<binary_op_rpow>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_vector<binary_op_atan2>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_vector<binary_op_ratan2>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_vector<binary_op_remainder>(ptr, ptr1, outptr, aw, bw, ap, bp);
 
     // should never reach here
 }
