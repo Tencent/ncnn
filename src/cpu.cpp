@@ -183,6 +183,9 @@ static int g_cpu_support_x86_xop;
 static int g_cpu_support_x86_f16c;
 static int g_cpu_support_x86_avx2;
 static int g_cpu_support_x86_avx_vnni;
+static int g_cpu_support_x86_avx_vnni_int8;
+static int g_cpu_support_x86_avx_vnni_int16;
+static int g_cpu_support_x86_avx_ne_convert;
 static int g_cpu_support_x86_avx512;
 static int g_cpu_support_x86_avx512_vnni;
 static int g_cpu_support_x86_avx512_bf16;
@@ -615,6 +618,72 @@ static int get_cpu_support_x86_avx_vnni()
 
     x86_cpuid_sublevel(7, 1, cpu_info);
     return cpu_info[0] & (1u << 4);
+}
+
+static int get_cpu_support_x86_avx_vnni_int8()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[3] & (1u << 4);
+}
+
+static int get_cpu_support_x86_avx_vnni_int16()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[3] & (1u << 10);
+}
+
+static int get_cpu_support_x86_avx_ne_convert()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[3] & (1u << 5);
 }
 
 static int get_cpu_support_x86_avx512()
@@ -1967,6 +2036,9 @@ static void initialize_global_cpu_info()
     g_cpu_support_x86_f16c = get_cpu_support_x86_f16c();
     g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
     g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
+    g_cpu_support_x86_avx_vnni_int8 = get_cpu_support_x86_avx_vnni_int8();
+    g_cpu_support_x86_avx_vnni_int16 = get_cpu_support_x86_avx_vnni_int16();
+    g_cpu_support_x86_avx_ne_convert = get_cpu_support_x86_avx_ne_convert();
     g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
     g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
     g_cpu_support_x86_avx512_bf16 = get_cpu_support_x86_avx512_bf16();
@@ -2484,6 +2556,36 @@ int cpu_support_x86_avx_vnni()
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_avx_vnni;
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx_vnni_int8()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_avx_vnni_int8;
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx_vnni_int16()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_avx_vnni_int16;
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx_ne_convert()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_avx_ne_convert;
 #else
     return 0;
 #endif
