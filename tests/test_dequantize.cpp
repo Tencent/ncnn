@@ -46,7 +46,11 @@ static int test_dequantize_pack8(const ncnn::Mat& a, int scale_data_size, int bi
     if (bias_data_size)
         weights[1] = RandomMat(bias_data_size);
 
+#if NCNN_RVV
+    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_ENABLE_FORCE_INPUT_PACKVLENB;
+#else
     int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_ENABLE_FORCE_INPUT_PACK8;
+#endif
     int ret = test_layer("Dequantize", pd, weights, a, 0.001, 0, flag);
     if (ret != 0)
     {
