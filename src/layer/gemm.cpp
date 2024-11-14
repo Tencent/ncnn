@@ -241,17 +241,8 @@ static void gemm_transB_int8(const Mat& A_int8, const Mat& BT_int8, const Mat& A
             int sum = 0;
             for (int k = 0; k < K; k++)
             {
-                // if (M==4 && N==7)
-                // {
-                //     NCNN_LOGE("ptrA[%d] %d %d", k, ptrA[k], ptrBT[k]);
-                // }
                 sum += ptrA[k] * ptrBT[k];
             }
-
-            // if (M==4 && N==7)
-            // {
-            //     NCNN_LOGE("sum %d", sum);
-            // }
 
             float sum_fp32 = sum * descale;
 

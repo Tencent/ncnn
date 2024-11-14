@@ -19583,8 +19583,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             else
             {
                 sum00 = outptr[0];
-                sum01 = outptr[2];
-                sum10 = outptr[1];
+                sum01 = outptr[1];
+                sum10 = outptr[2];
                 sum11 = outptr[3];
             }
 
@@ -20112,12 +20112,12 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
     TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
 
-#if __SSE2__
-#if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+    TILE_N = std::max(16, tile_size / 16 * 16);
+#elif defined(__x86_64__) || defined(_M_X64)
     TILE_N = std::max(8, tile_size / 8 * 8);
-#else
+#elif __SSE2__
     TILE_N = std::max(4, tile_size / 4 * 4);
-#endif
 #else
     TILE_N = std::max(1, tile_size);
 #endif
@@ -20149,12 +20149,12 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
             TILE_M = std::max(2, tile_size / 2 * 2);
 #endif
 
-#if __SSE2__
-#if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+            TILE_N = std::max(16, tile_size / 16 * 16);
+#elif defined(__x86_64__) || defined(_M_X64)
             TILE_N = std::max(8, tile_size / 8 * 8);
-#else
+#elif __SSE2__
             TILE_N = std::max(4, tile_size / 4 * 4);
-#endif
 #else
             TILE_N = std::max(1, tile_size);
 #endif
@@ -20180,12 +20180,12 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
     if (N > 0)
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
-#if __SSE2__
-#if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 15) / 16 * 16);
+#elif defined(__x86_64__) || defined(_M_X64)
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
-#else
+#elif __SSE2__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
-#endif
 #else
         TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
 #endif
@@ -20220,12 +20220,12 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 
     if (constant_TILE_N > 0)
     {
-#if __SSE2__
-#if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+        TILE_N = (constant_TILE_N + 15) / 16 * 16;
+#elif defined(__x86_64__) || defined(_M_X64)
         TILE_N = (constant_TILE_N + 7) / 8 * 8;
-#else
+#elif __SSE2__
         TILE_N = (constant_TILE_N + 3) / 4 * 4;
-#endif
 #else
         TILE_N = constant_TILE_N;
 #endif
