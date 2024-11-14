@@ -62,6 +62,19 @@ static void print(__m512 x)
 }
 #endif
 
+#if __AVX__
+static void print(__m256 x)
+{
+    float a[8];
+    _mm256_storeu_ps(a, x);
+    for (int i = 0; i < 8; i++)
+    {
+        fprintf(stderr, "%.0f ", a[i]);
+    }
+    fprintf(stderr, "\n");
+}
+#endif
+
 static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
@@ -3835,13 +3848,12 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 p0++;
             }
         }
-    }
+
 #if !__AVX2__
-    if (max_ii >= 8)
-    {
         pp = pp1;
-    }
+        pp1 = pp + max_kk * 4;
 #endif
+    }
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
     {
@@ -7139,13 +7151,12 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 p0 += A_hstep;
             }
         }
-    }
+
 #if !__AVX2__
-    if (max_ii >= 8)
-    {
         pp = pp1;
-    }
+        pp1 = pp + max_kk * 4;
 #endif
+    }
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
     {
@@ -15361,13 +15372,12 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
             }
         }
-    }
+
 #if !__AVX2__
-    if (max_ii >= 8)
-    {
         pp = pp1;
-    }
+        pp1 = pp + max_jj * 4;
 #endif
+    }
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
     {
