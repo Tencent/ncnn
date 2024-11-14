@@ -3837,7 +3837,10 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         }
     }
 #if !__AVX2__
-    pp = pp1;
+    if (max_ii >= 8)
+    {
+        pp = pp1;
+    }
 #endif
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
@@ -7138,7 +7141,10 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         }
     }
 #if !__AVX2__
-    pp = pp1;
+    if (max_ii >= 8)
+    {
+        pp = pp1;
+    }
 #endif
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
@@ -15357,7 +15363,10 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
     }
 #if !__AVX2__
-    pp = pp1;
+    if (max_ii >= 8)
+    {
+        pp = pp1;
+    }
 #endif
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
