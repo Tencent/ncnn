@@ -73,8 +73,8 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 // dft
                 double angle = 2 * M_PI * i * k / n_fft;
 
-                re += v * cos(angle);// + imag * sin(angle);
-                im -= v * sin(angle);// + imag * cos(angle);
+                re += v * cos(angle); // + imag * sin(angle);
+                im -= v * sin(angle); // + imag * cos(angle);
             }
 
             // fprintf(stderr, "%.2f %.2f      %.2f      %.2f\n", re, im, magnitude, power);
