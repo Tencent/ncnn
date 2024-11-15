@@ -1,0 +1,99 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#include "spectrogram.h"
+
+namespace ncnn {
+
+Spectrogram::Spectrogram()
+{
+    one_blob_only = true;
+    support_inplace = false;
+}
+
+int Spectrogram::load_param(const ParamDict& pd)
+{
+    n_fft = pd.get(0, 0);
+    power = pd.get(1, 2);
+    hoplen = pd.get(2, n_fft / 4);
+    winlen = pd.get(3, n_fft);
+
+    return 0;
+}
+
+int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    // https://pytorch.org/audio/stable/generated/torchaudio.functional.spectrogram.html
+
+    // TODO custom window
+    // TODO padding for center=True
+    // TODO padding pad_mode=reflect
+    // TODO winlen normalized
+
+    const int size = bottom_blob.w;
+
+    // const int frames = size / hoplen + 1;
+    const int frames = (size - n_fft) / hoplen + 1;
+    const int freqs = n_fft / 2 + 1;
+
+    const size_t elemsize = bottom_blob.elemsize;
+
+    top_blob.create(frames, freqs, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < freqs; i++)
+    {
+        const float* ptr = bottom_blob;
+        float* outptr = top_blob.row(i);
+
+        for (int j = 0; j < frames; j++)
+        {
+            float re = 0.f;
+            float im = 0.f;
+            for (int k = 0; k < winlen; k++)
+            {
+                float v = ptr[k];
+
+                // apply hann window
+                v *= 0.5f * (1 - cos(2 * M_PI * k / winlen));
+
+                // dft
+                double angle = 2 * M_PI * i * k / n_fft;
+
+                re += v * cos(angle);// + imag * sin(angle);
+                im -= v * sin(angle);// + imag * cos(angle);
+            }
+
+            // fprintf(stderr, "%.2f %.2f      %.2f      %.2f\n", re, im, magnitude, power);
+
+            if (power == 1)
+            {
+                // magnitude
+                outptr[j] = sqrt(re * re + im * im);
+            }
+            else // if (power == 2)
+            {
+                outptr[j] = re * re + im * im;
+            }
+
+            ptr += hoplen;
+        }
+    }
+
+    return 0;
+}
+
+} // namespace ncnn
