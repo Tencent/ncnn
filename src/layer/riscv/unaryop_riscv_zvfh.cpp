@@ -113,7 +113,7 @@ struct unary_op_rsqrt_fp16s
 {
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-#if C906
+#if __riscv_xtheadvector
         vfloat16m8_t _reciprocal = __riscv_vfrdiv_vf_f16m8(__riscv_vfsqrt_v_f16m8(x, vl), 1.f, vl);
 #else
         vfloat16m8_t _reciprocal = __riscv_vfrsqrt7_v_f16m8(x, vl);
@@ -220,7 +220,7 @@ struct unary_op_reciprocal_fp16s
 {
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-#if C906
+#if __riscv_xtheadvector
         vfloat16m8_t _reciprocal = __riscv_vfrdiv_vf_f16m8(x, 1.f, vl);
 #else
         vfloat16m8_t _reciprocal = __riscv_vfrec7_v_f16m8(x, vl);
@@ -259,7 +259,7 @@ struct unary_op_trunc_fp16s
 {
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-#if C906
+#if __riscv_xtheadvector
         // simulate trunc with floor positives and ceil negative
         // xi = round(x)
         // floorx = xi - (xi > x)
@@ -272,7 +272,7 @@ struct unary_op_trunc_fp16s
         vbool2_t _ceilmask = __riscv_vmflt_vv_f16m8_b2(_xf, x, vl);
         vint16m8_t _ceilx = __riscv_vadd_vx_i16m8_mu(_ceilmask, _xi, _xi, 1, vl);
         vbool2_t _negative = __riscv_vmflt_vf_f16m8_b2(x, 0.f, vl);
-        return __riscv_vfcvt_f_x_v_f16m8(__riscv_vmerge_vvm_i16m8(_negative, _floorx, _ceilx, vl), vl);
+        return __riscv_vfcvt_f_x_v_f16m8(__riscv_vmerge_vvm_i16m8(_floorx, _ceilx, _negative, vl), vl);
 #else
         return __riscv_vfcvt_f_x_v_f16m8(__riscv_vfcvt_rtz_x_f_v_i16m8(x, vl), vl);
 #endif

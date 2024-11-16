@@ -365,7 +365,7 @@ _RVV_FLOAT16_POW_OP(2, 8)
 _RVV_FLOAT16_POW_OP(4, 4)
 _RVV_FLOAT16_POW_OP(8, 2)
 
-#if C906
+#if __riscv_xtheadvector
 #define _RVV_FLOAT16_SIGMOID_OP(LMUL, MLEN)                                                                                                                        \
     static inline vfloat16m##LMUL##_t sigmoid_ps(vfloat16m##LMUL##_t _v, size_t vl)                                                                                \
     {                                                                                                                                                              \
@@ -377,7 +377,7 @@ _RVV_FLOAT16_POW_OP(8, 2)
         /* _reciprocal = __riscv_vfmul_vv_f16m##LMUL(__riscv_vfrsub_vf_f16m##LMUL(__riscv_vfmul_vv_f16m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl); */ \
         return _reciprocal;                                                                                                                                        \
     }
-#else // C906
+#else // __riscv_xtheadvector
 #define _RVV_FLOAT16_SIGMOID_OP(LMUL, MLEN)                                                                                                                        \
     static inline vfloat16m##LMUL##_t sigmoid_ps(vfloat16m##LMUL##_t _v, size_t vl)                                                                                \
     {                                                                                                                                                              \
@@ -389,7 +389,7 @@ _RVV_FLOAT16_POW_OP(8, 2)
         /* _reciprocal = __riscv_vfmul_vv_f16m##LMUL(__riscv_vfrsub_vf_f16m##LMUL(__riscv_vfmul_vv_f16m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl); */ \
         return _reciprocal;                                                                                                                                        \
     }
-#endif // C906
+#endif // __riscv_xtheadvector
 
 _RVV_FLOAT16_SIGMOID_OP(1, 16)
 _RVV_FLOAT16_SIGMOID_OP(2, 8)

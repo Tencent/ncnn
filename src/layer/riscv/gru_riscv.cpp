@@ -18,6 +18,8 @@
 #include <riscv_vector.h>
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 //core rvv-optimized gru impl.
