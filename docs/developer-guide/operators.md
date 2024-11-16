@@ -1277,6 +1277,7 @@ y = affine(out)
 | 4         | vdim          | int   | embed_dim |                   |
 | 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
+| 18        | int8_scale_term | int | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1288,6 +1289,10 @@ y = affine(out)
 | v_bias_data   | float | [embed_dim]           |
 | out_weight_data| float/fp16/int8 | [qdim * embed_dim] |
 | out_bias_data | float | [qdim]                |
+| q_weight_data_int8_scales| float | [embed_dim] |
+| k_weight_data_int8_scales| float | [embed_dim] |
+| v_weight_data_int8_scales| float | [embed_dim] |
+| out_weight_data_int8_scales| float | [1]      |
 
 # MVN
 ```

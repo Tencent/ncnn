@@ -207,6 +207,10 @@ public:
     const char* device_name() const;
     uint8_t* pipeline_cache_uuid() const;
 
+    // driver properties
+    uint32_t driver_id() const;
+    const char* driver_name() const;
+
     // 0 = discrete gpu
     // 1 = integrated gpu
     // 2 = virtual gpu
@@ -287,6 +291,7 @@ public:
     int support_VK_KHR_cooperative_matrix() const;
     int support_VK_KHR_dedicated_allocation() const;
     int support_VK_KHR_descriptor_update_template() const;
+    int support_VK_KHR_driver_properties() const;
     int support_VK_KHR_external_memory() const;
     int support_VK_KHR_get_memory_requirements2() const;
     int support_VK_KHR_maintenance1() const;
@@ -336,6 +341,7 @@ public:
     const GpuInfo& info;
 
     VkDevice vkdevice() const;
+    bool is_valid() const;
 
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 
