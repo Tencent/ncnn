@@ -25,7 +25,7 @@ Spectrogram::Spectrogram()
 int Spectrogram::load_param(const ParamDict& pd)
 {
     n_fft = pd.get(0, 0);
-    power = pd.get(1, 2);
+    power = pd.get(1, 0);
     hoplen = pd.get(2, n_fft / 4);
     winlen = pd.get(3, n_fft);
 
@@ -40,6 +40,7 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     // TODO padding for center=True
     // TODO padding pad_mode=reflect
     // TODO winlen normalized
+    // TODO onesided=False
 
     const int size = bottom_blob.w;
 
@@ -49,7 +50,14 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     const size_t elemsize = bottom_blob.elemsize;
 
-    top_blob.create(frames, freqs, elemsize, opt.blob_allocator);
+    if (power == 0)
+    {
+        top_blob.create(2, frames, freqs, elemsize, opt.blob_allocator);
+    }
+    else
+    {
+        top_blob.create(frames, freqs, elemsize, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
@@ -79,14 +87,23 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             // fprintf(stderr, "%.2f %.2f      %.2f      %.2f\n", re, im, magnitude, power);
 
+            if (power == 0)
+            {
+                // complex as real
+                outptr[0] = re;
+                outptr[1] = im;
+                outptr += 2;
+            }
             if (power == 1)
             {
                 // magnitude
-                outptr[j] = sqrt(re * re + im * im);
+                outptr[0] = sqrt(re * re + im * im);
+                outptr += 1;
             }
-            else // if (power == 2)
+            if (power == 2)
             {
-                outptr[j] = re * re + im * im;
+                outptr[0] = re * re + im * im;
+                outptr += 1;
             }
 
             ptr += hoplen;

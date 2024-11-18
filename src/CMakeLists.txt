@@ -168,6 +168,7 @@ ncnn_add_layer(CELU)
 ncnn_add_layer(Shrink)
 ncnn_add_layer(RMSNorm)
 ncnn_add_layer(Spectrogram)
+ncnn_add_layer(InverseSpectrogram)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
