@@ -570,6 +570,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_cumsum.cpp
     pass_ncnn/torch_diag.cpp
     pass_ncnn/torch_flatten.cpp
+    pass_ncnn/torch_istft.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp
     pass_ncnn/torch_max.cpp
@@ -582,6 +583,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_slice_scatter.cpp
     pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_sum.cpp
+    pass_ncnn/torch_stft.cpp
     pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
