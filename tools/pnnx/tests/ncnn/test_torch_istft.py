@@ -25,9 +25,9 @@ class Model(nn.Module):
         y = torch.view_as_complex(y)
         z = torch.view_as_complex(z)
         w = torch.view_as_complex(w)
-        out0 = torch.istft(x, n_fft=64, center=True, normalized=True, return_complex=False)
+        out0 = torch.istft(x, n_fft=64, window=torch.hann_window(64), center=True, normalized=True, return_complex=False)
         out1 = torch.istft(y, n_fft=128, center=False, onesided=True, return_complex=False)
-        out2 = torch.istft(z, n_fft=512, center=True, onesided=True, return_complex=False)
+        out2 = torch.istft(z, n_fft=512, window=torch.hamming_window(256), win_length=256, hop_length=128, center=True, onesided=True, return_complex=False)
         out3 = torch.istft(w, n_fft=512, center=False, onesided=False, return_complex=True)
         out3 = torch.view_as_real(out3)
         return out0, out1, out2, out3
@@ -37,8 +37,8 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 33, 161, 2)
-    y = torch.rand(1, 65, 77, 2)
+    x = torch.rand(33, 161, 2)
+    y = torch.rand(65, 77, 2)
     z = torch.rand(257, 8, 2)
     w = torch.rand(512, 4, 2)
 
@@ -50,14 +50,14 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_istft.pt inputshape=[3,33,161,2],[1,65,77,2],[257,8,2],[512,4,2]")
+    os.system("../../src/pnnx test_torch_istft.pt inputshape=[33,161,2],[65,77,2],[257,8,2],[512,4,2]")
 
     # ncnn inference
     import test_torch_istft_ncnn
     b = test_torch_istft_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 

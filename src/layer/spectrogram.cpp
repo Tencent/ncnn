@@ -128,7 +128,7 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             {
                 float v = ptr[k];
 
-                // apply hann window
+                // apply window
                 v *= window_data[k];
 
                 // dft

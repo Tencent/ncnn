@@ -30,9 +30,14 @@ public:
 
 public:
     int n_fft;
-    int power;
+    int returns; // 0=complex 1=real 2=imag
     int hoplen;
     int winlen;
+    int window_type; // 0=ones 1=hann 2=hamming
+    int center;
+    int normalized;
+
+    Mat window_data;
 };
 
 } // namespace ncnn
