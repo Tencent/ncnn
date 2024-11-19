@@ -30,8 +30,9 @@ int Spectrogram::load_param(const ParamDict& pd)
     winlen = pd.get(3, n_fft);
     window_type = pd.get(4, 0);
     center = pd.get(5, 1);
-    normalized = pd.get(6, 0);
-    onesided = pd.get(7, 1);
+    pad_type = pd.get(6, 2);
+    normalized = pd.get(7, 0);
+    onesided = pd.get(8, 1);
 
     // assert winlen <= n_fft
     // generate window
@@ -80,15 +81,18 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     // https://pytorch.org/audio/stable/generated/torchaudio.functional.spectrogram.html
 
     // TODO custom window
-    // TODO padding for center=True
-    // TODO padding pad_mode=reflect
 
     Mat bottom_blob_bordered = bottom_blob;
     if (center == 1)
     {
         Option opt_b = opt;
         opt_b.blob_allocator = opt.workspace_allocator;
-        copy_make_border(bottom_blob, bottom_blob_bordered, 0, 0, n_fft / 2, n_fft / 2, BORDER_REFLECT, 0.f, opt_b);
+        if (pad_type == 0)
+            copy_make_border(bottom_blob, bottom_blob_bordered, 0, 0, n_fft / 2, n_fft / 2, BORDER_CONSTANT, 0.f, opt_b);
+        if (pad_type == 1)
+            copy_make_border(bottom_blob, bottom_blob_bordered, 0, 0, n_fft / 2, n_fft / 2, BORDER_REPLICATE, 0.f, opt_b);
+        if (pad_type == 2)
+            copy_make_border(bottom_blob, bottom_blob_bordered, 0, 0, n_fft / 2, n_fft / 2, BORDER_REFLECT, 0.f, opt_b);
     }
 
     const int size = bottom_blob_bordered.w;
