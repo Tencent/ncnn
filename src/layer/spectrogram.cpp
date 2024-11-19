@@ -28,6 +28,49 @@ int Spectrogram::load_param(const ParamDict& pd)
     power = pd.get(1, 0);
     hoplen = pd.get(2, n_fft / 4);
     winlen = pd.get(3, n_fft);
+    window_type = pd.get(4, 0);
+    center = pd.get(5, 1);
+    normalized = pd.get(6, 0);
+    onesided = pd.get(7, 1);
+
+    // assert winlen <= n_fft
+    // generate window
+    window_data.create(n_fft);
+    {
+        float* p = window_data;
+        for (int i = 0; i < (n_fft - winlen) / 2; i++)
+        {
+            *p++ = 0.f;
+        }
+        if (window_type == 0)
+        {
+            // all ones
+            for (int i = 0; i < winlen; i++)
+            {
+                *p++ = 1.f;
+            }
+        }
+        if (window_type == 1)
+        {
+            // hann window
+            for (int i = 0; i < winlen; i++)
+            {
+                *p++ = 0.5f * (1 - cos(2 * M_PI * i / winlen));
+            }
+        }
+        if (window_type == 2)
+        {
+            // hamming window
+            for (int i = 0; i < winlen; i++)
+            {
+                *p++ = 0.54f - 0.46f * cos(2 * M_PI * i / winlen);
+            }
+        }
+        for (int i = 0; i < n_fft - winlen - (n_fft - winlen) / 2; i++)
+        {
+            *p++ = 0.f;
+        }
+    }
 
     return 0;
 }
@@ -39,16 +82,22 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     // TODO custom window
     // TODO padding for center=True
     // TODO padding pad_mode=reflect
-    // TODO winlen normalized
-    // TODO onesided=False
 
-    const int size = bottom_blob.w;
+    Mat bottom_blob_bordered = bottom_blob;
+    if (center == 1)
+    {
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob, bottom_blob_bordered, 0, 0, n_fft / 2, n_fft / 2, BORDER_REFLECT, 0.f, opt_b);
+    }
+
+    const int size = bottom_blob_bordered.w;
 
     // const int frames = size / hoplen + 1;
     const int frames = (size - n_fft) / hoplen + 1;
-    const int freqs = n_fft / 2 + 1;
+    const int freqs = onesided ? n_fft / 2 + 1 : n_fft;
 
-    const size_t elemsize = bottom_blob.elemsize;
+    const size_t elemsize = bottom_blob_bordered.elemsize;
 
     if (power == 0)
     {
@@ -64,19 +113,19 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < freqs; i++)
     {
-        const float* ptr = bottom_blob;
-        float* outptr = top_blob.row(i);
+        const float* ptr = bottom_blob_bordered;
+        float* outptr = power == 0 ? top_blob.channel(i) : top_blob.row(i);
 
         for (int j = 0; j < frames; j++)
         {
             float re = 0.f;
             float im = 0.f;
-            for (int k = 0; k < winlen; k++)
+            for (int k = 0; k < n_fft; k++)
             {
                 float v = ptr[k];
 
                 // apply hann window
-                v *= 0.5f * (1 - cos(2 * M_PI * k / winlen));
+                v *= window_data[k];
 
                 // dft
                 double angle = 2 * M_PI * i * k / n_fft;
@@ -86,6 +135,12 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
 
             // fprintf(stderr, "%.2f %.2f      %.2f      %.2f\n", re, im, magnitude, power);
+
+            if (normalized)
+            {
+                re /= sqrt(winlen);
+                im /= sqrt(winlen);
+            }
 
             if (power == 0)
             {

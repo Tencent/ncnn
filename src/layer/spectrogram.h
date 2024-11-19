@@ -33,6 +33,12 @@ public:
     int power;
     int hoplen;
     int winlen;
+    int window_type; // 0=ones 1=hann 2=hamming
+    int center;
+    int normalized;
+    int onesided;
+
+    Mat window_data;
 };
 
 } // namespace ncnn

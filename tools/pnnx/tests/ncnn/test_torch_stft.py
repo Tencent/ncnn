@@ -21,9 +21,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y):
-        out0 = torch.stft(x, n_fft=64, center=True, pad_mode='reflect', normalized=True, return_complex=True)
+        out0 = torch.stft(x, n_fft=64, window=torch.hann_window(64), center=True, pad_mode='reflect', normalized=True, return_complex=True)
         out1 = torch.stft(x, n_fft=128, center=False, onesided=True, return_complex=True)
-        out2 = torch.stft(y, n_fft=512, center=True, pad_mode='constant', onesided=True, return_complex=True)
+        out2 = torch.stft(y, n_fft=512, window=torch.hamming_window(256), win_length=256, hop_length=128, center=True, pad_mode='constant', onesided=True, return_complex=True)
         out3 = torch.stft(y, n_fft=512, center=False, onesided=False, return_complex=True)
         out0 = torch.view_as_real(out0)
         out1 = torch.view_as_real(out1)
@@ -36,7 +36,7 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 2560)
+    x = torch.rand(2560)
     y = torch.rand(1000)
 
     a = net(x, y)
@@ -47,7 +47,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_stft.pt inputshape=[3,2560],[1000]")
+    os.system("../../src/pnnx test_torch_stft.pt inputshape=[2560],[1000]")
 
     # ncnn inference
     import test_torch_stft_ncnn
