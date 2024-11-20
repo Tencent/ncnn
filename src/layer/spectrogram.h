@@ -35,7 +35,7 @@ public:
     int winlen;
     int window_type; // 0=ones 1=hann 2=hamming
     int center;
-    int pad_type; // 0=CONSTANT 1=REPLICATE 2=REFLECT
+    int pad_type;   // 0=CONSTANT 1=REPLICATE 2=REFLECT
     int normalized; // 0=disabled 1=sqrt(n_fft) 2=window-l2-energy
     int onesided;
 
