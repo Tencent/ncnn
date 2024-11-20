@@ -35,7 +35,7 @@ public:
     int winlen;
     int window_type; // 0=ones 1=hann 2=hamming
     int center;
-    int normalized;
+    int normalized; // 0=disabled 1=sqrt(n_fft) 2=window-l2-energy
 
     Mat window_data;
 };

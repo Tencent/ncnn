@@ -34,7 +34,7 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
 
     // assert winlen <= n_fft
     // generate window
-    window_data.create(n_fft);
+    window_data.create(normalized == 2 ? n_fft + 1 : n_fft);
     {
         float* p = window_data;
         for (int i = 0; i < (n_fft - winlen) / 2; i++)
@@ -68,6 +68,17 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
         for (int i = 0; i < n_fft - winlen - (n_fft - winlen) / 2; i++)
         {
             *p++ = 0.f;
+        }
+
+        // pre-calculated window norm factor
+        if (normalized == 2)
+        {
+            float sqsum = 0.f;
+            for (int i = 0; i < n_fft; i++)
+            {
+                sqsum += window_data[i] * window_data[i];
+            }
+            window_data[n_fft] = sqrt(sqsum);
         }
     }
 
@@ -134,11 +145,20 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             }
         }
 
-        if (normalized)
+        if (normalized == 1)
         {
+            float norm = sqrt(n_fft);
             for (int i = 0; i < 2 * n_fft; i++)
             {
-                sp[i] *= sqrt(winlen);
+                sp[i] *= norm;
+            }
+        }
+        if (normalized == 2)
+        {
+            float norm = window_data[n_fft];
+            for (int i = 0; i < 2 * n_fft; i++)
+            {
+                sp[i] *= norm;
             }
         }
 
