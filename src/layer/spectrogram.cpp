@@ -99,7 +99,8 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     // const int frames = size / hoplen + 1;
     const int frames = (size - n_fft) / hoplen + 1;
-    const int freqs = onesided ? n_fft / 2 + 1 : n_fft;
+    const int freqs_onesided = n_fft / 2 + 1;
+    const int freqs = onesided ? freqs_onesided : n_fft;
 
     const size_t elemsize = bottom_blob_bordered.elemsize;
 
@@ -114,8 +115,9 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (top_blob.empty())
         return -100;
 
+
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < freqs; i++)
+    for (int i = 0; i < freqs_onesided; i++)
     {
         const float* ptr = bottom_blob_bordered;
         float* outptr = power == 0 ? top_blob.channel(i) : top_blob.row(i);
@@ -166,6 +168,35 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
 
             ptr += hoplen;
+        }
+    }
+
+    if (!onesided)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = freqs_onesided; i < n_fft; i++)
+        {
+            if (power == 0)
+            {
+                const float* ptr = top_blob.channel(n_fft - i);
+                float* outptr = top_blob.channel(i);
+
+                for (int j = 0; j < frames; j++)
+                {
+                    // complex as real
+                    outptr[0] = ptr[0];
+                    outptr[1] = -ptr[1];
+                    ptr += 2;
+                    outptr += 2;
+                }
+            }
+            else // if (power == 1 || power == 2)
+            {
+                const float* ptr = top_blob.row(n_fft - i);
+                float* outptr = top_blob.row(i);
+
+                memcpy(outptr, ptr, frames * sizeof(float));
+            }
         }
     }
 
