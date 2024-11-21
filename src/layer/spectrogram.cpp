@@ -56,7 +56,7 @@ int Spectrogram::load_param(const ParamDict& pd)
             // hann window
             for (int i = 0; i < winlen; i++)
             {
-                *p++ = 0.5f * (1 - cos(2 * 3.1415927f * i / winlen));
+                *p++ = 0.5f * (1 - cosf(2 * 3.1415927f * i / winlen));
             }
         }
         if (window_type == 2)
@@ -64,7 +64,7 @@ int Spectrogram::load_param(const ParamDict& pd)
             // hamming window
             for (int i = 0; i < winlen; i++)
             {
-                *p++ = 0.54f - 0.46f * cos(2 * 3.1415927f * i / winlen);
+                *p++ = 0.54f - 0.46f * cosf(2 * 3.1415927f * i / winlen);
             }
         }
         for (int i = 0; i < n_fft - winlen - (n_fft - winlen) / 2; i++)
@@ -146,8 +146,8 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 // dft
                 double angle = 2 * 3.1415927f * i * k / n_fft;
 
-                re += v * cos(angle); // + imag * sin(angle);
-                im -= v * sin(angle); // + imag * cos(angle);
+                re += v * cosf(angle); // + imag * sinf(angle);
+                im -= v * sinf(angle); // + imag * cosf(angle);
             }
 
             if (normalized == 1)
