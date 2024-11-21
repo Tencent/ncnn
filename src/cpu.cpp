@@ -184,6 +184,9 @@ static int g_cpu_support_x86_xop;
 static int g_cpu_support_x86_f16c;
 static int g_cpu_support_x86_avx2;
 static int g_cpu_support_x86_avx_vnni;
+static int g_cpu_support_x86_avx_vnni_int8;
+static int g_cpu_support_x86_avx_vnni_int16;
+static int g_cpu_support_x86_avx_ne_convert;
 static int g_cpu_support_x86_avx512;
 static int g_cpu_support_x86_avx512_vnni;
 static int g_cpu_support_x86_avx512_bf16;
@@ -618,6 +621,72 @@ static int get_cpu_support_x86_avx_vnni()
     return cpu_info[0] & (1u << 4);
 }
 
+static int get_cpu_support_x86_avx_vnni_int8()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[3] & (1u << 4);
+}
+
+static int get_cpu_support_x86_avx_vnni_int16()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[3] & (1u << 10);
+}
+
+static int get_cpu_support_x86_avx_ne_convert()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[3] & (1u << 5);
+}
+
 static int get_cpu_support_x86_avx512()
 {
 #if __APPLE__
@@ -794,20 +863,66 @@ static int get_thread_siblings(int cpuid)
     char path[256];
     sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpuid);
 
-    FILE* fp = fopen(path, "rb");
-    if (!fp)
-        return -1;
-
-    int thread_siblings = -1;
-    int nscan = fscanf(fp, "%x", &thread_siblings);
-    if (nscan != 1)
+    FILE* fp = 0; //fopen(path, "rb");
+    if (fp)
     {
-        // ignore
+        int thread_siblings = -1;
+        int nscan = fscanf(fp, "%x", &thread_siblings);
+        if (nscan != 1)
+        {
+            // ignore
+        }
+
+        fclose(fp);
+
+        return thread_siblings;
     }
 
-    fclose(fp);
+    // second try, parse from human-readable thread_siblings_list
+    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuid);
 
-    return thread_siblings;
+    fp = fopen(path, "rb");
+    if (fp)
+    {
+        int thread_siblings = -1;
+
+        int id0;
+        char sep;
+        int id1;
+
+        int nscan = fscanf(fp, "%d", &id0);
+        if (nscan == 1)
+        {
+            thread_siblings = (1 << id0);
+
+            while (fscanf(fp, "%c%d", &sep, &id1) == 2)
+            {
+                if (sep == ',')
+                {
+                    thread_siblings |= (1 << id1);
+                }
+                if (sep == '-' && id0 < id1)
+                {
+                    for (int i = id0 + 1; i <= id1; i++)
+                    {
+                        thread_siblings |= (1 << i);
+                    }
+                }
+
+                id0 = id1;
+            }
+        }
+        else
+        {
+            // ignore
+        }
+
+        fclose(fp);
+
+        return thread_siblings;
+    }
+
+    return -1;
 }
 #endif // defined __ANDROID__ || defined __linux__
 
@@ -869,6 +984,11 @@ static int get_physical_cpucount()
             thread_set.push_back(thread_siblings);
             count++;
         }
+    }
+    if (count == 0)
+    {
+        // cannot resolve siblings, fallback to all cpu count
+        count = g_cpucount;
     }
 #elif __APPLE__
     size_t len = sizeof(count);
@@ -2002,6 +2122,9 @@ static void initialize_global_cpu_info()
     g_cpu_support_x86_f16c = get_cpu_support_x86_f16c();
     g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
     g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
+    g_cpu_support_x86_avx_vnni_int8 = get_cpu_support_x86_avx_vnni_int8();
+    g_cpu_support_x86_avx_vnni_int16 = get_cpu_support_x86_avx_vnni_int16();
+    g_cpu_support_x86_avx_ne_convert = get_cpu_support_x86_avx_ne_convert();
     g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
     g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
     g_cpu_support_x86_avx512_bf16 = get_cpu_support_x86_avx512_bf16();
@@ -2547,6 +2670,36 @@ int cpu_support_x86_avx_vnni()
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     return g_cpu_support_x86_avx_vnni && !is_cpu_x86_avx_vnni_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx_vnni_int8()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_avx_vnni_int8;
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx_vnni_int16()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_avx_vnni_int16;
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx_ne_convert()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_avx_ne_convert;
 #else
     return 0;
 #endif

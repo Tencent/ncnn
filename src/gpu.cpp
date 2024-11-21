@@ -269,6 +269,10 @@ public:
     char device_name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
     uint8_t pipeline_cache_uuid[VK_UUID_SIZE];
 
+    // driver properties
+    uint32_t driver_id;
+    char driver_name[VK_MAX_DRIVER_NAME_SIZE];
+
     // 0 = discrete gpu
     // 1 = integrated gpu
     // 2 = virtual gpu
@@ -349,6 +353,7 @@ public:
     int support_VK_KHR_cooperative_matrix;
     int support_VK_KHR_dedicated_allocation;
     int support_VK_KHR_descriptor_update_template;
+    int support_VK_KHR_driver_properties;
     int support_VK_KHR_external_memory;
     int support_VK_KHR_get_memory_requirements2;
     int support_VK_KHR_maintenance1;
@@ -432,6 +437,16 @@ const char* GpuInfo::device_name() const
 uint8_t* GpuInfo::pipeline_cache_uuid() const
 {
     return d->pipeline_cache_uuid;
+}
+
+uint32_t GpuInfo::driver_id() const
+{
+    return d->driver_id;
+}
+
+const char* GpuInfo::driver_name() const
+{
+    return d->driver_name;
 }
 
 int GpuInfo::type() const
@@ -707,6 +722,11 @@ int GpuInfo::support_VK_KHR_dedicated_allocation() const
 int GpuInfo::support_VK_KHR_descriptor_update_template() const
 {
     return d->support_VK_KHR_descriptor_update_template;
+}
+
+int GpuInfo::support_VK_KHR_driver_properties() const
+{
+    return d->support_VK_KHR_driver_properties;
 }
 
 int GpuInfo::support_VK_KHR_external_memory() const
@@ -1438,15 +1458,15 @@ int create_gpu_instance(const char* driver_path)
         VkPhysicalDeviceProperties physicalDeviceProperties;
         vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
 
-        //         NCNN_LOGE("[%u] apiVersion = %u.%u.%u", i, VK_VERSION_MAJOR(physicalDeviceProperties.apiVersion),
-        //             VK_VERSION_MINOR(physicalDeviceProperties.apiVersion), VK_VERSION_PATCH(physicalDeviceProperties.apiVersion));
-        //         NCNN_LOGE("[%u] driverVersion = %u.%u.%u", i, VK_VERSION_MAJOR(physicalDeviceProperties.driverVersion),
-        //             VK_VERSION_MINOR(physicalDeviceProperties.driverVersion), VK_VERSION_PATCH(physicalDeviceProperties.driverVersion));
-        //         NCNN_LOGE("[%u] vendorID = %x", i, physicalDeviceProperties.vendorID);
-        //         NCNN_LOGE("[%u] deviceID = %x", i, physicalDeviceProperties.deviceID);
-        //         NCNN_LOGE("[%u] deviceType = %x", i, physicalDeviceProperties.deviceType);
-        //         NCNN_LOGE("[%u] deviceName = %s", i, physicalDeviceProperties.deviceName);
-        //         NCNN_LOGE("[%u] pipelineCacheUUID = %u", i, physicalDeviceProperties.pipelineCacheUUID);
+        // NCNN_LOGE("[%u] apiVersion = %u.%u.%u", i, VK_VERSION_MAJOR(physicalDeviceProperties.apiVersion),
+        //     VK_VERSION_MINOR(physicalDeviceProperties.apiVersion), VK_VERSION_PATCH(physicalDeviceProperties.apiVersion));
+        // NCNN_LOGE("[%u] driverVersion = %u.%u.%u", i, VK_VERSION_MAJOR(physicalDeviceProperties.driverVersion),
+        //     VK_VERSION_MINOR(physicalDeviceProperties.driverVersion), VK_VERSION_PATCH(physicalDeviceProperties.driverVersion));
+        // NCNN_LOGE("[%u] vendorID = %x", i, physicalDeviceProperties.vendorID);
+        // NCNN_LOGE("[%u] deviceID = %x", i, physicalDeviceProperties.deviceID);
+        // NCNN_LOGE("[%u] deviceType = %x", i, physicalDeviceProperties.deviceType);
+        // NCNN_LOGE("[%u] deviceName = %s", i, physicalDeviceProperties.deviceName);
+        // NCNN_LOGE("[%u] pipelineCacheUUID = %u", i, physicalDeviceProperties.pipelineCacheUUID);
 
         // mali
         // t760 = 0x13b5 0x7500001 / 0x7501000
@@ -1676,6 +1696,7 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.support_VK_KHR_cooperative_matrix = 0;
         gpu_info.support_VK_KHR_dedicated_allocation = 0;
         gpu_info.support_VK_KHR_descriptor_update_template = 0;
+        gpu_info.support_VK_KHR_driver_properties = 0;
         gpu_info.support_VK_KHR_external_memory = 0;
         gpu_info.support_VK_KHR_get_memory_requirements2 = 0;
         gpu_info.support_VK_KHR_maintenance1 = 0;
@@ -1720,6 +1741,8 @@ int create_gpu_instance(const char* driver_path)
                 gpu_info.support_VK_KHR_dedicated_allocation = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_descriptor_update_template") == 0)
                 gpu_info.support_VK_KHR_descriptor_update_template = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_driver_properties") == 0)
+                gpu_info.support_VK_KHR_driver_properties = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_external_memory") == 0)
                 gpu_info.support_VK_KHR_external_memory = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_get_memory_requirements2") == 0)
@@ -1793,6 +1816,8 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.support_cooperative_matrix_16_8_8 = false;
         gpu_info.support_cooperative_matrix_16_8_16 = false;
         gpu_info.support_cooperative_matrix_16_16_16 = false;
+        gpu_info.driver_id = 0;
+        gpu_info.driver_name[0] = '\0';
         if (support_VK_KHR_get_physical_device_properties2)
         {
             void* queryExtensionFeatures = 0;
@@ -1855,6 +1880,16 @@ int create_gpu_instance(const char* driver_path)
                 queryExtensionFeatures = &queryCooperativeMatrixFeaturesNV;
             }
 
+            // query driver properties
+            VkPhysicalDeviceDriverPropertiesKHR queryDriverProperties;
+            queryDriverProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR;
+            queryDriverProperties.pNext = 0;
+            if (gpu_info.support_VK_KHR_driver_properties)
+            {
+                queryDriverProperties.pNext = queryExtensionFeatures;
+                queryExtensionFeatures = &queryDriverProperties;
+            }
+
             VkPhysicalDeviceFeatures2KHR queryFeatures;
             queryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR;
             queryFeatures.pNext = queryExtensionFeatures;
@@ -1889,6 +1924,11 @@ int create_gpu_instance(const char* driver_path)
             {
                 gpu_info.support_cooperative_matrix = queryCooperativeMatrixFeaturesNV.cooperativeMatrix;
             }
+            if (gpu_info.support_VK_KHR_driver_properties)
+            {
+                gpu_info.driver_id = queryDriverProperties.driverID;
+                memcpy(gpu_info.driver_name, queryDriverProperties.driverName, VK_MAX_DRIVER_NAME_SIZE);
+            }
         }
         else
         {
@@ -1919,6 +1959,13 @@ int create_gpu_instance(const char* driver_path)
         {
             // fp16 arithmetic yields wrong result on old adreno drivers :(
             gpu_info.support_fp16_arithmetic = false;
+        }
+
+        if (gpu_info.driver_id == VK_DRIVER_ID_MESA_RADV || gpu_info.driver_id == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA)
+        {
+            // cooperative matrix produces wrong result on mesa vulkan drivers :(
+            // https://gitlab.freedesktop.org/mesa/mesa/-/issues/10847
+            gpu_info.support_cooperative_matrix = false;
         }
 
         if (gpu_info.support_cooperative_matrix)
@@ -2212,10 +2259,7 @@ public:
 class VulkanDevicePrivate
 {
 public:
-    VulkanDevicePrivate(VulkanDevice* _vkdev)
-        : vkdev(_vkdev)
-    {
-    }
+    VulkanDevicePrivate(VulkanDevice* _vkdev);
     VulkanDevice* const vkdev;
 
     // dummy buffer and image
@@ -2270,7 +2314,21 @@ public:
     // to pack1 | pack4 | pack8
     mutable ncnn::Packing_vulkan* uop_packing[2][2][3][3][3];
     mutable Mutex uop_lock;
+
+    // device is valid and sucessfully initialized
+    bool valid;
 };
+
+VulkanDevicePrivate::VulkanDevicePrivate(VulkanDevice* _vkdev)
+    : vkdev(_vkdev)
+{
+    device = 0;
+    texelfetch_sampler = 0;
+    dummy_allocator = 0;
+    pipeline_cache = 0;
+    valid = false;
+    memset(uop_packing, 0, sizeof(uop_packing));
+}
 
 int VulkanDevicePrivate::create_dummy_buffer_image()
 {
@@ -2310,7 +2368,11 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
     dummy_image_readonly.release();
 #endif
 
-    delete dummy_allocator;
+    if (dummy_allocator)
+    {
+        delete dummy_allocator;
+        dummy_allocator = 0;
+    }
 }
 
 const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
@@ -2462,6 +2524,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_dedicated_allocation");
     if (info.support_VK_KHR_descriptor_update_template())
         enabledExtensions.push_back("VK_KHR_descriptor_update_template");
+    if (info.support_VK_KHR_driver_properties())
+        enabledExtensions.push_back("VK_KHR_driver_properties");
     if (info.support_VK_KHR_external_memory())
         enabledExtensions.push_back("VK_KHR_external_memory");
     if (info.support_VK_KHR_get_memory_requirements2())
@@ -2653,6 +2717,7 @@ VulkanDevice::VulkanDevice(int device_index)
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateDevice failed %d", ret);
+        return;
     }
 
     init_device_extension();
@@ -2712,7 +2777,6 @@ VulkanDevice::VulkanDevice(int device_index)
         samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
         samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;
 
-        d->texelfetch_sampler = 0;
         ret = vkCreateSampler(d->device, &samplerCreateInfo, 0, &d->texelfetch_sampler);
         if (ret != VK_SUCCESS)
         {
@@ -2724,11 +2788,12 @@ VulkanDevice::VulkanDevice(int device_index)
     if (cret != 0)
     {
         NCNN_LOGE("VulkanDevice create_dummy_buffer_image failed %d", cret);
+        return;
     }
 
     d->pipeline_cache = new PipelineCache(this);
 
-    memset(d->uop_packing, 0, sizeof(d->uop_packing));
+    d->valid = true;
 }
 
 VulkanDevice::~VulkanDevice()
@@ -2753,9 +2818,15 @@ VulkanDevice::~VulkanDevice()
     }
     d->staging_allocators.clear();
 
-    delete d->pipeline_cache;
+    if (d->pipeline_cache)
+    {
+        delete d->pipeline_cache;
+    }
 
-    vkDestroyDevice(d->device, 0);
+    if (d->device)
+    {
+        vkDestroyDevice(d->device, 0);
+    }
 
     delete d;
 }
@@ -2773,6 +2844,11 @@ VulkanDevice& VulkanDevice::operator=(const VulkanDevice&)
 VkDevice VulkanDevice::vkdevice() const
 {
     return d->device;
+}
+
+bool VulkanDevice::is_valid() const
+{
+    return d->valid;
 }
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
