@@ -56,11 +56,7 @@ jobs:
         mkdir build-arm64; cd build-arm64
         cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} ..
         cmake --build . --config Release -j 4
-    - name: arm
-      run: |
-        mkdir build-arm; cd build-arm
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm ${{ env.NCNN_CMAKE_OPTIONS }} ..
-        cmake --build . --config Release -j 4
+   
     - name: arm64-shared
       run: |
         mkdir build-arm64-shared; cd build-arm64-shared
