@@ -216,15 +216,19 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     {
         for (int i = 0; i < outsize; i++)
         {
-            top_blob.row(i)[0] /= window_sumsquare[i];
-            top_blob.row(i)[1] /= window_sumsquare[i];
+            if (window_sumsquare[i] != 0.f)
+            {
+                top_blob.row(i)[0] /= window_sumsquare[i];
+                top_blob.row(i)[1] /= window_sumsquare[i];
+            }
         }
     }
     else
     {
         for (int i = 0; i < outsize; i++)
         {
-            top_blob[i] /= window_sumsquare[i];
+            if (window_sumsquare[i] != 0.f)
+                top_blob[i] /= window_sumsquare[i];
         }
     }
 

@@ -42,6 +42,7 @@ static int test_inversespectrogram_0()
 {
     return 0
            || test_inversespectrogram(17, 1, 1, 0, 1, 1, 0, 1, 0)
+           || test_inversespectrogram(39, 9, 17, 0, 7, 15, 0, 0, 1)
            || test_inversespectrogram(128, 6, 10, 0, 2, 7, 1, 1, 1)
            || test_inversespectrogram(255, 17, 17, 1, 14, 17, 2, 0, 0)
            || test_inversespectrogram(124, 28, 55, 2, 12, 55, 1, 1, 2);
