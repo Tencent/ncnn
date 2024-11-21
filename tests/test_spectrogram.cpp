@@ -46,7 +46,7 @@ static int test_spectrogram_0()
            || test_spectrogram(17, 1, 0, 1, 1, 0, 1, 0, 0, 0)
            || test_spectrogram(128, 10, 0, 2, 7, 1, 1, 1, 1, 1)
            || test_spectrogram(255, 17, 1, 14, 17, 2, 0, 0, 0, 1)
-           || test_spectrogram(124, 55, 2, 12, 55, 1, 1, 2, 0, 0);
+           || test_spectrogram(124, 55, 2, 12, 55, 1, 1, 2, 2, 0);
 }
 
 int main()
