@@ -306,6 +306,8 @@ set(pnnx_pass_level2_SRCS
 
     pass_level2/nn_quantized_FloatFunctional.cpp
 
+    pass_level2/torchaudio_F_spectrogram.cpp
+
     pass_level2/nn_GRU.cpp
     pass_level2/nn_LSTM.cpp
     pass_level2/nn_RNN.cpp
@@ -587,6 +589,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
+    pass_ncnn/torchaudio_F_spectrogram.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 
