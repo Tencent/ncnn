@@ -22,7 +22,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y):
-        out0 = torchaudio.functional.spectrogram(x, n_fft=64, window=torch.hann_window(64), win_length=64, hop_length=16, pad=0, center=True, normalized='window', power=1)
+        out0 = torchaudio.functional.spectrogram(x, n_fft=64, window=torch.hann_window(44), win_length=44, hop_length=16, pad=0, center=True, normalized='window', power=1)
         out1 = torchaudio.functional.spectrogram(x, n_fft=128, window=torch.hann_window(128), win_length=128, hop_length=3, pad=0, center=False, onesided=True, normalized=False, power=None)
         out2 = torchaudio.functional.spectrogram(y, n_fft=512, window=torch.hamming_window(256), win_length=256, hop_length=128, pad=0, center=True, pad_mode='constant', onesided=True, normalized='frame_length', power=2)
         out3 = torchaudio.functional.spectrogram(y, n_fft=512, window=torch.hamming_window(512), win_length=512, hop_length=128, pad=32, center=True, onesided=False, normalized=False, power=2)
@@ -52,8 +52,6 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            print(a0)
-            print(b0)
             return False
     return True
 

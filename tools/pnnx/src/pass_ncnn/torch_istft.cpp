@@ -152,7 +152,6 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<float> window_data = captured_attrs.at("op_1.data").get_float32_data();
         const int window_type = detect_window_type(window_data);
-        fprintf(stderr, "window_type = %d\n", window_type);
         return window_type != -1;
     }
 
