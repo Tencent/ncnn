@@ -154,7 +154,8 @@ int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
 
     ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -555,7 +556,9 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
         Mat top_col2im;
         Option opt_b = opt;
         opt_b.blob_allocator = top_blob_bordered.allocator;
-        gemm->forward(bottom_blob_2, top_col2im, opt_b);
+        int ret = gemm->forward(bottom_blob_2, top_col2im, opt_b);
+        if (ret != 0)
+            return ret;
 
         {
             // col2im

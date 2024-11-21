@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-NCNN_EXPORT const char* ncnn_version();
+NCNN_EXPORT const char* ncnn_version(void);
 
 /* allocator api */
 typedef struct __ncnn_allocator_t* ncnn_allocator_t;
@@ -38,14 +38,14 @@ struct NCNN_EXPORT __ncnn_allocator_t
     void (*fast_free)(ncnn_allocator_t allocator, void* ptr);
 };
 
-NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator();
-NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator();
+NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator(void);
+NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator(void);
 NCNN_EXPORT void ncnn_allocator_destroy(ncnn_allocator_t allocator);
 
 /* option api */
 typedef struct __ncnn_option_t* ncnn_option_t;
 
-NCNN_EXPORT ncnn_option_t ncnn_option_create();
+NCNN_EXPORT ncnn_option_t ncnn_option_create(void);
 NCNN_EXPORT void ncnn_option_destroy(ncnn_option_t opt);
 
 NCNN_EXPORT int ncnn_option_get_num_threads(const ncnn_option_t opt);
@@ -63,7 +63,7 @@ NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_v
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create();
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create(void);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator);
@@ -140,7 +140,7 @@ NCNN_EXPORT void ncnn_blob_get_shape(const ncnn_blob_t blob, int* dims, int* w, 
 /* paramdict api */
 typedef struct __ncnn_paramdict_t* ncnn_paramdict_t;
 
-NCNN_EXPORT ncnn_paramdict_t ncnn_paramdict_create();
+NCNN_EXPORT ncnn_paramdict_t ncnn_paramdict_create(void);
 NCNN_EXPORT void ncnn_paramdict_destroy(ncnn_paramdict_t pd);
 
 NCNN_EXPORT int ncnn_paramdict_get_type(const ncnn_paramdict_t pd, int id);
@@ -165,7 +165,7 @@ struct NCNN_EXPORT __ncnn_datareader_t
     size_t (*read)(ncnn_datareader_t dr, void* buf, size_t size);
 };
 
-NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create();
+NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create(void);
 #if NCNN_STDIO
 NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create_from_stdio(FILE* fp);
 #endif /* NCNN_STDIO */
@@ -206,7 +206,7 @@ struct NCNN_EXPORT __ncnn_layer_t
     int (*forward_inplace_n)(const ncnn_layer_t layer, ncnn_mat_t* bottom_top_blobs, int n, const ncnn_option_t opt);
 };
 
-NCNN_EXPORT ncnn_layer_t ncnn_layer_create();
+NCNN_EXPORT ncnn_layer_t ncnn_layer_create(void);
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex);
 #if NCNN_STRING
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_type(const char* type);
@@ -269,11 +269,15 @@ struct __ncnn_net_t
     ncnn_net_custom_layer_factory_t custom_layer_factory;
 };
 
-NCNN_EXPORT ncnn_net_t ncnn_net_create();
+NCNN_EXPORT ncnn_net_t ncnn_net_create(void);
 NCNN_EXPORT void ncnn_net_destroy(ncnn_net_t net);
 
 NCNN_EXPORT ncnn_option_t ncnn_net_get_option(ncnn_net_t net);
 NCNN_EXPORT void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt);
+
+#if NCNN_VULKAN
+NCNN_EXPORT void ncnn_net_set_vulkan_device(ncnn_net_t net, int device_index);
+#endif
 
 #if NCNN_STRING
 NCNN_EXPORT void ncnn_net_register_custom_layer_by_type(ncnn_net_t net, const char* type, ncnn_layer_creator_t creator, ncnn_layer_destroyer_t destroyer, void* userdata);

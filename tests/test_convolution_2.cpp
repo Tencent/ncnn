@@ -159,7 +159,8 @@ static int test_convolution_0()
            || test_convolution(15, 12, 19, 3, 4, 1, 2, 2, 1)
            || test_convolution(14, 14, 24, 31, 5, 1, 2, 2, 1)
            || test_convolution(12, 12, 20, 15, 6, 1, 1, 0, 0)
-           || test_convolution(11, 10, 12, 7, 4, 2, 1, 2, 1);
+           || test_convolution(11, 10, 12, 7, 4, 2, 1, 2, 1)
+           || test_convolution(1, 11, 48, 26, 7, 1, 2, 3, 1);
 }
 
 static int test_convolution_1()

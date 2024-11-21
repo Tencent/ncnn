@@ -17,7 +17,7 @@
 
 #include <stddef.h>
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
@@ -40,7 +40,7 @@ public:
     int num_enabled() const;
 
 public:
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     ULONG_PTR mask;
 #endif
 #if defined __ANDROID__ || defined __linux__
@@ -93,6 +93,12 @@ NCNN_EXPORT int cpu_support_x86_f16c();
 NCNN_EXPORT int cpu_support_x86_avx2();
 // avx_vnni = x86 avx vnni
 NCNN_EXPORT int cpu_support_x86_avx_vnni();
+// avx_vnni_int8 = x86 avx vnni int8
+NCNN_EXPORT int cpu_support_x86_avx_vnni_int8();
+// avx_vnni_int16 = x86 avx vnni int16
+NCNN_EXPORT int cpu_support_x86_avx_vnni_int16();
+// avx_ne_convert = x86 avx ne convert
+NCNN_EXPORT int cpu_support_x86_avx_ne_convert();
 // avx512 = x86 avx512f + avx512cd + avx512bw + avx512dq + avx512vl
 NCNN_EXPORT int cpu_support_x86_avx512();
 // avx512_vnni = x86 avx512 vnni

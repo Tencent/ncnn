@@ -39,6 +39,8 @@ def input_torch_type_to_str(tensor):
         return "f64"
     if tensor.dtype == torch.float16 or tensor.dtype == torch.half:
         return "f16"
+    if tensor.dtype == torch.bfloat16:
+        return "bf16"
     if tensor.dtype == torch.uint8:
         return "u8"
     if tensor.dtype == torch.int8:

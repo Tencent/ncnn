@@ -12,28 +12,26 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
-void conv3x3s1_winograd23_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
-void conv3x3s1_winograd43_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
+int conv3x3s1_winograd23_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
+int conv3x3s1_winograd43_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
-void conv3x3s1_winograd23_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
-void conv3x3s1_winograd43_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+int conv3x3s1_winograd23_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
+int conv3x3s1_winograd43_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
 void conv3x3s1_winograd23_transform_kernel_int8_avx2(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
-void conv3x3s1_winograd23_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
+int conv3x3s1_winograd23_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 void conv3x3s1_winograd43_transform_kernel_int8_avx2(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
-void conv3x3s1_winograd43_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
+int conv3x3s1_winograd43_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
-void conv3x3s1_winograd23_int8_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
-void conv3x3s1_winograd43_int8_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
-#endif
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+int conv3x3s1_winograd23_int8_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
+int conv3x3s1_winograd43_int8_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 #endif
 
 static void pack_A_tile_int8(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
@@ -3430,14 +3428,12 @@ static inline void conv3x3s1_winograd23_transform_kernel_tile_int8(const Mat& ke
 
 static void conv3x3s1_winograd23_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
-#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx2())
     {
         conv3x3s1_winograd23_transform_kernel_int8_avx2(kernel, AT, inch, outch, opt);
         return;
     }
-#endif
 #endif
 
     const int M = outch;
@@ -4428,40 +4424,34 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
     }
 }
 
-static void conv3x3s1_winograd23_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
+static int conv3x3s1_winograd23_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx512_vnni())
     {
-        conv3x3s1_winograd23_int8_avx512vnni(bottom_blob, top_blob, AT, nT, opt);
-        return;
+        return conv3x3s1_winograd23_int8_avx512vnni(bottom_blob, top_blob, AT, nT, opt);
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
-        conv3x3s1_winograd23_int8_avxvnni(bottom_blob, top_blob, AT, nT, opt);
-        return;
+        return conv3x3s1_winograd23_int8_avxvnni(bottom_blob, top_blob, AT, nT, opt);
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx2())
     {
-        conv3x3s1_winograd23_int8_avx2(bottom_blob, top_blob, AT, nT, opt);
-        return;
+        return conv3x3s1_winograd23_int8_avx2(bottom_blob, top_blob, AT, nT, opt);
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_xop())
     {
-        conv3x3s1_winograd23_int8_xop(bottom_blob, top_blob, AT, nT, opt);
-        return;
+        return conv3x3s1_winograd23_int8_xop(bottom_blob, top_blob, AT, nT, opt);
     }
-#endif
 #endif
 
     int outw = top_blob.w;
@@ -4489,12 +4479,16 @@ static void conv3x3s1_winograd23_int8(const Mat& bottom_blob, Mat& top_blob, con
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
     Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
     if (nT > 1 && nn_NK < nT)
     {
         Mat B_tile(TILE_N * B * TILE_K, 2u, opt.workspace_allocator);
+        if (B_tile.empty())
+            return -100;
 
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -4518,6 +4512,8 @@ static void conv3x3s1_winograd23_int8(const Mat& bottom_blob, Mat& top_blob, con
     else
     {
         Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 2u, opt.workspace_allocator);
+        if (B_tileX.empty())
+            return -100;
 
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
@@ -4543,6 +4539,8 @@ static void conv3x3s1_winograd23_int8(const Mat& bottom_blob, Mat& top_blob, con
     }
 
     Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+    if (top_tileX.empty())
+        return -100;
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -4574,6 +4572,8 @@ static void conv3x3s1_winograd23_int8(const Mat& bottom_blob, Mat& top_blob, con
             conv3x3s1_winograd23_transform_output_tile_int8(top_tile, top_blob, i, max_ii, j, max_jj);
         }
     }
+
+    return 0;
 }
 
 static inline void conv3x3s1_winograd43_transform_kernel_tile_int8(const Mat& kernel, Mat& A, int inch, int i, int max_ii, int k, int max_kk)
@@ -4642,14 +4642,12 @@ static inline void conv3x3s1_winograd43_transform_kernel_tile_int8(const Mat& ke
 
 static void conv3x3s1_winograd43_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
-#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx2())
     {
         conv3x3s1_winograd43_transform_kernel_int8_avx2(kernel, AT, inch, outch, opt);
         return;
     }
-#endif
 #endif
 
     const int M = outch;
@@ -6258,40 +6256,34 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
     }
 }
 
-static void conv3x3s1_winograd43_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
+static int conv3x3s1_winograd43_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx512_vnni())
     {
-        conv3x3s1_winograd43_int8_avx512vnni(bottom_blob, top_blob, AT, nT, opt);
-        return;
+        return conv3x3s1_winograd43_int8_avx512vnni(bottom_blob, top_blob, AT, nT, opt);
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
-        conv3x3s1_winograd43_int8_avxvnni(bottom_blob, top_blob, AT, nT, opt);
-        return;
+        return conv3x3s1_winograd43_int8_avxvnni(bottom_blob, top_blob, AT, nT, opt);
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx2())
     {
-        conv3x3s1_winograd43_int8_avx2(bottom_blob, top_blob, AT, nT, opt);
-        return;
+        return conv3x3s1_winograd43_int8_avx2(bottom_blob, top_blob, AT, nT, opt);
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_xop())
     {
-        conv3x3s1_winograd43_int8_xop(bottom_blob, top_blob, AT, nT, opt);
-        return;
+        return conv3x3s1_winograd43_int8_xop(bottom_blob, top_blob, AT, nT, opt);
     }
-#endif
 #endif
 
     int outw = top_blob.w;
@@ -6319,12 +6311,16 @@ static void conv3x3s1_winograd43_int8(const Mat& bottom_blob, Mat& top_blob, con
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
     Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
     if (nT > 1 && nn_NK < nT)
     {
         Mat B_tile(TILE_N * B * TILE_K, 4u, opt.workspace_allocator);
+        if (B_tile.empty())
+            return -100;
 
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -6348,6 +6344,8 @@ static void conv3x3s1_winograd43_int8(const Mat& bottom_blob, Mat& top_blob, con
     else
     {
         Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.workspace_allocator);
+        if (B_tileX.empty())
+            return -100;
 
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
@@ -6373,6 +6371,8 @@ static void conv3x3s1_winograd43_int8(const Mat& bottom_blob, Mat& top_blob, con
     }
 
     Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+    if (top_tileX.empty())
+        return -100;
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -6404,4 +6404,6 @@ static void conv3x3s1_winograd43_int8(const Mat& bottom_blob, Mat& top_blob, con
             conv3x3s1_winograd43_transform_output_tile_int8(top_tile, top_blob, i, max_ii, j, max_jj);
         }
     }
+
+    return 0;
 }

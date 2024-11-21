@@ -42,6 +42,7 @@ static bool type_is_integer(int type)
     if (type == 10) return false;
     if (type == 11) return false;
     if (type == 12) return false;
+    if (type == 13) return false;
     return false;
 }
 
@@ -59,6 +60,7 @@ static const char* type_to_string(int type)
     if (type == 10) return "c64";
     if (type == 11) return "c128";
     if (type == 12) return "c32";
+    if (type == 13) return "bf16";
     return "null";
 }
 
@@ -76,6 +78,7 @@ static const char* type_to_numpy_string(int type)
     if (type == 10) return "csingle";
     if (type == 11) return "cdouble";
     if (type == 12) return "chalf";
+    if (type == 13) return "bfloat16";
     return "null";
 }
 
@@ -93,6 +96,7 @@ static const char* type_to_dtype_string(int type)
     if (type == 10) return "torch.complex64";
     if (type == 11) return "torch.complex128";
     if (type == 12) return "torch.complex32";
+    if (type == 13) return "torch.bfloat16";
     return "null";
 }
 
@@ -110,6 +114,7 @@ static size_t type_to_elemsize(int type)
     if (type == 10) return 8;
     if (type == 11) return 16;
     if (type == 12) return 4;
+    if (type == 13) return 2;
     return 0; // null
 }
 
@@ -127,6 +132,7 @@ static int string_to_type(const char* s)
     if (strcmp(s, "c64") == 0) return 10;
     if (strcmp(s, "c128") == 0) return 11;
     if (strcmp(s, "c32") == 0) return 12;
+    if (strcmp(s, "bf16") == 0) return 13;
     return 0; // null
 }
 
@@ -625,7 +631,7 @@ static void load_shape(Operator* op, const std::string& key, const std::string& 
             operand->shape.push_back(-233);
             int index = operand->shape.size() - 1;
             std::string key = elem.substr(1);
-            operand->params[std::string("__shape_") + std::to_string(index)] = key;
+            operand->params[std::string("__shape__") + std::to_string(index)] = key;
         }
         else
         {
@@ -943,7 +949,7 @@ static std::string sanitize_identifier(const std::string& s)
     std::string ss = s;
     for (size_t i = 0; i < ss.size(); i++)
     {
-        if (ss[i] == '.' || ss[i] == ':')
+        if (ss[i] == '.' || ss[i] == ':' || ss[i] == '/')
             ss[i] = '_';
     }
 
@@ -998,11 +1004,20 @@ static std::string expand_expression(const Operator* op)
         {
             std::string a = exprstack.top();
             exprstack.pop();
-            std::string b = exprstack.top();
-            exprstack.pop();
 
-            std::string r = a + ".size(" + b + ")";
-            exprstack.push(r);
+            if (exprstack.empty())
+            {
+                std::string r = a + ".shape";
+                exprstack.push(r);
+            }
+            else
+            {
+                std::string b = exprstack.top();
+                exprstack.pop();
+
+                std::string r = a + ".size(" + b + ")";
+                exprstack.push(r);
+            }
         }
         else if (t == "int"
                  || t == "abs"
@@ -1030,10 +1045,13 @@ static std::string expand_expression(const Operator* op)
                  || t == "square"
                  || t == "tan"
                  || t == "tanh"
-                 || t == "trunc")
+                 || t == "trunc"
+                 || t == "torch.bool"
+                 || t == "torch.float"
+                 || t == "torch.long")
         {
-            std::string unaryop;
-            if (t == "int") unaryop = "int";
+            std::string unaryop = t;
+            if (t == "int") unaryop = ""; // but the explicit int() causes troubles in tracing
             if (t == "abs") unaryop = "torch.abs";
             if (t == "acos") unaryop = "torch.acos";
             if (t == "acosh") unaryop = "torch.acosh";
@@ -1073,7 +1091,8 @@ static std::string expand_expression(const Operator* op)
                  || t == "maximum"
                  || t == "min"
                  || t == "minimum"
-                 || t == "pow")
+                 || t == "pow"
+                 || t == "logaddexp")
         {
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
@@ -1083,6 +1102,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "min") binaryop = "torch.min";
             if (t == "minimum") binaryop = "torch.minimum";
             if (t == "pow") binaryop = "torch.pow";
+            if (t == "logaddexp") binaryop = "torch.logaddexp";
 
             std::string a = exprstack.top();
             exprstack.pop();
@@ -2076,14 +2096,28 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
-            else if (op->type.find("::") != std::string::npos || op->type.find(".") != std::string::npos)
+            else
             {
+                if (op->type.find("::") == std::string::npos && op->type.find(".") == std::string::npos)
+                {
+                    fprintf(stderr, "todo %s\n", op->type.c_str());
+                }
+
                 // direct
                 for (size_t i = 0; i < op->outputs.size(); i++)
                 {
                     fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
                     if (i + 1 != op->outputs.size())
                         fprintf(pyfp, ", ");
+                }
+
+                if (op->type == "torch.max" || op->type == "torch.max")
+                {
+                    if (op->has_param("dim") && op->outputs.size() == 1)
+                    {
+                        // torch.max and torch.min with dim returns tuple
+                        fprintf(pyfp, ", _");
+                    }
                 }
 
                 if (op->type.substr(0, 7) == "Tensor.")
@@ -2318,10 +2352,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
                 fprintf(pyfp, ")\n");
             }
-            else
-            {
-                fprintf(stderr, "todo %s\n", op->type.c_str());
-            }
         }
     }
 
@@ -2360,6 +2390,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         fprintf(pyfp, "def export_torchscript():\n");
         fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2425,6 +2456,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         fprintf(pyfp, "def export_onnx():\n");
         fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2546,6 +2578,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2737,7 +2770,7 @@ int Graph::parse(const std::string& param)
                             attr.shape.push_back(-233);
                             int index = attr.shape.size() - 1;
                             std::string key = elem.substr(1);
-                            attr.params[std::string("__shape_") + std::to_string(index)] = key;
+                            attr.params[std::string("__shape__") + std::to_string(index)] = key;
                         }
                         else
                         {
@@ -2771,7 +2804,8 @@ int Graph::parse(const std::string& param)
 void Operand::remove_consumer(const Operator* c)
 {
     auto it = std::find(consumers.begin(), consumers.end(), c);
-    consumers.erase(it);
+    if (it != consumers.end())
+        consumers.erase(it);
 }
 
 Operator* Graph::new_operator(const std::string& type, const std::string& name)

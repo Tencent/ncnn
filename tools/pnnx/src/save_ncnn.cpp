@@ -39,7 +39,11 @@ static const char* type_to_dtype_string(int type)
     if (type == 2) return "torch.double";
     if (type == 3) return "torch.half";
     if (type == 4) return "torch.int";
-    if (type == 5) return "torch.long";
+    if (type == 5)
+    {
+        fprintf(stderr, "replace ncnn input torch.long type with torch.int\n");
+        return "torch.int";
+    }
     if (type == 6) return "torch.short";
     if (type == 7) return "torch.int8";
     if (type == 8) return "torch.uint8";

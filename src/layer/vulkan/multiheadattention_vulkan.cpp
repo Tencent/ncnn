@@ -43,16 +43,28 @@ MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
     pipeline_multiheadattention_qkv_cross_pack4to1 = 0;
 }
 
+int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
+{
+    int ret = MultiHeadAttention::load_param(pd);
+
+    if (int8_scale_term)
+    {
+        support_vulkan = false;
+        support_image_storage = false;
+    }
+
+    return ret;
+}
+
 int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 {
     const int embed_dim_per_head = embed_dim / num_heads;
+    const int qdim = weight_data_size / embed_dim;
     {
-        const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
-
         q_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
         q_gemm->vkdev = vkdev;
         ncnn::ParamDict pd;
-        pd.set(0, inv_sqrt_embed_dim_per_head);
+        pd.set(0, scale);
         pd.set(1, 1.f);
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
@@ -61,7 +73,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(6, 1);         // constantC
         pd.set(7, embed_dim); // M
         pd.set(8, 0);         // N
-        pd.set(9, embed_dim); // K
+        pd.set(9, qdim);      // K
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         // pd.set(12, 1);        // output_elempack
@@ -73,8 +85,11 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         q_gemm->load_model(ModelBinFromMatArray(weights));
         q_gemm->create_pipeline(opt);
 
-        q_weight_data.release();
-        q_bias_data.release();
+        if (opt.lightmode)
+        {
+            q_weight_data.release();
+            q_bias_data.release();
+        }
     }
 
     {
@@ -100,8 +115,11 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         k_gemm->load_model(ModelBinFromMatArray(weights));
         k_gemm->create_pipeline(opt);
 
-        k_weight_data.release();
-        k_bias_data.release();
+        if (opt.lightmode)
+        {
+            k_weight_data.release();
+            k_bias_data.release();
+        }
     }
 
     {
@@ -127,8 +145,11 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         v_gemm->load_model(ModelBinFromMatArray(weights));
         v_gemm->create_pipeline(opt);
 
-        v_weight_data.release();
-        v_bias_data.release();
+        if (opt.lightmode)
+        {
+            v_weight_data.release();
+            v_bias_data.release();
+        }
     }
 
     {
@@ -211,7 +232,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(5, 1);         // constantB
         pd.set(6, 1);         // constantC
         pd.set(7, 0);         // M = outch
-        pd.set(8, embed_dim); // N = size
+        pd.set(8, qdim);      // N = size
         pd.set(9, embed_dim); // K = maxk*inch
         pd.set(10, 4);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
@@ -222,8 +243,11 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         o_gemm->load_model(ModelBinFromMatArray(weights));
         o_gemm->create_pipeline(opt);
 
-        out_weight_data.release();
-        out_bias_data.release();
+        if (opt.lightmode)
+        {
+            out_weight_data.release();
+            out_bias_data.release();
+        }
     }
 
     return 0;

@@ -77,14 +77,32 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_channel_shuffle_pass_2 : public fuse_channel_shuffle_pass_1
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+Tensor.reshape          op_0        1 1 input 13 shape=(%batch,%groups,%channels_per_group,%h,%w)
+Tensor.permute          op_1        1 1 13 14 dims=(0,2,1,3,4)
+Tensor.reshape          op_2        1 1 14 out shape=(%batch,%channels,%h,%w)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 void fuse_channel_shuffle(Graph& graph)
 {
     fuse_channel_shuffle_pass a;
     fuse_channel_shuffle_pass_1 b;
+    fuse_channel_shuffle_pass_2 c;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
+    pnnx_graph_rewrite(graph, &c, opindex);
 }
 
 } // namespace pnnx

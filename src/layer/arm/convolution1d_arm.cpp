@@ -68,7 +68,8 @@ int Convolution1D_arm::create_pipeline(const Option& opt)
 
     convolution1d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -233,13 +234,14 @@ int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
 }
 
 #if NCNN_BF16
-int Convolution1D_arm::create_pipeline_bf16s(const Option& /*opt*/)
+int Convolution1D_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / kernel_w / num_output;
 
     convolution1d_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

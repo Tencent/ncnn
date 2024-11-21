@@ -78,6 +78,9 @@ int Convolution1D_loongarch::create_pipeline(const Option& opt)
         }
     }
 
+    if (opt.lightmode)
+        weight_data.release();
+
     return 0;
 }
 
@@ -281,7 +284,7 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
                         sum = bias_data[p];
                     }
 
-                    const float* kptr = (const float*)weight_data + kernel_w * h * p;
+                    const float* kptr = weight_data_packed.channel(p);
 
                     for (int q = 0; q < h; q++)
                     {

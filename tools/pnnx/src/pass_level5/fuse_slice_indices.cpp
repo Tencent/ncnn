@@ -168,12 +168,14 @@ void fuse_slice_indices(Graph& graph)
             std::vector<std::string> steps_indexes;
             std::vector<std::string> selects_indexes;
 
+            int select_dim_offset = 0;
+
             while (!slice_select_ops.empty())
             {
                 Operator* sop = slice_select_ops.top();
                 slice_select_ops.pop();
 
-                new_dims.push_back(sop->params.at("dim").i);
+                new_dims.push_back(select_dim_offset + sop->params.at("dim").i);
 
                 if (sop->type == "Tensor.slice")
                 {
@@ -328,6 +330,8 @@ void fuse_slice_indices(Graph& graph)
                         index->remove_consumer(sop);
                         index->consumers.push_back(op_selects);
                     }
+
+                    select_dim_offset += 1;
                 }
 
                 {
@@ -344,7 +348,7 @@ void fuse_slice_indices(Graph& graph)
                 }
             }
 
-            new_dims.push_back(op->params.at("dim").i);
+            new_dims.push_back(select_dim_offset + op->params.at("dim").i);
 
             if (op->type == "Tensor.slice")
             {

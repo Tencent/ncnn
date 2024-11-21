@@ -18,15 +18,18 @@
 #include <stdint.h>
 #if __SSE2__
 #include <emmintrin.h>
+#if __SSSE3__
+#include <tmmintrin.h>
 #if __SSE4_1__
 #include <smmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #if __XOP__
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #include <ammintrin.h>
 #else
 #include <x86intrin.h>
+#endif
 #endif
 #endif
 #endif
@@ -1286,6 +1289,19 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
     const __m128 x64 = _mm_max_ps(x128, _mm_movehl_ps(x128, x128));
     const __m128 x32 = _mm_max_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     return _mm_cvtss_f32(x32);
+}
+
+static NCNN_FORCEINLINE __m128i float2int8_avx512(const __m512& _v0)
+{
+    // _MM_FROUND_TO_NEAREST_INT round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m512 _p5 = _mm512_set1_ps(0.5f);
+    __m512 _signmask = _mm512_castsi512_ps(_mm512_set1_epi32(1 << 31));
+    __m512 _sign = _mm512_and_ps(_v0, _signmask);
+    __m512 _v0_p5 = _mm512_or_ps(_p5, _sign);
+    __m512 _v0_adj = _mm512_add_ps(_v0, _v0_p5);
+    __m512i _v0_i = _mm512_cvttps_epi32(_v0_adj);
+    return _mm512_cvtepi32_epi8(_v0_i);
 }
 
 static NCNN_FORCEINLINE __m512 bfloat2float_avx512(const __m256i& v0)

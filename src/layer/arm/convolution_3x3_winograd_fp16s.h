@@ -2916,7 +2916,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_fp16sa(const Mat& 
     }
 }
 
-static void conv3x3s1_winograd23_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, const Option& opt)
+static int conv3x3s1_winograd23_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, const Option& opt)
 {
     int outw = top_blob.w;
     int outh = top_blob.h;
@@ -2943,12 +2943,16 @@ static void conv3x3s1_winograd23_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
     Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
     if (nT > 1 && nn_NK < nT)
     {
         Mat B_tile(TILE_N * B * TILE_K, 2u, opt.workspace_allocator);
+        if (B_tile.empty())
+            return -100;
 
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -2972,6 +2976,8 @@ static void conv3x3s1_winograd23_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     else
     {
         Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 2u, opt.workspace_allocator);
+        if (B_tileX.empty())
+            return -100;
 
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
@@ -2997,6 +3003,8 @@ static void conv3x3s1_winograd23_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     }
 
     Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 2u, opt.workspace_allocator);
+    if (top_tileX.empty())
+        return -100;
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -3026,6 +3034,8 @@ static void conv3x3s1_winograd23_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
             conv3x3s1_winograd23_transform_output_tile_fp16sa(top_tile, top_blob, bias, i, max_ii, j, max_jj);
         }
     }
+
+    return 0;
 }
 
 static inline void conv3x3s1_winograd43_transform_kernel_tile_fp16sa(const Mat& kernel, Mat& A, int inch, int i, int max_ii, int k, int max_kk)
@@ -4262,7 +4272,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_fp16sa(const Mat& 
     }
 }
 
-static void conv3x3s1_winograd43_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, const Option& opt)
+static int conv3x3s1_winograd43_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, const Option& opt)
 {
     int outw = top_blob.w;
     int outh = top_blob.h;
@@ -4289,12 +4299,16 @@ static void conv3x3s1_winograd43_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
     Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
     if (nT > 1 && nn_NK < nT)
     {
         Mat B_tile(TILE_N * B * TILE_K, 2u, opt.workspace_allocator);
+        if (B_tile.empty())
+            return -100;
 
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -4318,6 +4332,8 @@ static void conv3x3s1_winograd43_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     else
     {
         Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 2u, opt.workspace_allocator);
+        if (B_tileX.empty())
+            return -100;
 
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
@@ -4343,6 +4359,8 @@ static void conv3x3s1_winograd43_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     }
 
     Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 2u, opt.workspace_allocator);
+    if (top_tileX.empty())
+        return -100;
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -4372,6 +4390,8 @@ static void conv3x3s1_winograd43_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
             conv3x3s1_winograd43_transform_output_tile_fp16sa(top_tile, top_blob, bias, i, max_ii, j, max_jj);
         }
     }
+
+    return 0;
 }
 
 static inline void conv3x3s1_winograd63_transform_kernel_tile_fp16sa(const Mat& kernel, Mat& A, int inch, int i, int max_ii, int k, int max_kk)
@@ -5873,7 +5893,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile_fp16sa(const Mat& 
     }
 }
 
-static void conv3x3s1_winograd63_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, const Option& opt)
+static int conv3x3s1_winograd63_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, const Option& opt)
 {
     int outw = top_blob.w;
     int outh = top_blob.h;
@@ -5900,12 +5920,16 @@ static void conv3x3s1_winograd63_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
     Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
     if (nT > 1 && nn_NK < nT)
     {
         Mat B_tile(TILE_N * B * TILE_K, 2u, opt.workspace_allocator);
+        if (B_tile.empty())
+            return -100;
 
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -5929,6 +5953,8 @@ static void conv3x3s1_winograd63_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     else
     {
         Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 2u, opt.workspace_allocator);
+        if (B_tileX.empty())
+            return -100;
 
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
@@ -5954,6 +5980,8 @@ static void conv3x3s1_winograd63_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     }
 
     Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 2u, opt.workspace_allocator);
+    if (top_tileX.empty())
+        return -100;
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -5983,4 +6011,6 @@ static void conv3x3s1_winograd63_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
             conv3x3s1_winograd63_transform_output_tile_fp16sa(top_tile, top_blob, bias, i, max_ii, j, max_jj);
         }
     }
+
+    return 0;
 }

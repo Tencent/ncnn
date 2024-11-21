@@ -48,6 +48,12 @@ If your model has multiple input nodes, you can use multiple list files and othe
 ./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
 ```
 
+If you don’t need static quantization, ncnn supports RNN/LSTM/GRU dynamic quantization. In this case, you can omit the table file.
+
+```shell
+./ncnn2int8 rnn-model.param rnn-model.bin rnn-model-int8.param rnn-model-int8.bin
+```
+
 ## use ncnn int8 inference
 
 the ncnn library would use int8 inference automatically, nothing changed in your code

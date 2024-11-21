@@ -122,8 +122,6 @@ void convert_Tensor_slice_copy(Graph& graph)
             std::vector<int> selected_axes;
             for (int i = 0; i < axes_rank; i++)
             {
-                axes[i] += selected_axes.size();
-
                 if (steps[i] == 0)
                 {
                     // simulate select as slice_copy

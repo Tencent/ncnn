@@ -1,0 +1,69 @@
+name: ESP32
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/esp32.yml'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/*'
+      - 'src/layer/*'
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/esp32.yml'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/*'
+      - 'src/layer/*'
+
+concurrency:
+  group: esp32-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ESP32
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+            
+      - name: Checkout ESP-IDF
+        uses: actions/checkout@v4
+        with:
+          repository: espressif/esp-idf
+          path: esp-idf-install
+          ref: release/v5.3
+          
+      - name: Install ESP-IDF
+        run: |
+          cd esp-idf-install
+          git submodule update --init --recursive
+          ./install.sh
+
+      - name: Set environment and build NCNN for ESP32
+        run: |
+          source esp-idf-install/export.sh
+          echo "IDF_PATH=$IDF_PATH" >> $GITHUB_ENV
+          echo "${IDF_PATH}/tools" >> $GITHUB_PATH
+          echo "${IDF_PATH}/components" >> $GITHUB_PATH
+          mkdir -p build-esp32 && cd build-esp32
+          cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/esp32.toolchain.cmake" -DCMAKE_BUILD_TYPE=Release -DNCNN_BUILD_EXAMPLES=OFF ..
+          make -j 4
+          make install

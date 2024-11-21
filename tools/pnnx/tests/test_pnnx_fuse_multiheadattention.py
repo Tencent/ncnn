@@ -478,6 +478,9 @@ class Model(nn.Module):
         return a, b, c, d, e, f, g
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.9'):
+        return True
+
     net = Model()
     net.eval()
 

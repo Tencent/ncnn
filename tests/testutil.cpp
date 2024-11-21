@@ -19,6 +19,7 @@
 #include "mat.h"
 #include "prng.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -323,6 +324,180 @@ int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::Mat>& b,
     return 0;
 }
 
+static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const ncnn::Option& opt, const ncnn::Layer* op, int flag)
+{
+    // clang-format off
+    // *INDENT-OFF*
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_float16(a, a4, opt);
+    }
+    else
+#endif // NCNN_ARM82
+#if NCNN_VFPV4
+    if (opt.use_fp16_storage && !opt.use_bf16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_float16(a, a4, opt);
+    }
+    else
+#endif // NCNN_VFPV4
+#if NCNN_RVV
+    if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_float16(a, a4, opt);
+    }
+    else
+#endif // NCNN_RVV
+#if NCNN_BF16
+    if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_bfloat16(a, a4, opt);
+    }
+    else
+#endif // NCNN_BF16
+    if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_float16(a, a4, opt);
+    }
+    else
+    {
+        a4 = a;
+    }
+    // *INDENT-ON*
+    // clang-format on
+
+    if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
+    {
+        // resolve dst_elempack
+        int dims = a4.dims;
+        int elemcount = 0;
+        if (dims == 1) elemcount = a4.elempack * a4.w;
+        if (dims == 2) elemcount = a4.elempack * a4.h;
+        if (dims == 3 || dims == 4) elemcount = a4.elempack * a4.c;
+
+        int elembits = a4.elembits();
+
+        int dst_elempack = 1;
+
+        if (elembits == 32)
+        {
+#if NCNN_AVX512
+            if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                dst_elempack = 16;
+            else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_AVX
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_RVV
+            const int packn = ncnn::cpu_riscv_vlenb() / (elembits / 8);
+            if (elemcount % packn == 0)
+                dst_elempack = packn;
+#else
+            if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#endif
+        }
+        if (elembits == 16)
+        {
+#if NCNN_ARM82
+            if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && op->support_fp16_storage)
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_RVV
+            const int packn = ncnn::cpu_riscv_vlenb() / 2;
+            if (elemcount % packn == 0)
+                dst_elempack = packn;
+#else
+            if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#endif
+        }
+        if (elembits == 8)
+        {
+#if NCNN_RVV
+            const int packn = ncnn::cpu_riscv_vlenb() / 1;
+            if (elemcount % packn == 0)
+                dst_elempack = packn;
+#else
+            if (elemcount % 8 == 0)
+                dst_elempack = 8;
+#endif
+        }
+
+        if (flag & TEST_LAYER_ENABLE_FORCE_INPUT_PACK8)
+            dst_elempack = 8;
+
+        ncnn::Mat a4_packed;
+        ncnn::convert_packing(a4, a4_packed, dst_elempack, opt);
+        a4 = a4_packed;
+    }
+
+    return 0;
+}
+
+static int convert_to_vanilla_layout(const ncnn::Mat& c4, ncnn::Mat& c, const ncnn::Option& opt, const ncnn::Layer* op, int flag)
+{
+    ncnn::Mat c4_unpacked;
+    if (c4.elempack != 1)
+    {
+        ncnn::convert_packing(c4, c4_unpacked, 1, opt);
+    }
+    else
+    {
+        c4_unpacked = c4;
+    }
+
+    // clang-format off
+    // *INDENT-OFF*
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && c4_unpacked.elembits() == 16)
+    {
+        ncnn::cast_float16_to_float32(c4_unpacked, c, opt);
+    }
+    else
+#endif // NCNN_ARM82
+#if NCNN_VFPV4
+    if (opt.use_fp16_storage && !opt.use_bf16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && c4_unpacked.elembits() == 16)
+    {
+        ncnn::cast_float16_to_float32(c4_unpacked, c, opt);
+    }
+    else
+#endif // NCNN_VFPV4
+#if NCNN_RVV
+    if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && c4_unpacked.elembits() == 16)
+    {
+        ncnn::cast_float16_to_float32(c4_unpacked, c, opt);
+    }
+    else
+#endif // NCNN_RVV
+#if NCNN_BF16
+    if (opt.use_bf16_storage && op->support_bf16_storage && c4_unpacked.elembits() == 16)
+    {
+        ncnn::cast_bfloat16_to_float32(c4_unpacked, c, opt);
+    }
+    else
+#endif // NCNN_BF16
+    if (opt.use_fp16_storage && op->support_fp16_storage && c4_unpacked.elembits() == 16)
+    {
+        ncnn::cast_float16_to_float32(c4_unpacked, c, opt);
+    }
+    else
+    {
+        c = c4_unpacked;
+    }
+    // *INDENT-ON*
+    // clang-format on
+
+    return 0;
+}
+
 int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& b, void (*func)(ncnn::Layer*), int flag)
 {
     ncnn::Layer* op = ncnn::create_layer_naive(typeindex);
@@ -444,111 +619,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     for (size_t i = 0; i < a4.size(); i++)
     {
-        // clang-format off
-        // *INDENT-OFF*
-#if NCNN_VFPV4
-        if (opt.use_fp16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-        {
-            ncnn::cast_float32_to_float16(a[i], a4[i], opt);
-        }
-        else
-#endif // NCNN_VFPV4
-#if NCNN_RVV
-        if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-        {
-            ncnn::cast_float32_to_float16(a[i], a4[i], opt);
-        }
-        else
-#endif // NCNN_RVV
-#if NCNN_BF16
-        if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-        {
-            ncnn::cast_float32_to_bfloat16(a[i], a4[i], opt);
-        }
-        else
-#endif // NCNN_BF16
-        if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-        {
-            ncnn::cast_float32_to_float16(a[i], a4[i], opt);
-        }
-        else
-        {
-            a4[i] = a[i];
-        }
-        // *INDENT-ON*
-        // clang-format on
-
-        if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
-        {
-            // resolve dst_elempack
-            int dims = a4[i].dims;
-            int elemcount = 0;
-            if (dims == 1) elemcount = a4[i].elempack * a4[i].w;
-            if (dims == 2) elemcount = a4[i].elempack * a4[i].h;
-            if (dims == 3 || dims == 4) elemcount = a4[i].elempack * a4[i].c;
-
-            int elembits = a4[i].elembits();
-
-            int dst_elempack = 1;
-
-            if (elembits == 32)
-            {
-#if NCNN_AVX512
-                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
-                    dst_elempack = 16;
-                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
-#elif NCNN_AVX
-                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
-#elif NCNN_RVV
-                const int packn = ncnn::cpu_riscv_vlenb() / (elembits / 8);
-                if (elemcount % packn == 0)
-                    dst_elempack = packn;
-#else
-                if (elemcount % 4 == 0)
-                    dst_elempack = 4;
-#endif
-            }
-            if (elembits == 16)
-            {
-#if NCNN_ARM82
-                if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
-#elif NCNN_RVV
-                const int packn = ncnn::cpu_riscv_vlenb() / 2;
-                if (elemcount % packn == 0)
-                    dst_elempack = packn;
-#else
-                if (elemcount % 4 == 0)
-                    dst_elempack = 4;
-#endif
-            }
-            if (elembits == 8)
-            {
-#if NCNN_RVV
-                const int packn = ncnn::cpu_riscv_vlenb() / 1;
-                if (elemcount % packn == 0)
-                    dst_elempack = packn;
-#else
-                if (elemcount % 8 == 0)
-                    dst_elempack = 8;
-#endif
-            }
-
-            if (flag & TEST_LAYER_ENABLE_FORCE_INPUT_PACK8)
-                dst_elempack = 8;
-
-            ncnn::Mat a4_packed;
-            ncnn::convert_packing(a4[i], a4_packed, dst_elempack, opt);
-            a4[i] = a4_packed;
-        }
+        convert_to_optimal_layout(a[i], a4[i], opt, op, flag);
     }
 
     c.resize(top_blob_count);
@@ -569,43 +640,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     for (size_t i = 0; i < c.size(); i++)
     {
-        // clang-format off
-        // *INDENT-OFF*
-#if NCNN_VFPV4
-        if (opt.use_fp16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && c[i].elembits() == 16)
-        {
-            ncnn::Mat c_fp32;
-            ncnn::cast_float16_to_float32(c[i], c_fp32, opt);
-            c[i] = c_fp32;
-        }
-        else
-#endif // NCNN_VFPV4
-#if NCNN_RVV
-        if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && c[i].elembits() == 16)
-        {
-            ncnn::Mat c_fp32;
-            ncnn::cast_float16_to_float32(c[i], c_fp32, opt);
-            c[i] = c_fp32;
-        }
-        else
-#endif // NCNN_RVV
-#if NCNN_BF16
-        if (opt.use_bf16_storage && op->support_bf16_storage && c[i].elembits() == 16)
-        {
-            ncnn::Mat c_fp32;
-            ncnn::cast_bfloat16_to_float32(c[i], c_fp32, opt);
-            c[i] = c_fp32;
-        }
-        else
-#endif // NCNN_BF16
-        if (opt.use_fp16_storage && op->support_fp16_storage && c[i].elembits() == 16)
-        {
-            ncnn::Mat c_fp32;
-            ncnn::cast_float16_to_float32(c[i], c_fp32, opt);
-            c[i] = c_fp32;
-        }
-        // *INDENT-ON*
-        // clang-format on
+        convert_to_vanilla_layout(c[i], c[i], opt, op, flag);
     }
 
     op->destroy_pipeline(opt);
@@ -958,112 +993,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     }
 
     ncnn::Mat a4;
-
-    // clang-format off
-    // *INDENT-OFF*
-#if NCNN_VFPV4
-    if (opt.use_fp16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-    {
-        ncnn::cast_float32_to_float16(a, a4, opt);
-    }
-    else
-#endif // NCNN_VFPV4
-#if NCNN_RVV
-    if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-    {
-        ncnn::cast_float32_to_float16(a, a4, opt);
-    }
-    else
-#endif // NCNN_RVV
-#if NCNN_BF16
-    if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-    {
-        ncnn::cast_float32_to_bfloat16(a, a4, opt);
-    }
-    else
-#endif // NCNN_BF16
-    if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-    {
-        ncnn::cast_float32_to_float16(a, a4, opt);
-    }
-    else
-    {
-        a4 = a;
-    }
-    // *INDENT-ON*
-    // clang-format on
-
-    if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
-    {
-        // resolve dst_elempack
-        int dims = a4.dims;
-        int elemcount = 0;
-        if (dims == 1) elemcount = a4.elempack * a4.w;
-        if (dims == 2) elemcount = a4.elempack * a4.h;
-        if (dims == 3 || dims == 4) elemcount = a4.elempack * a4.c;
-
-        int elembits = a4.elembits();
-
-        int dst_elempack = 1;
-
-        if (elembits == 32)
-        {
-#if NCNN_AVX512
-            if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
-                dst_elempack = 16;
-            else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
-                dst_elempack = 8;
-            else if (elemcount % 4 == 0)
-                dst_elempack = 4;
-#elif NCNN_AVX
-            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
-                dst_elempack = 8;
-            else if (elemcount % 4 == 0)
-                dst_elempack = 4;
-#elif NCNN_RVV
-            const int packn = ncnn::cpu_riscv_vlenb() / (elembits / 8);
-            if (elemcount % packn == 0)
-                dst_elempack = packn;
-#else
-            if (elemcount % 4 == 0)
-                dst_elempack = 4;
-#endif
-        }
-        if (elembits == 16)
-        {
-#if NCNN_ARM82
-            if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
-                dst_elempack = 8;
-            else if (elemcount % 4 == 0)
-                dst_elempack = 4;
-#elif NCNN_RVV
-            const int packn = ncnn::cpu_riscv_vlenb() / 2;
-            if (elemcount % packn == 0)
-                dst_elempack = packn;
-#else
-            if (elemcount % 4 == 0)
-                dst_elempack = 4;
-#endif
-        }
-        if (elembits == 8)
-        {
-#if NCNN_RVV
-            const int packn = ncnn::cpu_riscv_vlenb() / 1;
-            if (elemcount % packn == 0)
-                dst_elempack = packn;
-#else
-            if (elemcount % 8 == 0)
-                dst_elempack = 8;
-#endif
-        }
-
-        if (flag & TEST_LAYER_ENABLE_FORCE_INPUT_PACK8)
-            dst_elempack = 8;
-
-        ncnn::Mat a4_packed;
-        ncnn::convert_packing(a4, a4_packed, dst_elempack, opt);
-        a4 = a4_packed;
-    }
+    convert_to_optimal_layout(a, a4, opt, op, flag);
 
     if (op->support_inplace)
     {
@@ -1075,43 +1005,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->forward(a4, c, opt);
     }
 
-    // clang-format off
-    // *INDENT-OFF*
-#if NCNN_VFPV4
-    if (opt.use_fp16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && c.elembits() == 16)
-    {
-        ncnn::Mat c_fp32;
-        ncnn::cast_float16_to_float32(c, c_fp32, opt);
-        c = c_fp32;
-    }
-    else
-#endif // NCNN_VFPV4
-#if NCNN_RVV
-    if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && c.elembits() == 16)
-    {
-        ncnn::Mat c_fp32;
-        ncnn::cast_float16_to_float32(c, c_fp32, opt);
-        c = c_fp32;
-    }
-    else
-#endif // NCNN_RVV
-#if NCNN_BF16
-    if (opt.use_bf16_storage && op->support_bf16_storage && c.elembits() == 16)
-    {
-        ncnn::Mat c_fp32;
-        ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);
-        c = c_fp32;
-    }
-    else
-#endif // NCNN_BF16
-    if (opt.use_fp16_storage && op->support_fp16_storage && c.elembits() == 16)
-    {
-        ncnn::Mat c_fp32;
-        ncnn::cast_float16_to_float32(c, c_fp32, opt);
-        c = c_fp32;
-    }
-    // *INDENT-ON*
-    // clang-format on
+    convert_to_vanilla_layout(c, c, opt, op, flag);
 
     op->destroy_pipeline(opt);
 
@@ -1380,6 +1274,12 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
         weights_fp16.resize(weights.size());
         for (size_t j = 0; j < weights.size(); j++)
         {
+            if (weights[j].elembits() != 32)
+            {
+                weights_fp16[j] = weights[j];
+                continue;
+            }
+
             ncnn::Mat tmp;
             ncnn::cast_float32_to_bfloat16(weights[j], tmp, opt);
             ncnn::cast_bfloat16_to_float32(tmp, weights_fp16[j], opt);
@@ -1391,6 +1291,12 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
         weights_fp16.resize(weights.size());
         for (size_t j = 0; j < weights.size(); j++)
         {
+            if (weights[j].elembits() != 32)
+            {
+                weights_fp16[j] = weights[j];
+                continue;
+            }
+
             ncnn::Mat tmp;
             ncnn::cast_float32_to_float16(weights[j], tmp, opt);
             ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
@@ -1447,6 +1353,12 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
         weights_fp16.resize(weights.size());
         for (size_t j = 0; j < weights.size(); j++)
         {
+            if (weights[j].elembits() != 32)
+            {
+                weights_fp16[j] = weights[j];
+                continue;
+            }
+
             ncnn::Mat tmp;
             ncnn::cast_float32_to_bfloat16(weights[j], tmp, opt);
             ncnn::cast_bfloat16_to_float32(tmp, weights_fp16[j], opt);
@@ -1458,6 +1370,12 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
         weights_fp16.resize(weights.size());
         for (size_t j = 0; j < weights.size(); j++)
         {
+            if (weights[j].elembits() != 32)
+            {
+                weights_fp16[j] = weights[j];
+                continue;
+            }
+
             ncnn::Mat tmp;
             ncnn::cast_float32_to_float16(weights[j], tmp, opt);
             ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
@@ -1552,6 +1470,357 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
         int ret = test_layer_opt(layer_type, pd, weights, opt, a, epsilon, func, flag);
         if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
+class TestOOMAllocator : public ncnn::UnlockedPoolAllocator
+{
+public:
+    TestOOMAllocator();
+    virtual void* fastMalloc(size_t size);
+    virtual void fastFree(void* ptr);
+
+    ncnn::Mutex lock;
+    int counter;
+    int failid;
+};
+
+TestOOMAllocator::TestOOMAllocator()
+{
+    counter = 0;
+    failid = INT_MAX;
+}
+
+void* TestOOMAllocator::fastMalloc(size_t size)
+{
+    lock.lock();
+
+    void* ptr;
+    if (counter == failid)
+    {
+        ptr = 0;
+    }
+    else
+    {
+        ptr = ncnn::UnlockedPoolAllocator::fastMalloc(size);
+    }
+    counter++;
+
+    lock.unlock();
+
+    return ptr;
+}
+
+void TestOOMAllocator::fastFree(void* ptr)
+{
+    lock.lock();
+
+    ncnn::UnlockedPoolAllocator::fastFree(ptr);
+
+    lock.unlock();
+}
+
+int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, int flag)
+{
+    int typeindex = ncnn::layer_to_index(layer_type);
+    if (typeindex == -1)
+        return -1;
+
+    ncnn::Layer* op = ncnn::create_layer_cpu(typeindex);
+
+    if (!op->support_packing && _opt.use_packing_layout)
+    {
+        delete op;
+        return 233;
+    }
+    if (!op->support_bf16_storage && !op->support_fp16_storage && (_opt.use_bf16_storage || _opt.use_fp16_arithmetic))
+    {
+        delete op;
+        return 233;
+    }
+
+    op->load_param(pd);
+
+    if (op->one_blob_only && a.size() != 1)
+    {
+        fprintf(stderr, "layer with one_blob_only but consume multiple inputs\n");
+        delete op;
+        return -1;
+    }
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+
+    op->load_model(mb);
+
+    ncnn::Option opt = _opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = false;
+
+    op->create_pipeline(opt);
+
+    if (!op->support_packing && _opt.use_packing_layout)
+    {
+        op->destroy_pipeline(opt);
+        delete op;
+        return 233;
+    }
+    if (!op->support_bf16_storage && !op->support_fp16_storage && (_opt.use_bf16_storage || _opt.use_fp16_arithmetic))
+    {
+        op->destroy_pipeline(opt);
+        delete op;
+        return 233;
+    }
+
+    std::vector<ncnn::Mat> a4(a.size());
+
+    for (size_t i = 0; i < a4.size(); i++)
+    {
+        convert_to_optimal_layout(a[i], a4[i], opt, op, flag);
+    }
+
+    TestOOMAllocator test_oom_allocator;
+    opt.blob_allocator = &test_oom_allocator;
+    opt.workspace_allocator = &test_oom_allocator;
+
+    std::vector<ncnn::Mat> c;
+    c.resize(top_blob_count);
+
+    if (op->support_inplace)
+    {
+        for (size_t i = 0; i < a4.size(); i++)
+        {
+            c[i] = a4[i].clone();
+        }
+
+        op->forward_inplace(c, opt);
+    }
+    else
+    {
+        op->forward(a4, c, opt);
+    }
+
+    for (int i = 0; i < top_blob_count; i++)
+    {
+        c[i].release();
+    }
+
+    const int alloc_count = test_oom_allocator.counter;
+    for (int i = 0; i < alloc_count; i++)
+    {
+        test_oom_allocator.counter = 0;
+        test_oom_allocator.failid = i;
+
+        int ret = 0;
+        if (op->support_inplace)
+        {
+            for (size_t i = 0; i < a4.size(); i++)
+            {
+                c[i] = a4[i].clone();
+            }
+
+            ret = op->forward_inplace(c, opt);
+        }
+        else
+        {
+            ret = op->forward(a4, c, opt);
+        }
+
+        for (int i = 0; i < top_blob_count; i++)
+        {
+            c[i].release();
+        }
+
+        if (ret != -100)
+        {
+            fprintf(stderr, "oom not catched %d/%d\n", i, alloc_count);
+
+            op->destroy_pipeline(opt);
+
+            delete op;
+
+            return -1;
+        }
+    }
+
+    op->destroy_pipeline(opt);
+
+    delete op;
+
+    return 0;
+}
+
+int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, int flag)
+{
+    int typeindex = ncnn::layer_to_index(layer_type);
+    if (typeindex == -1)
+        return -1;
+
+    ncnn::Layer* op = ncnn::create_layer_cpu(typeindex);
+
+    if (!op->support_packing && _opt.use_packing_layout)
+    {
+        delete op;
+        return 233;
+    }
+    if (!op->support_bf16_storage && !op->support_fp16_storage && (_opt.use_bf16_storage || _opt.use_fp16_arithmetic))
+    {
+        delete op;
+        return 233;
+    }
+
+    op->load_param(pd);
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+
+    op->load_model(mb);
+
+    ncnn::Option opt = _opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = false;
+
+    op->create_pipeline(opt);
+
+    if (!op->support_packing && _opt.use_packing_layout)
+    {
+        op->destroy_pipeline(opt);
+        delete op;
+        return 233;
+    }
+    if (!op->support_bf16_storage && !op->support_fp16_storage && (_opt.use_bf16_storage || _opt.use_fp16_arithmetic))
+    {
+        op->destroy_pipeline(opt);
+        delete op;
+        return 233;
+    }
+
+    ncnn::Mat a4;
+    convert_to_optimal_layout(a, a4, opt, op, flag);
+
+    TestOOMAllocator test_oom_allocator;
+    opt.blob_allocator = &test_oom_allocator;
+    opt.workspace_allocator = &test_oom_allocator;
+
+    ncnn::Mat c;
+
+    if (op->support_inplace)
+    {
+        c = a4.clone();
+        op->forward_inplace(c, opt);
+    }
+    else
+    {
+        op->forward(a4, c, opt);
+    }
+
+    c.release();
+
+    const int alloc_count = test_oom_allocator.counter;
+    for (int i = 0; i < alloc_count; i++)
+    {
+        test_oom_allocator.counter = 0;
+        test_oom_allocator.failid = i;
+
+        int ret = 0;
+        if (op->support_inplace)
+        {
+            c = a4.clone();
+            ret = op->forward_inplace(c, opt);
+        }
+        else
+        {
+            ret = op->forward(a4, c, opt);
+        }
+
+        c.release();
+
+        if (ret != -100)
+        {
+            fprintf(stderr, "oom not catched %d/%d\n", i, alloc_count);
+
+            op->destroy_pipeline(opt);
+
+            delete op;
+
+            return -1;
+        }
+    }
+
+    op->destroy_pipeline(opt);
+
+    delete op;
+
+    return 0;
+}
+
+int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count, int flag)
+{
+    // pack fp16p fp16s fp16a bf16s shader8 image
+    const int options[][7] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 0, 1, 1, 1, 0, 0},
+        {1, 0, 0, 0, 0, 0, 0},
+        {1, 1, 0, 0, 1, 0, 0},
+        {1, 0, 1, 0, 0, 1, 0},
+        {1, 1, 1, 1, 0, 0, 0},
+        {1, 1, 1, 1, 1, 1, 1},
+    };
+
+    const int opt_count = sizeof(options) / sizeof(options[0]);
+
+    for (int i = 0; i < opt_count; i++)
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = options[i][0];
+        opt.use_fp16_packed = options[i][1];
+        opt.use_fp16_storage = options[i][2];
+        opt.use_fp16_arithmetic = options[i][3];
+        opt.use_bf16_storage = options[i][4];
+        opt.use_shader_pack8 = options[i][5];
+        opt.use_image_storage = options[i][6];
+
+        int ret = test_layer_oom_opt(layer_type, pd, weights, opt, a, top_blob_count, flag);
+        if (ret != 233 && ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
+int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, int flag)
+{
+    // pack fp16p fp16s fp16a bf16s shader8 image
+    const int options[][7] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 0, 1, 1, 1, 0, 0},
+        {1, 0, 0, 0, 0, 0, 0},
+        {1, 1, 0, 0, 1, 0, 0},
+        {1, 0, 1, 0, 0, 1, 0},
+        {1, 1, 1, 1, 0, 0, 0},
+        {1, 1, 1, 1, 1, 1, 1},
+    };
+
+    const int opt_count = sizeof(options) / sizeof(options[0]);
+
+    for (int i = 0; i < opt_count; i++)
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = options[i][0];
+        opt.use_fp16_packed = options[i][1];
+        opt.use_fp16_storage = options[i][2];
+        opt.use_fp16_arithmetic = options[i][3];
+        opt.use_bf16_storage = options[i][4];
+        opt.use_shader_pack8 = options[i][5];
+        opt.use_image_storage = options[i][6];
+
+        int ret = test_layer_oom_opt(layer_type, pd, weights, opt, a, flag);
+        if (ret != 233 && ret != 0)
             return ret;
     }
 

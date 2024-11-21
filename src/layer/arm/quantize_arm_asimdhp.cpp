@@ -440,7 +440,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
             if (scale_data_size == 1)
             {
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                 float16x4_t _scale0 = vcvt_f16_f32(vdupq_n_f32(scale_data[0]));
                 float16x8_t _scale = vcombine_f16(_scale0, _scale0);
 #else
@@ -485,7 +485,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
             if (scale_data_size == 1)
             {
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                 float16x4_t _scale0 = vcvt_f16_f32(vdupq_n_f32(scale_data[0]));
                 float16x8_t _scale = vcombine_f16(_scale0, _scale0);
 #else
@@ -545,7 +545,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
             if (scale_data_size == 1)
             {
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                 float16x4_t _scale0 = vcvt_f16_f32(vdupq_n_f32(scale_data[0]));
                 float16x8_t _scale = vcombine_f16(_scale0, _scale0);
 #else

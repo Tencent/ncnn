@@ -75,7 +75,7 @@ public:
 5 4
 pnnx.Input              input_a     0 1 a
 pnnx.Input              input_b     0 1 b
-torch.permute           op_0        1 1 b b1 dims=%dims
+Tensor.permute          op_0        1 1 b b1 dims=%dims
 F.grid_sample           op_1        2 1 a b1 out mode=%mode padding_mode=%padding_mode align_corners=%align_corners
 pnnx.Output             output      1 0 out
 )PNNXIR";

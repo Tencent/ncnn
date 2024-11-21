@@ -1,0 +1,153 @@
+name: visionos
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/visionos.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/visionos.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+concurrency:
+  group: visionos-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  VISIONOS_DEPLOYMENT_TARGET: '1.0'
+  ENABLE_BITCODE: OFF
+  ENABLE_ARC: OFF
+  ENABLE_VISIBILITY: OFF
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
+
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v4
+      with:
+        path: openmp-install
+        key: openmp-visionos-install-20240402
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+    - name: openmp-arm64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64 && cd build-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=VISIONOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install
+    - name: openmp-simulator-x86_64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-simulator-x86_64 && cd build-simulator-x86_64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
+        cmake --build . --target install
+    - name: openmp-simulator-arm64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-simulator-arm64 && cd build-simulator-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install
+    - name: openmp-merge-fat-library
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/visionos
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/visionos-simulator
+
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/include $GITHUB_WORKSPACE/openmp-install/visionos
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/visionos/lib
+        cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/visionos/lib/libomp.a
+
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-simulator-x86_64/install/include $GITHUB_WORKSPACE/openmp-install/visionos-simulator
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/visionos-simulator/lib
+        lipo -create \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-simulator-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-simulator-arm64/install/lib/libomp.a \
+            -o $GITHUB_WORKSPACE/openmp-install/visionos-simulator/lib/libomp.a
+
+    - name: install-openmp
+      run: |
+        sudo cp $GITHUB_WORKSPACE/openmp-install/visionos/include/* $DEVELOPER_DIR/Platforms/XROS.platform/Developer/SDKs/XROS.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/visionos/lib/libomp.a $DEVELOPER_DIR/Platforms/XROS.platform/Developer/SDKs/XROS.sdk/usr/lib
+
+        sudo cp $GITHUB_WORKSPACE/openmp-install/visionos-simulator/include/* $DEVELOPER_DIR/Platforms/XRSimulator.platform/Developer/SDKs/XRSimulator.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/visionos-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/XRSimulator.platform/Developer/SDKs/XRSimulator.sdk/usr/lib
+
+    - name: arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=VISIONOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+    - name: simulator-x86_64
+      run: |
+        mkdir build-simulator-x86_64 && cd build-simulator-x86_64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
+    - name: simulator-arm64
+      run: |
+        mkdir build-simulator-arm64 && cd build-simulator-arm64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="arm64" ..
+        cmake --build . -j 4

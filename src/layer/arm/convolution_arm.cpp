@@ -194,7 +194,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
         convolution_dilation1->create_pipeline(opt);
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         return 0;
     }
@@ -224,7 +225,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
         else
             conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         return 0;
     }
@@ -270,7 +272,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
     {
         convolution_im2col_gemm_transform_kernel(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         return 0;
     }
@@ -305,7 +308,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
         convolution_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -484,22 +488,25 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             NCNN_LOGE("opt.num_threads %d changed, convolution winograd will use load-time value %d", opt.num_threads, nT);
         }
 
+        int ret = 0;
         if (prefer_winograd23)
         {
-            conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, _nT, opt);
+            ret = conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd43)
         {
-            conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, _nT, opt);
+            ret = conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd63)
         {
-            conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, _nT, opt);
+            ret = conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, _nT, opt);
         }
         else
         {
             // should never reach here
         }
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -555,7 +562,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
         }
 
-        convolution_im2col_gemm(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        int ret = convolution_im2col_gemm(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -904,7 +913,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         else
             conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         return 0;
     }
@@ -950,7 +960,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
     {
         convolution_im2col_gemm_transform_kernel_bf16s(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         return 0;
     }
@@ -971,7 +982,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         convolution_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -1065,22 +1077,25 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
             NCNN_LOGE("opt.num_threads %d changed, convolution winograd will use load-time value %d", opt.num_threads, nT);
         }
 
+        int ret = 0;
         if (prefer_winograd23)
         {
-            conv3x3s1_winograd23_bf16s(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, _nT, opt);
+            ret = conv3x3s1_winograd23_bf16s(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd43)
         {
-            conv3x3s1_winograd43_bf16s(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, _nT, opt);
+            ret = conv3x3s1_winograd43_bf16s(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd63)
         {
-            conv3x3s1_winograd63_bf16s(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, _nT, opt);
+            ret = conv3x3s1_winograd63_bf16s(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, _nT, opt);
         }
         else
         {
             // should never reach here
         }
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -1136,7 +1151,9 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
             NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
         }
 
-        convolution_im2col_gemm_bf16s(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        int ret = convolution_im2col_gemm_bf16s(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -1284,7 +1301,8 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -1299,6 +1317,8 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     //     NCNN_LOGE("Convolution_arm input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
@@ -1373,21 +1393,24 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
     }
 
+    int ret = 0;
     if (opt.use_winograd_convolution && prefer_winograd)
     {
         if (opt.use_winograd43_convolution && !weight_winograd43_data.empty())
-            conv3x3s1_winograd43_int8(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, _nT, opt);
+            ret = conv3x3s1_winograd43_int8(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, _nT, opt);
         else
-            conv3x3s1_winograd23_int8(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
+            ret = conv3x3s1_winograd23_int8(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
     }
     else if (opt.use_sgemm_convolution)
     {
-        convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        ret = convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
     }
     else
     {
         convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
     }
+    if (ret != 0)
+        return ret;
 
     bottom_blob_bordered.release();
 

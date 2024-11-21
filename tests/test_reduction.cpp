@@ -109,6 +109,7 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const 
     pd.set(2, coeff);
     pd.set(3, axes);
     pd.set(4, keepdims);
+    pd.set(5, 1); // fixbug0
 
     std::vector<ncnn::Mat> weights(0);
 

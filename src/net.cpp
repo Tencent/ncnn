@@ -621,8 +621,17 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         // clang-format off
         // *INDENT-OFF*
 
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && layer->support_fp16_storage)
+        {
+            Mat bottom_blob_fp16;
+            cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
+            bottom_blob = bottom_blob_fp16;
+        }
+        else
+#endif // NCNN_ARM82
 #if NCNN_VFPV4
-        if (opt.use_fp16_storage && cpu_support_arm_vfpv4() && layer->support_fp16_storage)
+        if (opt.use_fp16_storage && !opt.use_bf16_storage && cpu_support_arm_vfpv4() && layer->support_fp16_storage)
         {
             Mat bottom_blob_fp16;
             cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
@@ -646,10 +655,16 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             cast_float32_to_bfloat16(bottom_blob, bottom_blob_bf16, opt);
             bottom_blob = bottom_blob_bf16;
         }
+        else
 #endif // NCNN_BF16
+        {
+        }
 
         // *INDENT-ON*
         // clang-format on
+
+        if (bottom_blob.empty())
+            return -100;
     }
 
     int dst_elempack = 1;
@@ -692,7 +707,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             if (elembits == 16)
             {
 #if NCNN_ARM82
-                if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
+                if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && layer->support_fp16_storage)
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -724,6 +739,9 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         Mat bottom_blob_packed;
         convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
         bottom_blob = bottom_blob_packed;
+
+        if (bottom_blob.empty())
+            return -100;
     }
 
     if (bottom_blob.elembits() == 16)
@@ -731,8 +749,17 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         // clang-format off
         // *INDENT-OFF*
 
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && !layer->support_fp16_storage)
+        {
+            Mat bottom_blob_fp32;
+            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            bottom_blob = bottom_blob_fp32;
+        }
+        else
+#endif // NCNN_ARM82
 #if NCNN_VFPV4
-        if (opt.use_fp16_storage && cpu_support_arm_vfpv4() && !layer->support_fp16_storage)
+        if (opt.use_fp16_storage && !opt.use_bf16_storage && cpu_support_arm_vfpv4() && !layer->support_fp16_storage)
         {
             Mat bottom_blob_fp32;
             cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
@@ -756,10 +783,16 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
             bottom_blob = bottom_blob_fp32;
         }
+        else
 #endif // NCNN_BF16
+        {
+        }
 
         // *INDENT-ON*
         // clang-format on
+
+        if (bottom_blob.empty())
+            return -100;
     }
 
     return 0;
@@ -781,6 +814,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
             if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
             {
                 bottom_blob = bottom_blob_ref.clone(opt.blob_allocator);
+                if (bottom_blob.empty())
+                    return -100;
             }
         }
         if (bottom_blob.dims == 0)
@@ -788,7 +823,9 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
             bottom_blob = bottom_blob_ref;
         }
 
-        convert_layout(bottom_blob, layer, opt);
+        int ret = convert_layout(bottom_blob, layer, opt);
+        if (ret != 0)
+            return ret;
 
         // forward
         if (opt.lightmode && layer->support_inplace)
@@ -834,6 +871,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
                 {
                     bottom_blobs[i] = bottom_blob_ref.clone(opt.blob_allocator);
+                    if (bottom_blobs[i].empty())
+                        return -100;
                 }
             }
             if (bottom_blobs[i].dims == 0)
@@ -841,7 +880,9 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 bottom_blobs[i] = bottom_blob_ref;
             }
 
-            convert_layout(bottom_blobs[i], layer, opt);
+            int ret = convert_layout(bottom_blobs[i], layer, opt);
+            if (ret != 0)
+                return ret;
         }
 
         // forward
@@ -1340,7 +1381,7 @@ int Net::load_param(const DataReader& dr)
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev) d->vkdev = get_gpu_device();
-        if (!d->vkdev) opt.use_vulkan_compute = false; // no vulkan device, fallback to cpu
+        if (!d->vkdev || !d->vkdev->is_valid()) opt.use_vulkan_compute = false; // no valid vulkan device, fallback to cpu
     }
     if (opt.use_vulkan_compute)
     {
@@ -1636,7 +1677,7 @@ int Net::load_param_bin(const DataReader& dr)
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev) d->vkdev = get_gpu_device();
-        if (!d->vkdev) opt.use_vulkan_compute = false; // no vulkan device, fallback to cpu
+        if (!d->vkdev || !d->vkdev->is_valid()) opt.use_vulkan_compute = false; // no valid vulkan device, fallback to cpu
     }
     if (opt.use_vulkan_compute)
     {
@@ -2682,53 +2723,87 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
     feat = d->blob_mats[blob_index];
 
-    if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)
+    // empty is valid for outputs
+    if (!feat.empty())
     {
-        Mat bottom_blob_unpacked;
-        convert_packing(feat, bottom_blob_unpacked, 1, d->opt);
-        feat = bottom_blob_unpacked;
-    }
+        if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)
+        {
+            Mat bottom_blob_unpacked;
+            convert_packing(feat, bottom_blob_unpacked, 1, d->opt);
+            feat = bottom_blob_unpacked;
+            if (feat.empty())
+                return -100;
+        }
 
-    // clang-format off
-    // *INDENT-OFF*
+        // clang-format off
+        // *INDENT-OFF*
+#if NCNN_ARM82
+        if (d->opt.use_fp16_storage && cpu_support_arm_asimdhp() && (type == 0))
+        {
+            if (feat.elembits() == 16)
+            {
+                Mat feat_fp32;
+                cast_float16_to_float32(feat, feat_fp32, d->opt);
+                feat = feat_fp32;
+            }
+        }
+        else
+#endif // NCNN_ARM82
 #if NCNN_VFPV4
-    if (d->opt.use_fp16_storage && cpu_support_arm_vfpv4() && (type == 0))
-    {
-        if (feat.elembits() == 16)
+        if (d->opt.use_fp16_storage && !d->opt.use_bf16_storage && cpu_support_arm_vfpv4() && (type == 0))
         {
-            Mat feat_fp32;
-            cast_float16_to_float32(feat, feat_fp32, d->opt);
-            feat = feat_fp32;
+            if (feat.elembits() == 16)
+            {
+                Mat feat_fp32;
+                cast_float16_to_float32(feat, feat_fp32, d->opt);
+                feat = feat_fp32;
+            }
         }
-    }
-    else
+        else
 #endif // NCNN_VFPV4
+#if NCNN_RVV
+        if (d->opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && (type == 0))
+        {
+            if (feat.elembits() == 16)
+            {
+                Mat feat_fp32;
+                cast_float16_to_float32(feat, feat_fp32, d->opt);
+                feat = feat_fp32;
+            }
+        }
+        else
+#endif // NCNN_RVV
 #if NCNN_BF16
-    if (d->opt.use_bf16_storage && (type == 0))
-    {
-        if (feat.elembits() == 16)
+        if (d->opt.use_bf16_storage && (type == 0))
+        {
+            if (feat.elembits() == 16)
+            {
+                Mat feat_fp32;
+                cast_bfloat16_to_float32(feat, feat_fp32, d->opt);
+                feat = feat_fp32;
+            }
+        }
+        else
+#endif // NCNN_BF16
+        if (feat.elembits() == 8 && (type == 0))
         {
             Mat feat_fp32;
-            cast_bfloat16_to_float32(feat, feat_fp32, d->opt);
+            cast_int8_to_float32(feat, feat_fp32, d->opt);
             feat = feat_fp32;
         }
-    }
-    else
-#endif // NCNN_BF16
-    if (feat.elembits() == 8 && (type == 0))
-    {
-        Mat feat_fp32;
-        cast_int8_to_float32(feat, feat_fp32, d->opt);
-        feat = feat_fp32;
-    }
-    // *INDENT-ON*
-    // clang-format on
+        // *INDENT-ON*
+        // clang-format on
+        if (feat.empty())
+            return -100;
 
-    if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
-    {
-        // detach the returned mat from local pool allocator
-        // so we could destroy net instance much earlier
-        feat = feat.clone();
+        if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
+        {
+            // detach the returned mat from local pool allocator
+            // so we could destroy net instance much earlier
+            feat = feat.clone();
+            if (feat.empty())
+                return -100;
+        }
     }
 
     set_kmp_blocktime(old_blocktime);

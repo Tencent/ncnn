@@ -76,7 +76,8 @@ int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
 
         ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         return 0;
     }
@@ -84,7 +85,8 @@ int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
     // group convolution
     create_group_ops(opt);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -258,17 +260,19 @@ int ConvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blo
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
-    if (elempack == 4 && g_elempack == 1)
+    if (elempack > g_elempack)
     {
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
-        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
+        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked = top_blob;
-    if (out_g_elempack == 1 && out_elempack == 4)
+    if (out_g_elempack < out_elempack)
     {
-        top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
+        top_blob_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
@@ -284,13 +288,17 @@ int ConvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blo
         opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
     }
 
     // packing
-    if (out_g_elempack == 1 && out_elempack == 4)
+    if (out_g_elempack < out_elempack)
     {
-        convert_packing(top_blob_unpacked, top_blob, 4, opt);
+        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
     }
     else
     {
@@ -601,6 +609,8 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked = top_blob;
@@ -622,13 +632,17 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
         opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
     }
 
     // packing
     if (out_g_elempack < out_elempack)
     {
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
     }
     else
     {

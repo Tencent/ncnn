@@ -51,8 +51,6 @@ public:
     // forwardDilation
     Layer* convolution_dilation1;
 
-    Layer* gemm;
-
 #if NCNN_INT8
     Mat scale_in_data;
 #endif
