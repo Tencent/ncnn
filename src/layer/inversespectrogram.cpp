@@ -54,7 +54,7 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
             // hann window
             for (int i = 0; i < winlen; i++)
             {
-                *p++ = 0.5f * (1 - cos(2 * M_PI * i / winlen));
+                *p++ = 0.5f * (1 - cos(2 * 3.1415927f * i / winlen));
             }
         }
         if (window_type == 2)
@@ -62,7 +62,7 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
             // hamming window
             for (int i = 0; i < winlen; i++)
             {
-                *p++ = 0.54f - 0.46f * cos(2 * M_PI * i / winlen);
+                *p++ = 0.54f - 0.46f * cos(2 * 3.1415927f * i / winlen);
             }
         }
         for (int i = 0; i < n_fft - winlen - (n_fft - winlen) / 2; i++)
@@ -90,6 +90,7 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     // https://github.com/librosa/librosa/blob/main/librosa/core/spectrum.py#L630
 
     // TODO custom window
+    // TODO output length
 
     const int frames = bottom_blob.h;
     const int freqs = bottom_blob.c;
@@ -170,7 +171,7 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             float im = 0.f;
             for (int k = 0; k < n_fft; k++)
             {
-                double angle = 2 * M_PI * i * k / n_fft;
+                double angle = 2 * 3.1415927f * i * k / n_fft;
 
                 re += sp.row(k)[0] * cos(angle) - sp.row(k)[1] * sin(angle);
                 im += sp.row(k)[0] * sin(angle) + sp.row(k)[1] * cos(angle);
