@@ -35,7 +35,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish, 102)
 
 class F_hardswish_1 : public GraphRewriterPass
 {
@@ -64,7 +64,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_1, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_1, 100)
 
 class F_hardswish_2 : public GraphRewriterPass
 {
@@ -86,7 +86,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_2, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_2, 101)
 
 class F_hardswish_3 : public GraphRewriterPass
 {
@@ -115,7 +115,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_3, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_3, 100)
 
 class F_hardswish_4 : public GraphRewriterPass
 {
@@ -144,7 +144,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_4, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_4, 100)
 
 class F_hardswish_4_1 : public F_hardswish_4
 {
@@ -167,7 +167,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_4_1, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_4_1, 100)
 
 class F_hardswish_5 : public GraphRewriterPass
 {
@@ -194,7 +194,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_5, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_5, 100)
 
 class F_hardswish_6 : public GraphRewriterPass
 {
@@ -221,7 +221,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_6, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_6, 100)
 
 class F_hardswish_7 : public GraphRewriterPass
 {
@@ -249,7 +249,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_7, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_7, 100)
 
 class F_hardswish_onnx : public GraphRewriterPass
 {
@@ -270,7 +270,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx, 101)
 
 static bool NearlyEqual(float a, float b, float epsilon)
 {
@@ -315,7 +315,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx_1, 100)
 
 class F_hardswish_onnx_2 : public GraphRewriterPass
 {
@@ -341,7 +341,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx_2, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx_2, 100)
 
 class F_hardswish_onnx_3 : public GraphRewriterPass
 {
@@ -367,6 +367,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx_3, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardswish_onnx_3, 100)
 
 } // namespace pnnx
