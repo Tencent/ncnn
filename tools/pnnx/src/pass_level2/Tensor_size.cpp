@@ -38,6 +38,29 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size, 10)
 
+class Tensor_size_0 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+Tensor.size             op_0        1 1 input a dim=%dim
+prim::NumToTensor       op_1        1 1 a b
+aten::Int               op_2        1 1 b out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.size";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_0, 11)
+
 class Tensor_size_1 : public GraphRewriterPass
 {
 public:
@@ -59,5 +82,29 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_1, 11)
+
+class Tensor_size_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 dim
+Tensor.size             op_0        2 1 input dim a
+prim::NumToTensor       op_1        1 1 a b
+aten::Int               op_2        1 1 b out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.size";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_2, 12)
 
 } // namespace pnnx
