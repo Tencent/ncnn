@@ -306,6 +306,9 @@ set(pnnx_pass_level2_SRCS
 
     pass_level2/nn_quantized_FloatFunctional.cpp
 
+    pass_level2/torchaudio_F_inverse_spectrogram.cpp
+    pass_level2/torchaudio_F_spectrogram.cpp
+
     pass_level2/nn_GRU.cpp
     pass_level2/nn_LSTM.cpp
     pass_level2/nn_RNN.cpp
@@ -570,6 +573,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_cumsum.cpp
     pass_ncnn/torch_diag.cpp
     pass_ncnn/torch_flatten.cpp
+    pass_ncnn/torch_istft.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp
     pass_ncnn/torch_max.cpp
@@ -582,9 +586,12 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_slice_scatter.cpp
     pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_sum.cpp
+    pass_ncnn/torch_stft.cpp
     pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
+    pass_ncnn/torchaudio_F_inverse_spectrogram.cpp
+    pass_ncnn/torchaudio_F_spectrogram.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 

@@ -1458,6 +1458,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     fprintf(pyfp, "import torch.nn.functional as F\n");
     fprintf(pyfp, "try:\n");
     fprintf(pyfp, "    import torchvision\n");
+    fprintf(pyfp, "    import torchaudio\n");
     fprintf(pyfp, "except:\n");
     fprintf(pyfp, "    pass\n");
 
