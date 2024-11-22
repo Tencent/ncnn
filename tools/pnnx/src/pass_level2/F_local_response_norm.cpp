@@ -22,41 +22,36 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-35 34
+30 29
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 k value=%k
-prim::Constant          op_1        0 1 alpha value=%alpha
-prim::Constant          op_2        0 1 24 value=None
-prim::Constant          op_3        0 1 23 value=True
-prim::Constant          op_4        0 1 22 value=False
-prim::Constant          op_5        0 1 7 value=1
-prim::Constant          op_6        0 1 10 value=0
-prim::Constant          op_7        0 1 size value=%size
-prim::Constant          op_8        0 1 beta value=%beta
-aten::mul               op_9        2 1 input input 6
-aten::unsqueeze         op_10       2 1 6 7 input.1
-prim::Constant          op_11       0 1 52 value=0
-prim::Constant          op_12       0 1 53 value=*
-prim::Constant          op_13       0 1 54 value=*
-prim::ListConstruct     op_14       4 1 10 52 53 54 11
-prim::Constant          op_15       0 1 55 value=%padzero
-aten::constant_pad_nd   op_16       3 1 input.1 11 55 div.1
-prim::Constant          op_17       0 1 56 value=1
-prim::ListConstruct     op_18       2 1 size 56 16
-prim::Constant          op_19       0 1 57 value=1
-prim::Constant          op_20       0 1 58 value=1
-prim::ListConstruct     op_21       2 1 57 58 17
-prim::Constant          op_22       0 1 59 value=0
-prim::Constant          op_23       0 1 60 value=0
-prim::ListConstruct     op_24       2 1 59 60 18
-aten::avg_pool2d        op_25       7 1 div.1 16 17 18 22 23 24 25
-prim::Constant          op_26       0 1 61 value=1
-aten::squeeze           op_27       2 1 25 61 div0.1
-aten::mul               op_28       2 1 div0.1 alpha 30
-prim::Constant          op_29       0 1 62 value=1
-aten::add               op_30       3 1 30 k 62 33
-aten::pow               op_31       2 1 33 beta div1.1
-aten::div               op_32       2 1 input div1.1 out
+aten::mul               op_0        2 1 input input div.1
+torch.unsqueeze         op_1        1 1 div.1 input.1 dim=1
+prim::Constant          op_2        0 1 11 value=0
+prim::Constant          op_3        0 1 403 value=0
+prim::Constant          op_4        0 1 404 value=1
+prim::Constant          op_5        0 1 405 value=1
+prim::ListConstruct     op_6        4 1 11 403 404 405 12
+prim::Constant          op_7        0 1 14 value=%padzero
+F.pad                   op_8        3 1 input.1 12 14 div0.1 mode=constant
+prim::Constant          op_9        0 1 size value=%size
+prim::Constant          op_10       0 1 406 value=1
+prim::ListConstruct     op_11       2 1 size 406 18
+prim::Constant          op_12       0 1 407 value=1
+prim::Constant          op_13       0 1 408 value=1
+prim::ListConstruct     op_14       2 1 407 408 19
+prim::Constant          op_15       0 1 409 value=0
+prim::Constant          op_16       0 1 410 value=0
+prim::ListConstruct     op_17       2 1 409 410 20
+F.avg_pool2d            op_18       4 1 div0.1 18 19 20 24 ceil_mode=False count_include_pad=True divisor_override=None
+torch.squeeze           op_19       1 1 24 div1.1 dim=1
+prim::Constant          op_20       0 1 alpha value=%alpha
+aten::mul               op_21       2 1 div1.1 alpha 29
+prim::Constant          op_22       0 1 k value=%k
+prim::Constant          op_23       0 1 413 value=1
+aten::add               op_24       3 1 29 k 413 32
+prim::Constant          op_25       0 1 beta value=%beta
+aten::pow               op_26       2 1 32 beta div2.1
+aten::div               op_27       2 1 input div2.1 out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -68,6 +63,9 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
+        if (captured_params.at("padzero").type == 0)
+            return true;
+
         if (captured_params.at("padzero").type == 2)
             return captured_params.at("padzero").i == 0;
 

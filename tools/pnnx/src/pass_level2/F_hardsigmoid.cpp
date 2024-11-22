@@ -35,7 +35,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid, 101)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid, 100)
 
 class F_hardsigmoid_2 : public GraphRewriterPass
 {
@@ -50,7 +50,7 @@ prim::Constant          op_1        0 1 412 value=1
 aten::add               op_2        3 1 input 410 412 a
 prim::Constant          op_3        0 1 413 value=0
 prim::Constant          op_4        0 1 414 value=6
-aten::clamp             op_5        3 1 a 413 414 b
+torch.clamp             op_5        3 1 a 413 414 b
 prim::Constant          op_6        0 1 409 value=6
 aten::div               op_7        2 1 b 409 out
 pnnx.Output             output      1 0 out
@@ -77,7 +77,7 @@ prim::Constant          op_0        0 1 410 value=3
 aten::add               op_1        2 1 input 410 a
 prim::Constant          op_2        0 1 413 value=0
 prim::Constant          op_3        0 1 414 value=6
-aten::clamp             op_4        3 1 a 413 414 b
+torch.clamp             op_4        3 1 a 413 414 b
 prim::Constant          op_5        0 1 409 value=6
 aten::div               op_6        2 1 b 409 out
 pnnx.Output             output      1 0 out

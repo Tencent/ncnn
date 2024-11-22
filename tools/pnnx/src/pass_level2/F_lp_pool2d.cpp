@@ -22,7 +22,7 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-21 20
+18 17
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 kernel_size
 pnnx.Input              input_2     0 1 stride
@@ -31,18 +31,15 @@ aten::pow               op_0        2 1 input norm_type 4
 prim::Constant          op_1        0 1 padding_h value=0
 prim::Constant          op_2        0 1 padding_w value=0
 prim::ListConstruct     op_3        2 1 padding_h padding_w padding
-prim::Constant          op_4        0 1 ceil_mode value=%ceil_mode
-prim::Constant          op_5        0 1 count_include_pad value=True
-prim::Constant          op_6        0 1 divisor_override value=None
-aten::avg_pool2d        op_7        7 1 4 kernel_size stride padding ceil_mode count_include_pad divisor_override out.1
-aten::sign              op_8        1 1 out.1 14
-aten::abs               op_9        1 1 out.1 input.1
-aten::relu              op_10       1 1 input.1 19
-aten::mul               op_11       2 1 14 19 20
-prim::Constant          op_12       0 1 21 value=*
-aten::mul               op_13       2 1 20 21 22
-prim::Constant          op_14       0 1 24 value=*
-aten::pow               op_15       2 1 22 24 out
+F.avg_pool2d            op_4        4 1 4 kernel_size stride padding out.1 ceil_mode=%ceil_mode count_include_pad=True divisor_override=None
+aten::sign              op_5        1 1 out.1 14
+aten::abs               op_6        1 1 out.1 input.1
+F.relu                  op_7        1 1 input.1 19
+aten::mul               op_8        2 1 14 19 20
+prim::Constant          op_9        0 1 21 value=*
+aten::mul               op_10       2 1 20 21 22
+prim::Constant          op_11       0 1 24 value=*
+aten::pow               op_12       2 1 22 24 out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -53,6 +50,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_lp_pool2d, 120)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_lp_pool2d, 121)
 
 } // namespace pnnx

@@ -24,6 +24,28 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+aten::squeeze           op_1        2 1 input dim out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.squeeze";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze, 60)
+
+class torch_squeeze_0 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 dim
 aten::squeeze           op_0        2 1 input dim out
 pnnx.Output             output      1 0 out
@@ -36,7 +58,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_0, 61)
 
 class torch_squeeze_01 : public GraphRewriterPass
 {
@@ -59,7 +81,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_01, 60)
 
-class torch_squeeze_0 : public GraphRewriterPass
+class torch_squeeze_1 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -78,7 +100,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_0, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_1, 60)
 
 class torch_squeeze_onnx : public GraphRewriterPass
 {
