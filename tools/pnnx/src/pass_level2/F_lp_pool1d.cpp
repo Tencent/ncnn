@@ -52,7 +52,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_lp_pool1d, 7)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_lp_pool1d, 120)
 
 class F_lp_pool1d_1 : public GraphRewriterPass
 {
@@ -89,6 +89,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_lp_pool1d_1, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_lp_pool1d_1, 120)
 
 } // namespace pnnx

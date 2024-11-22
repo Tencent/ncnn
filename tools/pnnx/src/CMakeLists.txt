@@ -197,6 +197,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_repeat.cpp
     pass_level2/Tensor_reshape.cpp
     pass_level2/Tensor_select.cpp
+    pass_level2/Tensor_size.cpp
     pass_level2/Tensor_slice.cpp
     pass_level2/Tensor_to.cpp
     pass_level2/Tensor_type_as.cpp

@@ -37,7 +37,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear, 111)
 
 class F_linear_1 : public GraphRewriterPass
 {
@@ -63,7 +63,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_1, 110)
 
 class F_linear_2 : public GraphRewriterPass
 {
@@ -91,7 +91,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_2, 111)
 
 class F_linear_3 : public GraphRewriterPass
 {
@@ -117,7 +117,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_3, 111)
 
 class F_linear_onnx : public GraphRewriterPass
 {
@@ -173,7 +173,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx, 112)
 
 class F_linear_onnx_1 : public GraphRewriterPass
 {
@@ -252,7 +252,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_1, 111)
 
 class F_linear_onnx_2 : public F_linear_onnx_1
 {
@@ -280,7 +280,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_2, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_2, 111)
 
 class F_linear_onnx_3 : public F_linear_onnx_1
 {
@@ -319,7 +319,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_3, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_3, 110)
 
 class F_linear_onnx_4 : public F_linear_onnx_3
 {
@@ -338,6 +338,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_4, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_4, 110)
 
 } // namespace pnnx

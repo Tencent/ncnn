@@ -86,7 +86,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm, 130)
 
 class F_local_response_norm_1 : public GraphRewriterPass
 {
@@ -188,7 +188,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_1, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_1, 130)
 
 class F_local_response_norm_2 : public GraphRewriterPass
 {
@@ -294,7 +294,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_2, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_2, 130)
 
 class F_local_response_norm_3 : public GraphRewriterPass
 {
@@ -367,7 +367,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_3, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_3, 130)
 
 class F_local_response_norm_4 : public GraphRewriterPass
 {
@@ -470,7 +470,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_4, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_4, 130)
 
 class F_local_response_norm_5 : public GraphRewriterPass
 {
@@ -577,6 +577,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_5, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_5, 130)
 
 } // namespace pnnx

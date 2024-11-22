@@ -68,7 +68,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate, 110)
 
 class F_interpolate_1 : public GraphRewriterPass
 {
@@ -124,7 +124,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_1, 110)
 
 class F_interpolate_2 : public GraphRewriterPass
 {
@@ -203,7 +203,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_2, 110)
 
 class F_interpolate_3 : public GraphRewriterPass
 {
@@ -284,7 +284,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_3, 110)
 
 class F_interpolate_3_1 : public GraphRewriterPass
 {
@@ -364,7 +364,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_3_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_3_1, 110)
 
 class F_interpolate_4 : public GraphRewriterPass
 {
@@ -445,7 +445,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_4, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_4, 110)
 
 class F_interpolate_4_1 : public GraphRewriterPass
 {
@@ -525,7 +525,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_4_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_4_1, 110)
 
 class F_interpolate_5 : public GraphRewriterPass
 {
@@ -629,7 +629,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_5, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_5, 110)
 
 class F_interpolate_5_1 : public GraphRewriterPass
 {
@@ -731,7 +731,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_5_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_5_1, 110)
 
 class F_interpolate_6 : public GraphRewriterPass
 {
@@ -837,7 +837,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_6, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_6, 110)
 
 class F_interpolate_6_1 : public GraphRewriterPass
 {
@@ -941,7 +941,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_6_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_6_1, 110)
 
 class F_interpolate_7 : public GraphRewriterPass
 {
@@ -995,7 +995,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_7, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_7, 110)
 
 class F_interpolate_onnx : public GraphRewriterPass
 {
@@ -1151,7 +1151,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx, 110)
 
 class F_interpolate_onnx_2 : public GraphRewriterPass
 {
@@ -1218,6 +1218,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_2, 110)
 
 } // namespace pnnx

@@ -38,7 +38,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmin, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmin, 100)
 
 class F_softmin_onnx : public GraphRewriterPass
 {
@@ -60,6 +60,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmin_onnx, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmin_onnx, 100)
 
 } // namespace pnnx

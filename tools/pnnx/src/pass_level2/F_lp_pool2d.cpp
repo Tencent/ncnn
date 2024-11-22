@@ -53,6 +53,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_lp_pool2d, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_lp_pool2d, 120)
 
 } // namespace pnnx

@@ -46,7 +46,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool3d, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool3d, 120)
 
 class F_max_pool3d_2 : public GraphRewriterPass
 {
@@ -78,7 +78,7 @@ pnnx.Output             output      2 0 out indices
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool3d_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool3d_2, 120)
 
 // https://github.com/pytorch/pytorch/blob/c263bd43e8e8502d4726643bc6fd046f0130ac0e/torch/onnx/symbolic_opset9.py#L1496
 static int get_pool_ceil_padding(int w, int ksize, int stride, int pad)
@@ -236,7 +236,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool3d_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool3d_onnx, 120)
 
 class F_max_pool3d_onnx_1 : public F_max_pool3d_onnx
 {
@@ -259,6 +259,6 @@ pnnx.Output             output      2 0 out indices
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool3d_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool3d_onnx_1, 120)
 
 } // namespace pnnx

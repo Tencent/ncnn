@@ -49,7 +49,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d, 140)
 
 class F_conv2d_cudnn_relu : public GraphRewriterPass
 {
@@ -88,7 +88,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_cudnn_relu, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_cudnn_relu, 140)
 
 class F_conv2d_cudnn_add_relu : public GraphRewriterPass
 {
@@ -132,7 +132,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_cudnn_add_relu, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_cudnn_add_relu, 140)
 
 class F_conv2d_1 : public GraphRewriterPass
 {
@@ -159,7 +159,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_1, 140)
 
 class F_conv2d_onnx : public GraphRewriterPass
 {
@@ -255,7 +255,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx, 140)
 
 class F_conv2d_onnx_1 : public F_conv2d_onnx
 {
@@ -279,6 +279,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx_1, 140)
 
 } // namespace pnnx

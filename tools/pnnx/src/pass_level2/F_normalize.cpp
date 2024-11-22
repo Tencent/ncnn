@@ -43,7 +43,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize, 130)
 
 class F_normalize_1 : public GraphRewriterPass
 {
@@ -73,6 +73,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_1, 130)
 
 } // namespace pnnx

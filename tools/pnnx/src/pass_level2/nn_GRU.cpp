@@ -215,7 +215,7 @@ pnnx.Output             output      1 0 out1
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx, 140)
 
 class nn_GRU_onnx_B : public nn_GRU_onnx
 {
@@ -363,7 +363,7 @@ pnnx.Output             output      1 0 out1
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B, 140)
 
 class nn_GRU_onnx_1 : public nn_GRU_onnx
 {
@@ -383,7 +383,7 @@ pnnx.Output             output      2 0 out1 outh
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_1, 140)
 
 class nn_GRU_onnx_B1 : public nn_GRU_onnx_B
 {
@@ -404,7 +404,7 @@ pnnx.Output             output      2 0 out1 outh
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B1, 140)
 
 class nn_GRU_onnx_2 : public nn_GRU_onnx
 {
@@ -424,7 +424,7 @@ pnnx.Output             output      1 0 out1
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_2, 140)
 
 class nn_GRU_onnx_B2 : public nn_GRU_onnx_B
 {
@@ -445,7 +445,7 @@ pnnx.Output             output      1 0 out1
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B2, 140)
 
 class nn_GRU_onnx_3 : public nn_GRU_onnx
 {
@@ -476,7 +476,7 @@ pnnx.Output             output      1 0 out2
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_3, 140)
 
 class nn_GRU_onnx_B3 : public nn_GRU_onnx_B
 {
@@ -508,7 +508,7 @@ pnnx.Output             output      1 0 out2
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B3, 140)
 
 class nn_GRU_onnx_4 : public nn_GRU_onnx_3
 {
@@ -529,7 +529,7 @@ pnnx.Output             output      2 0 out2 outh
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_4, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_4, 140)
 
 class nn_GRU_onnx_B4 : public nn_GRU_onnx_B3
 {
@@ -551,7 +551,7 @@ pnnx.Output             output      2 0 out2 outh
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B4, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B4, 140)
 
 class nn_GRU_onnx_5 : public nn_GRU_onnx_3
 {
@@ -572,7 +572,7 @@ pnnx.Output             output      1 0 out2
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_5, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_5, 140)
 
 class nn_GRU_onnx_B5 : public nn_GRU_onnx_B3
 {
@@ -594,6 +594,6 @@ pnnx.Output             output      1 0 out2
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B5, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B5, 140)
 
 } // namespace pnnx

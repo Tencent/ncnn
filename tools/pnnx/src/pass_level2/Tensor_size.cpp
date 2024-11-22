@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -16,7 +16,7 @@
 
 namespace pnnx {
 
-class Tensor_contiguous : public GraphRewriterPass
+class Tensor_size : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -24,28 +24,40 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 memory_format value=%memory_format
-aten::contiguous        op_1        2 1 input memory_format out
+prim::Constant          op_0        0 1 dim value=%dim
+aten::size              op_1        2 1 input dim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "Tensor.contiguous";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        if (captured_params.at("memory_format").i == 0)
-            op->params["memory_format"] = "torch.contiguous_format";
-        if (captured_params.at("memory_format").i == 1)
-            op->params["memory_format"] = "torch.preserve_format";
-        if (captured_params.at("memory_format").i == 2)
-            op->params["memory_format"] = "torch.channels_last";
+        return "Tensor.size";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_contiguous, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size, 10)
+
+class Tensor_size_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 dim
+aten::size              op_1        2 1 input dim out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.size";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_1, 11)
 
 } // namespace pnnx

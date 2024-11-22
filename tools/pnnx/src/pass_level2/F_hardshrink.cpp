@@ -36,7 +36,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardshrink, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardshrink, 100)
 
 static bool NearlyEqual(float a, float b, float epsilon)
 {
@@ -88,6 +88,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardshrink_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardshrink_1, 100)
 
 } // namespace pnnx
