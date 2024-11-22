@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchaudio
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -29,6 +30,9 @@ class Model(nn.Module):
         return out0, out1, out2, out3
 
 def test():
+    if version.parse(torchaudio.__version__) < version.parse('0.10.0'):
+        return True
+
     net = Model()
     net.eval()
 
