@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -15,16 +15,17 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchaudio
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
     def forward(self, x, y):
-        out0 = torch.stft(x, n_fft=64, window=torch.hann_window(44), win_length=44, center=True, normalized=True, return_complex=True)
-        out1 = torch.stft(x, n_fft=128, center=False, onesided=True, return_complex=True)
-        out2 = torch.stft(y, n_fft=512, window=torch.hamming_window(256), win_length=256, hop_length=128, center=True, pad_mode='constant', onesided=True, return_complex=True)
-        out3 = torch.stft(y, n_fft=512, center=True, onesided=False, return_complex=True)
+        out0 = torchaudio.functional.spectrogram(x, n_fft=64, window=torch.hann_window(44), win_length=44, hop_length=16, pad=0, center=True, normalized='window', power=1)
+        out1 = torchaudio.functional.spectrogram(x, n_fft=128, window=torch.hann_window(128), win_length=128, hop_length=3, pad=0, center=False, onesided=True, normalized=False, power=None)
+        out2 = torchaudio.functional.spectrogram(y, n_fft=512, window=torch.hamming_window(256), win_length=256, hop_length=128, pad=0, center=True, pad_mode='constant', onesided=True, normalized='frame_length', power=2)
+        out3 = torchaudio.functional.spectrogram(y, n_fft=512, window=torch.hamming_window(512), win_length=512, hop_length=128, pad=32, center=True, onesided=False, normalized=False, power=2)
         return out0, out1, out2, out3
 
 def test():
@@ -39,15 +40,15 @@ def test():
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y))
-    mod.save("test_torch_stft.pt")
+    mod.save("test_torchaudio_F_spectrogram.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_stft.pt inputshape=[3,2560],[1000]")
+    os.system("../src/pnnx test_torchaudio_F_spectrogram.pt inputshape=[3,2560],[1000]")
 
     # pnnx inference
-    import test_torch_stft_pnnx
-    b = test_torch_stft_pnnx.test_inference()
+    import test_torchaudio_F_spectrogram_pnnx
+    b = test_torchaudio_F_spectrogram_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
