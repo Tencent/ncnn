@@ -104,4 +104,4 @@ void eliminate_size_numtotensor_int(Graph& graph)
     }
 }
 
-}
+} // namespace pnnx

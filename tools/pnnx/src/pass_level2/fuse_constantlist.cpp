@@ -109,4 +109,4 @@ void fuse_constantlist(Graph& graph)
     }
 }
 
-}
+} // namespace pnnx

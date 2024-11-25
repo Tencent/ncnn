@@ -324,4 +324,4 @@ void functionize(Graph& graph)
     }
 }
 
-}
+} // namespace pnnx

@@ -64,7 +64,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class torch_squeeze_dynamic: public torch_squeeze
+class torch_squeeze_dynamic : public torch_squeeze
 {
 public:
     const char* match_pattern_graph() const
