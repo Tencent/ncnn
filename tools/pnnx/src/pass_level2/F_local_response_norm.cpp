@@ -22,36 +22,26 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-30 29
+20 19
 pnnx.Input              input       0 1 input
 aten::mul               op_0        2 1 input input div.1
 torch.unsqueeze         op_1        1 1 div.1 input.1 dim=1
-prim::Constant          op_2        0 1 11 value=0
-prim::Constant          op_3        0 1 403 value=0
-prim::Constant          op_4        0 1 404 value=1
-prim::Constant          op_5        0 1 405 value=1
-prim::ListConstruct     op_6        4 1 11 403 404 405 12
-prim::Constant          op_7        0 1 14 value=%padzero
-F.pad                   op_8        3 1 input.1 12 14 div0.1 mode=constant
-prim::Constant          op_9        0 1 size value=%size
-prim::Constant          op_10       0 1 406 value=1
-prim::ListConstruct     op_11       2 1 size 406 18
-prim::Constant          op_12       0 1 407 value=1
-prim::Constant          op_13       0 1 408 value=1
-prim::ListConstruct     op_14       2 1 407 408 19
-prim::Constant          op_15       0 1 409 value=0
-prim::Constant          op_16       0 1 410 value=0
-prim::ListConstruct     op_17       2 1 409 410 20
-F.avg_pool2d            op_18       4 1 div0.1 18 19 20 24 ceil_mode=False count_include_pad=True divisor_override=None
-torch.squeeze           op_19       1 1 24 div1.1 dim=1
-prim::Constant          op_20       0 1 alpha value=%alpha
-aten::mul               op_21       2 1 div1.1 alpha 29
-prim::Constant          op_22       0 1 k value=%k
-prim::Constant          op_23       0 1 413 value=1
-aten::add               op_24       3 1 29 k 413 32
-prim::Constant          op_25       0 1 beta value=%beta
-aten::pow               op_26       2 1 32 beta div2.1
-aten::div               op_27       2 1 input div2.1 out
+prim::ConstantList      op_2        0 1 12 value=(0,0,1,1)
+prim::Constant          op_3        0 1 14 value=%padzero
+F.pad                   op_4        3 1 input.1 12 14 div0.1 mode=constant
+prim::ConstantList      op_5        0 1 18 value=(%size,1)
+prim::ConstantList      op_6        0 1 19 value=(1,1)
+prim::ConstantList      op_7        0 1 20 value=(0,0)
+F.avg_pool2d            op_8        4 1 div0.1 18 19 20 24 ceil_mode=False count_include_pad=True divisor_override=None
+torch.squeeze           op_9        1 1 24 div1.1 dim=1
+prim::Constant          op_10       0 1 alpha value=%alpha
+aten::mul               op_11       2 1 div1.1 alpha 29
+prim::Constant          op_12       0 1 k value=%k
+prim::Constant          op_13       0 1 413 value=1
+aten::add               op_14       3 1 29 k 413 32
+prim::Constant          op_15       0 1 beta value=%beta
+aten::pow               op_16       2 1 32 beta div2.1
+aten::div               op_17       2 1 input div2.1 out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

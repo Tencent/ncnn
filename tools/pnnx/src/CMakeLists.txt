@@ -108,6 +108,10 @@ set(pnnx_pass_level1_SRCS
 )
 
 set(pnnx_pass_level2_SRCS
+    pass_level2/eliminate_size_numtotensor_int.cpp
+    pass_level2/functionize.cpp
+    pass_level2/fuse_constantlist.cpp
+
     pass_level2/F_adaptive_avg_pool1d.cpp
     pass_level2/F_adaptive_avg_pool2d.cpp
     pass_level2/F_adaptive_avg_pool3d.cpp
