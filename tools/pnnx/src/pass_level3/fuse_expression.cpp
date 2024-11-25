@@ -24,7 +24,7 @@ static bool operand_maybe_shape_tensor(const Operand* operand)
 {
     const Operator* op = operand->producer;
 
-    if (op->type == "aten::size")
+    if (op->type == "Tensor.size")
     {
         return op->inputs.size() == 1;
     }
@@ -74,7 +74,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return false;
     }
 
-    if (op->type == "aten::size")
+    if (op->type == "Tensor.size")
     {
         return op->inputs.size() == 1;
     }
@@ -558,7 +558,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         }
         expr += "]";
     }
-    else if (op->type == "aten::size")
+    else if (op->type == "Tensor.size")
     {
         if (op->inputs.size() == 1)
         {
@@ -840,7 +840,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::size")
+            if (op->type == "Tensor.size")
             {
                 need_fuse = true;
             }
