@@ -36,9 +36,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size, 10)
-
-class Tensor_size_1 : public GraphRewriterPass
+class Tensor_size_dynamic : public Tensor_size
 {
 public:
     const char* match_pattern_graph() const
@@ -51,13 +49,9 @@ aten::size              op_1        2 1 input dim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
-
-    const char* type_str() const
-    {
-        return "Tensor.size";
-    }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_1, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_dynamic, 11)
 
 } // namespace pnnx

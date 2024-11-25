@@ -1142,7 +1142,7 @@ void pass_level2(Graph& g)
     int opindex = 0;
     for (auto x : g_global_pnnx_graph_rewriter_passes)
     {
-        if (x.first == 140)
+        if (x.first == 141)
         {
             g.save("debug.param", "debug.bin");
             // exit(0);

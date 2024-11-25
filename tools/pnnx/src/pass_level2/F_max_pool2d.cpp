@@ -23,13 +23,13 @@ public:
     {
         return R"PNNXIR(7767517
 8 7
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 kernel_size
-pnnx.Input              input_2     0 1 stride
-pnnx.Input              input_3     0 1 padding
-pnnx.Input              input_4     0 1 dilation
-prim::Constant          op_0        0 1 ceil_mode value=%ceil_mode
-aten::max_pool2d        op_1        6 1 input kernel_size stride padding dilation ceil_mode out
+pnnx.Input              input       0 1 input
+prim::ConstantList      op_0        0 1 kernel_size value=%kernel_size
+prim::ConstantList      op_1        0 1 stride value=%stride
+prim::ConstantList      op_2        0 1 padding value=%padding
+prim::ConstantList      op_3        0 1 dilation value=%dilation
+prim::Constant          op_4        0 1 ceil_mode value=%ceil_mode
+aten::max_pool2d        op_5        6 1 input kernel_size stride padding dilation ceil_mode out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -41,12 +41,11 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["ceil_mode"] = captured_params.at("ceil_mode");
+        GraphRewriterPass::write(op, captured_params);
+
         op->params["return_indices"] = false;
     }
 };
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d, 120)
 
 class F_max_pool2d_2 : public GraphRewriterPass
 {
@@ -56,12 +55,12 @@ public:
         return R"PNNXIR(7767517
 8 8
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 kernel_size
-pnnx.Input              input_2     0 1 stride
-pnnx.Input              input_3     0 1 padding
-pnnx.Input              input_4     0 1 dilation
-prim::Constant          op_0        0 1 ceil_mode value=%ceil_mode
-aten::max_pool2d_with_indices op_1  6 2 input kernel_size stride padding dilation ceil_mode out indices
+prim::ConstantList      op_0        0 1 kernel_size value=%kernel_size
+prim::ConstantList      op_1        0 1 stride value=%stride
+prim::ConstantList      op_2        0 1 padding value=%padding
+prim::ConstantList      op_3        0 1 dilation value=%dilation
+prim::Constant          op_4        0 1 ceil_mode value=%ceil_mode
+aten::max_pool2d_with_indices op_5  6 2 input kernel_size stride padding dilation ceil_mode out indices
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -73,11 +72,13 @@ pnnx.Output             output      2 0 out indices
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["ceil_mode"] = captured_params.at("ceil_mode");
+        GraphRewriterPass::write(op, captured_params);
+
         op->params["return_indices"] = true;
     }
 };
 
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d, 120)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_2, 120)
 
 class F_max_pool2d_3 : public GraphRewriterPass

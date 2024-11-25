@@ -36,9 +36,35 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze, 60)
+class torch_squeeze_0 : public torch_squeeze
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+aten::squeeze_dim       op_0        1 1 input out dim=%dim
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
 
-class torch_squeeze_0 : public GraphRewriterPass
+class torch_squeeze_1 : public torch_squeeze
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+aten::squeeze           op_0        1 1 input out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+class torch_squeeze_dynamic: public torch_squeeze
 {
 public:
     const char* match_pattern_graph() const
@@ -51,56 +77,12 @@ aten::squeeze           op_0        2 1 input dim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
-
-    const char* type_str() const
-    {
-        return "torch.squeeze";
-    }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_0, 61)
-
-class torch_squeeze_01 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-aten::squeeze_dim       op_0        1 1 input out dim=%dim
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "torch.squeeze";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_01, 60)
-
-class torch_squeeze_1 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-aten::squeeze           op_0        1 1 input out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "torch.squeeze";
-    }
-};
-
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_0, 60)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_1, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_squeeze_dynamic, 61)
 
 class torch_squeeze_onnx : public GraphRewriterPass
 {

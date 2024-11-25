@@ -36,9 +36,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_unsqueeze, 60)
-
-class torch_unsqueeze_0 : public GraphRewriterPass
+class torch_unsqueeze_dynamic : public torch_unsqueeze
 {
 public:
     const char* match_pattern_graph() const
@@ -51,14 +49,10 @@ aten::unsqueeze         op_0        2 1 input dim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
-
-    const char* type_str() const
-    {
-        return "torch.unsqueeze";
-    }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_unsqueeze_0, 61)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_unsqueeze, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_unsqueeze_dynamic, 61)
 
 class torch_unsqueeze_onnx : public GraphRewriterPass
 {
