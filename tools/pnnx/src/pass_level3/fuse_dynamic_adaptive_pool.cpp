@@ -185,7 +185,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int d_axis = captured_params.at("d_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1) || (input_rank == 5 && d_axis == 2);
     }
 
@@ -222,7 +222,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && h_axis == 2) || (input_rank == 5 && h_axis == 3);
     }
 
@@ -259,7 +259,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && w_axis == 3) || (input_rank == 5 && w_axis == 4);
     }
 
@@ -297,7 +297,7 @@ pnnx.Output             output      1 0 out
     {
         int d_axis = captured_params.at("d_axis").i;
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1 && h_axis == 2) || (input_rank == 5 && d_axis == 2 && h_axis == 3);
     }
 
@@ -334,7 +334,7 @@ pnnx.Output             output      1 0 out
     {
         int d_axis = captured_params.at("d_axis").i;
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1 && w_axis == 3) || (input_rank == 5 && d_axis == 2 && w_axis == 4);
     }
 
@@ -371,7 +371,7 @@ pnnx.Output             output      1 0 out
     {
         int h_axis = captured_params.at("h_axis").i;
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && h_axis == 2 && w_axis == 3) || (input_rank == 5 && h_axis == 3 && w_axis == 4);
     }
 
@@ -407,7 +407,7 @@ pnnx.Output             output      2 0 out indices
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int d_axis = captured_params.at("d_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1) || (input_rank == 5 && d_axis == 2);
     }
 
@@ -445,7 +445,7 @@ pnnx.Output             output      2 0 out indices
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && h_axis == 2) || (input_rank == 5 && h_axis == 3);
     }
 
@@ -483,7 +483,7 @@ pnnx.Output             output      2 0 out indices
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && w_axis == 3) || (input_rank == 5 && w_axis == 4);
     }
 
@@ -522,7 +522,7 @@ pnnx.Output             output      2 0 out indices
     {
         int d_axis = captured_params.at("d_axis").i;
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1 && h_axis == 2) || (input_rank == 5 && d_axis == 2 && h_axis == 3);
     }
 
@@ -560,7 +560,7 @@ pnnx.Output             output      2 0 out indices
     {
         int d_axis = captured_params.at("d_axis").i;
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1 && w_axis == 3) || (input_rank == 5 && d_axis == 2 && w_axis == 4);
     }
 
@@ -598,7 +598,7 @@ pnnx.Output             output      2 0 out indices
     {
         int h_axis = captured_params.at("h_axis").i;
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && h_axis == 2 && w_axis == 3) || (input_rank == 5 && h_axis == 3 && w_axis == 4);
     }
 

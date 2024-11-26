@@ -22,7 +22,7 @@ namespace pnnx {
 void fuse_constantlist(Graph& graph)
 {
     // from prim::Constant * N - prim::ListConstruct
-    //   to prim::ConstantList
+    //   to prim::Constant (x0,x1,...)
 
     // from prim::Constant * 0 - prim::ListConstruct
     //   to prim::Constant None
@@ -96,7 +96,7 @@ void fuse_constantlist(Graph& graph)
 
             need_eliminate = true;
 
-            op->type = "prim::ConstantList";
+            op->type = "prim::Constant";
 
             if (listtype == 5)
                 op->params["value"] = constants_i;

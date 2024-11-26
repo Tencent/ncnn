@@ -44,7 +44,7 @@ static bool operand_maybe_tensor(const Operand* operand)
     if (op->type == "prim::Constant")
     {
         const Parameter& param = op->params.at("value");
-        if (param.type == 0 || param.type == 1 || param.type == 2 || param.type == 3 || param.type == 4 || param.type == 10)
+        if (param.type == 0 || param.type == 1 || param.type == 2 || param.type == 3 || param.type == 4 || param.type == 5 || param.type == 6 || param.type == 7 || param.type == 10)
         {
             return false;
         }
@@ -52,11 +52,6 @@ static bool operand_maybe_tensor(const Operand* operand)
         {
             return true;
         }
-    }
-
-    if (op->type == "prim::ConstantList")
-    {
-        return false;
     }
 
     if (op->type == "prim::NumToTensor")
@@ -201,7 +196,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         }
     }
 
-    if (op->type == "prim::Constant" || op->type == "prim::ConstantList")
+    if (op->type == "prim::Constant")
     {
         const Parameter& param = op->params["value"];
         //         fprintf(stderr, "fuse_expression prim::Constant %d\n", param.type);
@@ -825,10 +820,6 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             Operator* op = graph.ops[i];
 
             if (op->type == "prim::Constant")
-            {
-                need_fuse = true;
-            }
-            if (op->type == "prim::ConstantList")
             {
                 need_fuse = true;
             }

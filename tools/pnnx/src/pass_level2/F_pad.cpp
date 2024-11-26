@@ -24,7 +24,7 @@ public:
         return R"PNNXIR(7767517
 6 5
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 pad value=%pad
+prim::Constant          op_0        0 1 pad value=%pad
 prim::Constant          op_1        0 1 value value=%value
 prim::Constant          op_2        0 1 mode value=%mode
 aten::pad               op_3        4 1 input pad mode value out
@@ -99,7 +99,7 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 pad value=%pad
+prim::Constant          op_0        0 1 pad value=%pad
 prim::Constant          op_1        0 1 value value=%value
 aten::constant_pad_nd   op_2        3 1 input pad value out
 pnnx.Output             output      1 0 out
@@ -182,7 +182,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 pad value=%pad
+prim::Constant          op_0        0 1 pad value=%pad
 aten::reflection_pad1d  op_1        2 1 input pad out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -208,7 +208,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 pad value=%pad
+prim::Constant          op_0        0 1 pad value=%pad
 aten::reflection_pad2d  op_1        2 1 input pad out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -268,7 +268,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 pad value=%pad
+prim::Constant          op_0        0 1 pad value=%pad
 aten::replication_pad1d op_1        2 1 input pad out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -294,7 +294,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 pad value=%pad
+prim::Constant          op_0        0 1 pad value=%pad
 aten::replication_pad2d op_1        2 1 input pad out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -309,7 +309,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 pad value=%pad
+prim::Constant          op_0        0 1 pad value=%pad
 aten::replication_pad3d op_1        2 1 input pad out
 pnnx.Output             output      1 0 out
 )PNNXIR";

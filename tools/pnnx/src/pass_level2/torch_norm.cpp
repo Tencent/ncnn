@@ -64,7 +64,7 @@ public:
         return R"PNNXIR(7767517
 6 5
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 dim value=%dim
+prim::Constant          op_0        0 1 dim value=%dim
 prim::Constant          op_1        0 1 p value=%p
 prim::Constant          op_2        0 1 keepdim value=%keepdim
 aten::norm              op_3        4 1 input p dim keepdim out
@@ -81,7 +81,7 @@ public:
         return R"PNNXIR(7767517
 7 6
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 dim value=%dim
+prim::Constant          op_0        0 1 dim value=%dim
 prim::Constant          op_1        0 1 p value=%p
 prim::Constant          op_2        0 1 keepdim value=%keepdim
 prim::Constant          op_3        0 1 dtype value=*
@@ -132,7 +132,7 @@ public:
         return R"PNNXIR(7767517
 6 5
 pnnx.Input              input       0 1 input
-prim::ConstantList      op_0        0 1 dim value=%dim
+prim::Constant          op_0        0 1 dim value=%dim
 prim::Constant          op_1        0 1 p value=%p
 prim::Constant          op_2        0 1 keepdim value=%keepdim
 aten::norm              op_3        4 1 input p dim keepdim out

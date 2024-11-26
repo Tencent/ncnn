@@ -26,11 +26,11 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-prim::ConstantList      op_0        0 1 stride value=%stride
-prim::ConstantList      op_1        0 1 padding value=%padding
-prim::ConstantList      op_2        0 1 dilation value=%dilation
+prim::Constant          op_0        0 1 stride value=%stride
+prim::Constant          op_1        0 1 padding value=%padding
+prim::Constant          op_2        0 1 dilation value=%dilation
 prim::Constant          op_3        0 1 transposed value=True
-prim::ConstantList      op_4        0 1 output_padding value=%output_padding
+prim::Constant          op_4        0 1 output_padding value=%output_padding
 prim::Constant          op_5        0 1 groups value=%groups
 prim::Constant          op_6        0 1 benchmark value=*
 prim::Constant          op_7        0 1 deterministic value=*
