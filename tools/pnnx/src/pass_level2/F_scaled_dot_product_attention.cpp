@@ -148,14 +148,14 @@ public:
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
-Transpose               op_0        1 1 key kt perm=(0,1,3,2)
+Tensor.permute          op_0        1 1 key kt dims=(0,1,3,2)
 prim::Constant          op_1        0 1 scale value=%sqrt_scale
 aten::mul               op_2        2 1 query scale q
 prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
 aten::mul               op_4        2 1 kt scale2 k
-MatMul                  op_5        2 1 q k qk
-Softmax                 op_6        1 1 qk 4 axis=-1
-MatMul                  op_7        2 1 4 value out
+torch.matmul            op_5        2 1 q k qk
+F.softmax               op_6        1 1 qk 4 dim=-1
+torch.matmul            op_7        2 1 4 value out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -200,15 +200,15 @@ pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 attn_mask
-Transpose               op_0        1 1 key kt perm=(0,1,3,2)
+Tensor.permute          op_0        1 1 key kt dims=(0,1,3,2)
 prim::Constant          op_1        0 1 scale value=%sqrt_scale
 aten::mul               op_2        2 1 query scale q
 prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
 aten::mul               op_4        2 1 kt scale2 k
-MatMul                  op_5        2 1 q k qk
+torch.matmul            op_5        2 1 q k qk
 aten::add               op_6        2 1 qk attn_mask qkm
-Softmax                 op_7        1 1 qkm 4 axis=-1
-MatMul                  op_8        2 1 4 value out
+F.softmax               op_7        1 1 qkm 4 dim=-1
+torch.matmul            op_8        2 1 4 value out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

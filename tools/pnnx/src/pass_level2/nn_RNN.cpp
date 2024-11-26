@@ -27,7 +27,7 @@ pnnx.Input              input_0     0 1 input
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         3 1 input W R out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -76,12 +76,12 @@ pnnx.Output             output      1 0 out1
             }
         }
 
-        if (captured_params.find("axes") != captured_params.end())
+        if (captured_params.find("dim") != captured_params.end())
         {
-            if (captured_params.at("axes").type == 2 && captured_params.at("axes").i != 1)
+            if (captured_params.at("dim").type == 2 && captured_params.at("dim").i != 1)
                 return false;
 
-            if (captured_params.at("axes").type == 5 && captured_params.at("axes").ai != std::vector<int>{1})
+            if (captured_params.at("dim").type == 5 && captured_params.at("dim").ai != std::vector<int>{1})
                 return false;
         }
 
@@ -167,7 +167,7 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         4 1 input W R B out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -257,7 +257,7 @@ pnnx.Input              input_1     0 1 initial_h
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         4 2 input W R initial_h out outh %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      2 0 out1 outh
 )PNNXIR";
     }
@@ -278,7 +278,7 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         5 2 input W R B initial_h out outh %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      2 0 out1 outh
 )PNNXIR";
     }
@@ -298,7 +298,7 @@ pnnx.Input              input_1     0 1 initial_h
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         4 1 input W R initial_h out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -319,7 +319,7 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         5 1 input W R B initial_h out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -338,8 +338,8 @@ pnnx.Input              input_0     0 1 input
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         3 1 input W R out %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
@@ -370,8 +370,8 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         4 1 input W R B out %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
@@ -402,8 +402,8 @@ pnnx.Input              input_1     0 1 initial_h
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         4 2 input W R initial_h out outh %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      2 0 out2 outh
 )PNNXIR";
     }
@@ -424,8 +424,8 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         5 2 input W R B initial_h out outh %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      2 0 out2 outh
 )PNNXIR";
     }
@@ -445,8 +445,8 @@ pnnx.Input              input_1     0 1 initial_h
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         4 1 input W R initial_h out %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
@@ -467,8 +467,8 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         5 1 input W R B initial_h out %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
