@@ -36,7 +36,8 @@ void eliminate_size_numtotensor_int(Graph& graph)
 
             std::vector<Operator*> ops_NumToTensor_to_remove;
             std::vector<Operator*> ops_Int_to_remove;
-            std::vector<Operand*> operands_to_remove;
+            std::vector<Operand*> ops_NumToTensor_outputs_to_remove;
+            std::vector<Operand*> ops_Int_outputs_to_remove;
 
             for (auto x : op->outputs[0]->consumers)
             {
@@ -53,34 +54,23 @@ void eliminate_size_numtotensor_int(Graph& graph)
                         continue;
                     }
 
-                    // op - x - y is the chain
-                    for (auto z : y->outputs[0]->consumers)
-                    {
-                        for (size_t j = 0; j < z->inputs.size(); j++)
-                        {
-                            if (z->inputs[j] == y->outputs[0])
-                            {
-                                z->inputs[j] = op->outputs[0];
-                                op->outputs[0]->consumers.push_back(z);
-                            }
-                        }
-                    }
-
                     // drop y and y->outputs[0]
                     ops_Int_to_remove.push_back(y);
-                    operands_to_remove.push_back(y->outputs[0]);
+                    ops_Int_outputs_to_remove.push_back(y->outputs[0]);
                 }
 
                 if (x_is_dead)
                 {
                     // drop x and x->outputs[0]
                     ops_NumToTensor_to_remove.push_back(x);
-                    operands_to_remove.push_back(x->outputs[0]);
+                    ops_NumToTensor_outputs_to_remove.push_back(x->outputs[0]);
                 }
             }
 
-            if (!ops_NumToTensor_to_remove.empty() || !ops_Int_to_remove.empty())
-                need_eliminate = true;
+            if (ops_NumToTensor_to_remove.size() != op->outputs[0]->consumers.size())
+                continue;
+
+            need_eliminate = true;
 
             for (auto x : ops_NumToTensor_to_remove)
             {
@@ -93,8 +83,26 @@ void eliminate_size_numtotensor_int(Graph& graph)
                 graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), x));
             }
 
-            for (auto x : operands_to_remove)
+            for (auto x : ops_NumToTensor_outputs_to_remove)
             {
+                graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), x));
+            }
+
+            for (auto x : ops_Int_outputs_to_remove)
+            {
+                // op - x - y is the chain
+                for (auto z : x->consumers)
+                {
+                    for (size_t j = 0; j < z->inputs.size(); j++)
+                    {
+                        if (z->inputs[j] == x)
+                        {
+                            z->inputs[j] = op->outputs[0];
+                            op->outputs[0]->consumers.push_back(z);
+                        }
+                    }
+                }
+
                 graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), x));
             }
         }
