@@ -24,6 +24,9 @@ void fuse_constantlist(Graph& graph)
     // from prim::Constant * N - prim::ListConstruct
     //   to prim::ConstantList
 
+    // from prim::Constant * 0 - prim::ListConstruct
+    //   to prim::Constant None
+
     for (;;)
     {
         bool need_eliminate = false;
@@ -33,6 +36,13 @@ void fuse_constantlist(Graph& graph)
             Operator* op = graph.ops[i];
             if (op->type != "prim::ListConstruct")
                 continue;
+
+            if (op->inputs.empty())
+            {
+                op->type = "prim::Constant";
+                op->params["value"] = Parameter();
+                continue;
+            }
 
             bool is_constant_list = true;
             std::vector<int> constants_i;

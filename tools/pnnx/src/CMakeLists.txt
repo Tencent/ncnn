@@ -128,7 +128,6 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_conv1d.cpp
     pass_level2/F_conv2d.cpp
     pass_level2/F_conv3d.cpp
-    pass_level2/F_conv_transpose123d.cpp
     pass_level2/F_conv_transpose1d.cpp
     pass_level2/F_conv_transpose2d.cpp
     pass_level2/F_conv_transpose3d.cpp
@@ -333,8 +332,6 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_maxpool_unpack.cpp
     pass_level3/fuse_multiheadattention_unpack.cpp
     pass_level3/fuse_rnn_unpack.cpp
-    pass_level3/rename_F_conv_transposend.cpp
-    pass_level3/rename_F_convmode.cpp
     pass_level3/rename_F_dropoutnd.cpp
 )
 

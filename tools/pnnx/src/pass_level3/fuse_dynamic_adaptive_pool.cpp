@@ -166,16 +166,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 9
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 outh value=%outh
-prim::Constant          op_5        0 1 outw value=%outw
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_7        2 1 input output_size out
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+prim::Constant          op_1        0 1 outh value=%outh
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -206,16 +203,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 9
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 outd value=%outd
-prim::Constant          op_5        0 1 outw value=%outw
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_7        2 1 input output_size out
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+prim::Constant          op_1        0 1 outd value=%outd
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -246,16 +240,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 9
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 w_axis value=%w_axis
-aten::size              op_1        2 1 input w_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outw
-prim::Constant          op_4        0 1 outd value=%outd
-prim::Constant          op_5        0 1 outh value=%outh
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_7        2 1 input output_size out
+Tensor.size             op_0        1 1 input outw dim=%w_axis
+prim::Constant          op_1        0 1 outd value=%outd
+prim::Constant          op_2        0 1 outh value=%outh
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -286,19 +277,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 12
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 h_axis value=%h_axis
-aten::size              op_5        2 1 input h_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outh
-prim::Constant          op_8        0 1 outw value=%outw
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_10       2 1 input output_size out
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+Tensor.size             op_1        1 1 input outh dim=%h_axis
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -329,19 +314,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 12
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 w_axis value=%w_axis
-aten::size              op_5        2 1 input w_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outw
-prim::Constant          op_8        0 1 outh value=%outh
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_10       2 1 input output_size out
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+Tensor.size             op_1        1 1 input outw dim=%w_axis
+prim::Constant          op_2        0 1 outh value=%outh
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -372,19 +351,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 12
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 w_axis value=%w_axis
-aten::size              op_5        2 1 input w_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outw
-prim::Constant          op_8        0 1 outd value=%outd
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_10       2 1 input output_size out
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+Tensor.size             op_1        1 1 input outw dim=%w_axis
+prim::Constant          op_2        0 1 outd value=%outd
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -415,16 +388,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 10
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 outh value=%outh
-prim::Constant          op_5        0 1 outw value=%outw
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_7        2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+prim::Constant          op_1        0 1 outh value=%outh
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -456,16 +426,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 10
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 outd value=%outd
-prim::Constant          op_5        0 1 outw value=%outw
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_7        2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+prim::Constant          op_1        0 1 outd value=%outd
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -497,16 +464,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 10
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 w_axis value=%w_axis
-aten::size              op_1        2 1 input w_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outw
-prim::Constant          op_4        0 1 outd value=%outd
-prim::Constant          op_5        0 1 outh value=%outh
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_7        2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outw dim=%w_axis
+prim::Constant          op_1        0 1 outd value=%outd
+prim::Constant          op_2        0 1 outh value=%outh
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -538,19 +502,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 13
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 h_axis value=%h_axis
-aten::size              op_5        2 1 input h_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outh
-prim::Constant          op_8        0 1 outw value=%outw
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_10       2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+Tensor.size             op_1        1 1 input outh dim=%h_axis
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -582,19 +540,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 13
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 w_axis value=%w_axis
-aten::size              op_5        2 1 input w_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outw
-prim::Constant          op_8        0 1 outh value=%outh
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_10       2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+Tensor.size             op_1        1 1 input outw dim=%w_axis
+prim::Constant          op_2        0 1 outh value=%outh
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -626,19 +578,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 13
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 w_axis value=%w_axis
-aten::size              op_5        2 1 input w_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outw
-prim::Constant          op_8        0 1 outd value=%outd
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_10       2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+Tensor.size             op_1        1 1 input outw dim=%w_axis
+prim::Constant          op_2        0 1 outd value=%outd
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
