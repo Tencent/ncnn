@@ -24,7 +24,7 @@ static bool operand_maybe_shape_tensor(const Operand* operand)
 {
     const Operator* op = operand->producer;
 
-    if (op->type == "Tensor.size")
+    if (op->type == "aten::size")
     {
         return op->inputs.size() == 1;
     }
@@ -69,9 +69,14 @@ static bool operand_maybe_tensor(const Operand* operand)
         return false;
     }
 
-    if (op->type == "Tensor.size")
+    if (op->type == "aten::size")
     {
         return op->inputs.size() == 1;
+    }
+
+    if (op->type == "Tensor.size")
+    {
+        return !op->has_param("dim");
     }
 
     if (op->type == "Tensor.slice")
@@ -553,7 +558,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         }
         expr += "]";
     }
-    else if (op->type == "Tensor.size")
+    else if (op->type == "aten::size")
     {
         if (op->inputs.size() == 1)
         {
@@ -566,6 +571,22 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             expr += ",";
             fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
             expr += ")";
+        }
+    }
+    else if (op->type == "Tensor.size")
+    {
+        if (op->has_param("dim") && op->params.at("dim").type == 2)
+        {
+            const int dim = op->params.at("dim").i;
+            expr += "size(";
+            fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
+            expr += ",";
+            expr += std::to_string(dim);
+            expr += ")";
+        }
+        else
+        {
+            fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         }
     }
     else if (op->type == "Tensor.slice" && !operand_maybe_tensor(operand))
@@ -831,11 +852,15 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             {
                 need_fuse = true;
             }
-            if (op->type == "Tensor.size")
+            if (op->type == "aten::size")
             {
                 need_fuse = true;
             }
             if (op->type == "aten::Int")
+            {
+                need_fuse = true;
+            }
+            if (op->type == "Tensor.size")
             {
                 need_fuse = true;
             }

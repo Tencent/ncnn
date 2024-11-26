@@ -48,7 +48,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        return captured_params.at("stride").ai.size() == 3;
+        return captured_params.at("stride").type == 5 && captured_params.at("stride").ai.size() == 3;
     }
 };
 
