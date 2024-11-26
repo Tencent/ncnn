@@ -87,36 +87,6 @@ pnnx.Output             output      1 0 out
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram, 140)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_0, 140)
 
-class torchaudio_F_spectrogram_1 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 waveform
-pnnx.Input              input_1     0 1 window
-F.pad                   op_0        1 1 waveform waveform.1 mode=constant pad=(%pad,%pad) value=None
-torchaudio.functional.spectrogram op_1 2 1 waveform.1 window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad=0 pad_mode=%pad_mode onesided=%onesided power=None
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "torchaudio.functional.spectrogram";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        GraphRewriterPass::write(op, captured_params);
-
-        op->params["power"] = Parameter();
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_1, 141)
-
 class torchaudio_F_spectrogram_2 : public GraphRewriterPass
 {
 public:
@@ -150,7 +120,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_2, 142)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_2, 141)
 
 class torchaudio_F_spectrogram_3 : public GraphRewriterPass
 {
@@ -180,7 +150,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_3, 143)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_3, 142)
 
 class torchaudio_F_spectrogram_4 : public GraphRewriterPass
 {
@@ -211,6 +181,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_4, 144)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_4, 143)
 
 } // namespace pnnx
