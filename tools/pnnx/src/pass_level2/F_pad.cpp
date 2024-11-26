@@ -197,6 +197,7 @@ pnnx.Output             output      1 0 out
     {
         op->params["pad"] = captured_params.at("pad");
         op->params["mode"] = "reflect";
+        op->params["value"] = Parameter();
     }
 };
 
@@ -237,6 +238,7 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["mode"] = "reflect";
+        op->params["value"] = Parameter();
     }
 };
 
@@ -283,6 +285,7 @@ pnnx.Output             output      1 0 out
     {
         op->params["pad"] = captured_params.at("pad");
         op->params["mode"] = "replicate";
+        op->params["value"] = Parameter();
     }
 };
 
@@ -338,6 +341,7 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["mode"] = "replicate";
+        op->params["value"] = Parameter();
     }
 };
 
@@ -446,6 +450,8 @@ pnnx.Output             output      1 0 out
             else
                 op->params["pad"] = std::vector<int>{pads[4], pads[9], pads[3], pads[8], pads[2], pads[7], pads[1], pads[6], pads[0], pads[5]};
         }
+
+        op->params["value"] = Parameter();
     }
 };
 

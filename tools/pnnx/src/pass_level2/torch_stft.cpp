@@ -122,30 +122,4 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_stft_2, 119)
 
-class torch_stft_3 : public torch_stft_1
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-13 12
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 window
-Tensor.size             op_0        1 1 input 111 dim=0
-prim::Constant          op_1        0 1 184 value=1
-prim::Constant          op_2        0 1 185 value=1
-prim::ListConstruct     op_3        3 1 184 185 111 112
-Tensor.view             op_4        2 1 input 112 input5.1
-F.pad                   op_5        1 1 input5.1 input6.1 mode=%pad_mode pad=(%pad,%pad)
-Tensor.size             op_6        1 1 input6.1 125 dim=2
-prim::ListConstruct     op_7        1 1 125 126
-Tensor.view             op_8        2 1 input6.1 126 input7.1
-torch.stft              op_9        2 1 input7.1 window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length center=False pad_mode=reflect normalized=%normalized onesided=%onesided return_complex=%return_complex
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_stft_3, 119)
-
 } // namespace pnnx
