@@ -67,6 +67,9 @@ void eliminate_size_numtotensor_int(Graph& graph)
                 }
             }
 
+            if (ops_NumToTensor_to_remove.empty())
+                continue;
+
             if (ops_NumToTensor_to_remove.size() != op->outputs[0]->consumers.size())
                 continue;
 
