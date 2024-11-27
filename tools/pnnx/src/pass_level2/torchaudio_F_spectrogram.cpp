@@ -84,7 +84,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram, 140)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_0, 140)
 
