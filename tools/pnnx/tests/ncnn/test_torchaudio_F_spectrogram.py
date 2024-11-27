@@ -24,8 +24,9 @@ class Model(nn.Module):
 
     def forward(self, x, y):
         out0 = torchaudio.functional.spectrogram(x, n_fft=64, window=torch.hann_window(44), win_length=44, hop_length=16, pad=0, center=True, normalized='window', power=1)
-        if version.parse(torchaudio.__version__) >= version.parse('0.9.0') and version.parse(torchaudio.__version__) < version.parse('0.11.0'):
-            out1 = torchaudio.functional.spectrogram(x, n_fft=128, window=torch.hann_window(128), win_length=128, hop_length=3, pad=0, center=False, onesided=True, normalized=False, power=None, return_complex=True)
+        if version.parse(torchaudio.__version__) < version.parse('0.11.0'):
+            # return_complex=False with power=None, skip it
+            out1 = torchaudio.functional.spectrogram(x, n_fft=128, window=torch.hann_window(128), win_length=128, hop_length=3, pad=0, center=False, onesided=True, normalized=False, power=1)
         else:
             out1 = torchaudio.functional.spectrogram(x, n_fft=128, window=torch.hann_window(128), win_length=128, hop_length=3, pad=0, center=False, onesided=True, normalized=False, power=None)
         out2 = torchaudio.functional.spectrogram(y, n_fft=512, window=torch.hamming_window(256), win_length=256, hop_length=128, pad=0, center=True, pad_mode='constant', onesided=True, normalized='frame_length', power=2)

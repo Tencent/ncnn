@@ -23,7 +23,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
         self.s0 = torchaudio.transforms.Spectrogram(n_fft=64, window_fn=torch.hann_window, win_length=44, hop_length=16, pad=0, center=True, normalized='window', power=1)
-        if version.parse(torchaudio.__version__) >= version.parse('0.9.0') and version.parse(torchaudio.__version__) < version.parse('0.11.0'):
+        if version.parse(torchaudio.__version__) < version.parse('0.11.0'):
             # return_complex=False with power=None, skip it
             self.s1 = torchaudio.transforms.Spectrogram(n_fft=128, window_fn=torch.hann_window, win_length=128, hop_length=3, pad=0, center=False, onesided=True, normalized=False, power=1)
         else:
