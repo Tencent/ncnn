@@ -107,7 +107,7 @@ public:
 4 3
 pnnx.Input              input       0 1 input
 F.pad                   op_pad      1 1 input a mode=%mode pad=%pad value=None
-nn.Conv1d               op_0        1 1 a out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=* padding=(0,0) dilation=%dilation groups=%groups bias=%bias @weight @bias
+nn.Conv1d               op_0        1 1 a out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=* padding=(0) dilation=%dilation groups=%groups bias=%bias @weight @bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -255,7 +255,7 @@ public:
 4 3
 pnnx.Input              input       0 1 input
 nn.ReplicationPad1d     op_pad      1 1 input a padding=%pad
-nn.Conv1d               op_0        1 1 a out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=* padding=(0,0) dilation=%dilation groups=%groups bias=%bias @weight @bias
+nn.Conv1d               op_0        1 1 a out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=* padding=(0) dilation=%dilation groups=%groups bias=%bias @weight @bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -323,7 +323,7 @@ public:
 4 3
 pnnx.Input              input       0 1 input
 nn.ReflectionPad1d      op_pad      1 1 input a padding=%pad
-nn.Conv1d               op_0        1 1 a out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=* padding=(0,0) dilation=%dilation groups=%groups bias=%bias @weight @bias
+nn.Conv1d               op_0        1 1 a out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=* padding=(0) dilation=%dilation groups=%groups bias=%bias @weight @bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
