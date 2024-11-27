@@ -57,6 +57,7 @@ pnnx.Output             output      1 0 out
         {
             op->params["normalized"] = false;
         }
+        op->params["return_complex"] = true;
     }
 };
 
@@ -138,6 +139,7 @@ pnnx.Output             output      1 0 out
         {
             op->params["normalized"] = false;
         }
+        op->params["return_complex"] = true;
     }
 };
 
@@ -187,7 +189,7 @@ public:
 pnnx.Input              input_0     0 1 waveform
 pnnx.Input              input_1     0 1 window
 F.pad                   op_0        1 1 waveform waveform.1 mode=constant pad=(%pad,%pad) value=0.000000e+00
-torchaudio.functional.spectrogram op_1 2 1 waveform.1 window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad=0 pad_mode=%pad_mode onesided=%onesided power=None
+torchaudio.functional.spectrogram op_1 2 1 waveform.1 window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad=0 pad_mode=%pad_mode onesided=%onesided power=None return_complex=%return_complex
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -216,7 +218,7 @@ public:
 9 8
 pnnx.Input              input_0     0 1 waveform
 pnnx.Input              input_1     0 1 window
-torchaudio.functional.spectrogram op_0 2 1 waveform window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=False center=%center pad=%pad pad_mode=%pad_mode onesided=%onesided power=None
+torchaudio.functional.spectrogram op_0 2 1 waveform window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=False center=%center pad=%pad pad_mode=%pad_mode onesided=%onesided power=None return_complex=%return_complex
 prim::Constant          op_1        0 1 92 value=2.000000e+00
 aten::pow               op_2        2 1 window 92 93
 torch.sum               op_3        1 1 93 95
@@ -251,7 +253,7 @@ public:
 5 4
 pnnx.Input              input_0     0 1 waveform
 pnnx.Input              input_1     0 1 window
-torchaudio.functional.spectrogram op_0 2 1 waveform window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad=%pad pad_mode=%pad_mode onesided=%onesided power=None
+torchaudio.functional.spectrogram op_0 2 1 waveform window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad=%pad pad_mode=%pad_mode onesided=%onesided power=None return_complex=%return_complex
 aten::abs               op_1        1 1 spec out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -281,7 +283,7 @@ public:
 6 5
 pnnx.Input              input_0     0 1 waveform
 pnnx.Input              input_1     0 1 window
-torchaudio.functional.spectrogram op_0 2 1 waveform window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad=%pad pad_mode=%pad_mode onesided=%onesided power=1
+torchaudio.functional.spectrogram op_0 2 1 waveform window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad=%pad pad_mode=%pad_mode onesided=%onesided power=1 return_complex=%return_complex
 prim::Constant          op_1        0 1 391 value=2
 aten::pow               op_2        2 1 spec 391 out
 pnnx.Output             output      1 0 out

@@ -69,7 +69,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 window
-torchaudio.functional.spectrogram op_1 2 1 input window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length onesided=%onesided power=%power normalized=%normalized center=%center pad=%pad pad_mode=%pad_mode
+torchaudio.functional.spectrogram op_1 2 1 input window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length onesided=%onesided power=%power normalized=%normalized center=%center pad=%pad pad_mode=%pad_mode return_complex=%return_complex
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -81,7 +81,7 @@ pnnx.Output             output      1 0 out
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 window
 F.pad                   op_0        1 1 input a mode=constant pad=(%pad,%pad) value=0.000000e+00
-torchaudio.functional.spectrogram op_1 2 1 a window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length onesided=%onesided power=%power normalized=%normalized center=%center pad=0 pad_mode=%pad_mode
+torchaudio.functional.spectrogram op_1 2 1 a window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length onesided=%onesided power=%power normalized=%normalized center=%center pad=0 pad_mode=%pad_mode return_complex=%return_complex
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -103,7 +103,7 @@ public:
 5 4
 pnnx.Input              input       0 1 input
 pnnx.Attribute          op_0        0 1 window @data
-torchaudio.functional.spectrogram op_1 2 1 input window a n_fft=%n_fft hop_length=%hop_length win_length=%win_length onesided=%onesided power=%power normalized=%normalized center=%center pad=0 pad_mode=%pad_mode
+torchaudio.functional.spectrogram op_1 2 1 input window a n_fft=%n_fft hop_length=%hop_length win_length=%win_length onesided=%onesided power=%power normalized=%normalized center=%center pad=0 pad_mode=%pad_mode return_complex=True
 torch.view_as_real      op_2        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -179,7 +179,7 @@ public:
 4 3
 pnnx.Input              input       0 1 input
 pnnx.Attribute          op_0        0 1 window @data
-torchaudio.functional.spectrogram op_1 2 1 input window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length onesided=%onesided power=%power normalized=%normalized center=%center pad=0 pad_mode=%pad_mode
+torchaudio.functional.spectrogram op_1 2 1 input window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length onesided=%onesided power=%power normalized=%normalized center=%center pad=0 pad_mode=%pad_mode return_complex=True
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
