@@ -36,7 +36,8 @@ class Model(nn.Module):
         out1 = self.s1(x)
         out2 = self.s2(y)
         out3 = self.s3(y)
-        out1 = torch.view_as_real(out1)
+        if version.parse(torchaudio.__version__) >= version.parse('0.12.0'):
+            out1 = torch.view_as_real(out1)
         return out0, out1, out2, out3
 
 def test():
