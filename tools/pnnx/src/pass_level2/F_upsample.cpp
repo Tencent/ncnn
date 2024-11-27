@@ -42,7 +42,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample, 111)
 
 class F_upsample_1 : public GraphRewriterPass
 {
@@ -70,7 +70,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_1, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_1, 111)
 
 class F_upsample_2 : public GraphRewriterPass
 {
@@ -100,7 +100,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_2, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_2, 111)
 
 class F_upsample_3 : public GraphRewriterPass
 {
@@ -130,7 +130,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_3, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_3, 111)
 
 class F_upsample_4 : public GraphRewriterPass
 {
@@ -161,7 +161,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_4, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_4, 111)
 
 class F_upsample_4_1 : public GraphRewriterPass
 {
@@ -191,7 +191,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_4_1, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_4_1, 111)
 
 class F_upsample_5 : public GraphRewriterPass
 {
@@ -221,7 +221,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_5, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_5, 111)
 
 class F_upsample_6 : public GraphRewriterPass
 {
@@ -252,7 +252,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_6, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_6, 111)
 
 class F_upsample_6_1 : public GraphRewriterPass
 {
@@ -282,7 +282,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_6_1, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_6_1, 111)
 
 class F_upsample_7 : public GraphRewriterPass
 {
@@ -312,7 +312,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_7, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_7, 111)
 
 class F_upsample_8 : public GraphRewriterPass
 {
@@ -344,7 +344,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_8, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_8, 111)
 
 class F_upsample_8_1 : public GraphRewriterPass
 {
@@ -374,7 +374,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_8_1, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_8_1, 111)
 
 class F_upsample_9 : public GraphRewriterPass
 {
@@ -404,6 +404,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_9, 11)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_9, 111)
 
 } // namespace pnnx

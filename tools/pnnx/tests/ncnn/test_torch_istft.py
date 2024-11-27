@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -26,9 +27,17 @@ class Model(nn.Module):
         z = torch.view_as_complex(z)
         w = torch.view_as_complex(w)
         out0 = torch.istft(x, n_fft=64, window=torch.hann_window(44), win_length=44, center=True, normalized=True, return_complex=False)
-        out1 = torch.istft(y, n_fft=128, center=False, onesided=True, return_complex=False)
+        if version.parse(torch.__version__) < version.parse('1.13'):
+            # https://github.com/pytorch/pytorch/commit/4906a956181fb337e99860fa3e6071473c0e30e6
+            out1 = torch.istft(y, n_fft=128, center=True, onesided=True, return_complex=False)
+        else:
+            out1 = torch.istft(y, n_fft=128, center=False, onesided=True, return_complex=False)
         out2 = torch.istft(z, n_fft=512, window=torch.hamming_window(256), win_length=256, hop_length=128, center=True, onesided=True, return_complex=False)
-        out3 = torch.istft(w, n_fft=512, center=False, onesided=False, return_complex=True)
+        if version.parse(torch.__version__) < version.parse('1.13'):
+            # https://github.com/pytorch/pytorch/commit/4906a956181fb337e99860fa3e6071473c0e30e6
+            out3 = torch.istft(w, n_fft=512, center=True, onesided=False, return_complex=True)
+        else:
+            out3 = torch.istft(w, n_fft=512, center=False, onesided=False, return_complex=True)
         out3 = torch.view_as_real(out3)
         return out0, out1, out2, out3
 

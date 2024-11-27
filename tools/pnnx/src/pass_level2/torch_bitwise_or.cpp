@@ -36,6 +36,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_bitwise_or, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_bitwise_or, 40)
 
 } // namespace pnnx

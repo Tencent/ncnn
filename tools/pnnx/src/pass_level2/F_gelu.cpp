@@ -40,7 +40,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu, 101)
 
 class F_gelu_1 : public GraphRewriterPass
 {
@@ -69,7 +69,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_1, 101)
 
 class F_gelu_1_1 : public GraphRewriterPass
 {
@@ -90,7 +90,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_1_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_1_1, 101)
 
 class F_gelu_2 : public GraphRewriterPass
 {
@@ -138,7 +138,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_2, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_2, 100)
 
 class F_gelu_3 : public GraphRewriterPass
 {
@@ -201,7 +201,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_3, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_3, 100)
 
 class F_gelu_4 : public GraphRewriterPass
 {
@@ -256,7 +256,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_4, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_4, 100)
 
 class F_gelu_onnx : public GraphRewriterPass
 {
@@ -303,7 +303,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_onnx, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_onnx, 100)
 
 class F_gelu_onnx_1 : public F_gelu_onnx
 {
@@ -327,7 +327,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_onnx_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_onnx_1, 100)
 
 class F_gelu_onnx_2 : public GraphRewriterPass
 {
@@ -348,6 +348,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_onnx_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_gelu_onnx_2, 101)
 
 } // namespace pnnx

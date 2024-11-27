@@ -35,7 +35,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish, 101)
 
 class F_mish_1 : public GraphRewriterPass
 {
@@ -60,7 +60,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish_1, 100)
 
 class F_mish_onnx : public GraphRewriterPass
 {
@@ -83,6 +83,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish_onnx, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish_onnx, 100)
 
 } // namespace pnnx

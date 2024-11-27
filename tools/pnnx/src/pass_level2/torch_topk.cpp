@@ -39,6 +39,6 @@ pnnx.Output             output      2 0 values indices
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_topk, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_topk, 50)
 
 } // namespace pnnx
