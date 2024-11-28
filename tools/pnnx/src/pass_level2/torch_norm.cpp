@@ -23,11 +23,11 @@ public:
     {
         return R"PNNXIR(7767517
 6 5
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 p value=%p
-prim::Constant          op_1        0 1 keepdim value=%keepdim
-aten::norm              op_2        4 1 input p dim keepdim out
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 p value=%p
+prim::Constant          op_2        0 1 keepdim value=%keepdim
+aten::norm              op_3        4 1 input p dim keepdim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -38,19 +38,75 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm, 20)
+class torch_norm_2 : public torch_norm
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 p value=%p
+prim::Constant          op_2        0 1 keepdim value=%keepdim
+prim::Constant          op_3        0 1 dtype value=*
+aten::linalg_vector_norm op_4       5 1 input p dim keepdim dtype out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
 
-class torch_norm_1 : public GraphRewriterPass
+class torch_norm_dims : public torch_norm
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 p value=%p
+prim::Constant          op_2        0 1 keepdim value=%keepdim
+aten::norm              op_3        4 1 input p dim keepdim out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+class torch_norm_dims_2 : public torch_norm
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 p value=%p
+prim::Constant          op_2        0 1 keepdim value=%keepdim
+prim::Constant          op_3        0 1 dtype value=*
+aten::linalg_vector_norm op_4       5 1 input p dim keepdim dtype out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm, 90)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_2, 90)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_dims, 90)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_dims_2, 90)
+
+class torch_norm_fro : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
 5 4
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 keepdim value=%keepdim
-aten::frobenius_norm    op_1        3 1 input dim keepdim out
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 keepdim value=%keepdim
+aten::frobenius_norm    op_2        3 1 input dim keepdim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -62,36 +118,30 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
+        op->params["dim"] = captured_params.at("dim");
         op->params["p"] = "fro";
         op->params["keepdim"] = captured_params.at("keepdim");
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_1, 20)
-
-class torch_norm_2 : public GraphRewriterPass
+class torch_norm_fro_dims : public torch_norm_fro
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 p value=%p
-prim::Constant          op_1        0 1 keepdim value=%keepdim
-prim::Constant          op_2        0 1 dtype value=*
-aten::linalg_vector_norm op_3       5 1 input p dim keepdim dtype out
+6 5
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 p value=%p
+prim::Constant          op_2        0 1 keepdim value=%keepdim
+aten::norm              op_3        4 1 input p dim keepdim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
-
-    const char* type_str() const
-    {
-        return "torch.norm";
-    }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_2, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_fro, 90)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_fro_dims, 90)
 
 } // namespace pnnx

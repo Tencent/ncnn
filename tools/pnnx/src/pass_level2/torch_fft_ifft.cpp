@@ -27,7 +27,7 @@ pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 n
 pnnx.Input              input_2     0 1 dim
 pnnx.Input              input_3     0 1 norm
-aten::fft_ifft         op_0        4 1 input n dim norm out
+aten::fft_ifft          op_0        4 1 input n dim norm out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -38,6 +38,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_fft_ifft, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_fft_ifft, 80)
 
 } // namespace pnnx

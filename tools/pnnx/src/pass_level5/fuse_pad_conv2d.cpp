@@ -118,7 +118,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-F.pad                   op_pad      1 1 input a mode=%mode pad=%pad
+F.pad                   op_pad      1 1 input a mode=%mode pad=%pad value=None
 nn.Conv2d               op_0        1 1 a out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=* padding=(0,0) dilation=%dilation groups=%groups bias=%bias @weight @bias
 pnnx.Output             output      1 0 out
 )PNNXIR";

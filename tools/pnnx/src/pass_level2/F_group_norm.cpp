@@ -40,7 +40,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm, 130)
 
 class F_group_norm_onnx : public GraphRewriterPass
 {
@@ -103,7 +103,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx, 130)
 
 class F_group_norm_onnx_1 : public F_group_norm_onnx
 {
@@ -123,6 +123,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx_1, 130)
 
 } // namespace pnnx

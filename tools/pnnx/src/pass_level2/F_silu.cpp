@@ -35,7 +35,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_silu, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_silu, 101)
 
 class F_silu_1 : public GraphRewriterPass
 {
@@ -57,6 +57,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_silu_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_silu_1, 100)
 
 } // namespace pnnx

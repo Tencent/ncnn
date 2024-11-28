@@ -25,10 +25,10 @@ public:
 7 6
 pnnx.Input              input_0         0 1 x1
 pnnx.Input              input_1         0 1 x2
-prim::Constant          op_0     	0 1 p value=%p
-prim::Constant          op_1    	0 1 eps value=%eps
-prim::Constant          op_2    	0 1 keepdim value=%keepdim
-aten::pairwise_distance op_3     	5 1 x1 x2 p eps keepdim out
+prim::Constant          op_0            0 1 p value=%p
+prim::Constant          op_1            0 1 eps value=%eps
+prim::Constant          op_2            0 1 keepdim value=%keepdim
+aten::pairwise_distance op_3            5 1 x1 x2 p eps keepdim out
 pnnx.Output             output          1 0 out
 )PNNXIR";
     }
@@ -39,6 +39,6 @@ pnnx.Output             output          1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pairwise_distance, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pairwise_distance, 110)
 
 } // namespace pnnx
