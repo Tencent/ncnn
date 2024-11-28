@@ -634,6 +634,8 @@ if(NCNN_TARGET_ARCH STREQUAL "arm" AND (CMAKE_SIZEOF_VOID_P EQUAL 8 OR NCNN_TARG
             endif()
             if(NCNN_ARM82FP16FML)
                 set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+fp16fml")
+                # clang 9.0.9 shipped with android ndk-r21 is missing __ARM_FEATURE_FP16_FML macro for asimdfhm target
+                target_compile_options(ncnn PRIVATE -D__ARM_FEATURE_FP16_FML)
             endif()
         endif()
     endif()
