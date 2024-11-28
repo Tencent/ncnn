@@ -15,6 +15,110 @@
 #include "testutil.h"
 
 #if NCNN_INT8
+static void RandomizeA(ncnn::Mat& m, int transA, float absmax)
+{
+    if (transA == 0)
+    {
+        const int h = m.dims == 3 ? m.c : m.h;
+        for (int i = 0; i < h; i++)
+        {
+            float* p = m.dims == 3 ? m.channel(i) : m.row(i);
+            const float randabsmax = RandomFloat(absmax * 0.5f, absmax);
+            for (int j = 0; j < m.w; j++)
+            {
+                p[j] = RandomFloat(-randabsmax, randabsmax);
+            }
+
+            // set random a and b
+            p[RandomInt(0, m.w - 1)] = -randabsmax;
+            p[RandomInt(0, m.w - 1)] = randabsmax;
+
+            // drop 0.4 ~ 0.6
+            for (int j = 0; j < m.w; j++)
+            {
+                float v = p[j] / randabsmax * 127.f;
+                float vv = fabs(v - (int)v);
+                while (vv > 0.4f && vv < 0.6f)
+                {
+                    p[j] = RandomFloat(-randabsmax, randabsmax);
+                    v = p[j] / randabsmax * 127.f;
+                    vv = fabs(v - (int)v);
+                }
+            }
+        }
+    }
+    else // if (transA == 1)
+    {
+        std::vector<float> randabsmaxes(m.w);
+        for (int j = 0; j < m.w; j++)
+        {
+            randabsmaxes[j] = RandomFloat(absmax * 0.5f, absmax);
+        }
+
+        const int h = m.dims == 3 ? m.c : m.h;
+        for (int i = 0; i < h; i++)
+        {
+            float* p = m.dims == 3 ? m.channel(i) : m.row(i);
+            for (int j = 0; j < m.w; j++)
+            {
+                const float randabsmax = randabsmaxes[j];
+                p[j] = RandomFloat(-randabsmax, randabsmax);
+            }
+
+            // drop 0.4 ~ 0.6
+            for (int j = 0; j < m.w; j++)
+            {
+                const float randabsmax = randabsmaxes[j];
+                float v = p[j] / randabsmax * 127.f;
+                float vv = fabs(v - (int)v);
+                while (vv > 0.4f && vv < 0.6f)
+                {
+                    p[j] = RandomFloat(-randabsmax, randabsmax);
+                    v = p[j] / randabsmax * 127.f;
+                    vv = fabs(v - (int)v);
+                }
+            }
+        }
+
+        for (int j = 0; j < m.w; j++)
+        {
+            const int randi0 = RandomInt(0, h - 1);
+            const int randi1 = RandomInt(0, h - 1);
+            float* p0 = m.dims == 3 ? m.channel(randi0) : m.row(randi0);
+            float* p1 = m.dims == 3 ? m.channel(randi1) : m.row(randi1);
+
+            const float randabsmax = randabsmaxes[j];
+
+            // set random a and b
+            p0[j] = -randabsmax;
+            p1[j] = randabsmax;
+        }
+    }
+}
+
+static void RandomizeB(ncnn::Mat& m, float absmax)
+{
+    float* p = m;
+    for (int i = 0; i < m.total(); i++)
+    {
+        p[i] = RandomFloat(-absmax, absmax);
+
+        // set random a and b
+        p[RandomInt(0, m.total() - 1)] = -absmax;
+        p[RandomInt(0, m.total() - 1)] = absmax;
+
+        // drop 0.4 ~ 0.6
+        float v = p[i] / absmax * 127.f;
+        float vv = fabs(v - (int)v);
+        while (vv > 0.4f && vv < 0.6f)
+        {
+            p[i] = RandomFloat(-absmax, absmax);
+            v = p[i] / absmax * 127.f;
+            vv = fabs(v - (int)v);
+        }
+    }
+}
+
 static int test_gemm_int8(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose)
 {
     ncnn::ParamDict pd;
@@ -35,8 +139,8 @@ static int test_gemm_int8(int M, int N, int K, int TILE_M, int TILE_N, int TILE_
     a[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
     a[1] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
 
-    Randomize(a[0], -10.f, 10.f);
-    Randomize(a[1], -10.f, 10.f);
+    RandomizeA(a[0], transA, 10.f);
+    RandomizeB(a[1], 10.f);
 
     int ret = test_layer("Gemm", pd, weights, a);
     if (ret != 0)
