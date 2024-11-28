@@ -9008,6 +9008,267 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
             }
         }
     }
+#else  // defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * elempack;
+
+            signed char* pp1 = pp + max_kk * 4;
+            signed char* pp2 = pp + max_kk * 8;
+            signed char* pp3 = pp + max_kk * 12;
+
+            int kk = 0;
+#if __AVX512VNNI__
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                pp[0] = float2int8(p0[0] * scale) + 127;
+                pp[1] = float2int8(p0[16] * scale) + 127;
+                pp[2] = float2int8(p0[32] * scale) + 127;
+                pp[3] = float2int8(p0[48] * scale) + 127;
+                pp[4] = float2int8(p0[1] * scale) + 127;
+                pp[5] = float2int8(p0[17] * scale) + 127;
+                pp[6] = float2int8(p0[33] * scale) + 127;
+                pp[7] = float2int8(p0[49] * scale) + 127;
+                pp[8] = float2int8(p0[2] * scale) + 127;
+                pp[9] = float2int8(p0[18] * scale) + 127;
+                pp[10] = float2int8(p0[34] * scale) + 127;
+                pp[11] = float2int8(p0[50] * scale) + 127;
+                pp[12] = float2int8(p0[3] * scale) + 127;
+                pp[13] = float2int8(p0[19] * scale) + 127;
+                pp[14] = float2int8(p0[35] * scale) + 127;
+                pp[15] = float2int8(p0[51] * scale) + 127;
+
+                pp1[0] = float2int8(p0[4] * scale) + 127;
+                pp1[1] = float2int8(p0[20] * scale) + 127;
+                pp1[2] = float2int8(p0[36] * scale) + 127;
+                pp1[3] = float2int8(p0[52] * scale) + 127;
+                pp1[4] = float2int8(p0[5] * scale) + 127;
+                pp1[5] = float2int8(p0[21] * scale) + 127;
+                pp1[6] = float2int8(p0[37] * scale) + 127;
+                pp1[7] = float2int8(p0[53] * scale) + 127;
+                pp1[8] = float2int8(p0[6] * scale) + 127;
+                pp1[9] = float2int8(p0[22] * scale) + 127;
+                pp1[10] = float2int8(p0[38] * scale) + 127;
+                pp1[11] = float2int8(p0[54] * scale) + 127;
+                pp1[12] = float2int8(p0[7] * scale) + 127;
+                pp1[13] = float2int8(p0[23] * scale) + 127;
+                pp1[14] = float2int8(p0[39] * scale) + 127;
+                pp1[15] = float2int8(p0[55] * scale) + 127;
+
+                pp2[0] = float2int8(p0[8] * scale) + 127;
+                pp2[1] = float2int8(p0[24] * scale) + 127;
+                pp2[2] = float2int8(p0[40] * scale) + 127;
+                pp2[3] = float2int8(p0[56] * scale) + 127;
+                pp2[4] = float2int8(p0[9] * scale) + 127;
+                pp2[5] = float2int8(p0[25] * scale) + 127;
+                pp2[6] = float2int8(p0[41] * scale) + 127;
+                pp2[7] = float2int8(p0[57] * scale) + 127;
+                pp2[8] = float2int8(p0[10] * scale) + 127;
+                pp2[9] = float2int8(p0[26] * scale) + 127;
+                pp2[10] = float2int8(p0[42] * scale) + 127;
+                pp2[11] = float2int8(p0[58] * scale) + 127;
+                pp2[12] = float2int8(p0[11] * scale) + 127;
+                pp2[13] = float2int8(p0[27] * scale) + 127;
+                pp2[14] = float2int8(p0[43] * scale) + 127;
+                pp2[15] = float2int8(p0[59] * scale) + 127;
+
+                pp3[0] = float2int8(p0[12] * scale) + 127;
+                pp3[1] = float2int8(p0[28] * scale) + 127;
+                pp3[2] = float2int8(p0[44] * scale) + 127;
+                pp3[3] = float2int8(p0[60] * scale) + 127;
+                pp3[4] = float2int8(p0[13] * scale) + 127;
+                pp3[5] = float2int8(p0[29] * scale) + 127;
+                pp3[6] = float2int8(p0[45] * scale) + 127;
+                pp3[7] = float2int8(p0[61] * scale) + 127;
+                pp3[8] = float2int8(p0[14] * scale) + 127;
+                pp3[9] = float2int8(p0[30] * scale) + 127;
+                pp3[10] = float2int8(p0[46] * scale) + 127;
+                pp3[11] = float2int8(p0[62] * scale) + 127;
+                pp3[12] = float2int8(p0[15] * scale) + 127;
+                pp3[13] = float2int8(p0[31] * scale) + 127;
+                pp3[14] = float2int8(p0[47] * scale) + 127;
+                pp3[15] = float2int8(p0[63] * scale) + 127;
+                pp += 16;
+                pp1 += 16;
+                pp2 += 16;
+                pp3 += 16;
+                p0 += 64;
+            }
+#endif // __AVX512VNNI__
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                pp[0] = float2int8(p0[0] * scale);
+                pp[1] = float2int8(p0[16] * scale);
+                pp[2] = float2int8(p0[1] * scale);
+                pp[3] = float2int8(p0[17] * scale);
+                pp[4] = float2int8(p0[2] * scale);
+                pp[5] = float2int8(p0[18] * scale);
+                pp[6] = float2int8(p0[3] * scale);
+                pp[7] = float2int8(p0[19] * scale);
+
+                pp1[0] = float2int8(p0[4] * scale);
+                pp1[1] = float2int8(p0[20] * scale);
+                pp1[2] = float2int8(p0[5] * scale);
+                pp1[3] = float2int8(p0[21] * scale);
+                pp1[4] = float2int8(p0[6] * scale);
+                pp1[5] = float2int8(p0[22] * scale);
+                pp1[6] = float2int8(p0[7] * scale);
+                pp1[7] = float2int8(p0[23] * scale);
+
+                pp2[0] = float2int8(p0[8] * scale);
+                pp2[1] = float2int8(p0[24] * scale);
+                pp2[2] = float2int8(p0[9] * scale);
+                pp2[3] = float2int8(p0[25] * scale);
+                pp2[4] = float2int8(p0[10] * scale);
+                pp2[5] = float2int8(p0[26] * scale);
+                pp2[6] = float2int8(p0[11] * scale);
+                pp2[7] = float2int8(p0[27] * scale);
+
+                pp3[0] = float2int8(p0[12] * scale);
+                pp3[1] = float2int8(p0[28] * scale);
+                pp3[2] = float2int8(p0[13] * scale);
+                pp3[3] = float2int8(p0[29] * scale);
+                pp3[4] = float2int8(p0[14] * scale);
+                pp3[5] = float2int8(p0[30] * scale);
+                pp3[6] = float2int8(p0[15] * scale);
+                pp3[7] = float2int8(p0[31] * scale);
+                pp += 8;
+                pp1 += 8;
+                pp2 += 8;
+                pp3 += 8;
+                p0 += 32;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = float2int8(p0[0] * scale);
+                pp[1] = float2int8(p0[1] * scale);
+                pp[2] = float2int8(p0[2] * scale);
+                pp[3] = float2int8(p0[3] * scale);
+
+                pp1[0] = float2int8(p0[4] * scale);
+                pp1[1] = float2int8(p0[5] * scale);
+                pp1[2] = float2int8(p0[6] * scale);
+                pp1[3] = float2int8(p0[7] * scale);
+
+                pp2[0] = float2int8(p0[8] * scale);
+                pp2[1] = float2int8(p0[9] * scale);
+                pp2[2] = float2int8(p0[10] * scale);
+                pp2[3] = float2int8(p0[11] * scale);
+
+                pp3[0] = float2int8(p0[12] * scale);
+                pp3[1] = float2int8(p0[13] * scale);
+                pp3[2] = float2int8(p0[14] * scale);
+                pp3[3] = float2int8(p0[15] * scale);
+                pp += 4;
+                pp1 += 4;
+                pp2 += 4;
+                pp3 += 4;
+                p0 += 16;
+            }
+
+            pp = pp3;
+        }
+    }
+#endif // __AVX512F__
+    if (elempack == 8)
+    {
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * elempack;
+
+            signed char* pp1 = pp + max_kk * 4;
+
+            int kk = 0;
+#if __AVX512VNNI__ || __AVXVNNI__
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                pp[0] = float2int8(p0[0] * scale) + 127;
+                pp[1] = float2int8(p0[8] * scale) + 127;
+                pp[2] = float2int8(p0[16] * scale) + 127;
+                pp[3] = float2int8(p0[24] * scale) + 127;
+                pp[4] = float2int8(p0[1] * scale) + 127;
+                pp[5] = float2int8(p0[9] * scale) + 127;
+                pp[6] = float2int8(p0[17] * scale) + 127;
+                pp[7] = float2int8(p0[25] * scale) + 127;
+                pp[8] = float2int8(p0[2] * scale) + 127;
+                pp[9] = float2int8(p0[10] * scale) + 127;
+                pp[10] = float2int8(p0[18] * scale) + 127;
+                pp[11] = float2int8(p0[26] * scale) + 127;
+                pp[12] = float2int8(p0[3] * scale) + 127;
+                pp[13] = float2int8(p0[11] * scale) + 127;
+                pp[14] = float2int8(p0[19] * scale) + 127;
+                pp[15] = float2int8(p0[27] * scale) + 127;
+
+                pp1[0] = float2int8(p0[4] * scale) + 127;
+                pp1[1] = float2int8(p0[12] * scale) + 127;
+                pp1[2] = float2int8(p0[20] * scale) + 127;
+                pp1[3] = float2int8(p0[28] * scale) + 127;
+                pp1[4] = float2int8(p0[5] * scale) + 127;
+                pp1[5] = float2int8(p0[13] * scale) + 127;
+                pp1[6] = float2int8(p0[21] * scale) + 127;
+                pp1[7] = float2int8(p0[29] * scale) + 127;
+                pp1[8] = float2int8(p0[6] * scale) + 127;
+                pp1[9] = float2int8(p0[14] * scale) + 127;
+                pp1[10] = float2int8(p0[22] * scale) + 127;
+                pp1[11] = float2int8(p0[30] * scale) + 127;
+                pp1[12] = float2int8(p0[7] * scale) + 127;
+                pp1[13] = float2int8(p0[15] * scale) + 127;
+                pp1[14] = float2int8(p0[23] * scale) + 127;
+                pp1[15] = float2int8(p0[31] * scale) + 127;
+                pp += 16;
+                pp1 += 16;
+                p0 += 32;
+            }
+#endif // __AVX512VNNI__ || __AVXVNNI__
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                pp[0] = float2int8(p0[0] * scale);
+                pp[1] = float2int8(p0[8] * scale);
+                pp[2] = float2int8(p0[1] * scale);
+                pp[3] = float2int8(p0[9] * scale);
+                pp[4] = float2int8(p0[2] * scale);
+                pp[5] = float2int8(p0[10] * scale);
+                pp[6] = float2int8(p0[3] * scale);
+                pp[7] = float2int8(p0[11] * scale);
+
+                pp1[0] = float2int8(p0[4] * scale);
+                pp1[1] = float2int8(p0[12] * scale);
+                pp1[2] = float2int8(p0[5] * scale);
+                pp1[3] = float2int8(p0[13] * scale);
+                pp1[4] = float2int8(p0[6] * scale);
+                pp1[5] = float2int8(p0[14] * scale);
+                pp1[6] = float2int8(p0[7] * scale);
+                pp1[7] = float2int8(p0[15] * scale);
+
+                pp += 8;
+                pp1 += 8;
+                p0 += 16;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = float2int8(p0[0] * scale);
+                pp[1] = float2int8(p0[1] * scale);
+                pp[2] = float2int8(p0[2] * scale);
+                pp[3] = float2int8(p0[3] * scale);
+
+                pp1[0] = float2int8(p0[4] * scale);
+                pp1[1] = float2int8(p0[5] * scale);
+                pp1[2] = float2int8(p0[6] * scale);
+                pp1[3] = float2int8(p0[7] * scale);
+
+                pp += 4;
+                pp1 += 4;
+                p0 += 8;
+            }
+
+            pp = pp1;
+        }
+    }
+#endif // __AVX__
 #endif // defined(__x86_64__) || defined(_M_X64)
     for (; jj + 3 < max_jj; jj += 4)
     {
@@ -13331,6 +13592,56 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 //      01 11 21 31 41 51 61 71 81 91 a1 b1 c1 d1 e1 f1
                 //      02 12 22 32 42 52 62 72 82 92 a2 b2 c2 d2 e2 f2
                 //      03 13 23 33 43 53 63 73 83 93 a3 b3 c3 d3 e3 f3
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    transpose16x4_ps(_f0, _f1, _f2, _f3);
+                    const int jj_m16 = jj % 16;
+                    float* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storeu_ps(p1, _mm512_extractf32x4_ps(_f0, 0));
+                    _mm_storeu_ps(p1 + 16, _mm512_extractf32x4_ps(_f0, 1));
+                    _mm_storeu_ps(p1 + 32, _mm512_extractf32x4_ps(_f0, 2));
+                    _mm_storeu_ps(p1 + 48, _mm512_extractf32x4_ps(_f0, 3));
+                    _mm_storeu_ps(p1 + 64, _mm512_extractf32x4_ps(_f1, 0));
+                    _mm_storeu_ps(p1 + 80, _mm512_extractf32x4_ps(_f1, 1));
+                    _mm_storeu_ps(p1 + 96, _mm512_extractf32x4_ps(_f1, 2));
+                    _mm_storeu_ps(p1 + 112, _mm512_extractf32x4_ps(_f1, 3));
+                    _mm_storeu_ps(p1 + 128, _mm512_extractf32x4_ps(_f2, 0));
+                    _mm_storeu_ps(p1 + 144, _mm512_extractf32x4_ps(_f2, 1));
+                    _mm_storeu_ps(p1 + 160, _mm512_extractf32x4_ps(_f2, 2));
+                    _mm_storeu_ps(p1 + 176, _mm512_extractf32x4_ps(_f2, 3));
+                    _mm_storeu_ps(p1 + 192, _mm512_extractf32x4_ps(_f3, 0));
+                    _mm_storeu_ps(p1 + 208, _mm512_extractf32x4_ps(_f3, 1));
+                    _mm_storeu_ps(p1 + 224, _mm512_extractf32x4_ps(_f3, 2));
+                    _mm_storeu_ps(p1 + 240, _mm512_extractf32x4_ps(_f3, 3));
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    transpose16x4_ps(_f0, _f1, _f2, _f3);
+                    const int jj_m8 = jj % 8;
+                    float* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storeu_ps(p1, _mm512_extractf32x4_ps(_f0, 0));
+                    _mm_storeu_ps(p1 + 8, _mm512_extractf32x4_ps(_f0, 1));
+                    _mm_storeu_ps(p1 + 16, _mm512_extractf32x4_ps(_f0, 2));
+                    _mm_storeu_ps(p1 + 24, _mm512_extractf32x4_ps(_f0, 3));
+                    _mm_storeu_ps(p1 + 32, _mm512_extractf32x4_ps(_f1, 0));
+                    _mm_storeu_ps(p1 + 40, _mm512_extractf32x4_ps(_f1, 1));
+                    _mm_storeu_ps(p1 + 48, _mm512_extractf32x4_ps(_f1, 2));
+                    _mm_storeu_ps(p1 + 56, _mm512_extractf32x4_ps(_f1, 3));
+                    _mm_storeu_ps(p1 + 64, _mm512_extractf32x4_ps(_f2, 0));
+                    _mm_storeu_ps(p1 + 72, _mm512_extractf32x4_ps(_f2, 1));
+                    _mm_storeu_ps(p1 + 80, _mm512_extractf32x4_ps(_f2, 2));
+                    _mm_storeu_ps(p1 + 88, _mm512_extractf32x4_ps(_f2, 3));
+                    _mm_storeu_ps(p1 + 96, _mm512_extractf32x4_ps(_f3, 0));
+                    _mm_storeu_ps(p1 + 104, _mm512_extractf32x4_ps(_f3, 1));
+                    _mm_storeu_ps(p1 + 112, _mm512_extractf32x4_ps(_f3, 2));
+                    _mm_storeu_ps(p1 + 120, _mm512_extractf32x4_ps(_f3, 3));
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     transpose16x4_ps(_f0, _f1, _f2, _f3);
@@ -15001,6 +15312,40 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    transpose8x4_ps(_f0, _f1, _f2, _f3);
+                    const int jj_m16 = jj % 16;
+                    float* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storeu_ps(p1, _mm256_extractf128_ps(_f0, 0));
+                    _mm_storeu_ps(p1 + 16, _mm256_extractf128_ps(_f0, 1));
+                    _mm_storeu_ps(p1 + 32, _mm256_extractf128_ps(_f1, 0));
+                    _mm_storeu_ps(p1 + 48, _mm256_extractf128_ps(_f1, 1));
+                    _mm_storeu_ps(p1 + 64, _mm256_extractf128_ps(_f2, 0));
+                    _mm_storeu_ps(p1 + 80, _mm256_extractf128_ps(_f2, 1));
+                    _mm_storeu_ps(p1 + 96, _mm256_extractf128_ps(_f3, 0));
+                    _mm_storeu_ps(p1 + 112, _mm256_extractf128_ps(_f3, 1));
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    transpose8x4_ps(_f0, _f1, _f2, _f3);
+                    const int jj_m8 = jj % 8;
+                    float* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storeu_ps(p1, _mm256_extractf128_ps(_f0, 0));
+                    _mm_storeu_ps(p1 + 8, _mm256_extractf128_ps(_f0, 1));
+                    _mm_storeu_ps(p1 + 16, _mm256_extractf128_ps(_f1, 0));
+                    _mm_storeu_ps(p1 + 24, _mm256_extractf128_ps(_f1, 1));
+                    _mm_storeu_ps(p1 + 32, _mm256_extractf128_ps(_f2, 0));
+                    _mm_storeu_ps(p1 + 40, _mm256_extractf128_ps(_f2, 1));
+                    _mm_storeu_ps(p1 + 48, _mm256_extractf128_ps(_f3, 0));
+                    _mm_storeu_ps(p1 + 56, _mm256_extractf128_ps(_f3, 1));
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     transpose8x4_ps(_f0, _f1, _f2, _f3);
@@ -15998,6 +16343,32 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
+                    const int jj_m16 = jj % 16;
+                    float* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storeu_ps(p1, _f0);
+                    _mm_storeu_ps(p1 + 16, _f1);
+                    _mm_storeu_ps(p1 + 32, _f2);
+                    _mm_storeu_ps(p1 + 48, _f3);
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
+                    const int jj_m8 = jj % 8;
+                    float* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storeu_ps(p1, _f0);
+                    _mm_storeu_ps(p1 + 8, _f1);
+                    _mm_storeu_ps(p1 + 16, _f2);
+                    _mm_storeu_ps(p1 + 24, _f3);
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
@@ -16645,6 +17016,26 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    const int jj_m16 = jj % 16;
+                    float* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storeu_ps(p1, _f0);
+                    _mm_storeu_ps(p1 + 16, _f1);
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    const int jj_m8 = jj % 8;
+                    float* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storeu_ps(p1, _f0);
+                    _mm_storeu_ps(p1 + 8, _f1);
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     _mm_storeu_ps(p0, _f0);
@@ -17035,6 +17426,20 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 else
                 {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                    if (out_elempack == 16)
+                    {
+                        _mm_storeu_ps(p0 - (jj % 16) / 4 * out_hstep * 4 + (jj % 16) / 4 * 4, _f0);
+                    }
+#endif // __AVX512F__
+                    if (out_elempack == 8)
+                    {
+                        _mm_storeu_ps(p0 - (jj % 8) / 4 * out_hstep * 4 + (jj % 8) / 4 * 4, _f0);
+                    }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         _mm_storeu_ps(p0, _f0);
@@ -20051,26 +20456,20 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 
 #if __AVX512F__
     TILE_M = std::max(16, tile_size / 16 * 16);
+    TILE_N = std::max(16, tile_size / 16 * 16);
     TILE_K = std::max(16, tile_size / 16 * 16);
 #elif __AVX__
     TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_N = std::max(8, tile_size / 8 * 8);
     TILE_K = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
     TILE_M = std::max(4, tile_size / 4 * 4);
+    TILE_N = std::max(4, tile_size / 4 * 4);
     TILE_K = std::max(4, tile_size / 4 * 4);
 #else
     TILE_M = std::max(2, tile_size / 2 * 2);
-    TILE_K = std::max(2, tile_size / 2 * 2);
-#endif
-
-#if __AVX512F__
-    TILE_N = std::max(16, tile_size / 16 * 16);
-#elif defined(__x86_64__) || defined(_M_X64)
-    TILE_N = std::max(8, tile_size / 8 * 8);
-#elif __SSE2__
-    TILE_N = std::max(4, tile_size / 4 * 4);
-#else
     TILE_N = std::max(1, tile_size);
+    TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
 
     if (K > 0)
@@ -20092,21 +20491,15 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 
 #if __AVX512F__
             TILE_M = std::max(16, tile_size / 16 * 16);
+            TILE_N = std::max(16, tile_size / 16 * 16);
 #elif __AVX__
             TILE_M = std::max(8, tile_size / 8 * 8);
-#elif __SSE2__
-            TILE_M = std::max(4, tile_size / 4 * 4);
-#else
-            TILE_M = std::max(2, tile_size / 2 * 2);
-#endif
-
-#if __AVX512F__
-            TILE_N = std::max(16, tile_size / 16 * 16);
-#elif defined(__x86_64__) || defined(_M_X64)
             TILE_N = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
+            TILE_M = std::max(4, tile_size / 4 * 4);
             TILE_N = std::max(4, tile_size / 4 * 4);
 #else
+            TILE_M = std::max(2, tile_size / 2 * 2);
             TILE_N = std::max(1, tile_size);
 #endif
         }
@@ -20133,7 +20526,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
         int nn_N = (N + TILE_N - 1) / TILE_N;
 #if __AVX512F__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 15) / 16 * 16);
-#elif defined(__x86_64__) || defined(_M_X64)
+#elif __AVX__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
 #elif __SSE2__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
@@ -20173,7 +20566,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
     {
 #if __AVX512F__
         TILE_N = (constant_TILE_N + 15) / 16 * 16;
-#elif defined(__x86_64__) || defined(_M_X64)
+#elif __AVX__
         TILE_N = (constant_TILE_N + 7) / 8 * 8;
 #elif __SSE2__
         TILE_N = (constant_TILE_N + 3) / 4 * 4;

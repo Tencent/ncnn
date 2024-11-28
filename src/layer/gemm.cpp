@@ -222,7 +222,7 @@ static void gemm_transB_int8(const Mat& A_int8, const Mat& BT_int8, const Mat& A
 
     // NCNN_LOGE("naive ds %f %f", A_int8_scales[0], BT_int8_scale);
 
-    // #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < M; i++)
     {
         const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
