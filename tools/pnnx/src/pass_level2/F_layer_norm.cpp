@@ -40,7 +40,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm, 130)
 
 class F_layer_norm_onnx : public GraphRewriterPass
 {
@@ -83,7 +83,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx, 130)
 
 class F_layer_norm_onnx_1 : public F_layer_norm_onnx
 {
@@ -114,7 +114,7 @@ pnnx.Output             output      3 0 out Mean InvStdDev
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 130)
 
 class F_layer_norm_onnx_2 : public F_layer_norm_onnx
 {
@@ -132,7 +132,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_2, 130)
 
 class F_layer_norm_onnx_3 : public GraphRewriterPass
 {
@@ -211,7 +211,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_3, 30)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_3, 131)
 
 class F_layer_norm_onnx_4 : public GraphRewriterPass
 {
@@ -304,6 +304,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_4, 29)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_4, 130)
 
 } // namespace pnnx

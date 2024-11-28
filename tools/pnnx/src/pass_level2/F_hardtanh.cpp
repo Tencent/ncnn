@@ -37,7 +37,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardtanh, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardtanh, 100)
 
 class F_hardtanh_onnx : public GraphRewriterPass
 {
@@ -58,6 +58,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardtanh_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardtanh_onnx, 100)
 
 } // namespace pnnx

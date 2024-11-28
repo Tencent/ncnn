@@ -46,6 +46,7 @@
 * [Input](#input)
 * [InstanceNorm](#instancenorm)
 * [Interp](#interp)
+* [InverseSpectrogram](#inversespectrogram)
 * [LayerNorm](#layernorm)
 * [Log](#log)
 * [LRN](#lrn)
@@ -81,6 +82,7 @@
 * [Slice](#slice)
 * [Softmax](#softmax)
 * [Softplus](#softplus)
+* [Spectrogram](#spectrogram)
 * [Split](#split)
 * [Swish](#swish)
 * [TanH](#tanh)
@@ -1141,6 +1143,30 @@ Resize type:
 - 2 = Bilinear
 - 3 = Bicubic
 
+# InverseSpectrogram
+```
+x1 = x as complex
+x1 = x1 * sqrt(norm) if normalized
+y = istft(x1)
+y1 = unpad(y) if center
+
+if returns == 0 return y1 as complex
+if returns == 1 return y1 real
+if returns == 2 return y1 imag
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | n_fft         | int   | 0         |                   |
+| 1         | returns       | int   | 1         |                   |
+| 2         | hoplen        | int   | n_fft / 4 |                   |
+| 3         | winlen        | int   | n_fft     |                   |
+| 4         | window_type   | int   | 0         | 0=ones 1=hann 2=hamming |
+| 5         | center        | int   | 1         |                   |
+| 7         | normalized    | int   | 0         | 0=no 1=n_fft 2=window-l2-energy |
+
 # LayerNorm
 ```
 split x along outmost axis into part x0, x1 ...
@@ -1828,6 +1854,31 @@ y = log(exp(x) + 1)
 
 * one_blob_only
 * support_inplace
+
+# Spectrogram
+```
+x1 = pad(x) if center
+y = stft(x1)
+y = y / sqrt(norm) if normalized
+
+if power == 0 return y as real
+if power == 1 return magnitude
+if power == 2 return square of magnitude
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | n_fft         | int   | 0         |                   |
+| 1         | power         | int   | 0         |                   |
+| 2         | hoplen        | int   | n_fft / 4 |                   |
+| 3         | winlen        | int   | n_fft     |                   |
+| 4         | window_type   | int   | 0         | 0=ones 1=hann 2=hamming |
+| 5         | center        | int   | 1         |                   |
+| 6         | pad_type      | int   | 2         | 0=CONSTANT 1=REPLICATE 2=REFLECT |
+| 7         | normalized    | int   | 0         | 0=no 1=n_fft 2=window-l2-energy |
+| 8         | onesided      | int   | 1         |                   |
 
 # Split
 ```

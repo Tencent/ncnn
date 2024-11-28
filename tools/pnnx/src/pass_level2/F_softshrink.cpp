@@ -36,7 +36,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softshrink, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softshrink, 100)
 
 static bool NearlyEqual(float a, float b, float epsilon)
 {
@@ -60,17 +60,17 @@ public:
 15 14
 pnnx.Input              input       0 1 input
 prim::Constant          op_0        0 1 lambd value=%lambd
-aten::gt                op_1        2 1 input lambd 8
+torch.gt                op_1        2 1 input lambd 8
 prim::Constant          op_2        0 1 lambd2 value=%lambd
 aten::sub               op_3        2 1 input lambd2 9
 prim::Constant          op_4        0 1 zero value=0
-aten::where             op_5        3 1 8 9 zero a
+torch.where             op_5        3 1 8 9 zero a
 prim::Constant          op_6        0 1 mlambd value=%lambd2
-aten::lt                op_7        2 1 input mlambd 11
+torch.lt                op_7        2 1 input mlambd 11
 prim::Constant          op_8        0 1 lambd3 value=%lambd
 aten::add               op_9        2 1 input lambd3 12
 prim::Constant          op_10       0 1 zero2 value=0
-aten::where             op_11       3 1 11 12 zero2 b
+torch.where             op_11       3 1 11 12 zero2 b
 aten::add               op_12       2 1 a b out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -94,6 +94,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softshrink_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softshrink_onnx, 100)
 
 } // namespace pnnx

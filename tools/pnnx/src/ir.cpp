@@ -1458,6 +1458,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     fprintf(pyfp, "import torch.nn.functional as F\n");
     fprintf(pyfp, "try:\n");
     fprintf(pyfp, "    import torchvision\n");
+    fprintf(pyfp, "    import torchaudio\n");
     fprintf(pyfp, "except:\n");
     fprintf(pyfp, "    pass\n");
 
@@ -2200,6 +2201,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     if (op->type.substr(0, 7) == "Tensor." && i == 0)
                     {
                         fprintf(pyfp, "%s=", it.first.c_str());
+                    }
+                    else if (op->type == "F.pad" && op->params.at("mode").s != "constant" && it.first == "value")
+                    {
+                        // skip F.pad value for non constant pad mode
+                        i++;
+                        continue;
                     }
                     else if (op->inputs.empty() && i == 0)
                     {

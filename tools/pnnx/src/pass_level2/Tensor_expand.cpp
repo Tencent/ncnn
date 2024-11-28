@@ -37,7 +37,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_expand, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_expand, 60)
 
 class Tensor_expand_1 : public GraphRewriterPass
 {
@@ -59,7 +59,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_expand_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_expand_1, 60)
 
 class Tensor_expand_onnx : public GraphRewriterPass
 {
@@ -107,6 +107,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_expand_onnx, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_expand_onnx, 60)
 
 } // namespace pnnx
