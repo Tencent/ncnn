@@ -7956,11 +7956,6 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
 
         const float scale = scales[i + ii];
 
-        // if (max_kk == 32)
-        // {
-        //     NCNN_LOGE("===== %p  %d   %f", p0, p0[0], scale);
-        // }
-
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
@@ -19946,6 +19941,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -19992,6 +19988,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 4;
                 pB += 4;
             }
+#endif // __SSE2__
             for (; kk < max_kk; kk += 1)
             {
                 sum00 += pA[0] * pB[0];
@@ -20028,6 +20025,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -20060,6 +20058,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 4;
                 pB += 2;
             }
+#endif // __SSE2__
             for (; kk < max_kk; kk += 1)
             {
                 sum0 += pA[0] * pB[0];
@@ -20346,6 +20345,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -20377,6 +20377,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 2;
                 pB += 4;
             }
+#endif // __SSE2__
             for (; kk < max_kk; kk += 1)
             {
                 sum0 += pA[0] * pB[0];
