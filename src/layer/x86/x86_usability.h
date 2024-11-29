@@ -304,6 +304,19 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fnmsub_ps(const __m128& _a, const __m128
 #endif
 }
 
+static NCNN_FORCEINLINE __m128i _mm_comp_dpwssd_epi32(__m128i src, __m128i a, __m128i b)
+{
+#if __AVX512VNNI__
+    return _mm_dpwssd_epi32(src, a, b);
+#elif __AVXVNNI__
+    return _mm_dpwssd_avx_epi32(src, a, b);
+#elif __XOP__
+    return _mm_maddd_epi16(a, b, src);
+#else
+    return _mm_add_epi32(src, _mm_madd_epi16(a, b));
+#endif
+}
+
 #if __AVX__
 static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
@@ -841,6 +854,17 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256&
 }
 
 #if __AVX2__
+static NCNN_FORCEINLINE __m256i _mm256_comp_dpwssd_epi32(__m256i src, __m256i a, __m256i b)
+{
+#if __AVX512VNNI__
+    return _mm256_dpwssd_epi32(src, a, b);
+#elif __AVXVNNI__
+    return _mm256_dpwssd_avx_epi32(src, a, b);
+#else
+    return _mm256_add_epi32(src, _mm256_madd_epi16(a, b));
+#endif
+}
+
 #if __AVX512VNNI__ || __AVXVNNI__
 static NCNN_FORCEINLINE __m128i _mm_comp_dpbusd_epi32(__m128i src, __m128i a, __m128i b)
 {
@@ -857,24 +881,6 @@ static NCNN_FORCEINLINE __m256i _mm256_comp_dpbusd_epi32(__m256i src, __m256i a,
     return _mm256_dpbusd_epi32(src, a, b);
 #else
     return _mm256_dpbusd_avx_epi32(src, a, b);
-#endif
-}
-
-static NCNN_FORCEINLINE __m128i _mm_comp_dpwssd_epi32(__m128i src, __m128i a, __m128i b)
-{
-#if __AVX512VNNI__
-    return _mm_dpwssd_epi32(src, a, b);
-#else
-    return _mm_dpwssd_avx_epi32(src, a, b);
-#endif
-}
-
-static NCNN_FORCEINLINE __m256i _mm256_comp_dpwssd_epi32(__m256i src, __m256i a, __m256i b)
-{
-#if __AVX512VNNI__
-    return _mm256_dpwssd_epi32(src, a, b);
-#else
-    return _mm256_dpwssd_avx_epi32(src, a, b);
 #endif
 }
 #endif // __AVX512VNNI__ || __AVXVNNI__
@@ -928,6 +934,15 @@ static NCNN_FORCEINLINE void transpose16x8_epi16(__m256i& _r0, __m256i& _r1, __m
 }
 
 #if __AVX512F__
+static NCNN_FORCEINLINE __m512i _mm512_comp_dpwssd_epi32(__m512i src, __m512i a, __m512i b)
+{
+#if __AVX512VNNI__
+    return _mm512_dpwssd_epi32(src, a, b);
+#else
+    return _mm512_add_epi32(src, _mm512_madd_epi16(a, b));
+#endif
+}
+
 static NCNN_FORCEINLINE void transpose16x16_ps(__m512& _r0, __m512& _r1, __m512& _r2, __m512& _r3, __m512& _r4, __m512& _r5, __m512& _r6, __m512& _r7,
         __m512& _r8, __m512& _r9, __m512& _ra, __m512& _rb, __m512& _rc, __m512& _rd, __m512& _re, __m512& _rf)
 {
