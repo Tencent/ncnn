@@ -2826,7 +2826,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum22 = _mm256_comp_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum33 = _mm256_comp_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-#else // __AVX2__
+#else  // __AVX2__
                         __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
                         __m128i _w23 = _mm_load_si128((const __m128i*)(kptr + 16));
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
@@ -3184,7 +3184,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
                         _sum22 = _mm256_comp_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum33 = _mm256_comp_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-#else // __AVX2__
+#else  // __AVX2__
                         __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
                         __m128i _w23 = _mm_load_si128((const __m128i*)(kptr + 16));
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
@@ -3455,7 +3455,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         _sum00 = _mm256_comp_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
                         _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-#else // __AVX2__
+#else  // __AVX2__
                         __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
                         __m128i _w23 = _mm_load_si128((const __m128i*)(kptr + 16));
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
@@ -3795,7 +3795,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _valval1, _w);
                         _sum22 = _mm256_comp_dpwssd_epi32(_sum22, _valval2, _w);
                         _sum33 = _mm256_comp_dpwssd_epi32(_sum33, _valval3, _w);
-#else // __AVX2__
+#else  // __AVX2__
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                         __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
                         __m128i _w1 = _mm_unpackhi_epi8(_w01, _extw01);
@@ -4064,7 +4064,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _valval0, _w);
                         _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _valval1, _w);
-#else // __AVX2__
+#else  // __AVX2__
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                         __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
                         __m128i _w1 = _mm_unpackhi_epi8(_w01, _extw01);
@@ -4262,7 +4262,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
 
                         _sum = _mm256_comp_dpwssd_epi32(_sum, _rr0, _w);
-#else // __AVX2__
+#else  // __AVX2__
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                         __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
                         __m128i _w1 = _mm_unpackhi_epi8(_w01, _extw01);

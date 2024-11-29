@@ -2141,7 +2141,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _pA0, _pB1);
                     _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _pA1, _pB0);
                     _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _pA1, _pB1);
-#else // __AVX2__
+#else  // __AVX2__
                     __m128i _pA0 = _mm_loadu_si128((const __m128i*)pA);
                     __m128i _pB0 = _mm_loadu_si128((const __m128i*)pB);
                     __m128i _pB1 = _mm_loadu_si128((const __m128i*)(pB + 8));

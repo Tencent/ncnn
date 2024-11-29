@@ -4807,7 +4807,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
                 _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _pA0, _pB1);
-#else  // __AVX2__
+#else // __AVX2__
 #if __SSE4_1__
                 _pA = _mm_cvtepi8_epi16(_pA);
 #else
@@ -5309,7 +5309,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
 
                 _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
-#else  // __AVX2__
+#else // __AVX2__
 #if __SSE4_1__
                 _pA = _mm_cvtepi8_epi16(_pA);
 #else
