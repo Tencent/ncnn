@@ -2064,22 +2064,22 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     __m256i _rr3 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r3), _r3, 1);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
-                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
-                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
-                    _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                    _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                    _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                    _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                    _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                    _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                    _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                    _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                    _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
 #else
                     _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
                     _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
@@ -2130,10 +2130,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm256_dpwssd_epi32(_sum0, _rr0, _w);
-                        _sum1 = _mm256_dpwssd_epi32(_sum1, _rr1, _w);
-                        _sum2 = _mm256_dpwssd_epi32(_sum2, _rr2, _w);
-                        _sum3 = _mm256_dpwssd_epi32(_sum3, _rr3, _w);
+                        _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _rr0, _w);
+                        _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _rr1, _w);
+                        _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _rr2, _w);
+                        _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _rr3, _w);
 #else
                         _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_rr0, _w));
                         _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_rr1, _w));
@@ -2423,14 +2423,14 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     __m256i _rr1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r1, 1);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
-                    _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                    _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                    _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                    _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                    _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
 #else
                     _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
                     _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
@@ -2465,8 +2465,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm256_dpwssd_epi32(_sum0, _rr0, _w);
-                        _sum1 = _mm256_dpwssd_epi32(_sum1, _rr1, _w);
+                        _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _rr0, _w);
+                        _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _rr1, _w);
 #else
                         _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_rr0, _w));
                         _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_rr1, _w));
@@ -2684,10 +2684,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                        _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                        _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                        _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                        _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                        _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
 #else
                         _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
                         _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
@@ -2718,7 +2718,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm256_dpwssd_epi32(_sum0, _val, _w);
+                        _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _val, _w);
 #else
                         _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_val, _w));
 #endif
@@ -3038,14 +3038,14 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr3 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r3), _mm_shuffle_epi32(_r3, _MM_SHUFFLE(2, 3, 0, 1)), 1);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum11 = _mm256_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum22 = _mm256_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum33 = _mm256_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-                        _sum11 = _mm256_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-                        _sum22 = _mm256_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-                        _sum33 = _mm256_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum00 = _mm256_comp_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum22 = _mm256_comp_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum33 = _mm256_comp_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum00 = _mm256_comp_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum22 = _mm256_comp_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum33 = _mm256_comp_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
 #else
                         _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
                         _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
@@ -3147,10 +3147,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm_dpwssd_epi32(_sum0, _r0, _w);
-                        _sum1 = _mm_dpwssd_epi32(_sum1, _r1, _w);
-                        _sum2 = _mm_dpwssd_epi32(_sum2, _r2, _w);
-                        _sum3 = _mm_dpwssd_epi32(_sum3, _r3, _w);
+                        _sum0 = _mm_comp_dpwssd_epi32(_sum0, _r0, _w);
+                        _sum1 = _mm_comp_dpwssd_epi32(_sum1, _r1, _w);
+                        _sum2 = _mm_comp_dpwssd_epi32(_sum2, _r2, _w);
+                        _sum3 = _mm_comp_dpwssd_epi32(_sum3, _r3, _w);
 #elif __XOP__
                         _sum0 = _mm_maddd_epi16(_r0, _w, _sum0);
                         _sum1 = _mm_maddd_epi16(_r1, _w, _sum1);
@@ -3449,10 +3449,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 3, 0, 1)), 1);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum11 = _mm256_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum22 = _mm256_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-                        _sum33 = _mm256_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum00 = _mm256_comp_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum22 = _mm256_comp_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum33 = _mm256_comp_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
 #else
                         _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
                         _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
@@ -3528,8 +3528,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm_dpwssd_epi32(_sum0, _r0, _w);
-                        _sum1 = _mm_dpwssd_epi32(_sum1, _r1, _w);
+                        _sum0 = _mm_comp_dpwssd_epi32(_sum0, _r0, _w);
+                        _sum1 = _mm_comp_dpwssd_epi32(_sum1, _r1, _w);
 #elif __XOP__
                         _sum0 = _mm_maddd_epi16(_r0, _w, _sum0);
                         _sum1 = _mm_maddd_epi16(_r1, _w, _sum1);
@@ -3753,8 +3753,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 3, 0, 1)), 1);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum11 = _mm256_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum00 = _mm256_comp_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
 #else
                         _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
                         _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
@@ -3816,7 +3816,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm_dpwssd_epi32(_sum0, _r0, _w);
+                        _sum0 = _mm_comp_dpwssd_epi32(_sum0, _r0, _w);
 #elif __XOP__
                         _sum0 = _mm_maddd_epi16(_r0, _w, _sum0);
 #else
@@ -4116,10 +4116,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w = _mm256_cvtepi8_epi16(_w01);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum00 = _mm256_dpwssd_epi32(_sum00, _valval0, _w);
-                        _sum11 = _mm256_dpwssd_epi32(_sum11, _valval1, _w);
-                        _sum22 = _mm256_dpwssd_epi32(_sum22, _valval2, _w);
-                        _sum33 = _mm256_dpwssd_epi32(_sum33, _valval3, _w);
+                        _sum00 = _mm256_comp_dpwssd_epi32(_sum00, _valval0, _w);
+                        _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _valval1, _w);
+                        _sum22 = _mm256_comp_dpwssd_epi32(_sum22, _valval2, _w);
+                        _sum33 = _mm256_comp_dpwssd_epi32(_sum33, _valval3, _w);
 #else
                         _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_valval0, _w));
                         _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_valval1, _w));
@@ -4415,8 +4415,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _valval1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r1, 1);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm256_dpwssd_epi32(_sum0, _valval0, _w);
-                        _sum1 = _mm256_dpwssd_epi32(_sum1, _valval1, _w);
+                        _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _valval0, _w);
+                        _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _valval1, _w);
 #else
                         _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_valval0, _w));
                         _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_valval1, _w));
@@ -4630,7 +4630,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum = _mm256_dpwssd_epi32(_sum, _rr0, _w);
+                        _sum = _mm256_comp_dpwssd_epi32(_sum, _rr0, _w);
 #else
                         _sum = _mm256_add_epi32(_sum, _mm256_madd_epi16(_rr0, _w));
 #endif
@@ -4797,10 +4797,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm256_dpwssd_epi32(_sum0, _val0, _w);
-                        _sum1 = _mm256_dpwssd_epi32(_sum1, _val1, _w);
-                        _sum2 = _mm256_dpwssd_epi32(_sum2, _val2, _w);
-                        _sum3 = _mm256_dpwssd_epi32(_sum3, _val3, _w);
+                        _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _val0, _w);
+                        _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _val1, _w);
+                        _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _val2, _w);
+                        _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _val3, _w);
 #else
                         _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_val0, _w));
                         _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_val1, _w));
@@ -4899,10 +4899,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm_dpwssd_epi32(_sum0, _r0, _w);
-                        _sum1 = _mm_dpwssd_epi32(_sum1, _r1, _w);
-                        _sum2 = _mm_dpwssd_epi32(_sum2, _r2, _w);
-                        _sum3 = _mm_dpwssd_epi32(_sum3, _r3, _w);
+                        _sum0 = _mm_comp_dpwssd_epi32(_sum0, _r0, _w);
+                        _sum1 = _mm_comp_dpwssd_epi32(_sum1, _r1, _w);
+                        _sum2 = _mm_comp_dpwssd_epi32(_sum2, _r2, _w);
+                        _sum3 = _mm_comp_dpwssd_epi32(_sum3, _r3, _w);
 #elif __XOP__
                         _sum0 = _mm_maddd_epi16(_r0, _w, _sum0);
                         _sum1 = _mm_maddd_epi16(_r1, _w, _sum1);
@@ -5074,8 +5074,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm256_dpwssd_epi32(_sum0, _val0, _w);
-                        _sum1 = _mm256_dpwssd_epi32(_sum1, _val1, _w);
+                        _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _val0, _w);
+                        _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _val1, _w);
 #else
                         _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_val0, _w));
                         _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_val1, _w));
@@ -5150,8 +5150,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm_dpwssd_epi32(_sum0, _r0, _w);
-                        _sum1 = _mm_dpwssd_epi32(_sum1, _r1, _w);
+                        _sum0 = _mm_comp_dpwssd_epi32(_sum0, _r0, _w);
+                        _sum1 = _mm_comp_dpwssd_epi32(_sum1, _r1, _w);
 #elif __XOP__
                         _sum0 = _mm_maddd_epi16(_r0, _w, _sum0);
                         _sum1 = _mm_maddd_epi16(_r1, _w, _sum1);
@@ -5265,7 +5265,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum = _mm256_dpwssd_epi32(_sum, _val, _w);
+                        _sum = _mm256_comp_dpwssd_epi32(_sum, _val, _w);
 #else
                         _sum = _mm256_add_epi32(_sum, _mm256_madd_epi16(_val, _w));
 #endif
@@ -5325,7 +5325,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum = _mm_dpwssd_epi32(_sum, _r0, _w);
+                        _sum = _mm_comp_dpwssd_epi32(_sum, _r0, _w);
 #elif __XOP__
                         _sum = _mm_maddd_epi16(_r0, _w, _sum);
 #else

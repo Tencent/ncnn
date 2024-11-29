@@ -2828,14 +2828,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _pB3 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 1, 0, 3));
 
 #if __AVXVNNI__
-                _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
-                _sum1 = _mm256_dpwssd_epi32(_sum1, _pA0, _pB1);
-                _sum2 = _mm256_dpwssd_epi32(_sum2, _pA0, _pB2);
-                _sum3 = _mm256_dpwssd_epi32(_sum3, _pA0, _pB3);
-                _sum4 = _mm256_dpwssd_epi32(_sum4, _pA1, _pB0);
-                _sum5 = _mm256_dpwssd_epi32(_sum5, _pA1, _pB1);
-                _sum6 = _mm256_dpwssd_epi32(_sum6, _pA1, _pB2);
-                _sum7 = _mm256_dpwssd_epi32(_sum7, _pA1, _pB3);
+                _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _pA0, _pB1);
+                _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _pA0, _pB2);
+                _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _pA0, _pB3);
+                _sum4 = _mm256_comp_dpwssd_epi32(_sum4, _pA1, _pB0);
+                _sum5 = _mm256_comp_dpwssd_epi32(_sum5, _pA1, _pB1);
+                _sum6 = _mm256_comp_dpwssd_epi32(_sum6, _pA1, _pB2);
+                _sum7 = _mm256_comp_dpwssd_epi32(_sum7, _pA1, _pB3);
 #else
                 _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_pA0, _pB0));
                 _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_pA0, _pB1));
@@ -3316,10 +3316,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
-                _sum1 = _mm256_dpwssd_epi32(_sum1, _pA0, _pB1);
-                _sum2 = _mm256_dpwssd_epi32(_sum2, _pA1, _pB0);
-                _sum3 = _mm256_dpwssd_epi32(_sum3, _pA1, _pB1);
+                _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _pA0, _pB1);
+                _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _pA1, _pB0);
+                _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _pA1, _pB1);
 #else
                 _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_pA0, _pB0));
                 _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_pA0, _pB1));
@@ -3518,8 +3518,8 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 1, 0, 1));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
-                _sum1 = _mm256_dpwssd_epi32(_sum1, _pA0, _pB1);
+                _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _pA0, _pB1);
 #else
                 _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_pA0, _pB0));
                 _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_pA0, _pB1));
@@ -3654,7 +3654,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _pB0 = _mm256_shuffle_epi32(_pBB, _MM_SHUFFLE(0, 0, 0, 0));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
 #else
                 _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_pA0, _pB0));
 #endif
@@ -3984,10 +3984,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
-                _sum1 = _mm256_dpwssd_epi32(_sum1, _pA0, _pB1);
-                _sum2 = _mm256_dpwssd_epi32(_sum2, _pA1, _pB0);
-                _sum3 = _mm256_dpwssd_epi32(_sum3, _pA1, _pB1);
+                _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _pA0, _pB1);
+                _sum2 = _mm256_comp_dpwssd_epi32(_sum2, _pA1, _pB0);
+                _sum3 = _mm256_comp_dpwssd_epi32(_sum3, _pA1, _pB1);
 #else
                 _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_pA0, _pB0));
                 _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_pA0, _pB1));
@@ -4943,8 +4943,8 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
 #if __AVX512VNNI__ || __AVXVNNI__
-                _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
-                _sum1 = _mm256_dpwssd_epi32(_sum1, _pA0, _pB1);
+                _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _pA0, _pB1);
 #else
                 _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_pA0, _pB0));
                 _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_pA0, _pB1));
@@ -5467,7 +5467,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
 
 #if __AVX512VNNI__ || __AVXVNNI__
-                _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
 #else
                 _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_pA0, _pB0));
 #endif // __AVX512VNNI__ || __AVXVNNI__
