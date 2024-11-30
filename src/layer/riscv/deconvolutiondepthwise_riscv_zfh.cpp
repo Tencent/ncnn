@@ -355,7 +355,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
 #if __riscv_zvfh
     if (opt.use_packing_layout)
     {
-        int out_elempack = num_output % packn == 0 ? packn : 1;
+        out_elempack = num_output % packn == 0 ? packn : 1;
     }
 #endif // __riscv_zvfh
     size_t out_elemsize = elemsize / elempack * out_elempack;
