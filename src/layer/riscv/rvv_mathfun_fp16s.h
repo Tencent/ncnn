@@ -411,9 +411,9 @@ _RVV_FLOAT16_SIGMOID_OP(8, 2)
         return __riscv_vle16_v_f16m##LMUL(tmpx.data(), vl);                                             \
     }
 
-_RVV_FLOAT16_ATAN2_OP(1, 32)
-_RVV_FLOAT16_ATAN2_OP(2, 16)
-_RVV_FLOAT16_ATAN2_OP(4, 8)
-_RVV_FLOAT16_ATAN2_OP(8, 4)
+_RVV_FLOAT16_ATAN2_OP(1, 16)
+_RVV_FLOAT16_ATAN2_OP(2, 8)
+_RVV_FLOAT16_ATAN2_OP(4, 4)
+_RVV_FLOAT16_ATAN2_OP(8, 2)
 
 #endif // RVV_MATHFUN_FP16S_H

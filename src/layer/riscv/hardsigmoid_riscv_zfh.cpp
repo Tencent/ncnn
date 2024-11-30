@@ -20,7 +20,7 @@
 
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 int HardSigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -35,27 +35,44 @@ int HardSigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option&
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
+        __fp16 _lower = (__fp16)lower;
+        __fp16 _upper = (__fp16)upper;
+        __fp16 _alpha = (__fp16)alpha;
+        __fp16 _beta = (__fp16)beta;
+
+#if __riscv_zvfh
         int n = size;
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e16m8(n);
             vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
 
-            vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, lower, vl);
-            vbool2_t _higher = __riscv_vmfgt_vf_f16m8_b2(_p, upper, vl);
-            vbool2_t _apply = __riscv_vmnor_mm_b2(_lower, _higher, vl);
-            _p = __riscv_vfmerge_vfm_f16m8(_p, .0f, _lower, vl);
-            _p = __riscv_vfmerge_vfm_f16m8(_p, 1.f, _higher, vl);
+            vbool2_t _is_lower = __riscv_vmflt_vf_f16m8_b2(_p, _lower, vl);
+            vbool2_t _is_higher = __riscv_vmfgt_vf_f16m8_b2(_p, _upper, vl);
+            vbool2_t _apply = __riscv_vmnor_mm_b2(_is_lower, _is_higher, vl);
+            _p = __riscv_vfmerge_vfm_f16m8(_p, (__fp16)0.f, _is_lower, vl);
+            _p = __riscv_vfmerge_vfm_f16m8(_p, (__fp16)1.f, _is_higher, vl);
 
-            _p = __riscv_vfadd_vf_f16m8_mu(_apply, _p, __riscv_vfmul_vf_f16m8_m(_apply, _p, alpha, vl), beta, vl);
+            _p = __riscv_vfadd_vf_f16m8_mu(_apply, _p, __riscv_vfmul_vf_f16m8_m(_apply, _p, _alpha, vl), _beta, vl);
             __riscv_vse16_v_f16m8(ptr, _p, vl);
             ptr += vl;
             n -= vl;
         }
+#else  // __riscv_zvfh
+        for (int i = 0; i < size; i++)
+        {
+            if (ptr[i] < _lower)
+                ptr[i] = (__fp16)0.f;
+            else if (ptr[i] > _upper)
+                ptr[i] = (__fp16)1.f;
+            else
+                ptr[i] = ptr[i] * _alpha + _beta;
+        }
+#endif // __riscv_zvfh
     }
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

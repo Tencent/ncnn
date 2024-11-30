@@ -18,20 +18,21 @@
 
 #if __riscv_vector
 #include <riscv_vector.h>
-#endif // __riscv_vector
-
 #include "riscv_usability.h"
+#endif // __riscv_vector
 
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // max value in NxN window
     // avg value in NxN window
 
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
+#endif // __riscv_zvfh
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -51,6 +52,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
 
         if (pooling_type == PoolMethod_MAX)
         {
+#if __riscv_zvfh
             if (elempack == packn)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -70,6 +72,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                     __riscv_vse16_v_f16m1(outptr + q * packn, _max, vl);
                 }
             }
+#endif // __riscv_zvfh
 
             if (elempack == 1)
             {
@@ -92,6 +95,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
 
         if (pooling_type == PoolMethod_AVE)
         {
+#if __riscv_zvfh
             if (elempack == packn)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -113,6 +117,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                     __riscv_vse16_v_f16m1(outptr + q * packn, __riscv_vfncvt_f_f_w_f16m1(_avg, vl), vl);
                 }
             }
+#endif // __riscv_zvfh
 
             if (elempack == 1)
             {
@@ -174,6 +179,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
 
     if (pooling_type == PoolMethod_MAX)
     {
+#if __riscv_zvfh
         if (elempack == packn)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -203,6 +209,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                 }
             }
         }
+#endif // __riscv_zvfh
 
         if (elempack == 1)
         {
@@ -248,6 +255,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                 htailpad = bottom_blob_bordered.h - bottom_blob.h - pad_top - pad_bottom;
             }
 
+#if __riscv_zvfh
             if (elempack == packn)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -301,6 +309,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                     }
                 }
             }
+#endif // __riscv_zvfh
 
             if (elempack == 1)
             {
@@ -358,6 +367,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
 
         if (avgpool_count_include_pad == 1)
         {
+#if __riscv_zvfh
             if (elempack == packn)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -390,6 +400,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
                     }
                 }
             }
+#endif // __riscv_zvfh
 
             if (elempack == 1)
             {
@@ -436,8 +447,10 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
         return forward_fp16s(bottom_blob, top_blob, opt);
     }
 
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
+#endif // __riscv_zvfh
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -496,6 +509,7 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
                 htailpad = bottom_blob_bordered.h - bottom_blob.h - pad_top - pad_bottom;
             }
 
+#if __riscv_zvfh
             if (elempack == packn)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -512,7 +526,7 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
                         {
                             int sx0 = j * stride_w;
 
-                            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
                             int area = 0;
 
                             for (int ki = 0; ki < kernel_h; ki++)
@@ -549,6 +563,7 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
                     }
                 }
             }
+#endif // __riscv_zvfh
 
             if (elempack == 1)
             {
@@ -606,6 +621,7 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
 
         if (avgpool_count_include_pad == 1)
         {
+#if __riscv_zvfh
             if (elempack == packn)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -622,7 +638,7 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
                         {
                             const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * packn;
 
-                            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                             for (int k = 0; k < maxk; k++)
                             {
@@ -638,6 +654,7 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
                     }
                 }
             }
+#endif // __riscv_zvfh
 
             if (elempack == 1)
             {
@@ -673,6 +690,6 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

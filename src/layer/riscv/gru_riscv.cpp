@@ -210,8 +210,12 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
 GRU_riscv::GRU_riscv()
 {
-#if NCNN_ZVFH
+#if NCNN_ZFH
+#if __riscv_vector
     support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
 #endif
 }
 
@@ -225,7 +229,7 @@ int GRU_riscv::create_pipeline(const Option& opt)
     }
 #endif
 
-#if NCNN_ZVFH
+#if NCNN_ZFH
     if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
         return create_pipeline_fp16sa(opt);
 #endif
@@ -242,9 +246,7 @@ int GRU_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     }
 #endif
 
-#if __riscv_vector
-
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = bottom_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -255,6 +257,8 @@ int GRU_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             return forward_fp16s(bottom_blob, top_blob, opt);
     }
 #endif
+
+#if __riscv_vector
 
     int T = bottom_blob.h;
 
@@ -326,8 +330,7 @@ int GRU_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
     const Mat& bottom_blob = bottom_blobs[0];
 
-#if __riscv_vector
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = bottom_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -339,6 +342,7 @@ int GRU_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     }
 #endif
 
+#if __riscv_vector
     int T = bottom_blob.h;
     int num_directions = direction == 2 ? 2 : 1;
 

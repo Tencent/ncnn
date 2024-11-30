@@ -22,7 +22,7 @@
 
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     // x = (x - mean) / (sqrt(var + eps)) * gamma + beta
@@ -37,7 +37,6 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
     int dims = bottom_top_blob.dims;
     if (elempack == 1)
     {
-        size = elempack * size;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
@@ -46,6 +45,7 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
             // mean and var
             float sum = 0.f;
             float sqsum = 0.f;
+#if __riscv_zvfh
             vfloat32m1_t _sum = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
             vfloat32m1_t _sqsum = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
             {
@@ -62,7 +62,15 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
                 }
             }
             sum = __riscv_vfmv_f_s_f32m1_f32(_sum);
+#else
+            for (int i = 0; i < size; i++)
+            {
+                sum += ptr[i];
+                //sqsum += ptr[i] * ptr[i];
+            }
+#endif // __riscv_zvfh
             float mean = sum / size;
+#if __riscv_zvfh
             {
                 int n = size;
                 __fp16* ptr_sqsum = ptr;
@@ -77,6 +85,14 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
                 }
             }
             sqsum = __riscv_vfmv_f_s_f32m1_f32(_sqsum);
+#else
+            float tmp = 0.f;
+            for (int i = 0; i < size; i++)
+            {
+                tmp = ptr[i] - mean;
+                sqsum += tmp * tmp;
+            }
+#endif // __riscv_zvfh
             float var = sqsum / size;
             // the var maybe minus due to accuracy
             //float var = sqsum / size - mean * mean;
@@ -96,6 +112,7 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
                 a = 1.f / (sqrtf(var + eps));
                 b = -mean * a;
             }
+#if __riscv_zvfh
             {
                 int n = size;
                 __fp16* ptr_store = ptr;
@@ -110,10 +127,17 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
                     ptr_store += vl;
                 }
             }
+#else
+            for (int i = 0; i < size; i++)
+            {
+                ptr[i] = ptr[i] * a + b;
+            }
+#endif // __riscv_zvfh
         }
         return 0;
     }
 
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
     if (elempack == packn)
     {
@@ -166,6 +190,7 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
         }
         return 0;
     }
+#endif // __riscv_zvfh
     return 0;
 }
 
@@ -182,7 +207,6 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
     int dims = bottom_top_blob.dims;
     if (elempack == 1)
     {
-        size = elempack * size;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
@@ -191,6 +215,7 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
             // mean and var
             __fp16 sum = 0.f;
             __fp16 sqsum = 0.f;
+#if __riscv_zvfh
             vfloat16m1_t _sum = __riscv_vfmv_s_f_f16m1(0.f, __riscv_vsetvlmax_e32m1());
             vfloat16m1_t _sqsum = __riscv_vfmv_s_f_f16m1(0.f, __riscv_vsetvlmax_e32m1());
             {
@@ -207,7 +232,15 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
                 }
             }
             sum = __riscv_vfmv_f_s_f16m1_f16(_sum);
+#else
+            for (int i = 0; i < size; i++)
+            {
+                sum += ptr[i];
+                //sqsum += ptr[i] * ptr[i];
+            }
+#endif // __riscv_zvfh
             __fp16 mean = sum / size;
+#if __riscv_zvfh
             {
                 int n = size;
                 __fp16* ptr_sqsum = ptr;
@@ -222,6 +255,14 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
                 }
             }
             sqsum = __riscv_vfmv_f_s_f16m1_f16(_sqsum);
+#else
+            float tmp = 0.f;
+            for (int i = 0; i < size; i++)
+            {
+                tmp = ptr[i] - mean;
+                sqsum += tmp * tmp;
+            }
+#endif // __riscv_zvfh
             __fp16 var = sqsum / size;
             // the var maybe minus due to accuracy
             //float var = sqsum / size - mean * mean;
@@ -241,6 +282,7 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
                 a = static_cast<__fp16>(1.f / (sqrt(var + eps)));
                 b = static_cast<__fp16>(-mean * a);
             }
+#if __riscv_zvfh
             {
                 int n = size;
                 __fp16* ptr_store = ptr;
@@ -255,10 +297,17 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
                     ptr_store += vl;
                 }
             }
+#else
+            for (int i = 0; i < size; i++)
+            {
+                ptr[i] = ptr[i] * a + b;
+            }
+#endif // __riscv_zvfh
         }
         return 0;
     }
 
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
     if (elempack == packn)
     {
@@ -311,9 +360,9 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
         }
         return 0;
     }
+#endif // __riscv_zvfh
     return 0;
 }
-
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

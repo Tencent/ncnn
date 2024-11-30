@@ -17,26 +17,25 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #endif // __riscv_vector
-
 #include "riscv_activation.h"
 #include "riscv_usability.h"
 
 namespace ncnn {
 
-#if __riscv_vector
-#if __riscv_zvfh
+#if NCNN_ZFH
 #include "convolution_fp16s.h"
+#include "convolution_sgemm_fp16s.h"
+#include "convolution_1x1_fp16s.h"
+#if __riscv_zvfh
 #include "convolution_packn_fp16s.h"
 #include "convolution_pack1ton_fp16s.h"
 #include "convolution_packnto1_fp16s.h"
 
-#include "convolution_sgemm_fp16s.h"
 #include "convolution_sgemm_packn_fp16s.h"
 #include "convolution_sgemm_pack1ton_fp16s.h"
 #include "convolution_sgemm_packnto1_fp16s.h"
 #include "convolution_winograd_transform_packn_fp16s.h"
 #include "convolution_winograd_dot_packn_fp16s.h"
-#include "convolution_1x1_fp16s.h"
 #include "convolution_1x1_packn_fp16s.h"
 #include "convolution_1x1_pack1ton_fp16s.h"
 #include "convolution_1x1_packnto1_fp16s.h"
@@ -44,9 +43,9 @@ namespace ncnn {
 #include "convolution_3x3_pack1ton_fp16s.h"
 #include "convolution_7x7_pack1ton_fp16s.h"
 #endif
-#endif // __riscv_vector
+#endif // NCNN_ZFH
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 static void convolution_transform_kernel_packed_fp16s_rvv(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
 {
     const int maxk = kernel_w * kernel_h;
@@ -85,7 +84,9 @@ static void convolution_transform_kernel_packed_fp16s_rvv(const Mat& weight_data
 
 int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
@@ -93,12 +94,15 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
     int elempack = 1;
     int out_elempack = 1;
 
+#if __riscv_zvfh
     if (opt.use_packing_layout)
     {
         elempack = num_input % packn == 0 ? packn : 1;
         out_elempack = num_output % packn == 0 ? packn : 1;
     }
+#endif // __riscv_zvfh
 
+#if __riscv_zvfh
     // packn
     if (elempack == packn && out_elempack == packn)
     {
@@ -143,6 +147,7 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
             convolution_transform_kernel_packed_fp16s_rvv(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
         }
     }
+#endif // __riscv_zvfh
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
@@ -174,7 +179,9 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
 
 int Convolution_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -196,13 +203,20 @@ int Convolution_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_zvfh
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_zvfh
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
+#if __riscv_zvfh
     if (elempack == packn && out_elempack == packn)
     {
         {
@@ -223,6 +237,7 @@ int Convolution_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             convolution_packnto1_fp16s_rvv(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
+#endif // __riscv_zvfh
 
     if (elempack == 1 && out_elempack == 1)
     {
@@ -236,7 +251,9 @@ int Convolution_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
 int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -259,7 +276,13 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_zvfh
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_zvfh
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -268,6 +291,7 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
     const int num_input = channels * elempack;
 
+#if __riscv_zvfh
     if (elempack == packn && out_elempack == packn)
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -404,6 +428,7 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
             convolution_packnto1_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
+#endif // __riscv_zvfh
 
     if (elempack == 1 && out_elempack == 1)
     {
@@ -433,6 +458,6 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

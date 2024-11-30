@@ -16,9 +16,10 @@
 
 #if __riscv_vector
 #include <riscv_vector.h>
+#include "riscv_usability.h"
 #endif // __riscv_vector
 
-#include "riscv_usability.h"
+#include "cpu.h"
 
 namespace ncnn {
 
@@ -26,10 +27,10 @@ Concat_riscv::Concat_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -40,7 +41,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 {
     int elembits = bottom_blobs[0].elembits();
 
-#if NCNN_ZVFH
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 #endif

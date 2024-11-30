@@ -17,21 +17,21 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
+#include "riscv_usability.h"
 #if __riscv_zvfh
 #include "rvv_mathfun_fp16s.h"
 #endif
 #endif // __riscv_vector
 
-#include "riscv_usability.h"
-
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 template<typename Op>
 static void binary_op_vector_no_broadcast_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int size)
 {
     const Op op;
 
+#if __riscv_zvfh
     int n = size;
     while (n > 0)
     {
@@ -45,6 +45,15 @@ static void binary_op_vector_no_broadcast_fp16s(const __fp16* ptr, const __fp16*
         ptr1 += vl;
         outptr += vl;
     }
+#else  // __riscv_zvfh
+    for (int i = 0; i < size; i++)
+    {
+        *outptr = op(*ptr, *ptr1);
+        ptr += 1;
+        ptr1 += 1;
+        outptr += 1;
+    }
+#endif // __riscv_zvfh
 }
 
 template<typename Op>
@@ -54,6 +63,7 @@ static void binary_op_vector_broadcast_b_fp16s(const __fp16* ptr, const __fp16* 
 
     const __fp16 b = *ptr1;
 
+#if __riscv_zvfh
     int n = size;
     vfloat16m8_t _bx = (elempack == 1) ? __riscv_vfmv_v_f_f16m8(b, __riscv_vsetvl_e16m8(n)) : __riscv_vle16_v_f16m8_f16m1(ptr1);
     while (n > 0)
@@ -66,6 +76,14 @@ static void binary_op_vector_broadcast_b_fp16s(const __fp16* ptr, const __fp16* 
         ptr += vl;
         outptr += vl;
     }
+#else  // __riscv_zvfh
+    for (int i = 0; i < size; i++)
+    {
+        *outptr = op(*ptr, b);
+        ptr += 1;
+        outptr += 1;
+    }
+#endif // __riscv_zvfh
 }
 
 template<typename Op>
@@ -75,6 +93,7 @@ static void binary_op_vector_broadcast_a_fp16s(const __fp16* ptr, const __fp16* 
 
     const __fp16 a = *ptr;
 
+#if __riscv_zvfh
     int n = size;
     vfloat16m8_t _ax = (elempack == 1) ? __riscv_vfmv_v_f_f16m8(a, __riscv_vsetvl_e16m8(n)) : __riscv_vle16_v_f16m8_f16m1(ptr);
     while (n > 0)
@@ -87,6 +106,14 @@ static void binary_op_vector_broadcast_a_fp16s(const __fp16* ptr, const __fp16* 
         ptr1 += vl;
         outptr += vl;
     }
+#else  // __riscv_zvfh
+    for (int i = 0; i < size; i++)
+    {
+        *outptr = op(a, *ptr1);
+        ptr1 += 1;
+        outptr += 1;
+    }
+#endif // __riscv_zvfh
 }
 
 template<typename Op>
@@ -94,6 +121,7 @@ static void binary_op_vector_broadcast_pb_fp16s(const __fp16* ptr, const __fp16*
 {
     const Op op;
 
+#if __riscv_zvfh
     // if (elempack == packn)
     {
         size_t vl = __riscv_vsetvl_e16m8(elempack);
@@ -108,6 +136,7 @@ static void binary_op_vector_broadcast_pb_fp16s(const __fp16* ptr, const __fp16*
             outptr += vl;
         }
     }
+#endif // __riscv_zvfh
 }
 
 template<typename Op>
@@ -115,6 +144,7 @@ static void binary_op_vector_broadcast_pb_b_fp16s(const __fp16* ptr, const __fp1
 {
     const Op op;
 
+#if __riscv_zvfh
     int n = w * elempack;
 
     vfloat16m8_t _bx = __riscv_vfmv_v_f_f16m8(*ptr1, __riscv_vsetvl_e16m8(n));
@@ -128,6 +158,7 @@ static void binary_op_vector_broadcast_pb_b_fp16s(const __fp16* ptr, const __fp1
         ptr += vl;
         outptr += vl;
     }
+#endif // __riscv_zvfh
 }
 
 template<typename Op>
@@ -135,6 +166,7 @@ static void binary_op_vector_broadcast_pb_a_fp16s(const __fp16* ptr, const __fp1
 {
     const Op op;
 
+#if __riscv_zvfh
     // if (elempack == packn)
     {
         size_t vl = __riscv_vsetvl_e16m8(elempack);
@@ -147,6 +179,7 @@ static void binary_op_vector_broadcast_pb_a_fp16s(const __fp16* ptr, const __fp1
             outptr += vl;
         }
     }
+#endif // __riscv_zvfh
 }
 
 template<typename Op>
@@ -203,6 +236,7 @@ static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16
 
 namespace BinaryOp_riscv_functor {
 
+#if __riscv_zvfh
 #define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                            \
     struct NAME                                                                                      \
     {                                                                                                \
@@ -223,6 +257,16 @@ namespace BinaryOp_riscv_functor {
             return IMPLSV;                                                                           \
         }                                                                                            \
     };
+#else
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)         \
+    struct NAME                                                   \
+    {                                                             \
+        __fp16 operator()(const __fp16& x, const __fp16& y) const \
+        {                                                         \
+            return IMPL;                                          \
+        }                                                         \
+    };
+#endif
 
 // clang-format off
 // *INDENT-OFF*
@@ -567,6 +611,6 @@ int BinaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& op
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

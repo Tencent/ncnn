@@ -17,25 +17,28 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #endif // __riscv_vector
-
 #include "riscv_activation.h"
 #include "riscv_usability.h"
 
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 int InnerProduct_riscv::create_pipeline_fp16s(const Option& opt)
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     const int num_input = weight_data_size / num_output;
 
     int out_elempack = 1;
 
+#if __riscv_zvfh
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % packn == 0 ? packn : 1;
     }
+#endif // __riscv_zvfh
 
     // src = inch-outch
     // dst = pb-inch-outch/pb
@@ -68,7 +71,9 @@ int InnerProduct_riscv::create_pipeline_fp16s(const Option& opt)
 
 int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     const int num_input = weight_data_size / num_output;
 
@@ -83,11 +88,18 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
         if (top_blob.empty())
             return -100;
 
-        int num_output_elempack = opt.use_packing_layout && num_output % packn == 0 ? packn : 1;
+        int num_output_elempack = 1;
+#if __riscv_zvfh
+        if (opt.use_packing_layout)
+        {
+            num_output_elempack = num_output % packn == 0 ? packn : 1;
+        }
+#endif // __riscv_zvfh
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
+#if __riscv_zvfh
             if (elempack == packn && num_output_elempack == packn)
             {
                 const size_t vl = __riscv_vsetvl_e16m1(packn);
@@ -201,6 +213,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
                     outptr += packn;
                 }
             }
+#endif // __riscv_zvfh
 
             if (elempack == 1 && num_output_elempack == 1)
             {
@@ -247,13 +260,20 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
     size_t elemsize = bottom_blob_flattened.elemsize;
     int elempack = bottom_blob_flattened.elempack;
 
-    int out_elempack = opt.use_packing_layout && num_output % packn == 0 ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_zvfh
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_zvfh
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
+#if __riscv_zvfh
     if (out_elempack == packn)
     {
         // num_output
@@ -290,6 +310,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
             __riscv_vse16_v_f16m1(outptr + p * packn, __riscv_vfncvt_f_f_w_f16m1(_sum, vl), vl);
         }
     }
+#endif // __riscv_zvfh
 
     if (out_elempack == 1)
     {
@@ -330,7 +351,9 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
 
 int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     const int num_input = weight_data_size / num_output;
 
@@ -345,11 +368,18 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
         if (top_blob.empty())
             return -100;
 
-        int num_output_elempack = opt.use_packing_layout && num_output % packn == 0 ? packn : 1;
+        int num_output_elempack = 1;
+#if __riscv_zvfh
+        if (opt.use_packing_layout)
+        {
+            num_output_elempack = num_output % packn == 0 ? packn : 1;
+        }
+#endif // __riscv_zvfh
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
+#if __riscv_zvfh
             if (elempack == packn && num_output_elempack == packn)
             {
                 const size_t vl = __riscv_vsetvl_e16m1(packn);
@@ -463,6 +493,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
                     outptr += packn;
                 }
             }
+#endif // __riscv_zvfh
 
             if (elempack == 1 && num_output_elempack == 1)
             {
@@ -509,13 +540,20 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
     size_t elemsize = bottom_blob_flattened.elemsize;
     int elempack = bottom_blob_flattened.elempack;
 
-    int out_elempack = opt.use_packing_layout && num_output % packn == 0 ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_zvfh
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_zvfh
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
+#if __riscv_zvfh
     if (out_elempack == packn)
     {
         // num_output
@@ -552,6 +590,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
             __riscv_vse16_v_f16m1(outptr + p * packn, _sum, vl);
         }
     }
+#endif // __riscv_zvfh
 
     if (out_elempack == 1)
     {
@@ -589,6 +628,6 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "sigmoid_riscv.h"
+#include "mish_riscv.h"
 
 #if __riscv_vector
 #include <riscv_vector.h>
@@ -24,8 +24,8 @@
 
 namespace ncnn {
 
-#if __riscv_zvfh
-int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+#if NCNN_ZFH
+int Mish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -39,24 +39,33 @@ int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
+#if __riscv_zvfh
         int n = size;
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e16m4(n);
 
             vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
-            _p = sigmoid_ps(_p, vl);
+            _p = __riscv_vfmul_vv_f32m8(_p, tanh_ps(log_ps(__riscv_vfadd_vf_f32m8(exp_ps(_p, vl), (__fp16)1.f, vl), vl), vl), vl);
             __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
             ptr += vl;
             n -= vl;
         }
+#else  // __riscv_zvfh
+        for (int i = 0; i < size; i++)
+        {
+            float v = (float)*ptr;
+            *ptr = (__fp16)(v * tanh(log(exp(v) + 1.f)));
+            ptr++;
+        }
+#endif // __riscv_zvfh
     }
 
     return 0;
 }
 
-int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+int Mish_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -70,22 +79,30 @@ int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
+#if __riscv_zvfh
         int n = size;
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e16m8(n);
 
             vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-            _p = sigmoid_ps(_p, vl);
+            _p = __riscv_vfmul_vv_f16m8(_p, tanh_ps(log_ps(__riscv_vfadd_vf_f16m8(exp_ps(_p, vl), (__fp16)1.f, vl), vl), vl), vl);
             __riscv_vse16_v_f16m8(ptr, _p, vl);
 
             ptr += vl;
             n -= vl;
         }
+#else  // __riscv_zvfh
+        for (int i = 0; i < size; i++)
+        {
+            *ptr = *ptr * (__fp16)tanh(log(exp((float)*ptr) + 1.f));
+            ptr++;
+        }
+#endif // __riscv_zvfh
     }
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

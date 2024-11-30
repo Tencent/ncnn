@@ -20,20 +20,26 @@
 
 #include "riscv_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 InstanceNorm_riscv::InstanceNorm_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 }
 
 int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -54,13 +60,8 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
     int size = w * h;
 
     int dims = bottom_top_blob.dims;
-#if __riscv_vector
     if (elempack == 1)
-#endif // __riscv_vector
     {
-#if __riscv_vector
-        size = elempack * size;
-#endif
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {

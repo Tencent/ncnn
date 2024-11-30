@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -18,35 +18,11 @@
 #include <riscv_vector.h>
 #endif // __riscv_vector
 
-#include "cpu.h"
-
 namespace ncnn {
 
-Clip_riscv::Clip_riscv()
-{
-#if __riscv_vector
-    support_packing = true;
-#endif // __riscv_vector
 #if NCNN_ZFH
-#if __riscv_vector
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#else
-    support_fp16_storage = cpu_support_riscv_zfh();
-#endif
-#endif
-}
-
-int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int Clip_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZFH
-    int elembits = bottom_top_blob.elembits();
-
-    if (opt.use_fp16_storage && elembits == 16)
-    {
-        return forward_inplace_fp16s(bottom_top_blob, opt);
-    }
-#endif
-
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
@@ -57,18 +33,20 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
-        float* ptr = bottom_top_blob.channel(q);
+        __fp16* ptr = bottom_top_blob.channel(q);
 
-#if __riscv_vector
+        __fp16 _min = (__fp16)min;
+        __fp16 _max = (__fp16)max;
+#if __riscv_zvfh
         int n = size;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e16m4(n);
 
-            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-            _p = __riscv_vfmax_vf_f32m8(_p, min, vl);
-            _p = __riscv_vfmin_vf_f32m8(_p, max, vl);
-            __riscv_vse32_v_f32m8(ptr, _p, vl);
+            vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
+            _p = __riscv_vfmax_vf_f32m8(_p, _min, vl);
+            _p = __riscv_vfmin_vf_f32m8(_p, _max, vl);
+            __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
             ptr += vl;
             n -= vl;
@@ -76,11 +54,11 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #else  // __riscv_vector
         for (int i = 0; i < size; i++)
         {
-            if (*ptr < min)
-                *ptr = min;
+            if (*ptr < _min)
+                *ptr = _min;
 
-            if (*ptr > max)
-                *ptr = max;
+            if (*ptr > _max)
+                *ptr = _max;
 
             ptr++;
         }
@@ -89,5 +67,6 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+#endif // NCNN_ZFH
 
 } //namespace ncnn

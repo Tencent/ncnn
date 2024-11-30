@@ -16,23 +16,23 @@
 
 #if __riscv_vector
 #include <riscv_vector.h>
-#endif // __riscv_vector
-
 #include "riscv_usability.h"
+#endif // __riscv_vector
 
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
     if (dims == 1)
     {
-        int n = bottom_top_blob.w * elempack;
         __fp16* ptr = bottom_top_blob;
+#if __riscv_zvfh
         const float* ptr_a = a_data;
         const float* ptr_b = b_data;
+        int n = bottom_top_blob.w * elempack;
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e16m4(n);
@@ -50,6 +50,13 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
             ptr_b += vl;
             n -= vl;
         }
+#else  // __riscv_zvfh
+        int w = bottom_top_blob.w;
+        for (int i = 0; i < w; i++)
+        {
+            ptr[i] = (__fp16)(b_data[i] * (float)ptr[i] + a_data[i]);
+        }
+#endif // __riscv_zvfh
 
         return 0;
     }
@@ -67,6 +74,7 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                 float a = a_data[i];
                 float b = b_data[i];
 
+#if __riscv_zvfh
                 int n = w;
                 while (n > 0)
                 {
@@ -79,6 +87,12 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                     ptr += vl;
                     n -= vl;
                 }
+#else  // __riscv_zvfh
+                for (int j = 0; j < w; j++)
+                {
+                    ptr[j] = (__fp16)(b * (float)ptr[j] + a);
+                }
+#endif // __riscv_zvfh
             }
         }
         if (dims == 3 || dims == 4)
@@ -94,6 +108,7 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                 float a = a_data[q];
                 float b = b_data[q];
 
+#if __riscv_zvfh
                 int n = size;
                 while (n > 0)
                 {
@@ -106,12 +121,19 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                     ptr += vl;
                     n -= vl;
                 }
+#else  // __riscv_zvfh
+                for (int i = 0; i < size; i++)
+                {
+                    ptr[i] = (__fp16)(b * (float)ptr[i] + a);
+                }
+#endif // __riscv_zvfh
             }
         }
 
         return 0;
     }
 
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2; // fp16
     if (elempack == packn)
     {
@@ -172,6 +194,7 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
             }
         }
     }
+#endif // __riscv_zvfh
 
     return 0;
 }
@@ -182,10 +205,11 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
     int elempack = bottom_top_blob.elempack;
     if (dims == 1)
     {
-        int n = bottom_top_blob.w * elempack;
         __fp16* ptr = bottom_top_blob;
+#if __riscv_zvfh
         const float* ptr_a = a_data;
         const float* ptr_b = b_data;
+        int n = bottom_top_blob.w * elempack;
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e16m4(n);
@@ -203,6 +227,13 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
             ptr_b += vl;
             n -= vl;
         }
+#else  // __riscv_zvfh
+        int w = bottom_top_blob.w;
+        for (int i = 0; i < w; i++)
+        {
+            ptr[i] = (__fp16)b_data[i] * ptr[i] + (__fp16)a_data[i];
+        }
+#endif // __riscv_zvfh
 
         return 0;
     }
@@ -217,9 +248,10 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
             for (int i = 0; i < h; i++)
             {
                 __fp16* ptr = bottom_top_blob.row<__fp16>(i);
-                float a = a_data[i];
-                float b = b_data[i];
+                __fp16 a = (__fp16)a_data[i];
+                __fp16 b = (__fp16)b_data[i];
 
+#if __riscv_zvfh
                 int n = w;
                 while (n > 0)
                 {
@@ -232,6 +264,12 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
                     ptr += vl;
                     n -= vl;
                 }
+#else  // __riscv_zvfh
+                for (int j = 0; j < w; j++)
+                {
+                    ptr[j] = b * ptr[j] + a;
+                }
+#endif // __riscv_zvfh
             }
         }
         if (dims == 3 || dims == 4)
@@ -244,9 +282,10 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
             for (int q = 0; q < c; q++)
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
-                float a = a_data[q];
-                float b = b_data[q];
+                __fp16 a = (__fp16)a_data[q];
+                __fp16 b = (__fp16)b_data[q];
 
+#if __riscv_zvfh
                 int n = size;
                 while (n > 0)
                 {
@@ -259,12 +298,19 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
                     ptr += vl;
                     n -= vl;
                 }
+#else  // __riscv_zvfh
+                for (int i = 0; i < size; i++)
+                {
+                    ptr[i] = b * ptr[i] + a;
+                }
+#endif // __riscv_zvfh
             }
         }
 
         return 0;
     }
 
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2; // fp16
     if (elempack == packn)
     {
@@ -325,9 +371,10 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
             }
         }
     }
+#endif // __riscv_zvfh
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

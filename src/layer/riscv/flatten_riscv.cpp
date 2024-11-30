@@ -20,16 +20,22 @@
 
 #include "riscv_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Flatten_riscv::Flatten_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -43,7 +49,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if NCNN_ZVFH
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif

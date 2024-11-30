@@ -19,21 +19,27 @@
 #include "rvv_mathfun.h"
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Swish_riscv::Swish_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 }
 
 int Swish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)

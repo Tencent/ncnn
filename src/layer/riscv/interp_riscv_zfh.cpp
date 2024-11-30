@@ -24,19 +24,21 @@ namespace ncnn {
 #include "interp_bicubic.h"
 #include "interp_bilinear.h"
 
-#if __riscv_vector
-#if __riscv_zvfh
+#if NCNN_ZFH
 #include "interp_bicubic_fp16s.h"
-#include "interp_bicubic_packn_fp16s.h"
 #include "interp_bilinear_fp16s.h"
+#if __riscv_zvfh
+#include "interp_bicubic_packn_fp16s.h"
 #include "interp_bilinear_packn_fp16s.h"
 #endif
 #endif
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& reference_blob = bottom_blobs[1];
@@ -58,6 +60,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
         if (top_blob.empty())
             return -100;
 
+#if __riscv_zvfh
         if (elempack == packn)
         {
             const size_t vl = __riscv_vsetvl_e16m1(packn);
@@ -72,6 +75,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
             return 0;
         }
+#endif // __riscv_zvfh
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < w; q++)
@@ -96,6 +100,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
         if (top_blob.empty())
             return -100;
 
+#if __riscv_zvfh
         if (elempack == packn)
         {
             if (resize_type == 1) // nearest
@@ -199,6 +204,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
             return 0;
         }
+#endif // __riscv_zvfh
 
         if (resize_type == 1) // nearest
         {
@@ -292,6 +298,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
     if (top_blob.empty())
         return -100;
 
+#if __riscv_zvfh
     if (elempack == packn)
     {
         if (resize_type == 1) // nearest
@@ -378,6 +385,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
         return 0;
     }
+#endif // __riscv_zvfh
 
     if (resize_type == 1) // nearest
     {
@@ -460,7 +468,9 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
 int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& reference_blob = bottom_blobs[1];
@@ -493,6 +503,7 @@ int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vect
         if (top_blob.empty())
             return -100;
 
+#if __riscv_zvfh
         if (elempack == packn)
         {
             if (resize_type == 2) // bilinear
@@ -573,6 +584,7 @@ int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vect
 
             return 0;
         }
+#endif // __riscv_zvfh
 
         if (resize_type == 2) // bilinear
         {
@@ -649,6 +661,7 @@ int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vect
     if (top_blob.empty())
         return -100;
 
+#if __riscv_zvfh
     if (elempack == packn)
     {
         if (resize_type == 2) // bilinear
@@ -703,6 +716,7 @@ int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vect
 
         return 0;
     }
+#endif // __riscv_zvfh
 
     if (resize_type == 2) // bilinear
     {
@@ -756,6 +770,6 @@ int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vect
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

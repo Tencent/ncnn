@@ -23,10 +23,12 @@
 
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 int DeconvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
@@ -35,10 +37,12 @@ int DeconvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
     if (channels == group && group == num_output)
     {
         int elempack = 1;
+#if __riscv_zvfh
         if (opt.use_packing_layout)
         {
             elempack = channels % packn == 0 ? packn : 1;
         }
+#endif // __riscv_zvfh
 
         Mat weight_data_transposed(weight_data.w);
         {
@@ -57,6 +61,7 @@ int DeconvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
             }
         }
 
+#if __riscv_zvfh
         // packn
         if (elempack == packn)
         {
@@ -66,6 +71,7 @@ int DeconvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
 
             ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
         }
+#endif // __riscv_zvfh
 
         if (elempack == 1)
         {
@@ -91,8 +97,10 @@ int DeconvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
 
 int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
+#endif // __riscv_zvfh
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -105,7 +113,13 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_zvfh
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_zvfh
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
@@ -126,6 +140,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
+#if __riscv_zvfh
         if (elempack == packn)
         {
             {
@@ -187,6 +202,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
                 }
             }
         }
+#endif // __riscv_zvfh
 
         if (elempack == 1)
         {
@@ -258,8 +274,15 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
         const int channels_g = channels * elempack / group;
         const int num_output_g = num_output / group;
 
-        int g_elempack = (opt.use_packing_layout && channels_g % packn == 0) ? packn : 1;
-        int out_g_elempack = (opt.use_packing_layout && num_output_g % packn == 0) ? packn : 1;
+        int g_elempack = 1;
+        int out_g_elempack = 1;
+#if __riscv_zvfh
+        if (opt.use_packing_layout)
+        {
+            g_elempack = channels_g % packn == 0 ? packn : 1;
+            out_g_elempack = num_output_g % packn == 0 ? packn : 1;
+        }
+#endif // __riscv_zvfh
 
         // unpacking
         Mat bottom_blob_unpacked = bottom_blob;
@@ -312,8 +335,10 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
 
 int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
+#endif // __riscv_zvfh
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -326,7 +351,13 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_zvfh
+    if (opt.use_packing_layout)
+    {
+        int out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_zvfh
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
@@ -347,6 +378,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
+#if __riscv_zvfh
         if (elempack == packn)
         {
             {
@@ -408,6 +440,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
                 }
             }
         }
+#endif // __riscv_zvfh
 
         if (elempack == 1)
         {
@@ -479,8 +512,15 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
         const int channels_g = channels * elempack / group;
         const int num_output_g = num_output / group;
 
-        int g_elempack = (opt.use_packing_layout && channels_g % packn == 0) ? packn : 1;
-        int out_g_elempack = (opt.use_packing_layout && num_output_g % packn == 0) ? packn : 1;
+        int g_elempack = 1;
+        int out_g_elempack = 1;
+#if __riscv_zvfh
+        if (opt.use_packing_layout)
+        {
+            g_elempack = channels_g % packn == 0 ? packn : 1;
+            out_g_elempack = num_output_g % packn == 0 ? packn : 1;
+        }
+#endif // __riscv_zvfh
 
         // unpacking
         Mat bottom_blob_unpacked = bottom_blob;
@@ -530,6 +570,6 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

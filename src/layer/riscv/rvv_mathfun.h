@@ -562,7 +562,7 @@ _RVV_FLOAT32_ERFC_OP(8, 4)
 
 //TODO rvv optimize
 #define _RVV_FLOAT32_ATAN2_OP(LMUL, MLEN)                                                               \
-    static inline vfloat32m##LMUL##_t atan2_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, size_t vl) \
+    static inline vfloat32m##LMUL##_t atan2_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, volatile size_t vl) \
     {                                                                                                   \
         std::vector<float> tmpx(vl);                                                                    \
         std::vector<float> tmpy(vl);                                                                    \

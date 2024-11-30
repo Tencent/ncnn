@@ -23,31 +23,34 @@
 
 namespace ncnn {
 
-#if __riscv_vector
-#if __riscv_zvfh
+#if NCNN_ZFH
 #include "deconvolution_fp16s.h"
+#if __riscv_zvfh
 #include "deconvolution_packn_fp16s.h"
 #include "deconvolution_pack1ton_fp16s.h"
 #include "deconvolution_packnto1_fp16s.h"
 #endif
-#endif // __riscv_vector
+#endif // NCNN_ZFH
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 int Deconvolution_riscv::create_pipeline_fp16s(const Option& opt)
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
     int elempack = 1;
     int out_elempack = 1;
-
+#if __riscv_zvfh
     if (opt.use_packing_layout)
     {
         elempack = num_input % packn == 0 ? packn : 1;
         out_elempack = num_output % packn == 0 ? packn : 1;
     }
+#endif // __riscv_zvfh
 
     Mat weight_data_transposed(weight_data.w);
     {
@@ -97,6 +100,7 @@ int Deconvolution_riscv::create_pipeline_fp16s(const Option& opt)
         }
     }
 
+#if __riscv_zvfh
     // packn
     if (elempack == packn && out_elempack == packn)
     {
@@ -111,6 +115,7 @@ int Deconvolution_riscv::create_pipeline_fp16s(const Option& opt)
     if (elempack == packn && out_elempack == 1)
     {
     }
+#endif // __riscv_zvfh
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
@@ -127,7 +132,9 @@ int Deconvolution_riscv::create_pipeline_fp16s(const Option& opt)
 
 int Deconvolution_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     // deconvolv with NxN kernel
     // value = value + bias
@@ -145,7 +152,13 @@ int Deconvolution_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_zvfh
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_zvfh
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
@@ -161,6 +174,7 @@ int Deconvolution_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
     if (top_blob_bordered.empty())
         return -100;
 
+#if __riscv_zvfh
     if (elempack == packn && out_elempack == packn)
     {
         {
@@ -181,6 +195,7 @@ int Deconvolution_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
             deconvolution_packnto1_fp16s_rvv(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
+#endif // __riscv_zvfh
 
     if (elempack == 1 && out_elempack == 1)
     {
@@ -198,7 +213,9 @@ int Deconvolution_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 
 int Deconvolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
+#endif // __riscv_zvfh
 
     // deconvolv with NxN kernel
     // value = value + bias
@@ -216,7 +233,13 @@ int Deconvolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_zvfh
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_zvfh
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
@@ -232,6 +255,7 @@ int Deconvolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     if (top_blob_bordered.empty())
         return -100;
 
+#if __riscv_zvfh
     if (elempack == packn && out_elempack == packn)
     {
         {
@@ -252,6 +276,7 @@ int Deconvolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
             deconvolution_packnto1_fp16sa_rvv(bottom_blob, top_blob_bordered, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
+#endif // __riscv_zvfh
 
     if (elempack == 1 && out_elempack == 1)
     {
@@ -266,6 +291,6 @@ int Deconvolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

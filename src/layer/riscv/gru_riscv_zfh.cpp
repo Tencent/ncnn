@@ -20,7 +20,7 @@
 
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)
 {
     int size = bottom_blob.w;
@@ -56,10 +56,11 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             float R = bias_c_R[q];
             float U = bias_c_U[q];
 
-            int n = size;
+#if __riscv_zvfh
             const __fp16* ptr_x = x;
             const float* ptr_xcr = weight_xc_R;
             const float* ptr_xcu = weight_xc_U;
+            int n = size;
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n);
@@ -85,11 +86,21 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             ptr_x = NULL;
             ptr_xcr = NULL;
             ptr_xcu = NULL;
+#else  // __riscv_zvfh
+            for (int i = 0; i < size; i++)
+            {
+                float xi = x[i];
 
-            int n_out = num_output;
+                R += weight_xc_R[i] * xi;
+                U += weight_xc_U[i] * xi;
+            }
+#endif // __riscv_zvfh
+
+#if __riscv_zvfh
             const float* ptr_hc = hidden_state;
             const float* ptr_hcr = weight_hc_R;
             const float* ptr_hcu = weight_hc_U;
+            int n_out = num_output;
             while (n_out > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n_out);
@@ -115,6 +126,15 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             ptr_hc = NULL;
             ptr_hcr = NULL;
             ptr_hcu = NULL;
+#else  // __riscv_zvfh
+            for (int i = 0; i < num_output; i++)
+            {
+                float h_cont = hidden_state[i];
+
+                R += weight_hc_R[i] * h_cont;
+                U += weight_hc_U[i] * h_cont;
+            }
+#endif // __riscv_zvfh
 
             // sigmoid(R)
             // sigmoid(U)
@@ -130,9 +150,10 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
             float N = bias_c_BN[q];
 
-            int n_out2 = num_output;
+#if __riscv_zvfh
             const float* ptr_hc2 = hidden_state;
             const float* ptr_whc_n = weight_hc_N;
+            int n_out2 = num_output;
             while (n_out2 > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n_out2);
@@ -151,12 +172,21 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             }
             ptr_hc2 = NULL;
             ptr_whc_n = NULL;
+#else  // __riscv_zvfh
+            for (int i = 0; i < num_output; i++)
+            {
+                float h_cont = hidden_state[i];
+
+                N += weight_hc_N[i] * h_cont;
+            }
+#endif // __riscv_zvfh
 
             N = bias_c_WN[q] + R * N;
 
-            int n2 = size;
+#if __riscv_zvfh
             const __fp16* ptr_x2 = x;
             const float* ptr_xcn = weight_xc_N;
+            int n2 = size;
             while (n2 > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n2);
@@ -175,6 +205,14 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             }
             ptr_x2 = NULL;
             ptr_xcn = NULL;
+#else  // __riscv_zvfh
+            for (int i = 0; i < size; i++)
+            {
+                float xi = x[i];
+
+                N += weight_xc_N[i] * xi;
+            }
+#endif // __riscv_zvfh
 
             // tanh(N)
             N = tanh(N);
@@ -388,10 +426,11 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             __fp16 R = bias_c_R[q];
             __fp16 U = bias_c_U[q];
 
-            int n = size;
+#if __riscv_zvfh
             const __fp16* ptr_x = x;
             const __fp16* ptr_xcr = weight_xc_R;
             const __fp16* ptr_xcu = weight_xc_U;
+            int n = size;
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m8(n);
@@ -414,11 +453,21 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 ptr_xcu += vl;
                 n -= vl;
             }
+#else  // __riscv_zvfh
+            for (int i = 0; i < size; i++)
+            {
+                float xi = x[i];
 
-            int n_out = num_output;
+                R += weight_xc_R[i] * xi;
+                U += weight_xc_U[i] * xi;
+            }
+#endif // __riscv_zvfh
+
+#if __riscv_zvfh
             const float* ptr_hc = hidden_state;
             const __fp16* ptr_hcr = weight_hc_R;
             const __fp16* ptr_hcu = weight_hc_U;
+            int n_out = num_output;
             while (n_out > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n_out);
@@ -441,6 +490,15 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 ptr_hcu += vl;
                 n_out -= vl;
             }
+#else  // __riscv_zvfh
+            for (int i = 0; i < num_output; i++)
+            {
+                float h_cont = hidden_state[i];
+
+                R += weight_hc_R[i] * h_cont;
+                U += weight_hc_U[i] * h_cont;
+            }
+#endif // __riscv_zvfh
 
             // sigmoid(R)
             // sigmoid(U)
@@ -456,9 +514,10 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
             __fp16 N = bias_c_BN[q];
 
-            int n_out2 = num_output;
+#if __riscv_zvfh
             const float* ptr_hc2 = hidden_state;
             const __fp16* ptr_whc_n = weight_hc_N;
+            int n_out2 = num_output;
             while (n_out2 > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n_out2);
@@ -475,11 +534,21 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 ptr_hc2 += vl;
                 ptr_whc_n += vl;
             }
+#else  // __riscv_zvfh
+            for (int i = 0; i < num_output; i++)
+            {
+                float h_cont = hidden_state[i];
+
+                N += weight_hc_N[i] * h_cont;
+            }
+#endif // __riscv_zvfh
+
             N = bias_c_WN[q] + R * N;
 
-            int n2 = size;
+#if __riscv_zvfh
             const __fp16* ptr_x2 = x;
             const __fp16* ptr_xcn = weight_xc_N;
+            int n2 = size;
             while (n2 > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m8(n2);
@@ -496,6 +565,14 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 ptr_x2 += vl;
                 ptr_xcn += vl;
             }
+#else  // __riscv_zvfh
+            for (int i = 0; i < size; i++)
+            {
+                float xi = x[i];
+
+                N += weight_xc_N[i] * xi;
+            }
+#endif // __riscv_zvfh
 
             // tanh(N)
             N = (__fp16)tanh((float)N);
@@ -656,6 +733,6 @@ int GRU_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

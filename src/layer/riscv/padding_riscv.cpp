@@ -20,6 +20,8 @@
 
 #include "riscv_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 #if __riscv_vector
@@ -30,10 +32,14 @@ Padding_riscv::Padding_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -42,7 +48,7 @@ Padding_riscv::Padding_riscv()
 
 int Padding_riscv::create_pipeline(const Option& opt)
 {
-#if NCNN_ZVFH
+#if NCNN_ZFH
     if (opt.use_fp16_storage)
     {
         value_fp16 = float32_to_float16(value);
@@ -81,7 +87,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if NCNN_ZVFH
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
@@ -293,7 +299,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 // clang-format off
                 // *INDENT-OFF*
                 vuint16m1_t pad_value;
-#if NCNN_ZVFH
+#if NCNN_ZFH
                 if (opt.use_fp16_storage)
                 {
                     pad_value = __riscv_vmv_v_x_u16m1(value_fp16, vl);
@@ -334,7 +340,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 // clang-format off
                 // *INDENT-OFF*
                 vuint16m1_t pad_value;
-#if NCNN_ZVFH
+#if NCNN_ZFH
                 if (opt.use_fp16_storage)
                 {
                     pad_value = __riscv_vmv_v_x_u16m1(value_fp16, vl);
@@ -382,7 +388,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     // clang-format off
                     // *INDENT-OFF*
                     vuint16m1_t pad_value;
-#if NCNN_ZVFH
+#if NCNN_ZFH
                     if (opt.use_fp16_storage)
                     {
                         pad_value = per_channel_pad_data_size ? __riscv_vle16_v_u16m1((const unsigned short*)per_channel_pad_data_fp16 + q * packn, vl) : __riscv_vmv_v_x_u16m1(value_fp16, vl);
@@ -440,7 +446,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     // clang-format off
                     // *INDENT-OFF*
                     vuint16m1_t pad_value;
-#if NCNN_ZVFH
+#if NCNN_ZFH
                     if (opt.use_fp16_storage)
                     {
                         pad_value = per_channel_pad_data_size ? __riscv_vle16_v_u16m1((const unsigned short*)per_channel_pad_data_fp16 + q * packn, vl) : __riscv_vmv_v_x_u16m1(value_fp16, vl);

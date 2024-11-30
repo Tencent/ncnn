@@ -128,6 +128,7 @@ static void resize_bilinear_image_fp16s(const Mat& src, Mat& dst, float* alpha, 
         float* rows1p = rows1;
         __fp16* Dp = dst.row<__fp16>(dy);
 
+#if __riscv_zvfh
         int n = w;
         while (n > 0)
         {
@@ -145,6 +146,12 @@ static void resize_bilinear_image_fp16s(const Mat& src, Mat& dst, float* alpha, 
             rows1p += vl;
             n -= vl;
         }
+#else  // __riscv_zvfh
+        for (int i = 0; i < w; i++)
+        {
+            *Dp++ = (__fp16)(*rows0p++ * b0 + *rows1p++ * b1);
+        }
+#endif // __riscv_zvfh
 
         beta += 2;
     }
@@ -229,6 +236,7 @@ static void resize_bilinear_image_fp16sa(const Mat& src, Mat& dst, __fp16* alpha
         __fp16* rows1p = rows1;
         __fp16* Dp = dst.row<__fp16>(dy);
 
+#if __riscv_zvfh
         int n = w;
         while (n > 0)
         {
@@ -246,6 +254,12 @@ static void resize_bilinear_image_fp16sa(const Mat& src, Mat& dst, __fp16* alpha
             rows1p += vl;
             n -= vl;
         }
+#else  // __riscv_zvfh
+        for (int i = 0; i < w; i++)
+        {
+            *Dp++ = *rows0p++ * b0 + *rows1p++ * b1;
+        }
+#endif // __riscv_zvfh
 
         beta += 2;
     }

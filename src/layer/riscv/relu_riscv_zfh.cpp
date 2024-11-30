@@ -20,7 +20,7 @@
 
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -36,6 +36,7 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         __fp16* ptr = bottom_top_blob.channel(q);
         if (slope == 0.f)
         {
+#if __riscv_zvfh
             int n = size;
             while (n > 0)
             {
@@ -48,27 +49,44 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
                 ptr += vl;
                 n -= vl;
             }
+#else  // __riscv_zvfh
+            for (int i = 0; i < size; i++)
+            {
+                if (*ptr < (__fp16)0.f)
+                    *ptr = (__fp16)0.f;
+                ptr++;
+            }
+#endif // __riscv_zvfh
         }
         else
         {
-            int n = size;
             __fp16 _slope = (__fp16)slope;
+#if __riscv_zvfh
+            int n = size;
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m8(n);
 
                 vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-                _p = __riscv_vfmul_vf_f16m8_mu(__riscv_vmflt_vf_f16m8_b2(_p, .0f, vl), _p, _p, _slope, vl);
+                _p = __riscv_vfmul_vf_f16m8_mu(__riscv_vmflt_vf_f16m8_b2(_p, (__fp16)0.f, vl), _p, _p, _slope, vl);
                 __riscv_vse16_v_f16m8(ptr, _p, vl);
 
                 ptr += vl;
                 n -= vl;
             }
+#else  // __riscv_zvfh
+            for (int i = 0; i < size; i++)
+            {
+                if (*ptr < (__fp16)0.f)
+                    *ptr *= _slope;
+                ptr++;
+            }
+#endif // __riscv_zvfh
         }
     }
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn

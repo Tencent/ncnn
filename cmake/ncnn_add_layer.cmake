@@ -54,6 +54,28 @@ macro(ncnn_add_arch_opt_source class NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_C
     endif()
 endmacro()
 
+macro(ncnn_add_arch_opt_layer_source class NCNN_TARGET_ARCH_OPT_BASE NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_CFLAGS)
+    set(NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT_BASE}.cpp)
+
+    if(WITH_LAYER_${name} AND EXISTS ${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_SOURCE})
+
+        set(NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE ${CMAKE_CURRENT_BINARY_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}.cpp)
+
+        add_custom_command(
+            OUTPUT ${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE}
+            COMMAND ${CMAKE_COMMAND} -DSRC=${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_SOURCE} -DDST=${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE} -DCLASS=${class} -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_${NCNN_TARGET_ARCH_OPT}_source.cmake"
+            DEPENDS ${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_SOURCE}
+            COMMENT "Generating source ${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}.cpp"
+            VERBATIM
+        )
+        set_source_files_properties(${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE} PROPERTIES GENERATED TRUE)
+
+        set_source_files_properties(${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE} PROPERTIES COMPILE_FLAGS ${NCNN_TARGET_ARCH_OPT_CFLAGS})
+
+        list(APPEND ncnn_SRCS ${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE})
+    endif()
+endmacro()
+
 macro(ncnn_add_layer class)
     string(TOLOWER ${class} name)
 
@@ -394,11 +416,15 @@ macro(ncnn_add_layer class)
         if(NCNN_RUNTIME_CPU AND NCNN_RVV)
             ncnn_add_arch_opt_layer(${class} rvv "-march=rv64gcv")
         endif()
-        if(NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
-            ncnn_add_arch_opt_layer(${class} xtheadvector "-march=rv64gc_zfh_xtheadvector -D__fp16=_Float16")
+        if(NCNN_ZFH)
+            ncnn_add_arch_opt_source(${class} zfh "-march=rv64gc_zfh -D__fp16=_Float16")
         endif()
-        if(NCNN_ZVFH)
-            ncnn_add_arch_opt_source(${class} zvfh "-march=rv64gcv_zfh_zvfh -D__fp16=_Float16")
+        if(NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
+            ncnn_add_arch_opt_layer(${class} xtheadvector "-march=rv64gc_xtheadvector")
+            ncnn_add_arch_opt_layer_source(${class} zfh xtheadvector "-march=rv64gc_zfh_xtheadvector -D__fp16=_Float16")
+        endif()
+        if(NCNN_RUNTIME_CPU AND NCNN_ZVFH)
+            ncnn_add_arch_opt_layer_source(${class} zfh rvv "-march=rv64gcv_zfh_zvfh -D__fp16=_Float16")
         endif()
     endif()
 

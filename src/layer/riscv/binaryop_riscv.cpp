@@ -20,9 +20,10 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
+#include "riscv_usability.h"
 #endif // __riscv_vector
 
-#include "riscv_usability.h"
+#include "cpu.h"
 
 namespace ncnn {
 
@@ -30,8 +31,12 @@ BinaryOp_riscv::BinaryOp_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
+#endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
     support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
 #endif
 #endif
 }
@@ -468,7 +473,7 @@ static int get_reverse_op_type(int op_type)
 
 int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -626,7 +631,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
 int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)

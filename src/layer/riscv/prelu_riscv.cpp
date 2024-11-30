@@ -18,21 +18,27 @@
 #include <riscv_vector.h>
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 PReLU_riscv::PReLU_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
+#endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
     support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
 #endif
 #endif
 }
 
 int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
@@ -44,23 +50,19 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif
 
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
     int dims = bottom_top_blob.dims;
-#if __riscv_vector
+
     if (dims == 1)
     {
         int w = bottom_top_blob.w;
         float* ptr = bottom_top_blob;
-        const float* ptr_slope = slope_data;
         if (num_slope > 1)
         {
-            int n = w * elempack;
+#if __riscv_vector
+            const float* ptr_slope = slope_data;
 
-            // #pragma omp parallel for num_threads(opt.num_threads)
+            int n = w * elempack;
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e32m8(n);
@@ -75,13 +77,21 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr_slope += vl;
                 n -= vl;
             }
+#else  // __riscv_vector
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                if (ptr[i] < 0)
+                    ptr[i] *= slope_data[i];
+            }
+#endif // __riscv_vector
         }
         else
         {
             float slope = slope_data[0];
 
+#if __riscv_vector
             int n = w * elempack;
-            // #pragma omp parallel for num_threads(opt.num_threads)
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e32m8(n);
@@ -94,6 +104,14 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += vl;
                 n -= vl;
             }
+#else  // __riscv_vector
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                if (ptr[i] < 0)
+                    ptr[i] *= slope;
+            }
+#endif // __riscv_vector
         }
     }
 
@@ -106,6 +124,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
+#if __riscv_vector
             if (num_slope > 1)
             {
                 for (int j = 0; j < w; j++)
@@ -146,6 +165,15 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     n -= vl;
                 }
             }
+#else  // __riscv_vector
+            float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
+
+            for (int j = 0; j < w; j++)
+            {
+                if (ptr[j] < 0)
+                    ptr[j] *= slope;
+            }
+#endif // __riscv_vector
         }
     }
 
@@ -160,6 +188,8 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
+
+#if __riscv_vector
             int n = size * elempack;
 
             if (num_slope > 1 && elempack != 1)
@@ -202,68 +232,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     n -= vl;
                 }
             }
-        }
-    }
-
-#else
-    if (dims == 1)
-    {
-        int w = bottom_top_blob.w;
-
-        float* ptr = bottom_top_blob;
-
-        if (num_slope > 1)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++)
-            {
-                if (ptr[i] < 0)
-                    ptr[i] *= slope_data[i];
-            }
-        }
-        else
-        {
-            float slope = slope_data[0];
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++)
-            {
-                if (ptr[i] < 0)
-                    ptr[i] *= slope;
-            }
-        }
-    }
-
-    if (dims == 2)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < h; i++)
-        {
-            float* ptr = bottom_top_blob.row(i);
-            float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
-
-            for (int j = 0; j < w; j++)
-            {
-                if (ptr[j] < 0)
-                    ptr[j] *= slope;
-            }
-        }
-    }
-
-    if (dims == 3)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
-        int size = w * h;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
+#else  // __riscv_vector
             float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
 
             for (int i = 0; i < size; i++)
@@ -271,10 +240,9 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 if (ptr[i] < 0)
                     ptr[i] *= slope;
             }
+#endif // __riscv_vector
         }
     }
-
-#endif
 
     return 0;
 }

@@ -33,7 +33,7 @@ public:
 
 protected:
     int create_group_ops(const Option& opt);
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;

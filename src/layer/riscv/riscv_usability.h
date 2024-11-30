@@ -411,57 +411,10 @@ static inline void transpose8x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                    vfloat32m1_t& _r7l, vfloat32m1_t& _r7h, size_t vl)
 {
     float tmp[64];
-#if __riscv_vector
-#if 1 //__riscv_v_intrinsic > 12000
-#warning A
     vfloat32m1x8_t _rl = __riscv_vcreate_v_f32m1x8(_r0l, _r1l, _r2l, _r3l, _r4l, _r5l, _r6l, _r7l);
     vfloat32m1x8_t _rh = __riscv_vcreate_v_f32m1x8(_r0h, _r1h, _r2h, _r3h, _r4h, _r5h, _r6h, _r7h);
-#else
-#warning B
-    vfloat32m1x8_t _rl = vfloat32m1x8_t();
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 0, _r0l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 1, _r1l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 2, _r2l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 3, _r3l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 4, _r4l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 5, _r5l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 6, _r6l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 7, _r7l);
-    vfloat32m1x8_t _rh = vfloat32m1x8_t();
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 0, _r0h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 1, _r1h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 2, _r2h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 3, _r3h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 4, _r4h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 5, _r5h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 6, _r6h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 7, _r7h);
-#endif
     __riscv_vsseg8e32_v_f32m1x8(&tmp[0], _rl, vl);
     __riscv_vsseg8e32_v_f32m1x8(&tmp[32], _rh, vl);
-#elif __riscv_xtheadvector
-    vfloat32m1x8_t _rl = vfloat32m1x8_t();
-    // _rl = __riscv_th_vset_v_f32m1_f32m1x8(_rl, 0, _r0l);
-    // _rl = __riscv_th_vset_v_f32m1_f32m1x8(_rl, 1, _r1l);
-    // _rl = __riscv_th_vset_v_f32m1_f32m1x8(_rl, 2, _r2l);
-    // _rl = __riscv_th_vset_v_f32m1_f32m1x8(_rl, 3, _r3l);
-    // _rl = __riscv_th_vset_v_f32m1_f32m1x8(_rl, 4, _r4l);
-    // _rl = __riscv_th_vset_v_f32m1_f32m1x8(_rl, 5, _r5l);
-    // _rl = __riscv_th_vset_v_f32m1_f32m1x8(_rl, 6, _r6l);
-    // _rl = __riscv_th_vset_v_f32m1_f32m1x8(_rl, 7, _r7l);
-    vfloat32m1x8_t _rh = vfloat32m1x8_t();
-    // _rh = __riscv_th_vset_v_f32m1_f32m1x8(_rh, 0, _r0h);
-    // _rh = __riscv_th_vset_v_f32m1_f32m1x8(_rh, 1, _r1h);
-    // _rh = __riscv_th_vset_v_f32m1_f32m1x8(_rh, 2, _r2h);
-    // _rh = __riscv_th_vset_v_f32m1_f32m1x8(_rh, 3, _r3h);
-    // _rh = __riscv_th_vset_v_f32m1_f32m1x8(_rh, 4, _r4h);
-    // _rh = __riscv_th_vset_v_f32m1_f32m1x8(_rh, 5, _r5h);
-    // _rh = __riscv_th_vset_v_f32m1_f32m1x8(_rh, 6, _r6h);
-    // _rh = __riscv_th_vset_v_f32m1_f32m1x8(_rh, 7, _r7h);
-    __riscv_th_vsseg8e32_v_f32m1x8(&tmp[0], _rl, vl);
-    __riscv_th_vsseg8e32_v_f32m1x8(&tmp[32], _rh, vl);
-#endif
-
     float* ptr = (float*)tmp;
     _r0l = __riscv_vle32_v_f32m1(ptr + 0 * 4, vl);
     _r0h = __riscv_vle32_v_f32m1(ptr + 1 * 4, vl);
@@ -484,15 +437,7 @@ static inline void transpose8x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
 static inline void transpose4x4_ps(vfloat32m1_t& _r0, vfloat32m1_t& _r1, vfloat32m1_t& _r2, vfloat32m1_t& _r3, size_t vl)
 {
     float tmp[16];
-#if __riscv_vector && __riscv_v_intrinsic > 12000
     vfloat32m1x4_t _r = __riscv_vcreate_v_f32m1x4(_r0, _r1, _r2, _r3);
-#else
-    vfloat32m1x4_t _r = vfloat32m1x4_t();
-    _r = __riscv_vset_v_f32m1_f32m1x4(_r, 0, _r0);
-    _r = __riscv_vset_v_f32m1_f32m1x4(_r, 1, _r1);
-    _r = __riscv_vset_v_f32m1_f32m1x4(_r, 2, _r2);
-    _r = __riscv_vset_v_f32m1_f32m1x4(_r, 3, _r3);
-#endif
     __riscv_vsseg4e32_v_f32m1x4(&tmp[0], _r, vl);
     float* ptr = (float*)tmp;
     _r0 = __riscv_vle32_v_f32m1(ptr + 0 * 4, vl);
@@ -515,7 +460,6 @@ static inline void transpose8x12_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                     vfloat32m1_t& _rbl, vfloat32m1_t& _rbh, size_t vl)
 {
     float tmp[8][12];
-
     __riscv_vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 12, _r0l, vl);
     __riscv_vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 12, _r0h, vl);
     __riscv_vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 12, _r1l, vl);
@@ -577,43 +521,12 @@ static inline void transpose12x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0m, vflo
                                     vfloat32m1_t& _r7l, vfloat32m1_t& _r7m, vfloat32m1_t& _r7h, size_t vl)
 {
     float tmp[96];
-#if __riscv_vector && __riscv_v_intrinsic > 12000
     vfloat32m1x8_t _rl = __riscv_vcreate_v_f32m1x8(_r0l, _r1l, _r2l, _r3l, _r4l, _r5l, _r6l, _r7l);
-    vfloat32m1x8_t _rh = __riscv_vcreate_v_f32m1x8(_r0m, _r1m, _r2m, _r3m, _r4m, _r5m, _r6m, _r7m);
+    vfloat32m1x8_t _rm = __riscv_vcreate_v_f32m1x8(_r0m, _r1m, _r2m, _r3m, _r4m, _r5m, _r6m, _r7m);
     vfloat32m1x8_t _rh = __riscv_vcreate_v_f32m1x8(_r0h, _r1h, _r2h, _r3h, _r4h, _r5h, _r6h, _r7h);
-#else
-    vfloat32m1x8_t _rl = vfloat32m1x8_t();
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 0, _r0l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 1, _r1l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 2, _r2l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 3, _r3l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 4, _r4l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 5, _r5l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 6, _r6l);
-    _rl = __riscv_vset_v_f32m1_f32m1x8(_rl, 7, _r7l);
-    vfloat32m1x8_t _rm = vfloat32m1x8_t();
-    _rm = __riscv_vset_v_f32m1_f32m1x8(_rm, 0, _r0m);
-    _rm = __riscv_vset_v_f32m1_f32m1x8(_rm, 1, _r1m);
-    _rm = __riscv_vset_v_f32m1_f32m1x8(_rm, 2, _r2m);
-    _rm = __riscv_vset_v_f32m1_f32m1x8(_rm, 3, _r3m);
-    _rm = __riscv_vset_v_f32m1_f32m1x8(_rm, 4, _r4m);
-    _rm = __riscv_vset_v_f32m1_f32m1x8(_rm, 5, _r5m);
-    _rm = __riscv_vset_v_f32m1_f32m1x8(_rm, 6, _r6m);
-    _rm = __riscv_vset_v_f32m1_f32m1x8(_rm, 7, _r7m);
-    vfloat32m1x8_t _rh = vfloat32m1x8_t();
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 0, _r0h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 1, _r1h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 2, _r2h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 3, _r3h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 4, _r4h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 5, _r5h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 6, _r6h);
-    _rh = __riscv_vset_v_f32m1_f32m1x8(_rh, 7, _r7h);
-#endif
     __riscv_vsseg8e32_v_f32m1x8(&tmp[0], _rl, vl);
     __riscv_vsseg8e32_v_f32m1x8(&tmp[32], _rm, vl);
     __riscv_vsseg8e32_v_f32m1x8(&tmp[64], _rh, vl);
-
     float* ptr = (float*)tmp;
     _r0l = __riscv_vle32_v_f32m1(ptr + 0 * 4, vl);
     _r0m = __riscv_vle32_v_f32m1(ptr + 1 * 4, vl);
@@ -644,21 +557,8 @@ static inline void transpose12x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0m, vflo
 static inline void transpose4x8_ps(vfloat32m1_t& _r0, vfloat32m1_t& _r1, vfloat32m1_t& _r2, vfloat32m1_t& _r3, vfloat32m1_t& _r4, vfloat32m1_t& _r5, vfloat32m1_t& _r6, vfloat32m1_t& _r7, size_t vl)
 {
     float tmp[32];
-#if __riscv_vector && __riscv_v_intrinsic > 12000
     vfloat32m1x8_t _r = __riscv_vcreate_v_f32m1x8(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-#else
-    vfloat32m1x8_t _r = vfloat32m1x8_t();
-    _r = __riscv_vset_v_f32m1_f32m1x8(_r, 0, _r0);
-    _r = __riscv_vset_v_f32m1_f32m1x8(_r, 1, _r1);
-    _r = __riscv_vset_v_f32m1_f32m1x8(_r, 2, _r2);
-    _r = __riscv_vset_v_f32m1_f32m1x8(_r, 3, _r3);
-    _r = __riscv_vset_v_f32m1_f32m1x8(_r, 4, _r4);
-    _r = __riscv_vset_v_f32m1_f32m1x8(_r, 5, _r5);
-    _r = __riscv_vset_v_f32m1_f32m1x8(_r, 6, _r6);
-    _r = __riscv_vset_v_f32m1_f32m1x8(_r, 7, _r7);
-#endif
     __riscv_vsseg8e32_v_f32m1x8(&tmp[0], _r, vl);
-
     float* ptr = (float*)tmp;
     _r0 = __riscv_vle32_v_f32m1(ptr + 0 * 4, vl);
     _r1 = __riscv_vle32_v_f32m1(ptr + 1 * 4, vl);
@@ -706,21 +606,8 @@ static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                    vfloat32m1_t& _r3l, vfloat32m1_t& _r3h, size_t vl)
 {
     float tmp[32];
-#if __riscv_vector && __riscv_v_intrinsic > 12000
     vfloat32m1x4_t _rl = __riscv_vcreate_v_f32m1x4(_r0l, _r1l, _r2l, _r3l);
     vfloat32m1x4_t _rh = __riscv_vcreate_v_f32m1x4(_r0h, _r1h, _r2h, _r3h);
-#else
-    vfloat32m1x4_t _rl = vfloat32m1x4_t();
-    _rl = __riscv_vset_v_f32m1_f32m1x4(_rl, 0, _r0l);
-    _rl = __riscv_vset_v_f32m1_f32m1x4(_rl, 1, _r1l);
-    _rl = __riscv_vset_v_f32m1_f32m1x4(_rl, 2, _r2l);
-    _rl = __riscv_vset_v_f32m1_f32m1x4(_rl, 3, _r3l);
-    vfloat32m1x4_t _rh = vfloat32m1x4_t();
-    _rh = __riscv_vset_v_f32m1_f32m1x4(_rh, 0, _r0h);
-    _rh = __riscv_vset_v_f32m1_f32m1x4(_rh, 1, _r1h);
-    _rh = __riscv_vset_v_f32m1_f32m1x4(_rh, 2, _r2h);
-    _rh = __riscv_vset_v_f32m1_f32m1x4(_rh, 3, _r3h);
-#endif
     __riscv_vsseg4e32_v_f32m1x4(&tmp[0], _rl, vl);
     __riscv_vsseg4e32_v_f32m1x4(&tmp[16], _rh, vl);
     float* ptr = (float*)tmp;

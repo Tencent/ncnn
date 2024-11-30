@@ -18,9 +18,10 @@
 
 #if __riscv_vector
 #include <riscv_vector.h>
+#include "riscv_usability.h"
 #endif // __riscv_vector
 
-#include "riscv_usability.h"
+#include "cpu.h"
 
 namespace ncnn {
 
@@ -28,10 +29,14 @@ Pooling_riscv::Pooling_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 }
 
 int Pooling_riscv::create_pipeline(const Option& /*opt*/)
@@ -55,7 +60,7 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
 
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = bottom_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)

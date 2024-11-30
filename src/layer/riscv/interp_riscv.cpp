@@ -19,6 +19,8 @@
 #include "riscv_usability.h"
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 #include "interp_bicubic.h"
@@ -33,10 +35,14 @@ Interp_riscv::Interp_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 }
 
 int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -45,7 +51,7 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     const Mat& reference_blob = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
 
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = bottom_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)

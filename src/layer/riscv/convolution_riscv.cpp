@@ -21,7 +21,6 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #endif // __riscv_vector
-
 #include "riscv_activation.h"
 #include "riscv_usability.h"
 
@@ -57,10 +56,14 @@ Convolution_riscv::Convolution_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if NCNN_ZVFH
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 
     activation = 0;
 }
@@ -116,7 +119,7 @@ int Convolution_riscv::create_pipeline(const Option& opt)
     }
 #endif
 
-#if NCNN_ZVFH
+#if NCNN_ZFH
     if (opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -302,7 +305,7 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         return 0;
     }
 
-#if NCNN_ZVFH
+#if NCNN_ZFH
     int elembits = bottom_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)

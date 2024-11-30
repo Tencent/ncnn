@@ -20,15 +20,12 @@
 
 namespace ncnn {
 
-#if __riscv_zvfh
+#if NCNN_ZFH
 //fp16s(a)
 //hint: slope always store as fp32
 
 int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
     int dims = bottom_top_blob.dims;
 
@@ -36,19 +33,19 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
     {
         int w = bottom_top_blob.w;
         __fp16* ptr = bottom_top_blob;
-        const float* ptr_slope = slope_data;
         if (num_slope > 1)
         {
-            int n = w * elempack;
+#if __riscv_zvfh
+            const float* ptr_slope = slope_data;
 
-            // #pragma omp parallel for num_threads(opt.num_threads)
+            int n = w * elempack;
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n);
 
                 vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
                 vfloat32m8_t _slope = __riscv_vle32_v_f32m8(ptr_slope, vl);
-                vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
+                vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, (__fp16)0.f, vl);
                 _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
 
                 __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
@@ -56,18 +53,26 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 ptr_slope += vl;
                 n -= vl;
             }
+#else  // __riscv_zvfh
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                if (ptr[i] < (__fp16)0.f)
+                    ptr[i] = (__fp16)((float)ptr[i] * slope_data[i]);
+            }
+#endif // __riscv_zvfh
         }
         else
         {
             float slope = slope_data[0];
 
+#if __riscv_zvfh
             int n = w * elempack;
-            // #pragma omp parallel for num_threads(opt.num_threads)
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n);
                 vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
-                vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
+                vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, (__fp16)0.f, vl);
 
                 _p = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _p, slope, vl);
                 __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
@@ -75,6 +80,14 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 ptr += vl;
                 n -= vl;
             }
+#else  // __riscv_zvfh
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                if (ptr[i] < (__fp16)0.f)
+                    ptr[i] = (__fp16)((float)ptr[i] * slope);
+            }
+#endif // __riscv_zvfh
         }
     }
 
@@ -87,6 +100,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         for (int i = 0; i < h; i++)
         {
             __fp16* ptr = bottom_top_blob.row<__fp16>(i);
+#if __riscv_zvfh
             if (num_slope > 1)
             {
                 for (int j = 0; j < w; j++)
@@ -100,7 +114,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                         vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
                         vfloat32m8_t _slope = __riscv_vle32_v_f32m8(ptr_slope, vl);
 
-                        vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
+                        vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, (__fp16)0.f, vl);
                         _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
@@ -118,7 +132,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 {
                     size_t vl = __riscv_vsetvl_e16m4(n);
                     vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
-                    vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
+                    vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, (__fp16)0.f, vl);
 
                     _p = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _p, slope, vl);
                     __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
@@ -127,6 +141,15 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     n -= vl;
                 }
             }
+#else  // __riscv_zvfh
+            float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
+
+            for (int j = 0; j < w; j++)
+            {
+                if (ptr[j] < (__fp16)0.f)
+                    ptr[j] = (__fp16)((float)ptr[j] * slope);
+            }
+#endif // __riscv_zvfh
         }
     }
 
@@ -141,6 +164,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
+#if __riscv_zvfh
             int n = size * elempack;
 
             if (num_slope > 1 && elempack != 1)
@@ -155,7 +179,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                         vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
                         vfloat32m8_t _slope = __riscv_vle32_v_f32m8(slope_ptr, vl);
 
-                        vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
+                        vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, (__fp16)0.f, vl);
                         _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
@@ -175,7 +199,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     size_t vl = __riscv_vsetvl_e16m4(n);
                     vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
 
-                    vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
+                    vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, (__fp16)0.f, vl);
                     _p = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _p, slope, vl);
                     __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
@@ -183,6 +207,15 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     n -= vl;
                 }
             }
+#else  // __riscv_zvfh
+            float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
+
+            for (int i = 0; i < size; i++)
+            {
+                if (ptr[i] < (__fp16)0.f)
+                    ptr[i] = (__fp16)((float)ptr[i] * slope);
+            }
+#endif // __riscv_zvfh
         }
     }
 
@@ -191,9 +224,6 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
 
 int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
     int dims = bottom_top_blob.dims;
 
@@ -201,18 +231,18 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
     {
         int w = bottom_top_blob.w;
         __fp16* ptr = bottom_top_blob;
-        const float* ptr_slope = slope_data;
         if (num_slope > 1)
         {
-            int n = w * elempack;
+#if __riscv_zvfh
+            const float* ptr_slope = slope_data;
 
-            // #pragma omp parallel for num_threads(opt.num_threads)
+            int n = w * elempack;
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n);
                 vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
                 vfloat16m4_t _slope = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_slope, vl), vl);
-                vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, .0f, vl);
+                vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, (__fp16)0.f, vl);
 
                 _p = __riscv_vfmul_vv_f16m4_mu(_lower, _p, _p, _slope, vl);
                 __riscv_vse16_v_f16m4(ptr, _p, vl);
@@ -221,18 +251,26 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                 ptr_slope += vl;
                 n -= vl;
             }
+#else  // __riscv_zvfh
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                if (ptr[i] < (__fp16)0.f)
+                    ptr[i] *= (__fp16)slope_data[i];
+            }
+#endif // __riscv_zvfh
         }
         else
         {
-            __fp16 slope = slope_data[0];
+            __fp16 slope = (__fp16)slope_data[0];
 
+#if __riscv_zvfh
             int n = w * elempack;
-            // #pragma omp parallel for num_threads(opt.num_threads)
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m8(n);
                 vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-                vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, .0f, vl);
+                vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, (__fp16)0.f, vl);
 
                 _p = __riscv_vfmul_vf_f16m8_mu(_lower, _p, _p, slope, vl);
                 __riscv_vse16_v_f16m8(ptr, _p, vl);
@@ -240,6 +278,14 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                 ptr += vl;
                 n -= vl;
             }
+#else  // __riscv_zvfh
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                if (ptr[i] < (__fp16)0.f)
+                    ptr[i] *= slope;
+            }
+#endif // __riscv_zvfh
         }
     }
 
@@ -252,6 +298,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
         for (int i = 0; i < h; i++)
         {
             __fp16* ptr = bottom_top_blob.row<__fp16>(i);
+#if __riscv_zvfh
             if (num_slope > 1)
             {
                 for (int j = 0; j < w; j++)
@@ -265,7 +312,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                         vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
                         vfloat16m4_t _slope = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_slope, vl), vl);
 
-                        vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, .0f, vl);
+                        vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, (__fp16)0.f, vl);
                         _p = __riscv_vfmul_vv_f16m4_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse16_v_f16m4(ptr, _p, vl);
 
@@ -277,13 +324,13 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
             }
             else
             {
-                __fp16 slope = slope_data[0];
+                __fp16 slope = (__fp16)slope_data[0];
                 int n = w * elempack;
                 while (n > 0)
                 {
                     size_t vl = __riscv_vsetvl_e16m8(n);
                     vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-                    vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, .0f, vl);
+                    vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, (__fp16)0.f, vl);
 
                     _p = __riscv_vfmul_vf_f16m8_mu(_lower, _p, _p, slope, vl);
                     __riscv_vse16_v_f16m8(ptr, _p, vl);
@@ -292,6 +339,15 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                     n -= vl;
                 }
             }
+#else  // __riscv_zvfh
+            __fp16 slope = num_slope > 1 ? (__fp16)slope_data[i] : (__fp16)slope_data[0];
+
+            for (int j = 0; j < w; j++)
+            {
+                if (ptr[j] < (__fp16)0.f)
+                    ptr[j] *= slope;
+            }
+#endif // __riscv_zvfh
         }
     }
 
@@ -306,6 +362,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
+#if __riscv_zvfh
             int n = size * elempack;
 
             if (num_slope > 1 && elempack != 1)
@@ -320,7 +377,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                         vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
                         vfloat16m4_t _slope = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(slope_ptr, vl), vl);
 
-                        vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, .0f, vl);
+                        vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, (__fp16)0.f, vl);
                         _p = __riscv_vfmul_vv_f16m4_mu(_lower, _p, _p, _slope, vl);
                         __riscv_vse16_v_f16m4(ptr, _p, vl);
 
@@ -340,7 +397,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                     size_t vl = __riscv_vsetvl_e16m8(n);
                     vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
 
-                    vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, .0f, vl);
+                    vbool2_t _lower = __riscv_vmflt_vf_f16m8_b2(_p, (__fp16)0.f, vl);
                     _p = __riscv_vfmul_vf_f16m8_mu(_lower, _p, _p, (__fp16)slope, vl);
                     __riscv_vse16_v_f16m8(ptr, _p, vl);
 
@@ -348,11 +405,20 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                     n -= vl;
                 }
             }
+#else  // __riscv_zvfh
+            __fp16 slope = num_slope > 1 ? (__fp16)slope_data[q] : (__fp16)slope_data[0];
+
+            for (int i = 0; i < size; i++)
+            {
+                if (ptr[i] < (__fp16)0.f)
+                    ptr[i] *= slope;
+            }
+#endif // __riscv_zvfh
         }
     }
 
     return 0;
 }
-#endif // __riscv_zvfh
+#endif // NCNN_ZFH
 
 } // namespace ncnn
