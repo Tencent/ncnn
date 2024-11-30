@@ -77,7 +77,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr_slope += vl;
                 n -= vl;
             }
-#else  // __riscv_vector
+#else // __riscv_vector
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
@@ -104,7 +104,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += vl;
                 n -= vl;
             }
-#else  // __riscv_vector
+#else // __riscv_vector
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {

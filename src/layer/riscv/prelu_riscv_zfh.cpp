@@ -53,7 +53,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 ptr_slope += vl;
                 n -= vl;
             }
-#else  // __riscv_zvfh
+#else // __riscv_zvfh
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
@@ -80,7 +80,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 ptr += vl;
                 n -= vl;
             }
-#else  // __riscv_zvfh
+#else // __riscv_zvfh
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
@@ -251,7 +251,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                 ptr_slope += vl;
                 n -= vl;
             }
-#else  // __riscv_zvfh
+#else // __riscv_zvfh
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
@@ -278,7 +278,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                 ptr += vl;
                 n -= vl;
             }
-#else  // __riscv_zvfh
+#else // __riscv_zvfh
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
