@@ -35,7 +35,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_logsigmoid, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_logsigmoid, 100)
 
 class F_logsigmoid_onnx : public GraphRewriterPass
 {
@@ -57,6 +57,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_logsigmoid_onnx, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_logsigmoid_onnx, 100)
 
 } // namespace pnnx

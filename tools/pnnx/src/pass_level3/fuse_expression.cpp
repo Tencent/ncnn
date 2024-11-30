@@ -44,7 +44,7 @@ static bool operand_maybe_tensor(const Operand* operand)
     if (op->type == "prim::Constant")
     {
         const Parameter& param = op->params.at("value");
-        if (param.type == 0 || param.type == 1 || param.type == 2 || param.type == 3 || param.type == 4 || param.type == 10)
+        if (param.type == 0 || param.type == 1 || param.type == 2 || param.type == 3 || param.type == 4 || param.type == 5 || param.type == 6 || param.type == 7 || param.type == 10)
         {
             return false;
         }
@@ -72,6 +72,11 @@ static bool operand_maybe_tensor(const Operand* operand)
     if (op->type == "aten::size")
     {
         return op->inputs.size() == 1;
+    }
+
+    if (op->type == "Tensor.size")
+    {
+        return !op->has_param("dim");
     }
 
     if (op->type == "Tensor.slice")
@@ -568,6 +573,22 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             expr += ")";
         }
     }
+    else if (op->type == "Tensor.size")
+    {
+        if (op->has_param("dim") && op->params.at("dim").type == 2)
+        {
+            const int dim = op->params.at("dim").i;
+            expr += "size(";
+            fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
+            expr += ",";
+            expr += std::to_string(dim);
+            expr += ")";
+        }
+        else
+        {
+            fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
+        }
+    }
     else if (op->type == "Tensor.slice" && !operand_maybe_tensor(operand))
     {
         int start = op->inputs.size() == 3 ? op->inputs[1]->producer->params.at("value").i : op->inputs[2]->producer->params.at("value").i;
@@ -836,6 +857,10 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
                 need_fuse = true;
             }
             if (op->type == "aten::Int")
+            {
+                need_fuse = true;
+            }
+            if (op->type == "Tensor.size")
             {
                 need_fuse = true;
             }

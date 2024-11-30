@@ -39,7 +39,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_bilinear, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_bilinear, 110)
 
 class F_upsample_bilinear_1_1 : public GraphRewriterPass
 {
@@ -63,7 +63,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_bilinear_1_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_bilinear_1_1, 110)
 
 class F_upsample_bilinear_1 : public GraphRewriterPass
 {
@@ -87,6 +87,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_bilinear_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_bilinear_1, 110)
 
 } // namespace pnnx

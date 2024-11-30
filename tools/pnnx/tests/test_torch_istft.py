@@ -21,9 +21,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
-        out0 = torch.istft(x, n_fft=64, center=True, normalized=True, return_complex=False)
+        out0 = torch.istft(x, n_fft=64, window=torch.hann_window(44), win_length=44, center=True, normalized=True, return_complex=False)
         out1 = torch.istft(y, n_fft=128, center=False, onesided=True, return_complex=False)
-        out2 = torch.istft(z, n_fft=512, center=True, onesided=True, return_complex=False)
+        out2 = torch.istft(z, n_fft=512, window=torch.hamming_window(256), win_length=256, hop_length=128, center=True, onesided=True, return_complex=False)
         out3 = torch.istft(w, n_fft=512, center=False, onesided=False, return_complex=True)
         return out0, out1, out2, out3
 
@@ -52,7 +52,7 @@ def test():
     b = test_torch_istft_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 

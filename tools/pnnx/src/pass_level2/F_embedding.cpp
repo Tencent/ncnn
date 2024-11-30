@@ -39,7 +39,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding, 140)
 
 class F_embedding_onnx : public GraphRewriterPass
 {
@@ -67,6 +67,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding_onnx, 140)
 
 } // namespace pnnx

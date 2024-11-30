@@ -175,6 +175,9 @@ pnnx_ncnn_add_test(torch_transpose)
 pnnx_ncnn_add_test(torch_unbind)
 pnnx_ncnn_add_test(torch_unsqueeze)
 
+pnnx_ncnn_add_test(torch_istft)
+pnnx_ncnn_add_test(torch_stft)
+
 pnnx_ncnn_add_test(torch_abs)
 pnnx_ncnn_add_test(torch_acos)
 pnnx_ncnn_add_test(torch_asin)
@@ -217,3 +220,8 @@ pnnx_ncnn_add_test(ncnn_numpy_binaryop_broadcast)
 if(TorchVision_FOUND)
     pnnx_ncnn_add_test(torchvision_DeformConv2d)
 endif()
+
+pnnx_ncnn_add_test(torchaudio_F_inverse_spectrogram)
+pnnx_ncnn_add_test(torchaudio_F_spectrogram)
+pnnx_ncnn_add_test(torchaudio_InverseSpectrogram)
+pnnx_ncnn_add_test(torchaudio_Spectrogram)

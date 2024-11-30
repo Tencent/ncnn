@@ -16,7 +16,7 @@
 
 namespace pnnx {
 
-class torch_tensor_split : public GraphRewriterPass
+class torch_tensor_split_indices : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -24,9 +24,9 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 sections value=%sections
-aten::tensor_split      op_1        3 1 input sections dim out
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 indices value=%indices
+aten::tensor_split      op_2        3 1 input indices dim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -35,11 +35,16 @@ pnnx.Output             output      1 0 out
     {
         return "torch.tensor_split";
     }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.at("indices").type == 5;
+    }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_tensor_split, 19)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_tensor_split_indices, 60)
 
-class torch_tensor_split_1 : public GraphRewriterPass
+class torch_tensor_split_sections : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -47,9 +52,9 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 indices
-pnnx.Input              input_2     0 1 dim
-aten::tensor_split      op_0        3 1 input indices dim out
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 sections value=%sections
+aten::tensor_split      op_2        3 1 input sections dim out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -58,8 +63,13 @@ pnnx.Output             output      1 0 out
     {
         return "torch.tensor_split";
     }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.at("sections").type == 2;
+    }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_tensor_split_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_tensor_split_sections, 60)
 
 } // namespace pnnx

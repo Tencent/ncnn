@@ -23,14 +23,14 @@ public:
     {
         return R"PNNXIR(7767517
 9 8
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 kernel_size
-pnnx.Input              input_2     0 1 stride
-pnnx.Input              input_3     0 1 padding
-prim::Constant          op_0        0 1 ceil_mode value=%ceil_mode
-prim::Constant          op_1        0 1 count_include_pad value=%count_include_pad
-prim::Constant          op_2        0 1 divisor_override value=%divisor_override
-aten::avg_pool3d        op_3        7 1 input kernel_size stride padding ceil_mode count_include_pad divisor_override out
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 kernel_size value=%kernel_size
+prim::Constant          op_1        0 1 stride value=%stride
+prim::Constant          op_2        0 1 padding value=%padding
+prim::Constant          op_3        0 1 ceil_mode value=%ceil_mode
+prim::Constant          op_4        0 1 count_include_pad value=%count_include_pad
+prim::Constant          op_5        0 1 divisor_override value=%divisor_override
+aten::avg_pool3d        op_6        7 1 input kernel_size stride padding ceil_mode count_include_pad divisor_override out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d, 120)
 
 // https://github.com/pytorch/pytorch/blob/c263bd43e8e8502d4726643bc6fd046f0130ac0e/torch/onnx/symbolic_opset9.py#L1496
 static int get_pool_ceil_padding(int w, int ksize, int stride, int pad)
@@ -209,6 +209,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx, 120)
 
 } // namespace pnnx
