@@ -252,7 +252,7 @@ struct unary_op_tan_fp16s
         __riscv_vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = tanf((float)tmp[i]);
+            tmp[i] = (__fp16)tanf((float)tmp[i]);
         }
         return __riscv_vle16_v_f16m8(tmp.data(), vl);
     }
@@ -274,7 +274,7 @@ struct unary_op_asin_fp16s
         __riscv_vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = asinf((float)tmp[i]);
+            tmp[i] = (__fp16)asinf((float)tmp[i]);
         }
         return __riscv_vle16_v_f16m8(tmp.data(), vl);
     }
@@ -296,7 +296,7 @@ struct unary_op_acos_fp16s
         __riscv_vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = acosf((float)tmp[i]);
+            tmp[i] = (__fp16)acosf((float)tmp[i]);
         }
         return __riscv_vle16_v_f16m8(tmp.data(), vl);
     }
@@ -318,7 +318,7 @@ struct unary_op_atan_fp16s
         __riscv_vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = atanf((float)tmp[i]);
+            tmp[i] = (__fp16)atanf((float)tmp[i]);
         }
         return __riscv_vle16_v_f16m8(tmp.data(), vl);
     }

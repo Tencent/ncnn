@@ -607,7 +607,7 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
 
 int BinaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    binary_op_scalar_inplace_fp16s(bottom_top_blob, b, op_type, opt);
+    binary_op_scalar_inplace_fp16s(bottom_top_blob, (__fp16)b, op_type, opt);
 
     return 0;
 }
