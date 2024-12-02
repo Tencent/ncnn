@@ -14,6 +14,8 @@
 
 #include "unaryop_riscv.h"
 
+#include <float.h>
+
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
@@ -362,7 +364,18 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
 
     if (op_type == Operation_ROUND)
-        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+    {
+        // round to nearest even
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        int ret = unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return ret;
+    }
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);

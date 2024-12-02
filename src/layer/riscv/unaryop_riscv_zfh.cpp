@@ -392,16 +392,7 @@ struct unary_op_round_fp16s
 #else // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const
     {
-        // round to nearest even
-#ifdef FE_TONEAREST
-        int old_rm = fegetround();
-        fesetround(FE_TONEAREST);
-#endif
-        float y = nearbyintf((float)x);
-#ifdef FE_TONEAREST
-        fesetround(old_rm);
-#endif
-        return (__fp16)y;
+        return (__fp16)nearbyintf((float)x);
     }
 #endif // __riscv_zvfh
 };
@@ -498,7 +489,18 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         return unary_op_inplace_fp16s<unary_op_log10_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_ROUND)
-        return unary_op_inplace_fp16s<unary_op_round_fp16s>(bottom_top_blob, opt);
+    {
+        // round to nearest even
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        int ret = unary_op_inplace_fp16s<unary_op_round_fp16s>(bottom_top_blob, opt);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return ret;
+    }
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_fp16s<unary_op_trunc_fp16s>(bottom_top_blob, opt);
