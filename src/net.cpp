@@ -639,15 +639,15 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         }
         else
 #endif // NCNN_VFPV4
-#if NCNN_ZVFH
-        if (opt.use_fp16_storage && cpu_support_riscv_zvfh() && layer->support_fp16_storage)
+#if NCNN_ZFH
+        if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && layer->support_fp16_storage)
         {
             Mat bottom_blob_fp16;
             cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
             bottom_blob = bottom_blob_fp16;
         }
         else
-#endif // NCNN_ZVFH
+#endif // NCNN_ZFH
 #if NCNN_BF16
         if (opt.use_bf16_storage && layer->support_bf16_storage)
         {
@@ -767,15 +767,15 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         }
         else
 #endif // NCNN_VFPV4
-#if NCNN_ZVFH
-        if (opt.use_fp16_storage && cpu_support_riscv_zvfh() && !layer->support_fp16_storage)
+#if NCNN_ZFH
+        if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && !layer->support_fp16_storage)
         {
             Mat bottom_blob_fp32;
             cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
             bottom_blob = bottom_blob_fp32;
         }
         else
-#endif // NCNN_ZVFH
+#endif // NCNN_ZFH
 #if NCNN_BF16
         if (opt.use_bf16_storage && !layer->support_bf16_storage)
         {

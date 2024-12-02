@@ -373,8 +373,6 @@ _RVV_FLOAT32_POW_OP(8, 4)
         _v = exp_ps(_v, vl);                                                                                                                                       \
         _v = __riscv_vfadd_vf_f32m##LMUL(_v, 1.f, vl);                                                                                                             \
         vfloat32m##LMUL##_t _reciprocal = __riscv_vfrdiv_vf_f32m##LMUL(_v, 1.f, vl);                                                                               \
-        _reciprocal = __riscv_vfmul_vv_f32m##LMUL(__riscv_vfrsub_vf_f32m##LMUL(__riscv_vfmul_vv_f32m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl);       \
-        /* _reciprocal = __riscv_vfmul_vv_f32m##LMUL(__riscv_vfrsub_vf_f32m##LMUL(__riscv_vfmul_vv_f32m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl); */ \
         return _reciprocal;                                                                                                                                        \
     }
 #else // __riscv_xtheadvector

@@ -63,7 +63,7 @@ int InnerProduct_riscv::create_pipeline(const Option& opt)
 #endif
 
 #if NCNN_ZFH
-    if (opt.use_fp16_storage)
+    if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
     }
