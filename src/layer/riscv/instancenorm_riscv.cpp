@@ -70,7 +70,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
             // mean and var
             float sum = 0.f;
             float sqsum = 0.f;
-#if __riscv_vector
+#if __riscv_vector && !defined(C906)
             vfloat32m1_t _sum = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
             vfloat32m1_t _sqsum = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
             {
@@ -95,7 +95,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
             }
 #endif // __riscv_vector
             float mean = sum / size;
-#if __riscv_vector
+#if __riscv_vector && !defined(C906)
             {
                 int n = size;
                 float* ptr_sqsum = ptr;
