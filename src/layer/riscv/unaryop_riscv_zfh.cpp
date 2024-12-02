@@ -389,7 +389,7 @@ struct unary_op_round_fp16s
     {
         return __riscv_vfcvt_f_x_v_f16m8(__riscv_vfcvt_x_f_v_i16m8(x, vl), vl);
     }
-#else // __riscv_zvfh
+#else  // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const
     {
         return (__fp16)nearbyintf((float)x);
