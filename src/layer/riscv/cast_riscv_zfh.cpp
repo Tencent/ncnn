@@ -18,12 +18,6 @@ namespace ncnn {
 
 void Cast_riscv::cast_fp32_to_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-#if __riscv_zfh
-    NCNN_LOGE("__riscv_zfh");
-#endif
-#if __riscv_zvfh
-    NCNN_LOGE("__riscv_zvfh");
-#endif
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int d = bottom_blob.d;
@@ -42,7 +36,6 @@ void Cast_riscv::cast_fp32_to_fp16(const Mat& bottom_blob, Mat& top_blob, const 
         unsigned short* outptr = top_blob.channel(q);
 #endif
 
-        int i = 0;
 #if __riscv_zvfh
         int n = size;
         while (n > 0)
@@ -57,8 +50,8 @@ void Cast_riscv::cast_fp32_to_fp16(const Mat& bottom_blob, Mat& top_blob, const 
             outptr += vl;
             n -= vl;
         }
-#endif // __riscv_zvfh
-        for (; i < size; i++)
+#else  // __riscv_zvfh
+        for (int i = 0; i < size; i++)
         {
 #if __riscv_zfh
             *outptr++ = (__fp16)(*ptr++);
@@ -66,6 +59,7 @@ void Cast_riscv::cast_fp32_to_fp16(const Mat& bottom_blob, Mat& top_blob, const 
             *outptr++ = float32_to_float16(*ptr++);
 #endif
         }
+#endif // __riscv_zvfh
     }
 }
 
@@ -89,7 +83,6 @@ void Cast_riscv::cast_fp16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const 
 #endif
         float* outptr = top_blob.channel(q);
 
-        int i = 0;
 #if __riscv_zvfh
         int n = size;
         while (n > 0)
@@ -104,8 +97,8 @@ void Cast_riscv::cast_fp16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const 
             outptr += vl;
             n -= vl;
         }
-#endif // __riscv_zvfh
-        for (; i < size; i++)
+#else  // __riscv_zvfh
+        for (int i = 0; i < size; i++)
         {
 #if __riscv_zfh
             *outptr++ = (float)(*ptr++);
@@ -113,6 +106,7 @@ void Cast_riscv::cast_fp16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const 
             *outptr++ = float16_to_float32(*ptr++);
 #endif
         }
+#endif // __riscv_zvfh
     }
 }
 
