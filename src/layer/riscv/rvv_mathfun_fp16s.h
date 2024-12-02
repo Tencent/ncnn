@@ -366,14 +366,14 @@ _RVV_FLOAT16_POW_OP(4, 4)
 _RVV_FLOAT16_POW_OP(8, 2)
 
 #if __riscv_xtheadvector
-#define _RVV_FLOAT16_SIGMOID_OP(LMUL, MLEN)                                                                                                                                \
-    static inline vfloat16m##LMUL##_t sigmoid_ps(vfloat16m##LMUL##_t _v, size_t vl)                                                                                        \
-    {                                                                                                                                                                      \
-        _v = __riscv_vfneg_v_f16m##LMUL(_v, vl);                                                                                                                           \
-        _v = exp_ps(_v, vl);                                                                                                                                               \
-        _v = __riscv_vfadd_vf_f16m##LMUL(_v, (__fp16)1.f, vl);                                                                                                             \
-        vfloat16m##LMUL##_t _reciprocal = __riscv_vfrdiv_vf_f16m##LMUL(_v, (__fp16)1.f, vl);                                                                               \
-        return _reciprocal;                                                                                                                                                \
+#define _RVV_FLOAT16_SIGMOID_OP(LMUL, MLEN)                                                  \
+    static inline vfloat16m##LMUL##_t sigmoid_ps(vfloat16m##LMUL##_t _v, size_t vl)          \
+    {                                                                                        \
+        _v = __riscv_vfneg_v_f16m##LMUL(_v, vl);                                             \
+        _v = exp_ps(_v, vl);                                                                 \
+        _v = __riscv_vfadd_vf_f16m##LMUL(_v, (__fp16)1.f, vl);                               \
+        vfloat16m##LMUL##_t _reciprocal = __riscv_vfrdiv_vf_f16m##LMUL(_v, (__fp16)1.f, vl); \
+        return _reciprocal;                                                                  \
     }
 #else // __riscv_xtheadvector
 #define _RVV_FLOAT16_SIGMOID_OP(LMUL, MLEN)                                                                                                                                \
