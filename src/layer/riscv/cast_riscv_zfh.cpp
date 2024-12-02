@@ -50,7 +50,7 @@ void Cast_riscv::cast_fp32_to_fp16(const Mat& bottom_blob, Mat& top_blob, const 
             outptr += vl;
             n -= vl;
         }
-#else  // __riscv_zvfh
+#else // __riscv_zvfh
         for (int i = 0; i < size; i++)
         {
 #if __riscv_zfh
@@ -97,7 +97,7 @@ void Cast_riscv::cast_fp16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const 
             outptr += vl;
             n -= vl;
         }
-#else  // __riscv_zvfh
+#else // __riscv_zvfh
         for (int i = 0; i < size; i++)
         {
 #if __riscv_zfh
