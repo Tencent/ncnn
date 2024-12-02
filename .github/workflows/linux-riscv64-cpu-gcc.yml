@@ -81,23 +81,23 @@ jobs:
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   linux-gcc-riscv64-c906:
-    runs-on: [self-hosted, linux, centos]
+    runs-on: [self-hosted, linux, ubuntu]
     steps:
     - uses: actions/checkout@v4
 
     - name: configure
       run: |
-        export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1
+        export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v226.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v301.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_ZFH=ON -DNCNN_XTHEADVECTOR=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 4
+      run: cmake --build build -j 8
 
     - name: test
       run: |
-        export PATH=/data/action/osd/xuantie-qemu-x86_64-Ubuntu-18.04-20230413-0706/bin:$PATH
+        export PATH=/data/action/osd/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.0.4-B20241127-1130/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;c906fdv" ctest --output-on-failure -j 4
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;c906fdv" ctest --output-on-failure -j 8
 
   linux-gcc-riscv64-rvv:
     runs-on: [self-hosted, linux, ubuntu]
@@ -174,16 +174,16 @@ jobs:
     - name: configure
       run: export RISCV_ROOT_PATH=/data/action/osd/riscv && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 4
+      run: cmake --build build -j 8
 
     - name: test-vlen256
       run: |
         export PATH=/data/action/osd/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 4
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
 
     - name: test-vlen128
       run: |
         export PATH=/data/action/osd/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 4
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
