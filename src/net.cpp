@@ -695,7 +695,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
-#elif NCNN_RVV
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
                 const int packn = ncnn::cpu_riscv_vlenb() / 4;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
@@ -711,7 +711,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
-#elif NCNN_RVV
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
                 const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
@@ -722,7 +722,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             }
             if (elembits == 8)
             {
-#if NCNN_RVV
+#if NCNN_RVV || NCNN_XTHEADVECTOR
                 const int packn = ncnn::cpu_riscv_vlenb() / 1;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;

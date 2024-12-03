@@ -394,8 +394,8 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
-#elif NCNN_RVV
-            const int packn = ncnn::cpu_riscv_vlenb() / (elembits / 8);
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
+            const int packn = ncnn::cpu_riscv_vlenb() / 4;
             if (elemcount % packn == 0)
                 dst_elempack = packn;
 #else
@@ -410,7 +410,7 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
-#elif NCNN_RVV
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
             const int packn = ncnn::cpu_riscv_vlenb() / 2;
             if (elemcount % packn == 0)
                 dst_elempack = packn;
@@ -421,7 +421,7 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
         }
         if (elembits == 8)
         {
-#if NCNN_RVV
+#if NCNN_RVV || NCNN_XTHEADVECTOR
             const int packn = ncnn::cpu_riscv_vlenb() / 1;
             if (elemcount % packn == 0)
                 dst_elempack = packn;
