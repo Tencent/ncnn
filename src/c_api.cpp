@@ -782,7 +782,7 @@ ncnn_modelbin_t ncnn_modelbin_create_from_mat_array(const ncnn_mat_t* weights, i
         matarray[i] = *(const Mat*)weights[i];
     }
     ncnn_modelbin_t mb = (ncnn_modelbin_t)malloc(sizeof(struct __ncnn_modelbin_t));
-    mb->pthis = (void*)(new ModelBinFromMatArray_c_api(mb, &matarray[0]));
+    mb->pthis = (void*)(new ModelBinFromMatArray_c_api(mb, n ? &matarray[0] : NULL));
     mb->load_1d = __ncnn_ModelBinFromMatArray_load_1d;
     mb->load_2d = __ncnn_ModelBinFromMatArray_load_2d;
     mb->load_3d = __ncnn_ModelBinFromMatArray_load_3d;
