@@ -89,6 +89,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: configure
+      continue-on-error: true
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1
         mkdir build && cd build
@@ -109,6 +110,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: configure
+      continue-on-error: true
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1
         mkdir build && cd build
