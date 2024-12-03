@@ -23,6 +23,11 @@ namespace ncnn {
 
 int SELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if C906
+    // FIXME -O3 leads illegal instruction
+    return SELU::forward_inplace(bottom_top_blob, opt);
+#endif
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;

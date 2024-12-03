@@ -74,6 +74,14 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = bottom_top_blob.channel(q);
 
+#if C906
+            // FIXME -O3 leads illegal instruction
+            for (int i = 0; i < size; i++)
+            {
+                // y = x * P(X <= x) where X ~ N(0, 1)
+                ptr[i] = 0.5f * ptr[i] * erfcf(-0.70710678f * ptr[i]);
+            }
+#else
             int n = size;
             while (n > 0)
             {
@@ -91,6 +99,7 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 n -= vl;
                 ptr += vl;
             }
+#endif
         }
     }
 

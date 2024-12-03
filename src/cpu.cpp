@@ -2752,6 +2752,7 @@ int cpu_support_riscv_xtheadvector()
 int cpu_riscv_vlenb()
 {
 #if C906
+    // FIXME xuantie qemu reports all zero auxv flags
     return 16;
 #endif
     try_initialize_global_cpu_info();
