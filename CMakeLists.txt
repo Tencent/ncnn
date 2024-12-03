@@ -420,9 +420,9 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
 
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
         check_cxx_source_compiles("#if __riscv_v == 7000\nint main() { return 0; }\n#endif\n" NCNN_COMPILER_IS_XUANTIE_GCC)
-        # if(NCNN_COMPILER_IS_XUANTIE_GCC)
-        #     message(FATAL_ERROR "Since XuanTie GCC Toolchain is not yet ready for RVV1.0, the risc-v optimized code of ncnn has been migrated to the RVV1.0 standard. Please use the old version of ncnn, which can be found at https://github.com/Tencent/ncnn/releases/download/20240820/ncnn-20240820-full-source.zip")
-        # endif()
+        if(NCNN_COMPILER_IS_XUANTIE_GCC)
+            message(WARNING "Since XuanTie GCC Toolchain is not yet ready for RVV1.0, the risc-v optimized code of ncnn has been migrated to the RVV1.0 standard. Please use the old version of ncnn, which can be found at https://github.com/Tencent/ncnn/releases/download/20240820/ncnn-20240820-full-source.zip")
+        endif()
 
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv")
         check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat32m8_t _s, _w; float _v; size_t vl; _s = __riscv_vfmacc_vf_f32m8(_s, _v, _w, vl); vfloat32m1_t _x; vfloat32m1x2_t _xx = __riscv_vcreate_v_f32m1x2(_x, _x); return 0; }" NCNN_COMPILER_SUPPORT_RISCV_V)

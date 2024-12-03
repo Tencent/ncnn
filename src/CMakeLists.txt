@@ -680,7 +680,7 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT C90
         set(RISCV_MARCH_FLAG "-march=rv64gc_xtheadvector")
         if(NCNN_ZFH)
             set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zfh")
-            target_compile_options(ncnn PRIVATE -D__fp16=_Float16)
+            target_compile_options(ncnn PRIVATE -D__riscv_zvfh=1 -D__fp16=_Float16)
         endif()
     endif()
     target_compile_options(ncnn PRIVATE ${RISCV_MARCH_FLAG})

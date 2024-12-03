@@ -45,7 +45,7 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
             // mean and var
             float sum = 0.f;
             float sqsum = 0.f;
-#if __riscv_zvfh
+#if __riscv_zvfh && !defined(C906)
             vfloat32m1_t _sum = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
             vfloat32m1_t _sqsum = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
             {
@@ -70,7 +70,7 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
             }
 #endif // __riscv_zvfh
             float mean = sum / size;
-#if __riscv_zvfh
+#if __riscv_zvfh && !defined(C906)
             {
                 int n = size;
                 __fp16* ptr_sqsum = ptr;
@@ -215,7 +215,7 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
             // mean and var
             __fp16 sum = 0.f;
             __fp16 sqsum = 0.f;
-#if __riscv_zvfh
+#if __riscv_zvfh && !defined(C906)
             vfloat16m1_t _sum = __riscv_vfmv_s_f_f16m1(0.f, __riscv_vsetvlmax_e32m1());
             vfloat16m1_t _sqsum = __riscv_vfmv_s_f_f16m1(0.f, __riscv_vsetvlmax_e32m1());
             {
@@ -240,7 +240,7 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
             }
 #endif // __riscv_zvfh
             __fp16 mean = sum / size;
-#if __riscv_zvfh
+#if __riscv_zvfh && !defined(C906)
             {
                 int n = size;
                 __fp16* ptr_sqsum = ptr;
