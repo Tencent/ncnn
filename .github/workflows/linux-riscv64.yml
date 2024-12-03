@@ -92,7 +92,7 @@ jobs:
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v301.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_ZFH=ON -DNCNN_XTHEADVECTOR=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v301.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_ZFH=ON -DNCNN_XTHEADVECTOR=ON -DNCNN_RVV=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
     - name: build
       continue-on-error: true
       run: cmake --build build -j 8
@@ -114,7 +114,7 @@ jobs:
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c910-v301.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ZFH=ON -DNCNN_XTHEADVECTOR=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c910-v301.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ZFH=ON -DNCNN_XTHEADVECTOR=ON -DNCNN_RVV=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
     - name: build
       continue-on-error: true
       run: cmake --build build -j 8
