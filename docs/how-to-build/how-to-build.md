@@ -667,6 +667,10 @@ Pick `build-XYZ/install` folder for further usage.
 
 ### Build for AllWinner D1
 
+**Important Note**
+
+Since XuanTie GCC Toolchain is not yet ready for RVV1.0, the RISC-V optimized code of ncnn has been migrated to the RVV1.0 standard. The compilation process here uses the old version of ncnn, which can be found at https://github.com/Tencent/ncnn/releases/download/20240820/ncnn-20240820-full-source.zip
+
 Download c906 toolchain package from https://xuantie.t-head.cn/community/download?id=4224193099938729984
 
 ```shell
