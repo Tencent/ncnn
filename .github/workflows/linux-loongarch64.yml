@@ -1,9 +1,9 @@
-name: linux-loongarch64-cpu-gcc
+name: linux-loongarch64
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - '.github/workflows/linux-loongarch64.yml'
     - 'toolchains/loongarch64-linux-gnu.toolchain.cmake'
     - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -15,7 +15,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - '.github/workflows/linux-loongarch64.yml'
     - 'toolchains/loongarch64-linux-gnu.toolchain.cmake'
     - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -25,13 +25,13 @@ on:
     - 'src/layer/loongarch/**'
     - 'tests/**'
 concurrency:
-  group: linux-loongarch64-cpu-gcc-${{ github.ref }}
+  group: linux-loongarch64-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
 
 jobs:
-  linux-gcc-loongarch64:
+  gcc-loongarch64:
     runs-on: [self-hosted, linux, centos]
 
     steps:

@@ -1,9 +1,9 @@
-name: linux-mips64-cpu-gcc
+name: linux-mips64
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/linux-mips64-cpu-gcc.yml'
+    - '.github/workflows/linux-mips64.yml'
     - 'toolchains/mips64el-linux-gnuabi64.toolchain.cmake'
     - 'toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -15,7 +15,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/linux-mips64-cpu-gcc.yml'
+    - '.github/workflows/linux-mips64.yml'
     - 'toolchains/mips64el-linux-gnuabi64.toolchain.cmake'
     - 'toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -25,13 +25,13 @@ on:
     - 'src/layer/mips/**'
     - 'tests/**'
 concurrency:
-  group: linux-mips64-cpu-gcc-${{ github.ref }}
+  group: linux-mips64-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
 
 jobs:
-  linux-gcc-mips64el:
+  gcc-mips64el:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -78,7 +78,7 @@ jobs:
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mips64el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)
 
-  linux-gcc-mipsisa64r6el:
+  gcc-mipsisa64r6el:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
