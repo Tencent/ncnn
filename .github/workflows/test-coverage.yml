@@ -159,7 +159,7 @@ jobs:
         export RISCV_ROOT_PATH=/data/action/osd/riscv
         mkdir build
         cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=${{ matrix.rvv }} -DNCNN_ZFH=${{ matrix.rvv }} -DNCNN_ZVFH=${{ matrix.rvv }} -DNCNN_OPENMP=${{ matrix.openmp }} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=${{ matrix.rvv }} -DNCNN_ZFH=${{ matrix.rvv }} -DNCNN_ZVFH=${{ matrix.rvv }} -DNCNN_OPENMP=${{ matrix.openmp }} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" ..
         cmake --build . -j 8
 
     - name: test-vlen256
