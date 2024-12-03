@@ -425,7 +425,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
         endif()
 
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv")
-        check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat32m8_t _s, _w; float _v; size_t vl; _s = __riscv_vfmacc_vf_f32m8(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RISCV_V)
+        check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat32m8_t _s, _w; float _v; size_t vl; _s = __riscv_vfmacc_vf_f32m8(_s, _v, _w, vl); vfloat32m1_t _x; vfloat32m1x2_t _xx = __riscv_vcreate_v_f32m1x2(_x, _x); return 0; }" NCNN_COMPILER_SUPPORT_RISCV_V)
 
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gc_zfh -D__fp16=_Float16")
         check_cxx_source_compiles("int main() { __fp16 s, v; s = v * v; return 0; }" NCNN_COMPILER_SUPPORT_RISCV_ZFH)

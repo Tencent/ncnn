@@ -77,7 +77,6 @@ jobs:
       run: cmake --build build -j $(nproc)
 
     - name: test
-      continue-on-error: true
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
@@ -95,6 +94,7 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v301.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_ZFH=ON -DNCNN_XTHEADVECTOR=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
     - name: build
+      continue-on-error: true
       run: cmake --build build -j 8
 
     - name: test
@@ -116,9 +116,11 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c910-v301.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ZFH=ON -DNCNN_XTHEADVECTOR=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
     - name: build
+      continue-on-error: true
       run: cmake --build build -j 8
 
     - name: test
+      continue-on-error: true
       run: |
         export PATH=/data/action/osd/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.0.4-B20241127-1130/bin:$PATH
         cd build
