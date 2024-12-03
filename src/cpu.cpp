@@ -2751,6 +2751,9 @@ int cpu_support_riscv_xtheadvector()
 
 int cpu_riscv_vlenb()
 {
+#if C906
+    return 16;
+#endif
     try_initialize_global_cpu_info();
 #if __riscv
     if (!cpu_support_riscv_v())
