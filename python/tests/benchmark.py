@@ -16,7 +16,7 @@ import sys
 import time
 import ncnn
 
-param_root = "../benchmark/"
+param_root = "../../benchmark"
 
 g_warmup_loop_count = 8
 g_loop_count = 4
