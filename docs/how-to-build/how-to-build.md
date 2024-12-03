@@ -667,15 +667,11 @@ Pick `build-XYZ/install` folder for further usage.
 
 ### Build for AllWinner D1
 
-**Important Note**
-
-Since XuanTie GCC Toolchain is not yet ready for RVV1.0, the RISC-V optimized code of ncnn has been migrated to the RVV1.0 standard. The compilation process here uses the old version of ncnn, which can be found at https://github.com/Tencent/ncnn/releases/download/20240820/ncnn-20240820-full-source.zip
-
-Download c906 toolchain package from https://xuantie.t-head.cn/community/download?id=4224193099938729984
+Download c906 toolchain package from https://www.xrvm.cn/community/download?id=4382928864901402624
 
 ```shell
-tar -xf Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1-20220906.tar.gz
-export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1
+tar -xf Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1-20241120.tar.gz
+export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1
 ```
 
 Build ncnn with riscv-v vector and simpleocv enabled:
@@ -683,7 +679,7 @@ Build ncnn with riscv-v vector and simpleocv enabled:
 mkdir -p build-c906
 cd build-c906
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v226.toolchain.cmake \
-    -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON \
+    -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=OFF -DNCNN_XTHEADVECTOR=ON -DNCNN_ZFH=ON \
     -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON ..
 cmake --build . -j 4
 cmake --build . --target install
