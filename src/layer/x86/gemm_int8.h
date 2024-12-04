@@ -18422,7 +18422,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             if (max_kk >= 4)
             {
                 __m256i _w_shift0 = _mm256_loadu_si256((const __m256i*)pA);
-                __m256i _w_shift1 = _mm256_permute4x64_epi64(_w_shift0, _MM_SHUFFLE(0, 1, 2, 3));
+                __m256i _w_shift1 = _mm256_shuffle_epi32(_w_shift0, _MM_SHUFFLE(1, 0, 3, 2));
                 _sum0 = _mm256_sub_epi32(_sum0, _w_shift0);
                 _sum1 = _mm256_sub_epi32(_sum1, _w_shift0);
                 _sum2 = _mm256_sub_epi32(_sum2, _w_shift1);
