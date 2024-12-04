@@ -1,9 +1,9 @@
-name: linux-arm-cpu-gcc
+name: linux-arm
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/linux-arm-cpu-gcc.yml'
+    - '.github/workflows/linux-arm.yml'
     - 'toolchains/arm-linux-gnueabi.toolchain.cmake'
     - 'toolchains/arm-linux-gnueabihf.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -15,7 +15,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/linux-arm-cpu-gcc.yml'
+    - '.github/workflows/linux-arm.yml'
     - 'toolchains/arm-linux-gnueabi.toolchain.cmake'
     - 'toolchains/arm-linux-gnueabihf.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -25,13 +25,13 @@ on:
     - 'src/layer/arm/**'
     - 'tests/**'
 concurrency:
-  group: linux-arm-cpu-gcc-${{ github.ref }}
+  group: linux-arm-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
 
 jobs:
-  linux-gcc-arm:
+  gcc-arm:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -89,7 +89,7 @@ jobs:
         cd build-noint8
         TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j $(nproc)
 
-  linux-gcc-armhf:
+  gcc-armhf:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -147,7 +147,7 @@ jobs:
         cd build-noint8
         TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
 
-  linux-gcc-armhf-vfpv3-d16:
+  gcc-armhf-vfpv3-d16:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4

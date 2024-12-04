@@ -20,16 +20,22 @@
 
 #include "riscv_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Crop_riscv::Crop_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
-    support_fp16_storage = true;
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -43,7 +49,7 @@ static void crop_packn_rvv(const Mat& src, Mat& dst, int top, int left, int pack
     int h = dst.h;
     int right = src.w - dst.w - left;
 
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 
     const float* ptr = src.row(top) + left * packn;
     float* outptr = dst;
@@ -52,8 +58,8 @@ static void crop_packn_rvv(const Mat& src, Mat& dst, int top, int left, int pack
     {
         for (int x = 0; x < w; x++)
         {
-            vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
-            vse32_v_f32m1(outptr, _p, vl);
+            vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr, vl);
+            __riscv_vse32_v_f32m1(outptr, _p, vl);
 
             ptr += packn;
             outptr += packn;
@@ -69,7 +75,7 @@ static void crop_packn_bf16_fp16s_rvv(const Mat& src, Mat& dst, int top, int lef
     int h = dst.h;
     int right = src.w - dst.w - left;
 
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     const unsigned short* ptr = src.row<unsigned short>(top) + left * packn;
     unsigned short* outptr = dst;
@@ -78,8 +84,8 @@ static void crop_packn_bf16_fp16s_rvv(const Mat& src, Mat& dst, int top, int lef
     {
         for (int x = 0; x < w; x++)
         {
-            vuint16m1_t _p = vle16_v_u16m1(ptr, vl);
-            vse16_v_u16m1(outptr, _p, vl);
+            vuint16m1_t _p = __riscv_vle16_v_u16m1(ptr, vl);
+            __riscv_vse16_v_u16m1(outptr, _p, vl);
 
             ptr += packn;
             outptr += packn;

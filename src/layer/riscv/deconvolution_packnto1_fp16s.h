@@ -15,7 +15,7 @@
 static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -49,7 +49,7 @@ static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_bl
                     sum = bias_data_ptr[p];
                 }
 
-                vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+                vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
 
                 const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * channels * p * packn;
 
@@ -82,9 +82,9 @@ static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_bl
 
                             int k = y * kernel_w + x;
 
-                            vfloat16m1_t _val = vle16_v_f16m1(sptr, vl);
-                            vfloat16m1_t _w = vle16_v_f16m1(kptr + k * packn, vl);
-                            _sum = vfwmacc_vv_f32m2(_sum, _val, _w, vl);
+                            vfloat16m1_t _val = __riscv_vle16_v_f16m1(sptr, vl);
+                            vfloat16m1_t _w = __riscv_vle16_v_f16m1(kptr + k * packn, vl);
+                            _sum = __riscv_vfwmacc_vv_f32m2(_sum, _val, _w, vl);
                         }
                     }
 
@@ -94,13 +94,13 @@ static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_bl
 #if C906
                 // TODO
                 std::vector<float> ss(packn);
-                vse32_v_f32m2((float*)ss.data(), _sum, vl);
+                __riscv_vse32_v_f32m2((float*)ss.data(), _sum, vl);
                 for (int i = 0; i < packn; i++)
                 {
                     sum += ss[i];
                 }
 #else
-                sum = vfmv_f_s_f32m1_f32(vfredusum_vs_f32m2_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
+                sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(_sum, __riscv_vfmv_s_f_f32m1(sum, vl), vl));
 #endif
 
                 sum = activation_ss(sum, activation_type, activation_params);
@@ -116,7 +116,7 @@ static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_bl
 static void deconvolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -150,7 +150,7 @@ static void deconvolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_b
                     sum = bias_data_ptr[p];
                 }
 
-                vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
 
                 const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * channels * p * packn;
 
@@ -183,16 +183,16 @@ static void deconvolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_b
 
                             int k = y * kernel_w + x;
 
-                            vfloat16m1_t _val = vle16_v_f16m1(sptr, vl);
-                            vfloat16m1_t _w = vle16_v_f16m1(kptr + k * packn, vl);
-                            _sum = vfmacc_vv_f16m1(_sum, _val, _w, vl);
+                            vfloat16m1_t _val = __riscv_vle16_v_f16m1(sptr, vl);
+                            vfloat16m1_t _w = __riscv_vle16_v_f16m1(kptr + k * packn, vl);
+                            _sum = __riscv_vfmacc_vv_f16m1(_sum, _val, _w, vl);
                         }
                     }
 
                     kptr += maxk * packn;
                 }
 
-                sum = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum, vfmv_s_f_f16m1(vfloat16m1_t(), sum, vl), vl));
+                sum = __riscv_vfmv_f_s_f16m1_f16(__riscv_vfredusum_vs_f16m1_f16m1(_sum, __riscv_vfmv_s_f_f16m1(sum, vl), vl));
 
                 sum = activation_ss(sum, activation_type, activation_params);
 

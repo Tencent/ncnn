@@ -1,9 +1,9 @@
-name: linux-mips-cpu-gcc
+name: linux-mips
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/linux-mips-cpu-gcc.yml'
+    - '.github/workflows/linux-mips.yml'
     - 'toolchains/mipsel-linux-gnu.toolchain.cmake'
     - 'toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -15,7 +15,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/linux-mips-cpu-gcc.yml'
+    - '.github/workflows/linux-mips.yml'
     - 'toolchains/mipsel-linux-gnu.toolchain.cmake'
     - 'toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -25,13 +25,13 @@ on:
     - 'src/layer/mips/**'
     - 'tests/**'
 concurrency:
-  group: linux-mips-cpu-gcc-${{ github.ref }}
+  group: linux-mips-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
 
 jobs:
-  linux-gcc-mipsel:
+  gcc-mipsel:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -78,7 +78,7 @@ jobs:
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsel-linux-gnu" ctest --output-on-failure -j $(nproc)
 
-  linux-gcc-mipsisa32r6el:
+  gcc-mipsisa32r6el:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
