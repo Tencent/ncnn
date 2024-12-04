@@ -176,7 +176,7 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
+        lcov --gcov-tool /data/action/osd/riscv/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/install/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
