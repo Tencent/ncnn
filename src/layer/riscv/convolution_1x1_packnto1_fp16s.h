@@ -28,7 +28,7 @@ static void conv1x1s1_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top
 static void conv1x1s2_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -53,8 +53,8 @@ static void conv1x1s2_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top
         {
             for (int j = 0; j < outw; j++)
             {
-                vfloat16m1_t _val = vle16_v_f16m1(r0, vl);
-                vse16_v_f16m1(outptr, _val, vl);
+                vfloat16m1_t _val = __riscv_vle16_v_f16m1(r0, vl);
+                __riscv_vse16_v_f16m1(outptr, _val, vl);
 
                 r0 += packn * 2;
                 outptr += packn;

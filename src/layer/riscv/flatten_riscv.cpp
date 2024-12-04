@@ -20,16 +20,22 @@
 
 #include "riscv_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Flatten_riscv::Flatten_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
-    support_fp16_storage = true;
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -43,7 +49,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if __riscv_vector && __riscv_zfh
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
@@ -119,10 +125,10 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
-                    vsse32_v_f32m1(outptr, w * sizeof(float), _p, vl);
+                    vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr, vl);
+                    __riscv_vsse32_v_f32m1(outptr, w * sizeof(float), _p, vl);
 
                     ptr += vl;
                     outptr += 1;
@@ -147,10 +153,10 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
-                    vsse32_v_f32m1(outptr, size * sizeof(float), _p, vl);
+                    vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr, vl);
+                    __riscv_vsse32_v_f32m1(outptr, size * sizeof(float), _p, vl);
 
                     ptr += vl;
                     outptr += 1;
@@ -172,10 +178,10 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m8(n);
+                    size_t vl = __riscv_vsetvl_e32m8(n);
 
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vse32_v_f32m8(outptr, _p, vl);
+                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+                    __riscv_vse32_v_f32m8(outptr, _p, vl);
 
                     ptr += vl;
                     outptr += vl;
@@ -262,10 +268,10 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p = vle16_v_u16m1(ptr, vl);
-                    vsse16_v_u16m1(outptr, w * sizeof(unsigned short), _p, vl);
+                    vuint16m1_t _p = __riscv_vle16_v_u16m1(ptr, vl);
+                    __riscv_vsse16_v_u16m1(outptr, w * sizeof(unsigned short), _p, vl);
 
                     ptr += vl;
                     outptr += 1;
@@ -290,10 +296,10 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p = vle16_v_u16m1(ptr, vl);
-                    vsse16_v_u16m1(outptr, size * sizeof(unsigned short), _p, vl);
+                    vuint16m1_t _p = __riscv_vle16_v_u16m1(ptr, vl);
+                    __riscv_vsse16_v_u16m1(outptr, size * sizeof(unsigned short), _p, vl);
 
                     ptr += vl;
                     outptr += 1;
@@ -315,10 +321,10 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m8(n);
+                    size_t vl = __riscv_vsetvl_e16m8(n);
 
-                    vuint16m8_t _p = vle16_v_u16m8(ptr, vl);
-                    vse16_v_u16m8(outptr, _p, vl);
+                    vuint16m8_t _p = __riscv_vle16_v_u16m8(ptr, vl);
+                    __riscv_vse16_v_u16m8(outptr, _p, vl);
 
                     ptr += vl;
                     outptr += vl;
@@ -405,10 +411,10 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e8m1(n);
+                    size_t vl = __riscv_vsetvl_e8m1(n);
 
-                    vint8m1_t _p = vle8_v_i8m1(ptr, vl);
-                    vsse8_v_i8m1(outptr, w * sizeof(unsigned char), _p, vl);
+                    vint8m1_t _p = __riscv_vle8_v_i8m1(ptr, vl);
+                    __riscv_vsse8_v_i8m1(outptr, w * sizeof(unsigned char), _p, vl);
 
                     ptr += vl;
                     outptr += 1;
@@ -433,10 +439,10 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e8m1(n);
+                    size_t vl = __riscv_vsetvl_e8m1(n);
 
-                    vint8m1_t _p = vle8_v_i8m1(ptr, vl);
-                    vsse8_v_i8m1(outptr, size * sizeof(signed char), _p, vl);
+                    vint8m1_t _p = __riscv_vle8_v_i8m1(ptr, vl);
+                    __riscv_vsse8_v_i8m1(outptr, size * sizeof(signed char), _p, vl);
 
                     ptr += vl;
                     outptr += 1;
@@ -458,10 +464,10 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e8m8(n);
+                    size_t vl = __riscv_vsetvl_e8m8(n);
 
-                    vint8m8_t _p = vle8_v_i8m8(ptr, vl);
-                    vse8_v_i8m8(outptr, _p, vl);
+                    vint8m8_t _p = __riscv_vle8_v_i8m8(ptr, vl);
+                    __riscv_vse8_v_i8m8(outptr, _p, vl);
 
                     ptr += vl;
                     outptr += vl;

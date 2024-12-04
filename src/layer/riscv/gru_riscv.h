@@ -29,7 +29,7 @@ public:
     virtual int create_pipeline(const Option& opt);
 
 protected:
-#if __riscv_vector && __riscv_zfh
+#if NCNN_ZFH
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;

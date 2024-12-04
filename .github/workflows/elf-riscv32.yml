@@ -1,9 +1,9 @@
-name: elf-riscv32-cpu-gcc
+name: elf-riscv32
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/elf-riscv32-cpu-gcc.yml'
+    - '.github/workflows/elf-riscv32.yml'
     - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
@@ -14,7 +14,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/elf-riscv32-cpu-gcc.yml'
+    - '.github/workflows/elf-riscv32.yml'
     - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
@@ -23,7 +23,7 @@ on:
     - 'src/layer/riscv/**'
     - 'tests/**'
 concurrency:
-  group: elf-riscv32-cpu-gcc-${{ github.ref }}
+  group: elf-riscv32-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read

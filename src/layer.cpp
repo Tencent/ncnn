@@ -553,6 +553,13 @@ Layer* create_layer_cpu(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_RVV
+#if NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
+    if (ncnn::cpu_support_riscv_xtheadvector())
+    {
+        layer_creator = layer_registry_xtheadvector[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
     {
         layer_creator = layer_registry_arch[index].creator;
     }

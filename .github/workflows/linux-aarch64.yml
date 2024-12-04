@@ -1,9 +1,9 @@
-name: linux-aarch64-cpu-gcc
+name: linux-aarch64
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/linux-aarch64-cpu-gcc.yml'
+    - '.github/workflows/linux-aarch64.yml'
     - 'toolchains/aarch64-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
@@ -14,7 +14,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/linux-aarch64-cpu-gcc.yml'
+    - '.github/workflows/linux-aarch64.yml'
     - 'toolchains/aarch64-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
@@ -23,13 +23,13 @@ on:
     - 'src/layer/arm/**'
     - 'tests/**'
 concurrency:
-  group: linux-aarch64-cpu-gcc-${{ github.ref }}
+  group: linux-aarch64-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
 
 jobs:
-  linux-gcc:
+  gcc-aarch64:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -98,7 +98,7 @@ jobs:
         cd build-simplestl-simplemath
         TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j $(nproc)
 
-  linux-gcc-arm82:
+  gcc-arm82:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -156,7 +156,7 @@ jobs:
         cd build-noint8
         TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j $(nproc)
 
-  linux-gcc-arm86:
+  gcc-arm86:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4

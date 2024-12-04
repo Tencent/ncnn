@@ -56,54 +56,16 @@ jobs:
     - name: codecov
       id: codecov
       continue-on-error: true
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-1
-      continue-on-error: true
-      id: codecov-vlen256-retry-1
-      if: steps.codecov.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-2
-      continue-on-error: true
-      id: codecov-vlen256-retry-2
-      if: steps.codecov-vlen256-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-3
-      continue-on-error: true
-      id: codecov-vlen256-retry-3
-      if: steps.codecov-vlen256-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-4
-      continue-on-error: true
-      id: codecov-vlen256-retry-4
-      if: steps.codecov-vlen256-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-5
-      continue-on-error: true
-      id: codecov-vlen256-retry-5
-      if: steps.codecov-vlen256-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
     - name: set the status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov.outcome=='success' }}; then
            echo fine
         else
            exit 1
@@ -141,7 +103,53 @@ jobs:
         lcov -r lcov.info '*/build-avx512-spr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-avx512-spr
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-avx512-spr/lcov.info
+        disable_search: true
+        plugins: noop
+        files: build-avx512-spr/lcov.info
+
+  linux-gcc-riscv64-rvv:
+    strategy:
+      matrix:
+        openmp: [ON, OFF]
+    runs-on: [self-hosted, linux, ubuntu]
+    steps:
+    - uses: actions/checkout@v4
+    - name: build
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/riscv
+        mkdir build
+        cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_ZFH=ON -DNCNN_ZVFH=ON -DNCNN_OPENMP=${{ matrix.openmp }} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test-vlen256
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+    - name: test-vlen128
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov --gcov-tool /data/action/osd/riscv/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/install/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info

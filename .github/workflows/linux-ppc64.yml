@@ -1,9 +1,9 @@
-name: linux-ppc64-cpu-gcc
+name: linux-ppc64
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/linux-ppc64-cpu-gcc.yml'
+    - '.github/workflows/linux-ppc64.yml'
     - 'toolchains/powerpc64le-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
@@ -14,7 +14,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/linux-ppc64-cpu-gcc.yml'
+    - '.github/workflows/linux-ppc64.yml'
     - 'toolchains/powerpc64le-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
@@ -23,13 +23,13 @@ on:
     - 'src/layer/x86/*'
     - 'tests/**'
 concurrency:
-  group: linux-ppc64-cpu-gcc-${{ github.ref }}
+  group: linux-ppc64-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
 
 jobs:
-  linux-gcc-ppc:
+  gcc-ppc:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -76,7 +76,7 @@ jobs:
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-ppc TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j $(nproc)
 
-  linux-gcc-ppc64le:
+  gcc-ppc64le:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -123,7 +123,7 @@ jobs:
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
 
-  linux-gcc-power8le-vsx:
+  gcc-power8le-vsx:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -169,7 +169,7 @@ jobs:
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power8_v2.0" ctest --output-on-failure -j $(nproc)
-  linux-gcc-power9le-vsx:
+  gcc-power9le-vsx:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4

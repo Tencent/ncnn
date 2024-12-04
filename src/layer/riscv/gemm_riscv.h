@@ -30,9 +30,8 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
-    // public:
+public:
     int nT;
-    size_t vl;
     Mat AT_data;
     Mat BT_data;
     Mat CT_data;
