@@ -60,6 +60,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
+        plugins: noop
         files: build/lcov.info
     - name: set the status
       if: always()
@@ -106,6 +107,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
+        plugins: noop
         files: build-avx512-spr/lcov.info
 
   linux-gcc-riscv64-rvv:
@@ -149,4 +151,5 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
+        plugins: noop
         files: build/lcov.info
