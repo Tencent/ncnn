@@ -4154,7 +4154,7 @@ static void transpose_compute_A_tile_fp32_int8_scales(const Mat& A, Mat& scales,
             _tmp0 = _mm512_unpacklo_ps(_absmax0_avx512, _absmax1_avx512);
             _tmp1 = _mm512_unpackhi_ps(_absmax0_avx512, _absmax1_avx512);
             __m512 _absmax_avx512 = _mm512_max_ps(_tmp0, _tmp1);
-            _absmax_avx512 = _mm512_permutexvar_ps(_mm512_setr_epi32(0,8,1,9,2,10,3,11,4,12,5,13,6,14,7,15), _absmax_avx512);
+            _absmax_avx512 = _mm512_permutexvar_ps(_mm512_setr_epi32(0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15), _absmax_avx512);
             __m256 _absmax0_avx = _mm512_extractf32x8_ps(_absmax_avx512, 0);
             __m256 _absmax1_avx = _mm512_extractf32x8_ps(_absmax_avx512, 1);
             __m256 _absmax_avx = _mm256_max_ps(_absmax0_avx, _absmax1_avx);
@@ -4177,7 +4177,7 @@ static void transpose_compute_A_tile_fp32_int8_scales(const Mat& A, Mat& scales,
             _tmp0 = _mm512_unpacklo_ps(_absmax0_avx512, _absmax1_avx512);
             _tmp1 = _mm512_unpackhi_ps(_absmax0_avx512, _absmax1_avx512);
             __m512 _absmax_avx512 = _mm512_max_ps(_tmp0, _tmp1);
-            _absmax_avx512 = _mm512_permutexvar_ps(_mm512_setr_epi32(0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15), _absmax_avx512);
+            _absmax_avx512 = _mm512_permutexvar_ps(_mm512_setr_epi32(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15), _absmax_avx512);
             __m512 _scale0 = _mm512_div_ps(_mm512_set1_ps(127.f), _absmax_avx512);
             __m512 _out_descale0 = _mm512_div_ps(_absmax_avx512, _mm512_set1_ps(v127_B_scale));
             _mm512_store_ps(ps, _scale0);
@@ -19537,7 +19537,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             __m256i _sum1;
             __m256i _sum2;
             __m256i _sum3;
-#else // __AVX2__
+#else  // __AVX2__
             __m128i _sum0;
             __m128i _sum1;
             __m128i _sum2;
@@ -19555,7 +19555,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum1 = _mm256_setzero_si256();
                 _sum2 = _mm256_setzero_si256();
                 _sum3 = _mm256_setzero_si256();
-#else // __AVX2__
+#else  // __AVX2__
                 _sum0 = _mm_setzero_si128();
                 _sum1 = _mm_setzero_si128();
                 _sum2 = _mm_setzero_si128();
@@ -19573,7 +19573,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _sum1 = _mm256_loadu_si256((const __m256i*)(outptr + 8));
                 _sum2 = _mm256_loadu_si256((const __m256i*)(outptr + 16));
                 _sum3 = _mm256_loadu_si256((const __m256i*)(outptr + 24));
-#else // __AVX2__
+#else  // __AVX2__
                 _sum0 = _mm_load_si128((const __m128i*)outptr);
                 _sum1 = _mm_load_si128((const __m128i*)(outptr + 4));
                 _sum2 = _mm_load_si128((const __m128i*)(outptr + 8));
@@ -19769,7 +19769,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             _mm256_storeu_si256((__m256i*)(outptr + 8), _sum1);
             _mm256_storeu_si256((__m256i*)(outptr + 16), _sum2);
             _mm256_storeu_si256((__m256i*)(outptr + 24), _sum3);
-#else // __AVX2__
+#else  // __AVX2__
             _mm_store_si128((__m128i*)outptr, _sum0);
             _mm_store_si128((__m128i*)(outptr + 4), _sum1);
             _mm_store_si128((__m128i*)(outptr + 8), _sum2);
@@ -20356,7 +20356,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
                 _sum0 = _mm256_add_epi32(_sum0, _s0);
                 _sum1 = _mm256_add_epi32(_sum1, _s1);
-#else // __AVX2__
+#else  // __AVX2__
                 __m128i _sl0 = _mm_mullo_epi16(_pA0, _pB);
                 __m128i _sh0 = _mm_mulhi_epi16(_pA0, _pB);
                 __m128i _sl1 = _mm_mullo_epi16(_pA1, _pB);
