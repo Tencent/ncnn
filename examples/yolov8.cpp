@@ -55,6 +55,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <float.h>
 #include <stdio.h>
+#if NCNN_SIMPLEOMP
+#include "simpleomp.h"
+#else
+#include <omp.h>
+#endif
 
 #define MAX_STRIDE 32
 
@@ -173,35 +178,47 @@ static void parse_yolov8_detections(
     std::vector<Object> detections;
     cv::Mat output = cv::Mat((int)num_channels, (int)num_anchors, CV_32F, inputs).t();
 
-    for (int i = 0; i < num_anchors; i++)
+    const size_t stride = num_anchors;
+    const size_t num_threads = omp_get_max_threads();
+    const size_t chunk_size = stride / num_threads;
+    #pragma omp parallel shared(detections)
     {
-        const float* row_ptr = output.row(i).ptr<float>();
-        const float* bboxes_ptr = row_ptr;
-        const float* scores_ptr = row_ptr + 4;
-        const float* max_s_ptr = std::max_element(scores_ptr, scores_ptr + num_labels);
-        float score = *max_s_ptr;
-        if (score > confidence_threshold)
+        const size_t thread_id = omp_get_thread_num();
+        const size_t start_idx = thread_id * chunk_size;
+        const size_t end_idx = (thread_id == num_threads - 1) ? stride : (start_idx + chunk_size);
+        for (int i = start_idx; i < end_idx; i++)
         {
-            float x = *bboxes_ptr++;
-            float y = *bboxes_ptr++;
-            float w = *bboxes_ptr++;
-            float h = *bboxes_ptr;
+            const float* row_ptr = output.row(i).ptr<float>();
+            const float* bboxes_ptr = row_ptr;
+            const float* scores_ptr = row_ptr + 4;
+            const float* max_s_ptr = std::max_element(scores_ptr, scores_ptr + num_labels);
+            float score = *max_s_ptr;
+            if (score > confidence_threshold)
+            {
+                float x = *bboxes_ptr++;
+                float y = *bboxes_ptr++;
+                float w = *bboxes_ptr++;
+                float h = *bboxes_ptr;
 
-            float x0 = clampf((x - 0.5f * w), 0.f, (float)infer_img_width);
-            float y0 = clampf((y - 0.5f * h), 0.f, (float)infer_img_height);
-            float x1 = clampf((x + 0.5f * w), 0.f, (float)infer_img_width);
-            float y1 = clampf((y + 0.5f * h), 0.f, (float)infer_img_height);
+                float x0 = clampf((x - 0.5f * w), 0.f, (float)infer_img_width);
+                float y0 = clampf((y - 0.5f * h), 0.f, (float)infer_img_height);
+                float x1 = clampf((x + 0.5f * w), 0.f, (float)infer_img_width);
+                float y1 = clampf((y + 0.5f * h), 0.f, (float)infer_img_height);
 
-            cv::Rect_<float> bbox;
-            bbox.x = x0;
-            bbox.y = y0;
-            bbox.width = x1 - x0;
-            bbox.height = y1 - y0;
-            Object object;
-            object.label = max_s_ptr - scores_ptr;
-            object.prob = score;
-            object.rect = bbox;
-            detections.push_back(object);
+                cv::Rect_<float> bbox;
+                bbox.x = x0;
+                bbox.y = y0;
+                bbox.width = x1 - x0;
+                bbox.height = y1 - y0;
+                Object object;
+                object.label = max_s_ptr - scores_ptr;
+                object.prob = score;
+                object.rect = bbox;
+                #pragma omp critical
+                {
+                    detections.push_back(object);
+                }
+            }
         }
     }
     objects = detections;
