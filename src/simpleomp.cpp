@@ -25,6 +25,13 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+#if defined(_MSC_VER)
+void omp_parallel_for(int start, int end, std::function<void(int)> task, int numThreads)
+{
+    parallelFor(start, end, task, numThreads);
+}
+#endif
+
 #if __clang__
 extern "C" typedef void (*kmpc_micro)(int32_t* gtid, int32_t* tid, ...);
 extern "C" typedef void (*kmpc_micro_0)(int32_t* gtid, int32_t* tid);
@@ -800,4 +807,26 @@ void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned
 } // extern "C"
 #endif
 
-#endif // NCNN_SIMPLEOMP
+void parallelFor(int start, int end, std::function<void(int)> task, int numThreads)
+{
+    int step = (end - start) / numThreads;
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numThreads; ++i)
+    {
+        int threadStart = start + i * step;
+        int threadEnd = (i == numThreads - 1) ? end : threadStart + step;
+        threads.push_back(std::thread([threadStart, threadEnd, &task]() {
+            for (int j = threadStart; j < threadEnd; ++j)
+            {
+                task(j);
+            }
+        }))
+    }
+    for (auto& th : threads)
+    {
+        if (th.joinable())
+        {
+            th.join();
+        }
+    }
+}
