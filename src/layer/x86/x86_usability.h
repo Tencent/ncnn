@@ -908,6 +908,30 @@ static NCNN_FORCEINLINE __m256i _mm256_comp_dpbusd_epi32(__m256i src, __m256i a,
 }
 #endif // __AVX512VNNI__ || __AVXVNNI__
 
+static NCNN_FORCEINLINE __m128i _mm256_comp_cvtepi32_epi16(__m256i a)
+{
+#if __AVX512F__
+    return _mm256_cvtepi32_epi16(a);
+#else
+    __m128i _si = _mm_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, 0, 0, 0, 0, 0, 0, 0, 0);
+    __m256i _t = _mm256_shuffle_epi8(a, combine4x2_epi32(_si, _si));
+    _t = _mm256_permute4x64_epi64(_t, _MM_SHUFFLE(3, 1, 2, 0));
+    return _mm256_castsi256_si128(_t);
+#endif
+}
+
+static NCNN_FORCEINLINE __m128i _mm256_comp_cvtepi32_epi8(__m256i a)
+{
+#if __AVX512F__
+    return _mm256_cvtepi32_epi8(a);
+#else
+    __m128i _si = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, 0, 0, 0, 0, 0, 0, 0, 0);
+    __m256i _t = _mm256_shuffle_epi8(a, combine4x2_epi32(_si, _si));
+    _t = _mm256_permute4x64_epi64(_t, _MM_SHUFFLE(3, 1, 2, 0));
+    return _mm256_castsi256_si128(_t);
+#endif
+}
+
 static NCNN_FORCEINLINE void transpose8x2_epi32(__m256i& _r0, __m256i& _r1)
 {
     __m256i _tmp0 = _mm256_unpacklo_epi32(_r0, _r1);
