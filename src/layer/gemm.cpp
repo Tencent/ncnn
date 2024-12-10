@@ -222,7 +222,7 @@ static void gemm_transB_int8(const Mat& A_int8, const Mat& BT_int8, const Mat& A
 
     // NCNN_LOGE("naive ds %f %f", A_int8_scales[0], BT_int8_scale);
 
-    // #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < M; i++)
     {
         const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
@@ -241,7 +241,6 @@ static void gemm_transB_int8(const Mat& A_int8, const Mat& BT_int8, const Mat& A
             int sum = 0;
             for (int k = 0; k < K; k++)
             {
-                // NCNN_LOGE("ptrA[%d] %d", k, ptrA[k]);
                 sum += ptrA[k] * ptrBT[k];
             }
 
@@ -501,10 +500,10 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 absmax = std::max(absmax, (float)fabs(ptr[k]));
             }
 
-            // NCNN_LOGE("A[%d] absmax %f", i, absmax);
-
             float A_int8_scale = absmax == 0.f ? 1.f : 127.f / absmax;
             A_int8_scales[i] = A_int8_scale;
+
+            // NCNN_LOGE("A[%d] absmax %.9f   %.9f", i, absmax, A_int8_scale);
 
             signed char* ptrAi = A_int8.row<signed char>(i);
 
