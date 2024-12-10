@@ -3054,88 +3054,65 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k * elempack;
 
-        const float scale0 = scales[i + ii];
-        const float scale1 = scales[i + ii + 1];
-        const float scale2 = scales[i + ii + 2];
-        const float scale3 = scales[i + ii + 3];
-
-        // NCNN_LOGE("scale %f %f %f %f", scale0, scale1, scale2, scale3);
+        __m128 _scales = _mm_loadu_ps((const float*)scales + i + ii);
+#if __AVX512VNNI__ || __AVXVNNI__
+        __m128i _v127 = _mm_set1_epi8(127);
+#endif // __AVX512VNNI__ || __AVXVNNI__
 
         if (elempack == 4)
         {
             int kk = 0;
 #if __AVX512VNNI__ || __AVXVNNI__
-            int w_shift0 = 0;
-            int w_shift1 = 0;
-            int w_shift2 = 0;
-            int w_shift3 = 0;
+            __m128i _w_shift = _mm_setzero_si128();
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = float2int8(p0[0] * scale0);
-                pp[1] = float2int8(p0[4] * scale0);
-                pp[2] = float2int8(p0[8] * scale0);
-                pp[3] = float2int8(p0[12] * scale0);
-                pp[4] = float2int8(p0[1] * scale1);
-                pp[5] = float2int8(p0[5] * scale1);
-                pp[6] = float2int8(p0[9] * scale1);
-                pp[7] = float2int8(p0[13] * scale1);
-                pp[8] = float2int8(p0[2] * scale2);
-                pp[9] = float2int8(p0[6] * scale2);
-                pp[10] = float2int8(p0[10] * scale2);
-                pp[11] = float2int8(p0[14] * scale2);
-                pp[12] = float2int8(p0[3] * scale3);
-                pp[13] = float2int8(p0[7] * scale3);
-                pp[14] = float2int8(p0[11] * scale3);
-                pp[15] = float2int8(p0[15] * scale3);
-                w_shift0 += pp[0];
-                w_shift0 += pp[1];
-                w_shift0 += pp[2];
-                w_shift0 += pp[3];
-                w_shift1 += pp[4];
-                w_shift1 += pp[5];
-                w_shift1 += pp[6];
-                w_shift1 += pp[7];
-                w_shift2 += pp[8];
-                w_shift2 += pp[9];
-                w_shift2 += pp[10];
-                w_shift2 += pp[11];
-                w_shift3 += pp[12];
-                w_shift3 += pp[13];
-                w_shift3 += pp[14];
-                w_shift3 += pp[15];
+                __m128 _p0 = _mm_loadu_ps(p0);
+                __m128 _p1 = _mm_loadu_ps(p0 + 4);
+                __m128 _p2 = _mm_loadu_ps(p0 + 8);
+                __m128 _p3 = _mm_loadu_ps(p0 + 12);
+
+                _p0 = _mm_mul_ps(_p0, _scales);
+                _p1 = _mm_mul_ps(_p1, _scales);
+                _p2 = _mm_mul_ps(_p2, _scales);
+                _p3 = _mm_mul_ps(_p3, _scales);
+
+                __m128i _pp = float2int8_sse(_p0, _p1, _p2, _p3);
+
+                __m128i _si = _mm_setr_epi8(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15);
+                _pp = _mm_shuffle_epi8(_pp, _si);
+
+                _w_shift = _mm_comp_dpbusd_epi32(_w_shift, _v127, _pp);
+
+                _mm_storeu_si128((__m128i*)pp, _pp);
+
                 pp += 16;
                 p0 += 16;
             }
             if (max_kk >= 4)
             {
-                ((int*)pp)[0] = w_shift0 * 127;
-                ((int*)pp)[1] = w_shift1 * 127;
-                ((int*)pp)[2] = w_shift2 * 127;
-                ((int*)pp)[3] = w_shift3 * 127;
+                _mm_storeu_si128((__m128i*)pp, _w_shift);
                 pp += 16;
             }
 #endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = float2int8(p0[0] * scale0);
-                pp[1] = float2int8(p0[4] * scale0);
-                pp[2] = float2int8(p0[1] * scale1);
-                pp[3] = float2int8(p0[5] * scale1);
-                pp[4] = float2int8(p0[2] * scale2);
-                pp[5] = float2int8(p0[6] * scale2);
-                pp[6] = float2int8(p0[3] * scale3);
-                pp[7] = float2int8(p0[7] * scale3);
-
+                __m128 _p0 = _mm_loadu_ps(p0);
+                __m128 _p1 = _mm_loadu_ps(p0 + 4);
+                _p0 = _mm_mul_ps(_p0, _scales);
+                _p1 = _mm_mul_ps(_p1, _scales);
+                __m128 _t0 = _mm_unpacklo_ps(_p0, _p1);
+                __m128 _t1 = _mm_unpackhi_ps(_p0, _p1);
+                int64_t v = float2int8_sse(_t0, _t1);
+                *(int64_t*)pp = v;
                 pp += 8;
                 p0 += 8;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(p0[0] * scale0);
-                pp[1] = float2int8(p0[1] * scale1);
-                pp[2] = float2int8(p0[2] * scale2);
-                pp[3] = float2int8(p0[3] * scale3);
-
+                __m128 _p = _mm_loadu_ps(p0);
+                _p = _mm_mul_ps(_p, _scales);
+                int32_t v = float2int8_sse(_p);
+                *(int32_t*)pp = v;
                 pp += 4;
                 p0 += 4;
             }
@@ -3144,77 +3121,73 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         {
             int kk = 0;
 #if __AVX512VNNI__ || __AVXVNNI__
-            int w_shift0 = 0;
-            int w_shift1 = 0;
-            int w_shift2 = 0;
-            int w_shift3 = 0;
+            __m128i _w_shift = _mm_setzero_si128();
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = float2int8(p0[0] * scale0);
-                pp[1] = float2int8(p0[1] * scale0);
-                pp[2] = float2int8(p0[2] * scale0);
-                pp[3] = float2int8(p0[3] * scale0);
-                pp[4] = float2int8(p0[A_hstep] * scale1);
-                pp[5] = float2int8(p0[A_hstep + 1] * scale1);
-                pp[6] = float2int8(p0[A_hstep + 2] * scale1);
-                pp[7] = float2int8(p0[A_hstep + 3] * scale1);
-                pp[8] = float2int8(p0[A_hstep * 2] * scale2);
-                pp[9] = float2int8(p0[A_hstep * 2 + 1] * scale2);
-                pp[10] = float2int8(p0[A_hstep * 2 + 2] * scale2);
-                pp[11] = float2int8(p0[A_hstep * 2 + 3] * scale2);
-                pp[12] = float2int8(p0[A_hstep * 3] * scale3);
-                pp[13] = float2int8(p0[A_hstep * 3 + 1] * scale3);
-                pp[14] = float2int8(p0[A_hstep * 3 + 2] * scale3);
-                pp[15] = float2int8(p0[A_hstep * 3 + 3] * scale3);
-                w_shift0 += pp[0];
-                w_shift0 += pp[1];
-                w_shift0 += pp[2];
-                w_shift0 += pp[3];
-                w_shift1 += pp[4];
-                w_shift1 += pp[5];
-                w_shift1 += pp[6];
-                w_shift1 += pp[7];
-                w_shift2 += pp[8];
-                w_shift2 += pp[9];
-                w_shift2 += pp[10];
-                w_shift2 += pp[11];
-                w_shift3 += pp[12];
-                w_shift3 += pp[13];
-                w_shift3 += pp[14];
-                w_shift3 += pp[15];
+                __m128 _p0 = _mm_loadu_ps(p0);
+                __m128 _p1 = _mm_loadu_ps(p0 + A_hstep);
+                __m128 _p2 = _mm_loadu_ps(p0 + A_hstep * 2);
+                __m128 _p3 = _mm_loadu_ps(p0 + A_hstep * 3);
+
+                _MM_TRANSPOSE4_PS(_p0, _p1, _p2, _p3);
+
+                _p0 = _mm_mul_ps(_p0, _scales);
+                _p1 = _mm_mul_ps(_p1, _scales);
+                _p2 = _mm_mul_ps(_p2, _scales);
+                _p3 = _mm_mul_ps(_p3, _scales);
+
+                __m128i _pp = float2int8_sse(_p0, _p1, _p2, _p3);
+
+                __m128i _si = _mm_setr_epi8(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15);
+                _pp = _mm_shuffle_epi8(_pp, _si);
+
+                _w_shift = _mm_comp_dpbusd_epi32(_w_shift, _v127, _pp);
+
+                _mm_storeu_si128((__m128i*)pp, _pp);
+
                 pp += 16;
                 p0 += 4;
             }
             if (max_kk >= 4)
             {
-                ((int*)pp)[0] = w_shift0 * 127;
-                ((int*)pp)[1] = w_shift1 * 127;
-                ((int*)pp)[2] = w_shift2 * 127;
-                ((int*)pp)[3] = w_shift3 * 127;
+                _mm_storeu_si128((__m128i*)pp, _w_shift);
                 pp += 16;
             }
 #endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = float2int8(p0[0] * scale0);
-                pp[1] = float2int8(p0[1] * scale0);
-                pp[2] = float2int8(p0[A_hstep] * scale1);
-                pp[3] = float2int8(p0[A_hstep + 1] * scale1);
-                pp[4] = float2int8(p0[A_hstep * 2] * scale2);
-                pp[5] = float2int8(p0[A_hstep * 2 + 1] * scale2);
-                pp[6] = float2int8(p0[A_hstep * 3] * scale3);
-                pp[7] = float2int8(p0[A_hstep * 3 + 1] * scale3);
+#if __AVX2__
+                __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+                _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(A_hstep));
 
+                __m128 _p0 = _mm_i32gather_ps(p0, _vindex, sizeof(float));
+                __m128 _p1 = _mm_i32gather_ps(p0 + 1, _vindex, sizeof(float));
+#else
+                __m128 _p0 = _mm_setr_ps(p0[0], p0[A_hstep], p0[A_hstep * 2], p0[A_hstep * 3]);
+                __m128 _p1 = _mm_setr_ps(p0[1], p0[A_hstep + 1], p0[A_hstep * 2 + 1], p0[A_hstep * 3 + 1]);
+#endif
+                _p0 = _mm_mul_ps(_p0, _scales);
+                _p1 = _mm_mul_ps(_p1, _scales);
+                __m128 _t0 = _mm_unpacklo_ps(_p0, _p1);
+                __m128 _t1 = _mm_unpackhi_ps(_p0, _p1);
+                int64_t v = float2int8_sse(_t0, _t1);
+                *(int64_t*)pp = v;
                 pp += 8;
                 p0 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(p0[0] * scale0);
-                pp[1] = float2int8(p0[A_hstep] * scale1);
-                pp[2] = float2int8(p0[A_hstep * 2] * scale2);
-                pp[3] = float2int8(p0[A_hstep * 3] * scale3);
+#if __AVX2__
+                __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+                _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(A_hstep));
 
+                __m128 _p = _mm_i32gather_ps(p0, _vindex, sizeof(float));
+#else
+                __m128 _p = _mm_setr_ps(p0[0], p0[A_hstep], p0[A_hstep * 2], p0[A_hstep * 3]);
+#endif
+                _p = _mm_mul_ps(_p, _scales);
+                int32_t v = float2int8_sse(_p);
+                *(int32_t*)pp = v;
                 pp += 4;
                 p0++;
             }
@@ -6894,28 +6867,35 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
     {
         const float* p0 = (const float*)B + (j + jj) * B_hstep + k * elempack;
 
+        __m128 _scale = _mm_set1_ps(scale);
+#if __AVX512VNNI__ || __AVXVNNI__
+        __m128i _v127 = _mm_set1_epi8(127);
+#endif // __AVX512VNNI__ || __AVXVNNI__
+
         if (elempack == 4)
         {
             int kk = 0;
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = float2int8(p0[0] * scale) + 127;
-                pp[1] = float2int8(p0[4] * scale) + 127;
-                pp[2] = float2int8(p0[8] * scale) + 127;
-                pp[3] = float2int8(p0[12] * scale) + 127;
-                pp[4] = float2int8(p0[1] * scale) + 127;
-                pp[5] = float2int8(p0[5] * scale) + 127;
-                pp[6] = float2int8(p0[9] * scale) + 127;
-                pp[7] = float2int8(p0[13] * scale) + 127;
-                pp[8] = float2int8(p0[2] * scale) + 127;
-                pp[9] = float2int8(p0[6] * scale) + 127;
-                pp[10] = float2int8(p0[10] * scale) + 127;
-                pp[11] = float2int8(p0[14] * scale) + 127;
-                pp[12] = float2int8(p0[3] * scale) + 127;
-                pp[13] = float2int8(p0[7] * scale) + 127;
-                pp[14] = float2int8(p0[11] * scale) + 127;
-                pp[15] = float2int8(p0[15] * scale) + 127;
+                __m128 _p0 = _mm_loadu_ps(p0);
+                __m128 _p1 = _mm_loadu_ps(p0 + 4);
+                __m128 _p2 = _mm_loadu_ps(p0 + 8);
+                __m128 _p3 = _mm_loadu_ps(p0 + 12);
+
+                _p0 = _mm_mul_ps(_p0, _scale);
+                _p1 = _mm_mul_ps(_p1, _scale);
+                _p2 = _mm_mul_ps(_p2, _scale);
+                _p3 = _mm_mul_ps(_p3, _scale);
+
+                __m128i _pp = float2int8_sse(_p0, _p1, _p2, _p3);
+
+                __m128i _si = _mm_setr_epi8(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15);
+                _pp = _mm_shuffle_epi8(_pp, _si);
+
+                _pp = _mm_add_epi8(_pp, _v127);
+
+                _mm_storeu_si128((__m128i*)pp, _pp);
 
                 pp += 16;
                 p0 += 16;
@@ -6923,25 +6903,23 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = float2int8(p0[0] * scale);
-                pp[1] = float2int8(p0[4] * scale);
-                pp[2] = float2int8(p0[1] * scale);
-                pp[3] = float2int8(p0[5] * scale);
-                pp[4] = float2int8(p0[2] * scale);
-                pp[5] = float2int8(p0[6] * scale);
-                pp[6] = float2int8(p0[3] * scale);
-                pp[7] = float2int8(p0[7] * scale);
-
+                __m128 _p0 = _mm_loadu_ps(p0);
+                __m128 _p1 = _mm_loadu_ps(p0 + 4);
+                _p0 = _mm_mul_ps(_p0, _scale);
+                _p1 = _mm_mul_ps(_p1, _scale);
+                __m128 _t0 = _mm_unpacklo_ps(_p0, _p1);
+                __m128 _t1 = _mm_unpackhi_ps(_p0, _p1);
+                int64_t v = float2int8_sse(_t0, _t1);
+                *(int64_t*)pp = v;
                 pp += 8;
                 p0 += 8;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(p0[0] * scale);
-                pp[1] = float2int8(p0[1] * scale);
-                pp[2] = float2int8(p0[2] * scale);
-                pp[3] = float2int8(p0[3] * scale);
-
+                __m128 _p = _mm_loadu_ps(p0);
+                _p = _mm_mul_ps(_p, _scale);
+                int32_t v = float2int8_sse(_p);
+                *(int32_t*)pp = v;
                 pp += 4;
                 p0 += 4;
             }
@@ -6952,22 +6930,21 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = float2int8(p0[0] * scale) + 127;
-                pp[1] = float2int8(p0[1] * scale) + 127;
-                pp[2] = float2int8(p0[2] * scale) + 127;
-                pp[3] = float2int8(p0[3] * scale) + 127;
-                pp[4] = float2int8(p0[B_hstep] * scale) + 127;
-                pp[5] = float2int8(p0[B_hstep + 1] * scale) + 127;
-                pp[6] = float2int8(p0[B_hstep + 2] * scale) + 127;
-                pp[7] = float2int8(p0[B_hstep + 3] * scale) + 127;
-                pp[8] = float2int8(p0[B_hstep * 2] * scale) + 127;
-                pp[9] = float2int8(p0[B_hstep * 2 + 1] * scale) + 127;
-                pp[10] = float2int8(p0[B_hstep * 2 + 2] * scale) + 127;
-                pp[11] = float2int8(p0[B_hstep * 2 + 3] * scale) + 127;
-                pp[12] = float2int8(p0[B_hstep * 3] * scale) + 127;
-                pp[13] = float2int8(p0[B_hstep * 3 + 1] * scale) + 127;
-                pp[14] = float2int8(p0[B_hstep * 3 + 2] * scale) + 127;
-                pp[15] = float2int8(p0[B_hstep * 3 + 3] * scale) + 127;
+                __m128 _p0 = _mm_loadu_ps(p0);
+                __m128 _p1 = _mm_loadu_ps(p0 + B_hstep);
+                __m128 _p2 = _mm_loadu_ps(p0 + B_hstep * 2);
+                __m128 _p3 = _mm_loadu_ps(p0 + B_hstep * 3);
+
+                _p0 = _mm_mul_ps(_p0, _scale);
+                _p1 = _mm_mul_ps(_p1, _scale);
+                _p2 = _mm_mul_ps(_p2, _scale);
+                _p3 = _mm_mul_ps(_p3, _scale);
+
+                __m128i _pp = float2int8_sse(_p0, _p1, _p2, _p3);
+
+                _pp = _mm_add_epi8(_pp, _v127);
+
+                _mm_storeu_si128((__m128i*)pp, _pp);
 
                 pp += 16;
                 p0 += 4;
@@ -6975,25 +6952,38 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = float2int8(p0[0] * scale);
-                pp[1] = float2int8(p0[1] * scale);
-                pp[2] = float2int8(p0[B_hstep] * scale);
-                pp[3] = float2int8(p0[B_hstep + 1] * scale);
-                pp[4] = float2int8(p0[B_hstep * 2] * scale);
-                pp[5] = float2int8(p0[B_hstep * 2 + 1] * scale);
-                pp[6] = float2int8(p0[B_hstep * 3] * scale);
-                pp[7] = float2int8(p0[B_hstep * 3 + 1] * scale);
+#if __AVX2__
+                __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+                _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(B_hstep));
 
+                __m128 _t0 = _mm_i32gather_ps(p0, _vindex, sizeof(float));
+                __m128 _t1 = _mm_i32gather_ps(p0 + 1, _vindex, sizeof(float));
+                __m128 _p0 = _mm_unpacklo_ps(_t0, _t1);
+                __m128 _p1 = _mm_unpackhi_ps(_t0, _t1);
+#else
+                __m128 _p0 = _mm_setr_ps(p0[0], p0[1], p0[B_hstep], p0[B_hstep + 1]);
+                __m128 _p1 = _mm_setr_ps(p0[B_hstep * 2], p0[B_hstep * 2 + 1], p0[B_hstep * 3], p0[B_hstep * 3 + 1]);
+#endif
+                _p0 = _mm_mul_ps(_p0, _scale);
+                _p1 = _mm_mul_ps(_p1, _scale);
+                int64_t v = float2int8_sse(_p0, _p1);
+                *(int64_t*)pp = v;
                 pp += 8;
                 p0 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = float2int8(p0[0] * scale);
-                pp[1] = float2int8(p0[B_hstep] * scale);
-                pp[2] = float2int8(p0[B_hstep * 2] * scale);
-                pp[3] = float2int8(p0[B_hstep * 3] * scale);
+#if __AVX2__
+                __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+                _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(B_hstep));
 
+                __m128 _p = _mm_i32gather_ps(p0, _vindex, sizeof(float));
+#else
+                __m128 _p = _mm_setr_ps(p0[0], p0[B_hstep], p0[B_hstep * 2], p0[B_hstep * 3]);
+#endif
+                _p = _mm_mul_ps(_p, _scale);
+                int32_t v = float2int8_sse(_p);
+                *(int32_t*)pp = v;
                 pp += 4;
                 p0++;
             }
