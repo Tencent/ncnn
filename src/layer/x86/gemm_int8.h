@@ -4939,7 +4939,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
 
                 __m128i _pp = float2int8_avx(_p0, _p1);
 
-                __m128i _si = _mm_setr_epi8(0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7 ,15);
+                __m128i _si = _mm_setr_epi8(0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15);
                 _pp = _mm_shuffle_epi8(_pp, _si);
 
 #if __AVX2__
@@ -7671,7 +7671,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 64;
                 p0 += B_hstep * 8;
             }
-#else  // __AVX512VNNI__ || __AVXVNNI__
+#else // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m256 _p0 = _mm256_loadu_ps(p0);
@@ -7759,7 +7759,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
                 pp += 32;
                 p0 += B_hstep * 4;
             }
-#else  // __AVX512VNNI__ || __AVXVNNI__
+#else // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
 #if __AVX__
@@ -7857,7 +7857,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
 
                 __m128i _pp = float2int8_avx(_p0, _p1);
 
-                __m128i _si = _mm_setr_epi8(0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7 ,15);
+                __m128i _si = _mm_setr_epi8(0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15);
                 _pp = _mm_shuffle_epi8(_pp, _si);
 #else
                 __m128 _p0 = _mm_loadu_ps(p0);
