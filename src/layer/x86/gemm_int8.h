@@ -257,7 +257,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         {
 #if __AVX2__
             __m128i _p = _mm_comp_cvtepi32_epi8(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
-            _mm_storeu_si32(pp, _p);
+            _mm_store_ss((float*)pp, _mm_castsi128_ps(_p));
             pp += 4;
             p0++;
 #else
@@ -861,7 +861,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         {
 #if __AVX2__
             __m128i _p = _mm_comp_cvtepi32_epi8(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
-            _mm_storeu_si32(pp, _p);
+            _mm_store_ss((float*)pp, _mm_castsi128_ps(_p));
             pp += 4;
             p0++;
 #else
