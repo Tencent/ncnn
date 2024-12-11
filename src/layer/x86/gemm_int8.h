@@ -7140,7 +7140,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             pp += 256;
 
             // from
-
             // 00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff
             // 01 12 23 30 45 56 67 74 89 9a ab b8 cd de ef fc
             // 20 31 02 13 64 75 46 57 a8 b9 8a 9b ec fd ce df
@@ -7158,42 +7157,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             // 68 79 4a 5b 2c 3d 0e 1f e0 f1 c2 d3 a4 b5 86 97
             // 69 7a 4b 58 2d 3e 0f 1c e1 f2 c3 d0 a5 b6 87 94
 
-            // _f0 = _mm512_setr_ps(0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff);
-            // _f1 = _mm512_setr_ps(0x01,0x12,0x23,0x30,0x45,0x56,0x67,0x74,0x89,0x9a,0xab,0xb8,0xcd,0xde,0xef,0xfc);
-            // _f2 = _mm512_setr_ps(0x20,0x31,0x02,0x13,0x64,0x75,0x46,0x57,0xa8,0xb9,0x8a,0x9b,0xec,0xfd,0xce,0xdf);
-            // _f3 = _mm512_setr_ps(0x21,0x32,0x03,0x10,0x65,0x76,0x47,0x54,0xa9,0xba,0x8b,0x98,0xed,0xfe,0xcf,0xdc);
-            // _f4 = _mm512_setr_ps(0x08,0x19,0x2a,0x3b,0x4c,0x5d,0x6e,0x7f,0x80,0x91,0xa2,0xb3,0xc4,0xd5,0xe6,0xf7);
-            // _f5 = _mm512_setr_ps(0x09,0x1a,0x2b,0x38,0x4d,0x5e,0x6f,0x7c,0x81,0x92,0xa3,0xb0,0xc5,0xd6,0xe7,0xf4);
-            // _f6 = _mm512_setr_ps(0x28,0x39,0x0a,0x1b,0x6c,0x7d,0x4e,0x5f,0xa0,0xb1,0x82,0x93,0xe4,0xf5,0xc6,0xd7);
-            // _f7 = _mm512_setr_ps(0x29,0x3a,0x0b,0x18,0x6d,0x7e,0x4f,0x5c,0xa1,0xb2,0x83,0x90,0xe5,0xf6,0xc7,0xd4);
-            // _f8 = _mm512_setr_ps(0x40,0x51,0x62,0x73,0x04,0x15,0x26,0x37,0xc8,0xd9,0xea,0xfb,0x8c,0x9d,0xae,0xbf);
-            // _f9 = _mm512_setr_ps(0x41,0x52,0x63,0x70,0x05,0x16,0x27,0x34,0xc9,0xda,0xeb,0xf8,0x8d,0x9e,0xaf,0xbc);
-            // _fa = _mm512_setr_ps(0x60,0x71,0x42,0x53,0x24,0x35,0x06,0x17,0xe8,0xf9,0xca,0xdb,0xac,0xbd,0x8e,0x9f);
-            // _fb = _mm512_setr_ps(0x61,0x72,0x43,0x50,0x25,0x36,0x07,0x14,0xe9,0xfa,0xcb,0xd8,0xad,0xbe,0x8f,0x9c);
-            // _fc = _mm512_setr_ps(0x48,0x59,0x6a,0x7b,0x0c,0x1d,0x2e,0x3f,0xc0,0xd1,0xe2,0xf3,0x84,0x95,0xa6,0xb7);
-            // _fd = _mm512_setr_ps(0x49,0x5a,0x6b,0x78,0x0d,0x1e,0x2f,0x3c,0xc1,0xd2,0xe3,0xf0,0x85,0x96,0xa7,0xb4);
-            // _fe = _mm512_setr_ps(0x68,0x79,0x4a,0x5b,0x2c,0x3d,0x0e,0x1f,0xe0,0xf1,0xc2,0xd3,0xa4,0xb5,0x86,0x97);
-            // _ff = _mm512_setr_ps(0x69,0x7a,0x4b,0x58,0x2d,0x3e,0x0f,0x1c,0xe1,0xf2,0xc3,0xd0,0xa5,0xb6,0x87,0x94);
-
-            // print(_f0);
-            // print(_f1);
-            // print(_f2);
-            // print(_f3);
-            // print(_f4);
-            // print(_f5);
-            // print(_f6);
-            // print(_f7);
-            // print(_f8);
-            // print(_f9);
-            // print(_fa);
-            // print(_fb);
-            // print(_fc);
-            // print(_fd);
-            // print(_fe);
-            // print(_ff);
-
             // to
-
             // 00 10 20 30  40 50 60 70  80 90 a0 b0  c0 d0 e0 f0
             // 01 11 21 31  41 51 61 71  81 91 a1 b1  c1 d1 e1 f1
             // 02 12 22 32  42 52 62 72  82 92 a2 b2  c2 d2 e2 f2
@@ -7221,26 +7185,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _fd = _mm512_permute_ps(_fd, _MM_SHUFFLE(2, 1, 0, 3));
                 _ff = _mm512_permute_ps(_ff, _MM_SHUFFLE(2, 1, 0, 3));
 
-                // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
-                // 30 01 12 23  74 45 56 67  b8 89 9a ab  fc cd de ef
-                // 20 31 02 13  64 75 46 57  a8 b9 8a 9b  ec fd ce df
-                // 10 21 32 03  54 65 76 47  98 a9 ba 8b  dc ed fe cf
-
-                // 08 19 2a 3b  4c 5d 6e 7f  80 91 a2 b3  c4 d5 e6 f7
-                // 38 09 1a 2b  7c 4d 5e 6f  b0 81 92 a3  f4 c5 d6 e7
-                // 28 39 0a 1b  6c 7d 4e 5f  a0 b1 82 93  e4 f5 c6 d7
-                // 18 29 3a 0b  5c 6d 7e 4f  90 a1 b2 83  d4 e5 f6 c7
-
-                // 40 51 62 73  04 15 26 37  c8 d9 ea fb  8c 9d ae bf
-                // 70 41 52 63  34 05 16 27  f8 c9 da eb  bc 8d 9e af
-                // 60 71 42 53  24 35 06 17  e8 f9 ca db  ac bd 8e 9f
-                // 50 61 72 43  14 25 36 07  d8 e9 fa cb  9c ad be 8f
-
-                // 48 59 6a 7b  0c 1d 2e 3f  c0 d1 e2 f3  84 95 a6 b7
-                // 78 49 5a 6b  3c 0d 1e 2f  f0 c1 d2 e3  b4 85 96 a7
-                // 68 79 4a 5b  2c 3d 0e 1f  e0 f1 c2 d3  a4 b5 86 97
-                // 58 69 7a 4b  1c 2d 3e 0f  d0 e1 f2 c3  94 a5 b6 87
-
                 __m512 _tmp0 = _mm512_unpacklo_ps(_f0, _f3);
                 __m512 _tmp1 = _mm512_unpackhi_ps(_f0, _f3);
                 __m512 _tmp2 = _mm512_unpacklo_ps(_f2, _f1);
@@ -7257,11 +7201,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 __m512 _tmpd = _mm512_unpackhi_ps(_fc, _ff);
                 __m512 _tmpe = _mm512_unpacklo_ps(_fe, _fd);
                 __m512 _tmpf = _mm512_unpackhi_ps(_fe, _fd);
-
-                // 00 10 11 21  44 54 55 65  88 98 99 a9  cc dc dd ed
-                // 22 32 33 03  66 76 77 47  aa ba bb 8b  ee fe ff cf
-                // 20 30 31 01  64 74 75 45  a8 b8 b9 89  ec fc fd cd
-                // 02 12 13 23  46 56 57 67  8a 9a 9b ab  ce de df ef
 
                 _f0 = _mm512_castpd_ps(_mm512_unpacklo_pd(_mm512_castps_pd(_tmp0), _mm512_castps_pd(_tmp2)));
                 _f1 = _mm512_castpd_ps(_mm512_unpackhi_pd(_mm512_castps_pd(_tmp0), _mm512_castps_pd(_tmp2)));
@@ -7280,11 +7219,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _fe = _mm512_castpd_ps(_mm512_unpacklo_pd(_mm512_castps_pd(_tmpf), _mm512_castps_pd(_tmpd)));
                 _ff = _mm512_castpd_ps(_mm512_unpackhi_pd(_mm512_castps_pd(_tmpf), _mm512_castps_pd(_tmpd)));
 
-                // 00 10 20 30  44 54 64 74  88 98 a8 b8  cc dc ec fc
-                // 11 21 31 01  55 65 75 45  99 a9 b9 89  dd ed fd cd
-                // 02 12 22 32  46 56 66 76  8a 9a aa ba  ce de ee fe
-                // 13 23 33 03  57 67 77 47  9b ab bb 8b  df ef ff cf
-
                 _f1 = _mm512_permute_ps(_f1, _MM_SHUFFLE(2, 1, 0, 3));
                 _f3 = _mm512_permute_ps(_f3, _MM_SHUFFLE(2, 1, 0, 3));
                 _f5 = _mm512_permute_ps(_f5, _MM_SHUFFLE(2, 1, 0, 3));
@@ -7293,44 +7227,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _fb = _mm512_permute_ps(_fb, _MM_SHUFFLE(2, 1, 0, 3));
                 _fd = _mm512_permute_ps(_fd, _MM_SHUFFLE(2, 1, 0, 3));
                 _ff = _mm512_permute_ps(_ff, _MM_SHUFFLE(2, 1, 0, 3));
-
-                // 00 10 20 30  44 54 64 74  88 98 a8 b8  cc dc ec fc
-                // 01 11 21 31  45 55 65 75  89 99 a9 b9  cd dd ed fd
-                // 02 12 22 32  46 56 66 76  8a 9a aa ba  ce de ee fe
-                // 03 13 23 33  47 57 67 77  8b 9b ab bb  cf df ef ff
-
-                // 08 18 28 38  4c 5c 6c 7c  80 90 a0 b0  c4 d4 e4 f4
-                // 09 19 29 39  4d 5d 6d 7d  81 91 a1 b1  c5 d5 e5 f5
-                // 0a 1a 2a 3a  4e 5e 6e 7e  82 92 a2 b2  c6 d6 e6 f6
-                // 0b 1b 2b 3b  4f 5f 6f 7f  83 93 a3 b3  c7 d7 e7 f7
-
-                // 40 50 60 70  04 14 24 34  c8 d8 e8 f8  8c 9c ac bc
-                // 41 51 61 71  05 15 25 35  c9 d9 e9 f9  8d 9d ad bd
-                // 42 52 62 72  06 16 26 36  ca da ea fa  8e 9e ae be
-                // 43 53 63 73  07 17 27 37  cb db eb fb  8f 9f af bf
-
-                // 48 58 68 78  0c 1c 2c 3c  c0 d0 e0 f0  84 94 a4 b4
-                // 49 59 69 79  0d 1d 2d 3d  c1 d1 e1 f1  85 95 a5 b5
-                // 4a 5a 6a 7a  0e 1e 2e 3e  c2 d2 e2 f2  86 96 a6 b6
-                // 4b 5b 6b 7b  0f 1f 2f 3f  c3 d3 e3 f3  87 97 a7 b7
-
-                // NCNN_LOGE("--------");
-                // print(_f0);
-                // print(_f1);
-                // print(_f2);
-                // print(_f3);
-                // print(_f4);
-                // print(_f5);
-                // print(_f6);
-                // print(_f7);
-                // print(_f8);
-                // print(_f9);
-                // print(_fa);
-                // print(_fb);
-                // print(_fc);
-                // print(_fd);
-                // print(_fe);
-                // print(_ff);
 
                 _tmp0 = _mm512_shuffle_f32x4(_f0, _f8, _MM_SHUFFLE(2, 0, 2, 0));
                 _tmp1 = _mm512_shuffle_f32x4(_f1, _f9, _MM_SHUFFLE(2, 0, 2, 0));
@@ -7349,42 +7245,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _tmpe = _mm512_shuffle_f32x4(_fe, _f6, _MM_SHUFFLE(3, 1, 3, 1));
                 _tmpf = _mm512_shuffle_f32x4(_ff, _f7, _MM_SHUFFLE(3, 1, 3, 1));
 
-                // 00 10 20 30  88 98 a8 b8  40 50 60 70  c8 d8 e8 f8
-                // 01 11 21 31  89 99 a9 b9  41 51 61 71  c9 d9 e9 f9
-                // 02 12 22 32  8a 9a aa ba  42 52 62 72  ca da ea fa
-                // 03 13 23 33  8b 9b ab bb  43 53 63 73  cb db eb fb
-                // 04 14 24 34  8c 9c ac bc  44 54 64 74  cc dc ec fc
-                // 05 15 25 35  8d 9d ad bd  45 55 65 75  cd dd ed fd
-                // 06 16 26 36  8e 9e ae be  46 56 66 76  ce de ee fe
-                // 07 17 27 37  8f 9f af bf  47 57 67 77  cf df ef ff
-
-                // 08 18 28 38  80 90 a0 b0  48 58 68 78  c0 d0 e0 f0
-                // 09 19 29 39  81 91 a1 b1  49 59 69 79  c1 d1 e1 f1
-                // 0a 1a 2a 3a  82 92 a2 b2  4a 5a 6a 7a  c2 d2 e2 f2
-                // 0b 1b 2b 3b  83 93 a3 b3  4b 5b 6b 7b  c3 d3 e3 f3
-                // 0c 1c 2c 3c  84 94 a4 b4  4c 5c 6c 7c  c4 d4 e4 f4
-                // 0d 1d 2d 3d  85 95 a5 b5  4d 5d 6d 7d  c5 d5 e5 f5
-                // 0e 1e 2e 3e  86 96 a6 b6  4e 5e 6e 7e  c6 d6 e6 f6
-                // 0f 1f 2f 3f  87 97 a7 b7  4f 5f 6f 7f  c7 d7 e7 f7
-
-                // NCNN_LOGE("--------");
-                // print(_tmp0);
-                // print(_tmp1);
-                // print(_tmp2);
-                // print(_tmp3);
-                // print(_tmp4);
-                // print(_tmp5);
-                // print(_tmp6);
-                // print(_tmp7);
-                // print(_tmp8);
-                // print(_tmp9);
-                // print(_tmpa);
-                // print(_tmpb);
-                // print(_tmpc);
-                // print(_tmpd);
-                // print(_tmpe);
-                // print(_tmpf);
-
                 _f0 = _mm512_shuffle_f32x4(_tmp0, _tmp8, _MM_SHUFFLE(3, 1, 2, 0));
                 _f1 = _mm512_shuffle_f32x4(_tmp1, _tmp9, _MM_SHUFFLE(3, 1, 2, 0));
                 _f2 = _mm512_shuffle_f32x4(_tmp2, _tmpa, _MM_SHUFFLE(3, 1, 2, 0));
@@ -7402,24 +7262,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _fe = _mm512_shuffle_f32x4(_tmpe, _tmp6, _MM_SHUFFLE(3, 1, 2, 0));
                 _ff = _mm512_shuffle_f32x4(_tmpf, _tmp7, _MM_SHUFFLE(3, 1, 2, 0));
             }
-
-            // NCNN_LOGE("--------");
-            // print(_f0);
-            // print(_f1);
-            // print(_f2);
-            // print(_f3);
-            // print(_f4);
-            // print(_f5);
-            // print(_f6);
-            // print(_f7);
-            // print(_f8);
-            // print(_f9);
-            // print(_fa);
-            // print(_fb);
-            // print(_fc);
-            // print(_fd);
-            // print(_fe);
-            // print(_ff);
 
             _f0 = _mm512_mul_ps(_f0, _descale);
             _f1 = _mm512_mul_ps(_f1, _descale);
@@ -7737,23 +7579,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
             if (output_transpose)
             {
-                // 00 10 20 30 40 50 60 70 80 90 a0 b0 c0 d0 e0 f0
-                // 01 11 21 31 41 51 61 71 81 91 a1 b1 c1 d1 e1 f1
-                // 02 12 22 32 42 52 62 72 82 92 a2 b2 c2 d2 e2 f2
-                // 03 13 23 33 43 53 63 73 83 93 a3 b3 c3 d3 e3 f3
-                // 04 14 24 34 44 54 64 74 84 94 a4 b4 c4 d4 e4 f4
-                // 05 15 25 35 45 55 65 75 85 95 a5 b5 c5 d5 e5 f5
-                // 06 16 26 36 46 56 66 76 86 96 a6 b6 c6 d6 e6 f6
-                // 07 17 27 37 47 57 67 77 87 97 a7 b7 c7 d7 e7 f7
-                // 08 18 28 38 48 58 68 78 88 98 a8 b8 c8 d8 e8 f8
-                // 09 19 29 39 49 59 69 79 89 99 a9 b9 c9 d9 e9 f9
-                // 0a 1a 2a 3a 4a 5a 6a 7a 8a 9a aa ba ca da ea fa
-                // 0b 1b 2b 3b 4b 5b 6b 7b 8b 9b ab bb cb db eb fb
-                // 0c 1c 2c 3c 4c 5c 6c 7c 8c 9c ac bc cc dc ec fc
-                // 0d 1d 2d 3d 4d 5d 6d 7d 8d 9d ad bd cd dd ed fd
-                // 0e 1e 2e 3e 4e 5e 6e 7e 8e 9e ae be ce de ee fe
-                // 0f 1f 2f 3f 4f 5f 6f 7f 8f 9f af bf cf df ef ff
-
                 if (out_elempack == 16)
                 {
                     transpose16x16_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7, _f8, _f9, _fa, _fb, _fc, _fd, _fe, _ff);
@@ -7803,26 +7628,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     transpose16x4_ps(_f4, _f5, _f6, _f7);
                     transpose16x4_ps(_f8, _f9, _fa, _fb);
                     transpose16x4_ps(_fc, _fd, _fe, _ff);
-
-                    // 00 10 20 30 40 50 60 70 80 90 a0 b0 c0 d0 e0 f0
-                    // 01 11 21 31 41 51 61 71 81 91 a1 b1 c1 d1 e1 f1
-                    // 02 12 22 32 42 52 62 72 82 92 a2 b2 c2 d2 e2 f2
-                    // 03 13 23 33 43 53 63 73 83 93 a3 b3 c3 d3 e3 f3
-
-                    // 04 14 24 34 44 54 64 74 84 94 a4 b4 c4 d4 e4 f4
-                    // 05 15 25 35 45 55 65 75 85 95 a5 b5 c5 d5 e5 f5
-                    // 06 16 26 36 46 56 66 76 86 96 a6 b6 c6 d6 e6 f6
-                    // 07 17 27 37 47 57 67 77 87 97 a7 b7 c7 d7 e7 f7
-
-                    // 08 18 28 38 48 58 68 78 88 98 a8 b8 c8 d8 e8 f8
-                    // 09 19 29 39 49 59 69 79 89 99 a9 b9 c9 d9 e9 f9
-                    // 0a 1a 2a 3a 4a 5a 6a 7a 8a 9a aa ba ca da ea fa
-                    // 0b 1b 2b 3b 4b 5b 6b 7b 8b 9b ab bb cb db eb fb
-
-                    // 0c 1c 2c 3c 4c 5c 6c 7c 8c 9c ac bc cc dc ec fc
-                    // 0d 1d 2d 3d 4d 5d 6d 7d 8d 9d ad bd cd dd ed fd
-                    // 0e 1e 2e 3e 4e 5e 6e 7e 8e 9e ae be ce de ee fe
-                    // 0f 1f 2f 3f 4f 5f 6f 7f 8f 9f af bf cf df ef ff
 
                     _mm512_storeu_ps(p0, _f0);
                     _mm512_storeu_ps(p0 + 16, _f1);
@@ -7886,23 +7691,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 8)
                 {
-                    // 00 10 20 30 40 50 60 70   80 90 a0 b0 c0 d0 e0 f0
-                    // 01 11 21 31 41 51 61 71   81 91 a1 b1 c1 d1 e1 f1
-                    // 02 12 22 32 42 52 62 72   82 92 a2 b2 c2 d2 e2 f2
-                    // 03 13 23 33 43 53 63 73   83 93 a3 b3 c3 d3 e3 f3
-                    // 04 14 24 34 44 54 64 74   84 94 a4 b4 c4 d4 e4 f4
-                    // 05 15 25 35 45 55 65 75   85 95 a5 b5 c5 d5 e5 f5
-                    // 06 16 26 36 46 56 66 76   86 96 a6 b6 c6 d6 e6 f6
-                    // 07 17 27 37 47 57 67 77   87 97 a7 b7 c7 d7 e7 f7
-                    // 08 18 28 38 48 58 68 78   88 98 a8 b8 c8 d8 e8 f8
-                    // 09 19 29 39 49 59 69 79   89 99 a9 b9 c9 d9 e9 f9
-                    // 0a 1a 2a 3a 4a 5a 6a 7a   8a 9a aa ba ca da ea fa
-                    // 0b 1b 2b 3b 4b 5b 6b 7b   8b 9b ab bb cb db eb fb
-                    // 0c 1c 2c 3c 4c 5c 6c 7c   8c 9c ac bc cc dc ec fc
-                    // 0d 1d 2d 3d 4d 5d 6d 7d   8d 9d ad bd cd dd ed fd
-                    // 0e 1e 2e 3e 4e 5e 6e 7e   8e 9e ae be ce de ee fe
-                    // 0f 1f 2f 3f 4f 5f 6f 7f   8f 9f af bf cf df ef ff
-
                     _mm256_storeu_ps(p0, _mm512_extractf32x8_ps(_f0, 0));
                     _mm256_storeu_ps(p0 + 8, _mm512_extractf32x8_ps(_f1, 0));
                     _mm256_storeu_ps(p0 + 16, _mm512_extractf32x8_ps(_f2, 0));
@@ -7939,23 +7727,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 4)
                 {
-                    // 00 10 20 30   40 50 60 70   80 90 a0 b0   c0 d0 e0 f0
-                    // 01 11 21 31   41 51 61 71   81 91 a1 b1   c1 d1 e1 f1
-                    // 02 12 22 32   42 52 62 72   82 92 a2 b2   c2 d2 e2 f2
-                    // 03 13 23 33   43 53 63 73   83 93 a3 b3   c3 d3 e3 f3
-                    // 04 14 24 34   44 54 64 74   84 94 a4 b4   c4 d4 e4 f4
-                    // 05 15 25 35   45 55 65 75   85 95 a5 b5   c5 d5 e5 f5
-                    // 06 16 26 36   46 56 66 76   86 96 a6 b6   c6 d6 e6 f6
-                    // 07 17 27 37   47 57 67 77   87 97 a7 b7   c7 d7 e7 f7
-                    // 08 18 28 38   48 58 68 78   88 98 a8 b8   c8 d8 e8 f8
-                    // 09 19 29 39   49 59 69 79   89 99 a9 b9   c9 d9 e9 f9
-                    // 0a 1a 2a 3a   4a 5a 6a 7a   8a 9a aa ba   ca da ea fa
-                    // 0b 1b 2b 3b   4b 5b 6b 7b   8b 9b ab bb   cb db eb fb
-                    // 0c 1c 2c 3c   4c 5c 6c 7c   8c 9c ac bc   cc dc ec fc
-                    // 0d 1d 2d 3d   4d 5d 6d 7d   8d 9d ad bd   cd dd ed fd
-                    // 0e 1e 2e 3e   4e 5e 6e 7e   8e 9e ae be   ce de ee fe
-                    // 0f 1f 2f 3f   4f 5f 6f 7f   8f 9f af bf   cf df ef ff
-
                     __m512 _tmp0 = _mm512_shuffle_f32x4(_f0, _f1, _MM_SHUFFLE(2, 0, 2, 0));
                     __m512 _tmp1 = _mm512_shuffle_f32x4(_f2, _f3, _MM_SHUFFLE(2, 0, 2, 0));
                     __m512 _tmp2 = _mm512_shuffle_f32x4(_f4, _f5, _MM_SHUFFLE(2, 0, 2, 0));
@@ -8065,40 +7836,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             //      05 15 25 35 45 55 65 75 85 95 a5 b5 c5 d5 e5 f5
             //      06 16 26 36 46 56 66 76 86 96 a6 b6 c6 d6 e6 f6
             //      07 17 27 37 47 57 67 77 87 97 a7 b7 c7 d7 e7 f7
-
-            // _f0 = _mm512_setr_ps(00,11,22,33,44,55,66,77,0x80,0x91,0xa2,0xb3,0xc4,0xd5,0xe6,0xf7);
-            // _f1 = _mm512_setr_ps(01,12,23,30,45,56,67,74,0x81,0x92,0xa3,0xb0,0xc5,0xd6,0xe7,0xf4);
-            // _f2 = _mm512_setr_ps(20,31,02,13,64,75,46,57,0xa0,0xb1,0x82,0x93,0xe4,0xf5,0xc6,0xd7);
-            // _f3 = _mm512_setr_ps(21,32,03,10,65,76,47,54,0xa1,0xb2,0x83,0x90,0xe5,0xf6,0xc7,0xd4);
-            // _f4 = _mm512_setr_ps(04,15,26,37,40,51,62,73,0x84,0x95,0xa6,0xb7,0xc0,0xd1,0xe2,0xf3);
-            // _f5 = _mm512_setr_ps(05,16,27,34,41,52,63,70,0x85,0x96,0xa7,0xb4,0xc1,0xd2,0xe3,0xf0);
-            // _f6 = _mm512_setr_ps(24,35,06,17,60,71,42,53,0xa4,0xb5,0x86,0x97,0xe0,0xf1,0xc2,0xd3);
-            // _f7 = _mm512_setr_ps(25,36,07,14,61,72,43,50,0xa5,0xb6,0x87,0x94,0xe1,0xf2,0xc3,0xd0);
-
-            // print(_f0);
-            // print(_f1);
-            // print(_f2);
-            // print(_f3);
-            // print(_f4);
-            // print(_f5);
-            // print(_f6);
-            // print(_f7);
-
             {
                 _f1 = _mm512_permute_ps(_f1, _MM_SHUFFLE(2, 1, 0, 3));
                 _f3 = _mm512_permute_ps(_f3, _MM_SHUFFLE(2, 1, 0, 3));
                 _f5 = _mm512_permute_ps(_f5, _MM_SHUFFLE(2, 1, 0, 3));
                 _f7 = _mm512_permute_ps(_f7, _MM_SHUFFLE(2, 1, 0, 3));
-
-                // 00 11 22 33  44 55 66 77  80 91 a2 b3  c4 d5 e6 f7
-                // 30 01 12 23  74 45 56 67  b0 81 92 a3  f4 c5 d6 e7
-                // 20 31 02 13  64 75 46 57  a0 b1 82 93  e4 f5 c6 d7
-                // 10 21 32 03  54 65 76 47  90 a1 b2 83  d4 e5 f6 c7
-
-                // 04 15 26 37  40 51 62 73  84 95 a6 b7  c0 d1 e2 f3
-                // 34 05 16 27  70 41 52 63  b4 85 96 a7  f0 c1 d2 e3
-                // 24 35 06 17  60 71 42 53  a4 b5 86 97  e0 f1 c2 d3
-                // 14 25 36 07  50 61 72 43  94 a5 b6 87  d0 e1 f2 c3
 
                 __m512 _tmp0 = _mm512_unpacklo_ps(_f0, _f3);
                 __m512 _tmp1 = _mm512_unpackhi_ps(_f0, _f3);
@@ -8109,16 +7851,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 __m512 _tmp6 = _mm512_unpacklo_ps(_f6, _f5);
                 __m512 _tmp7 = _mm512_unpackhi_ps(_f6, _f5);
 
-                // 00 10 11 21  44 54 55 65  80 90 91 a1  c4 d4 d5 e5
-                // 22 32 33 03  66 76 77 47  a2 b2 b3 83  e6 f6 f7 c7
-                // 20 30 31 01  64 74 75 45  a0 b0 b1 81  e4 f4 f5 c5
-                // 02 12 13 23  46 56 57 67  82 92 93 a3  c6 d6 d7 e7
-
-                // 04 14 15 25  40 50 51 61
-                // 26 36 37 07  62 72 73 43
-                // 24 34 35 05  60 70 71 41
-                // 06 16 17 27  42 52 53 63
-
                 _f0 = _mm512_castpd_ps(_mm512_unpacklo_pd(_mm512_castps_pd(_tmp0), _mm512_castps_pd(_tmp2)));
                 _f1 = _mm512_castpd_ps(_mm512_unpackhi_pd(_mm512_castps_pd(_tmp0), _mm512_castps_pd(_tmp2)));
                 _f2 = _mm512_castpd_ps(_mm512_unpacklo_pd(_mm512_castps_pd(_tmp3), _mm512_castps_pd(_tmp1)));
@@ -8128,30 +7860,10 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _f6 = _mm512_castpd_ps(_mm512_unpacklo_pd(_mm512_castps_pd(_tmp7), _mm512_castps_pd(_tmp5)));
                 _f7 = _mm512_castpd_ps(_mm512_unpackhi_pd(_mm512_castps_pd(_tmp7), _mm512_castps_pd(_tmp5)));
 
-                // 00 10 20 30  44 54 64 74  80 90 a0 b0  c4 d4 e4 f4
-                // 11 21 31 01  55 65 75 45  91 a1 b1 81  d5 e5 f5 c5
-                // 02 12 22 32  46 56 66 76  82 92 a2 b2  c6 d6 e6 f6
-                // 13 23 33 03  57 67 77 47  93 a3 b3 83  d7 e7 f7 c7
-
-                // 04 14 24 34  40 50 60 70
-                // 15 25 35 05  51 61 71 41
-                // 06 16 26 36  42 52 62 72
-                // 17 27 37 07  53 63 73 43
-
                 _f1 = _mm512_permute_ps(_f1, _MM_SHUFFLE(2, 1, 0, 3));
                 _f3 = _mm512_permute_ps(_f3, _MM_SHUFFLE(2, 1, 0, 3));
                 _f5 = _mm512_permute_ps(_f5, _MM_SHUFFLE(2, 1, 0, 3));
                 _f7 = _mm512_permute_ps(_f7, _MM_SHUFFLE(2, 1, 0, 3));
-
-                // 00 10 20 30  44 54 64 74  80 90 a0 b0  c4 d4 e4 f4
-                // 01 11 21 31  45 55 65 75  81 91 a1 b1  c5 d5 e5 f5
-                // 02 12 22 32  46 56 66 76  82 92 a2 b2  c6 d6 e6 f6
-                // 03 13 23 33  47 57 67 77  83 93 a3 b3  c7 d7 e7 f7
-
-                // 04 14 24 34  40 50 60 70  84 94 a4 b4  c0 d0 e0 f0
-                // 05 15 25 35  41 51 61 71  85 95 a5 b5  c1 d1 e1 f1
-                // 06 16 26 36  42 52 62 72  86 96 a6 b6  c2 d2 e2 f2
-                // 07 17 27 37  43 53 63 73  87 97 a7 b7  c3 d3 e3 f3
 
                 _tmp0 = _mm512_shuffle_f32x4(_f0, _f4, _MM_SHUFFLE(0, 1, 1, 0));
                 _tmp1 = _mm512_shuffle_f32x4(_f1, _f5, _MM_SHUFFLE(0, 1, 1, 0));
@@ -8162,16 +7874,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _tmp6 = _mm512_shuffle_f32x4(_f2, _f6, _MM_SHUFFLE(2, 3, 3, 2));
                 _tmp7 = _mm512_shuffle_f32x4(_f3, _f7, _MM_SHUFFLE(2, 3, 3, 2));
 
-                // 00 10 20 30  44 54 64 74  40 50 60 70  04 14 24 34
-                // 01 11 21 31  45 55 65 75  41 51 61 71  05 15 25 35
-                // 02 12 22 32  46 56 66 76  42 52 62 72  06 16 26 36
-                // 03 13 23 33  47 57 67 77  43 53 63 73  07 17 27 37
-
-                // 80 90 a0 b0  c4 d4 e4 f4  c0 d0 e0 f0  84 94 a4 b4
-                // 81 91 a1 b1  c5 d5 e5 f5  c1 d1 e1 f1  85 95 a5 b5
-                // 82 92 a2 b2  c6 d6 e6 f6  c2 d2 e2 f2  86 96 a6 b6
-                // 83 93 a3 b3  c7 d7 e7 f7  c3 d3 e3 f3  87 97 a7 b7
-
                 _f0 = _mm512_shuffle_f32x4(_tmp0, _tmp4, _MM_SHUFFLE(2, 0, 2, 0));
                 _f1 = _mm512_shuffle_f32x4(_tmp1, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
                 _f2 = _mm512_shuffle_f32x4(_tmp2, _tmp6, _MM_SHUFFLE(2, 0, 2, 0));
@@ -8181,17 +7883,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _f6 = _mm512_shuffle_f32x4(_tmp2, _tmp6, _MM_SHUFFLE(1, 3, 1, 3));
                 _f7 = _mm512_shuffle_f32x4(_tmp3, _tmp7, _MM_SHUFFLE(1, 3, 1, 3));
             }
-
-            // NCNN_LOGE("-------");
-            //
-            // print(_f0);
-            // print(_f1);
-            // print(_f2);
-            // print(_f3);
-            // print(_f4);
-            // print(_f5);
-            // print(_f6);
-            // print(_f7);
 
             _f0 = _mm512_mul_ps(_f0, _descale);
             _f1 = _mm512_mul_ps(_f1, _descale);
@@ -8394,15 +8085,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
             if (output_transpose)
             {
-                //      00 10 20 30 40 50 60 70 80 90 a0 b0 c0 d0 e0 f0
-                //      01 11 21 31 41 51 61 71 81 91 a1 b1 c1 d1 e1 f1
-                //      02 12 22 32 42 52 62 72 82 92 a2 b2 c2 d2 e2 f2
-                //      03 13 23 33 43 53 63 73 83 93 a3 b3 c3 d3 e3 f3
-                //      04 14 24 34 44 54 64 74 84 94 a4 b4 c4 d4 e4 f4
-                //      05 15 25 35 45 55 65 75 85 95 a5 b5 c5 d5 e5 f5
-                //      06 16 26 36 46 56 66 76 86 96 a6 b6 c6 d6 e6 f6
-                //      07 17 27 37 47 57 67 77 87 97 a7 b7 c7 d7 e7 f7
-
                 if (out_elempack == 8)
                 {
                     transpose16x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
@@ -8477,23 +8159,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 4)
                 {
-                    //      00 10 20 30 40 50 60 70 80 90 a0 b0 c0 d0 e0 f0
-                    //      01 11 21 31 41 51 61 71 81 91 a1 b1 c1 d1 e1 f1
-                    //      02 12 22 32 42 52 62 72 82 92 a2 b2 c2 d2 e2 f2
-                    //      03 13 23 33 43 53 63 73 83 93 a3 b3 c3 d3 e3 f3
-                    //      04 14 24 34 44 54 64 74 84 94 a4 b4 c4 d4 e4 f4
-                    //      05 15 25 35 45 55 65 75 85 95 a5 b5 c5 d5 e5 f5
-                    //      06 16 26 36 46 56 66 76 86 96 a6 b6 c6 d6 e6 f6
-                    //      07 17 27 37 47 57 67 77 87 97 a7 b7 c7 d7 e7 f7
-
-                    //      00  40  80  c0
-                    //      01  41  81  c1
-                    //      02  42  82  c2
-                    //      03  43  83  c3
-                    //      04  44  84  c4
-                    //      05  45  85  c5
-                    //      06  46  86  c6
-                    //      07  47  87  c7
                     __m512 _tmp0 = _mm512_shuffle_f32x4(_f0, _f1, _MM_SHUFFLE(2, 0, 2, 0));
                     __m512 _tmp1 = _mm512_shuffle_f32x4(_f2, _f3, _MM_SHUFFLE(2, 0, 2, 0));
                     __m512 _tmp2 = _mm512_shuffle_f32x4(_f4, _f5, _MM_SHUFFLE(2, 0, 2, 0));
@@ -8503,14 +8168,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     __m512 _tmp6 = _mm512_shuffle_f32x4(_f4, _f5, _MM_SHUFFLE(3, 1, 3, 1));
                     __m512 _tmp7 = _mm512_shuffle_f32x4(_f6, _f7, _MM_SHUFFLE(3, 1, 3, 1));
 
-                    //      00  80  01  81
-                    //      02  82  03  83
-                    //      04  84  05  85
-                    //      06  86  07  87
-                    //      40  c0  41  c1
-                    //      42  c2  43  c3
-                    //      44  c4  45  c5
-                    //      46  c6  47  c7
                     _f0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
                     _f1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
                     _f2 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
@@ -8519,15 +8176,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     _f5 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
                     _f6 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
                     _f7 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
-
-                    //      00  01  02  03
-                    //      04  05  06  07
-                    //      40  41  42  43
-                    //      44  45  46  47
-                    //      80  81  82  83
-                    //      84  85  86  87
-                    //      c0  c1  c2  c3
-                    //      c4  c5  c6  c7
 
                     _mm512_storeu_ps(p0, _f0);
                     _mm512_storeu_ps(p0 + 16, _f1);
@@ -8739,10 +8387,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
             if (output_transpose)
             {
-                //      00 10 20 30 40 50 60 70 80 90 a0 b0 c0 d0 e0 f0
-                //      01 11 21 31 41 51 61 71 81 91 a1 b1 c1 d1 e1 f1
-                //      02 12 22 32 42 52 62 72 82 92 a2 b2 c2 d2 e2 f2
-                //      03 13 23 33 43 53 63 73 83 93 a3 b3 c3 d3 e3 f3
 #if !(defined(__x86_64__) || defined(_M_X64))
 #if __AVX__
 #if __AVX512F__
@@ -9186,25 +8830,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             __m512 _f7 = _mm512_cvtepi32_ps(_mm512_loadu_si512((const __m512i*)(pp + 112)));
             pp += 128;
 
-            // _f0 = _mm512_setr_ps(00,11,22,33,44,55,66,77,0x08,0x19,0x2a,0x3b,0x4c,0x5d,0x6e,0x7f);
-            // _f1 = _mm512_setr_ps(01,12,23,30,45,56,67,74,0x09,0x1a,0x2b,0x38,0x4d,0x5e,0x6f,0x7c);
-            // _f2 = _mm512_setr_ps(20,31,02,13,64,75,46,57,0x28,0x39,0x0a,0x1b,0x6c,0x7d,0x4e,0x5f);
-            // _f3 = _mm512_setr_ps(21,32,03,10,65,76,47,54,0x29,0x3a,0x0b,0x18,0x6d,0x7e,0x4f,0x5c);
-            // _f4 = _mm512_setr_ps(04,15,26,37,40,51,62,73,0x0c,0x1d,0x2e,0x3f,0x48,0x59,0x6a,0x7b);
-            // _f5 = _mm512_setr_ps(05,16,27,34,41,52,63,70,0x0d,0x1e,0x2f,0x3c,0x49,0x5a,0x6b,0x78);
-            // _f6 = _mm512_setr_ps(24,35,06,17,60,71,42,53,0x2c,0x3d,0x0e,0x1f,0x68,0x79,0x4a,0x5b);
-            // _f7 = _mm512_setr_ps(25,36,07,14,61,72,43,50,0x2d,0x3e,0x0f,0x1c,0x69,0x7a,0x4b,0x58);
-            //
-
-            // print(_f0);
-            // print(_f1);
-            // print(_f2);
-            // print(_f3);
-            // print(_f4);
-            // print(_f5);
-            // print(_f6);
-            // print(_f7);
-
             // from
             //      00 11 22 33  44 55 66 77  08 19 2a 3b  4c 5d 6e 7f
             //      01 12 23 30  45 56 67 74  09 1a 2b 38  4d 5e 6f 7c
@@ -9214,15 +8839,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             //      05 16 27 34  41 52 63 70  0d 1e 2f 3c  49 5a 6b 78
             //      24 35 06 17  60 71 42 53  2c 3d 0e 1f  68 79 4a 5b
             //      25 36 07 14  61 72 43 50  2d 3e 0f 1c  69 7a 4b 58
-
-            // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
-            // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
-            // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
-            // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
-            // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
-            // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
-            // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
-            // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
 
             // to
             //      00 10 20 30  44 54 64 74  08 18 28 38  4c 5c 6c 7c
@@ -9239,16 +8855,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _f5 = _mm512_permute_ps(_f5, _MM_SHUFFLE(2, 1, 0, 3));
                 _f7 = _mm512_permute_ps(_f7, _MM_SHUFFLE(2, 1, 0, 3));
 
-                //      00 11 22 33  44 55 66 77  08 19 2a 3b  4c 5d 6e 7f
-                //      30 01 12 23  74 45 56 67  38 09 1a 2b  7c 4d 5e 6f
-                //      20 31 02 13  64 75 46 57  28 39 0a 1b  6c 7d 4e 5f
-                //      10 21 32 03  54 65 76 47  18 29 3a 0b  5c 6d 7e 4f
-
-                //      04 15 26 37  40 51 62 73  0c 1d 2e 3f  48 59 6a 7b
-                //      34 05 16 27  70 41 52 63  3c 0d 1e 2f  78 49 5a 6b
-                //      24 35 06 17  60 71 42 53  2c 3d 0e 1f  68 79 4a 5b
-                //      14 25 36 07  50 61 72 43  1c 2d 3e 0f  58 69 7a 4b
-
                 __m512 _tmp0 = _mm512_unpacklo_ps(_f0, _f3);
                 __m512 _tmp1 = _mm512_unpackhi_ps(_f0, _f3);
                 __m512 _tmp2 = _mm512_unpacklo_ps(_f2, _f1);
@@ -9257,16 +8863,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 __m512 _tmp5 = _mm512_unpackhi_ps(_f4, _f7);
                 __m512 _tmp6 = _mm512_unpacklo_ps(_f6, _f5);
                 __m512 _tmp7 = _mm512_unpackhi_ps(_f6, _f5);
-
-                // 00 10 11 21  44 54 55 65  08 18 19 29  4c 5c 5d 6d
-                // 22 32 33 03  66 76 77 47  2a 3a 3b 0b  6e 7e 7f 4f
-                // 20 30 31 01  64 74 75 45  28 38 39 09  6c 7c 7d 4d
-                // 02 12 13 23  46 56 57 67  0a 1a 1b 2b  4e 5e 5f 6f
-
-                // 04 14 15 25  40 50 51 61  0c 1c 1d 2d  48 58 59 69
-                // 26 36 37 07  62 72 73 43  2e 3e 3f 0f  6a 7a 7b 4b
-                // 24 34 35 05  60 70 71 41  2c 3c 3d 0d  68 78 79 49
-                // 06 16 17 27  42 52 53 63  0e 1e 1f 2f  4a 5a 5b 6b
 
                 _f0 = _mm512_castpd_ps(_mm512_unpacklo_pd(_mm512_castps_pd(_tmp0), _mm512_castps_pd(_tmp2)));
                 _f1 = _mm512_castpd_ps(_mm512_unpackhi_pd(_mm512_castps_pd(_tmp0), _mm512_castps_pd(_tmp2)));
@@ -9277,29 +8873,10 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _f6 = _mm512_castpd_ps(_mm512_unpacklo_pd(_mm512_castps_pd(_tmp7), _mm512_castps_pd(_tmp5)));
                 _f7 = _mm512_castpd_ps(_mm512_unpackhi_pd(_mm512_castps_pd(_tmp7), _mm512_castps_pd(_tmp5)));
 
-                // 00 10 20 30  44 54 64 74  08 18 28 38  4c 5c 6c 7c
-                // 11 21 31 01  55 65 75 45  19 29 39 09  5d 6d 7d 4d
-                // 02 12 22 32  46 56 66 76  0a 1a 2a 3a  4e 5e 6e 7e
-                // 13 23 33 03  57 67 77 47  1b 2b 3b 0b  5f 6f 7f 4f
-
-                // 04 14 24 34  40 50 60 70  0c 1c 2c 3c  48 58 68 78
-                // 15 25 35 05  51 61 71 41  1d 2d 3d 0d  59 69 79 49
-                // 06 16 26 36  42 52 62 72  0e 1e 2e 3e  4a 5a 6a 7a
-                // 17 27 37 07  53 63 73 43  1f 2f 3f 0f  5b 6b 7b 4b
-
                 _f1 = _mm512_permute_ps(_f1, _MM_SHUFFLE(2, 1, 0, 3));
                 _f3 = _mm512_permute_ps(_f3, _MM_SHUFFLE(2, 1, 0, 3));
                 _f5 = _mm512_permute_ps(_f5, _MM_SHUFFLE(2, 1, 0, 3));
                 _f7 = _mm512_permute_ps(_f7, _MM_SHUFFLE(2, 1, 0, 3));
-
-                // 00 10 20 30  44 54 64 74  08 18 28 38  4c 5c 6c 7c
-                // 01 11 21 31  45 55 65 75  09 19 29 39  4d 5d 6d 7d
-                // 02 12 22 32  46 56 66 76  0a 1a 2a 3a  4e 5e 6e 7e
-                // 03 13 23 33  47 57 67 77  0b 1b 2b 3b  4f 5f 6f 7f
-                // 04 14 24 34  40 50 60 70  0c 1c 2c 3c  48 58 68 78
-                // 05 15 25 35  41 51 61 71  0d 1d 2d 3d  49 59 69 79
-                // 06 16 26 36  42 52 62 72  0e 1e 2e 3e  4a 5a 6a 7a
-                // 07 17 27 37  43 53 63 73  0f 1f 2f 3f  4b 5b 6b 7b
 
                 _tmp0 = _mm512_shuffle_f32x4(_f0, _f4, _MM_SHUFFLE(0, 1, 1, 0));
                 _tmp1 = _mm512_shuffle_f32x4(_f0, _f4, _MM_SHUFFLE(2, 3, 3, 2));
@@ -9310,10 +8887,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _tmp6 = _mm512_shuffle_f32x4(_f3, _f7, _MM_SHUFFLE(0, 1, 1, 0));
                 _tmp7 = _mm512_shuffle_f32x4(_f3, _f7, _MM_SHUFFLE(2, 3, 3, 2));
 
-                // 00 10 20 30  44 54 64 74  40 50 60 70  04 14 24 34
-                // 08 18 28 38  4c 5c 6c 7c  48 58 68 78  0c 1c 2c 3c
-                // 01 11 21 31  45 55 65 75  41 51 61 71  05 15 25 35
-
                 _f0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
                 _f1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
                 _f2 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
@@ -9322,27 +8895,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _f5 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(1, 3, 1, 3));
                 _f6 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(1, 3, 1, 3));
                 _f7 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(1, 3, 1, 3));
-
-                // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
-                // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
-                // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
-                // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
-                // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
-                // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
-                // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
-                // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
             }
-
-            // NCNN_LOGE("-----");
-
-            // print(_f0);
-            // print(_f1);
-            // print(_f2);
-            // print(_f3);
-            // print(_f4);
-            // print(_f5);
-            // print(_f6);
-            // print(_f7);
 
             _f0 = _mm512_mul_ps(_f0, _descale_avx512);
             _f1 = _mm512_mul_ps(_f1, _descale_avx512);
@@ -9379,15 +8932,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (broadcast_type_C == 3)
                 {
-                    // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
-                    // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
-                    // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
-                    // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
-                    // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
-                    // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
-                    // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
-                    // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
-
                     __m512 _c1_avx512;
                     __m512 _c2_avx512;
                     __m512 _c3_avx512;
@@ -9437,18 +8981,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c6_avx512 = _mm512_loadu_ps(pC + c_hstep * 4 + 32);
                         _c7_avx512 = _mm512_loadu_ps(pC + c_hstep * 4 + 48);
 
-                        // 00   01   02   03
-                        // 04   05   06   07
-
-                        // 08   09   0a   0b
-                        // 0c   0d   0e   0f
-
-                        // 40   41   42   43
-                        // 44   45   46   47
-
-                        // 48   49   4a   4b
-                        // 4c   4d   4e   4f
-
                         __m512 _tmp0 = _mm512_shuffle_f32x4(_c0_avx512, _c2_avx512, _MM_SHUFFLE(2, 0, 2, 0));
                         __m512 _tmp1 = _mm512_shuffle_f32x4(_c0_avx512, _c2_avx512, _MM_SHUFFLE(3, 1, 3, 1));
                         __m512 _tmp2 = _mm512_shuffle_f32x4(_c1_avx512, _c3_avx512, _MM_SHUFFLE(2, 0, 2, 0));
@@ -9458,16 +8990,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         __m512 _tmp6 = _mm512_shuffle_f32x4(_c5_avx512, _c7_avx512, _MM_SHUFFLE(2, 0, 2, 0));
                         __m512 _tmp7 = _mm512_shuffle_f32x4(_c5_avx512, _c7_avx512, _MM_SHUFFLE(3, 1, 3, 1));
 
-                        // 00   02   08   0a
-                        // 01   03   09   0b
-                        // 04   06   0c   0e
-                        // 05   07   0d   0f
-
-                        // 40   42   48   4a
-                        // 41   43   49   4b
-                        // 44   46   4c   4e
-                        // 45   47   4d   4f
-
                         _c0_avx512 = _mm512_shuffle_f32x4(_tmp0, _tmp4, _MM_SHUFFLE(2, 0, 2, 0));
                         _c1_avx512 = _mm512_shuffle_f32x4(_tmp1, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
                         _c2_avx512 = _mm512_shuffle_f32x4(_tmp0, _tmp4, _MM_SHUFFLE(3, 1, 3, 1));
@@ -9476,10 +8998,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c5_avx512 = _mm512_shuffle_f32x4(_tmp3, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
                         _c6_avx512 = _mm512_shuffle_f32x4(_tmp2, _tmp6, _MM_SHUFFLE(3, 1, 3, 1));
                         _c7_avx512 = _mm512_shuffle_f32x4(_tmp3, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
-
-                        // 00 08 40 48
-                        // 01 09 41 49
-                        // 02 0a 42 4a
 
                         _c0_avx512 = _mm512_shuffle_f32x4(_c0_avx512, _c0_avx512, _MM_SHUFFLE(3, 1, 2, 0));
                         _c1_avx512 = _mm512_shuffle_f32x4(_c1_avx512, _c1_avx512, _MM_SHUFFLE(3, 1, 2, 0));
@@ -9494,15 +9012,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     }
                     if (c_elempack == 1)
                     {
-                        // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
-                        // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
-                        // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
-                        // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
-                        // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
-                        // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
-                        // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
-                        // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
-
                         _c0_avx512 = _mm512_loadu_ps(pC);
                         _c1_avx512 = _mm512_loadu_ps(pC + c_hstep);
                         _c2_avx512 = _mm512_loadu_ps(pC + c_hstep * 2);
@@ -9620,15 +9129,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
             if (output_transpose)
             {
-                // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
-                // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
-                // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
-                // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
-                // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
-                // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
-                // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
-                // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
-
                 if (out_elempack == 16)
                 {
                     transpose16x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
@@ -9667,16 +9167,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 {
                     transpose16x4_ps(_f0, _f1, _f2, _f3);
                     transpose16x4_ps(_f4, _f5, _f6, _f7);
-
-                    // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
-                    // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
-                    // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
-                    // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
-
-                    // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
-                    // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
-                    // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
-                    // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
 
                     _mm512_storeu_ps(p0, _f0);
                     _mm512_storeu_ps(p0 + 16, _f1);
@@ -9733,15 +9223,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 4)
                 {
-                    // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
-                    // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
-                    // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
-                    // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
-                    // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
-                    // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
-                    // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
-                    // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
-
                     __m512 _tmp0 = _mm512_shuffle_f32x4(_f0, _f1, _MM_SHUFFLE(2, 0, 2, 0));
                     __m512 _tmp1 = _mm512_shuffle_f32x4(_f2, _f3, _MM_SHUFFLE(2, 0, 2, 0));
                     __m512 _tmp2 = _mm512_shuffle_f32x4(_f4, _f5, _MM_SHUFFLE(2, 0, 2, 0));
@@ -9750,12 +9231,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     __m512 _tmp5 = _mm512_shuffle_f32x4(_f2, _f3, _MM_SHUFFLE(3, 1, 3, 1));
                     __m512 _tmp6 = _mm512_shuffle_f32x4(_f4, _f5, _MM_SHUFFLE(3, 1, 3, 1));
                     __m512 _tmp7 = _mm512_shuffle_f32x4(_f6, _f7, _MM_SHUFFLE(3, 1, 3, 1));
-
-                    // 00  08  01  09
-                    // 02  0a  03  0b
-                    // 04  0c  05  0d
-                    // 06  0e  06  0f
-                    // 40  48  41  49
 
                     _f0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
                     _f1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
@@ -9778,15 +9253,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 1)
                 {
-                    // 00 10 20 30 40 50 60 70    08 18 28 38 48 58 68 78
-                    // 01 11 21 31 41 51 61 71    09 19 29 39 49 59 69 79
-                    // 02 12 22 32 42 52 62 72    0a 1a 2a 3a 4a 5a 6a 7a
-                    // 03 13 23 33 43 53 63 73    0b 1b 2b 3b 4b 5b 6b 7b
-                    // 04 14 24 34 44 54 64 74    0c 1c 2c 3c 4c 5c 6c 7c
-                    // 05 15 25 35 45 55 65 75    0d 1d 2d 3d 4d 5d 6d 7d
-                    // 06 16 26 36 46 56 66 76    0e 1e 2e 3e 4e 5e 6e 7e
-                    // 07 17 27 37 47 57 67 77    0f 1f 2f 3f 4f 5f 6f 7f
-
                     __m512 _tmp0 = _mm512_unpacklo_ps(_f0, _f1);
                     __m512 _tmp1 = _mm512_unpacklo_ps(_f2, _f3);
                     __m512 _tmp2 = _mm512_unpacklo_ps(_f4, _f5);
@@ -9952,15 +9418,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 __m256 _tmp6 = _mm256_shuffle_ps(_f6, _f6, _MM_SHUFFLE(2, 1, 0, 3));
                 __m256 _tmp7 = _mm256_shuffle_ps(_f7, _f7, _MM_SHUFFLE(2, 1, 0, 3));
 
-                // 00 11 22 33 04 15 26 37
-                // 20 31 02 13 24 35 06 17
-                // 30 01 12 23 34 05 16 27
-                // 10 21 32 03 14 25 36 07
-                // 40 51 62 73 44 55 66 77
-                // 60 71 42 53 64 75 46 57
-                // 70 41 52 63 74 45 56 67
-                // 50 61 72 43 54 65 76 47
-
                 _f0 = _mm256_permute2f128_ps(_tmp0, _tmp4, _MM_SHUFFLE(0, 2, 0, 0));
                 _f1 = _mm256_permute2f128_ps(_tmp1, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
                 _f2 = _mm256_permute2f128_ps(_tmp2, _tmp6, _MM_SHUFFLE(0, 2, 0, 0));
@@ -9969,15 +9426,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _f5 = _mm256_permute2f128_ps(_tmp1, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
                 _f6 = _mm256_permute2f128_ps(_tmp2, _tmp6, _MM_SHUFFLE(0, 3, 0, 1));
                 _f7 = _mm256_permute2f128_ps(_tmp3, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
-
-                // 00 11 22 33 40 51 62 73
-                // 20 31 02 13 60 71 42 53
-                // 30 01 12 23 70 41 52 63
-                // 10 21 32 03 50 61 72 43
-                // 04 15 26 37 44 55 66 77
-                // 24 35 06 17 64 75 46 57
-                // 34 05 16 27 74 45 56 67
-                // 14 25 36 07 54 65 76 47
 
                 _tmp0 = _mm256_unpacklo_ps(_f0, _f3);
                 _tmp1 = _mm256_unpacklo_ps(_f1, _f2);
@@ -9988,15 +9436,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _tmp6 = _mm256_unpackhi_ps(_f5, _f6);
                 _tmp7 = _mm256_unpackhi_ps(_f4, _f7);
 
-                // 00 10 11 21 40 50 51 61
-                // 20 30 31 01 60 70 71 41
-                // 02 12 13 23 42 52 53 63
-                // 22 32 33 03 62 72 73 43
-                // 04 14 15 25 44 54 55 65
-                // 24 34 35 05 64 74 75 45
-                // 06 16 17 27 46 56 57 67
-                // 26 36 37 07 66 76 77 47
-
                 _f0 = _mm256_castpd_ps(_mm256_unpacklo_pd(_mm256_castps_pd(_tmp0), _mm256_castps_pd(_tmp1)));
                 _f1 = _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(_tmp0), _mm256_castps_pd(_tmp1)));
                 _f2 = _mm256_castpd_ps(_mm256_unpacklo_pd(_mm256_castps_pd(_tmp2), _mm256_castps_pd(_tmp3)));
@@ -10005,13 +9444,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 _f5 = _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(_tmp4), _mm256_castps_pd(_tmp5)));
                 _f6 = _mm256_castpd_ps(_mm256_unpacklo_pd(_mm256_castps_pd(_tmp6), _mm256_castps_pd(_tmp7)));
                 _f7 = _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(_tmp6), _mm256_castps_pd(_tmp7)));
-
-                // 00 10 20 30 40 50 60 70
-                // 11 21 31 01 51 61 71 41
-                // 02 12 22 32 42 52 62 72
-                // 13 23 33 03 53 63 73 43
-                // 04 14 24 34 44 54 64 74
-                // 15 25 35 05
 
                 _f1 = _mm256_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
                 _f3 = _mm256_shuffle_ps(_f3, _f3, _MM_SHUFFLE(2, 1, 0, 3));
@@ -10280,12 +9712,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             pp += 16;
             pp1 += 16;
 #endif
-
-            // from
-            //      00 11 22 33
-            //      01 12 23 30
-            //      20 31 02 13
-            //      21 32 03 10
 
             // from
             //      00 11 22 33 40 51 62 73
@@ -11901,30 +11327,16 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             _sum2 = _mm_shuffle_epi32(_sum2, _MM_SHUFFLE(2, 3, 0, 1));
             _sum3 = _mm_shuffle_epi32(_sum3, _MM_SHUFFLE(2, 3, 0, 1));
 
-            // 00 11 02 13
-            // 04 15 06 17
-            // 01 10 03 12
-            // 05 14 07 16
-
             __m128i _tmp0 = _mm_unpacklo_epi32(_sum0, _sum2);
             __m128i _tmp1 = _mm_unpackhi_epi32(_sum0, _sum2);
             __m128i _tmp2 = _mm_unpacklo_epi32(_sum1, _sum3);
             __m128i _tmp3 = _mm_unpackhi_epi32(_sum1, _sum3);
-
-            // 00 01 11 10
-            // 02 03 13 12
-            // 04 05 15 14
-            // 06 07 17 16
 
             _sum0 = _mm_unpacklo_epi64(_tmp0, _tmp1);
             _sum1 = _mm_unpacklo_epi64(_tmp2, _tmp3);
             _sum2 = _mm_unpackhi_epi64(_tmp0, _tmp1);
             _sum3 = _mm_unpackhi_epi64(_tmp2, _tmp3);
 
-            // 00 01 02 03
-            // 04 05 06 07
-            // 11 10 13 12
-            // 15 14 17 16
             _sum2 = _mm_shuffle_epi32(_sum2, _MM_SHUFFLE(2, 3, 0, 1));
             _sum3 = _mm_shuffle_epi32(_sum3, _MM_SHUFFLE(2, 3, 0, 1));
 
@@ -12066,17 +11478,10 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             __m128i _tmp0 = _mm_unpacklo_epi32(_sum0, _sum1);
             __m128i _tmp1 = _mm_unpackhi_epi32(_sum0, _sum1);
 
-            // 00 01 11 12
-            // 02 03 13 10
             _sum0 = _mm_unpacklo_epi64(_tmp0, _tmp1);
             _sum1 = _mm_unpackhi_epi64(_tmp1, _tmp0);
 
-            // 00 01 02 03
-            // 13 10 11 12
             _sum1 = _mm_shuffle_epi32(_sum1, _MM_SHUFFLE(0, 3, 2, 1));
-
-            // 00 01 02 03
-            // 10 11 12 13
 
             __m128 _f0 = _mm_mul_ps(_mm_cvtepi32_ps(_sum0), _descale0);
             __m128 _f1 = _mm_mul_ps(_mm_cvtepi32_ps(_sum1), _descale1);
