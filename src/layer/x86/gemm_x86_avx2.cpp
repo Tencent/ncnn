@@ -38,6 +38,16 @@ void transpose_pack_A_tile_int8_avx2(const Mat& A, Mat& AT, int i, int max_ii, i
     transpose_pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
 }
 
+void pack_B_tile_int8_avx2(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+{
+    pack_B_tile_int8(B, BT, j, max_jj, k, max_kk);
+}
+
+void transpose_pack_B_tile_int8_avx2(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+{
+    transpose_pack_B_tile_int8(B, BT, j, max_jj, k, max_kk);
+}
+
 void pack_A_tile_fp32_to_int8_avx2(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
 {
     pack_A_tile_fp32_to_int8(A, AT, i, max_ii, k, max_kk, scales);
@@ -46,6 +56,16 @@ void pack_A_tile_fp32_to_int8_avx2(const Mat& A, Mat& AT, int i, int max_ii, int
 void transpose_pack_A_tile_fp32_to_int8_avx2(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
 {
     transpose_pack_A_tile_fp32_to_int8(A, AT, i, max_ii, k, max_kk, scales);
+}
+
+void pack_B_tile_fp32_to_int8_avx2(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+{
+    pack_B_tile_fp32_to_int8(B, BT, j, max_jj, k, max_kk, scale);
+}
+
+void transpose_pack_B_tile_fp32_to_int8_avx2(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+{
+    transpose_pack_B_tile_fp32_to_int8(B, BT, j, max_jj, k, max_kk, scale);
 }
 
 void unpack_output_tile_int32_to_fp32_avx2(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta, int output_transpose)
