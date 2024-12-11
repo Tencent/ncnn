@@ -4464,9 +4464,9 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     {
         const float* p0 = (const float*)A + k * A_hstep + (i + ii) * elempack;
 
-#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVX512VNNI__
         __m128i _v127 = _mm_set1_epi8(127);
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __AVX512VNNI__
 
         const float scale = scales[i + ii];
 
@@ -6952,9 +6952,9 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
     {
         const float* p0 = (const float*)B + k * B_hstep + (j + jj) * elempack;
 
-#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVX512VNNI__
         __m128i _v127 = _mm_set1_epi8(127);
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __AVX512VNNI__
 
 #if __SSE2__
 #if __AVX__
@@ -7094,7 +7094,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
         __m512 _descale = _mm512_loadu_ps((const float*)descales + i + ii);
 
-        __m512 _c0;
+        __m512 _c0 = _mm512_set1_ps(0.f);
         if (pC)
         {
             if (broadcast_type_C == 0)
@@ -7357,7 +7357,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _cf = _mm512_loadu_ps(pC + 128 + 112);
                         pC += 256;
                     }
-                    if (c_elempack == 8)
+                    else if (c_elempack == 8)
                     {
                         __m512 _tmp0 = _mm512_loadu_ps(pC);
                         __m512 _tmp1 = _mm512_loadu_ps(pC + 16);
@@ -7395,7 +7395,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
                         pC += 128;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         _c0 = _mm512_loadu_ps(pC);
                         _c1 = _mm512_loadu_ps(pC + 16);
@@ -7450,7 +7450,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
                         pC += 64;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         _c0 = _mm512_loadu_ps(pC);
                         _c1 = _mm512_loadu_ps(pC + c_hstep);
@@ -7938,7 +7938,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c7 = _mm512_loadu_ps(pC + 112);
                         pC += 128;
                     }
-                    if (c_elempack == 8)
+                    else if (c_elempack == 8)
                     {
                         __m512 _tmp0 = _mm512_loadu_ps(pC);
                         __m512 _tmp1 = _mm512_loadu_ps(pC + 16);
@@ -7960,7 +7960,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
                         pC += 64;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         _c0 = _mm512_loadu_ps(pC);
                         _c1 = _mm512_loadu_ps(pC + 16);
@@ -7991,7 +7991,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
                         pC += 32;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         __m256 _cc0 = _mm256_loadu_ps(pC);
                         __m256 _cc1 = _mm256_loadu_ps(pC + c_hstep);
@@ -8278,7 +8278,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c3 = _mm512_loadu_ps(pC + 48);
                         pC += 64;
                     }
-                    if (c_elempack == 8)
+                    else if (c_elempack == 8)
                     {
                         __m512 _cc0 = _mm512_loadu_ps(pC);
                         __m512 _cc1 = _mm512_loadu_ps(pC + 16);
@@ -8290,7 +8290,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c3 = _mm512_shuffle_f32x4(_cc1, _cc3, _MM_SHUFFLE(3, 2, 3, 2));
                         pC += 32;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         _c0 = _mm512_loadu_ps(pC);
                         _c1 = _mm512_loadu_ps(pC + c_hstep * 4);
@@ -8306,7 +8306,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c3 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
                         pC += 16;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         __m128 _cc0 = _mm_loadu_ps(pC);
                         __m128 _cc1 = _mm_loadu_ps(pC + c_hstep);
@@ -8562,7 +8562,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c1 = _mm512_loadu_ps(pC + 16);
                         pC += 32;
                     }
-                    if (c_elempack == 8)
+                    else if (c_elempack == 8)
                     {
                         __m512 _cc0 = _mm512_loadu_ps(pC);
                         __m512 _cc1 = _mm512_loadu_ps(pC + c_hstep * 8);
@@ -8570,7 +8570,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c1 = _mm512_shuffle_f32x4(_cc0, _cc1, _MM_SHUFFLE(3, 2, 3, 2));
                         pC += 16;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         __m128 _cc0 = _mm_loadu_ps(pC);
                         __m128 _cc1 = _mm_loadu_ps(pC + 4);
@@ -8588,7 +8588,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c1 = _mm512_insertf32x8(_mm512_castps256_ps512(_cc13), _cc57, 1);
                         pC += 8;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         __m512i _vindex = _mm512_mullo_epi32(_mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), _mm512_set1_epi32(c_hstep));
                         _c0 = _mm512_i32gather_ps(_vindex, pC, sizeof(float));
@@ -8691,14 +8691,14 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c0 = _mm512_loadu_ps(pC);
                         pC += 16;
                     }
-                    if (c_elempack == 8)
+                    else if (c_elempack == 8)
                     {
                         __m256 _cc0 = _mm256_loadu_ps(pC);
                         __m256 _cc1 = _mm256_loadu_ps(pC + c_hstep * 8);
                         _c0 = _mm512_insertf32x8(_mm512_castps256_ps512(_cc0), _cc1, 1);
                         pC += 8;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         __m128 _cc0 = _mm_loadu_ps(pC);
                         __m128 _cc1 = _mm_loadu_ps(pC + c_hstep * 4);
@@ -8709,7 +8709,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c0 = _mm512_insertf32x8(_mm512_castps256_ps512(_cc01), _cc23, 1);
                         pC += 4;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         __m512i _vindex = _mm512_mullo_epi32(_mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), _mm512_set1_epi32(c_hstep));
                         _c0 = _mm512_i32gather_ps(_vindex, pC, sizeof(float));
@@ -8783,9 +8783,9 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         __m512 _descale_avx512 = _mm512_broadcast_f32x8(_descale);
 #endif
 
-        __m256 _c0;
+        __m256 _c0 = _mm256_set1_ps(0.f);
 #if __AVX512F__
-        __m512 _c0_avx512;
+        __m512 _c0_avx512 = _mm512_set1_ps(0.f);
 #endif
         if (pC)
         {
@@ -8970,7 +8970,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
                         pC += 128;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         _c0_avx512 = _mm512_loadu_ps(pC);
                         _c1_avx512 = _mm512_loadu_ps(pC + 16);
@@ -9010,7 +9010,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
                         pC += 64;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         _c0_avx512 = _mm512_loadu_ps(pC);
                         _c1_avx512 = _mm512_loadu_ps(pC + c_hstep);
@@ -9506,7 +9506,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c7 = _mm256_loadu_ps(pC + 56);
                         pC += 64;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         __m256 _tmp0 = _mm256_loadu_ps(pC);
                         __m256 _tmp1 = _mm256_loadu_ps(pC + 8);
@@ -9526,7 +9526,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c7 = _mm256_permute2f128_ps(_tmp3, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
                         pC += 32;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         _c0 = _mm256_loadu_ps(pC);
                         _c1 = _mm256_loadu_ps(pC + c_hstep);
@@ -9772,7 +9772,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c3 = _mm256_loadu_ps(pC + 24);
                         pC += 32;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         __m256 _cc0 = _mm256_loadu_ps(pC);
                         __m256 _cc1 = _mm256_loadu_ps(pC + 8);
@@ -9784,7 +9784,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c3 = _mm256_permute2f128_ps(_cc1, _cc3, _MM_SHUFFLE(0, 3, 0, 1));
                         pC += 16;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         // __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
                         // _c0 = _mm256_i32gather_ps(pC, _vindex, c_hstep * sizeof(float));
@@ -9994,7 +9994,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c1 = _mm256_loadu_ps(pC + 8);
                         pC += 16;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         __m256 _cc0 = _mm256_loadu_ps(pC);
                         __m256 _cc1 = _mm256_loadu_ps(pC + c_hstep * 4);
@@ -10002,7 +10002,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c1 = _mm256_permute2f128_ps(_cc0, _cc1, _MM_SHUFFLE(0, 3, 0, 1));
                         pC += 8;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
 #if __AVX2__
                         __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(c_hstep));
@@ -10126,14 +10126,14 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c0 = _mm256_loadu_ps(pC);
                         pC += 8;
                     }
-                    if (c_elempack == 4)
+                    else if (c_elempack == 4)
                     {
                         __m128 _cc0 = _mm_loadu_ps(pC);
                         __m128 _cc1 = _mm_loadu_ps(pC + c_hstep * 4);
                         _c0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_cc0), _cc1, 1);
                         pC += 4;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
 #if __AVX2__
                         __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(c_hstep));
@@ -10213,9 +10213,9 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         __m512 _descale_avx512 = _mm512_broadcast_f32x4(_descale);
 #endif
 
-        __m128 _c0;
+        __m128 _c0 = _mm_set1_ps(0.f);
 #if __AVX512F__
-        __m512 _c0_avx512;
+        __m512 _c0_avx512 = _mm512_set1_ps(0.f);
 #endif
         if (pC)
         {
@@ -10323,7 +10323,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c2_avx512 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
                         _c3_avx512 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         _c0_avx512 = _mm512_loadu_ps(pC);
                         _c1_avx512 = _mm512_loadu_ps(pC + c_hstep);
@@ -10596,7 +10596,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c2 = _mm_loadu_ps(pC + 8);
                         _c3 = _mm_loadu_ps(pC + 12);
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         _c0 = _mm_loadu_ps(pC);
                         _c1 = _mm_loadu_ps(pC + c_hstep);
@@ -10627,7 +10627,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c3 = _mm_loadu_ps(pC + 28);
                         pC += 32;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         _c0 = _mm_loadu_ps(pC + 4);
                         _c1 = _mm_loadu_ps(pC + c_hstep + 4);
@@ -10832,7 +10832,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c3 = _mm_loadu_ps(pC + 12);
                         pC += 16;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         _c0 = _mm_loadu_ps(pC);
                         _c1 = _mm_loadu_ps(pC + c_hstep);
@@ -10992,7 +10992,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c1 = _mm_loadu_ps(pC + 4);
                         pC += 8;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         _c0 = _mm_setr_ps(pC[0], pC[c_hstep], pC[c_hstep * 2], pC[c_hstep * 3]);
                         _c1 = _mm_setr_ps(pC[1], pC[c_hstep + 1], pC[c_hstep * 2 + 1], pC[c_hstep * 3 + 1]);
@@ -11084,7 +11084,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                         _c0 = _mm_loadu_ps(pC);
                         pC += 4;
                     }
-                    if (c_elempack == 1)
+                    else // if (c_elempack == 1)
                     {
                         _c0 = _mm_setr_ps(pC[0], pC[c_hstep], pC[c_hstep * 2], pC[c_hstep * 3]);
                         pC += 1;
@@ -11153,14 +11153,14 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 #endif // __AVX512F__
 #endif
 
-        float c0;
-        float c1;
+        float c0 = 0.f;
+        float c1 = 0.f;
 #if __SSE2__
-        __m128 _c0;
-        __m128 _c1;
+        __m128 _c0 = _mm_set1_ps(0.f);
+        __m128 _c1 = _mm_set1_ps(0.f);
 #if __AVX512F__
-        __m512 _c0_avx512;
-        __m512 _c1_avx512;
+        __m512 _c0_avx512 = _mm512_set1_ps(0.f);
+        __m512 _c1_avx512 = _mm512_set1_ps(0.f);
 #endif // __AVX512F__
 #endif
         if (pC)
@@ -11726,11 +11726,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 #endif // __AVX512F__
 #endif
 
-        float c0;
+        float c0 = 0.f;
 #if __SSE2__
-        __m128 _c0;
+        __m128 _c0 = _mm_set1_ps(0.f);
 #if __AVX512F__
-        __m512 _c0_avx512;
+        __m512 _c0_avx512 = _mm512_set1_ps(0.f);
 #endif // __AVX512F__
 #endif
         if (pC)
