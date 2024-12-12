@@ -88,7 +88,7 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
+        lcov --gcov-tool gcov-14 -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
