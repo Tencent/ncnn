@@ -1403,7 +1403,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k * elempack;
 
-        __m512 _scales = _mm512_loadu_ps((const float*)scales + i + ii);
+        __m512 _scales = _mm512_load_ps((const float*)scales + i + ii);
 #if __AVX512VNNI__
         __m512i _v127 = _mm512_set1_epi8(127);
 #endif // __AVX512VNNI__
@@ -1775,7 +1775,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k * elempack;
 
-        __m256 _scales = _mm256_loadu_ps((const float*)scales + i + ii);
+        __m256 _scales = _mm256_load_ps((const float*)scales + i + ii);
 #if __AVX512VNNI__ || __AVXVNNI__
         __m256i _v127 = _mm256_set1_epi8(127);
 #endif // __AVX512VNNI__ || __AVXVNNI__
@@ -2099,7 +2099,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k * elempack;
 
-        __m128 _scales = _mm_loadu_ps((const float*)scales + i + ii);
+        __m128 _scales = _mm_load_ps((const float*)scales + i + ii);
 #if __AVX512VNNI__ || __AVXVNNI__
         __m128i _v127 = _mm_set1_epi8(127);
 #endif // __AVX512VNNI__ || __AVXVNNI__
@@ -3144,7 +3144,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     {
         const float* p0 = (const float*)A + k * A_hstep + (i + ii) * elempack;
 
-        __m512 _scales = _mm512_loadu_ps((const float*)scales + i + ii);
+        __m512 _scales = _mm512_load_ps((const float*)scales + i + ii);
 #if __AVX512VNNI__
         __m512i _v127 = _mm512_set1_epi8(127);
 #endif
@@ -3604,7 +3604,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     {
         const float* p0 = (const float*)A + k * A_hstep + (i + ii) * elempack;
 
-        __m256 _scales = _mm256_loadu_ps((const float*)scales + i + ii);
+        __m256 _scales = _mm256_load_ps((const float*)scales + i + ii);
 #if __AVX512VNNI__ || __AVXVNNI__
         __m256i _v127 = _mm256_set1_epi8(127);
 #endif // __AVX512VNNI__ || __AVXVNNI__
@@ -4221,7 +4221,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         }
         if (elempack == 1)
         {
-            __m128 _scales = _mm_loadu_ps((const float*)scales + i + ii);
+            __m128 _scales = _mm_load_ps((const float*)scales + i + ii);
 
             int kk = 0;
 #if __AVX512VNNI__ || __AVXVNNI__
