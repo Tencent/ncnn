@@ -23,7 +23,10 @@ static void RandomizeA(ncnn::Mat& m, int transA, float absmax)
         for (int i = 0; i < h; i++)
         {
             float* p = m.dims == 3 ? m.channel(i) : m.row(i);
-            const float randabsmax = RandomFloat(absmax * 0.5f, absmax);
+            float randabsmax = RandomFloat(absmax * 0.5f, absmax);
+            randabsmax = ncnn::float16_to_float32(ncnn::float32_to_float16(randabsmax));
+            randabsmax = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(randabsmax));
+
             for (int j = 0; j < m.w; j++)
             {
                 p[j] = RandomFloat(-randabsmax, randabsmax);
@@ -33,16 +36,33 @@ static void RandomizeA(ncnn::Mat& m, int transA, float absmax)
             p[RandomInt(0, m.w - 1)] = -randabsmax;
             p[RandomInt(0, m.w - 1)] = randabsmax;
 
-            // drop 0.4 ~ 0.6
+            // drop 0.45 ~ 0.55
             for (int j = 0; j < m.w; j++)
             {
-                float v = p[j] / randabsmax * 127.f;
+                float v = p[j] * (127.f / randabsmax);
                 float vv = fabs(v - (int)v);
-                while (vv > 0.4f && vv < 0.6f)
+
+                float hp = ncnn::float16_to_float32(ncnn::float32_to_float16(p[j]));
+                float hv = hp * (127.f / randabsmax);
+                float hvv = fabs(hv - (int)hv);
+
+                float bp = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(p[j]));
+                float bv = bp * (127.f / randabsmax);
+                float bvv = fabs(bv - (int)bv);
+
+                while ((vv > 0.45f && vv < 0.55f) || (hvv > 0.45f && hvv < 0.55f) || (bvv > 0.45f && bvv < 0.55f))
                 {
                     p[j] = RandomFloat(-randabsmax, randabsmax);
-                    v = p[j] / randabsmax * 127.f;
+                    v = p[j] * (127.f / randabsmax);
                     vv = fabs(v - (int)v);
+
+                    hp = ncnn::float16_to_float32(ncnn::float32_to_float16(p[j]));
+                    hv = hp * (127.f / randabsmax);
+                    hvv = fabs(hv - (int)hv);
+
+                    bp = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(p[j]));
+                    bv = bp * (127.f / randabsmax);
+                    bvv = fabs(bv - (int)bv);
                 }
             }
         }
@@ -52,7 +72,10 @@ static void RandomizeA(ncnn::Mat& m, int transA, float absmax)
         std::vector<float> randabsmaxes(m.w);
         for (int j = 0; j < m.w; j++)
         {
-            randabsmaxes[j] = RandomFloat(absmax * 0.5f, absmax);
+            float randabsmax = RandomFloat(absmax * 0.5f, absmax);
+            randabsmax = ncnn::float16_to_float32(ncnn::float32_to_float16(randabsmax));
+            randabsmax = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(randabsmax));
+            randabsmaxes[j] = randabsmax;
         }
 
         const int h = m.dims == 3 ? m.c : m.h;
@@ -65,17 +88,34 @@ static void RandomizeA(ncnn::Mat& m, int transA, float absmax)
                 p[j] = RandomFloat(-randabsmax, randabsmax);
             }
 
-            // drop 0.4 ~ 0.6
+            // drop 0.45 ~ 0.55
             for (int j = 0; j < m.w; j++)
             {
                 const float randabsmax = randabsmaxes[j];
-                float v = p[j] / randabsmax * 127.f;
+                float v = p[j] * (127.f / randabsmax);
                 float vv = fabs(v - (int)v);
-                while (vv > 0.4f && vv < 0.6f)
+
+                float hp = ncnn::float16_to_float32(ncnn::float32_to_float16(p[j]));
+                float hv = hp * (127.f / randabsmax);
+                float hvv = fabs(hv - (int)hv);
+
+                float bp = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(p[j]));
+                float bv = bp * (127.f / randabsmax);
+                float bvv = fabs(bv - (int)bv);
+
+                while ((vv > 0.45f && vv < 0.55f) || (hvv > 0.45f && hvv < 0.55f) || (bvv > 0.45f && bvv < 0.55f))
                 {
                     p[j] = RandomFloat(-randabsmax, randabsmax);
-                    v = p[j] / randabsmax * 127.f;
+                    v = p[j] * (127.f / randabsmax);
                     vv = fabs(v - (int)v);
+
+                    hp = ncnn::float16_to_float32(ncnn::float32_to_float16(p[j]));
+                    hv = hp * (127.f / randabsmax);
+                    hvv = fabs(hv - (int)hv);
+
+                    bp = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(p[j]));
+                    bv = bp * (127.f / randabsmax);
+                    bvv = fabs(bv - (int)bv);
                 }
             }
         }
@@ -98,24 +138,57 @@ static void RandomizeA(ncnn::Mat& m, int transA, float absmax)
 
 static void RandomizeB(ncnn::Mat& m, float absmax)
 {
+    absmax = ncnn::float16_to_float32(ncnn::float32_to_float16(absmax));
+    absmax = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(absmax));
+
+    const int h = m.dims == 3 ? m.c : m.h;
     float* p = m;
-    for (int i = 0; i < m.total(); i++)
+    for (int i = 0; i < h; i++)
     {
-        p[i] = RandomFloat(-absmax, absmax);
-
-        // set random a and b
-        p[RandomInt(0, m.total() - 1)] = -absmax;
-        p[RandomInt(0, m.total() - 1)] = absmax;
-
-        // drop 0.4 ~ 0.6
-        float v = p[i] / absmax * 127.f;
-        float vv = fabs(v - (int)v);
-        while (vv > 0.4f && vv < 0.6f)
+        float* p = m.dims == 3 ? m.channel(i) : m.row(i);
+        for (int j = 0; j < m.w; j++)
         {
-            p[i] = RandomFloat(-absmax, absmax);
-            v = p[i] / absmax * 127.f;
-            vv = fabs(v - (int)v);
+            p[j] = RandomFloat(-absmax, absmax);
+
+            // drop 0.45 ~ 0.55
+            float v = p[j] * (127.f / absmax);
+            float vv = fabs(v - (int)v);
+
+            float hp = ncnn::float16_to_float32(ncnn::float32_to_float16(p[j]));
+            float hv = hp * (127.f / absmax);
+            float hvv = fabs(hv - (int)hv);
+
+            float bp = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(p[j]));
+            float bv = bp * (127.f / absmax);
+            float bvv = fabs(bv - (int)bv);
+
+            while ((vv > 0.45f && vv < 0.55f) || (hvv > 0.45f && hvv < 0.55f) || (bvv > 0.45f && bvv < 0.55f))
+            {
+                p[j] = RandomFloat(-absmax, absmax);
+                v = p[j] * (127.f / absmax);
+                vv = fabs(v - (int)v);
+
+                hp = ncnn::float16_to_float32(ncnn::float32_to_float16(p[j]));
+                hv = hp * (127.f / absmax);
+                hvv = fabs(hv - (int)hv);
+
+                bp = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(p[j]));
+                bv = bp * (127.f / absmax);
+                bvv = fabs(bv - (int)bv);
+            }
         }
+    }
+
+    // set random a and b
+    if (m.dims == 3)
+    {
+        m.channel(RandomInt(0, h - 1))[RandomInt(0, m.w - 1)] = -absmax;
+        m.channel(RandomInt(0, h - 1))[RandomInt(0, m.w - 1)] = absmax;
+    }
+    else
+    {
+        m.row(RandomInt(0, h - 1))[RandomInt(0, m.w - 1)] = -absmax;
+        m.row(RandomInt(0, h - 1))[RandomInt(0, m.w - 1)] = absmax;
     }
 }
 
@@ -139,8 +212,8 @@ static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int tran
     pd.set(18, 2); // int8_scale_term
 
     std::vector<ncnn::Mat> weights;
-    if (constantA) weights.push_back(transA ? (output_N1M ? RandomS8Mat(M, 1, K) : RandomS8Mat(M, K)) : (output_N1M ? RandomS8Mat(K, 1, M) : RandomS8Mat(K, M)));
-    if (constantB) weights.push_back(transB ? (output_N1M ? RandomS8Mat(K, 1, N) : RandomS8Mat(K, N)) : (output_N1M ? RandomS8Mat(N, 1, K) : RandomS8Mat(N, K)));
+    if (constantA) weights.push_back(transA ? RandomS8Mat(M, K) : RandomS8Mat(K, M));
+    if (constantB) weights.push_back(transB ? RandomS8Mat(K, N) : RandomS8Mat(N, K));
     if (constantA) weights.push_back(RandomMat(M, 10.f, 20.f));
     if (constantB) weights.push_back(RandomMat(1, 10.f, 20.f));
 
@@ -266,8 +339,8 @@ static int test_gemm_int8_fp16s(int M, int N, int K, float alpha, int transA, in
     pd.set(18, 2); // int8_scale_term
 
     std::vector<ncnn::Mat> weights;
-    if (constantA) weights.push_back(transA ? (output_N1M ? RandomS8Mat(M, 1, K) : RandomS8Mat(M, K)) : (output_N1M ? RandomS8Mat(K, 1, M) : RandomS8Mat(K, M)));
-    if (constantB) weights.push_back(transB ? (output_N1M ? RandomS8Mat(K, 1, N) : RandomS8Mat(K, N)) : (output_N1M ? RandomS8Mat(N, 1, K) : RandomS8Mat(N, K)));
+    if (constantA) weights.push_back(transA ? RandomS8Mat(M, K) : RandomS8Mat(K, M));
+    if (constantB) weights.push_back(transB ? RandomS8Mat(K, N) : RandomS8Mat(N, K));
     if (constantA) weights.push_back(RandomMat(M, 10.f, 20.f));
     if (constantB) weights.push_back(RandomMat(1, 10.f, 20.f));
 
