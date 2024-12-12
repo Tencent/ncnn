@@ -61,44 +61,44 @@ jobs:
         plugins: noop
         files: build/lcov.info
 
-  linux-gcc-x64-avx512-spr:
-    runs-on: ubuntu-22.04
+  linux-gcc-x64-sde:
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: update
       run: sudo apt-get update
-    - name: gcc12
-      run: sudo apt-get install gcc-12 g++-12
+    - name: gcc14
+      run: sudo apt-get install gcc-14 g++-14
     - name: lcov
       run: sudo apt-get install lcov
     - name: Setup SDE binaries
       uses: petarpetrovt/setup-sde@v2.4
-    - name: build-avx512-spr
+    - name: build
       env:
-        CC: gcc-12
-        CXX: g++-12
+        CC: gcc-14
+        CXX: g++-14
       run: |
-        mkdir build-avx512-spr && cd build-avx512-spr
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=ON -DNCNN_AVX512FP16=ON -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test-avx512-spr
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=ON -DNCNN_AVX512FP16=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
       run: |
-        cd build-avx512-spr
+        cd build
         TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
     - name: lcov-collect
       run: |
-        cd build-avx512-spr
+        cd build
         lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-avx512-spr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov-avx512-spr
+    - name: codecov
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
-        files: build-avx512-spr/lcov.info
+        files: build/lcov.info
 
   linux-gcc-riscv64-rvv:
     strategy:
