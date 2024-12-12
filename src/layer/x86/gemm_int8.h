@@ -4515,7 +4515,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
 #if __AVX512VNNI__
                 _w_shift = _mm_comp_dpbusd_epi32(_w_shift, _v127, _pp);
 #endif // __AVX512VNNI__
-                _mm_store_si128((__m128i*)pp, _pp);
+                _mm_storeu_si128((__m128i*)pp, _pp);
 
                 pp += 16;
                 p0 += A_hstep * 16;
@@ -5602,10 +5602,10 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _p0 = _mm_load_ps(p0);
-                __m128 _p1 = _mm_load_ps(p0 + B_hstep);
-                __m128 _p2 = _mm_load_ps(p0 + B_hstep * 2);
-                __m128 _p3 = _mm_load_ps(p0 + B_hstep * 3);
+                __m128 _p0 = _mm_loadu_ps(p0);
+                __m128 _p1 = _mm_loadu_ps(p0 + B_hstep);
+                __m128 _p2 = _mm_loadu_ps(p0 + B_hstep * 2);
+                __m128 _p3 = _mm_loadu_ps(p0 + B_hstep * 3);
 
                 _p0 = _mm_mul_ps(_p0, _scale);
                 _p1 = _mm_mul_ps(_p1, _scale);
