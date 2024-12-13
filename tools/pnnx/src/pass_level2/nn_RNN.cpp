@@ -27,7 +27,7 @@ pnnx.Input              input_0     0 1 input
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         3 1 input W R out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -76,12 +76,12 @@ pnnx.Output             output      1 0 out1
             }
         }
 
-        if (captured_params.find("axes") != captured_params.end())
+        if (captured_params.find("dim") != captured_params.end())
         {
-            if (captured_params.at("axes").type == 2 && captured_params.at("axes").i != 1)
+            if (captured_params.at("dim").type == 2 && captured_params.at("dim").i != 1)
                 return false;
 
-            if (captured_params.at("axes").type == 5 && captured_params.at("axes").ai != std::vector<int>{1})
+            if (captured_params.at("dim").type == 5 && captured_params.at("dim").ai != std::vector<int>{1})
                 return false;
         }
 
@@ -153,7 +153,7 @@ pnnx.Output             output      1 0 out1
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx, 140)
 
 class nn_RNN_onnx_B : public nn_RNN_onnx
 {
@@ -167,7 +167,7 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         4 1 input W R B out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
@@ -243,7 +243,7 @@ pnnx.Output             output      1 0 out1
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B, 140)
 
 class nn_RNN_onnx_1 : public nn_RNN_onnx
 {
@@ -257,13 +257,13 @@ pnnx.Input              input_1     0 1 initial_h
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         4 2 input W R initial_h out outh %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      2 0 out1 outh
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_1, 140)
 
 class nn_RNN_onnx_B1 : public nn_RNN_onnx_B
 {
@@ -278,13 +278,13 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         5 2 input W R B initial_h out outh %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      2 0 out1 outh
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B1, 140)
 
 class nn_RNN_onnx_2 : public nn_RNN_onnx
 {
@@ -298,13 +298,13 @@ pnnx.Input              input_1     0 1 initial_h
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         4 1 input W R initial_h out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_2, 140)
 
 class nn_RNN_onnx_B2 : public nn_RNN_onnx_B
 {
@@ -319,13 +319,13 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         5 1 input W R B initial_h out %*=%*
-Squeeze                 sqz         1 1 out out1 axes=%axes
+torch.squeeze           sqz         1 1 out out1 dim=%dim
 pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B2, 140)
 
 class nn_RNN_onnx_3 : public nn_RNN_onnx
 {
@@ -338,8 +338,8 @@ pnnx.Input              input_0     0 1 input
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         3 1 input W R out %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
@@ -356,7 +356,7 @@ pnnx.Output             output      1 0 out2
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_3, 140)
 
 class nn_RNN_onnx_B3 : public nn_RNN_onnx_B
 {
@@ -370,8 +370,8 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         4 1 input W R B out %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
@@ -388,7 +388,7 @@ pnnx.Output             output      1 0 out2
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B3, 140)
 
 class nn_RNN_onnx_4 : public nn_RNN_onnx_3
 {
@@ -402,14 +402,14 @@ pnnx.Input              input_1     0 1 initial_h
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         4 2 input W R initial_h out outh %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      2 0 out2 outh
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_4, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_4, 140)
 
 class nn_RNN_onnx_B4 : public nn_RNN_onnx_B3
 {
@@ -424,14 +424,14 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         5 2 input W R B initial_h out outh %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      2 0 out2 outh
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B4, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B4, 140)
 
 class nn_RNN_onnx_5 : public nn_RNN_onnx_3
 {
@@ -445,14 +445,14 @@ pnnx.Input              input_1     0 1 initial_h
 pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 RNN                     rnn         4 1 input W R initial_h out %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_5, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_5, 140)
 
 class nn_RNN_onnx_B5 : public nn_RNN_onnx_B3
 {
@@ -467,13 +467,13 @@ pnnx.Attribute          W           0 1 W @data
 pnnx.Attribute          R           0 1 R @data
 pnnx.Attribute          B           0 1 B @data
 RNN                     rnn         5 1 input W R B initial_h out %*=%*
-Transpose               transpose   1 1 out out1 perm=(0,2,1,3)
-Reshape                 reshape     1 1 out1 out2 %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
 pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B5, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B5, 140)
 
 } // namespace pnnx

@@ -23,6 +23,11 @@ namespace ncnn {
 
 int SELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if C906
+    // FIXME -O3 leads illegal instruction
+    return SELU::forward_inplace(bottom_top_blob, opt);
+#endif
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
@@ -39,17 +44,17 @@ int SELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int n = size;
         while (n > 0)
         {
-            size_t vl = vsetvl_e32m8(n);
-            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-            vbool4_t _lower = vmflt_vf_f32m8_b4(_p, 0.f, vl);
-            vbool4_t _higher = vmnot_m_b4(_lower, vl);
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+            vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, 0.f, vl);
+            vbool4_t _higher = __riscv_vmnot_m_b4(_lower, vl);
 
-            _p = vfmul_vf_f32m8_m(_higher, _p, /*op1*/ _p, lambda, vl);
+            _p = __riscv_vfmul_vf_f32m8_mu(_higher, _p, _p, lambda, vl);
             vfloat32m8_t _nps = exp_ps(_p, vl);
-            _nps = vfsub_vf_f32m8_m(_lower, _p, /*op1*/ _nps, 1.f, vl);
-            _nps = vfmul_vf_f32m8_m(_lower, _p, /*op1*/ _nps, alphaxlambda, vl);
+            _nps = __riscv_vfsub_vf_f32m8_mu(_lower, _p, _nps, 1.f, vl);
+            _nps = __riscv_vfmul_vf_f32m8_mu(_lower, _p, _nps, alphaxlambda, vl);
 
-            vse32_v_f32m8(ptr, _nps, vl);
+            __riscv_vse32_v_f32m8(ptr, _nps, vl);
             ptr += vl;
             n -= vl;
         }

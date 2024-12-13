@@ -27,6 +27,10 @@ namespace ncnn {
 #include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
 
+#if NCNN_INT8
+#include "gemm_int8_fp16s.h"
+#endif
+
 static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
     const int out_elempack = top_blob.elempack;
@@ -3025,5 +3029,22 @@ int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
 
     return 0;
 }
+
+#if NCNN_INT8
+void compute_A_tile_fp16_int8_scales_asimdhp(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
+{
+    compute_A_tile_fp16_int8_scales(A, scales, B_scale, out_descales, i, max_ii);
+}
+
+void transpose_compute_A_tile_fp16_int8_scales_asimdhp(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
+{
+    transpose_compute_A_tile_fp16_int8_scales(A, scales, B_scale, out_descales, i, max_ii);
+}
+
+void compute_B_fp16_int8_scale_asimdhp(const Mat& B, float& scale)
+{
+    compute_B_fp16_int8_scale(B, scale);
+}
+#endif // NCNN_INT8
 
 } // namespace ncnn

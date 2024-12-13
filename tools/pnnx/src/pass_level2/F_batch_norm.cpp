@@ -43,7 +43,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm, 130)
 
 class F_batch_norm_1 : public GraphRewriterPass
 {
@@ -77,7 +77,7 @@ pnnx.Output             output      3 0 out save_mean save_invstd
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_1, 130)
 
 class F_batch_norm_onnx : public GraphRewriterPass
 {
@@ -119,6 +119,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_onnx, 130)
 
 } // namespace pnnx

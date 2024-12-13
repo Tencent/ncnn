@@ -41,12 +41,18 @@ protected:
     int create_pipeline_bf16s(const Option& opt);
     int forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
+#if NCNN_INT8
+    int create_pipeline_int8(const Option& opt);
+    int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
 
 public:
     int nT;
     Mat AT_data;
     Mat BT_data;
     Mat CT_data;
+
+    int input_elemtype; // 0=auto 1=fp32 2=fp16 3=bf16
 };
 
 } // namespace ncnn

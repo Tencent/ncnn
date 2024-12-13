@@ -49,7 +49,7 @@ pnnx.Output             output      2 0 out indices
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min, 50)
 
 class torch_min_1 : public GraphRewriterPass
 {
@@ -70,7 +70,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_1, 50)
 
 class torch_min_onnx : public GraphRewriterPass
 {
@@ -123,7 +123,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx, 51)
 
 class torch_min_onnx_1 : public GraphRewriterPass
 {
@@ -180,6 +180,6 @@ pnnx.Output             output      2 0 out indices
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx_1, 19)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx_1, 50)
 
 } // namespace pnnx
