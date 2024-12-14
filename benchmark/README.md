@@ -2393,7 +2393,7 @@ cooling_down = 1
     yolo-fastest-1.1  min =   44.59  max =   44.95  avg =   44.80
       yolo-fastestv2  min =   36.88  max =   37.11  avg =   36.98
 
-130|vim3:/data/local/tmp $ ./benchncnn 8 6 2 0 1                               
+vim3:/data/local/tmp $ ./benchncnn 8 6 2 0 1                               
 [0 Mali-G52]  queueC=0[2]  queueG=0[2]  queueT=0[2]
 [0 Mali-G52]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=1
 [0 Mali-G52]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/0/0/0
