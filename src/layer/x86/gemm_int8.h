@@ -10443,6 +10443,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(out_hstep));
+                    _mm256_i32scatter_ps(p0, _vindex, _f0, sizeof(float));
+                    _mm256_i32scatter_ps(p0 + 1, _vindex, _f1, sizeof(float));
+#else
                     float sum0[8];
                     float sum1[8];
                     _mm256_storeu_ps(sum0, _f0);
@@ -10464,7 +10469,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     p0[out_hstep * 6 + 1] = sum1[6];
                     p0[out_hstep * 7] = sum0[7];
                     p0[out_hstep * 7 + 1] = sum1[7];
-
+#endif // __AVX512F__
                     p0 += 2;
                 }
             }
@@ -10550,6 +10555,10 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(out_hstep));
+                    _mm256_i32scatter_ps(p0, _vindex, _f0, sizeof(float));
+#else
                     float sum0[8];
                     _mm256_storeu_ps(sum0, _f0);
                     p0[0] = sum0[0];
@@ -10560,6 +10569,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     p0[out_hstep * 5] = sum0[5];
                     p0[out_hstep * 6] = sum0[6];
                     p0[out_hstep * 7] = sum0[7];
+#endif // __AVX512F__
                     p0++;
                 }
             }
@@ -11418,6 +11428,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m128i _vindex = _mm_mullo_epi32(_mm_setr_epi32(0, 1, 2, 3), _mm_set1_epi32(out_hstep));
+                    _mm_i32scatter_ps(p0, _vindex, _f0, sizeof(float));
+                    _mm_i32scatter_ps(p0 + 1, _vindex, _f1, sizeof(float));
+#else
                     float sum0[4];
                     float sum1[4];
                     _mm_storeu_ps(sum0, _f0);
@@ -11431,7 +11446,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     p0[out_hstep * 2 + 1] = sum1[2];
                     p0[out_hstep * 3] = sum0[3];
                     p0[out_hstep * 3 + 1] = sum1[3];
-
+#endif // __AVX512F__
                     p0 += 2;
                 }
             }
@@ -11492,12 +11507,17 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m128i _vindex = _mm_mullo_epi32(_mm_setr_epi32(0, 1, 2, 3), _mm_set1_epi32(out_hstep));
+                    _mm_i32scatter_ps(p0, _vindex, _f0, sizeof(float));
+#else
                     float sum0[4];
                     _mm_storeu_ps(sum0, _f0);
                     p0[0] = sum0[0];
                     p0[out_hstep] = sum0[1];
                     p0[out_hstep * 2] = sum0[2];
                     p0[out_hstep * 3] = sum0[3];
+#endif // __AVX512F__
                     p0++;
                 }
             }
