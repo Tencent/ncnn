@@ -62,7 +62,7 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-x64-sde:
-    name: ${{ matrix.cpu }}
+    name: gcc-sde-${{ matrix.cpu }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -96,7 +96,7 @@ jobs:
             -DNCNN_AVXVNNI=${{ matrix.AVXVNNI }} \
             -DNCNN_AVXVNNIINT8=${{ matrix.AVXVNNIINT8 }} \
             -DNCNN_AVXNECONVERT=${{ matrix.AVXNECONVERT }} \
-            -DNCNN_AVX512=${{ matrix.AVX2 }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
             -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
             -DNCNN_AVX512BF16=${{ matrix.AVX512BF16 }} \
             -DNCNN_AVX512FP16=${{ matrix.AVX512FP16 }} \
