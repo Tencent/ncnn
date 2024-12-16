@@ -62,7 +62,16 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-x64-sde:
+    name: ${{ matrix.cpu }}
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cpu: hsw, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: arl, AVX2: ON, AVXVNNI: ON,  AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: arl, AVX2: ON, AVXVNNI: ON,  AVXVNNIINT8: ON,  AVXNECONVERT: ON,  AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: spr, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: ON,  AVX512VNNI: ON,  AVX512BF16: ON,  AVX512FP16: ON  }
     steps:
     - uses: actions/checkout@v4
     - name: update
@@ -79,12 +88,24 @@ jobs:
         CXX: g++-14
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=ON -DNCNN_AVX512FP16=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_AVX=ON \
+            -DNCNN_F16C=ON \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVXVNNI=${{ matrix.AVXVNNI }} \
+            -DNCNN_AVXVNNIINT8=${{ matrix.AVXVNNIINT8 }} \
+            -DNCNN_AVXNECONVERT=${{ matrix.AVXNECONVERT }} \
+            -DNCNN_AVX512=${{ matrix.AVX2 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_AVX512BF16=${{ matrix.AVX512BF16 }} \
+            -DNCNN_AVX512FP16=${{ matrix.AVX512FP16 }} \
+            -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j $(nproc)
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-${{ matrix.cpu }};--" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
       run: |
         cd build
