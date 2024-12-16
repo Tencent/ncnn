@@ -3862,10 +3862,10 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         const float* p0 = (const float*)A + k * A_hstep + (i + ii) * elempack;
 
         __m256 _scales = _mm256_load_ps((const float*)scales + i + ii);
-#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
         __m256i _w_shift = _mm256_setzero_si256();
         __m256i _v127 = _mm256_set1_epi8(127);
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
 
 #if __AVX512F__
         if (elempack == 16)
@@ -4261,10 +4261,10 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     {
         const float* p0 = (const float*)A + k * A_hstep + (i + ii) * elempack;
 
-#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
         __m128i _w_shift = _mm_setzero_si128();
         __m128i _v127 = _mm_set1_epi8(127);
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
 
 #if __AVX__
 #if __AVX512F__
@@ -4450,11 +4450,13 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 pp += 16;
                 p0 += A_hstep * 4;
             }
+#if !__AVXVNNIINT8__
             if (max_kk >= 4)
             {
                 _mm_store_si128((__m128i*)pp, _w_shift);
                 pp += 16;
             }
+#endif // !__AVXVNNIINT8__
 #else  // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -4510,11 +4512,13 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
                 pp += 16;
                 p0 += A_hstep * 4;
             }
+#if !__AVXVNNIINT8__
             if (max_kk >= 4)
             {
                 _mm_storeu_si128((__m128i*)pp, _w_shift);
                 pp += 16;
             }
+#endif // !__AVXVNNIINT8__
 #endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
@@ -4545,9 +4549,9 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
     {
         const float* p0 = (const float*)A + k * A_hstep + (i + ii) * elempack;
 
-#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
         __m128i _v127 = _mm_set1_epi8(127);
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
 
 #if __SSE2__
 #if __AVX__
