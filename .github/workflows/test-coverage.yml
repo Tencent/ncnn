@@ -62,7 +62,7 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-x64-sde:
-    name: gcc-sde-${{ matrix.cpu }}
+    name: linux-gcc-sde-${{ matrix.cpu }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false

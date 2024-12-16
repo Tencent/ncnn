@@ -13718,12 +13718,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         }
 
         pAT += max_kk * 8;
-#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
         if (max_kk >= 4)
         {
             pAT += 32;
         }
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
     }
 #endif // __AVX2__
     for (; ii + 3 < max_ii; ii += 4)
@@ -14468,12 +14468,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         }
 
         pAT += max_kk * 4;
-#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
         if (max_kk >= 4)
         {
             pAT += 16;
         }
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
     }
 #endif // __SSE2__
     for (; ii + 1 < max_ii; ii += 2)
@@ -15031,12 +15031,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         }
 
         pAT += max_kk * 2;
-#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
         if (max_kk >= 4)
         {
             pAT += 8;
         }
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
     }
     for (; ii < max_ii; ii += 1)
     {
@@ -15442,12 +15442,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         }
 
         pAT += max_kk;
-#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
         if (max_kk >= 4)
         {
             pAT += 4;
         }
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
     }
 }
 
