@@ -2501,8 +2501,8 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _p0 = _mm_load_ps(p0);
-                __m128 _p1 = _mm_load_ps(p0 + A_hstep);
+                __m128 _p0 = _mm_loadu_ps(p0);
+                __m128 _p1 = _mm_loadu_ps(p0 + A_hstep);
                 _p0 = _mm_mul_ps(_p0, _scales0);
                 _p1 = _mm_mul_ps(_p1, _scales1);
 #if __AVX512VNNI__ || __AVXVNNI__
@@ -2574,7 +2574,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _p = _mm_load_ps(p0);
+                __m128 _p = _mm_loadu_ps(p0);
                 _p = _mm_mul_ps(_p, _scale);
                 int32_t v = float2int8_sse(_p);
                 *(int32_t*)pp = v;
@@ -5998,8 +5998,8 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #if __SSE2__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _p0 = _mm_load_ps(p0);
-                __m128 _p1 = _mm_load_ps(p0 + B_hstep);
+                __m128 _p0 = _mm_loadu_ps(p0);
+                __m128 _p1 = _mm_loadu_ps(p0 + B_hstep);
                 _p0 = _mm_mul_ps(_p0, _scale);
                 _p1 = _mm_mul_ps(_p1, _scale);
 #if __AVX512VNNI__ || __AVXVNNI__
@@ -6059,7 +6059,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #if __SSE2__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _p = _mm_load_ps(p0);
+                __m128 _p = _mm_loadu_ps(p0);
                 _p = _mm_mul_ps(_p, _scale);
                 int32_t v = float2int8_sse(_p);
                 *(int32_t*)pp = v;
