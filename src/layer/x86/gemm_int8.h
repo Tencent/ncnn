@@ -65,32 +65,6 @@ void gemm_transB_packed_tile_int8_avx2(const Mat& AT_tile, const Mat& BT_tile, M
 void gemm_transB_packed_tile_int8_xop(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
 #endif
 
-#if __AVX512F__
-static void print(__m512 x)
-{
-    float a[16];
-    _mm512_storeu_ps(a, x);
-    for (int i = 0; i < 16; i++)
-    {
-        fprintf(stderr, "%.0f ", a[i]);
-    }
-    fprintf(stderr, "\n");
-}
-#endif
-
-#if __AVX__
-static void print(__m256 x)
-{
-    float a[8];
-    _mm256_storeu_ps(a, x);
-    for (int i = 0; i < 8; i++)
-    {
-        fprintf(stderr, "%.0f ", a[i]);
-    }
-    fprintf(stderr, "\n");
-}
-#endif
-
 static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
