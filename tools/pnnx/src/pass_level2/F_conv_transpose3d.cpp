@@ -16,6 +16,44 @@
 
 namespace pnnx {
 
+class F_conv_transpose3d : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+15 14
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+prim::Constant          op_0        0 1 stride value=%stride
+prim::Constant          op_1        0 1 padding value=%padding
+prim::Constant          op_2        0 1 dilation value=%dilation
+prim::Constant          op_3        0 1 transposed value=True
+prim::Constant          op_4        0 1 output_padding value=%output_padding
+prim::Constant          op_5        0 1 groups value=%groups
+prim::Constant          op_6        0 1 benchmark value=*
+prim::Constant          op_7        0 1 deterministic value=*
+prim::Constant          op_8        0 1 cudnn_enabled value=*
+prim::Constant          op_9        0 1 allow_tf32 value=*
+aten::_convolution      op_10       13 1 input weight bias stride padding dilation transposed output_padding groups benchmark deterministic cudnn_enabled allow_tf32 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.conv_transpose3d";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.at("stride").type == 5 && captured_params.at("stride").ai.size() == 3;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d, 140)
+
 class F_conv_transpose3d_onnx : public GraphRewriterPass
 {
 public:
@@ -125,7 +163,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_onnx, 140)
 
 class F_conv_transpose3d_onnx_1 : public F_conv_transpose3d_onnx
 {
@@ -149,6 +187,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_onnx_1, 140)
 
 } // namespace pnnx

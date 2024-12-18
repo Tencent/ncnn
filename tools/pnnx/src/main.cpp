@@ -334,7 +334,7 @@ int main(int argc, char** argv)
 
     pnnx::pass_level2(pnnx_graph);
 
-    pnnx_graph.save("debug.param", "debug.bin");
+    // pnnx_graph.save("debug.param", "debug.bin");
 
     if (optlevel >= 1)
     {
@@ -347,7 +347,7 @@ int main(int argc, char** argv)
         pnnx::pass_level4(pnnx_graph);
     }
 
-    pnnx_graph.save("debug2.param", "debug2.bin");
+    // pnnx_graph.save("debug2.param", "debug2.bin");
 
     if (optlevel >= 2)
     {

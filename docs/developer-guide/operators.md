@@ -46,6 +46,7 @@
 * [Input](#input)
 * [InstanceNorm](#instancenorm)
 * [Interp](#interp)
+* [InverseSpectrogram](#inversespectrogram)
 * [LayerNorm](#layernorm)
 * [Log](#log)
 * [LRN](#lrn)
@@ -81,6 +82,7 @@
 * [Slice](#slice)
 * [Softmax](#softmax)
 * [Softplus](#softplus)
+* [Spectrogram](#spectrogram)
 * [Split](#split)
 * [Swish](#swish)
 * [TanH](#tanh)
@@ -837,11 +839,13 @@ y = embedding(x)
 | 1         | input_dim     | int   | 0         |                   |
 | 2         | bias_term     | int   | 0         |                   |
 | 3         | weight_data_size | int | 0        |                   |
+| 18        | int8_scale_term| int  | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | weight_data   | float | [weight_data_size]    |
 | bias_term     | float | [num_output]          |
+| weight_data_int8_scales| float | [1]          |
 
 # Exp
 ```
@@ -940,15 +944,18 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
+| 18        | int8_scale_term | int | 0         |                   |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| A_data        | float | [M, K] or [K, M]      |
-| B_data        | float | [N, K] or [K, N]      |
+| A_data        | float/fp16/int8 | [M, K] or [K, M] |
+| B_data        | float/fp16/int8 | [N, K] or [K, N] |
 | C_data        | float | [1], [M] or [N] or [1, M] or [N,1] or [N, M] |
+| A_data_int8_scales| float | [M]               |
+| B_data_int8_scales| float | [1]               |
 
 # GridSample
 ```
@@ -1136,6 +1143,30 @@ Resize type:
 - 2 = Bilinear
 - 3 = Bicubic
 
+# InverseSpectrogram
+```
+x1 = x as complex
+x1 = x1 * sqrt(norm) if normalized
+y = istft(x1)
+y1 = unpad(y) if center
+
+if returns == 0 return y1 as complex
+if returns == 1 return y1 real
+if returns == 2 return y1 imag
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | n_fft         | int   | 0         |                   |
+| 1         | returns       | int   | 1         |                   |
+| 2         | hoplen        | int   | n_fft / 4 |                   |
+| 3         | winlen        | int   | n_fft     |                   |
+| 4         | window_type   | int   | 0         | 0=ones 1=hann 2=hamming |
+| 5         | center        | int   | 1         |                   |
+| 7         | normalized    | int   | 0         | 0=no 1=n_fft 2=window-l2-energy |
+
 # LayerNorm
 ```
 split x along outmost axis into part x0, x1 ...
@@ -1272,6 +1303,7 @@ y = affine(out)
 | 4         | vdim          | int   | embed_dim |                   |
 | 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
+| 18        | int8_scale_term | int | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1283,6 +1315,10 @@ y = affine(out)
 | v_bias_data   | float | [embed_dim]           |
 | out_weight_data| float/fp16/int8 | [qdim * embed_dim] |
 | out_bias_data | float | [qdim]                |
+| q_weight_data_int8_scales| float | [embed_dim] |
+| k_weight_data_int8_scales| float | [embed_dim] |
+| v_weight_data_int8_scales| float | [embed_dim] |
+| out_weight_data_int8_scales| float | [1]      |
 
 # MVN
 ```
@@ -1818,6 +1854,31 @@ y = log(exp(x) + 1)
 
 * one_blob_only
 * support_inplace
+
+# Spectrogram
+```
+x1 = pad(x) if center
+y = stft(x1)
+y = y / sqrt(norm) if normalized
+
+if power == 0 return y as real
+if power == 1 return magnitude
+if power == 2 return square of magnitude
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | n_fft         | int   | 0         |                   |
+| 1         | power         | int   | 0         |                   |
+| 2         | hoplen        | int   | n_fft / 4 |                   |
+| 3         | winlen        | int   | n_fft     |                   |
+| 4         | window_type   | int   | 0         | 0=ones 1=hann 2=hamming |
+| 5         | center        | int   | 1         |                   |
+| 6         | pad_type      | int   | 2         | 0=CONSTANT 1=REPLICATE 2=REFLECT |
+| 7         | normalized    | int   | 0         | 0=no 1=n_fft 2=window-l2-energy |
+| 8         | onesided      | int   | 1         |                   |
 
 # Split
 ```

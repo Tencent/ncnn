@@ -2101,13 +2101,6 @@ jobs:
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
-    - name: build-arm
-      if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
-      run: |
-        mkdir build-arm; cd build-arm
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A arm ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
     - name: build-arm64
       if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
       run: |
@@ -2130,11 +2123,9 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/arm
         mkdir ${{ env.PACKAGENAME }}/arm64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip

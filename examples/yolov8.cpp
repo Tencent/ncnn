@@ -175,10 +175,10 @@ static void parse_yolov8_detections(
 
     for (int i = 0; i < num_anchors; i++)
     {
-        auto row_ptr = output.row(i).ptr<float>();
-        auto bboxes_ptr = row_ptr;
-        auto scores_ptr = row_ptr + 4;
-        auto max_s_ptr = std::max_element(scores_ptr, scores_ptr + num_labels);
+        const float* row_ptr = output.row(i).ptr<float>();
+        const float* bboxes_ptr = row_ptr;
+        const float* scores_ptr = row_ptr + 4;
+        const float* max_s_ptr = std::max_element(scores_ptr, scores_ptr + num_labels);
         float score = *max_s_ptr;
         if (score > confidence_threshold)
         {
@@ -201,7 +201,7 @@ static void parse_yolov8_detections(
             object.label = max_s_ptr - scores_ptr;
             object.prob = score;
             object.rect = bbox;
-            detections.emplace_back(object);
+            detections.push_back(object);
         }
     }
     objects = detections;

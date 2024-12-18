@@ -27,8 +27,6 @@
 #include "pass_level3/fuse_maxpool_unpack.h"
 #include "pass_level3/fuse_multiheadattention_unpack.h"
 #include "pass_level3/fuse_rnn_unpack.h"
-#include "pass_level3/rename_F_conv_transposend.h"
-#include "pass_level3/rename_F_convmode.h"
 #include "pass_level3/rename_F_dropoutnd.h"
 
 // #include "pass_level4/canonicalize.h"
@@ -58,10 +56,6 @@ void pass_level3(Graph& g, const std::set<std::string>& foldable_constants, cons
     expand_quantization_modules(g);
 
     eliminate_tuple_pair(g);
-
-    rename_F_conv_transposend(g);
-
-    rename_F_convmode(g);
 
     rename_F_dropoutnd(g);
 

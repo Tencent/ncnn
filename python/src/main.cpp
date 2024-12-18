@@ -34,6 +34,20 @@ using namespace ncnn;
 
 namespace py = pybind11;
 
+class DataReaderFromMemoryCopy : public DataReaderFromMemory
+{
+public:
+    explicit DataReaderFromMemoryCopy(const unsigned char*& mem)
+        : DataReaderFromMemory(mem)
+    {
+    }
+
+    virtual size_t reference(size_t size, const void** buf) const
+    {
+        return 0;
+    }
+};
+
 struct LayerFactory
 {
     std::string name;
@@ -956,6 +970,13 @@ PYBIND11_MODULE(ncnn, m)
 #endif // NCNN_STRING
     .def("load_param_bin", (int (Net::*)(const char*)) & Net::load_param_bin, py::arg("protopath"))
     .def("load_model", (int (Net::*)(const char*)) & Net::load_model, py::arg("modelpath"))
+    .def(
+    "load_model_mem", [](Net& net, const char* mem) {
+        const unsigned char* _mem = (const unsigned char*)mem;
+        DataReaderFromMemoryCopy dr(_mem);
+        net.load_model(dr);
+    },
+    py::arg("mem"))
 #endif // NCNN_STDIO
 
     .def("clear", &Net::clear)

@@ -39,7 +39,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_addmm, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_addmm, 90)
 
 class torch_addmm_1 : public GraphRewriterPass
 {
@@ -62,6 +62,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_addmm_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_addmm_1, 90)
 
 } // namespace pnnx

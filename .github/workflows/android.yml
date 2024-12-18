@@ -9,6 +9,7 @@ on:
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
+    - 'src/layer/riscv/**'
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
   pull_request:
@@ -20,6 +21,7 @@ on:
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
+    - 'src/layer/riscv/**'
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
 concurrency:
@@ -64,6 +66,11 @@ jobs:
         mkdir build-x86_64 && cd build-x86_64
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="x86_64" ..
         cmake --build . -j $(nproc)
+    - name: riscv64
+      run: |
+        mkdir build-riscv64 && cd build-riscv64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="riscv64" ..
+        cmake --build . -j $(nproc)
 
     - name: armeabi-v7a-shared
       run: |
@@ -84,6 +91,11 @@ jobs:
       run: |
         mkdir build-x86_64-shared && cd build-x86_64-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="x86_64" -DNCNN_SHARED_LIB=ON ..
+        cmake --build . -j $(nproc)
+    - name: riscv64-shared
+      run: |
+        mkdir build-riscv64-shared && cd build-riscv64-shared
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="riscv64" -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
 
   ndk-r16b:
