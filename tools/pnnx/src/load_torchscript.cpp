@@ -501,7 +501,6 @@ static void get_traced_input_shape(const std::string& ptpath, std::vector<std::v
                 input_types[i] = get_at_tensor_type_str(datatype);
             }
 
-
             fprintf(stderr, "use inputshape from traced inputs\n");
             fprintf(stderr, "inputshape = ");
             print_shape_list(input_shapes, input_types);
