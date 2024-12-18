@@ -51,6 +51,7 @@ macro(ncnn_add_arch_opt_source class NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_C
     if(WITH_LAYER_${name} AND EXISTS ${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE})
         if(NCNN_RUNTIME_CPU)
             set_source_files_properties(${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE} PROPERTIES COMPILE_FLAGS ${NCNN_TARGET_ARCH_OPT_CFLAGS})
+        endif()
         list(APPEND ncnn_SRCS ${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE})
     endif()
 endmacro()
@@ -73,7 +74,7 @@ macro(ncnn_add_arch_opt_layer_source class NCNN_TARGET_ARCH_OPT_BASE NCNN_TARGET
 
         if(NCNN_RUNTIME_CPU)
             set_source_files_properties(${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE} PROPERTIES COMPILE_FLAGS ${NCNN_TARGET_ARCH_OPT_CFLAGS})
-
+        endif()
         list(APPEND ncnn_SRCS ${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE})
     endif()
 endmacro()
