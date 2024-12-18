@@ -14,6 +14,7 @@
 
 import torch
 import torchvision.models as models
+from packaging import version
 
 def test():
     net = models.squeezenet1_1()
@@ -30,7 +31,10 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_squeezenet1_1.pt inputshape=[1,3,224,224]")
+    if version.parse(torch.__version__) >= version.parse('2.0'):
+        os.system("../src/pnnx test_squeezenet1_1.pt")
+    else:
+        os.system("../src/pnnx test_squeezenet1_1.pt inputshape=[1,3,224,224]")
 
     # pnnx inference
     import test_squeezenet1_1_pnnx
