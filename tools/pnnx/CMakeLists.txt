@@ -33,6 +33,7 @@ option(PNNX_COVERAGE "build for coverage" OFF)
 
 # set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
 # set(TorchVision_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
+# set(protobuf_DIR "/home/nihui/osd/pnnx/install/lib64/cmake/protobuf" CACHE STRING "")
 
 # set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
@@ -77,7 +78,7 @@ else()
     message(WARNING "Building without TorchVision")
 endif()
 
-include_directories(${TORCH_INCLUDE_DIRS})
+include_directories(SYSTEM ${TORCH_INCLUDE_DIRS})
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     # test if libtorch and protobuf has the same cxxabi version
