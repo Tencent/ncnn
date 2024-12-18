@@ -2717,8 +2717,44 @@ int cpu_support_riscv_zfh()
 #endif
 }
 
+int cpu_support_riscv_zvfh()
+{
+    try_initialize_global_cpu_info();
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    // v + f does not imply zfh, but how to discover zvfh properly ?
+    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
+    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_xtheadvector()
+{
+    try_initialize_global_cpu_info();
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    // v + f does not imply zfh, but how to discover zvfh properly ?
+    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
+    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 int cpu_riscv_vlenb()
 {
+#if C906
+    // FIXME xuantie qemu reports all zero auxv flags
+    return 16;
+#endif
     try_initialize_global_cpu_info();
 #if __riscv
     if (!cpu_support_riscv_v())

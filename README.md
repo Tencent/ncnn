@@ -436,7 +436,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td></td>
 <td>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-arm-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm-cpu-gcc)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-arm.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm)
 
 </td>
 </tr>
@@ -445,7 +445,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td></td>
 <td>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-aarch64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64-cpu-gcc)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-aarch64.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64)
 
 </td>
 </tr>
@@ -454,7 +454,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td></td>
 <td>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-mips-cpu-gcc)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-mips)
 
 </td>
 </tr>
@@ -463,7 +463,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td></td>
 <td>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-mips64-cpu-gcc)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips64.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-mips64)
 
 </td>
 </tr>
@@ -472,7 +472,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td></td>
 <td>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-ppc64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-ppc64-cpu-gcc)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-ppc64.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-ppc64)
 
 </td>
 </tr>
@@ -481,7 +481,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td></td>
 <td>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-riscv64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-riscv64-cpu-gcc)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-riscv64.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-riscv64)
 
 </td>
 </tr>
@@ -490,7 +490,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td></td>
 <td>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-loongarch64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-loongarch64-cpu-gcc)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-loongarch64.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-loongarch64)
 
 </td>
 </tr>

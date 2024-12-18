@@ -38,7 +38,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest, 110)
 
 class F_upsample_nearest_1 : public GraphRewriterPass
 {
@@ -61,7 +61,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_1, 110)
 
 class F_upsample_nearest_1_1 : public GraphRewriterPass
 {
@@ -84,7 +84,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_1_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_1_1, 110)
 
 class F_upsample_nearest_2 : public GraphRewriterPass
 {
@@ -109,7 +109,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_2, 110)
 
 class F_upsample_nearest_2_1 : public GraphRewriterPass
 {
@@ -132,7 +132,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_2_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_2_1, 110)
 
 class F_upsample_nearest_3 : public GraphRewriterPass
 {
@@ -155,6 +155,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_upsample_nearest_3, 110)
 
 } // namespace pnnx

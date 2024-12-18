@@ -38,7 +38,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum, 50)
 
 class torch_sum_1 : public GraphRewriterPass
 {
@@ -60,7 +60,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum_1, 50)
 
 class torch_sum_onnx : public GraphRewriterPass
 {
@@ -109,6 +109,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum_onnx, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum_onnx, 50)
 
 } // namespace pnnx

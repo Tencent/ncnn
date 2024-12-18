@@ -39,7 +39,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softsign, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softsign, 100)
 
 class F_softsign_onnx : public GraphRewriterPass
 {
@@ -63,6 +63,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softsign_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softsign_onnx, 100)
 
 } // namespace pnnx
