@@ -508,9 +508,12 @@ static void get_traced_input_shape(const std::string& ptpath, std::vector<std::v
     {
         // read traced_inputs.pkl
         caffe2::serialize::PyTorchStreamReader reader(ptpath);
-        auto dict = torch::jit::readArchiveAndTensors("traced_inputs", "", "traced_inputs/", std::nullopt, std::nullopt, std::nullopt, reader).toGenericDict();
+        auto v = torch::jit::readArchiveAndTensors("traced_inputs", "", "traced_inputs/", std::nullopt, std::nullopt, std::nullopt, reader);
 
-        for (const auto& entry : dict)
+        if (!v.isGenericDict())
+            return;
+
+        for (const auto& entry : v.toGenericDict())
         {
             if (entry.key() != "forward")
                 continue;
@@ -602,24 +605,32 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     std::vector<std::string> traced_input_types;
     get_traced_input_shape(ptpath, traced_input_shapes, traced_input_types);
 
-    fprintf(stderr, "get inputshape from traced inputs\n");
-    fprintf(stderr, "inputshape = ");
-    print_shape_list(traced_input_shapes, traced_input_types);
-    fprintf(stderr, "\n");
-
-    if (!input_shapes.empty())
+    if (!traced_input_shapes.empty())
     {
-        // input shape sanity check
-        if (!check_input_shape(traced_input_shapes, traced_input_types, input_shapes, input_types))
+        fprintf(stderr, "get inputshape from traced inputs\n");
+        fprintf(stderr, "inputshape = ");
+        print_shape_list(traced_input_shapes, traced_input_types);
+        fprintf(stderr, "\n");
+
+        if (!input_shapes.empty())
         {
-            return -1;
+            // input shape sanity check
+            if (!check_input_shape(traced_input_shapes, traced_input_types, input_shapes, input_types))
+            {
+                return -1;
+            }
         }
+        // traced torchscript always has static input shapes
+        // if (!input_shapes2.empty() && !check_input_shape(ptpath, input_shapes2, input_types2))
+        // {
+        //     return -1;
+        // }
     }
-    // traced torchscript always has static input shapes
-    // if (!input_shapes2.empty() && !check_input_shape(ptpath, input_shapes2, input_types2))
-    // {
-    //     return -1;
-    // }
+    else
+    {
+        traced_input_shapes = input_shapes;
+        traced_input_types = input_types;
+    }
 
 #ifdef PNNX_TORCHVISION
     // call some vision api to register vision ops  :P
