@@ -2502,15 +2502,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
         fprintf(pyfp, "\n");
 
-        // torch.onnx._export(net, v_0, "test_swin_t.onnx", export_params=True, opset_version=14, input_names=['in0'], output_names=['out0'])
+        // torch.onnx.export(net, v_0, "test_swin_t.onnx", export_params=True, opset_version=14, input_names=['in0'], output_names=['out0'])
 
         if (input_names.size() == 1)
         {
-            fprintf(pyfp, "    torch.onnx._export(net, %s", input_names[0].c_str());
+            fprintf(pyfp, "    torch.onnx.export(net, %s", input_names[0].c_str());
         }
         else
         {
-            fprintf(pyfp, "    torch.onnx._export(net, (");
+            fprintf(pyfp, "    torch.onnx.export(net, (");
 
             for (size_t i = 0; i < input_names.size(); i++)
             {
