@@ -32,6 +32,8 @@ struct constant_as_attribute
 };
 
 static constant_as_attribute caas[] = {
+    {"Clip", 1, "min"},
+    {"Clip", 2, "max"},
     {"Expand", 1, "shape"},
     {"Gather", 1, "indices"},
     {"If", 0, "cond"},
