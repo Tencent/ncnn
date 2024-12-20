@@ -360,6 +360,12 @@ public:
     std::vector<Operator*> ops;
     std::vector<Operand*> operands;
 
+    unsigned long long flops = 0;
+    unsigned long long memops = 0;
+    unsigned long long extra_flops = 0;
+    unsigned long long extra_memops = 0;
+    void flops_memops_sum();
+
 private:
     Graph(const Graph& rhs);
     Graph& operator=(const Graph& rhs);
