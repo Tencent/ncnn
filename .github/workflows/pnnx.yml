@@ -34,7 +34,6 @@ jobs:
 
     - name: setup-pytorch
       run: |
-        python3 -m pip install --user --upgrade pip
         pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
 
     - name: build-pnnx
