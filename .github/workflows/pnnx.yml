@@ -34,6 +34,7 @@ jobs:
 
     - name: setup-pytorch
       run: |
+        python3 -m pip config set global.break-system-packages true
         pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
 
     - name: build-pnnx
