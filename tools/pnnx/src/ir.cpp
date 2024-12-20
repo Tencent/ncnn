@@ -1522,20 +1522,20 @@ void Graph::flops_memops_sum()
         {
             std::string sub_type = op->type.substr(3);
             if (sub_type == "BatchNorm1d"
-                || sub_type == "BatchNorm2d"
-                || sub_type == "BatchNorm3d"
-                || sub_type == "GroupNorm"
-                || sub_type == "LayerNorm"
-                || sub_type == "InstanceNorm1d"
-                || sub_type == "InstanceNorm2d"
-                || sub_type == "InstanceNorm3d")
+                    || sub_type == "BatchNorm2d"
+                    || sub_type == "BatchNorm3d"
+                    || sub_type == "GroupNorm"
+                    || sub_type == "LayerNorm"
+                    || sub_type == "InstanceNorm1d"
+                    || sub_type == "InstanceNorm2d"
+                    || sub_type == "InstanceNorm3d")
             {
                 std::vector<int> shape = op->inputs[0]->shape;
                 int n = op->inputs[0]->shape[0];
                 int c = op->inputs[0]->shape[1];
                 int num_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
                 if ((op->has_param("affine") && op->params.at("affine").b)
-                    || (op->has_param("elementwise_affine") && op->params.at("elementwise_affine").b))
+                        || (op->has_param("elementwise_affine") && op->params.at("elementwise_affine").b))
                 {
                     extra_flops += 2 * num_elements;
                     extra_memops += 2 * (num_elements + n * c);
@@ -1884,8 +1884,8 @@ void Graph::flops_memops_sum()
         {
             std::string sub_type = op->type.substr(6);
             if (sub_type == "matmul"
-                || sub_type == "mm"
-                || sub_type == "bmm")
+                    || sub_type == "mm"
+                    || sub_type == "bmm")
             {
                 std::vector<int> input_shape_1 = op->inputs[0]->shape;
                 std::vector<int> input_shape_2 = op->inputs[1]->shape;
@@ -2018,10 +2018,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     for (size_t i = 0; i < param.ai.size(); i++)
                     {
                         if ((op->type == "nn.AdaptiveAvgPool2d"
-                             || op->type == "nn.AdaptiveAvgPool3d"
-                             || op->type == "nn.AdaptiveMaxPool2d"
-                             || op->type == "nn.AdaptiveMaxPool3d")
-                            && it.first == "output_size" && param.ai[i] == 0)
+                                || op->type == "nn.AdaptiveAvgPool3d"
+                                || op->type == "nn.AdaptiveMaxPool2d"
+                                || op->type == "nn.AdaptiveMaxPool3d")
+                                && it.first == "output_size" && param.ai[i] == 0)
                         {
                             fprintf(pyfp, "None");
                         }
@@ -2780,10 +2780,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         for (size_t i = 0; i < param.ai.size(); i++)
                         {
                             if ((op->type == "F.adaptive_avg_pool2d"
-                                 || op->type == "F.adaptive_avg_pool3d"
-                                 || op->type == "F.adaptive_max_pool2d"
-                                 || op->type == "F.adaptive_max_pool3d")
-                                && it.first == "output_size" && param.ai[i] == 0)
+                                    || op->type == "F.adaptive_avg_pool3d"
+                                    || op->type == "F.adaptive_max_pool2d"
+                                    || op->type == "F.adaptive_max_pool3d")
+                                    && it.first == "output_size" && param.ai[i] == 0)
                             {
                                 fprintf(pyfp, "None");
                             }
