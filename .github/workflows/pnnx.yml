@@ -1,0 +1,49 @@
+name: pnnx
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+concurrency:
+  group: pnnx-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: setup-pytorch
+      run: |
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch
+        pip install --user torch --index-url https://download.pytorch.org/whl/cpu
+
+    - name: build-pnnx
+      run: |
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 4
+
+    - name: quick-test
+      run: |
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch
+        cd tools/pnnx
+        cd build && ctest --output-on-failure -R test_nn_Conv
