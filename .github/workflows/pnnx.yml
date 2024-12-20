@@ -26,23 +26,19 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch
+
     steps:
     - uses: actions/checkout@v4
 
-    - name: setup-python
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.12
-
     - name: setup-pytorch
       run: |
-        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch
-        python -m pip install --upgrade pip
-        pip install --user torch --index-url https://download.pytorch.org/whl/cpu
+        python3 -m pip install --upgrade pip
+        pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
 
     - name: build-pnnx
       run: |
-        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -50,6 +46,5 @@ jobs:
 
     - name: quick-test
       run: |
-        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch
         cd tools/pnnx
         cd build && ctest --output-on-failure -R test_nn_Conv
