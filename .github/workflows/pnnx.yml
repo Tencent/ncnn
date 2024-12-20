@@ -46,7 +46,7 @@ jobs:
       run: |
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DPython3_ROOT_DIR="${{ env.pythonLocation }}" ..
         cmake --build . -j 4
 
     - name: quick-test

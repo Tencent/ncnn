@@ -38,8 +38,6 @@ option(PNNX_COVERAGE "build for coverage" OFF)
 # set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
-set(Python_FIND_REGISTRY "LAST")
-set(Python_FIND_FRAMEWORK "LAST")
 find_package(Python3 COMPONENTS Interpreter Development)
 
 PNNXProbeForPyTorchInstall()
