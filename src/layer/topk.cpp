@@ -49,36 +49,41 @@ int TopK::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         vec.push_back(std::make_pair(ptr[i], i));
     }
 
+    // [](const std::pair<float, int>& a, const std::pair<float, int>& b) {return a.first > b.first;}); // fix Lambda with lower version of C++
+    struct CompareGreater
+    {
+        bool operator()(const std::pair<float, int>& a, const std::pair<float, int>& b) const
+        {
+            return a.first > b.first;
+        }
+    };
+
+    struct CompareLess
+    {
+        bool operator()(const std::pair<float, int>& a, const std::pair<float, int>& b) const
+        {
+            return a.first < b.first;
+        }
+    };
+
     if (largest == 1)
     {
-        std::partial_sort(vec.begin(), vec.begin() + k_, vec.end(),
-        [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-            return a.first > b.first;
-        });
+        std::partial_sort(vec.begin(), vec.begin() + k_, vec.end(), CompareGreater());
     }
     else
     {
-        std::partial_sort(vec.begin(), vec.begin() + k_, vec.end(),
-        [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-            return a.first < b.first;
-        });
+        std::partial_sort(vec.begin(), vec.begin() + k_, vec.end(), CompareLess());
     }
 
     if (sorted)
     {
         if (largest == 1)
         {
-            std::sort(vec.begin(), vec.begin() + k_,
-            [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-                return a.first > b.first;
-            });
+            std::sort(vec.begin(), vec.begin() + k_, CompareGreater());
         }
         else
         {
-            std::sort(vec.begin(), vec.begin() + k_,
-            [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-                return a.first < b.first;
-            });
+            std::sort(vec.begin(), vec.begin() + k_, CompareLess());
         }
     }
 
