@@ -40,16 +40,14 @@ jobs:
       run: |
         python3 -m pip config set global.break-system-packages true
         pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
-        pip3 install --user numpy packaging
+        pip3 install --user numpy packaging pytest
 
-    - name: build-pnnx
+    - name: pnnx
       run: |
-        cd tools/pnnx
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . --config Release -j 4
+        cd tools/pnnx/python
+        python3 setup.py install --user --parallel 4
 
-    - name: quick-test
+    - name: test
       run: |
-        cd tools/pnnx
-        cd build && ctest -C Release --output-on-failure -R test_nn_Conv
+        cd tools/pnnx/python
+        pytest test
