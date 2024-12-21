@@ -52,16 +52,16 @@ int TopK::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (largest == 1)
     {
         std::partial_sort(vec.begin(), vec.begin() + k_, vec.end(),
-                          [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-                              return a.first > b.first;
-                          });
+        [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
+            return a.first > b.first;
+        });
     }
     else
     {
         std::partial_sort(vec.begin(), vec.begin() + k_, vec.end(),
-                          [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-                              return a.first < b.first;
-                          });
+        [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
+            return a.first < b.first;
+        });
     }
 
     if (sorted)
@@ -69,16 +69,16 @@ int TopK::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         if (largest == 1)
         {
             std::sort(vec.begin(), vec.begin() + k_,
-                      [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-                          return a.first > b.first;
-                      });
+            [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
+                return a.first > b.first;
+            });
         }
         else
         {
             std::sort(vec.begin(), vec.begin() + k_,
-                      [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-                          return a.first < b.first;
-                      });
+            [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
+                return a.first < b.first;
+            });
         }
     }
 
