@@ -106,10 +106,10 @@ static int detect_window_type(const std::vector<float>& window_data)
         if (!NearlyEqual(window_data[i], 1.f, 0.001))
             is_one = false;
 
-        if (!NearlyEqual(window_data[i], 0.5f * (1 - cos(2 * M_PI * i / winlen)), 0.001))
+        if (!NearlyEqual(window_data[i], 0.5f * (1 - cos(2 * 3.14159265358979323846 * i / winlen)), 0.001))
             is_hann = false;
 
-        if (!NearlyEqual(window_data[i], 0.54f - 0.46f * cos(2 * M_PI * i / winlen), 0.001))
+        if (!NearlyEqual(window_data[i], 0.54f - 0.46f * cos(2 * 3.14159265358979323846 * i / winlen), 0.001))
             is_hamming = false;
     }
 

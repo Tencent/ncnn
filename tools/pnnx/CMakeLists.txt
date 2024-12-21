@@ -19,6 +19,11 @@ if(MSVC AND NOT CMAKE_VERSION VERSION_LESS "3.15")
     endif()
 endif()
 
+if(POLICY CMP0094)
+    cmake_policy(SET CMP0094 NEW)  # FindPython should return the first matching Python
+endif()
+set(Python_FIND_REGISTRY "LAST")
+set(Python_FIND_FRAMEWORK "LAST")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(PNNXPyTorch)
 
