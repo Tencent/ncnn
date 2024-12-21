@@ -35,9 +35,21 @@ pnnx.Output             output      2 0 out indices
     {
         return "torch.min";
     }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        GraphRewriterPass::write(op, captured_params);
+
+        // drop indices if not used
+        if (op->outputs[1]->consumers.empty())
+        {
+            op->outputs[1]->producer = 0;
+            op->outputs.resize(1);
+        }
+    }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min, 50)
 
 class torch_min_1 : public GraphRewriterPass
 {
@@ -58,7 +70,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_1, 50)
 
 class torch_min_onnx : public GraphRewriterPass
 {
@@ -78,11 +90,22 @@ pnnx.Output             output      1 0 out
         return "torch.min";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.axes") != captured_params.end())
+        {
+            if (captured_params.at("op_0.axes").type != 5 || captured_params.at("op_0.axes").ai.size() != 1)
+                return false;
+        }
+
+        return true;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.find("op_0.axes") != captured_params.end())
         {
-            op->params["dim"] = captured_params.at("op_0.axes");
+            op->params["dim"] = captured_params.at("op_0.axes").ai[0];
 
             if (captured_params.find("op_0.keepdims") != captured_params.end())
             {
@@ -100,7 +123,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx, 51)
 
 class torch_min_onnx_1 : public GraphRewriterPass
 {
@@ -157,6 +180,6 @@ pnnx.Output             output      2 0 out indices
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx_1, 19)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_min_onnx_1, 50)
 
 } // namespace pnnx

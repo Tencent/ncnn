@@ -14,7 +14,7 @@
 
 #include "pass_onnx.h"
 
-#include "onnx.pb.h"
+#include "onnx-ml.pb.h"
 
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -739,9 +739,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "And") sim_op_type = "aten::__and__";
             if (op_type == "Or") sim_op_type = "aten::__or__";
             if (op_type == "Xor") sim_op_type = "aten::__xor__";
+            if (op_type == "Mod" && onnx2pnnx::OnnxNodeProxy(node).attribute("fmod").value_i() == 1) sim_op_type = "aten::fmod";
 
             // trinaryop
-            if (op_type == "Clip") sim_op_type = "aten::clamp";
             if (op_type == "Where") sim_op_type = "aten::where";
         }
         else if (string_starts_with(op_type, "aten_"))
@@ -819,6 +819,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                     if (sim_op_type == "ConvTranspose" && (j == 1 || j == 2))
                         is_attr_weight = true;
                     if (sim_op_type == "Gather" && j == 0)
+                        is_attr_weight = true;
+                    if (sim_op_type == "Gemm" && (j == 1 || j == 2))
                         is_attr_weight = true;
                     if (sim_op_type == "GroupNormalization" && (j == 1 || j == 2))
                         is_attr_weight = true;

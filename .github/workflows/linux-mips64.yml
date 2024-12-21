@@ -1,0 +1,138 @@
+name: linux-mips64
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-mips64.yml'
+    - 'toolchains/mips64el-linux-gnuabi64.toolchain.cmake'
+    - 'toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/mips/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-mips64.yml'
+    - 'toolchains/mips64el-linux-gnuabi64.toolchain.cmake'
+    - 'toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/mips/**'
+    - 'tests/**'
+concurrency:
+  group: linux-mips64-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  gcc-mips64el:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v4
+      with:
+        path: qemu-install
+        key: qemu-mips64el-install-20220502-2
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mips64el-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: mips64el-gnuabi64-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-mips64el-linux-gnuabi64
+
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mips64el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j $(nproc)
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mips64el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)
+
+  gcc-mipsisa64r6el:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v4
+      with:
+        path: qemu-install
+        key: qemu-mips64el-install-20220502-4
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0001-target-mips-Fix-SAT_S-trans-helper.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
+        patch -p1 -i 0001-target-mips-Fix-SAT_S-trans-helper.patch
+        patch -p1 -i 0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
+        patch -p1 -i 0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
+        patch -p1 -i 0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
+        patch -p1 -i 0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
+        patch -p1 -i 0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mips64el-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: mipsisa64r6el-gnuabi64-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-mipsisa64r6el-linux-gnuabi64
+
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j $(nproc)
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)

@@ -3110,7 +3110,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "cbz    %w10, 0f                    \n"
 
                 "ld1    {v30.4s, v31.4s}, [%0]      \n"
-                "b      3f                          \n"
+                "b      2f                          \n"
 
                 "0:                                 \n"
                 // if pC
@@ -3125,15 +3125,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "eor    v31.16b, v31.16b, v31.16b   \n"
 
                 "2:                                 \n"
-
-                "3:                                 \n"
                 "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
                 "cmp    w4, #0                      \n"
-                "beq    5f                          \n"
+                "beq    4f                          \n"
 
                 "eor    v28.16b, v28.16b, v28.16b   \n"
                 "eor    v29.16b, v29.16b, v29.16b   \n"
-                "4:                                 \n"
+                "3:                                 \n"
                 "prfm   pldl1keep, [%2, #64]        \n"
                 "ld1    {v0.4h}, [%2], #8           \n"
                 "shll   v0.4s, v0.4h, #16           \n"
@@ -3156,16 +3154,16 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "subs   w4, w4, #1                  \n"
                 "fmla   v30.4s, v10.4s, v0.s[3]     \n"
                 "fmla   v31.4s, v11.4s, v0.s[3]     \n"
-                "bne    4b                          \n"
+                "bne    3b                          \n"
                 "fadd   v30.4s, v30.4s, v28.4s      \n"
                 "fadd   v31.4s, v31.4s, v29.4s      \n"
 
-                "5:                                 \n"
+                "4:                                 \n"
                 "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
                 "cmp    w4, #0                      \n"
-                "beq    7f                          \n"
+                "beq    6f                          \n"
 
-                "6:                                 \n"
+                "5:                                 \n"
                 "ld1r   {v0.4h}, [%2], #2           \n"
                 "shll   v0.4s, v0.4h, #16           \n"
                 "ld1    {v3.8h}, [%1], #16          \n"
@@ -3174,26 +3172,26 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "subs   w4, w4, #1                  \n"
                 "fmla   v30.4s, v4.4s, v0.4s        \n"
                 "fmla   v31.4s, v5.4s, v0.4s        \n"
-                "bne    6b                          \n"
+                "bne    5b                          \n"
 
-                "7:                                 \n"
+                "6:                                 \n"
                 "shrn   v30.4h, v30.4s, #16         \n"
                 "shrn   v31.4h, v31.4s, #16         \n"
                 "tst    %w11, #255                  \n"
-                "beq    10f                         \n"
+                "beq    9f                          \n"
 
                 // if out_elempack == 4
                 "cmp    %w12, #4                    \n"
-                "bne    8f                          \n"
+                "bne    7f                          \n"
 
                 "lsl    w4, %w13, #2                \n"
                 "add    x4, %3, w4, sxtw 1          \n"
                 "st1    {v30.4h}, [%3], #8          \n"
                 "st1    {v31.4h}, [x4]              \n"
-                "b      9f                          \n"
+                "b      8f                          \n"
 
                 // if out_elempack == 1
-                "8:                                 \n"
+                "7:                                 \n"
                 "add    x4, %3, %w13, sxtw 1        \n"
                 "st1    {v30.h}[0], [%3], #2        \n"
                 "st1    {v30.h}[1], [x4]            \n"
@@ -3210,14 +3208,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "add    x4, x4, %w13, sxtw 1        \n"
                 "st1    {v31.h}[3], [x4]            \n"
 
-                "9:                                 \n"
+                "8:                                 \n"
                 "add    %0, %0, #32                 \n"
-                "b      11f                         \n"
+                "b      10f                         \n"
 
-                "10:                                \n"
+                "9:                                 \n"
                 "st1    {v30.4s, v31.4s}, [%0], #32 \n"
 
-                "11:                                \n"
+                "10:                                \n"
 
                 : "=r"(outptr), // %0
                 "=r"(pA),     // %1

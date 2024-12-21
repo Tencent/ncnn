@@ -40,6 +40,9 @@
 #cmakedefine01 NCNN_F16C
 #cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_AVXVNNI
+#cmakedefine01 NCNN_AVXVNNIINT8
+#cmakedefine01 NCNN_AVXVNNIINT16
+#cmakedefine01 NCNN_AVXNECONVERT
 #cmakedefine01 NCNN_AVX512
 #cmakedefine01 NCNN_AVX512VNNI
 #cmakedefine01 NCNN_AVX512BF16
@@ -59,6 +62,9 @@
 #cmakedefine01 NCNN_LSX
 #cmakedefine01 NCNN_MMI
 #cmakedefine01 NCNN_RVV
+#cmakedefine01 NCNN_ZFH
+#cmakedefine01 NCNN_ZVFH
+#cmakedefine01 NCNN_XTHEADVECTOR
 #cmakedefine01 NCNN_INT8
 #cmakedefine01 NCNN_BF16
 #cmakedefine01 NCNN_FORCE_INLINE

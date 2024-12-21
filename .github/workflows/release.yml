@@ -53,11 +53,20 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: /tmp/${{ env.PACKAGENAME }}.zip
 
-  ubuntu-2004:
+  ubuntu:
     needs: [setup]
-    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        opt:
+          - { shared-lib: OFF, os: ubuntu-20.04, id: ubuntu-2004        }
+          - { shared-lib: OFF, os: ubuntu-22.04, id: ubuntu-2204        }
+          - { shared-lib: OFF, os: ubuntu-24.04, id: ubuntu-2404        }
+          - { shared-lib: ON,  os: ubuntu-20.04, id: ubuntu-2004-shared }
+          - { shared-lib: ON,  os: ubuntu-22.04, id: ubuntu-2204-shared }
+          - { shared-lib: ON,  os: ubuntu-24.04, id: ubuntu-2404-shared }
+    runs-on: ${{ matrix.opt.os }}
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -69,71 +78,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
-        cmake --build . --target install/strip
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -a build/install/* ${{ env.PACKAGENAME }}
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  ubuntu-2004-shared:
-    needs: [setup]
-    runs-on: ubuntu-20.04
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004-shared
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: apt
-      run: |
-        sudo apt-get install -y libprotobuf-dev protobuf-compiler
-    - name: build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -a -P build/install/* ${{ env.PACKAGENAME }}
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  ubuntu-2204:
-    needs: [setup]
-    runs-on: ubuntu-22.04
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: apt
-      run: |
-        sudo apt-get install -y libprotobuf-dev protobuf-compiler
-    - name: build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
@@ -141,38 +86,6 @@ jobs:
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
         cp -a build/install/* ${{ env.PACKAGENAME }}
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  ubuntu-2204-shared:
-    needs: [setup]
-    runs-on: ubuntu-22.04
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204-shared
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: apt
-      run: |
-        sudo apt-get install -y libprotobuf-dev protobuf-compiler
-    - name: build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -a -P build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
@@ -255,9 +168,14 @@ jobs:
 
   macos:
     needs: [setup, openmp-macos]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: macos        }
+          - { vulkan: ON,  id: macos-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET \
@@ -273,83 +191,7 @@ jobs:
         -DNCNN_BUILD_TOOLS=OFF \
         -DNCNN_BUILD_EXAMPLES=OFF \
         -DNCNN_BUILD_BENCHMARK=OFF \
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: download-openmp-macos
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-macos
-        path: openmp-macos
-    - name: install-openmp
-      run: |
-        sudo cp openmp-macos/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
-        sudo cp openmp-macos/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-macos/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-macos/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  macos-gpu:
-    needs: [setup, openmp-macos]
-    runs-on: macos-13
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan
-      NCNN_CMAKE_OPTIONS: |
-        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
-        -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET \
-        -DENABLE_BITCODE=$ENABLE_BITCODE \
-        -DENABLE_ARC=$ENABLE_ARC \
-        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-        -DCMAKE_INSTALL_PREFIX=install \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-        -DOpenMP_libomp_LIBRARY="libomp.a" \
-        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-        -DNCNN_VULKAN=ON \
-        -DNCNN_BUILD_TOOLS=OFF \
-        -DNCNN_BUILD_EXAMPLES=OFF \
-        -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -389,6 +231,7 @@ jobs:
         cp -a openmp-macos/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
       run: |
         rm -rf glslang.framework
         mkdir -p glslang.framework/Versions/A/Headers
@@ -397,12 +240,26 @@ jobs:
         ln -s Versions/Current/Headers glslang.framework/Headers
         ln -s Versions/Current/Resources glslang.framework/Resources
         ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static build-x86_64/install/lib/libglslang.a build-x86_64/install/lib/libMachineIndependent.a build-x86_64/install/lib/libGenericCodeGen.a build-x86_64/install/lib/libSPIRV.a build-x86_64/install/lib/libOGLCompiler.a build-x86_64/install/lib/libOSDependent.a -o build-x86_64/install/lib/libglslang_combined.a
-        libtool -static build-arm64/install/lib/libglslang.a build-arm64/install/lib/libMachineIndependent.a build-arm64/install/lib/libGenericCodeGen.a build-arm64/install/lib/libSPIRV.a build-arm64/install/lib/libOGLCompiler.a build-arm64/install/lib/libOSDependent.a -o build-arm64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-x86_64/install/lib/libglslang.a \
+            build-x86_64/install/lib/libMachineIndependent.a \
+            build-x86_64/install/lib/libGenericCodeGen.a \
+            build-x86_64/install/lib/libSPIRV.a \
+            build-x86_64/install/lib/libOGLCompiler.a \
+            build-x86_64/install/lib/libOSDependent.a \
+            -o build-x86_64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
         lipo -create build-x86_64/install/lib/libglslang_combined.a build-arm64/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -412,8 +269,16 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
@@ -485,9 +350,14 @@ jobs:
 
   ios:
     needs: [setup, openmp-ios]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: ios        }
+          - { vulkan: ON,  id: ios-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
@@ -501,75 +371,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: download-openmp-ios
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-ios
-        path: openmp-ios
-    - name: install-openmp
-      run: |
-        sudo cp openmp-ios/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp openmp-ios/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-ios/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        cp build-arm64/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  ios-gpu:
-    needs: [setup, openmp-ios]
-    runs-on: macos-13
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan
-      NCNN_CMAKE_OPTIONS: |
-        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
-        -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
-        -DENABLE_BITCODE=$ENABLE_BITCODE \
-        -DENABLE_ARC=$ENABLE_ARC \
-        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-        -DCMAKE_INSTALL_PREFIX=install \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-        -DOpenMP_libomp_LIBRARY="libomp.a" \
-        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-        -DNCNN_VULKAN=ON \
-        -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -603,6 +405,7 @@ jobs:
         cp -a openmp-ios/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
       run: |
         rm -rf glslang.framework
         mkdir -p glslang.framework/Versions/A/Headers
@@ -622,7 +425,7 @@ jobs:
         cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
         cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -632,8 +435,16 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         cp build-arm64/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64/install/include/ncnn ncnn.framework/Versions/A/Headers/
+        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
@@ -716,9 +527,14 @@ jobs:
 
   ios-simulator:
     needs: [setup, openmp-ios-simulator]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: ios-simulator        }
+          - { vulkan: ON,  id: ios-simulator-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
@@ -732,84 +548,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-ios-simulator
-        path: openmp-ios-simulator
-    - name: install-openmp
-      run: |
-        sudo cp openmp-ios-simulator/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
-        sudo cp openmp-ios-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-ios-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-ios-simulator/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64/install/lib/libncnn.a \
-            build-arm64/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  ios-simulator-gpu:
-    needs: [setup, openmp-ios-simulator]
-    runs-on: macos-13
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan
-      NCNN_CMAKE_OPTIONS: |
-        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
-        -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
-        -DENABLE_BITCODE=$ENABLE_BITCODE \
-        -DENABLE_ARC=$ENABLE_ARC \
-        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-        -DCMAKE_INSTALL_PREFIX=install \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-        -DOpenMP_libomp_LIBRARY="libomp.a" \
-        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-        -DNCNN_VULKAN=ON \
-        -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -849,6 +588,7 @@ jobs:
         cp -a openmp-ios-simulator/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
       run: |
         rm -rf glslang.framework
         mkdir -p glslang.framework/Versions/A/Headers
@@ -879,7 +619,7 @@ jobs:
             -o glslang.framework/Versions/A/glslang
         cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -892,8 +632,16 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
@@ -976,9 +724,14 @@ jobs:
 
   mac-catalyst:
     needs: [setup, openmp-mac-catalyst]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: mac-catalyst        }
+          - { vulkan: ON,  id: mac-catalyst-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET \
@@ -992,84 +745,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-mac-catalyst
-        path: openmp-mac-catalyst
-    - name: install-openmp
-      run: |
-        sudo cp openmp-mac-catalyst/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
-        sudo cp openmp-mac-catalyst/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="arm64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-mac-catalyst/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-mac-catalyst/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64/install/lib/libncnn.a \
-            build-arm64/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  mac-catalyst-gpu:
-    needs: [setup, openmp-mac-catalyst]
-    runs-on: macos-13
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan
-      NCNN_CMAKE_OPTIONS: |
-        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
-        -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET \
-        -DENABLE_BITCODE=$ENABLE_BITCODE \
-        -DENABLE_ARC=$ENABLE_ARC \
-        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-        -DCMAKE_INSTALL_PREFIX=install \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-        -DOpenMP_libomp_LIBRARY="libomp.a" \
-        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-        -DNCNN_VULKAN=ON \
-        -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -1109,6 +785,7 @@ jobs:
         cp -a openmp-mac-catalyst/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
       run: |
         rm -rf glslang.framework
         mkdir -p glslang.framework/Versions/A/Headers
@@ -1139,7 +816,7 @@ jobs:
             -o glslang.framework/Versions/A/glslang
         cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -1152,8 +829,16 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
@@ -1534,9 +1219,14 @@ jobs:
 
   tvos:
     needs: [setup, openmp-tvos]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: tvos        }
+          - { vulkan: ON,  id: tvos-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
@@ -1550,84 +1240,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: download-openmp-tvos
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-tvos
-        path: openmp-tvos
-    - name: install-openmp
-      run: |
-        sudo cp openmp-tvos/include/* $DEVELOPER_DIR/Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS.sdk/usr/include
-        sudo cp openmp-tvos/lib/libomp.a $DEVELOPER_DIR/Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS.sdk/usr/lib
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64e
-      run: |
-        mkdir build-arm64e && cd build-arm64e
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-tvos/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-tvos/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-arm64/install/lib/libncnn.a \
-            build-arm64e/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  tvos-gpu:
-    needs: [setup, openmp-tvos]
-    runs-on: macos-13
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan
-      NCNN_CMAKE_OPTIONS: |
-        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
-        -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
-        -DENABLE_BITCODE=$ENABLE_BITCODE \
-        -DENABLE_ARC=$ENABLE_ARC \
-        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-        -DCMAKE_INSTALL_PREFIX=install \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-        -DOpenMP_libomp_LIBRARY="libomp.a" \
-        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-        -DNCNN_VULKAN=ON \
-        -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -1667,6 +1280,7 @@ jobs:
         cp -a openmp-tvos/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
       run: |
         rm -rf glslang.framework
         mkdir -p glslang.framework/Versions/A/Headers
@@ -1697,7 +1311,7 @@ jobs:
             -o glslang.framework/Versions/A/glslang
         cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -1712,6 +1326,14 @@ jobs:
             -o ncnn.framework/Versions/A/ncnn
         cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
@@ -1794,9 +1416,14 @@ jobs:
 
   tvos-simulator:
     needs: [setup, openmp-tvos-simulator]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: tvos-simulator        }
+          - { vulkan: ON,  id: tvos-simulator-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
@@ -1810,84 +1437,7 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: download-openmp-tvos-simulator
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-tvos-simulator
-        path: openmp-tvos-simulator
-    - name: install-openmp
-      run: |
-        sudo cp openmp-tvos-simulator/include/* $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/include
-        sudo cp openmp-tvos-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/lib
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="arm64" ..
-        cmake --build . -j 4
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-tvos-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-tvos-simulator/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64/install/lib/libncnn.a \
-            build-arm64/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  tvos-simulator-gpu:
-    needs: [setup, openmp-tvos-simulator]
-    runs-on: macos-13
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan
-      NCNN_CMAKE_OPTIONS: |
-        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
-        -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
-        -DENABLE_BITCODE=$ENABLE_BITCODE \
-        -DENABLE_ARC=$ENABLE_ARC \
-        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-        -DCMAKE_INSTALL_PREFIX=install \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-        -DOpenMP_libomp_LIBRARY="libomp.a" \
-        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-        -DNCNN_VULKAN=ON \
-        -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
@@ -1927,6 +1477,7 @@ jobs:
         cp -a openmp-tvos-simulator/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
       run: |
         rm -rf glslang.framework
         mkdir -p glslang.framework/Versions/A/Headers
@@ -1957,7 +1508,7 @@ jobs:
             -o glslang.framework/Versions/A/glslang
         cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -1972,6 +1523,14 @@ jobs:
             -o ncnn.framework/Versions/A/ncnn
         cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
@@ -2043,9 +1602,14 @@ jobs:
 
   visionos:
     needs: [setup, openmp-visionos]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: visionos        }
+          - { vulkan: ON,  id: visionos-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-visionos
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
@@ -2059,9 +1623,12 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: download-openmp-visionos
       uses: actions/download-artifact@v4
       with:
@@ -2089,7 +1656,28 @@ jobs:
         cp openmp-visionos/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-visionos/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
+        cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -2101,8 +1689,16 @@ jobs:
         cp build-arm64/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
         cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
@@ -2183,9 +1779,14 @@ jobs:
 
   visionos-simulator:
     needs: [setup, openmp-visionos-simulator]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, id: visionos-simulator        }
+          - { vulkan: ON,  id: visionos-simulator-vulkan }
     runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
@@ -2199,9 +1800,12 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: download-openmp-visionos-simulator
       uses: actions/download-artifact@v4
       with:
@@ -2235,7 +1839,39 @@ jobs:
         cp openmp-visionos-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-visionos-simulator/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
+    - name: package-glslang
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-x86_64/install/lib/libglslang.a \
+            build-x86_64/install/lib/libMachineIndependent.a \
+            build-x86_64/install/lib/libGenericCodeGen.a \
+            build-x86_64/install/lib/libSPIRV.a \
+            build-x86_64/install/lib/libOGLCompiler.a \
+            build-x86_64/install/lib/libOSDependent.a \
+            -o build-x86_64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        lipo -create \
+            build-x86_64/install/lib/libglslang_combined.a \
+            build-arm64/install/lib/libglslang_combined.a \
+            -o glslang.framework/Versions/A/glslang
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package-ncnn
       run: |
         rm -rf ncnn.framework
         mkdir -p ncnn.framework/Versions/A/Headers
@@ -2250,8 +1886,16 @@ jobs:
             -o ncnn.framework/Versions/A/ncnn
         cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+    - name: package
+      if: matrix.opt.vulkan == 'OFF'
+      run: |
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: package
+      if: matrix.opt.vulkan == 'ON'
+      run: |
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
@@ -2260,226 +1904,63 @@ jobs:
 
   android:
     needs: [setup]
+    strategy:
+      matrix:
+        opt:
+          - { vulkan: OFF, shared-lib: OFF, id: android               }
+          - { vulkan: OFF, shared-lib: ON,  id: android-shared        }
+          - { vulkan: ON,  shared-lib: OFF, id: android-vulkan        }
+          - { vulkan: ON,  shared-lib: ON,  id: android-vulkan-shared }
     runs-on: ubuntu-latest
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android
-    steps:
-    - uses: actions/checkout@v4
-    - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_NDK_LATEST_HOME/build/cmake/android-legacy.toolchain.cmake
-    - name: build-armv7
-      run: |
-        mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-aarch64
-      run: |
-        mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-x86
-      run: |
-        mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
-        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
-        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
-        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake \
+        -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+        -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
+        -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} \
+        -DNCNN_AVX512BF16=OFF \
 
-  android-shared:
-    needs: [setup]
-    runs-on: ubuntu-latest
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android-shared
-    steps:
-    - uses: actions/checkout@v4
-    - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_NDK_LATEST_HOME/build/cmake/android-legacy.toolchain.cmake
-    - name: build-armv7
-      run: |
-        mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
-            -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-aarch64
-      run: |
-        mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
-            -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-x86
-      run: |
-        mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
-            -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
-            -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
-        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
-        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
-        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  android-gpu:
-    needs: [setup]
-    runs-on: ubuntu-latest
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
     - name: ndk-fix-debug
       run: sed -i -e '/^  -g$/d' $ANDROID_NDK_LATEST_HOME/build/cmake/android-legacy.toolchain.cmake
-    - name: build-armv7
+    - name: build-armeabi-v7a
       run: |
-        mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        mkdir build-armeabi-v7a && cd build-armeabi-v7a
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
-    - name: build-aarch64
+    - name: build-arm64-v8a
       run: |
-        mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        mkdir build-arm64-v8a && cd build-arm64-v8a
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
-        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
-        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
-        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  android-gpu-shared:
-    needs: [setup]
-    runs-on: ubuntu-latest
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan-shared
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_NDK_LATEST_HOME/build/cmake/android-legacy.toolchain.cmake
-    - name: build-armv7
-      run: |
-        mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-aarch64
-      run: |
-        mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-x86
-      run: |
-        mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install/strip
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
-        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-armeabi-v7a/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-arm64-v8a/install ${{ env.PACKAGENAME }}/arm64-v8a
         cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
         cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
@@ -2555,69 +2036,34 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
-  windows-vs2015:
+  windows:
     needs: [setup]
-    runs-on: windows-2019
+    strategy:
+      matrix:
+        opt:
+          - { shared-lib: OFF, os: windows-2019, toolset-version: v140, id: vs2015 }
+          - { shared-lib: OFF, os: windows-2019, toolset-version: v141, id: vs2017 }
+          - { shared-lib: OFF, os: windows-2019, toolset-version: v142, id: vs2019 }
+          - { shared-lib: OFF, os: windows-2022, toolset-version: v143, id: vs2022 }
+          - { shared-lib: ON,  os: windows-2019, toolset-version: v140, id: vs2015-shared }
+          - { shared-lib: ON,  os: windows-2019, toolset-version: v141, id: vs2017-shared }
+          - { shared-lib: ON,  os: windows-2019, toolset-version: v142, id: vs2019-shared }
+          - { shared-lib: ON,  os: windows-2022, toolset-version: v143, id: vs2022-shared }
+    runs-on: ${{ matrix.opt.os }}
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-${{ matrix.opt.id }}
       UseMultiToolTask: true
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: cache-protobuf
-      id: cache-protobuf
-      uses: actions/cache@v4
-      with:
-        path: "protobuf-install"
-        key: protobuf-vs2015-x86-x64-install
-    - name: protobuf
-      if: steps.cache-protobuf.outputs.cache-hit != 'true'
-      run: |
-        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
-        7z x ./protobuf-3.11.2.zip
-        cd protobuf-3.11.2
-        mkdir build-x86; cd build-x86;
-        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-        cd ..
-        mkdir build-x64; cd build-x64;
-        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x86
-      run: |
-        mkdir build-x86; cd build-x86
-        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x64
-      run: |
-        mkdir build-x64; cd build-x64
-        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: package
-      run: |
-        mkdir ${{ env.PACKAGENAME }}
-        mkdir ${{ env.PACKAGENAME }}/x86
-        mkdir ${{ env.PACKAGENAME }}/x64
-        Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
-        Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
+      NCNN_CMAKE_OPTIONS: |
+        -T ${{ matrix.opt.toolset-version }},host=x64 `
+        -DCMAKE_BUILD_TYPE=Release `
+        -DCMAKE_INSTALL_PREFIX=install `
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" `
+        -DNCNN_BUILD_EXAMPLES=OFF `
+        -DNCNN_BUILD_TOOLS=ON `
+        -DNCNN_BUILD_BENCHMARK=OFF `
+        -DNCNN_VULKAN=ON `
+        -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} `
 
-  windows-vs2015-shared:
-    needs: [setup]
-    runs-on: windows-2019
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015-shared
-      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v4
       with:
@@ -2627,7 +2073,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: "protobuf-install"
-        key: protobuf-vs2015-x86-x64-install
+        key: protobuf-${{ matrix.opt.toolset-version }}-x86-x64-install
     - name: protobuf
       if: steps.cache-protobuf.outputs.cache-hit != 'true'
       run: |
@@ -2635,438 +2081,51 @@ jobs:
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
-        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
-        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
-        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A Win32 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
-        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: package
-      run: |
-        mkdir ${{ env.PACKAGENAME }}
-        mkdir ${{ env.PACKAGENAME }}/x86
-        mkdir ${{ env.PACKAGENAME }}/x64
-        Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
-        Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  windows-vs2017:
-    needs: [setup]
-    runs-on: windows-2019
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
-      UseMultiToolTask: true
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: cache-protobuf
-      id: cache-protobuf
-      uses: actions/cache@v4
-      with:
-        path: "protobuf-install"
-        key: protobuf-vs2017-x86-x64-install
-    - name: protobuf
-      if: steps.cache-protobuf.outputs.cache-hit != 'true'
-      run: |
-        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
-        7z x ./protobuf-3.11.2.zip
-        cd protobuf-3.11.2
-        mkdir build-x86; cd build-x86;
-        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-        cd ..
-        mkdir build-x64; cd build-x64;
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x86
-      run: |
-        mkdir build-x86; cd build-x86
-        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x64
-      run: |
-        mkdir build-x64; cd build-x64
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: package
-      run: |
-        mkdir ${{ env.PACKAGENAME }}
-        mkdir ${{ env.PACKAGENAME }}/x86
-        mkdir ${{ env.PACKAGENAME }}/x64
-        Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
-        Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  windows-vs2017-shared:
-    needs: [setup]
-    runs-on: windows-2019
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017-shared
-      UseMultiToolTask: true
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: cache-protobuf
-      id: cache-protobuf
-      uses: actions/cache@v4
-      with:
-        path: "protobuf-install"
-        key: protobuf-vs2017-x86-x64-install
-    - name: protobuf
-      if: steps.cache-protobuf.outputs.cache-hit != 'true'
-      run: |
-        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
-        7z x ./protobuf-3.11.2.zip
-        cd protobuf-3.11.2
-        mkdir build-x86; cd build-x86;
-        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-        cd ..
-        mkdir build-x64; cd build-x64;
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x86
-      run: |
-        mkdir build-x86; cd build-x86
-        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x64
-      run: |
-        mkdir build-x64; cd build-x64
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: package
-      run: |
-        mkdir ${{ env.PACKAGENAME }}
-        mkdir ${{ env.PACKAGENAME }}/x86
-        mkdir ${{ env.PACKAGENAME }}/x64
-        Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
-        Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  windows-vs2019:
-    needs: [setup]
-    runs-on: windows-latest
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
-      UseMultiToolTask: true
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: cache-protobuf
-      id: cache-protobuf
-      uses: actions/cache@v4
-      with:
-        path: "protobuf-install"
-        key: protobuf-vs2019-x86-x64-install
-    - name: protobuf
-      if: steps.cache-protobuf.outputs.cache-hit != 'true'
-      run: |
-        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
-        7z x ./protobuf-3.11.2.zip
-        cd protobuf-3.11.2
-        mkdir build-x86; cd build-x86;
-        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-        cd ..
-        mkdir build-x64; cd build-x64;
-        cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x86
-      run: |
-        mkdir build-x86; cd build-x86
-        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x64
-      run: |
-        mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-arm
-      run: |
-        mkdir build-arm; cd build-arm
-        cmake -T v142,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm64
+      if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
       run: |
         mkdir build-arm64; cd build-arm64
-        cmake -T v142,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A arm64 ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
+      if: matrix.opt.toolset-version == 'v140' || matrix.opt.toolset-version == 'v141'
       run: |
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/arm
-        mkdir ${{ env.PACKAGENAME }}/arm64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
-        Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  windows-vs2019-shared:
-    needs: [setup]
-    runs-on: windows-latest
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019-shared
-      UseMultiToolTask: true
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: cache-protobuf
-      id: cache-protobuf
-      uses: actions/cache@v4
-      with:
-        path: "protobuf-install"
-        key: protobuf-vs2019-x86-x64-install
-    - name: protobuf
-      if: steps.cache-protobuf.outputs.cache-hit != 'true'
-      run: |
-        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
-        7z x ./protobuf-3.11.2.zip
-        cd protobuf-3.11.2
-        mkdir build-x86; cd build-x86;
-        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-        cd ..
-        mkdir build-x64; cd build-x64;
-        cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x86
-      run: |
-        mkdir build-x86; cd build-x86
-        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x64
-      run: |
-        mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-arm
-      run: |
-        mkdir build-arm; cd build-arm
-        cmake -T v142,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-arm64
-      run: |
-        mkdir build-arm64; cd build-arm64
-        cmake -T v142,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
     - name: package
+      if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
       run: |
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/arm
         mkdir ${{ env.PACKAGENAME }}/arm64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
-        Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
-        7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  windows-vs2022:
-    needs: [setup]
-    runs-on: windows-latest
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2022
-      UseMultiToolTask: true
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: cache-protobuf
-      id: cache-protobuf
-      uses: actions/cache@v4
-      with:
-        path: "protobuf-install"
-        key: protobuf-vs2022-x86-x64-install
-    - name: protobuf
-      if: steps.cache-protobuf.outputs.cache-hit != 'true'
-      run: |
-        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
-        7z x ./protobuf-3.11.2.zip
-        cd protobuf-3.11.2
-        mkdir build-x86; cd build-x86;
-        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-        cd ..
-        mkdir build-x64; cd build-x64;
-        cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x86
-      run: |
-        mkdir build-x86; cd build-x86
-        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x64
-      run: |
-        mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-arm
-      run: |
-        mkdir build-arm; cd build-arm
-        cmake -T v143,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-arm64
-      run: |
-        mkdir build-arm64; cd build-arm64
-        cmake -T v143,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: package
-      run: |
-        mkdir ${{ env.PACKAGENAME }}
-        mkdir ${{ env.PACKAGENAME }}/x86
-        mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/arm
-        mkdir ${{ env.PACKAGENAME }}/arm64
-        Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
-        Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
-        Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
-        7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  windows-vs2022-shared:
-    needs: [setup]
-    runs-on: windows-latest
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2022-shared
-      UseMultiToolTask: true
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: cache-protobuf
-      id: cache-protobuf
-      uses: actions/cache@v4
-      with:
-        path: "protobuf-install"
-        key: protobuf-vs2022-x86-x64-install
-    - name: protobuf
-      if: steps.cache-protobuf.outputs.cache-hit != 'true'
-      run: |
-        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
-        7z x ./protobuf-3.11.2.zip
-        cd protobuf-3.11.2
-        mkdir build-x86; cd build-x86;
-        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-        cd ..
-        mkdir build-x64; cd build-x64;
-        cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x86
-      run: |
-        mkdir build-x86; cd build-x86
-        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-x64
-      run: |
-        mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-arm
-      run: |
-        mkdir build-arm; cd build-arm
-        cmake -T v143,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-arm64
-      run: |
-        mkdir build-arm64; cd build-arm64
-        cmake -T v143,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: package
-      run: |
-        mkdir ${{ env.PACKAGENAME }}
-        mkdir ${{ env.PACKAGENAME }}/x86
-        mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/arm
-        mkdir ${{ env.PACKAGENAME }}/arm64
-        Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
-        Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
@@ -3087,30 +2146,49 @@ jobs:
       with:
         path: artifacts
 
-    - name: create-xcframwork
+    - name: unzip
       run: |
-        mkdir -p ncnn-macos
         mkdir -p ncnn-ios
+        mkdir -p ncnn-ios-vulkan
         mkdir -p ncnn-ios-simulator
+        mkdir -p ncnn-ios-simulator-vulkan
         mkdir -p ncnn-mac-catalyst
+        mkdir -p ncnn-mac-catalyst-vulkan
+        mkdir -p ncnn-macos
+        mkdir -p ncnn-macos-vulkan
+        mkdir -p ncnn-tvos
+        mkdir -p ncnn-tvos-vulkan
+        mkdir -p ncnn-tvos-simulator
+        mkdir -p ncnn-tvos-simulator-vulkan
+        mkdir -p ncnn-visionos
+        mkdir -p ncnn-visionos-vulkan
+        mkdir -p ncnn-visionos-simulator
+        mkdir -p ncnn-visionos-simulator-vulkan
         mkdir -p ncnn-watchos
         mkdir -p ncnn-watchos-simulator
-        mkdir -p ncnn-tvos
-        mkdir -p ncnn-tvos-simulator
-        mkdir -p ncnn-visionos
-        mkdir -p ncnn-visionos-simulator
 
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip -d ncnn-macos
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip -d ncnn-ios
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip -d ncnn-ios-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator.zip -d ncnn-ios-simulator
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan.zip -d ncnn-ios-simulator-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst.zip -d ncnn-mac-catalyst
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan.zip -d ncnn-mac-catalyst-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip -d ncnn-macos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip -d ncnn-macos-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos/ncnn-${{ needs.setup.outputs.VERSION }}-tvos.zip -d ncnn-tvos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan.zip -d ncnn-tvos-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator.zip -d ncnn-tvos-simulator
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan.zip -d ncnn-tvos-simulator-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos/ncnn-${{ needs.setup.outputs.VERSION }}-visionos.zip -d ncnn-visionos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-vulkan.zip -d ncnn-visionos-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator.zip -d ncnn-visionos-simulator
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator-vulkan.zip -d ncnn-visionos-simulator-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos/ncnn-${{ needs.setup.outputs.VERSION }}-watchos.zip -d ncnn-watchos
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator.zip -d ncnn-watchos-simulator
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos/ncnn-${{ needs.setup.outputs.VERSION }}-tvos.zip -d ncnn-tvos
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator.zip -d ncnn-tvos-simulator
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos/ncnn-${{ needs.setup.outputs.VERSION }}-visionos.zip -d ncnn-visionos
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator.zip -d ncnn-visionos-simulator
 
+    - name: create-xcframwork
+      run: |
+        rm -rf openmp.xcframework
         xcodebuild -create-xcframework \
             -framework ncnn-macos/openmp.framework \
             -framework ncnn-ios/openmp.framework \
@@ -3124,6 +2202,7 @@ jobs:
             -framework ncnn-visionos-simulator/openmp.framework \
             -output openmp.xcframework
 
+        rm -rf ncnn.xcframework
         xcodebuild -create-xcframework \
             -framework ncnn-macos/ncnn.framework \
             -framework ncnn-ios/ncnn.framework \
@@ -3139,48 +2218,9 @@ jobs:
 
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework ncnn.xcframework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  apple-gpu:
-    needs: [setup, macos-gpu, ios-gpu, ios-simulator-gpu, mac-catalyst-gpu, watchos, watchos-simulator, tvos-gpu, tvos-simulator-gpu, visionos, visionos-simulator]
-    runs-on: macos-13
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-vulkan
-    steps:
-    - run: sudo xcode-select --switch /Applications/Xcode_15.2.app
-    - name: download
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-
-    - name: create-xcframwork
+    - name: create-xcframwork-vulkan
       run: |
-        mkdir -p ncnn-macos-vulkan
-        mkdir -p ncnn-ios-vulkan
-        mkdir -p ncnn-ios-simulator-vulkan
-        mkdir -p ncnn-mac-catalyst-vulkan
-        mkdir -p ncnn-watchos
-        mkdir -p ncnn-watchos-simulator
-        mkdir -p ncnn-tvos-vulkan
-        mkdir -p ncnn-tvos-simulator-vulkan
-        mkdir -p ncnn-visionos
-        mkdir -p ncnn-visionos-simulator
-
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip -d ncnn-macos-vulkan
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip -d ncnn-ios-vulkan
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan.zip -d ncnn-ios-simulator-vulkan
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan.zip -d ncnn-mac-catalyst-vulkan
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos/ncnn-${{ needs.setup.outputs.VERSION }}-watchos.zip -d ncnn-watchos
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator.zip -d ncnn-watchos-simulator
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan.zip -d ncnn-tvos-vulkan
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan.zip -d ncnn-tvos-simulator-vulkan
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos/ncnn-${{ needs.setup.outputs.VERSION }}-visionos.zip -d ncnn-visionos
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator.zip -d ncnn-visionos-simulator
-
+        rm -rf openmp.xcframework
         xcodebuild -create-xcframework \
             -framework ncnn-macos-vulkan/openmp.framework \
             -framework ncnn-ios-vulkan/openmp.framework \
@@ -3194,6 +2234,7 @@ jobs:
             -framework ncnn-visionos-simulator/openmp.framework \
             -output openmp.xcframework
 
+        rm -rf glslang.xcframework
         xcodebuild -create-xcframework \
             -framework ncnn-macos-vulkan/glslang.framework \
             -framework ncnn-ios-vulkan/glslang.framework \
@@ -3201,8 +2242,11 @@ jobs:
             -framework ncnn-mac-catalyst-vulkan/glslang.framework \
             -framework ncnn-tvos-vulkan/glslang.framework \
             -framework ncnn-tvos-simulator-vulkan/glslang.framework \
+            -framework ncnn-visionos-vulkan/glslang.framework \
+            -framework ncnn-visionos-simulator-vulkan/glslang.framework \
             -output glslang.xcframework
 
+        rm -rf ncnn.xcframework
         xcodebuild -create-xcframework \
             -framework ncnn-macos-vulkan/ncnn.framework \
             -framework ncnn-ios-vulkan/ncnn.framework \
@@ -3212,22 +2256,27 @@ jobs:
             -framework ncnn-watchos-simulator/ncnn.framework \
             -framework ncnn-tvos-vulkan/ncnn.framework \
             -framework ncnn-tvos-simulator-vulkan/ncnn.framework \
-            -framework ncnn-visionos/ncnn.framework \
-            -framework ncnn-visionos-simulator/ncnn.framework \
+            -framework ncnn-visionos-vulkan/ncnn.framework \
+            -framework ncnn-visionos-simulator-vulkan/ncnn.framework \
             -output ncnn.xcframework
 
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework glslang.xcframework ncnn.xcframework
+        rm -f ${{ env.PACKAGENAME }}-vulkan.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.xcframework glslang.xcframework ncnn.xcframework
     - name: upload-zip
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
+    - name: upload-zip-vulkan
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGENAME }}-vulkan
+        path: ${{ env.PACKAGENAME }}-vulkan.zip
 
   release:
     permissions:
       contents: write  # for softprops/action-gh-release to create a release
-    needs: [setup, full-source, ubuntu-2004, ubuntu-2004-shared, ubuntu-2204, ubuntu-2204-shared, macos, macos-gpu, ios, ios-gpu, ios-simulator, ios-simulator-gpu, mac-catalyst, mac-catalyst-gpu, watchos, watchos-simulator, tvos, tvos-simulator, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared, apple, apple-gpu]
+    needs: [setup, full-source, ubuntu, macos, ios, ios-simulator, mac-catalyst, watchos, watchos-simulator, tvos, tvos-simulator, android, webassembly, windows, apple]
     runs-on: ubuntu-latest
     steps:
     - name: download

@@ -16,7 +16,7 @@ static void convolution_winograd_dot_rvv(Mat& bottom_blob_tm, int outch, const M
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 #endif
 
     // Mat bottom_blob_tm(tiles, 16/36/64, inch, 4u, opt.workspace_allocator);
@@ -55,7 +55,7 @@ static void convolution_winograd_dot_rvv(Mat& bottom_blob_tm, int outch, const M
 
             for (int q = 0; q < inch; q++)
             {
-                vse32_v_f32m1(tmpptr, vle32_v_f32m1(r0, vl), vl);
+                __riscv_vse32_v_f32m1(tmpptr, __riscv_vle32_v_f32m1(r0, vl), vl);
                 r0 += bottom_blob_tm.cstep;
                 tmpptr += packn;
             }
@@ -140,39 +140,39 @@ static void convolution_winograd_dot_rvv(Mat& bottom_blob_tm, int outch, const M
 
                 int nn = inch; // inch always > 0
 
-                vfloat32m1_t _sum0 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum1 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum2 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum3 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum4 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum5 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum6 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum7 = vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum1 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum2 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum3 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum4 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum5 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum6 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum7 = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
                 int j = 0;
                 for (; j < nn; j++)
                 {
-                    vfloat32m1_t _val = vle32_v_f32m1(r0, vl);
-                    _sum0 = vfmacc_vf_f32m1(_sum0, k0[0], _val, vl);
-                    _sum1 = vfmacc_vf_f32m1(_sum1, k0[1], _val, vl);
-                    _sum2 = vfmacc_vf_f32m1(_sum2, k0[2], _val, vl);
-                    _sum3 = vfmacc_vf_f32m1(_sum3, k0[3], _val, vl);
-                    _sum4 = vfmacc_vf_f32m1(_sum4, k0[4], _val, vl);
-                    _sum5 = vfmacc_vf_f32m1(_sum5, k0[5], _val, vl);
-                    _sum6 = vfmacc_vf_f32m1(_sum6, k0[6], _val, vl);
-                    _sum7 = vfmacc_vf_f32m1(_sum7, k0[7], _val, vl);
+                    vfloat32m1_t _val = __riscv_vle32_v_f32m1(r0, vl);
+                    _sum0 = __riscv_vfmacc_vf_f32m1(_sum0, k0[0], _val, vl);
+                    _sum1 = __riscv_vfmacc_vf_f32m1(_sum1, k0[1], _val, vl);
+                    _sum2 = __riscv_vfmacc_vf_f32m1(_sum2, k0[2], _val, vl);
+                    _sum3 = __riscv_vfmacc_vf_f32m1(_sum3, k0[3], _val, vl);
+                    _sum4 = __riscv_vfmacc_vf_f32m1(_sum4, k0[4], _val, vl);
+                    _sum5 = __riscv_vfmacc_vf_f32m1(_sum5, k0[5], _val, vl);
+                    _sum6 = __riscv_vfmacc_vf_f32m1(_sum6, k0[6], _val, vl);
+                    _sum7 = __riscv_vfmacc_vf_f32m1(_sum7, k0[7], _val, vl);
                     r0 += packn;
                     k0 += 8;
                 }
 
-                vse32_v_f32m1(output0_tm, _sum0, vl);
-                vse32_v_f32m1(output1_tm, _sum1, vl);
-                vse32_v_f32m1(output2_tm, _sum2, vl);
-                vse32_v_f32m1(output3_tm, _sum3, vl);
-                vse32_v_f32m1(output4_tm, _sum4, vl);
-                vse32_v_f32m1(output5_tm, _sum5, vl);
-                vse32_v_f32m1(output6_tm, _sum6, vl);
-                vse32_v_f32m1(output7_tm, _sum7, vl);
+                __riscv_vse32_v_f32m1(output0_tm, _sum0, vl);
+                __riscv_vse32_v_f32m1(output1_tm, _sum1, vl);
+                __riscv_vse32_v_f32m1(output2_tm, _sum2, vl);
+                __riscv_vse32_v_f32m1(output3_tm, _sum3, vl);
+                __riscv_vse32_v_f32m1(output4_tm, _sum4, vl);
+                __riscv_vse32_v_f32m1(output5_tm, _sum5, vl);
+                __riscv_vse32_v_f32m1(output6_tm, _sum6, vl);
+                __riscv_vse32_v_f32m1(output7_tm, _sum7, vl);
 
                 output0_tm += packn;
                 output1_tm += packn;
@@ -262,27 +262,27 @@ static void convolution_winograd_dot_rvv(Mat& bottom_blob_tm, int outch, const M
 
                 int nn = inch; // inch always > 0
 
-                vfloat32m1_t _sum0 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum1 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum2 = vfmv_v_f_f32m1(0.f, vl);
-                vfloat32m1_t _sum3 = vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum1 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum2 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum3 = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
                 int j = 0;
                 for (; j < nn; j++)
                 {
-                    vfloat32m1_t _val = vle32_v_f32m1(r0, vl);
-                    _sum0 = vfmacc_vf_f32m1(_sum0, k0[0], _val, vl);
-                    _sum1 = vfmacc_vf_f32m1(_sum1, k0[1], _val, vl);
-                    _sum2 = vfmacc_vf_f32m1(_sum2, k0[2], _val, vl);
-                    _sum3 = vfmacc_vf_f32m1(_sum3, k0[3], _val, vl);
+                    vfloat32m1_t _val = __riscv_vle32_v_f32m1(r0, vl);
+                    _sum0 = __riscv_vfmacc_vf_f32m1(_sum0, k0[0], _val, vl);
+                    _sum1 = __riscv_vfmacc_vf_f32m1(_sum1, k0[1], _val, vl);
+                    _sum2 = __riscv_vfmacc_vf_f32m1(_sum2, k0[2], _val, vl);
+                    _sum3 = __riscv_vfmacc_vf_f32m1(_sum3, k0[3], _val, vl);
                     r0 += packn;
                     k0 += 4;
                 }
 
-                vse32_v_f32m1(output0_tm, _sum0, vl);
-                vse32_v_f32m1(output1_tm, _sum1, vl);
-                vse32_v_f32m1(output2_tm, _sum2, vl);
-                vse32_v_f32m1(output3_tm, _sum3, vl);
+                __riscv_vse32_v_f32m1(output0_tm, _sum0, vl);
+                __riscv_vse32_v_f32m1(output1_tm, _sum1, vl);
+                __riscv_vse32_v_f32m1(output2_tm, _sum2, vl);
+                __riscv_vse32_v_f32m1(output3_tm, _sum3, vl);
 
                 output0_tm += packn;
                 output1_tm += packn;
@@ -444,16 +444,16 @@ static void convolution_winograd_dot_rvv(Mat& bottom_blob_tm, int outch, const M
 
                 int nn = inch; // inch always > 0
 
-                vfloat32m1_t _sum0 = vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
                 for (int j = 0; j < nn; j++)
                 {
-                    _sum0 = vfmacc_vf_f32m1(_sum0, k0[0], vle32_v_f32m1(r0, vl), vl);
+                    _sum0 = __riscv_vfmacc_vf_f32m1(_sum0, k0[0], __riscv_vle32_v_f32m1(r0, vl), vl);
                     r0 += packn;
                     k0++;
                 }
 
-                vse32_v_f32m1(output0_tm, _sum0, vl);
+                __riscv_vse32_v_f32m1(output0_tm, _sum0, vl);
                 output0_tm += packn;
             }
 #else  // __riscv_vector
