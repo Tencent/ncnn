@@ -28,7 +28,7 @@ jobs:
 
     env:
       PYTHONUSERBASE: ${{ github.workspace }}/torch
-
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v4
 
@@ -47,9 +47,9 @@ jobs:
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . -j 4
+        cmake --build . --config Release -j 4
 
     - name: quick-test
       run: |
         cd tools/pnnx
-        cd build && ctest --output-on-failure -R test_nn_Conv
+        cd build && ctest -C Release --output-on-failure -R test_nn_Conv
