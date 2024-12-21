@@ -590,6 +590,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_sum.cpp
     pass_ncnn/torch_stft.cpp
     pass_ncnn/torch_t.cpp
+    pass_ncnn/torch_topk.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
     pass_ncnn/torchaudio_F_inverse_spectrogram.cpp
