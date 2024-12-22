@@ -128,7 +128,7 @@
 #include <immintrin.h>
 #endif
 
-#if (defined _WIN32 && (__aarch64__ || __arm__))
+#if (defined _WIN32 && (__aarch64__ || __arm__)) || ((defined __ANDROID__ || defined __linux__) && __riscv)
 #define RUAPU_IMPLEMENTATION
 #include "ruapu.h"
 #endif
