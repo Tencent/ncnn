@@ -2055,7 +2055,7 @@ static void initialize_global_cpu_info()
 
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    g_cpu_support_riscv_zfh = ruapu_supports("zfh") || ruapu_supports("xtheadvector"); // xtheadvector implies zfh
+    g_cpu_support_riscv_zfh = ruapu_supports("zfh") || ruapu_supports("xtheadvector");   // xtheadvector implies zfh
     g_cpu_support_riscv_zvfh = ruapu_supports("zvfh") || ruapu_supports("xtheadvector"); // xtheadvector implies zvfh
     g_cpu_support_riscv_xtheadvector = ruapu_supports("xtheadvector");
 #endif // __riscv
