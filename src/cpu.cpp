@@ -192,6 +192,14 @@ static int g_cpu_support_x86_avx512_bf16;
 static int g_cpu_support_x86_avx512_fp16;
 #endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+static int g_cpu_support_riscv_zfh;
+static int g_cpu_support_riscv_zvfh;
+static int g_cpu_support_riscv_xtheadvector;
+#endif // __riscv
+#endif // defined __ANDROID__ || defined __linux__
+
 static int g_cpu_level2_cachesize;
 static int g_cpu_level3_cachesize;
 
@@ -1988,7 +1996,7 @@ static void initialize_global_cpu_info()
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
-#if (defined _WIN32 && (__aarch64__ || __arm__))
+#if (defined _WIN32 && (__aarch64__ || __arm__)) || ((defined __ANDROID__ || defined __linux__) && __riscv)
     if (!is_being_debugged())
     {
         ruapu_init();
@@ -2044,6 +2052,14 @@ static void initialize_global_cpu_info()
     g_cpu_support_x86_avx512_bf16 = get_cpu_support_x86_avx512_bf16();
     g_cpu_support_x86_avx512_fp16 = get_cpu_support_x86_avx512_fp16();
 #endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    g_cpu_support_riscv_zfh = ruapu_supports("zfh") || ruapu_supports("xtheadvector"); // xtheadvector implies zfh
+    g_cpu_support_riscv_zvfh = ruapu_supports("zvfh") || ruapu_supports("xtheadvector"); // xtheadvector implies zvfh
+    g_cpu_support_riscv_xtheadvector = ruapu_supports("xtheadvector");
+#endif // __riscv
+#endif // defined __ANDROID__ || defined __linux__
 
     g_cpu_level2_cachesize = get_cpu_level2_cachesize();
     g_cpu_level3_cachesize = get_cpu_level3_cachesize();
@@ -2706,9 +2722,7 @@ int cpu_support_riscv_zfh()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    // v + f does not imply zfh, but how to discover zfh properly ?
-    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
-    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+    return g_cpu_support_riscv_zfh;
 #else
     return 0;
 #endif
@@ -2722,9 +2736,7 @@ int cpu_support_riscv_zvfh()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    // v + f does not imply zfh, but how to discover zvfh properly ?
-    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
-    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+    return g_cpu_support_riscv_zvfh;
 #else
     return 0;
 #endif
@@ -2738,9 +2750,7 @@ int cpu_support_riscv_xtheadvector()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    // v + f does not imply zfh, but how to discover zvfh properly ?
-    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
-    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+    return g_cpu_support_riscv_xtheadvector;
 #else
     return 0;
 #endif
