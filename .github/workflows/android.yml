@@ -117,8 +117,6 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libncurses6
         pushd /usr/lib/x86_64-linux-gnu/
         sudo ln -s libncurses.so.6 libncurses.so.5
         popd
