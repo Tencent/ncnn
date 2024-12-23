@@ -119,6 +119,7 @@ jobs:
       run: |
         pushd /usr/lib/x86_64-linux-gnu/
         sudo ln -s libncurses.so.6 libncurses.so.5
+        sudo ln -s libtinfo.so.6 libtinfo.so.5
         popd
         wget -q https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip -O $GITHUB_WORKSPACE/android-ndk-r16b-linux-x86_64.zip
         cd $GITHUB_WORKSPACE && unzip -q android-ndk-r16b-linux-x86_64.zip
