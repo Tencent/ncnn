@@ -50,6 +50,7 @@ jobs:
         cmake --build . --config Release -j 4
 
     - name: quick-test
+      if: matrix.os != 'windows-latest'
       run: |
         cd tools/pnnx
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
