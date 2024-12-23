@@ -62,7 +62,7 @@ jobs:
     - name: test-simd
       run: |
         cd build-simd
-        TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=node ctest --output-on-failure -j $(nproc)
     - name: build-simd-omp
       run: |
         source emsdk/emsdk_env.sh
@@ -73,4 +73,4 @@ jobs:
     - name: test-simd-omp
       run: |
         cd build-simd-omp
-        TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd;--experimental-wasm-threads" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=node ctest --output-on-failure -j $(nproc)
