@@ -53,13 +53,17 @@ public:
     int fuse_batchnorm_scale();
     int fuse_convolution_batchnorm();
     int fuse_convolution_mul();
+    int fuse_convolution_mul_with_scalar();
+
     int fuse_convolution_add();
+    int fuse_convolution_add_with_scalar();
     int fuse_convolutiondepthwise_batchnorm();
     int fuse_convolutiondepthwise_mul();
     int fuse_convolutiondepthwise_add();
     int fuse_deconvolution_batchnorm();
     int fuse_deconvolution_mul();
     int fuse_deconvolution_add();
+    //    int fuse_add_with_scalar_convolutiondepthwise();
     int fuse_deconvolutiondepthwise_batchnorm();
     int fuse_innerproduct_batchnorm();
     int fuse_innerproduct_add();
@@ -71,7 +75,10 @@ public:
     int fuse_innerproduct_activation();
     int fuse_memorydata_binaryop();
     int fuse_binaryop_eltwise();
-
+    int fuse_convolutiondepthwise_mul_with_scalar();
+    int fuse_convolutiondepthwise_add_with_scalar();
+    int fuse_add_with_scalar_convolution();
+    int fuse_mul_with_scalar_convolution();
     int eliminate_dropout();
     int eliminate_pooling1x1();
     int eliminate_noop();
@@ -325,6 +332,190 @@ int NetOptimize::fuse_convolution_mul()
 
     return 0;
 }
+int NetOptimize::fuse_convolution_mul_with_scalar()
+{
+    const size_t layer_count = layers.size();
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "Convolution")
+            continue;
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[i];
+        if (convolution->activation_type != 0)
+            continue;
+        // Convolution - BinaryOp
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "BinaryOp")
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse Convolution - BinaryOp to Convolution
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
+
+        if (binaryop->op_type != 2 || binaryop->with_scalar != 1)
+            continue;
+
+        int channels = convolution->num_output;
+
+        fprintf(stderr, "fuse_convolution_mul %s %s\n", convolution->name.c_str(), binaryop->name.c_str());
+
+        {
+            const int weight_per_outch = convolution->weight_data_size / channels;
+
+            float* weight = convolution->weight_data;
+            float* bias = convolution->bias_data;
+            for (int i = 0; i < channels; i++)
+            {
+                float* conv_weight_outch = weight + weight_per_outch * i;
+                for (int j = 0; j < weight_per_outch; j++)
+                {
+                    conv_weight_outch[j] *= binaryop->b;
+                }
+
+                if (bias)
+                {
+                    bias[i] = bias[i] * binaryop->b;
+                }
+            }
+        }
+
+        int top_blob_index_final = binaryop->tops[0];
+        convolution->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        binaryop->type = "ncnnfused";
+    }
+
+    return 0;
+}
+int NetOptimize::fuse_add_with_scalar_convolution()
+{
+    // y = a*(x+b)+c -> y = a*x + a*b + c
+    const size_t layer_count = layers.size();
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "BinaryOp")
+            continue;
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[i];
+
+        if (binaryop->op_type != 0 || binaryop->with_scalar != 1)
+            continue;
+        //  BinaryOp - Convolution
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "Convolution")
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[j];
+
+        int channels = convolution->num_output;
+
+        fprintf(stderr, "fuse_add_convolution %s %s\n", binaryop->name.c_str(), convolution->name.c_str());
+
+        {
+            // get a*b
+            ncnn::Mat b; // = ncnn::Mat(convolution->weight_data.shape());
+            b.create_like(convolution->weight_data);
+            b.fill(binaryop->b);
+            convolution->forward_inplace(b, opt);
+
+            if (convolution->bias_term == 0)
+            {
+                // init bias
+                convolution->bias_term = 1;
+                convolution->bias_data = b;
+            }
+            else
+            {
+                float* bias = convolution->bias_data;
+                for (int i = 0; i < channels; i++)
+                {
+                    bias[i] = bias[i] + b[i];
+                }
+            }
+        }
+
+        int bottom_blob_index_final = binaryop->bottoms[0];
+        convolution->bottoms[0] = bottom_blob_index_final;
+        blobs[bottom_blob_index_final].producer = i;
+        binaryop->type = "ncnnfused";
+    }
+    return 0;
+}
+int NetOptimize::fuse_mul_with_scalar_convolution()
+{
+    // y = a*b*x+c
+    const size_t layer_count = layers.size();
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "BinaryOp")
+            continue;
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[i];
+
+        if (binaryop->op_type != 2 || binaryop->with_scalar != 1)
+            continue;
+        //  BinaryOp - Convolution
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "Convolution")
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[j];
+
+        int channels = convolution->num_output;
+
+        fprintf(stderr, "fuse_mul_convolution %s %s\n", binaryop->name.c_str(), convolution->name.c_str());
+
+        {
+            const int weight_per_outch = convolution->weight_data_size / channels;
+
+            float* weight = convolution->weight_data;
+            float* bias = convolution->bias_data;
+            for (int i = 0; i < channels; i++)
+            {
+                float* conv_weight_outch = weight + weight_per_outch * i;
+                for (int j = 0; j < weight_per_outch; j++)
+                {
+                    conv_weight_outch[j] *= binaryop->b;
+                }
+            }
+        }
+
+        int bottom_blob_index_final = binaryop->bottoms[0];
+        convolution->bottoms[0] = bottom_blob_index_final;
+        blobs[bottom_blob_index_final].producer = i;
+        binaryop->type = "ncnnfused";
+    }
+    return 0;
+}
 
 int NetOptimize::fuse_convolution_add()
 {
@@ -418,6 +609,68 @@ int NetOptimize::fuse_convolution_add()
 
     return 0;
 }
+int NetOptimize::fuse_convolution_add_with_scalar()
+{
+    const size_t layer_count = layers.size();
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "Convolution")
+            continue;
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[i];
+        if (convolution->activation_type != 0)
+            continue;
+        // Convolution - BinaryOp
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "BinaryOp")
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse Convolution - BinaryOp to Convolution
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
+
+        if (binaryop->op_type != 0 || binaryop->with_scalar != 1)
+            continue;
+
+        int channels = convolution->num_output;
+
+        fprintf(stderr, "fuse_convolution_add %s %s\n", convolution->name.c_str(), binaryop->name.c_str());
+
+        {
+            if (convolution->bias_term == 0)
+            {
+                // init bias
+                convolution->bias_term = 1;
+                convolution->bias_data = ncnn::Mat(channels);
+                convolution->bias_data.fill(binaryop->b);
+            }
+            else
+            {
+                float* bias = convolution->bias_data;
+                for (int i = 0; i < channels; i++)
+                {
+                    bias[i] = bias[i] + binaryop->b;
+                }
+            }
+        }
+
+        int top_blob_index_final = binaryop->tops[0];
+        convolution->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        binaryop->type = "ncnnfused";
+    }
+
+    return 0;
+}
 
 int NetOptimize::fuse_convolutiondepthwise_batchnorm()
 {
@@ -497,6 +750,141 @@ int NetOptimize::fuse_convolutiondepthwise_batchnorm()
         convolutiondepthwise->tops[0] = top_blob_index_final;
         blobs[top_blob_index_final].producer = i;
         batchnorm->type = "ncnnfused";
+    }
+
+    return 0;
+}
+int NetOptimize::fuse_convolutiondepthwise_mul_with_scalar()
+{
+    const size_t layer_count = layers.size();
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "ConvolutionDepthWise")
+            continue;
+        ncnn::ConvolutionDepthWise* convolutiondepthwise = (ncnn::ConvolutionDepthWise*)layers[i];
+        //no activate
+        if (convolutiondepthwise->activation_type != 0)
+            continue;
+
+        // ConvolutionDepthWise - BinaryOp
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "BinaryOp")
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse ConvolutionDepthWise - BinaryOp to ConvolutionDepthWise
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
+
+        if (binaryop->op_type != 2 || binaryop->with_scalar != 1)
+            continue;
+
+        int channels = convolutiondepthwise->num_output;
+
+        fprintf(stderr, "fuse_convolutiondepthwise_mul %s %s\n", convolutiondepthwise->name.c_str(), binaryop->name.c_str());
+
+        {
+            const int weight_per_outch = convolutiondepthwise->weight_data_size / channels;
+
+            float* weight = convolutiondepthwise->weight_data;
+            float* bias = convolutiondepthwise->bias_data;
+            for (int i = 0; i < channels; i++)
+            {
+                float* conv_weight_outch = weight + weight_per_outch * i;
+                for (int j = 0; j < weight_per_outch; j++)
+                {
+                    conv_weight_outch[j] *= binaryop->b;
+                }
+
+                if (bias)
+                {
+                    bias[i] = bias[i] * binaryop->b;
+                }
+            }
+        }
+
+        int top_blob_index_final = binaryop->tops[0];
+        convolutiondepthwise->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        binaryop->type = "ncnnfused";
+    }
+
+    return 0;
+}
+int NetOptimize::fuse_convolutiondepthwise_add_with_scalar()
+{
+    const size_t layer_count = layers.size();
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "ConvolutionDepthWise")
+            continue;
+
+        ncnn::ConvolutionDepthWise* convolutiondepthwise = (ncnn::ConvolutionDepthWise*)layers[i];
+        if (convolutiondepthwise->activation_type != 0)
+            continue;
+        // ConvolutionDepthWise - BinaryOp
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "BinaryOp")
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse ConvolutionDepthWise - BinaryOp to ConvolutionDepthWise
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
+
+        if (binaryop->op_type != 0 || binaryop->with_scalar != 1)
+            continue;
+
+        int channels = convolutiondepthwise->num_output;
+
+        fprintf(stderr, "fuse_convolutiondepthwise_mul %s %s\n", convolutiondepthwise->name.c_str(), binaryop->name.c_str());
+
+        {
+            const int weight_per_outch = convolutiondepthwise->weight_data_size / channels;
+
+            float* weight = convolutiondepthwise->weight_data;
+            float* bias = convolutiondepthwise->bias_data;
+            {
+                if (convolutiondepthwise->bias_term == 0)
+                {
+                    // init bias
+                    convolutiondepthwise->bias_term = 1;
+                    convolutiondepthwise->bias_data = ncnn::Mat(channels);
+                    convolutiondepthwise->bias_data.fill(binaryop->b);
+                }
+                else
+                {
+                    float* bias = convolutiondepthwise->bias_data;
+                    for (int i = 0; i < channels; i++)
+                    {
+                        bias[i] = bias[i] + binaryop->b;
+                    }
+                }
+            }
+        }
+
+        int top_blob_index_final = binaryop->tops[0];
+        convolutiondepthwise->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        binaryop->type = "ncnnfused";
     }
 
     return 0;
@@ -2820,6 +3208,13 @@ int main(int argc, char** argv)
     optimizer.fuse_innerproduct_batchnorm();
     optimizer.fuse_innerproduct_add();
     optimizer.fuse_innerproduct_dropout();
+    optimizer.fuse_convolutiondepthwise_mul_with_scalar();
+    optimizer.fuse_convolutiondepthwise_add_with_scalar();
+    optimizer.fuse_convolution_mul_with_scalar();
+    optimizer.fuse_convolution_add_with_scalar();
+    optimizer.fuse_add_with_scalar_convolution();
+    //    optimizer.fuse_add_with_scalar_convolutiondepthwise();
+    optimizer.fuse_mul_with_scalar_convolution();
 
     optimizer.replace_reduction_with_global_pooling();
     optimizer.replace_prelu_with_leaky_relu();
