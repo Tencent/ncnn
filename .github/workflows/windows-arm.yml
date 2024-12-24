@@ -91,4 +91,4 @@ jobs:
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest -C Debug --output-on-failure -j $(nproc)
