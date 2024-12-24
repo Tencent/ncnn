@@ -86,8 +86,8 @@ jobs:
       run: |
         export PATH=/msvc/bin/arm64:$PATH
         mkdir build && cd build
-        cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . --config Release -j $(nproc)
+        cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . --config Debug -j $(nproc)
     - name: test
       run: |
         cd build
