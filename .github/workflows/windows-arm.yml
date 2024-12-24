@@ -86,9 +86,9 @@ jobs:
       run: |
         export PATH=/msvc/bin/arm64:$PATH
         mkdir build && cd build
-        cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . --config Debug -j $(nproc)
+        cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . --config Release -j $(nproc)
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest -C Debug --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest --output-on-failure -j $(nproc)
