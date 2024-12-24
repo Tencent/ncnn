@@ -377,6 +377,12 @@ else()
     if(NCNN_SHARED_LIB AND NCNN_ENABLE_LTO)
         set_target_properties(ncnn PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
     endif()
+
+    if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER_EQUAL 27))
+        # llvm 18 in ndk-27 introduce __libcpp_verbose_abort for assertion output
+        # define empty body for fixing linking issue with old ndk
+        target_compile_options(ncnn PRIVATE "-D_LIBCPP_VERBOSE_ABORT\(format,args...\)=")
+    endif()
 endif()
 
 if(NCNN_DISABLE_RTTI)
