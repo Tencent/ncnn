@@ -108,7 +108,7 @@ struct unary_op_exp
 {
     float operator()(const float& x) const
     {
-        return (float)expf(x);
+        return (float)exp(x);
     }
 };
 
