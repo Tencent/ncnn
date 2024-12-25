@@ -723,6 +723,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     endif()
 endif()
 
+if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER_EQUAL 27))
+    # llvm 18 in ndk-27 introduce __libcpp_verbose_abort for assertion output
+    # define empty body for fixing linking issue with old ndk
+    add_definitions("-D_LIBCPP_VERBOSE_ABORT\\(format,args...\\)=")
+endif()
+
 if(NCNN_VULKAN)
     if(NCNN_SYSTEM_GLSLANG)
         find_package(Threads)
@@ -765,6 +771,10 @@ if(NCNN_VULKAN)
         else()
             # glslang requires c++11
             set(CMAKE_CXX_STANDARD 11)
+
+            # remove ostream usage in glslang for better libcpp abi compatibility
+            include(cmake/glslang_drop_ostream.cmake)
+            glslang_drop_ostream(${CMAKE_CURRENT_LIST_DIR}/glslang)
 
             option(BUILD_EXTERNAL "" OFF)
             option(ENABLE_SPVREMAPPER "" OFF)
