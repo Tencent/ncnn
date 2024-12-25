@@ -142,11 +142,11 @@ jobs:
             -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 8
 
-    - name: build-clang
+    - name: build-llvm
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.0.5
-        mkdir build-clang && cd build-clang
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/k1.clang.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
+        mkdir build-llvm && cd build-llvm
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/k1.llvm.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
             -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
             -DNCNN_RUNTIME_CPU=OFF \
             -DNCNN_RVV=${{ matrix.RVV }} \
