@@ -46,7 +46,7 @@ int TopK::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     std::vector<std::pair<float, int> > vec;
 #if !NCNN_SIMPLESTL
     vec.reserve(size);
-#else
+#endif
     for (int i = 0; i < size; i++)
     {
         vec.push_back(std::make_pair(ptr[i], i));
