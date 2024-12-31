@@ -65,11 +65,11 @@ int TopK::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     {
         if (largest == 1)
         {
-            std::sort(vec.begin(), vec.begin() + k_, std::greater<std::pair<float, int> >());
+            std::partial_sort(vec.begin(), vec.begin() + k_, vec.end(), std::greater<std::pair<float, int> >());
         }
         else
         {
-            std::sort(vec.begin(), vec.begin() + k_, std::less<std::pair<float, int> >());
+            std::partial_sort(vec.begin(), vec.begin() + k_, vec.end(), std::less<std::pair<float, int> >());
         }
     }
 
