@@ -560,6 +560,80 @@ inline string operator+(const string& str1, const string& str2)
     return str;
 }
 
+template<typename Key, typename T>
+class unordered_map {
+public:
+    typedef pair<Key, T> value_type;
+
+    unordered_map() : count(0) {}
+
+    ~unordered_map() {
+        clear();
+    }
+
+    void insert(const value_type& value) {
+        for (size_t i = 0; i < data.size(); ++i) {
+            if (data[i].first == value.first) {
+                data[i].second = value.second;
+                return;
+            }
+        }
+        data.push_back(value);
+        count++;
+    }
+
+    T& operator[](const Key& key) {
+        for (size_t i = 0; i < data.size(); ++i) {
+            if (data[i].first == key) {
+                return data[i].second;
+            }
+        }
+        data.push_back(make_pair(key, T()));
+        count++;
+        return data[count-1].second;
+    }
+
+    T& at(const Key& key) {
+        for (size_t i = 0; i < data.size(); ++i) {
+            if (data[i].first == key) {
+                return data[i].second;
+            }
+        }
+        return data[0].second; //throw std::out_of_range("Key not found");
+    }
+
+    bool empty() const {
+        return count == 0;
+    }
+
+    size_t size() const {
+        return count;
+    }
+
+    void emplace(const Key& key, const T& value) {
+        insert(make_pair(key, value));
+    }
+
+    void erase(const Key& key) {
+        for (size_t i = 0; i < data.size(); ++i) {
+            if (data[i].first == key) {
+                data.erase(data.begin() + i);
+                count--;
+                return;
+            }
+        }
+    }
+
+    void clear() {
+        data.clear();
+        count = 0;
+    }
+
+private:
+    vector<value_type> data;
+    size_t count;
+};
+
 } // namespace std
 
 #endif // NCNN_SIMPLESTL_H
