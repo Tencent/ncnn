@@ -13,6 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #include "topk.h"
+#include <vector>
+#include <algorithm>
 
 namespace ncnn {
 
