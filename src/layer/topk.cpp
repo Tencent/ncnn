@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "topk.h"
-#include <functional>
+// #include <functional>
 
 namespace ncnn {
 
