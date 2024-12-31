@@ -47,7 +47,7 @@ def test():
     import os
 
     os.system(
-        "../src/pnnx test_torch_topk.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]"
+        "../../src/pnnx test_torch_topk.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]"
     )
 
     # pnnx inference
