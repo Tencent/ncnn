@@ -2014,7 +2014,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 
                 __m256i _pp = combine4x2_epi32(_pp0, _pp1);
 #if !__AVXVNNIINT8__
-                _w_shift = _mm256_dpbusd_epi32(_w_shift, _v127, _pp);
+                _w_shift = _mm256_comp_dpbusd_epi32(_w_shift, _v127, _pp);
 #endif // !__AVXVNNIINT8__
                 _mm256_storeu_si256((__m256i*)pp, _pp);
 
@@ -2108,7 +2108,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 
                 __m256i _pp = combine4x2_epi32(_pp0, _pp1);
 #if !__AVXVNNIINT8__
-                _w_shift = _mm256_dpbusd_epi32(_w_shift, _v127, _pp);
+                _w_shift = _mm256_comp_dpbusd_epi32(_w_shift, _v127, _pp);
 #endif // !__AVXVNNIINT8__
                 _mm256_storeu_si256((__m256i*)pp, _pp);
 

@@ -626,6 +626,10 @@ if(PROTOBUF_FOUND)
             set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR})
             set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_LINK_LIBRARIES protobuf::libprotobuf)
         endif()
+
+        if(APPLE)
+            set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_LINK_LIBRARIES "-framework CoreFoundation")
+        endif()
     endif()
 endif()
 

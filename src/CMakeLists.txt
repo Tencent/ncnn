@@ -349,6 +349,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang
         target_compile_options(ncnn PRIVATE /fp:fast)
     endif()
 
+    if(NCNN_TARGET_ARCH STREQUAL "arm")
+        # disable msvc svml optimization on arm target as it produces wrong result
+        target_compile_options(ncnn PRIVATE /d2Qvec-mathlib-)
+    endif()
+
     if(NCNN_SHARED_LIB)
         # msvc argues about stl string and vector uses in exported functions
         target_compile_options(ncnn PRIVATE /wd4251)

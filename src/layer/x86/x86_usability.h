@@ -1490,9 +1490,9 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx512(const __m512& v0)
 static NCNN_FORCEINLINE __m512i float2bfloat_avx512(const __m512& v0, const __m512& v1)
 {
 #if __AVX512BF16__
-    __m256bh _v0 = _mm512_cvtneps_pbh(v0);
-    __m256bh _v1 = _mm512_cvtneps_pbh(v1);
-    __m512i _v = _mm512_inserti32x8(_mm512_castsi256_si512((__m256i)_v0), (__m256i)_v1, 1);
+    __m256i _v0 = (__m256i)_mm512_cvtneps_pbh(v0);
+    __m256i _v1 = (__m256i)_mm512_cvtneps_pbh(v1);
+    __m512i _v = _mm512_inserti32x8(_mm512_castsi256_si512(_v0), _v1, 1);
 #else
     __m512i _a = _mm512_castps_si512(v0);
     __m512i _b = _mm512_castps_si512(v1);
