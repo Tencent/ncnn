@@ -291,20 +291,20 @@ static int detect_yolov8(const cv::Mat& bgr, std::vector<Object>& objects)
     // yolov8.opt.use_bf16_storage = true;
 
     // https://github.com/nihui/ncnn-android-yolov8/tree/master/app/src/main/assets
-    yolov8.load_param("yolov8n_pnnx.py.ncnn.param");
-    yolov8.load_model("yolov8n_pnnx.py.ncnn.bin");
-    // yolov8.load_param("yolov8s_pnnx.py.ncnn.param");
-    // yolov8.load_model("yolov8s_pnnx.py.ncnn.bin");
-    // yolov8.load_param("yolov8m_pnnx.py.ncnn.param");
-    // yolov8.load_model("yolov8m_pnnx.py.ncnn.bin");
+    yolov8.load_param("yolov8n.ncnn.param");
+    yolov8.load_model("yolov8n.ncnn.bin");
+    // yolov8.load_param("yolov8s.ncnn.param");
+    // yolov8.load_model("yolov8s.ncnn.bin");
+    // yolov8.load_param("yolov8m.ncnn.param");
+    // yolov8.load_model("yolov8m.ncnn.bin");
 
     // if you use oiv7 models, you shall call draw_objects_oiv() instead
-    // yolov8.load_param("yolov8n_oiv7_pnnx.py.ncnn.param");
-    // yolov8.load_model("yolov8n_oiv7_pnnx.py.ncnn.bin");
-    // yolov8.load_param("yolov8s_oiv7_pnnx.py.ncnn.param");
-    // yolov8.load_model("yolov8s_oiv7_pnnx.py.ncnn.bin");
-    // yolov8.load_param("yolov8m_oiv7_pnnx.py.ncnn.param");
-    // yolov8.load_model("yolov8m_oiv7_pnnx.py.ncnn.bin");
+    // yolov8.load_param("yolov8n_oiv7.ncnn.param");
+    // yolov8.load_model("yolov8n_oiv7.ncnn.bin");
+    // yolov8.load_param("yolov8s_oiv7.ncnn.param");
+    // yolov8.load_model("yolov8s_oiv7.ncnn.bin");
+    // yolov8.load_param("yolov8m_oiv7.ncnn.param");
+    // yolov8.load_model("yolov8m_oiv7.ncnn.bin");
 
     const int target_size = 640;
     const float prob_threshold = 0.25f;
