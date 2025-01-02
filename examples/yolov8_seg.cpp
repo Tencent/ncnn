@@ -437,12 +437,12 @@ static int detect_yolov8_seg(const cv::Mat& bgr, std::vector<Object>& objects)
         ncnn::Layer* gemm = ncnn::create_layer("Gemm");
 
         ncnn::ParamDict pd;
-        pd.set(6, 1); // constantC
-        pd.set(7, count); // constantM
+        pd.set(6, 1);                             // constantC
+        pd.set(7, count);                         // constantM
         pd.set(8, mask_protos.w * mask_protos.h); // constantN
-        pd.set(9, mask_feat.w); // constantK
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 1); // output_N1M
+        pd.set(9, mask_feat.w);                   // constantK
+        pd.set(10, -1);                           // constant_broadcast_type_C
+        pd.set(11, 1);                            // output_N1M
         gemm->load_param(pd);
 
         ncnn::Option opt;
@@ -524,25 +524,25 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
     };
 
     static cv::Scalar colors[] = {
-        cv::Scalar(244,  67,  54),
-        cv::Scalar(233,  30,  99),
-        cv::Scalar(156,  39, 176),
-        cv::Scalar(103,  58, 183),
-        cv::Scalar( 63,  81, 181),
-        cv::Scalar( 33, 150, 243),
-        cv::Scalar(  3, 169, 244),
-        cv::Scalar(  0, 188, 212),
-        cv::Scalar(  0, 150, 136),
-        cv::Scalar( 76, 175,  80),
-        cv::Scalar(139, 195,  74),
-        cv::Scalar(205, 220,  57),
-        cv::Scalar(255, 235,  59),
-        cv::Scalar(255, 193,   7),
-        cv::Scalar(255, 152,   0),
-        cv::Scalar(255,  87,  34),
-        cv::Scalar(121,  85,  72),
+        cv::Scalar(244, 67, 54),
+        cv::Scalar(233, 30, 99),
+        cv::Scalar(156, 39, 176),
+        cv::Scalar(103, 58, 183),
+        cv::Scalar(63, 81, 181),
+        cv::Scalar(33, 150, 243),
+        cv::Scalar(3, 169, 244),
+        cv::Scalar(0, 188, 212),
+        cv::Scalar(0, 150, 136),
+        cv::Scalar(76, 175, 80),
+        cv::Scalar(139, 195, 74),
+        cv::Scalar(205, 220, 57),
+        cv::Scalar(255, 235, 59),
+        cv::Scalar(255, 193, 7),
+        cv::Scalar(255, 152, 0),
+        cv::Scalar(255, 87, 34),
+        cv::Scalar(121, 85, 72),
         cv::Scalar(158, 158, 158),
-        cv::Scalar( 96, 125, 139)
+        cv::Scalar(96, 125, 139)
     };
 
     cv::Mat image = bgr.clone();
