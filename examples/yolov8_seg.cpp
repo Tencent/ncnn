@@ -326,12 +326,12 @@ static int detect_yolov8_seg(const cv::Mat& bgr, std::vector<Object>& objects)
     // yolov8.opt.use_bf16_storage = true;
 
     // https://github.com/nihui/ncnn-android-yolov8/tree/master/app/src/main/assets
-    yolov8.load_param("yolov8n_seg_pnnx.py.ncnn.param");
-    yolov8.load_model("yolov8n_seg_pnnx.py.ncnn.bin");
-    // yolov8.load_param("yolov8s_seg_pnnx.py.ncnn.param");
-    // yolov8.load_model("yolov8s_seg_pnnx.py.ncnn.bin");
-    // yolov8.load_param("yolov8m_seg_pnnx.py.ncnn.param");
-    // yolov8.load_model("yolov8m_seg_pnnx.py.ncnn.bin");
+    yolov8.load_param("yolov8n_seg.ncnn.param");
+    yolov8.load_model("yolov8n_seg.ncnn.bin");
+    // yolov8.load_param("yolov8s_seg.ncnn.param");
+    // yolov8.load_model("yolov8s_seg.ncnn.bin");
+    // yolov8.load_param("yolov8m_seg.ncnn.param");
+    // yolov8.load_model("yolov8m_seg.ncnn.bin");
 
     const int target_size = 640;
     const float prob_threshold = 0.25f;

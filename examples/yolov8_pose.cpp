@@ -317,12 +317,12 @@ static int detect_yolov8_pose(const cv::Mat& bgr, std::vector<Object>& objects)
     // yolov8.opt.use_bf16_storage = true;
 
     // https://github.com/nihui/ncnn-android-yolov8/tree/master/app/src/main/assets
-    yolov8.load_param("yolov8n_pose_pnnx.py.ncnn.param");
-    yolov8.load_model("yolov8n_pose_pnnx.py.ncnn.bin");
-    // yolov8.load_param("yolov8s_pose_pnnx.py.ncnn.param");
-    // yolov8.load_model("yolov8s_pose_pnnx.py.ncnn.bin");
-    // yolov8.load_param("yolov8m_pose_pnnx.py.ncnn.param");
-    // yolov8.load_model("yolov8m_pose_pnnx.py.ncnn.bin");
+    yolov8.load_param("yolov8n_pose.ncnn.param");
+    yolov8.load_model("yolov8n_pose.ncnn.bin");
+    // yolov8.load_param("yolov8s_pose.ncnn.param");
+    // yolov8.load_model("yolov8s_pose.ncnn.bin");
+    // yolov8.load_param("yolov8m_pose.ncnn.param");
+    // yolov8.load_model("yolov8m_pose.ncnn.bin");
 
     const int target_size = 640;
     const float prob_threshold = 0.25f;
