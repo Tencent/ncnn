@@ -583,7 +583,7 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
-                b[i] = reduction(v0, (const float*)mins, channels, mins.cstep, op2_type);
+                b[i] = reduction(v0, (const float*)mins + i, channels, mins.cstep, op2_type);
             }
         }
 
@@ -865,14 +865,17 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
             if (reduce_c) scale *= a.c;
         }
 
-        const float coeff_mean = coeff / scale;
+        coeff = coeff / scale;
+    }
 
+    if (coeff != 1.f)
+    {
         const int size = b.total();
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < size; i++)
         {
-            b[i] = b[i] * coeff_mean;
+            b[i] = b[i] * coeff;
         }
     }
 
