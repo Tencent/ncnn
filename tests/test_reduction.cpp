@@ -18,52 +18,46 @@
 
 static int op_type = 0;
 
-static ncnn::Mat IntArrayMat(int a0)
+static std::vector<int> IntArray(int a0)
 {
-    ncnn::Mat m(1);
-    int* p = m;
-    p[0] = a0;
+    std::vector<int> m(1);
+    m[0] = a0;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1)
+static std::vector<int> IntArray(int a0, int a1)
 {
-    ncnn::Mat m(2);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
+    std::vector<int> m(2);
+    m[0] = a0;
+    m[1] = a1;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1, int a2)
+static std::vector<int> IntArray(int a0, int a1, int a2)
 {
-    ncnn::Mat m(3);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    p[2] = a2;
+    std::vector<int> m(3);
+    m[0] = a0;
+    m[1] = a1;
+    m[2] = a2;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1, int a2, int a3)
+static std::vector<int> IntArray(int a0, int a1, int a2, int a3)
 {
-    ncnn::Mat m(4);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    p[2] = a2;
-    p[3] = a3;
+    std::vector<int> m(4);
+    m[0] = a0;
+    m[1] = a1;
+    m[2] = a2;
+    m[3] = a3;
     return m;
 }
 
-static void print_int_array(const ncnn::Mat& a)
+static void print_int_array(const std::vector<int>& a)
 {
-    const int* pa = a;
-
     fprintf(stderr, "[");
-    for (int i = 0; i < a.w; i++)
+    for (size_t i = 0; i < a.size(); i++)
     {
-        fprintf(stderr, " %d", pa[i]);
+        fprintf(stderr, " %d", a[i]);
     }
     fprintf(stderr, " ]");
 }
@@ -94,13 +88,22 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
     return ret;
 }
 
-static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const ncnn::Mat& axes)
+static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const std::vector<int>& axes_array)
 {
     ncnn::Mat a = _a;
     if (op_type == 9 || op_type == 10)
     {
         // value must be positive for logsum and logsumexp
         Randomize(a, 0.001f, 2.f);
+    }
+
+    ncnn::Mat axes(axes_array.size());
+    {
+        int* p = axes;
+        for (size_t i = 0; i < axes_array.size(); i++)
+        {
+            p[i] = axes_array[i];
+        }
     }
 
     ncnn::ParamDict pd;
@@ -118,247 +121,115 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const 
     {
         fprintf(stderr, "test_reduction failed a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f keepdims=%d", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, keepdims);
         fprintf(stderr, " axes=");
-        print_int_array(axes);
+        print_int_array(axes_array);
         fprintf(stderr, "\n");
     }
 
     return ret;
 }
 
+static int test_reduction_nd(const ncnn::Mat& a)
+{
+    int ret1 = 0
+               || test_reduction(a, 1.f, 0)
+               || test_reduction(a, 2.f, 0)
+               || test_reduction(a, 1.f, 1)
+               || test_reduction(a, 2.f, 1)
+               || test_reduction(a, 1.f, 0, IntArray(0))
+               || test_reduction(a, 1.f, 1, IntArray(0));
+
+    if (a.dims == 1 || ret1 != 0)
+        return ret1;
+
+    int ret2 = 0
+               || test_reduction(a, 2.f, 0, IntArray(1))
+               || test_reduction(a, 2.f, 1, IntArray(1))
+               || test_reduction(a, 1.f, 0, IntArray(0, 1))
+               || test_reduction(a, 1.f, 1, IntArray(0, 1));
+
+    if (a.dims == 2 || ret2 != 0)
+        return ret2;
+
+    int ret3 = 0
+               || test_reduction(a, 1.f, 0, IntArray(2))
+               || test_reduction(a, 1.f, 1, IntArray(2))
+               || test_reduction(a, 2.f, 0, IntArray(0, 2))
+               || test_reduction(a, 2.f, 0, IntArray(1, 2))
+               || test_reduction(a, 2.f, 1, IntArray(0, 2))
+               || test_reduction(a, 2.f, 1, IntArray(1, 2))
+               || test_reduction(a, 1.f, 0, IntArray(0, 1, 2))
+               || test_reduction(a, 1.f, 1, IntArray(0, 1, 2));
+
+    if (a.dims == 3 || ret3 != 0)
+        return ret3;
+
+    int ret4 = 0
+               || test_reduction(a, 2.f, 0, IntArray(3))
+               || test_reduction(a, 2.f, 1, IntArray(3))
+               || test_reduction(a, 1.f, 0, IntArray(0, 3))
+               || test_reduction(a, 1.f, 0, IntArray(1, 3))
+               || test_reduction(a, 2.f, 0, IntArray(2, 3))
+               || test_reduction(a, 1.f, 1, IntArray(0, 3))
+               || test_reduction(a, 1.f, 1, IntArray(1, 3))
+               || test_reduction(a, 2.f, 1, IntArray(2, 3))
+               || test_reduction(a, 2.f, 0, IntArray(0, 1, 3))
+               || test_reduction(a, 1.f, 0, IntArray(0, 2, 3))
+               || test_reduction(a, 2.f, 0, IntArray(1, 2, 3))
+               || test_reduction(a, 2.f, 1, IntArray(0, 1, 3))
+               || test_reduction(a, 1.f, 1, IntArray(0, 2, 3))
+               || test_reduction(a, 2.f, 1, IntArray(1, 2, 3))
+               || test_reduction(a, 1.f, 0, IntArray(0, 1, 2, 3))
+               || test_reduction(a, 1.f, 1, IntArray(0, 1, 2, 3));
+
+    return ret4;
+}
+
 static int test_reduction_0()
 {
+    ncnn::Mat a = RandomMat(5, 6, 7, 24);
+    ncnn::Mat b = RandomMat(7, 8, 9, 12);
+    ncnn::Mat c = RandomMat(3, 4, 5, 13);
+
     return 0
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 0)
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 0)
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 0)
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 0)
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 0)
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 0)
-
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 1)
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 1)
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 1)
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 1)
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 1)
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 1)
-
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 0, IntArrayMat(1))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 0, IntArrayMat(2))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 0, IntArrayMat(3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 0, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 0, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 0, IntArrayMat(0, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 0, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 0, IntArrayMat(1, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 0, IntArrayMat(2, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 0, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 0, IntArrayMat(0, 1, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 0, IntArrayMat(0, 2, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 0, IntArrayMat(1, 2, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 0, IntArrayMat(0, 1, 2, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 0, IntArrayMat(1))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 0, IntArrayMat(2))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 0, IntArrayMat(3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 0, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 0, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 0, IntArrayMat(0, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 0, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 0, IntArrayMat(1, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 0, IntArrayMat(2, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 0, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 0, IntArrayMat(0, 1, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 0, IntArrayMat(0, 2, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 0, IntArrayMat(1, 2, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 0, IntArrayMat(0, 1, 2, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 0, IntArrayMat(1))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 0, IntArrayMat(2))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 0, IntArrayMat(3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 0, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 0, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 0, IntArrayMat(0, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 0, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 0, IntArrayMat(1, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 0, IntArrayMat(2, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 0, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 0, IntArrayMat(0, 1, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 0, IntArrayMat(0, 2, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 0, IntArrayMat(1, 2, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 0, IntArrayMat(0, 1, 2, 3))
-
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 1, IntArrayMat(1))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 1, IntArrayMat(2))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 1, IntArrayMat(3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 1, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 1, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 1, IntArrayMat(0, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 1, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 1, IntArrayMat(1, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 1, IntArrayMat(2, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 1, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 1, IntArrayMat(0, 1, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 1, IntArrayMat(0, 2, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 2.f, 1, IntArrayMat(1, 2, 3))
-           || test_reduction(RandomMat(5, 6, 7, 24), 1.f, 1, IntArrayMat(0, 1, 2, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 1, IntArrayMat(1))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 1, IntArrayMat(2))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 1, IntArrayMat(3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 1, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 1, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 1, IntArrayMat(0, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 1, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 1, IntArrayMat(1, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 1, IntArrayMat(2, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 1, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 1, IntArrayMat(0, 1, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 1, IntArrayMat(0, 2, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 2.f, 1, IntArrayMat(1, 2, 3))
-           || test_reduction(RandomMat(7, 8, 9, 12), 1.f, 1, IntArrayMat(0, 1, 2, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 1, IntArrayMat(1))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 1, IntArrayMat(2))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 1, IntArrayMat(3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 1, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 1, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 1, IntArrayMat(0, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 1, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 1, IntArrayMat(1, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 1, IntArrayMat(2, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 1, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 1, IntArrayMat(0, 1, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 1, IntArrayMat(0, 2, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 2.f, 1, IntArrayMat(1, 2, 3))
-           || test_reduction(RandomMat(3, 4, 5, 13), 1.f, 1, IntArrayMat(0, 1, 2, 3));
+           || test_reduction_nd(a)
+           || test_reduction_nd(b)
+           || test_reduction_nd(c);
 }
 
 static int test_reduction_1()
 {
+    ncnn::Mat a = RandomMat(5, 7, 24);
+    ncnn::Mat b = RandomMat(7, 9, 12);
+    ncnn::Mat c = RandomMat(3, 5, 13);
+
     return 0
-           || test_reduction(RandomMat(5, 7, 24), 1.f, 0)
-           || test_reduction(RandomMat(5, 7, 24), 2.f, 0)
-           || test_reduction(RandomMat(7, 9, 12), 1.f, 0)
-           || test_reduction(RandomMat(7, 9, 12), 2.f, 0)
-           || test_reduction(RandomMat(3, 5, 13), 1.f, 0)
-           || test_reduction(RandomMat(3, 5, 13), 2.f, 0)
-
-           || test_reduction(RandomMat(5, 7, 24), 1.f, 1)
-           || test_reduction(RandomMat(5, 7, 24), 2.f, 1)
-           || test_reduction(RandomMat(7, 9, 12), 1.f, 1)
-           || test_reduction(RandomMat(7, 9, 12), 2.f, 1)
-           || test_reduction(RandomMat(3, 5, 13), 1.f, 1)
-           || test_reduction(RandomMat(3, 5, 13), 2.f, 1)
-
-           || test_reduction(RandomMat(5, 7, 24), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(5, 7, 24), 2.f, 0, IntArrayMat(1))
-           || test_reduction(RandomMat(5, 7, 24), 1.f, 0, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(5, 7, 24), 2.f, 0, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(5, 7, 24), 1.f, 0, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(5, 7, 24), 2.f, 0, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(7, 9, 12), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(7, 9, 12), 2.f, 0, IntArrayMat(1))
-           || test_reduction(RandomMat(7, 9, 12), 1.f, 0, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(7, 9, 12), 2.f, 0, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(7, 9, 12), 1.f, 0, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(7, 9, 12), 2.f, 0, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(3, 5, 13), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(3, 5, 13), 2.f, 0, IntArrayMat(1))
-           || test_reduction(RandomMat(3, 5, 13), 1.f, 0, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(3, 5, 13), 2.f, 0, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(3, 5, 13), 1.f, 0, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(3, 5, 13), 2.f, 0, IntArrayMat(0, 1, 2))
-
-           || test_reduction(RandomMat(5, 7, 24), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(5, 7, 24), 2.f, 1, IntArrayMat(1))
-           || test_reduction(RandomMat(5, 7, 24), 1.f, 1, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(5, 7, 24), 2.f, 1, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(5, 7, 24), 1.f, 1, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(5, 7, 24), 2.f, 1, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(7, 9, 12), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(7, 9, 12), 2.f, 1, IntArrayMat(1))
-           || test_reduction(RandomMat(7, 9, 12), 1.f, 1, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(7, 9, 12), 2.f, 1, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(7, 9, 12), 1.f, 1, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(7, 9, 12), 2.f, 1, IntArrayMat(0, 1, 2))
-           || test_reduction(RandomMat(3, 5, 13), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(3, 5, 13), 2.f, 1, IntArrayMat(1))
-           || test_reduction(RandomMat(3, 5, 13), 1.f, 1, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(3, 5, 13), 2.f, 1, IntArrayMat(0, 2))
-           || test_reduction(RandomMat(3, 5, 13), 1.f, 1, IntArrayMat(1, 2))
-           || test_reduction(RandomMat(3, 5, 13), 2.f, 1, IntArrayMat(0, 1, 2));
+           || test_reduction_nd(a)
+           || test_reduction_nd(b)
+           || test_reduction_nd(c);
 }
 
 static int test_reduction_2()
 {
+    ncnn::Mat a = RandomMat(15, 24);
+    ncnn::Mat b = RandomMat(17, 12);
+    ncnn::Mat c = RandomMat(19, 15);
+
     return 0
-           || test_reduction(RandomMat(15, 24), 1.f, 0)
-           || test_reduction(RandomMat(15, 24), 2.f, 0)
-           || test_reduction(RandomMat(17, 12), 1.f, 0)
-           || test_reduction(RandomMat(17, 12), 2.f, 0)
-           || test_reduction(RandomMat(19, 15), 1.f, 0)
-           || test_reduction(RandomMat(19, 15), 2.f, 0)
-
-           || test_reduction(RandomMat(15, 24), 1.f, 1)
-           || test_reduction(RandomMat(15, 24), 2.f, 1)
-           || test_reduction(RandomMat(17, 12), 1.f, 1)
-           || test_reduction(RandomMat(17, 12), 2.f, 1)
-           || test_reduction(RandomMat(19, 15), 1.f, 1)
-           || test_reduction(RandomMat(19, 15), 2.f, 1)
-
-           || test_reduction(RandomMat(15, 24), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(15, 24), 2.f, 0, IntArrayMat(1))
-           || test_reduction(RandomMat(15, 24), 1.f, 0, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(17, 12), 2.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(17, 12), 1.f, 0, IntArrayMat(1))
-           || test_reduction(RandomMat(17, 12), 2.f, 0, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(19, 15), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(19, 15), 2.f, 0, IntArrayMat(1))
-           || test_reduction(RandomMat(19, 15), 1.f, 0, IntArrayMat(0, 1))
-
-           || test_reduction(RandomMat(15, 24), 2.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(15, 24), 1.f, 1, IntArrayMat(1))
-           || test_reduction(RandomMat(15, 24), 2.f, 1, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(17, 12), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(17, 12), 2.f, 1, IntArrayMat(1))
-           || test_reduction(RandomMat(17, 12), 1.f, 1, IntArrayMat(0, 1))
-           || test_reduction(RandomMat(19, 15), 2.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(19, 15), 1.f, 1, IntArrayMat(1))
-           || test_reduction(RandomMat(19, 15), 2.f, 1, IntArrayMat(0, 1));
+           || test_reduction_nd(a)
+           || test_reduction_nd(b)
+           || test_reduction_nd(c);
 }
 
 static int test_reduction_3()
 {
+    ncnn::Mat a = RandomMat(128);
+    ncnn::Mat b = RandomMat(124);
+    ncnn::Mat c = RandomMat(127);
+
     return 0
-           || test_reduction(RandomMat(128), 1.f, 0)
-           || test_reduction(RandomMat(128), 2.f, 0)
-           || test_reduction(RandomMat(124), 1.f, 0)
-           || test_reduction(RandomMat(124), 2.f, 0)
-           || test_reduction(RandomMat(127), 1.f, 0)
-           || test_reduction(RandomMat(127), 2.f, 0)
-
-           || test_reduction(RandomMat(128), 1.f, 1)
-           || test_reduction(RandomMat(128), 2.f, 1)
-           || test_reduction(RandomMat(124), 1.f, 1)
-           || test_reduction(RandomMat(124), 2.f, 1)
-           || test_reduction(RandomMat(127), 1.f, 1)
-           || test_reduction(RandomMat(127), 2.f, 1)
-
-           || test_reduction(RandomMat(128), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(128), 2.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(124), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(124), 2.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(127), 1.f, 0, IntArrayMat(0))
-           || test_reduction(RandomMat(127), 2.f, 0, IntArrayMat(0))
-
-           || test_reduction(RandomMat(128), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(128), 2.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(124), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(124), 2.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(127), 1.f, 1, IntArrayMat(0))
-           || test_reduction(RandomMat(127), 1.f, 1, IntArrayMat(0));
+           || test_reduction_nd(a)
+           || test_reduction_nd(b)
+           || test_reduction_nd(c);
 }
 
 int main()
