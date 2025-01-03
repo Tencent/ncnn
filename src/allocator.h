@@ -38,13 +38,13 @@ namespace ncnn {
 #elif NCNN_AVX
 #define NCNN_MALLOC_ALIGN 32
 #else
-#define NCNN_MALLOC_ALIGN 128
+#define NCNN_MALLOC_ALIGN 16
 #endif
 
 // we have some optimized kernels that may overread buffer a bit in loop
 // it is common to interleave next-loop data load with arithmetic instructions
 // allocating more bytes keeps us safe from SEGV_ACCERR failure
-#define NCNN_MALLOC_OVERREAD 512
+#define NCNN_MALLOC_OVERREAD 64
 
 // Aligns a pointer to the specified number of bytes
 // ptr Aligned pointer
