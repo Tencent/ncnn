@@ -83,6 +83,9 @@
 #else
 #include <pthread.h>
 #endif
+#if (__cplusplus >= 201103L) && !NCNN_SIMPLESTL
+#include <mutex>
+#endif
 #endif // NCNN_THREADS
 
 #if __ANDROID_API__ >= 26
@@ -147,6 +150,22 @@ public:
 private:
     DWORD key;
 };
+
+#if (__cplusplus < 201103L) || NCNN_SIMPLESTL
+typedef INIT_ONCE OnceFlag;
+#define OnceFlagInit INIT_ONCE_STATIC_INIT
+
+static inline int CallOnce(OnceFlag &flag, void (*init_routine)(void))
+{
+    BOOL pending = FALSE;
+    InitOnceBeginInitialize(&flag, 0, &pending, NULL);
+    if (pending)
+        init_routine();
+    InitOnceComplete(&flag, 0, NULL);
+    return 0;
+}
+#endif // < c++11
+
 #else // defined _WIN32
 class NCNN_EXPORT Mutex
 {
@@ -192,7 +211,30 @@ public:
 private:
     pthread_key_t key;
 };
+
+#if (__cplusplus < 201103L) || NCNN_SIMPLESTL
+typedef pthread_once_t OnceFlag;
+#define OnceFlagInit PTHREAD_ONCE_INIT
+
+static inline int CallOnce(OnceFlag &flag, void (*init_routine)(void))
+{
+    return pthread_once(&flag, init_routine);
+}
+#endif // < c++11
+
 #endif // defined _WIN32
+
+#if (__cplusplus >= 201103L) && !NCNN_SIMPLESTL
+using OnceFlag = std::once_flag;
+#define OnceFlagInit {}
+
+static inline int CallOnce(OnceFlag &flag, void (*init_routine)(void))
+{
+    std::call_once(flag, init_routine);
+    return 0;
+}
+#endif // >= c++11
+
 #else // NCNN_THREADS
 class NCNN_EXPORT Mutex
 {
@@ -231,6 +273,21 @@ public:
 private:
     void* data;
 };
+
+typedef bool OnceFlag;
+#define OnceFlagInit false
+
+static inline int CallOnce(OnceFlag &flag, void (*init_routine)(void))
+{
+    if (!flag)
+    {
+        init_routine();
+        flag = true;
+    }
+
+    return 0;
+}
+
 #endif // NCNN_THREADS
 
 class NCNN_EXPORT MutexLockGuard
