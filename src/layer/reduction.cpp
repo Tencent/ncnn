@@ -835,6 +835,10 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < size; i++)
         {
+            // math optimization will probably generate rsqrt
+            // that produce -inf on sse with subnormal input
+            // flush subnormal input to zero as a workaround
+            // TODO explicit use simd sqrt like unaryop     --- nihui
             b[i] = sqrtf(b[i] < FLT_MIN ? 0.f : b[i]);
         }
     }
