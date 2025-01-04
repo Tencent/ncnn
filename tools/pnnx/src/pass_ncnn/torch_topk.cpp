@@ -52,10 +52,6 @@ pnnx.Output             output      2 0 out indices
         op->params["1"] = dim;
         op->params["2"] = largest;
         op->params["3"] = sorted;
-
-        // 移除不需要的输入
-        op->inputs.resize(1);
-        op->outputs.resize(1);
     }
 };
 
