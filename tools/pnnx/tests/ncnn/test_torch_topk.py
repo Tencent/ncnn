@@ -69,7 +69,9 @@ def test():
     # torchscript to pnnx
     import os
 
-    os.system("../src/pnnx test_torch_topk.pt inputshape=[36],[4,7],[3,4,5],[4,2,6,7]")
+    os.system(
+        "../../src/pnnx test_torch_topk.pt inputshape=[36],[4,7],[3,4,5],[4,2,6,7]"
+    )
 
     # pnnx inference
     import test_torch_topk_ncnn
