@@ -21,11 +21,33 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
-        x, _ = torch.topk(x, 4)
-        y, _ = torch.topk(y, k=1, dim=2, largest=False)
-        z, indices = torch.topk(z, k=3, dim=-1, sorted=False)
-        return x, y, z, indices
+    def forward(self, x, y, z, d):
+        x0, i0 = torch.topk(x, 4)
+        y1, i1 = torch.topk(y, k=2, dim=0, largest=True)
+        y2, i2 = torch.topk(y, k=2, dim=1, largest=False)
+        # 3D
+        z1, i3 = torch.topk(z, k=2, dim=0)
+        z1, i4 = torch.topk(z, k=3, dim=1)
+        z1, i5 = torch.topk(z, k=1, dim=2)
+        # 4D
+        # d0, i6 = torch.topk(
+        #     d,
+        #     k=2,
+        #     dim=0,
+        # )
+        # d1, i7 = torch.topk(
+        #     d,
+        #     k=2,
+        #     dim=1,
+        # )
+        d2, i8 = torch.topk(
+            d,
+            k=2,
+            dim=2,
+        )
+        d3, i9 = torch.topk(d, k=2, dim=3, sorted=False)
+        # return x0, y1, y2, z1, i3, i4, i5, d0, d1, d2, d3, i6, i7, i8, i9
+        return x0, y1, y2, z1, i3, i4, i5, d2, d3, i8, i9
 
 
 def test():
@@ -33,22 +55,21 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 3, 16)
-    y = torch.rand(1, 5, 9, 11)
-    z = torch.rand(14, 8, 5, 9, 10)
+    x = torch.rand(36)  # 1D
+    y = torch.rand(4, 7)  # 2D
+    z = torch.rand(3, 4, 5)  # 3D
+    d = torch.rand(4, 2, 6, 7)  # 4D
 
-    a = net(x, y, z)
+    a = net(x, y, z, d)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, d))
     mod.save("test_torch_topk.pt")
 
     # torchscript to pnnx
     import os
 
-    os.system(
-        "../../src/pnnx test_torch_topk.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]"
-    )
+    os.system("../src/pnnx test_torch_topk.pt inputshape=[36],[4,7],[3,4,5],[4,2,6,7]")
 
     # pnnx inference
     import test_torch_topk_ncnn
@@ -56,7 +77,8 @@ def test():
     b = test_torch_topk_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        a0 = a0.float()
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
     return True
 

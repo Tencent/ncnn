@@ -33,6 +33,36 @@ public:
     int axis;
     int largest;
     int sorted;
+
+private:
+    template<typename T>
+    void do_sort(std::vector<std::pair<float, int> >& vec, int k, bool sorted, const T& comp) const
+    {
+        if (sorted)
+        {
+            std::partial_sort(vec.begin(), vec.begin() + k, vec.end(), comp);
+        }
+        else
+        {
+#if !NCNN_SIMPLESTL
+            std::nth_element(vec.begin(), vec.begin() + k - 1, vec.end(), comp);
+            std::sort(vec.begin(), vec.begin() + k, comp);
+#else
+            // 替换 nth_element + sort 组合
+            // 使用 bubble_sort 实现相同功能，适配sim_stl
+            for (int i = 0; i < k; i++)
+            {
+                for (int j = vec.size() - 1; j > i; j--)
+                {
+                    if (comp(vec[j], vec[j - 1]))
+                    {
+                        std::swap(vec[j], vec[j - 1]);
+                    }
+                }
+            }
+#endif
+        }
+    }
 };
 
 } // namespace ncnn

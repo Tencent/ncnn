@@ -13,7 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "topk.h"
+#if !NCNN_SIMPLESTL
+// 兼容vs编译器
 #include <functional>
+#endif
 
 namespace ncnn {
 
@@ -31,10 +34,7 @@ int TopK::load_param(const ParamDict& pd)
     axis = pd.get(1, 0);
     largest = pd.get(2, 1);
     sorted = pd.get(3, 1);
-    // largest = 0;
-    sorted = 0;
-    // k = 2;
-    printf("参数加载k=%d, axis=%d, largest=%d, sorted=%d\n", k, axis, largest, sorted);
+    // printf("参数加载k=%d, axis=%d, largest=%d, sorted=%d\n", k, axis, largest, sorted);
     return 0;
 }
 
@@ -48,9 +48,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-    printf("dims=%d, w=%d, h=%d, d=%d, channels=%d, elemsize=%zu\n", dims, w, h, d, channels, elemsize);
-    // 确保top_blobs大小正确
-    top_blobs.resize(2);
+    // printf("dims=%d, w=%d, h=%d, d=%d, channels=%d, elemsize=%zu\n", dims, w, h, d, channels, elemsize);
     // 检查k值是否有效
     if (k <= 0 || k > w * h * channels)
     {
@@ -61,10 +59,31 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     Mat& top_blob_values = top_blobs[0];  // values
     Mat& top_blob_indices = top_blobs[1]; // indices
 
-    // 根据largest参数定义比较函数
-    auto comp = [this](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-        return this->largest ? (a.first > b.first) : (a.first < b.first);
+    // // 根据largest参数定义比较函数
+    // auto comp = [this](const std::pair<float, int> &a, const std::pair<float, int> &b)
+    // {
+    //     if (a.first == b.first)
+    //         return a.second < b.second; // 值相等时按索引升序排序
+    //     return this->largest ? (a.first > b.first) : (a.first < b.first);
+    // };
+
+    // simplestl兼容写法
+    struct CompareFunc
+    {
+        bool largest;
+        CompareFunc(bool l)
+            : largest(l)
+        {
+        }
+        bool operator()(const std::pair<float, int>& a, const std::pair<float, int>& b) const
+        {
+            if (a.first == b.first)
+                return a.second < b.second; // 值相等时按索引升序排序
+            return largest ? (a.first > b.first) : (a.first < b.first);
+        }
     };
+    CompareFunc comp(largest);
+
     // 根据dims创建不同维度的输出
     if (dims == 1)
     {
@@ -83,16 +102,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         }
 
         // 根据sorted参数选择排序方式
-        if (sorted)
-        {
-            std::partial_sort(vec.begin(), vec.begin() + k, vec.end(), comp);
-        }
-        else
-        {
-            std::nth_element(vec.begin(), vec.begin() + k - 1, vec.end(), comp);
-            // 对前k个元素进行排序以保持一致性
-            std::sort(vec.begin(), vec.begin() + k, comp);
-        }
+        do_sort(vec, k, sorted, comp);
 
         // 保存结果
         for (int i = 0; i < k; i++)
@@ -107,7 +117,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         if (axis == 0)
         {
             top_blob_values.create(w, k, elemsize, opt.blob_allocator);
-            top_blob_indices.create(w, k, sizeof(int), opt.blob_allocator);
+            top_blob_indices.create(w, k, elemsize, opt.blob_allocator);
 
             // #pragma omp parallel for
             for (int j = 0; j < w; j++) // 对每列进行处理
@@ -119,15 +129,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     vec[i] = std::make_pair(bottom_blob.row(i)[j], i);
                 }
 
-                if (sorted)
-                {
-                    std::partial_sort(vec.begin(), vec.begin() + k, vec.end(), comp);
-                }
-                else
-                {
-                    std::nth_element(vec.begin(), vec.begin() + k - 1, vec.end(), comp);
-                    std::sort(vec.begin(), vec.begin() + k, comp);
-                }
+                do_sort(vec, k, sorted, comp);
 
                 // 保存结果到对应列
                 for (int i = 0; i < k; i++)
@@ -140,8 +142,8 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         // 在每一列上进行TopK ，axis=-1等价于axis=1
         else
         {
-            top_blob_values.create(h, k, elemsize, opt.blob_allocator);
-            top_blob_indices.create(h, k, sizeof(int), opt.blob_allocator);
+            top_blob_values.create(k, h, elemsize, opt.blob_allocator);
+            top_blob_indices.create(k, h, elemsize, opt.blob_allocator);
 
             for (int i = 0; i < h; i++)
             {
@@ -155,15 +157,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     vec[j] = std::make_pair(ptr[j], j);
                 }
 
-                if (sorted)
-                {
-                    std::partial_sort(vec.begin(), vec.begin() + k, vec.end(), comp);
-                }
-                else
-                {
-                    std::nth_element(vec.begin(), vec.begin() + k - 1, vec.end(), comp);
-                    std::sort(vec.begin(), vec.begin() + k, comp);
-                }
+                do_sort(vec, k, sorted, comp);
 
                 for (int j = 0; j < k; j++)
                 {
@@ -194,18 +188,10 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     }
 
                     // 排序
-                    if (sorted)
-                    {
-                        std::sort(channel_values.begin(), channel_values.end(), comp);
-                    }
-                    else
-                    {
-                        std::nth_element(channel_values.begin(), channel_values.begin() + k - 1, channel_values.end(), comp);
-                        std::sort(channel_values.begin(), channel_values.begin() + k, comp);
-                    }
+                    do_sort(channel_values, k, sorted, comp);
 
                     // 写回结果
-                    for (int c = 0; c < channels; c++)
+                    for (int c = 0; c < k; c++)
                     {
                         float* outptr = top_blob_values.channel(c);
                         float* indices = top_blob_indices.channel(c);
@@ -233,14 +219,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     }
 
                     // 找到最大行的索引
-                    if (sorted)
-                    {
-                        std::partial_sort(row_scores.begin(), row_scores.begin() + k, row_scores.end(), comp);
-                    }
-                    else
-                    {
-                        std::nth_element(row_scores.begin(), row_scores.begin() + k - 1, row_scores.end(), comp);
-                    }
+                    do_sort(row_scores, k, sorted, comp);
 
                     // 保存该列的结果
                     for (int i = 0; i < k; i++)
@@ -272,15 +251,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                         vec[i] = std::make_pair(ptr[i], i);
                     }
 
-                    if (sorted)
-                    {
-                        std::partial_sort(vec.begin(), vec.begin() + k, vec.end(), comp);
-                    }
-                    else
-                    {
-                        std::nth_element(vec.begin(), vec.begin() + k - 1, vec.end(), comp);
-                        std::sort(vec.begin(), vec.begin() + k, comp);
-                    }
+                    do_sort(vec, k, sorted, comp);
 
                     for (int i = 0; i < k; i++)
                     {
@@ -296,145 +267,26 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         // 4D数据处理
         if (axis == 0)
         {
-            // 在d维度上进行TopK
+            // PyTorch：batch -> channel -> height -> width
+            // ncnn：channels -> depth -> height -> width
             top_blob_values.create(w, h, k, channels, elemsize, opt.blob_allocator);
             top_blob_indices.create(w, h, k, channels, elemsize, opt.blob_allocator);
 
-            for (int q = 0; q < channels; q++)
-            {
-                for (int i = 0; i < h; i++)
-                {
-                    for (int j = 0; j < w; j++)
-                    {
-                        std::vector<std::pair<float, int> > depth_values(d);
-                        // 收集depth维度数据
-                        for (int z = 0; z < d; z++)
-                        {
-                            const float* ptr = bottom_blob.channel(q).row(i * d + z);
-                            depth_values[z] = std::make_pair(ptr[j], z);
-                        }
-
-                        if (sorted)
-                        {
-                            std::partial_sort(depth_values.begin(),
-                                              depth_values.begin() + k,
-                                              depth_values.end(),
-                                              comp);
-                        }
-                        else
-                        {
-                            std::nth_element(depth_values.begin(),
-                                             depth_values.begin() + k - 1,
-                                             depth_values.end(),
-                                             comp);
-                            std::sort(depth_values.begin(),
-                                      depth_values.begin() + k,
-                                      comp);
-                        }
-
-                        // 写回k个结果
-                        for (int z = 0; z < k; z++)
-                        {
-                            float* outptr = top_blob_values.channel(q).row(i * k + z);
-                            float* indices = top_blob_indices.channel(q).row(i * k + z);
-                            outptr[j] = depth_values[z].first;
-                            indices[j] = static_cast<float>(depth_values[z].second);
-                        }
-                    }
-                }
-            }
+            // 在pytorch中，假设x为torch.Size([3, 2, 6, 7])，按N维度，也就是x[0]、x[1]、x[2]，对比排序，最后直接输出x[i]
+            // 但在ncnn中，从channels遍历后，维度d再遍历会获得2*3=6种数据。这里就卡主了，不知道怎么处理
+            // need help !!!
         }
         else if (axis == 1)
         {
-            // 深度方向上;w不变，高度h变为k
+            // 在channel维度上进行TopK
             top_blob_values.create(w, h, d, k, elemsize, opt.blob_allocator);
             top_blob_indices.create(w, h, d, k, elemsize, opt.blob_allocator);
 
-            for (int z = 0; z < d; z++)
-            {
-                for (int i = 0; i < h; i++)
-                {
-                    for (int j = 0; j < w; j++)
-                    {
-                        std::vector<std::pair<float, int> > channel_values(channels);
-                        // 修正: 从两个channel中收集相同位置的值
-                        for (int c = 0; c < channels; c++)
-                        {
-                            const float* ptr = bottom_blob.channel(c);
-                            int offset = (z * h + i) * w + j;
-                            channel_values[c] = std::make_pair(ptr[offset], c);
-                        }
-
-                        if (sorted)
-                        {
-                            std::partial_sort(channel_values.begin(),
-                                              channel_values.begin() + k,
-                                              channel_values.end(),
-                                              comp);
-                        }
-                        else
-                        {
-                            std::nth_element(channel_values.begin(),
-                                             channel_values.begin() + k - 1,
-                                             channel_values.end(),
-                                             comp);
-                        }
-
-                        // 修正: 直接写入到对应的depth位置
-                        float* outptr = top_blob_values.channel(0);
-                        float* indices = top_blob_indices.channel(0);
-                        int out_offset = (z * h + i) * w + j;
-                        outptr[out_offset] = channel_values[0].first;
-                        indices[out_offset] = static_cast<float>(channel_values[0].second);
-                    }
-                }
-            }
+            // need help !!!
         }
-        else if (axis == 11)
+        else if (axis == 20)
         {
-            // 创建输出blob
-            top_blob_values.create(w, h, d, k, elemsize, opt.blob_allocator);
-            top_blob_indices.create(w, h, d, k, elemsize, opt.blob_allocator);
-
-            if (top_blob_values.empty() || top_blob_indices.empty())
-                return -100;
-
-            // 遍历每个位置
-            float* outptr = top_blob_values.channel(0);
-            float* indices = top_blob_indices.channel(0);
-
-            for (int z = 0; z < d; z++)
-            {
-                for (int i = 0; i < h; i++)
-                {
-                    for (int j = 0; j < w; j++)
-                    {
-                        // 比较两个channel在当前位置的值
-                        const float* ptr0 = bottom_blob.channel(0);
-                        const float* ptr1 = bottom_blob.channel(1);
-                        int offset = (z * h + i) * w + j;
-
-                        float val0 = ptr0[offset];
-                        float val1 = ptr1[offset];
-
-                        // 写入最大值和对应索引
-                        if (val0 >= val1)
-                        {
-                            outptr[offset] = val0;
-                            indices[offset] = 0;
-                        }
-                        else
-                        {
-                            outptr[offset] = val1;
-                            indices[offset] = 1;
-                        }
-                    }
-                }
-            }
-        }
-        else if (axis == 2)
-        {
-            // 修改blob创建维度顺序
+            // 在h维度上进行TopK
             top_blob_values.create(w, k, d, channels, elemsize, opt.blob_allocator);
             top_blob_indices.create(w, k, d, channels, elemsize, opt.blob_allocator);
 
@@ -451,29 +303,53 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                         std::vector<std::pair<float, int> > row_scores(h);
                         for (int j = 0; j < h; j++)
                         {
-                            // 修正offset计算
                             int offset = (z * h + j) * w + i;
                             row_scores[j] = std::make_pair(ptr[offset], j);
                         }
 
-                        if (sorted)
+                        do_sort(row_scores, k, sorted, comp);
+
+                        // 循环写入前 k 个值
+                        for (int kk = 0; kk < k; kk++)
                         {
-                            std::partial_sort(row_scores.begin(),
-                                              row_scores.begin() + k,
-                                              row_scores.end(),
-                                              comp);
+                            outptr[(z * k + kk) * w + i] = row_scores[kk].first;
+                            indices[(z * k + kk) * w + i] = static_cast<float>(row_scores[kk].second);
                         }
-                        else
+                    }
+                }
+            }
+        }
+        else if (axis == 2)
+        {
+            // 在h维度上进行TopK
+            top_blob_values.create(w, k, d, channels, elemsize, opt.blob_allocator);
+            top_blob_indices.create(w, k, d, channels, elemsize, opt.blob_allocator);
+
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr = top_blob_values.channel(q);
+                float* indices = top_blob_indices.channel(q);
+
+                for (int z = 0; z < d; z++)
+                {
+                    for (int i = 0; i < w; i++)
+                    {
+                        std::vector<std::pair<float, int> > row_scores(h);
+                        for (int j = 0; j < h; j++)
                         {
-                            std::nth_element(row_scores.begin(),
-                                             row_scores.begin() + k - 1,
-                                             row_scores.end(),
-                                             comp);
+                            int offset = (z * h + j) * w + i;
+                            row_scores[j] = std::make_pair(ptr[offset], j);
                         }
 
-                        // 写入结果到正确位置
-                        outptr[z * w + i] = row_scores[0].first;
-                        indices[z * w + i] = static_cast<float>(row_scores[0].second);
+                        do_sort(row_scores, k, sorted, comp);
+
+                        // 写回结果
+                        for (int kk = 0; kk < k; kk++)
+                        {
+                            outptr[(z * k + kk) * w + i] = row_scores[kk].first;
+                            indices[(z * k + kk) * w + i] = static_cast<float>(row_scores[kk].second);
+                        }
                     }
                 }
             }
@@ -498,23 +374,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                             row_values[j] = std::make_pair(ptr[j], j);
                         }
 
-                        if (sorted)
-                        {
-                            std::partial_sort(row_values.begin(),
-                                              row_values.begin() + k,
-                                              row_values.end(),
-                                              comp);
-                        }
-                        else
-                        {
-                            // 使用nth_element找到第k大的元素
-                            std::nth_element(row_values.begin(),
-                                             row_values.begin() + k - 1,
-                                             row_values.end(),
-                                             comp);
-                            // 对前k个元素排序以保持一致性
-                            std::sort(row_values.begin(), row_values.begin() + k, comp);
-                        }
+                        do_sort(row_values, k, sorted, comp);
 
                         // 写回结果
                         for (int j = 0; j < k; j++)
