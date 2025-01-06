@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "layer.h"
 #include "testutil.h"
 
 static int test_topk(const ncnn::Mat& a, int k, int axis, int largest, int sorted)
@@ -24,7 +25,10 @@ static int test_topk(const ncnn::Mat& a, int k, int axis, int largest, int sorte
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("TopK", pd, weights, a);
+    std::vector<ncnn::Mat> a0(1);
+    a0[0] = a;
+
+    int ret = test_layer("TopK", pd, weights, a0, 2);
     if (ret != 0)
     {
         fprintf(stderr, "test_topk failed a.dims=%d a=(%d %d %d) k=%d axis=%d largest=%d sorted=%d\n", a.dims, a.w, a.h, a.c, k, axis, largest, sorted);
@@ -36,18 +40,32 @@ static int test_topk(const ncnn::Mat& a, int k, int axis, int largest, int sorte
 static int test_topk_0()
 {
     return 0
-           || test_topk(RandomMat(8, 8, 3), 5, 0, 1, 1)
-           || test_topk(RandomMat(7, 7, 2), 3, 1, 0, 1)
-           || test_topk(RandomMat(6, 6, 4), 2, -1, 1, 0)
-           || test_topk(RandomMat(5, 5, 5), 4, 2, 0, 0);
+           || test_topk(RandomMat(3, 2, 6, 7), 1, 0, 1, 1) // axis=0暂未实现
+           || test_topk(RandomMat(3, 4, 2, 5), 2, 1, 0, 1) // axis=1暂未实现
+           || test_topk(RandomMat(3, 6, 4, 2), 2, 2, 1, 0)
+           || test_topk(RandomMat(5, 3, 5, 3), 1, 3, 1, 1);
 }
 
 static int test_topk_1()
 {
     return 0
+           || test_topk(RandomMat(2, 3, 5), 1, 0, 1, 1)
+           || test_topk(RandomMat(4, 2, 5), 1, 1, 0, 1)
+           || test_topk(RandomMat(3, 4, 2), 3, 2, 1, 0);
+}
+
+static int test_topk_2()
+{
+    return 0
+           || test_topk(RandomMat(8, 2), 2, 0, 1, 1)
+           || test_topk(RandomMat(16, 3), 5, 1, 0, 1);
+}
+
+static int test_topk_3()
+{
+    return 0
            || test_topk(RandomMat(16), 5, 0, 1, 1)
-           || test_topk(RandomMat(32), 10, 0, 0, 1)
-           || test_topk(RandomMat(64), 20, 0, 1, 0);
+           || test_topk(RandomMat(32), 10, 0, 0, 1);
 }
 
 int main()
@@ -56,5 +74,7 @@ int main()
 
     return 0
            || test_topk_0()
-           || test_topk_1();
+           || test_topk_1()
+           || test_topk_2()
+           || test_topk_3();
 }
