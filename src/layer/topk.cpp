@@ -59,31 +59,6 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     Mat& top_blob_values = top_blobs[0];  // values
     Mat& top_blob_indices = top_blobs[1]; // indices
 
-    // // 根据largest参数定义比较函数
-    // auto comp = [this](const std::pair<float, int> &a, const std::pair<float, int> &b)
-    // {
-    //     if (a.first == b.first)
-    //         return a.second < b.second; // 值相等时按索引升序排序
-    //     return this->largest ? (a.first > b.first) : (a.first < b.first);
-    // };
-
-    // simplestl兼容写法
-    struct CompareFunc
-    {
-        bool largest;
-        CompareFunc(bool l)
-            : largest(l)
-        {
-        }
-        bool operator()(const std::pair<float, int>& a, const std::pair<float, int>& b) const
-        {
-            if (a.first == b.first)
-                return a.second < b.second; // 值相等时按索引升序排序
-            return largest ? (a.first > b.first) : (a.first < b.first);
-        }
-    };
-    CompareFunc comp(largest);
-
     // 根据dims创建不同维度的输出
     if (dims == 1)
     {
@@ -102,7 +77,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         }
 
         // 根据sorted参数选择排序方式
-        do_sort(vec, k, sorted, comp);
+        do_sort(vec, k, sorted);
 
         // 保存结果
         for (int i = 0; i < k; i++)
@@ -129,7 +104,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     vec[i] = std::make_pair(bottom_blob.row(i)[j], i);
                 }
 
-                do_sort(vec, k, sorted, comp);
+                do_sort(vec, k, sorted);
 
                 // 保存结果到对应列
                 for (int i = 0; i < k; i++)
@@ -157,7 +132,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     vec[j] = std::make_pair(ptr[j], j);
                 }
 
-                do_sort(vec, k, sorted, comp);
+                do_sort(vec, k, sorted);
 
                 for (int j = 0; j < k; j++)
                 {
@@ -188,7 +163,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     }
 
                     // 排序
-                    do_sort(channel_values, k, sorted, comp);
+                    do_sort(channel_values, k, sorted);
 
                     // 写回结果
                     for (int c = 0; c < k; c++)
@@ -219,7 +194,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     }
 
                     // 找到最大行的索引
-                    do_sort(row_scores, k, sorted, comp);
+                    do_sort(row_scores, k, sorted);
 
                     // 保存该列的结果
                     for (int i = 0; i < k; i++)
@@ -251,7 +226,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                         vec[i] = std::make_pair(ptr[i], i);
                     }
 
-                    do_sort(vec, k, sorted, comp);
+                    do_sort(vec, k, sorted);
 
                     for (int i = 0; i < k; i++)
                     {
@@ -307,7 +282,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                             row_scores[j] = std::make_pair(ptr[offset], j);
                         }
 
-                        do_sort(row_scores, k, sorted, comp);
+                        do_sort(row_scores, k, sorted);
 
                         // 循环写入前 k 个值
                         for (int kk = 0; kk < k; kk++)
@@ -342,7 +317,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                             row_scores[j] = std::make_pair(ptr[offset], j);
                         }
 
-                        do_sort(row_scores, k, sorted, comp);
+                        do_sort(row_scores, k, sorted);
 
                         // 写回结果
                         for (int kk = 0; kk < k; kk++)
@@ -374,7 +349,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                             row_values[j] = std::make_pair(ptr[j], j);
                         }
 
-                        do_sort(row_values, k, sorted, comp);
+                        do_sort(row_values, k, sorted);
 
                         // 写回结果
                         for (int j = 0; j < k; j++)
