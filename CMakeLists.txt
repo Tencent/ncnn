@@ -509,7 +509,7 @@ else()
         check_cxx_source_compiles("#include <immintrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_fmadd_ps(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
-        check_cxx_source_compiles("#include <ammintrin.h>\n__m128i test(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_XOP)
+        check_cxx_source_compiles("#include <immintrin.h>\n#include <ammintrin.h>\n__m128i test(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_XOP)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
         check_cxx_source_compiles("#include <immintrin.h>\n__m256 test(__m128i a) { return _mm256_cvtph_ps(a); }" NCNN_COMPILER_SUPPORT_X86_F16C)
@@ -720,6 +720,9 @@ else()
         message(WARNING "The compiler does not support avx extension. NCNN_AVX will be OFF.")
     endif()
 endif()
+
+unset(CMAKE_TRY_COMPILE_CONFIGURATION)
+unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
 
 if(NCNN_TARGET_ILP32)
     message(STATUS "Target arch: ${NCNN_TARGET_ARCH} 64bit ilp32")
