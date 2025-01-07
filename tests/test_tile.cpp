@@ -31,58 +31,61 @@ static int test_tile(const ncnn::Mat& a, int axis, int tiles)
     return ret;
 }
 
-static ncnn::Mat IntArrayMat(int a0)
+static std::vector<int> IntArray(int a0)
 {
-    ncnn::Mat m(1);
-    int* p = m;
-    p[0] = a0;
+    std::vector<int> m(1);
+    m[0] = a0;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1)
+static std::vector<int> IntArray(int a0, int a1)
 {
-    ncnn::Mat m(2);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
+    std::vector<int> m(2);
+    m[0] = a0;
+    m[1] = a1;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1, int a2)
+static std::vector<int> IntArray(int a0, int a1, int a2)
 {
-    ncnn::Mat m(3);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    p[2] = a2;
+    std::vector<int> m(3);
+    m[0] = a0;
+    m[1] = a1;
+    m[2] = a2;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1, int a2, int a3)
+static std::vector<int> IntArray(int a0, int a1, int a2, int a3)
 {
-    ncnn::Mat m(4);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    p[2] = a2;
-    p[3] = a3;
+    std::vector<int> m(4);
+    m[0] = a0;
+    m[1] = a1;
+    m[2] = a2;
+    m[3] = a3;
     return m;
 }
 
-static void print_int_array(const ncnn::Mat& a)
+static void print_int_array(const std::vector<int>& a)
 {
-    const int* pa = a;
-
     fprintf(stderr, "[");
-    for (int i = 0; i < a.w; i++)
+    for (size_t i = 0; i < a.size(); i++)
     {
-        fprintf(stderr, " %d", pa[i]);
+        fprintf(stderr, " %d", a[i]);
     }
     fprintf(stderr, " ]");
 }
 
-static int test_tile(const ncnn::Mat& a, const ncnn::Mat& repeats)
+static int test_tile(const ncnn::Mat& a, const std::vector<int>& repeats_array)
 {
+    ncnn::Mat repeats(repeats_array.size());
+    {
+        int* p = repeats;
+        for (size_t i = 0; i < repeats_array.size(); i++)
+        {
+            p[i] = repeats_array[i];
+        }
+    }
+
     ncnn::ParamDict pd;
     pd.set(2, repeats);
 
@@ -92,7 +95,7 @@ static int test_tile(const ncnn::Mat& a, const ncnn::Mat& repeats)
     if (ret != 0)
     {
         fprintf(stderr, "test_tile failed a.dims=%d a=(%d %d %d %d) repeats=", a.dims, a.w, a.h, a.d, a.c);
-        print_int_array(repeats);
+        print_int_array(repeats_array);
         fprintf(stderr, "\n");
     }
 
@@ -119,18 +122,18 @@ static int test_tile_0()
            || test_tile(c, 2, 5)
            || test_tile(c, 3, 2)
 
-           || test_tile(a, IntArrayMat(3))
-           || test_tile(a, IntArrayMat(2, 4))
-           || test_tile(a, IntArrayMat(2, 2, 5))
-           || test_tile(a, IntArrayMat(3, 1, 3, 2))
-           || test_tile(b, IntArrayMat(3, 1))
-           || test_tile(b, IntArrayMat(4, 1, 4))
-           || test_tile(b, IntArrayMat(2, 2, 2, 1))
-           || test_tile(b, IntArrayMat(3, 2, 1))
-           || test_tile(c, IntArrayMat(3))
-           || test_tile(c, IntArrayMat(1, 1, 4))
-           || test_tile(c, IntArrayMat(2, 2, 5))
-           || test_tile(c, IntArrayMat(3, 2, 1, 9));
+           || test_tile(a, IntArray(3))
+           || test_tile(a, IntArray(2, 4))
+           || test_tile(a, IntArray(2, 2, 5))
+           || test_tile(a, IntArray(3, 1, 3, 2))
+           || test_tile(b, IntArray(3, 1))
+           || test_tile(b, IntArray(4, 1, 4))
+           || test_tile(b, IntArray(2, 2, 2, 1))
+           || test_tile(b, IntArray(3, 2, 1))
+           || test_tile(c, IntArray(3))
+           || test_tile(c, IntArray(1, 1, 4))
+           || test_tile(c, IntArray(2, 2, 5))
+           || test_tile(c, IntArray(3, 2, 1, 9));
 }
 
 static int test_tile_1()
@@ -150,18 +153,18 @@ static int test_tile_1()
            || test_tile(c, 1, 2)
            || test_tile(c, 2, 2)
 
-           || test_tile(a, IntArrayMat(5))
-           || test_tile(a, IntArrayMat(1, 4))
-           || test_tile(a, IntArrayMat(2, 1, 4))
-           || test_tile(a, IntArrayMat(1, 2, 1, 4))
-           || test_tile(b, IntArrayMat(3))
-           || test_tile(b, IntArrayMat(1, 3, 3))
-           || test_tile(b, IntArrayMat(2, 3))
-           || test_tile(b, IntArrayMat(2, 3, 3, 3))
-           || test_tile(c, IntArrayMat(1))
-           || test_tile(c, IntArrayMat(2, 1))
-           || test_tile(c, IntArrayMat(2, 2, 2))
-           || test_tile(c, IntArrayMat(2, 1, 2, 1));
+           || test_tile(a, IntArray(5))
+           || test_tile(a, IntArray(1, 4))
+           || test_tile(a, IntArray(2, 1, 4))
+           || test_tile(a, IntArray(1, 2, 1, 4))
+           || test_tile(b, IntArray(3))
+           || test_tile(b, IntArray(1, 3, 3))
+           || test_tile(b, IntArray(2, 3))
+           || test_tile(b, IntArray(2, 3, 3, 3))
+           || test_tile(c, IntArray(1))
+           || test_tile(c, IntArray(2, 1))
+           || test_tile(c, IntArray(2, 2, 2))
+           || test_tile(c, IntArray(2, 1, 2, 1));
 }
 
 static int test_tile_2()
@@ -178,18 +181,18 @@ static int test_tile_2()
            || test_tile(c, 0, 5)
            || test_tile(c, 1, 6)
 
-           || test_tile(a, IntArrayMat(2))
-           || test_tile(a, IntArrayMat(1, 1))
-           || test_tile(a, IntArrayMat(4, 1, 1))
-           || test_tile(a, IntArrayMat(2, 4, 4, 1))
-           || test_tile(b, IntArrayMat(3))
-           || test_tile(b, IntArrayMat(2, 4))
-           || test_tile(b, IntArrayMat(2, 4, 3, 1))
-           || test_tile(b, IntArrayMat(1, 2, 1, 4))
-           || test_tile(c, IntArrayMat(5))
-           || test_tile(c, IntArrayMat(6, 1))
-           || test_tile(c, IntArrayMat(6, 1, 6))
-           || test_tile(c, IntArrayMat(3, 2, 1, 1));
+           || test_tile(a, IntArray(2))
+           || test_tile(a, IntArray(1, 1))
+           || test_tile(a, IntArray(4, 1, 1))
+           || test_tile(a, IntArray(2, 4, 4, 1))
+           || test_tile(b, IntArray(3))
+           || test_tile(b, IntArray(2, 4))
+           || test_tile(b, IntArray(2, 4, 3, 1))
+           || test_tile(b, IntArray(1, 2, 1, 4))
+           || test_tile(c, IntArray(5))
+           || test_tile(c, IntArray(6, 1))
+           || test_tile(c, IntArray(6, 1, 6))
+           || test_tile(c, IntArray(3, 2, 1, 1));
 }
 
 static int test_tile_3()
@@ -204,20 +207,20 @@ static int test_tile_3()
            || test_tile(b, 0, 3)
            || test_tile(c, 0, 4)
 
-           || test_tile(a, IntArrayMat(10))
-           || test_tile(a, IntArrayMat(10, 1))
-           || test_tile(a, IntArrayMat(5, 2, 1))
-           || test_tile(a, IntArrayMat(2, 2, 2, 3))
-           || test_tile(b, IntArrayMat(2))
-           || test_tile(b, IntArrayMat(2, 2))
-           || test_tile(b, IntArrayMat(2, 2, 1))
-           || test_tile(b, IntArrayMat(4, 1, 2, 2))
-           || test_tile(c, IntArrayMat(3))
-           || test_tile(c, IntArrayMat(4, 3))
-           || test_tile(c, IntArrayMat(1))
-           || test_tile(c, IntArrayMat(1, 1))
-           || test_tile(c, IntArrayMat(1, 1, 1))
-           || test_tile(c, IntArrayMat(1, 3, 2, 2));
+           || test_tile(a, IntArray(10))
+           || test_tile(a, IntArray(10, 1))
+           || test_tile(a, IntArray(5, 2, 1))
+           || test_tile(a, IntArray(2, 2, 2, 3))
+           || test_tile(b, IntArray(2))
+           || test_tile(b, IntArray(2, 2))
+           || test_tile(b, IntArray(2, 2, 1))
+           || test_tile(b, IntArray(4, 1, 2, 2))
+           || test_tile(c, IntArray(3))
+           || test_tile(c, IntArray(4, 3))
+           || test_tile(c, IntArray(1))
+           || test_tile(c, IntArray(1, 1))
+           || test_tile(c, IntArray(1, 1, 1))
+           || test_tile(c, IntArray(1, 3, 2, 2));
 }
 
 int main()
