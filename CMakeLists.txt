@@ -521,7 +521,7 @@ else()
         check_cxx_source_compiles("#include <immintrin.h>\n__m512i test(__m512i a, __m512i b) { return _mm512_madd_epi16(a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX512)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX2")
-        check_cxx_source_compiles("#include <immintrin.h>\n__m256i test(__m256i s, __m256i a, __m256i b) { return _mm256_dpwssd_epi32(s, a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
+        check_cxx_source_compiles("#include <immintrin.h>\n__m256i test(__m256i s, __m256i a, __m256i b) { return _mm256_dpwssd_avx_epi32(s, a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX2")
         check_cxx_source_compiles("#include <immintrin.h>\n__m256i test(__m256i s, __m256i a, __m256i b) { return _mm256_dpbssd_epi32(s, a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI_INT8)
@@ -564,7 +564,7 @@ else()
         check_cxx_source_compiles("#include <immintrin.h>\n__m512i test(__m512i a, __m512i b) { return _mm512_madd_epi16(a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX512)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX2 -mfma -mf16c -mavxvnni")
-        check_cxx_source_compiles("#include <immintrin.h>\n__m256i test(__m256i s, __m256i a, __m256i b) { return _mm256_dpwssd_epi32(s, a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
+        check_cxx_source_compiles("#include <immintrin.h>\n__m256i test(__m256i s, __m256i a, __m256i b) { return _mm256_dpwssd_avx_epi32(s, a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX2 -mfma -mf16c -mavxvnni -mavxvnniint8")
         check_cxx_source_compiles("#include <immintrin.h>\n__m256i test(__m256i s, __m256i a, __m256i b) { return _mm256_dpbssd_epi32(s, a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI_INT8)
@@ -607,7 +607,7 @@ else()
         check_cxx_source_compiles("#include <immintrin.h>\n__m512i test(__m512i a, __m512i b) { return _mm512_madd_epi16(a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX512)
 
         set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c -mavx2 -mavxvnni")
-        check_cxx_source_compiles("#include <immintrin.h>\n__m256i test(__m256i s, __m256i a, __m256i b) { return _mm256_dpwssd_epi32(s, a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
+        check_cxx_source_compiles("#include <immintrin.h>\n__m256i test(__m256i s, __m256i a, __m256i b) { return _mm256_dpwssd_avx_epi32(s, a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
 
         set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c -mavx2 -mavxvnni -mavxvnniint8")
         check_cxx_source_compiles("#include <immintrin.h>\n__m256i test(__m256i s, __m256i a, __m256i b) { return _mm256_dpbssd_epi32(s, a, b); }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI_INT8)
