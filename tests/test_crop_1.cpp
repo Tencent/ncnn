@@ -112,8 +112,7 @@ static int test_crop(const ncnn::Mat& a, const std::vector<int>& starts_array, c
 
 static int test_crop_1d(const ncnn::Mat& a)
 {
-    std::vector<int> params[][3] =
-    {
+    std::vector<int> params[][3] = {
         {IntArray(12), IntArray(-233), IntArray(0)},
         {IntArray(16), IntArray(-233), IntArray(0)},
         {IntArray(11), IntArray(11 + 16), IntArray(0)},
@@ -136,8 +135,7 @@ static int test_crop_1d(const ncnn::Mat& a)
 
 static int test_crop_2d(const ncnn::Mat& a)
 {
-    std::vector<int> params[][3] =
-    {
+    std::vector<int> params[][3] = {
         {IntArray(12), IntArray(-233), IntArray(0)},
         {IntArray(8), IntArray(-233), IntArray(0)},
         {IntArray(4), IntArray(-233), IntArray(1)},
@@ -174,8 +172,7 @@ static int test_crop_2d(const ncnn::Mat& a)
 
 static int test_crop_3d(const ncnn::Mat& a)
 {
-    std::vector<int> params[][3] =
-    {
+    std::vector<int> params[][3] = {
         {IntArray(11), IntArray(-233), IntArray(0)},
         {IntArray(8), IntArray(-233), IntArray(0)},
         {IntArray(5), IntArray(-233), IntArray(1)},
@@ -231,7 +228,6 @@ static int test_crop_3d(const ncnn::Mat& a)
         {IntArray(8, 4, 2), IntArray(-16 + 1, -4 + 1, -4 + 1), IntArray(-3, -2, -1)}
     };
 
-
     for (int i = 0; i < sizeof(params) / sizeof(params[0]); i++)
     {
         int ret = test_crop(a, params[i][0], params[i][1], params[i][2]);
@@ -244,8 +240,7 @@ static int test_crop_3d(const ncnn::Mat& a)
 
 static int test_crop_4d(const ncnn::Mat& a)
 {
-    std::vector<int> params[][3] =
-    {
+    std::vector<int> params[][3] = {
         {IntArray(11), IntArray(-233), IntArray(0)},
         {IntArray(8), IntArray(-233), IntArray(0)},
         {IntArray(6), IntArray(-233), IntArray(1)},
