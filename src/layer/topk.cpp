@@ -20,6 +20,56 @@
 
 namespace ncnn {
 
+// auto comp = [this](const std::pair<float, int> &a, const std::pair<float, int> &b)
+// {
+//     if (a.first == b.first)
+//         return a.second < b.second; // 值相等时按索引升序排序
+//     return this->largest ? (a.first > b.first) : (a.first < b.first);
+// };
+
+// simplestl兼容写法
+struct TopK::CompareFunc
+{
+    bool largest;
+    CompareFunc(bool l)
+        : largest(l)
+    {
+    }
+    bool operator()(const std::pair<float, int>& a, const std::pair<float, int>& b) const
+    {
+        if (a.first == b.first)
+            return a.second < b.second;
+        return largest ? (a.first > b.first) : (a.first < b.first);
+    }
+};
+
+void TopK::do_sort(std::vector<std::pair<float, int> >& vec, int k, bool sorted) const
+{
+    CompareFunc comp(largest);
+    if (sorted)
+    {
+        std::partial_sort(vec.begin(), vec.begin() + k, vec.end(), comp);
+    }
+    else
+    {
+#if !NCNN_SIMPLESTL
+        std::nth_element(vec.begin(), vec.begin() + k - 1, vec.end(), comp);
+        std::sort(vec.begin(), vec.begin() + k, comp);
+#else
+        for (int i = 0; i < k; i++)
+        {
+            for (int j = vec.size() - 1; j > i; j--)
+            {
+                if (comp(vec[j], vec[j - 1]))
+                {
+                    std::swap(vec[j], vec[j - 1]);
+                }
+            }
+        }
+#endif
+    }
+}
+
 TopK::TopK()
 {
     // one_blob_only = true; // 仅有1个输入和1个输出
@@ -64,11 +114,11 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     {
         // 创建输出blob
         top_blob_values.create(k, elemsize, opt.blob_allocator);
-        top_blob_indices.create(k, elemsize, opt.blob_allocator);
+        top_blob_indices.create(k, sizeof(int), opt.blob_allocator);
 
         const float* ptr = bottom_blob;
         float* outptr = top_blob_values;
-        float* indices = top_blob_indices;
+        int* indices = top_blob_indices;
         // 创建pair数组用于排序
         std::vector<std::pair<float, int> > vec(w);
         for (int i = 0; i < w; i++)
@@ -92,7 +142,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         if (axis == 0)
         {
             top_blob_values.create(w, k, elemsize, opt.blob_allocator);
-            top_blob_indices.create(w, k, elemsize, opt.blob_allocator);
+            top_blob_indices.create(w, k, sizeof(int), opt.blob_allocator);
 
             // #pragma omp parallel for
             for (int j = 0; j < w; j++) // 对每列进行处理
@@ -110,7 +160,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 for (int i = 0; i < k; i++)
                 {
                     top_blob_values.row(i)[j] = vec[i].first;
-                    top_blob_indices.row(i)[j] = static_cast<float>(vec[i].second);
+                    top_blob_indices.row<int>(i)[j] = vec[i].second;
                 }
             }
         }
@@ -118,13 +168,13 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         else
         {
             top_blob_values.create(k, h, elemsize, opt.blob_allocator);
-            top_blob_indices.create(k, h, elemsize, opt.blob_allocator);
+            top_blob_indices.create(k, h, sizeof(int), opt.blob_allocator);
 
             for (int i = 0; i < h; i++)
             {
                 const float* ptr = bottom_blob.row(i);
                 float* outptr = top_blob_values.row(i);
-                float* indices = top_blob_indices.row<float>(i);
+                int* indices = top_blob_indices.row<int>(i);
 
                 std::vector<std::pair<float, int> > vec(w);
                 for (int j = 0; j < w; j++)
@@ -148,7 +198,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         {
             // 深度方向上;w不变，高度h变为k
             top_blob_values.create(w, h, k, elemsize, opt.blob_allocator);
-            top_blob_indices.create(w, h, k, elemsize, opt.blob_allocator);
+            top_blob_indices.create(w, h, k, sizeof(int), opt.blob_allocator);
             // #pragma omp parallel for collapse(2)
             for (int i = 0; i < h; i++)
             {
@@ -169,7 +219,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     for (int c = 0; c < k; c++)
                     {
                         float* outptr = top_blob_values.channel(c);
-                        float* indices = top_blob_indices.channel(c);
+                        int* indices = (int*)top_blob_indices.channel(c);
                         outptr[i * w + j] = channel_values[c].first;
                         indices[i * w + j] = channel_values[c].second;
                     }
@@ -180,7 +230,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         {
             // 子元素内部进行TopK;w不变，高度变为k
             top_blob_values.create(w, k, channels, elemsize, opt.blob_allocator);
-            top_blob_indices.create(w, k, channels, elemsize, opt.blob_allocator);
+            top_blob_indices.create(w, k, channels, sizeof(int), opt.blob_allocator);
             for (int q = 0; q < channels; q++)
             {
                 // 获取每个channel的行
@@ -200,7 +250,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     for (int i = 0; i < k; i++)
                     {
                         float* outptr = top_blob_values.channel(q).row(i);
-                        float* indices = top_blob_indices.channel(q).row(i);
+                        int* indices = (int*)top_blob_indices.channel(q).row(i);
                         outptr[j] = row_scores[i].first;
                         indices[j] = row_scores[i].second;
                     }
@@ -211,14 +261,14 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         {
             // 输出为k长度的向量，高度不变
             top_blob_values.create(k, h, channels, elemsize, opt.blob_allocator);
-            top_blob_indices.create(k, h, channels, elemsize, opt.blob_allocator);
+            top_blob_indices.create(k, h, channels, sizeof(int), opt.blob_allocator);
             for (int q = 0; q < channels; q++)
             {
                 for (int j = 0; j < h; j++)
                 {
                     const float* ptr = bottom_blob.channel(q).row(j);
                     float* outptr = top_blob_values.channel(q).row(j);
-                    float* indices = top_blob_indices.channel(q).row<float>(j);
+                    int* indices = top_blob_indices.channel(q).row<int>(j);
 
                     std::vector<std::pair<float, int> > vec(w);
                     for (int i = 0; i < w; i++)
@@ -245,7 +295,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             // PyTorch：batch -> channel -> height -> width
             // ncnn：channels -> depth -> height -> width
             top_blob_values.create(w, h, k, channels, elemsize, opt.blob_allocator);
-            top_blob_indices.create(w, h, k, channels, elemsize, opt.blob_allocator);
+            top_blob_indices.create(w, h, k, channels, sizeof(int), opt.blob_allocator);
 
             // 在pytorch中，假设x为torch.Size([3, 2, 6, 7])，按N维度，也就是x[0]、x[1]、x[2]，对比排序，最后直接输出x[i]
             // 但在ncnn中，从channels遍历后，维度d再遍历会获得2*3=6种数据。这里就卡主了，不知道怎么处理
@@ -255,7 +305,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         {
             // 在channel维度上进行TopK
             top_blob_values.create(w, h, d, k, elemsize, opt.blob_allocator);
-            top_blob_indices.create(w, h, d, k, elemsize, opt.blob_allocator);
+            top_blob_indices.create(w, h, d, k, sizeof(int), opt.blob_allocator);
 
             // need help !!!
         }
@@ -263,13 +313,13 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         {
             // 在h维度上进行TopK
             top_blob_values.create(w, k, d, channels, elemsize, opt.blob_allocator);
-            top_blob_indices.create(w, k, d, channels, elemsize, opt.blob_allocator);
+            top_blob_indices.create(w, k, d, channels, sizeof(int), opt.blob_allocator);
 
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob_values.channel(q);
-                float* indices = top_blob_indices.channel(q);
+                int* indices = top_blob_indices.channel(q);
 
                 for (int z = 0; z < d; z++)
                 {
@@ -288,7 +338,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                         for (int kk = 0; kk < k; kk++)
                         {
                             outptr[(z * k + kk) * w + i] = row_scores[kk].first;
-                            indices[(z * k + kk) * w + i] = static_cast<float>(row_scores[kk].second);
+                            indices[(z * k + kk) * w + i] = row_scores[kk].second;
                         }
                     }
                 }
@@ -298,13 +348,13 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         {
             // 在h维度上进行TopK
             top_blob_values.create(w, k, d, channels, elemsize, opt.blob_allocator);
-            top_blob_indices.create(w, k, d, channels, elemsize, opt.blob_allocator);
+            top_blob_indices.create(w, k, d, channels, sizeof(int), opt.blob_allocator);
 
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob_values.channel(q);
-                float* indices = top_blob_indices.channel(q);
+                int* indices = top_blob_indices.channel(q);
 
                 for (int z = 0; z < d; z++)
                 {
@@ -323,7 +373,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                         for (int kk = 0; kk < k; kk++)
                         {
                             outptr[(z * k + kk) * w + i] = row_scores[kk].first;
-                            indices[(z * k + kk) * w + i] = static_cast<float>(row_scores[kk].second);
+                            indices[(z * k + kk) * w + i] = row_scores[kk].second;
                         }
                     }
                 }
@@ -333,7 +383,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         {
             // 在w维度上进行TopK
             top_blob_values.create(k, h, d, channels, elemsize, opt.blob_allocator);
-            top_blob_indices.create(k, h, d, channels, elemsize, opt.blob_allocator);
+            top_blob_indices.create(k, h, d, channels, sizeof(int), opt.blob_allocator);
 
             for (int q = 0; q < channels; q++)
             {
@@ -355,9 +405,9 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                         for (int j = 0; j < k; j++)
                         {
                             float* outptr = top_blob_values.channel(q).row(i * d + z);
-                            float* indices = top_blob_indices.channel(q).row(i * d + z);
+                            int* indices = top_blob_indices.channel(q).row<int>(i * d + z);
                             outptr[j] = row_values[j].first;
-                            indices[j] = static_cast<float>(row_values[j].second);
+                            indices[j] = row_values[j].second;
                         }
                     }
                 }

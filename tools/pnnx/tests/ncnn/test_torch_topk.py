@@ -45,9 +45,9 @@ class Model(nn.Module):
             k=2,
             dim=2,
         )
-        d3, i9 = torch.topk(d, k=2, dim=3, sorted=False)
+        d3, i9 = torch.topk(d, k=2, dim=3, sorted=True)
         # return x0, y1, y2, z1, i3, i4, i5, d0, d1, d2, d3, i6, i7, i8, i9
-        return x0, y1, y2, z1, i3, i4, i5, d2, d3, i8, i9
+        return x0, y1, y2, i0, i1, i2, z1, i3, i4, i5, d2, d3, i8, i9
 
 
 def test():
@@ -79,7 +79,9 @@ def test():
     b = test_torch_topk_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        a0 = a0.float()
+        if a0.dtype != torch.float:
+            a0 = a0.to(torch.int32)  # i64 --> i32
+            b0 = b0.view(torch.int32)  # f32 --> i32
         if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
     return True

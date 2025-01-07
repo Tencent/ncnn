@@ -35,56 +35,8 @@ public:
     int sorted;
 
 private:
-    // auto comp = [this](const std::pair<float, int> &a, const std::pair<float, int> &b)
-    // {
-    //     if (a.first == b.first)
-    //         return a.second < b.second; // 值相等时按索引升序排序
-    //     return this->largest ? (a.first > b.first) : (a.first < b.first);
-    // };
-
-    // simplestl兼容写法
-    struct CompareFunc
-    {
-        bool largest;
-        CompareFunc(bool l)
-            : largest(l)
-        {
-        }
-        bool operator()(const std::pair<float, int>& a, const std::pair<float, int>& b) const
-        {
-            if (a.first == b.first)
-                return a.second < b.second; // 值相等时按索引升序排序
-            return largest ? (a.first > b.first) : (a.first < b.first);
-        }
-    };
-    void do_sort(std::vector<std::pair<float, int> >& vec, int k, bool sorted) const
-    {
-        CompareFunc comp(largest); // 兼容c++03
-        if (sorted)
-        {
-            std::partial_sort(vec.begin(), vec.begin() + k, vec.end(), comp);
-        }
-        else
-        {
-#if !NCNN_SIMPLESTL
-            std::nth_element(vec.begin(), vec.begin() + k - 1, vec.end(), comp);
-            std::sort(vec.begin(), vec.begin() + k, comp);
-#else
-            // 替换 nth_element + sort 组合
-            // 使用 bubble_sort 实现相同功能，适配sim_stl
-            for (int i = 0; i < k; i++)
-            {
-                for (int j = vec.size() - 1; j > i; j--)
-                {
-                    if (comp(vec[j], vec[j - 1]))
-                    {
-                        std::swap(vec[j], vec[j - 1]);
-                    }
-                }
-            }
-#endif
-        }
-    }
+    struct CompareFunc; // 前向声明
+    void do_sort(std::vector<std::pair<float, int> >& vec, int k, bool sorted) const;
 };
 
 } // namespace ncnn
