@@ -425,7 +425,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
         check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat32m8_t test(vfloat32m8_t s, vfloat32m8_t w, float v, size_t vl) { return __riscv_vfmacc_vf_f32m8(s, v, w, vl); }\nvfloat32m1x2_t test2(vfloat32m1_t x) { return __riscv_vcreate_v_f32m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_V)
 
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gc_zfh -D__fp16=_Float16")
-        check_cxx_source_compiles("__fp16 test(__fp16 a) { return v * v; }" NCNN_COMPILER_SUPPORT_RISCV_ZFH)
+        check_cxx_source_compiles("__fp16 test(__fp16 a) { return a * a; }" NCNN_COMPILER_SUPPORT_RISCV_ZFH)
 
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv_zfh_zvfh -D__fp16=_Float16")
         check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFH)
