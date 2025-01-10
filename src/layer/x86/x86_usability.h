@@ -86,7 +86,7 @@ public:
         // xm = (x * multiplier) >> 32
         __m512i xm_low = _mm512_srli_epi64(_mm512_mul_epu32(x, _multiplier), 32);
         __m512i xm_high = _mm512_mul_epu32(_mm512_srli_epi64(x, 32), _multiplier);
-        __mmask16 mask = 0xAAAA;  // 1010 1010 1010 1010
+        __mmask16 mask = 0xAAAA; // 1010 1010 1010 1010
         __m512i xm = _mm512_mask_blend_epi32(mask, xm_low, xm_high);
         // (xm + (x - xm) >> 1) >> (sh - 1)
         return _mm512_srl_epi32(_mm512_add_epi32(xm, _mm512_srl_epi32(_mm512_sub_epi32(x, xm), _shift1)), _shift2);

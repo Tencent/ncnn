@@ -6224,7 +6224,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r0 = _mm512_add_epi8(_r0, _v127);
                     _r1 = _mm512_add_epi8(_r1, _v127);
 #endif // __AVXVNNIINT8__
-#else // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
 
                     // 00001111 22223333 44445555 66667777
                     // 88889999 aaaabbbb ccccdddd eeeeffff
@@ -6447,7 +6447,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r0 = _mm512_add_epi8(_r0, _v127);
                     _r1 = _mm512_add_epi8(_r1, _v127);
 #endif // __AVXVNNIINT8__
-#else // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
 
                     // 00001111 22223333 44445555 66667777
                     // 88889999 aaaabbbb ccccdddd eeeeffff
@@ -6741,7 +6741,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _p1 = _mm_unpackhi_epi16(_p01, _p23);
 
 #if __AVXVNNIINT8__
-#else  // __AVXVNNIINT8__
+#else // __AVXVNNIINT8__
 
                     __m128i _v127 = _mm_set1_epi8(127);
                     _p0 = _mm_add_epi8(_p0, _v127);
@@ -6919,7 +6919,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r6 = _mm_add_epi8(_r6, _v127);
                     _r7 = _mm_add_epi8(_r7, _v127);
 #endif // __AVXVNNIINT8__
-#else // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                     __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
                     __m128i _r23 = _mm_unpacklo_epi16(_r2, _r3);
                     __m128i _r45 = _mm_unpacklo_epi16(_r4, _r5);
@@ -7222,8 +7222,8 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r01 = _mm256_add_epi8(_r01, _v127);
 #endif // __AVXVNNIINT8__
 
-#else // __AVX512VNNI__ || __AVXVNNI__
-                    // 00001111 22223333
+#else // __AVX512VNNI__ || __AVXVNNI__ \
+// 00001111 22223333
                     _r01 = _mm256_shuffle_epi32(_r01, _MM_SHUFFLE(3, 1, 2, 0));
 
                     // 00110011 22332233
@@ -7239,7 +7239,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm256_storeu_si256((__m256i*)pp, _r01);
 
-#else // __AVX2__
+#else  // __AVX2__
 
                     int offsets[4];
                     _mm_storeu_si128((__m128i*)offsets, _vindex);
@@ -7416,7 +7416,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 #else  // __AVXVNNIINT8__
                     _r01 = _mm_add_epi8(_r01, _mm_set1_epi8(127));
 #endif // __AVXVNNIINT8__
-#else // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                     __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
 #endif // __AVX512VNNI__ || __AVXVNNI__
                     _mm_storeu_si128((__m128i*)pp, _r01);
@@ -7587,7 +7587,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 #else  // __AVXVNNIINT8__
                     _r01 = _mm_add_epi8(_r01, _mm_set1_epi8(127));
 #endif // __AVXVNNIINT8__
-#else // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                     __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
 #endif // __AVX512VNNI__ || __AVXVNNI__
                     _mm_storeu_si128((__m128i*)pp, _r01);
@@ -7777,13 +7777,13 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
     }
 #endif
 
-// #if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
-//     if (ncnn::cpu_support_x86_avx_vnni_int8())
-//     {
-//         convolution_im2col_input_tile_int8_avxvnniint8(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
-//         return;
-//     }
-// #endif
+    // #if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+    //     if (ncnn::cpu_support_x86_avx_vnni_int8())
+    //     {
+    //         convolution_im2col_input_tile_int8_avxvnniint8(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
+    //         return;
+    //     }
+    // #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
@@ -7807,78 +7807,78 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
     //     return;
     // }
 
-//     if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2)
-//     {
-// #if __AVX512F__
-//         convolution_im2col_input_tile_int8_avx512<1, 1, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-// #else  // __AVX512F__
-//         convolution_im2col_input_tile_int8<1, 1, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-// #endif // __AVX512F__
-//         return;
-//     }
-//
-//     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-//     {
-// #if __AVX512F__
-//         convolution_im2col_input_tile_int8_avx512<3, 3, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
-// #else  // __AVX512F__
-//         convolution_im2col_input_tile_int8<3, 3, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
-// #endif // __AVX512F__
-//         return;
-//     }
-//
-//     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-//     {
-// #if __AVX512F__
-//         convolution_im2col_input_tile_int8_avx512<3, 3, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-// #else  // __AVX512F__
-//         convolution_im2col_input_tile_int8<3, 3, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-// #endif // __AVX512F__
-//         return;
-//     }
-//
-//     if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-//     {
-// #if __AVX512F__
-//         convolution_im2col_input_tile_int8_avx512<5, 5, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
-// #else  // __AVX512F__
-//         convolution_im2col_input_tile_int8<5, 5, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
-// #endif // __AVX512F__
-//         return;
-//     }
-//
-//     if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-//     {
-// #if __AVX512F__
-//         convolution_im2col_input_tile_int8_avx512<5, 5, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-// #else  // __AVX512F__
-//         convolution_im2col_input_tile_int8<5, 5, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-// #endif // __AVX512F__
-//         return;
-//     }
-//
-//     if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-//     {
-// #if __AVX512F__
-//         convolution_im2col_input_tile_int8_avx512<7, 7, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-// #else  // __AVX512F__
-//         convolution_im2col_input_tile_int8<7, 7, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-// #endif // __AVX512F__
-//         return;
-//     }
+    //     if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2)
+    //     {
+    // #if __AVX512F__
+    //         convolution_im2col_input_tile_int8_avx512<1, 1, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #else  // __AVX512F__
+    //         convolution_im2col_input_tile_int8<1, 1, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #endif // __AVX512F__
+    //         return;
+    //     }
+    //
+    //     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    //     {
+    // #if __AVX512F__
+    //         convolution_im2col_input_tile_int8_avx512<3, 3, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #else  // __AVX512F__
+    //         convolution_im2col_input_tile_int8<3, 3, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #endif // __AVX512F__
+    //         return;
+    //     }
+    //
+    //     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+    //     {
+    // #if __AVX512F__
+    //         convolution_im2col_input_tile_int8_avx512<3, 3, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #else  // __AVX512F__
+    //         convolution_im2col_input_tile_int8<3, 3, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #endif // __AVX512F__
+    //         return;
+    //     }
+    //
+    //     if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    //     {
+    // #if __AVX512F__
+    //         convolution_im2col_input_tile_int8_avx512<5, 5, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #else  // __AVX512F__
+    //         convolution_im2col_input_tile_int8<5, 5, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #endif // __AVX512F__
+    //         return;
+    //     }
+    //
+    //     if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+    //     {
+    // #if __AVX512F__
+    //         convolution_im2col_input_tile_int8_avx512<5, 5, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #else  // __AVX512F__
+    //         convolution_im2col_input_tile_int8<5, 5, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #endif // __AVX512F__
+    //         return;
+    //     }
+    //
+    //     if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+    //     {
+    // #if __AVX512F__
+    //         convolution_im2col_input_tile_int8_avx512<7, 7, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #else  // __AVX512F__
+    //         convolution_im2col_input_tile_int8<7, 7, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+    // #endif // __AVX512F__
+    //         return;
+    //     }
 
     convolution_im2col_input_tile_int8_impl(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
 }
 
 static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, int kernel_w, int kernel_h, const Option& opt)
 {
-// #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
-//     if (ncnn::cpu_support_x86_avx2())
-//     {
-//         convolution_im2col_gemm_transform_kernel_int8_avx2(kernel, AT, inch, outch, kernel_w, kernel_h, opt);
-//         return;
-//     }
-// #endif
+    // #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+    //     if (ncnn::cpu_support_x86_avx2())
+    //     {
+    //         convolution_im2col_gemm_transform_kernel_int8_avx2(kernel, AT, inch, outch, kernel_w, kernel_h, opt);
+    //         return;
+    //     }
+    // #endif
 
     // NCNN_LOGE("convolution_im2col_gemm_transform_kernel");
     const int maxk = kernel_w * kernel_h;
@@ -7930,12 +7930,12 @@ static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat
         }
     }
 
-#if 1//NCNN_AVX512VNNI || NCNN_AVXVNNI
+#if 1 //NCNN_AVX512VNNI || NCNN_AVXVNNI
     bool has_w_shift = false;
     if (TILE_K >= 4)
     {
         has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
-#if 0//NCNN_AVXVNNIINT8
+#if 0  //NCNN_AVXVNNIINT8
         if (ncnn::cpu_support_x86_avx_vnni_int8())
             has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
@@ -7972,13 +7972,13 @@ static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat
 
 static void unpack_output_tile_int32_to_fp32(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj, const Mat& descales, const Mat& bias_data)
 {
-// #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
-//     if (ncnn::cpu_support_x86_avx2())
-//     {
-//         unpack_output_tile_int32_to_fp32_avx2(topT, top_blob, i, max_ii, j, max_jj, descales);
-//         return;
-//     }
-// #endif
+    // #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+    //     if (ncnn::cpu_support_x86_avx2())
+    //     {
+    //         unpack_output_tile_int32_to_fp32_avx2(topT, top_blob, i, max_ii, j, max_jj, descales);
+    //         return;
+    //     }
+    // #endif
 
     const int out_elempack = top_blob.elempack;
     // const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
