@@ -36,6 +36,127 @@
 #endif
 #endif // __SSE2__
 
+#if __SSE2__
+// fast integer division adopted from Agner Fog's subroutine library
+// only support x / d where x and d are [1~ UINT_MAX]
+class FastDivider_epu32
+{
+public:
+    FastDivider_epu32(unsigned int d)
+    {
+        unsigned int m, sh1, sh2;
+        if (d == 1)
+        {
+            m = 1;
+            sh1 = 0;
+            sh2 = 0;
+        }
+        else
+        {
+            // sh = ceil(log2(d))
+#ifdef _MSC_VER
+            unsigned long index;
+            _BitScanReverse(&index, d - 1);
+            uint32_t sh = index + 1;
+#else
+            uint32_t sh = 32 - __builtin_clz(d - 1);
+#endif
+            uint32_t m0 = sh == 32 ? 0 : 1 << sh;
+
+            m = 1 + uint32_t((uint64_t(m0 - d) << 32) / d);
+            sh1 = 1;
+            sh2 = sh - 1;
+        }
+
+#if __AVX512F__
+        _multiplier = _mm512_set1_epi32(m);
+#elif __AVX2__
+        _multiplier = _mm256_set1_epi32(m);
+#else
+        _multiplier = _mm_set1_epi32(m);
+#endif
+        _shift1 = _mm_setr_epi32(sh1, 0, 0, 0);
+        _shift2 = _mm_setr_epi32(sh2, 0, 0, 0);
+    }
+
+#if __AVX2__
+#if __AVX512F__
+    __m512i _mm512_comp_div_epu32(__m512i x) const
+    {
+        // xm = (x * multiplier) >> 32
+        __m512i xm_low = _mm512_srli_epi64(_mm512_mul_epu32(x, _multiplier), 32);
+        __m512i xm_high = _mm512_mul_epu32(_mm512_srli_epi64(x, 32), _multiplier);
+        __mmask16 mask = 0xAAAA;  // 1010 1010 1010 1010
+        __m512i xm = _mm512_mask_blend_epi32(mask, xm_low, xm_high);
+        // (xm + (x - xm) >> 1) >> (sh - 1)
+        return _mm512_srl_epi32(_mm512_add_epi32(xm, _mm512_srl_epi32(_mm512_sub_epi32(x, xm), _shift1)), _shift2);
+    }
+#endif // __AVX512F__
+
+    __m256i _mm256_comp_div_epu32(__m256i x) const
+    {
+        // xm = (x * multiplier) >> 32
+#if __AVX512F__
+        __m256i xm_low = _mm256_srli_epi64(_mm256_mul_epu32(x, _mm512_castsi512_si256(_multiplier)), 32);
+        __m256i xm_high = _mm256_mul_epu32(_mm256_srli_epi64(x, 32), _mm512_castsi512_si256(_multiplier));
+#elif __AVX2__
+        __m256i xm_low = _mm256_srli_epi64(_mm256_mul_epu32(x, _multiplier), 32);
+        __m256i xm_high = _mm256_mul_epu32(_mm256_srli_epi64(x, 32), _multiplier);
+#endif
+        __m256i xm = _mm256_blend_epi16(xm_low, xm_high, _MM_SHUFFLE(3, 0, 3, 0));
+        // (xm + (x - xm) >> 1) >> (sh - 1)
+        return _mm256_srl_epi32(_mm256_add_epi32(xm, _mm256_srl_epi32(_mm256_sub_epi32(x, xm), _shift1)), _shift2);
+    }
+#endif // __AVX2__
+
+    __m128i _mm_comp_div_epu32(__m128i x) const
+    {
+        // xm = (x * multiplier) >> 32
+#if __AVX512F__
+        __m128i xm_low = _mm_srli_epi64(_mm_mul_epu32(x, _mm512_castsi512_si128(_multiplier)), 32);
+        __m128i xm_high = _mm_mul_epu32(_mm_srli_epi64(x, 32), _mm512_castsi512_si128(_multiplier));
+#elif __AVX2__
+        __m128i xm_low = _mm_srli_epi64(_mm_mul_epu32(x, _mm256_castsi256_si128(_multiplier)), 32);
+        __m128i xm_high = _mm_mul_epu32(_mm_srli_epi64(x, 32), _mm256_castsi256_si128(_multiplier));
+#else
+        __m128i xm_low = _mm_srli_epi64(_mm_mul_epu32(x, _multiplier), 32);
+        __m128i xm_high = _mm_mul_epu32(_mm_srli_epi64(x, 32), _multiplier);
+#endif
+#if __SSE4_1__
+        __m128i xm = _mm_blend_epi16(xm_low, xm_high, _MM_SHUFFLE(3, 0, 3, 0));
+#else
+        __m128i mask = _mm_set_epi32(-1, 0, -1, 0);
+        __m128i xm = _mm_or_si128(xm_low, _mm_and_si128(xm_high, mask));
+#endif
+        // (xm + (x - xm) >> 1) >> (sh - 1)
+        return _mm_srl_epi32(_mm_add_epi32(xm, _mm_srl_epi32(_mm_sub_epi32(x, xm), _shift1)), _shift2);
+    }
+
+protected:
+    static int portable_ceil_log2(int d)
+    {
+#ifdef _MSC_VER
+        unsigned long index;
+        _BitScanReverse(&index, d - 1);
+        return index + 1;
+#else
+        return 32 - __builtin_clz(d - 1);
+#endif
+    }
+
+protected:
+#if __AVX512F__
+    __m512i _multiplier;
+#elif __AVX2__
+    __m256i _multiplier;
+#else
+    __m128i _multiplier;
+#endif
+    __m128i _shift1;
+    __m128i _shift2;
+};
+#endif // __SSE2__
+
 static NCNN_FORCEINLINE signed char float2int8(float v)
 {
     int int32 = (int)round(v);
@@ -142,6 +263,19 @@ static NCNN_FORCEINLINE void transpose16x4_epi8(__m128i& _r0, __m128i& _r1, __m1
     _r1 = _mm_unpackhi_epi16(_tmp0, _tmp2);
     _r2 = _mm_unpacklo_epi16(_tmp1, _tmp3);
     _r3 = _mm_unpackhi_epi16(_tmp1, _tmp3);
+}
+
+static NCNN_FORCEINLINE __m128i _mm_comp_mullo_epi32(__m128i a, __m128i b)
+{
+#if __SSE4_1__
+    return _mm_mullo_epi32(a, b);
+#else
+    __m128i m0 = _mm_mul_epu32(a, b);
+    __m128i m1 = _mm_mul_epu32(_mm_shuffle_epi32(a, _MM_SHUFFLE(2, 3, 0, 1)), _mm_shuffle_epi32(b, _MM_SHUFFLE(2, 3, 0, 1)));
+    __m128i m2 = _mm_unpacklo_epi32(m0, m1);
+    __m128i m3 = _mm_unpackhi_epi32(m0, m1);
+    return _mm_unpacklo_epi64(m2, m3);
+#endif
 }
 
 static NCNN_FORCEINLINE float _mm_reduce_add_ps(__m128 x128)

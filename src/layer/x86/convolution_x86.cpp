@@ -1022,7 +1022,10 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     }
     else if (opt.use_sgemm_convolution)
     {
-        ret = convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        // ret = convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, scale_in_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        ret = convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob, weight_sgemm_data, scale_in_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+
+        return ret;
     }
     else
     {
