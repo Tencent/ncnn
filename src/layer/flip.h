@@ -29,7 +29,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-    Mat axis; // 维度翻转
+    Mat axis; // 翻转维度
 };
 
 } // namespace ncnn
