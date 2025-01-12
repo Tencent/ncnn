@@ -27,27 +27,47 @@ class Model(nn.Module):
         y2, i2 = torch.topk(y, k=2, dim=1, largest=False)
         # 3D
         z1, i3 = torch.topk(z, k=2, dim=0)
-        z1, i4 = torch.topk(z, k=3, dim=1)
-        z1, i5 = torch.topk(z, k=1, dim=2)
+        z2, i4 = torch.topk(z, k=3, dim=1)
+        z3, i5 = torch.topk(z, k=1, dim=2)
         # 4D
-        # d0, i6 = torch.topk(
-        #     d,
-        #     k=2,
-        #     dim=0,
-        # )
-        # d1, i7 = torch.topk(
-        #     d,
-        #     k=2,
-        #     dim=1,
-        # )
+        d0, i6 = torch.topk(
+            d,
+            k=2,
+            dim=0,
+        )
+        d1, i7 = torch.topk(
+            d,
+            k=2,
+            dim=1,
+        )
         d2, i8 = torch.topk(
             d,
             k=2,
             dim=2,
         )
         d3, i9 = torch.topk(d, k=2, dim=3, sorted=True)
-        # return x0, y1, y2, z1, i3, i4, i5, d0, d1, d2, d3, i6, i7, i8, i9
-        return x0, y1, y2, i0, i1, i2, z1, i3, i4, i5, d2, d3, i8, i9
+        return (
+            x0,
+            i0,
+            y1,
+            i1,
+            y2,
+            i2,
+            z1,
+            i3,
+            z2,
+            i4,
+            z3,
+            i5,
+            d0,
+            i6,
+            d1,
+            i7,
+            d2,
+            i8,
+            d3,
+            i9,
+        )
 
 
 def test():

@@ -52,13 +52,6 @@ pnnx.Output             output      2 0 out indices
         op->params["1"] = dim;
         op->params["2"] = largest;
         op->params["3"] = sorted;
-
-        // 未完成说明
-        int input_rank = (int)op->inputs[0]->shape.size();
-        if (input_rank == 4 && (dim == 0 || dim == 1))
-        {
-            printf("error: 4D with dim = 0 or 1 is not supported yet\n");
-        }
     }
 };
 

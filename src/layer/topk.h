@@ -35,8 +35,7 @@ public:
     int sorted;
 
 private:
-    struct CompareFunc; // 前向声明
-    void do_sort(std::vector<std::pair<float, int> >& vec, int k, bool sorted) const;
+    void do_sort(std::vector<std::pair<float, int> >& vec) const;
 };
 
 } // namespace ncnn
