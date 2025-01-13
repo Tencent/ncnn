@@ -5752,6 +5752,51 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 __m128i _rcd = _mm_load_si128((const __m128i*)(p0 + 96));
                 __m128i _ref = _mm_load_si128((const __m128i*)(p0 + 112));
 
+#if __AVX512VNNI__ || __AVXVNNI__
+                // 0011
+                // 2233
+                // 4455
+                // 6677
+                __m128i _t0 = _mm_unpacklo_epi32(_r01, _r23);
+                __m128i _t1 = _mm_unpackhi_epi32(_r01, _r23);
+                __m128i _t2 = _mm_unpacklo_epi32(_r45, _r67);
+                __m128i _t3 = _mm_unpackhi_epi32(_r45, _r67);
+                __m128i _t4 = _mm_unpacklo_epi32(_r89, _rab);
+                __m128i _t5 = _mm_unpackhi_epi32(_r89, _rab);
+                __m128i _t6 = _mm_unpacklo_epi32(_rcd, _ref);
+                __m128i _t7 = _mm_unpackhi_epi32(_rcd, _ref);
+
+                // 0202
+                // 1313
+                // 4646
+                // 5757
+                // 8a8a
+                // 9b9b
+                // cece
+                // dfdf
+                __m128i _r0 = _mm_unpacklo_epi32(_t0, _t1);
+                __m128i _r1 = _mm_unpacklo_epi32(_t2, _t3);
+                __m128i _r2 = _mm_unpacklo_epi32(_t4, _t5);
+                __m128i _r3 = _mm_unpacklo_epi32(_t6, _t7);
+                __m128i _r4 = _mm_unpackhi_epi32(_t0, _t1);
+                __m128i _r5 = _mm_unpackhi_epi32(_t2, _t3);
+                __m128i _r6 = _mm_unpackhi_epi32(_t4, _t5);
+                __m128i _r7 = _mm_unpackhi_epi32(_t6, _t7);
+
+#if __AVXVNNIINT8__
+#else  // __AVXVNNIINT8__
+                __m128i _v127 = _mm_set1_epi8(127);
+                _r0 = _mm_add_epi8(_r0, _v127);
+                _r1 = _mm_add_epi8(_r1, _v127);
+                _r2 = _mm_add_epi8(_r2, _v127);
+                _r3 = _mm_add_epi8(_r3, _v127);
+                _r4 = _mm_add_epi8(_r4, _v127);
+                _r5 = _mm_add_epi8(_r5, _v127);
+                _r6 = _mm_add_epi8(_r6, _v127);
+                _r7 = _mm_add_epi8(_r7, _v127);
+#endif // __AVXVNNIINT8__
+
+#else // __AVX512VNNI__ || __AVXVNNI__
                 __m128i _t0 = _mm_unpacklo_epi16(_r01, _r23);
                 __m128i _t1 = _mm_unpackhi_epi16(_r01, _r23);
                 __m128i _t2 = _mm_unpacklo_epi16(_r45, _r67);
@@ -5778,6 +5823,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 __m128i _r5 = _mm_unpacklo_epi64(_rab, _ref);
                 __m128i _r6 = _mm_unpackhi_epi64(_r23, _r67);
                 __m128i _r7 = _mm_unpackhi_epi64(_rab, _ref);
+#endif // __AVX512VNNI__ || __AVXVNNI__
 
                 _mm_store_si128((__m128i*)pp, _r0);
                 _mm_store_si128((__m128i*)(pp + 16), _r1);
@@ -5798,6 +5844,34 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+#if __AVX512VNNI__ || __AVXVNNI__
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
+                __m128i _r1 = _mm_loadu_si128((const __m128i*)(p0 + bottom_blob.cstep));
+                __m128i _r2 = _mm_loadu_si128((const __m128i*)(p0 + bottom_blob.cstep * 2));
+                __m128i _r3 = _mm_loadu_si128((const __m128i*)(p0 + bottom_blob.cstep * 3));
+                // 00000000
+                // 11111111
+                // 22222222
+                // 33333333
+                transpose16x4_epi8(_r0, _r1, _r2, _r3);
+#if __AVXVNNIINT8__
+#else  // __AVXVNNIINT8__
+                __m128i _v127 = _mm_set1_epi8(127);
+                _r0 = _mm_add_epi8(_r0, _v127);
+                _r1 = _mm_add_epi8(_r1, _v127);
+                _r2 = _mm_add_epi8(_r2, _v127);
+                _r3 = _mm_add_epi8(_r3, _v127);
+#endif // __AVXVNNIINT8__
+                _mm_storeu_si128((__m128i*)pp, _r0);
+                _mm_storeu_si128((__m128i*)(pp + 16), _r1);
+                _mm_storeu_si128((__m128i*)(pp + 32), _r2);
+                _mm_storeu_si128((__m128i*)(pp + 48), _r3);
+                pp += 64;
+                p0 += bottom_blob.cstep * 4;
+            }
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
@@ -5832,6 +5906,35 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 __m128i _r45 = _mm_load_si128((const __m128i*)(p0 + 32));
                 __m128i _r67 = _mm_load_si128((const __m128i*)(p0 + 48));
 
+#if __AVX512VNNI__ || __AVXVNNI__
+                // 0011
+                // 2233
+                // 4455
+                // 6677
+                __m128i _t0 = _mm_unpacklo_epi32(_r01, _r23);
+                __m128i _t1 = _mm_unpackhi_epi32(_r01, _r23);
+                __m128i _t2 = _mm_unpacklo_epi32(_r45, _r67);
+                __m128i _t3 = _mm_unpackhi_epi32(_r45, _r67);
+
+                // 0202
+                // 1313
+                // 4646
+                // 5757
+                __m128i _r0 = _mm_unpacklo_epi32(_t0, _t1);
+                __m128i _r1 = _mm_unpacklo_epi32(_t2, _t3);
+                __m128i _r2 = _mm_unpackhi_epi32(_t0, _t1);
+                __m128i _r3 = _mm_unpackhi_epi32(_t2, _t3);
+
+#if __AVXVNNIINT8__
+#else  // __AVXVNNIINT8__
+                __m128i _v127 = _mm_set1_epi8(127);
+                _r0 = _mm_add_epi8(_r0, _v127);
+                _r1 = _mm_add_epi8(_r1, _v127);
+                _r2 = _mm_add_epi8(_r2, _v127);
+                _r3 = _mm_add_epi8(_r3, _v127);
+#endif // __AVXVNNIINT8__
+
+#else // __AVX512VNNI__ || __AVXVNNI__
                 __m128i _t0 = _mm_unpacklo_epi16(_r01, _r23);
                 __m128i _t1 = _mm_unpackhi_epi16(_r01, _r23);
                 __m128i _t2 = _mm_unpacklo_epi16(_r45, _r67);
@@ -5846,6 +5949,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 __m128i _r1 = _mm_unpackhi_epi64(_r01, _r45);
                 __m128i _r2 = _mm_unpacklo_epi64(_r23, _r67);
                 __m128i _r3 = _mm_unpackhi_epi64(_r23, _r67);
+#endif // __AVX512VNNI__ || __AVXVNNI__
 
                 _mm_store_si128((__m128i*)pp, _r0);
                 _mm_store_si128((__m128i*)(pp + 16), _r1);
@@ -5862,6 +5966,35 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+#if __AVX512VNNI__ || __AVXVNNI__
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m128i _r0 = _mm_loadl_epi64((const __m128i*)p0);
+                __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + bottom_blob.cstep));
+                __m128i _r2 = _mm_loadl_epi64((const __m128i*)(p0 + bottom_blob.cstep * 2));
+                __m128i _r3 = _mm_loadl_epi64((const __m128i*)(p0 + bottom_blob.cstep * 3));
+                // 0000....
+                // 1111....
+                // 2222....
+                // 3333....
+                __m128i _r01 = _mm_unpacklo_epi8(_r0, _r1);
+                __m128i _r23 = _mm_unpacklo_epi8(_r2, _r3);
+                // 01010101
+                // 23232323
+                _r0 = _mm_unpacklo_epi16(_r01, _r23);
+                _r1 = _mm_unpackhi_epi16(_r01, _r23);
+#if __AVXVNNIINT8__
+#else  // __AVXVNNIINT8__
+                __m128i _v127 = _mm_set1_epi8(127);
+                _r0 = _mm_add_epi8(_r0, _v127);
+                _r1 = _mm_add_epi8(_r1, _v127);
+#endif // __AVXVNNIINT8__
+                _mm_storeu_si128((__m128i*)pp, _r0);
+                _mm_storeu_si128((__m128i*)(pp + 16), _r1);
+                pp += 32;
+                p0 += bottom_blob.cstep * 4;
+            }
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _r0 = _mm_loadl_epi64((const __m128i*)p0);
@@ -5892,11 +6025,27 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 __m128i _r01 = _mm_load_si128((const __m128i*)p0);
                 __m128i _r23 = _mm_load_si128((const __m128i*)(p0 + 16));
 
+#if __AVX512VNNI__ || __AVXVNNI__
+                __m128i _t0 = _mm_unpacklo_epi32(_r01, _r23);
+                __m128i _t1 = _mm_unpackhi_epi32(_r01, _r23);
+
+                __m128i _r0 = _mm_unpacklo_epi32(_t0, _t1);
+                __m128i _r1 = _mm_unpackhi_epi32(_t0, _t1);
+
+#if __AVXVNNIINT8__
+#else  // __AVXVNNIINT8__
+                __m128i _v127 = _mm_set1_epi8(127);
+                _r0 = _mm_add_epi8(_r0, _v127);
+                _r1 = _mm_add_epi8(_r1, _v127);
+#endif // __AVXVNNIINT8__
+
+#else // __AVX512VNNI__ || __AVXVNNI__
                 __m128i _t0 = _mm_unpacklo_epi16(_r01, _r23);
                 __m128i _t1 = _mm_unpackhi_epi16(_r01, _r23);
 
                 __m128i _r0 = _mm_unpacklo_epi16(_t0, _t1);
                 __m128i _r1 = _mm_unpackhi_epi16(_t0, _t1);
+#endif // __AVX512VNNI__ || __AVXVNNI__
 
                 _mm_store_si128((__m128i*)pp, _r0);
                 _mm_store_si128((__m128i*)(pp + 16), _r1);
@@ -5911,6 +6060,48 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+#if __AVX512VNNI__ || __AVXVNNI__
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+#if __AVXVNNIINT8__
+                pp[0] = p0[0];
+                pp[1] = p0[bottom_blob.cstep];
+                pp[2] = p0[bottom_blob.cstep * 2];
+                pp[3] = p0[bottom_blob.cstep * 3];
+                pp[4] = p0[1];
+                pp[5] = p0[bottom_blob.cstep + 1];
+                pp[6] = p0[bottom_blob.cstep * 2 + 1];
+                pp[7] = p0[bottom_blob.cstep * 3 + 1];
+                pp[8] = p0[2];
+                pp[9] = p0[bottom_blob.cstep + 2];
+                pp[10] = p0[bottom_blob.cstep * 2 + 2];
+                pp[11] = p0[bottom_blob.cstep * 3 + 2];
+                pp[12] = p0[3];
+                pp[13] = p0[bottom_blob.cstep + 3];
+                pp[14] = p0[bottom_blob.cstep * 2 + 3];
+                pp[15] = p0[bottom_blob.cstep * 3 + 3];
+#else  // __AVXVNNIINT8__
+                pp[0] = p0[0] + 127;
+                pp[1] = p0[bottom_blob.cstep] + 127;
+                pp[2] = p0[bottom_blob.cstep * 2] + 127;
+                pp[3] = p0[bottom_blob.cstep * 3] + 127;
+                pp[4] = p0[1] + 127;
+                pp[5] = p0[bottom_blob.cstep + 1] + 127;
+                pp[6] = p0[bottom_blob.cstep * 2 + 1] + 127;
+                pp[7] = p0[bottom_blob.cstep * 3 + 1] + 127;
+                pp[8] = p0[2] + 127;
+                pp[9] = p0[bottom_blob.cstep + 2] + 127;
+                pp[10] = p0[bottom_blob.cstep * 2 + 2] + 127;
+                pp[11] = p0[bottom_blob.cstep * 3 + 2] + 127;
+                pp[12] = p0[3] + 127;
+                pp[13] = p0[bottom_blob.cstep + 3] + 127;
+                pp[14] = p0[bottom_blob.cstep * 2 + 3] + 127;
+                pp[15] = p0[bottom_blob.cstep * 3 + 3] + 127;
+#endif // __AVXVNNIINT8__
+                pp += 16;
+                p0 += bottom_blob.cstep * 4;
+            }
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -5948,7 +6139,15 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             {
                 __m128i _r0 = _mm_loadl_epi64((const __m128i*)p0);
                 __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + 8));
+#if __AVX512VNNI__ || __AVXVNNI__
+                __m128i _r01 = _mm_unpacklo_epi32(_r0, _r1);
+#if __AVXVNNIINT8__
+#else  // __AVXVNNIINT8__
+                _r01 = _mm_add_epi8(_r01, _mm_set1_epi8(127));
+#endif // __AVXVNNIINT8__
+#else // __AVX512VNNI__ || __AVXVNNI__
                 __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
+#endif // __AVX512VNNI__ || __AVXVNNI__
                 _mm_storeu_si128((__m128i*)pp, _r01);
                 pp += 16;
                 p0 += bottom_blob.cstep * 8;
@@ -5961,6 +6160,32 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+#if __AVX512VNNI__ || __AVXVNNI__
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+#if __AVXVNNIINT8__
+                pp[0] = p0[0];
+                pp[1] = p0[bottom_blob.cstep];
+                pp[2] = p0[bottom_blob.cstep * 2];
+                pp[3] = p0[bottom_blob.cstep * 3];
+                pp[4] = p0[1];
+                pp[5] = p0[bottom_blob.cstep + 1];
+                pp[6] = p0[bottom_blob.cstep * 2 + 1];
+                pp[7] = p0[bottom_blob.cstep * 3 + 1];
+#else  // __AVXVNNIINT8__
+                pp[0] = p0[0] + 127;
+                pp[1] = p0[bottom_blob.cstep] + 127;
+                pp[2] = p0[bottom_blob.cstep * 2] + 127;
+                pp[3] = p0[bottom_blob.cstep * 3] + 127;
+                pp[4] = p0[1] + 127;
+                pp[5] = p0[bottom_blob.cstep + 1] + 127;
+                pp[6] = p0[bottom_blob.cstep * 2 + 1] + 127;
+                pp[7] = p0[bottom_blob.cstep * 3 + 1] + 127;
+#endif // __AVXVNNIINT8__
+                pp += 8;
+                p0 += bottom_blob.cstep * 4;
+            }
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -5989,7 +6214,15 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                _mm_storel_epi64((__m128i*)pp, _mm_loadl_epi64((const __m128i*)p0));
+                __m128i _r0 = _mm_loadl_epi64((const __m128i*)p0);
+#if __AVX512VNNI__ || __AVXVNNI__
+#if __AVXVNNIINT8__
+#else  // __AVXVNNIINT8__
+                __m128i _v127 = _mm_set1_epi8(127);
+                _r0 = _mm_add_epi8(_r0, _v127);
+#endif // __AVXVNNIINT8__
+#endif // __AVX512VNNI__ || __AVXVNNI__
+                _mm_storel_epi64((__m128i*)pp, _r0);
                 pp += 8;
                 p0 += bottom_blob.cstep * 8;
             }
@@ -6001,6 +6234,24 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+#if __AVX512VNNI__ || __AVXVNNI__
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+#if __AVXVNNIINT8__
+                pp[0] = p0[0];
+                pp[1] = p0[bottom_blob.cstep];
+                pp[2] = p0[bottom_blob.cstep * 2];
+                pp[3] = p0[bottom_blob.cstep * 3];
+#else  // __AVXVNNIINT8__
+                pp[0] = p0[0] + 127;
+                pp[1] = p0[bottom_blob.cstep] + 127;
+                pp[2] = p0[bottom_blob.cstep * 2] + 127;
+                pp[3] = p0[bottom_blob.cstep * 3] + 127;
+#endif // __AVXVNNIINT8__
+                pp += 4;
+                p0 += bottom_blob.cstep * 4;
+            }
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -6057,10 +6308,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
         }
 
         __m512i _dxy_offset = _mm512_add_epi32(_dx, _dy);
-
-        // const int dy0 = (j + jj) / outw;
-        // const int dyf = (j + jj + 15) / outw;
-        // const int dx0 = (j + jj) % outw;
 
         const int dy0 = _mm_extract_epi32(_mm512_extracti32x4_epi32(_dy, 0), 0);
         const int dyf = _mm_extract_epi32(_mm512_extracti32x4_epi32(_dy, 3), 3);
@@ -6549,155 +6796,236 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
 #endif // __AVX2__
 
-        int dy0 = (j + jj) / outw;
-        int dy1 = (j + jj + 1) / outw;
-        int dy2 = (j + jj + 2) / outw;
-        int dy3 = (j + jj + 3) / outw;
-        int dy4 = (j + jj + 4) / outw;
-        int dy5 = (j + jj + 5) / outw;
-        int dy6 = (j + jj + 6) / outw;
-        int dy7 = (j + jj + 7) / outw;
-        int dx0 = (j + jj) % outw;
-        int dx1 = (j + jj + 1) % outw;
-        int dx2 = (j + jj + 2) % outw;
-        int dx3 = (j + jj + 3) % outw;
-        int dx4 = (j + jj + 4) % outw;
-        int dx5 = (j + jj + 5) % outw;
-        int dx6 = (j + jj + 6) % outw;
-        int dx7 = (j + jj + 7) % outw;
+#if __AVX2__
+        const int dy0 = _mm_extract_epi32(_mm256_extracti128_si256(_dy, 0), 0);
+        const int dy7 = _mm_extract_epi32(_mm256_extracti128_si256(_dy, 1), 3);
+#else
+        const int dy0 = _mm_cvtsi128_si32(_dy0);
+        const int dy7 = _mm_cvtsi128_si32(_mm_shuffle_epi32(_dy1, _MM_SHUFFLE(3, 3, 3, 3)));
+#endif
 
-        // if (dy0 == dy7)
-        // {
-        //     int kk = 0;
-        //     if (elempack == 1)
-        //     {
-        //         for (; kk + 1 < max_kk; kk += 2)
-        //         {
-        //             int p0 = (k + kk) / maxk;
-        //             int p1 = (k + kk + 1) / maxk;
-        //             int uv0 = (k + kk) % maxk;
-        //             int uv1 = (k + kk + 1) % maxk;
-        //             int u0 = uv0 / kernel_w;
-        //             int u1 = uv1 / kernel_w;
-        //             int v0 = uv0 % kernel_w;
-        //             int v1 = uv1 % kernel_w;
-        //
-        //             const Mat img0 = bottom_blob.channel(p0);
-        //             const Mat img1 = bottom_blob.channel(p1);
-        //
-        //             int x00 = stride_w * dx0 + dilation_w * v0;
-        //             int y00 = stride_h * dy0 + dilation_h * u0;
-        //             int x10 = stride_w * dx0 + dilation_w * v1;
-        //             int y10 = stride_h * dy0 + dilation_h * u1;
-        //
-        //             const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
-        //             const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
-        //
-        //             if (stride_w == 1)
-        //             {
-        //                 __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
-        //                 __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
-        //                 __m128i _r01 = _mm_unpacklo_epi8(_r0, _r1);
-        //                 _mm_storeu_si128((__m128i*)pp, _r01);
-        //                 pp += 16;
-        //             }
-        //             else if (stride_w == 2)
-        //             {
-        //                 __m128i _r0 = _mm_loadu_si128((const __m128i*)sptr0);
-        //                 __m128i _r1 = _mm_loadu_si128((const __m128i*)sptr1);
-        //                 __m128i _tmp0 = _mm_unpacklo_epi8(_r0, _r1);
-        //                 __m128i _tmp1 = _mm_unpackhi_epi8(_r0, _r1);
-        //                 _tmp0 = _mm_shufflehi_epi16(_mm_shufflelo_epi16(_tmp0, _MM_SHUFFLE(3, 1, 2, 0)), _MM_SHUFFLE(3, 1, 2, 0));
-        //                 _tmp1 = _mm_shufflehi_epi16(_mm_shufflelo_epi16(_tmp1, _MM_SHUFFLE(3, 1, 2, 0)), _MM_SHUFFLE(3, 1, 2, 0));
-        //                 _tmp0 = _mm_shuffle_epi32(_tmp0, _MM_SHUFFLE(3, 1, 2, 0));
-        //                 _tmp1 = _mm_shuffle_epi32(_tmp1, _MM_SHUFFLE(3, 1, 2, 0));
-        //                 __m128i _r01 = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(_tmp0), _mm_castsi128_ps(_tmp1), _MM_SHUFFLE(1, 0, 1, 0)));
-        //                 _mm_storeu_si128((__m128i*)pp, _r01);
-        //                 pp += 16;
-        //             }
-        //             else
-        //             {
-        //                 pp[0] = sptr0[0];
-        //                 pp[1] = sptr1[0];
-        //                 pp[2] = sptr0[stride_w];
-        //                 pp[3] = sptr1[stride_w];
-        //                 pp[4] = sptr0[stride_w * 2];
-        //                 pp[5] = sptr1[stride_w * 2];
-        //                 pp[6] = sptr0[stride_w * 3];
-        //                 pp[7] = sptr1[stride_w * 3];
-        //                 pp[8] = sptr0[stride_w * 4];
-        //                 pp[9] = sptr1[stride_w * 4];
-        //                 pp[10] = sptr0[stride_w * 5];
-        //                 pp[11] = sptr1[stride_w * 5];
-        //                 pp[12] = sptr0[stride_w * 6];
-        //                 pp[13] = sptr1[stride_w * 6];
-        //                 pp[14] = sptr0[stride_w * 7];
-        //                 pp[15] = sptr1[stride_w * 7];
-        //                 pp += 16;
-        //             }
-        //         }
-        //     }
-        //     for (; kk < max_kk / elempack; kk++)
-        //     {
-        //         int p = (k / elempack + kk) / maxk;
-        //         int uv = (k / elempack + kk) % maxk;
-        //         int u = uv / kernel_w;
-        //         int v = uv % kernel_w;
-        //
-        //         const Mat img = bottom_blob.channel(p);
-        //
-        //         int x0 = stride_w * dx0 + dilation_w * v;
-        //         int y0 = stride_h * dy0 + dilation_h * u;
-        //
-        //         const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
-        //
-        //         if (elempack == 8)
-        //         {
-        //             __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr);
-        //             __m128i _r1 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 8));
-        //             __m128i _r2 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 16));
-        //             __m128i _r3 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 24));
-        //             __m128i _r4 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 32));
-        //             __m128i _r5 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 40));
-        //             __m128i _r6 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 48));
-        //             __m128i _r7 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 56));
-        //             __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
-        //             __m128i _r23 = _mm_unpacklo_epi16(_r2, _r3);
-        //             __m128i _r45 = _mm_unpacklo_epi16(_r4, _r5);
-        //             __m128i _r67 = _mm_unpacklo_epi16(_r6, _r7);
-        //             _r0 = _mm_unpacklo_epi32(_r01, _r23);
-        //             _r1 = _mm_unpackhi_epi32(_r01, _r23);
-        //             _r2 = _mm_unpacklo_epi32(_r45, _r67);
-        //             _r3 = _mm_unpackhi_epi32(_r45, _r67);
-        //             _r4 = _mm_unpacklo_epi64(_r0, _r2);
-        //             _r5 = _mm_unpackhi_epi64(_r0, _r2);
-        //             _r6 = _mm_unpacklo_epi64(_r1, _r3);
-        //             _r7 = _mm_unpackhi_epi64(_r1, _r3);
-        //             _mm_storeu_si128((__m128i*)pp, _r4);
-        //             _mm_storeu_si128((__m128i*)(pp + 16), _r5);
-        //             _mm_storeu_si128((__m128i*)(pp + 32), _r6);
-        //             _mm_storeu_si128((__m128i*)(pp + 48), _r7);
-        //             pp += 64;
-        //         }
-        //         if (elempack == 1)
-        //         {
-        //             pp[0] = sptr[0];
-        //             pp[1] = sptr[stride_w];
-        //             pp[2] = sptr[stride_w * 2];
-        //             pp[3] = sptr[stride_w * 3];
-        //             pp[4] = sptr[stride_w * 4];
-        //             pp[5] = sptr[stride_w * 5];
-        //             pp[6] = sptr[stride_w * 6];
-        //             pp[7] = sptr[stride_w * 7];
-        //             pp += 8;
-        //         }
-        //     }
-        // }
-        // else
+        if (dy0 == dy7 && stride_w == 1)
         {
-            int kk = 0;
+            // NCNN_LOGE("qaq");
+#if __AVX2__
+            const int dx0 = _mm_extract_epi32(_mm256_extracti128_si256(_dx, 0), 0);
+#else
+            const int dx0 = _mm_cvtsi128_si32(_dx0);
+#endif
+
+            const int dxy_offset = dx0 + dy0;
+
             if (elempack == 1)
             {
+                int kk = 0;
+#if __AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128i _puv_offset;
+                    {
+                        __m128i _offset = _mm_setr_epi32(0, 1, 2, 3);
+                        __m128i _puv = _mm_add_epi32(_mm_set1_epi32(k + kk), _offset);
+                        __m128i _p = div_maxk._mm_comp_div_epu32(_puv);
+                        __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
+                        __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
+                        __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
+                        _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
+                        _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
+                        _puv_offset = _mm_add_epi32(_p, _mm_add_epi32(_u, _v));
+                    }
+
+                    __m128i _offset = _mm_add_epi32(_mm_set1_epi32(dxy_offset), _puv_offset);
+
+                    __m256i _p0 = _mm256_i32gather_epi64((const long long int*)bottom_blob, _offset, sizeof(signed char));
+
+                    // 0000000011111111 2222222233333333
+
+                    _p0 = _mm256_shuffle_epi32(_p0, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    // 0000111100001111 2222333322223333
+
+                    _p0 = _mm256_permute4x64_epi64(_p0, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    // 0000111122223333 0000111122223333
+
+                    _p0 = _mm256_shuffle_epi8(_p0, _mm256_setr_epi8(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15, 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15));
+
+#if __AVXVNNIINT8__
+#else
+                    __m256i _v127 = _mm256_set1_epi8(127);
+                    _p0 = _mm256_add_epi8(_p0, _v127);
+#endif
+
+                    _mm256_storeu_si256((__m256i*)pp, _p0);
+                    pp += 32;
+                }
+#endif //__AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+
+                    int offset0 = dxy_offset + p0 * bottom_blob.cstep + u0 * dilation_h * w + v0 * dilation_w;
+                    int offset1 = dxy_offset + p1 * bottom_blob.cstep + u1 * dilation_h * w + v1 * dilation_w;
+
+                    __m128i _p0 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offset0));
+                    __m128i _p1 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offset1));
+
+                    __m128i _r01 = _mm_unpacklo_epi8(_p0, _p1);
+                    _mm_storeu_si128((__m128i*)pp, _r01);
+                    pp += 16;
+                }
+                for (; kk < max_kk; kk += 1)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+
+                    int offset0 = dxy_offset + p0 * bottom_blob.cstep + u0 * dilation_h * w + v0 * dilation_w;
+
+                    __m128i _r0 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offset0));
+                    _mm_storel_epi64((__m128i*)pp, _r0);
+                    pp += 8;
+                }
+            }
+            if (elempack == 8)
+            {
+                int kk = 0;
+                for (; kk < max_kk / 8; kk++)
+                {
+                    int p = (k / 8 + kk) / maxk;
+                    int uv = (k / 8 + kk) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    int offset = (dxy_offset + p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w) * 8;
+
+#if __AVX2__
+                    __m256i _r0 = _mm256_loadu_si256((const __m256i*)((const signed char*)bottom_blob + offset));
+                    __m256i _r1 = _mm256_loadu_si256((const __m256i*)((const signed char*)bottom_blob + offset + 32));
+
+#if __AVX512VNNI__ || __AVXVNNI__
+
+                    // 0011 2233
+                    // 4455 6677
+
+                    __m256i _r2 = _mm256_unpacklo_epi32(_r0, _r1);
+                    __m256i _r3 = _mm256_unpackhi_epi32(_r0, _r1);
+
+                    // 0404 2626
+                    // 1515 3737
+
+                    _r0 = _mm256_unpacklo_epi32(_r2, _r3);
+                    _r1 = _mm256_unpackhi_epi32(_r2, _r3);
+
+                    // 0145 2367
+                    // 0145 2367
+
+                    _r0 = _mm256_permute4x64_epi64(_r0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _r1 = _mm256_permute4x64_epi64(_r1, _MM_SHUFFLE(3, 1, 2, 0));
+
+#if __AVXVNNIINT8__
+#else  // __AVXVNNIINT8__
+                    __m256i _v127 = _mm256_set1_epi8(127);
+                    _r0 = _mm256_add_epi8(_r0, _v127);
+                    _r1 = _mm256_add_epi8(_r1, _v127);
+#endif // __AVXVNNIINT8__
+
+#else // __AVX512VNNI__ || __AVXVNNI__
+
+                    // 00001111 22223333
+                    // 44445555 66667777
+
+                    __m256i _r2 = _mm256_unpacklo_epi16(_r0, _r1);
+                    __m256i _r3 = _mm256_unpackhi_epi16(_r0, _r1);
+
+                    // 04040404 26262626
+                    // 15151515 37373737
+
+                    _r0 = _mm256_unpacklo_epi16(_r2, _r3);
+                    _r1 = _mm256_unpackhi_epi16(_r2, _r3);
+
+                    // 01450145 23672367
+                    // 01450145 23672367
+
+                    _r0 = _mm256_permute4x64_epi64(_r0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _r1 = _mm256_permute4x64_epi64(_r1, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    // 01452367 01452367
+                    // 01452367 01452367
+
+                    _r0 = _mm256_shuffle_epi32(_r0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _r1 = _mm256_shuffle_epi32(_r1, _MM_SHUFFLE(3, 1, 2, 0));
+
+
+#endif // __AVX512VNNI__ || __AVXVNNI__
+
+                    _mm256_storeu_si256((__m256i*)pp, _r0);
+                    _mm256_storeu_si256((__m256i*)(pp + 32), _r1);
+
+#else // __AVX2__
+                    __m128i _r0 = _mm_loadu_si128((const __m128i*)((const signed char*)bottom_blob + offset));
+                    __m128i _r1 = _mm_loadu_si128((const __m128i*)((const signed char*)bottom_blob + offset + 16));
+                    __m128i _r2 = _mm_loadu_si128((const __m128i*)((const signed char*)bottom_blob + offset + 32));
+                    __m128i _r3 = _mm_loadu_si128((const __m128i*)((const signed char*)bottom_blob + offset + 48));
+
+                    // 00001111
+                    // 22223333
+                    // 44445555
+                    // 66667777
+
+                    __m128i _r4 = _mm_unpacklo_epi16(_r0, _r1);
+                    __m128i _r5 = _mm_unpackhi_epi16(_r0, _r1);
+                    __m128i _r6 = _mm_unpacklo_epi16(_r2, _r3);
+                    __m128i _r7 = _mm_unpackhi_epi16(_r2, _r3);
+
+                    // 02020202
+                    // 13131313
+                    // 46464646
+                    // 57575757
+
+                    _r0 = _mm_unpacklo_epi16(_r4, _r5);
+                    _r1 = _mm_unpacklo_epi16(_r6, _r7);
+                    _r2 = _mm_unpackhi_epi16(_r4, _r5);
+                    _r3 = _mm_unpackhi_epi16(_r6, _r7);
+
+                    // 01230123
+                    // 45674567
+                    // 01230123
+                    // 45674567
+
+                    _r4 = _mm_unpacklo_epi64(_r0, _r1);
+                    _r5 = _mm_unpackhi_epi64(_r0, _r1);
+                    _r6 = _mm_unpacklo_epi64(_r2, _r3);
+                    _r7 = _mm_unpackhi_epi64(_r2, _r3);
+
+                    // NCNN_LOGE("qwq");
+
+                    _mm_storeu_si128((__m128i*)pp, _r4);
+                    _mm_storeu_si128((__m128i*)(pp + 16), _r5);
+                    _mm_storeu_si128((__m128i*)(pp + 32), _r6);
+                    _mm_storeu_si128((__m128i*)(pp + 48), _r7);
+
+#endif // __AVX2__
+
+                    pp += 64;
+                }
+            }
+        }
+        else
+        {
+            if (elempack == 1)
+            {
+                int kk = 0;
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk; kk += 4)
                 {
@@ -6831,7 +7159,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     __m128i _p0 = _mm256_comp_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
 
-                    _mm_store_ss((float*)pp, _mm_castsi128_ps(_p0));
+                    _mm_storel_epi64((__m128i*)pp, _p0);
 
 #else // __AVX2__
 
@@ -6859,6 +7187,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
             }
             if (elempack == 8)
             {
+                int kk = 0;
                 for (; kk < max_kk / 8; kk++)
                 {
                     int p = (k / 8 + kk) / maxk;
@@ -6866,60 +7195,97 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     int u = uv / kernel_w;
                     int v = uv % kernel_w;
 
-                    const Mat img = bottom_blob.channel(p);
+                    int puv_offset = p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w;
 
-                    int x0 = stride_w * dx0 + dilation_w * v;
-                    int x1 = stride_w * dx1 + dilation_w * v;
-                    int x2 = stride_w * dx2 + dilation_w * v;
-                    int x3 = stride_w * dx3 + dilation_w * v;
-                    int x4 = stride_w * dx4 + dilation_w * v;
-                    int x5 = stride_w * dx5 + dilation_w * v;
-                    int x6 = stride_w * dx6 + dilation_w * v;
-                    int x7 = stride_w * dx7 + dilation_w * v;
-                    int y0 = stride_h * dy0 + dilation_h * u;
-                    int y1 = stride_h * dy1 + dilation_h * u;
-                    int y2 = stride_h * dy2 + dilation_h * u;
-                    int y3 = stride_h * dy3 + dilation_h * u;
-                    int y4 = stride_h * dy4 + dilation_h * u;
-                    int y5 = stride_h * dy5 + dilation_h * u;
-                    int y6 = stride_h * dy6 + dilation_h * u;
-                    int y7 = stride_h * dy7 + dilation_h * u;
+#if __AVX2__
+                    __m256i _vindex = _mm256_add_epi32(_dxy_offset, _mm256_set1_epi32(puv_offset));
 
-                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
-                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
-                    const signed char* sptr2 = img.row<const signed char>(y2) + x2 * 8;
-                    const signed char* sptr3 = img.row<const signed char>(y3) + x3 * 8;
-                    const signed char* sptr4 = img.row<const signed char>(y4) + x4 * 8;
-                    const signed char* sptr5 = img.row<const signed char>(y5) + x5 * 8;
-                    const signed char* sptr6 = img.row<const signed char>(y6) + x6 * 8;
-                    const signed char* sptr7 = img.row<const signed char>(y7) + x7 * 8;
+                    _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(8));
 
-                    __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
-                    __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
-                    __m128i _r2 = _mm_loadl_epi64((const __m128i*)sptr2);
-                    __m128i _r3 = _mm_loadl_epi64((const __m128i*)sptr3);
-                    __m128i _r4 = _mm_loadl_epi64((const __m128i*)sptr4);
-                    __m128i _r5 = _mm_loadl_epi64((const __m128i*)sptr5);
-                    __m128i _r6 = _mm_loadl_epi64((const __m128i*)sptr6);
-                    __m128i _r7 = _mm_loadl_epi64((const __m128i*)sptr7);
+                    __m256i _r0 = _mm256_i32gather_epi64((const long long int*)bottom_blob, _mm256_extracti128_si256(_vindex, 0), sizeof(signed char));
+                    __m256i _r1 = _mm256_i32gather_epi64((const long long int*)bottom_blob, _mm256_extracti128_si256(_vindex, 1), sizeof(signed char));
+
 #if __AVX512VNNI__ || __AVXVNNI__
-                    __m128i _r01 = _mm_unpacklo_epi32(_r0, _r1);
-                    __m128i _r23 = _mm_unpacklo_epi32(_r2, _r3);
-                    __m128i _r45 = _mm_unpacklo_epi32(_r4, _r5);
-                    __m128i _r67 = _mm_unpacklo_epi32(_r6, _r7);
-                    _r4 = _mm_unpacklo_epi64(_r01, _r23);
-                    _r5 = _mm_unpacklo_epi64(_r45, _r67);
-                    _r6 = _mm_unpackhi_epi64(_r01, _r23);
-                    _r7 = _mm_unpackhi_epi64(_r45, _r67);
+
+                    // 0011 2233
+                    // 4455 6677
+
+                    __m256i _r2 = _mm256_unpacklo_epi32(_r0, _r1);
+                    __m256i _r3 = _mm256_unpackhi_epi32(_r0, _r1);
+
+                    // 0404 2626
+                    // 1515 3737
+
+                    _r0 = _mm256_unpacklo_epi32(_r2, _r3);
+                    _r1 = _mm256_unpackhi_epi32(_r2, _r3);
+
+                    // 0145 2367
+                    // 0145 2367
+
+                    _r0 = _mm256_permute4x64_epi64(_r0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _r1 = _mm256_permute4x64_epi64(_r1, _MM_SHUFFLE(3, 1, 2, 0));
+
 #if __AVXVNNIINT8__
 #else  // __AVXVNNIINT8__
-                    __m128i _v127 = _mm_set1_epi8(127);
-                    _r4 = _mm_add_epi8(_r4, _v127);
-                    _r5 = _mm_add_epi8(_r5, _v127);
-                    _r6 = _mm_add_epi8(_r6, _v127);
-                    _r7 = _mm_add_epi8(_r7, _v127);
+                    __m256i _v127 = _mm256_set1_epi8(127);
+                    _r0 = _mm256_add_epi8(_r0, _v127);
+                    _r1 = _mm256_add_epi8(_r1, _v127);
 #endif // __AVXVNNIINT8__
-#else  // __AVX512VNNI__ || __AVXVNNI__
+
+#else // __AVX512VNNI__ || __AVXVNNI__
+
+                    // 00001111 22223333
+                    // 44445555 66667777
+
+                    __m256i _r2 = _mm256_unpacklo_epi16(_r0, _r1);
+                    __m256i _r3 = _mm256_unpackhi_epi16(_r0, _r1);
+
+                    // 04040404 26262626
+                    // 15151515 37373737
+
+                    _r0 = _mm256_unpacklo_epi16(_r2, _r3);
+                    _r1 = _mm256_unpackhi_epi16(_r2, _r3);
+
+                    // 01450145 23672367
+                    // 01450145 23672367
+
+                    _r0 = _mm256_permute4x64_epi64(_r0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _r1 = _mm256_permute4x64_epi64(_r1, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    // 01452367 01452367
+                    // 01452367 01452367
+
+                    _r0 = _mm256_shuffle_epi32(_r0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _r1 = _mm256_shuffle_epi32(_r1, _MM_SHUFFLE(3, 1, 2, 0));
+
+#endif // __AVX512VNNI__ || __AVXVNNI__
+
+                    _mm256_storeu_si256((__m256i*)pp, _r0);
+                    _mm256_storeu_si256((__m256i*)(pp + 32), _r1);
+#else // __AVX2__
+
+                    __m128i _vindex0 = _mm_add_epi32(_dxy_offset0, _mm_set1_epi32(puv_offset));
+                    __m128i _vindex1 = _mm_add_epi32(_dxy_offset1, _mm_set1_epi32(puv_offset));
+
+                    _vindex0 = _mm_comp_mullo_epi32(_vindex0, _mm_set1_epi32(8));
+                    _vindex1 = _mm_comp_mullo_epi32(_vindex1, _mm_set1_epi32(8));
+
+                    int offsets0[4];
+                    int offsets1[4];
+                    _mm_storeu_si128((__m128i*)offsets0, _vindex0);
+                    _mm_storeu_si128((__m128i*)offsets1, _vindex1);
+
+                    __m128i _r0 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets0[0]));
+                    __m128i _r1 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets0[1]));
+                    __m128i _r2 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets0[2]));
+                    __m128i _r3 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets0[3]));
+                    __m128i _r4 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets1[0]));
+                    __m128i _r5 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets1[1]));
+                    __m128i _r6 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets1[2]));
+                    __m128i _r7 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets1[3]));
+
+                    // NCNN_LOGE("qwq");
+
                     __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
                     __m128i _r23 = _mm_unpacklo_epi16(_r2, _r3);
                     __m128i _r45 = _mm_unpacklo_epi16(_r4, _r5);
@@ -6932,11 +7298,12 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r5 = _mm_unpackhi_epi64(_r0, _r2);
                     _r6 = _mm_unpacklo_epi64(_r1, _r3);
                     _r7 = _mm_unpackhi_epi64(_r1, _r3);
-#endif // __AVX512VNNI__ || __AVXVNNI__
+
                     _mm_storeu_si128((__m128i*)pp, _r4);
                     _mm_storeu_si128((__m128i*)(pp + 16), _r5);
                     _mm_storeu_si128((__m128i*)(pp + 32), _r6);
                     _mm_storeu_si128((__m128i*)(pp + 48), _r7);
+#endif // __AVX2__
                     pp += 64;
                 }
             }
@@ -6959,117 +7326,158 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
         __m128i _dxy_offset = _mm_add_epi32(_dx, _dy);
 
-        // int dy0 = (j + jj) / outw;
-        // int dy1 = (j + jj + 1) / outw;
-        // int dy2 = (j + jj + 2) / outw;
-        // int dy3 = (j + jj + 3) / outw;
-        // int dx0 = (j + jj) % outw;
-        // int dx1 = (j + jj + 1) % outw;
-        // int dx2 = (j + jj + 2) % outw;
-        // int dx3 = (j + jj + 3) % outw;
+        const int dy0 = _mm_cvtsi128_si32(_dy);
+        const int dy3 = _mm_cvtsi128_si32(_mm_shuffle_epi32(_dy, _MM_SHUFFLE(3, 3, 3, 3)));
 
-        // if (dy0 == dy3)
-        // {
-        //     int kk = 0;
-        //     if (elempack == 1)
-        //     {
-        //         for (; kk + 1 < max_kk; kk += 2)
-        //         {
-        //             int p0 = (k + kk) / maxk;
-        //             int p1 = (k + kk + 1) / maxk;
-        //             int uv0 = (k + kk) % maxk;
-        //             int uv1 = (k + kk + 1) % maxk;
-        //             int u0 = uv0 / kernel_w;
-        //             int u1 = uv1 / kernel_w;
-        //             int v0 = uv0 % kernel_w;
-        //             int v1 = uv1 % kernel_w;
-        //
-        //             const Mat img0 = bottom_blob.channel(p0);
-        //             const Mat img1 = bottom_blob.channel(p1);
-        //
-        //             int x00 = stride_w * dx0 + dilation_w * v0;
-        //             int y00 = stride_h * dy0 + dilation_h * u0;
-        //             int x10 = stride_w * dx0 + dilation_w * v1;
-        //             int y10 = stride_h * dy0 + dilation_h * u1;
-        //
-        //             const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
-        //             const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
-        //
-        //             if (stride_w == 1)
-        //             {
-        //                 __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
-        //                 __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
-        //                 __m128i _r01 = _mm_unpacklo_epi8(_r0, _r1);
-        //                 _mm_storel_epi64((__m128i*)pp, _r01);
-        //                 pp += 8;
-        //             }
-        //             else if (stride_w == 2)
-        //             {
-        //                 __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
-        //                 __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
-        //                 __m128i _r01 = _mm_unpacklo_epi8(_r0, _r1);
-        //                 _r01 = _mm_shufflehi_epi16(_mm_shufflelo_epi16(_r01, _MM_SHUFFLE(3, 1, 2, 0)), _MM_SHUFFLE(3, 1, 2, 0));
-        //                 _r01 = _mm_shuffle_epi32(_r01, _MM_SHUFFLE(3, 1, 2, 0));
-        //                 _mm_storel_epi64((__m128i*)pp, _r01);
-        //                 pp += 8;
-        //             }
-        //             else
-        //             {
-        //                 pp[0] = sptr0[0];
-        //                 pp[1] = sptr1[0];
-        //                 pp[2] = sptr0[stride_w];
-        //                 pp[3] = sptr1[stride_w];
-        //                 pp[4] = sptr0[stride_w * 2];
-        //                 pp[5] = sptr1[stride_w * 2];
-        //                 pp[6] = sptr0[stride_w * 3];
-        //                 pp[7] = sptr1[stride_w * 3];
-        //                 pp += 8;
-        //             }
-        //         }
-        //     }
-        //     for (; kk < max_kk / elempack; kk++)
-        //     {
-        //         int p = (k / elempack + kk) / maxk;
-        //         int uv = (k / elempack + kk) % maxk;
-        //         int u = uv / kernel_w;
-        //         int v = uv % kernel_w;
-        //
-        //         const Mat img = bottom_blob.channel(p);
-        //
-        //         int x0 = stride_w * dx0 + dilation_w * v;
-        //         int y0 = stride_h * dy0 + dilation_h * u;
-        //
-        //         const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
-        //
-        //         if (elempack == 8)
-        //         {
-        //             __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr);
-        //             __m128i _r1 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 8));
-        //             __m128i _r2 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 16));
-        //             __m128i _r3 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 24));
-        //             __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
-        //             __m128i _r23 = _mm_unpacklo_epi16(_r2, _r3);
-        //             _r0 = _mm_unpacklo_epi32(_r01, _r23);
-        //             _r1 = _mm_unpackhi_epi32(_r01, _r23);
-        //             _mm_storeu_si128((__m128i*)pp, _r0);
-        //             _mm_storeu_si128((__m128i*)(pp + 16), _r1);
-        //             pp += 32;
-        //         }
-        //         if (elempack == 1)
-        //         {
-        //             pp[0] = sptr[0];
-        //             pp[1] = sptr[stride_w];
-        //             pp[2] = sptr[stride_w * 2];
-        //             pp[3] = sptr[stride_w * 3];
-        //             pp += 4;
-        //         }
-        //     }
-        // }
-        // else
+        if (dy0 == dy3 && stride_w == 1)
         {
-            int kk = 0;
+            const int dx0 = _mm_cvtsi128_si32(_dx);
+
+            const int dxy_offset = dx0 + dy0;
+
             if (elempack == 1)
             {
+                int kk = 0;
+#if __AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128i _puv_offset;
+                    {
+                        __m128i _offset = _mm_setr_epi32(0, 1, 2, 3);
+                        __m128i _puv = _mm_add_epi32(_mm_set1_epi32(k + kk), _offset);
+                        __m128i _p = div_maxk._mm_comp_div_epu32(_puv);
+                        __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
+                        __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
+                        __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
+                        _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
+                        _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
+                        _puv_offset = _mm_add_epi32(_p, _mm_add_epi32(_u, _v));
+                    }
+
+                    __m128i _offset = _mm_add_epi32(_mm_set1_epi32(dxy_offset), _puv_offset);
+
+                    __m128i _r0 = _mm_i32gather_epi32((const int*)bottom_blob, _offset, sizeof(signed char));
+
+                    // 0000111122223333
+
+                    _r0 = _mm_shuffle_epi8(_r0, _mm_setr_epi8(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15));
+
+#if __AVXVNNIINT8__
+#else
+                    __m128i _v127 = _mm_set1_epi8(127);
+                    _r0 = _mm_add_epi8(_r0, _v127);
+#endif
+
+                    _mm_storeu_si128((__m128i*)pp, _r0);
+                    pp += 16;
+                }
+#endif // __AVX512VNNI__ || __AVXVNNI__
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+
+                    int offset0 = dxy_offset + p0 * bottom_blob.cstep + u0 * dilation_h * w + v0 * dilation_w;
+                    int offset1 = dxy_offset + p1 * bottom_blob.cstep + u1 * dilation_h * w + v1 * dilation_w;
+
+                    __m128i _r0 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offset0));
+                    __m128i _r1 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offset1));
+                    __m128i _r01 = _mm_unpacklo_epi8(_r0, _r1);
+                    _mm_storel_epi64((__m128i*)pp, _r01);
+                    pp += 8;
+                }
+                for (; kk < max_kk; kk += 1)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+
+                    int offset0 = dxy_offset + p0 * bottom_blob.cstep + u0 * dilation_h * w + v0 * dilation_w;
+
+                    pp[0] = ((const signed char*)bottom_blob)[offset0];
+                    pp[1] = ((const signed char*)bottom_blob)[offset0 + 1];
+                    pp[2] = ((const signed char*)bottom_blob)[offset0 + 2];
+                    pp[3] = ((const signed char*)bottom_blob)[offset0 + 3];
+
+                    pp += 4;
+                }
+            }
+            if (elempack == 8)
+            {
+                int kk = 0;
+                for (; kk < max_kk / 8; kk++)
+                {
+                    int p = (k / 8 + kk) / maxk;
+                    int uv = (k / 8 + kk) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    int offset = (dxy_offset + p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w) * 8;
+
+                    __m128i _r0 = _mm_loadu_si128((const __m128i*)((const signed char*)bottom_blob + offset));
+                    __m128i _r1 = _mm_loadu_si128((const __m128i*)((const signed char*)bottom_blob + offset + 16));
+
+#if __AVX512VNNI__ || __AVXVNNI__
+
+                    // 0011
+                    // 2233
+
+                    __m128i _r2 = _mm_unpacklo_epi32(_r0, _r1);
+                    __m128i _r3 = _mm_unpackhi_epi32(_r0, _r1);
+
+                    // 0202
+                    // 1313
+
+                    _r0 = _mm_unpacklo_epi32(_r2, _r3);
+                    _r1 = _mm_unpackhi_epi32(_r2, _r3);
+
+                    // 0123
+                    // 0123
+
+#if __AVXVNNIINT8__
+#else  // __AVXVNNIINT8__
+                    __m128i _v127 = _mm_set1_epi8(127);
+                    _r0 = _mm_add_epi8(_r0, _v127);
+                    _r1 = _mm_add_epi8(_r1, _v127);
+#endif // __AVXVNNIINT8__
+
+
+#else // __AVX512VNNI__ || __AVXVNNI__
+
+                    // 00001111
+                    // 22223333
+
+                    __m128i _r2 = _mm_unpacklo_epi16(_r0, _r1);
+                    __m128i _r3 = _mm_unpackhi_epi16(_r0, _r1);
+
+                    // 02020202
+                    // 13131313
+
+                    _r0 = _mm_unpacklo_epi16(_r2, _r3);
+                    _r1 = _mm_unpackhi_epi16(_r2, _r3);
+
+#endif // __AVX512VNNI__ || __AVXVNNI__
+
+                    _mm_storeu_si128((__m128i*)pp, _r0);
+                    _mm_storeu_si128((__m128i*)(pp + 16), _r1);
+                    pp += 32;
+                }
+            }
+        }
+        else
+        {
+            if (elempack == 1)
+            {
+                int kk = 0;
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk; kk += 4)
                 {
@@ -7194,6 +7602,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
             }
             if (elempack == 8)
             {
+                int kk = 0;
                 for (; kk < max_kk / 8; kk++)
                 {
                     // NCNN_LOGE("qwq");
@@ -7222,8 +7631,9 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r01 = _mm256_add_epi8(_r01, _v127);
 #endif // __AVXVNNIINT8__
 
-#else // __AVX512VNNI__ || __AVXVNNI__ \
-// 00001111 22223333
+#else // __AVX512VNNI__ || __AVXVNNI__
+
+                    // 00001111 22223333
                     _r01 = _mm256_shuffle_epi32(_r01, _MM_SHUFFLE(3, 1, 2, 0));
 
                     // 00110011 22332233
@@ -7276,8 +7686,16 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
         dx0 *= stride_w;
         dx1 *= stride_w;
 
-        if (dy0 == dy1)
+        dy0 *= w;
+        dy1 *= w;
+
+        const int dxy_offset0 = dx0 + dy0;
+        const int dxy_offset1 = dx1 + dy1;
+
+        if (dy0 == dy1 && stride_w == 1)
         {
+            const int dxy_offset = dxy_offset0;
+
             // NCNN_LOGE("qwq");
             if (elempack == 1)
             {
@@ -7285,61 +7703,40 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    int p0 = (k + kk) / maxk;
-                    int p1 = (k + kk + 1) / maxk;
-                    int p2 = (k + kk + 2) / maxk;
-                    int p3 = (k + kk + 3) / maxk;
-                    int uv0 = (k + kk) % maxk;
-                    int uv1 = (k + kk + 1) % maxk;
-                    int uv2 = (k + kk + 2) % maxk;
-                    int uv3 = (k + kk + 3) % maxk;
-                    int u0 = uv0 / kernel_w;
-                    int u1 = uv1 / kernel_w;
-                    int u2 = uv2 / kernel_w;
-                    int u3 = uv3 / kernel_w;
-                    int v0 = uv0 % kernel_w;
-                    int v1 = uv1 % kernel_w;
-                    int v2 = uv2 % kernel_w;
-                    int v3 = uv3 % kernel_w;
+                    __m128i _puv_offset;
+                    {
+                        __m128i _offset = _mm_setr_epi32(0, 1, 2, 3);
+                        __m128i _puv = _mm_add_epi32(_mm_set1_epi32(k + kk), _offset);
+                        __m128i _p = div_maxk._mm_comp_div_epu32(_puv);
+                        __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
+                        __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
+                        __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
+                        _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
+                        _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
+                        _puv_offset = _mm_add_epi32(_p, _mm_add_epi32(_u, _v));
+                    }
 
-                    const Mat img0 = bottom_blob.channel(p0);
-                    const Mat img1 = bottom_blob.channel(p1);
-                    const Mat img2 = bottom_blob.channel(p2);
-                    const Mat img3 = bottom_blob.channel(p3);
+                    __m128i _offset = _mm_add_epi32(_mm_set1_epi32(dxy_offset), _puv_offset);
 
-                    int x00 = dx0 + dilation_w * v0;
-                    int y00 = dy0 + dilation_h * u0;
-                    int x10 = dx0 + dilation_w * v1;
-                    int y10 = dy0 + dilation_h * u1;
-                    int x20 = dx0 + dilation_w * v2;
-                    int y20 = dy0 + dilation_h * u2;
-                    int x30 = dx0 + dilation_w * v3;
-                    int y30 = dy0 + dilation_h * u3;
+                    __m128i _r0 = _mm_comp_cvtepi32_epi16(_mm_i32gather_epi32((const int*)bottom_blob, _offset, sizeof(signed char)));
 
-                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
-                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
-                    const signed char* sptr2 = img2.row<const signed char>(y20) + x20;
-                    const signed char* sptr3 = img3.row<const signed char>(y30) + x30;
+                    // 00112233........
+
+                    _r0 = _mm_shuffle_epi8(_r0, _mm_setr_epi8(0, 2, 4, 6, 1, 3, 5, 7, 0, 0, 0, 0, 0, 0, 0, 0));
 
 #if __AVXVNNIINT8__
-                    pp[0] = sptr0[0];
-                    pp[1] = sptr1[0];
-                    pp[2] = sptr2[0];
-                    pp[3] = sptr3[0];
-                    pp[4] = sptr0[stride_w];
-                    pp[5] = sptr1[stride_w];
-                    pp[6] = sptr2[stride_w];
-                    pp[7] = sptr3[stride_w];
 #else  // __AVXVNNIINT8__
-                    pp[0] = sptr0[0] + 127;
-                    pp[1] = sptr1[0] + 127;
-                    pp[2] = sptr2[0] + 127;
-                    pp[3] = sptr3[0] + 127;
-                    pp[4] = sptr0[stride_w] + 127;
-                    pp[5] = sptr1[stride_w] + 127;
-                    pp[6] = sptr2[stride_w] + 127;
-                    pp[7] = sptr3[stride_w] + 127;
+
+                    __m128i _v127 = _mm_set1_epi8(127);
+
+                    _r0 = _mm_add_epi8(_r0, _v127);
+
 #endif // __AVXVNNIINT8__
+
+                    _mm_storel_epi64((__m128i*)pp, _r0);
+
                     pp += 8;
                 }
 #endif // __AVX512VNNI__ || __AVXVNNI__
@@ -7354,21 +7751,16 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     int v0 = uv0 % kernel_w;
                     int v1 = uv1 % kernel_w;
 
-                    const Mat img0 = bottom_blob.channel(p0);
-                    const Mat img1 = bottom_blob.channel(p1);
+                    int offset0 = dxy_offset + p0 * bottom_blob.cstep + u0 * dilation_h * w + v0 * dilation_w;
+                    int offset1 = dxy_offset + p1 * bottom_blob.cstep + u1 * dilation_h * w + v1 * dilation_w;
 
-                    int x00 = dx0 + dilation_w * v0;
-                    int y00 = dy0 + dilation_h * u0;
-                    int x10 = dx0 + dilation_w * v1;
-                    int y10 = dy0 + dilation_h * u1;
-
-                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
-                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr0 = (const signed char*)bottom_blob + offset0;
+                    const signed char* sptr1 = (const signed char*)bottom_blob + offset1;
 
                     pp[0] = sptr0[0];
                     pp[1] = sptr1[0];
-                    pp[2] = sptr0[stride_w];
-                    pp[3] = sptr1[stride_w];
+                    pp[2] = sptr0[1];
+                    pp[3] = sptr1[1];
                     pp += 4;
                 }
                 for (; kk < max_kk; kk += 1)
@@ -7378,15 +7770,12 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     int u0 = uv0 / kernel_w;
                     int v0 = uv0 % kernel_w;
 
-                    const Mat img0 = bottom_blob.channel(p0);
+                    int offset0 = dxy_offset + p0 * bottom_blob.cstep + u0 * dilation_h * w + v0 * dilation_w;
 
-                    int x00 = dx0 + dilation_w * v0;
-                    int y00 = dy0 + dilation_h * u0;
-
-                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr0 = (const signed char*)bottom_blob + offset0;
 
                     pp[0] = sptr0[0];
-                    pp[1] = sptr0[stride_w];
+                    pp[1] = sptr0[1];
                     pp += 2;
                 }
             }
@@ -7401,25 +7790,28 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     int u = uv / kernel_w;
                     int v = uv % kernel_w;
 
-                    const Mat img = bottom_blob.channel(p);
+                    int offset = (dxy_offset + p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w) * 8;
 
-                    int x0 = dx0 + dilation_w * v;
-                    int y0 = dy0 + dilation_h * u;
+                    const signed char* sptr = (const signed char*)bottom_blob + offset;
 
-                    const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+                    __m128i _r0 = _mm_loadu_si128((const __m128i*)sptr);
 
-                    __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr);
-                    __m128i _r1 = _mm_loadl_epi64((const __m128i*)(sptr + stride_w * 8));
 #if __AVX512VNNI__ || __AVXVNNI__
-                    __m128i _r01 = _mm_unpacklo_epi32(_r0, _r1);
+                    _r0 = _mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 1, 2, 0));
 #if __AVXVNNIINT8__
 #else  // __AVXVNNIINT8__
-                    _r01 = _mm_add_epi8(_r01, _mm_set1_epi8(127));
+                    _r0 = _mm_add_epi8(_r0, _mm_set1_epi8(127));
 #endif // __AVXVNNIINT8__
 #else  // __AVX512VNNI__ || __AVXVNNI__
-                    __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
+
+                    // 00001111
+                    _r0 = _mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    // 00110011
+                    _r0 = _mm_shufflehi_epi16(_mm_shufflelo_epi16(_r0, _MM_SHUFFLE(3, 1, 2, 0)), _MM_SHUFFLE(3, 1, 2, 0));
+
 #endif // __AVX512VNNI__ || __AVXVNNI__
-                    _mm_storeu_si128((__m128i*)pp, _r01);
+                    _mm_storeu_si128((__m128i*)pp, _r0);
                     pp += 16;
                 }
             }
@@ -7433,53 +7825,41 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk; kk += 4)
                 {
-                    int p0 = (k + kk) / maxk;
-                    int p1 = (k + kk + 1) / maxk;
-                    int p2 = (k + kk + 2) / maxk;
-                    int p3 = (k + kk + 3) / maxk;
-                    int uv0 = (k + kk) % maxk;
-                    int uv1 = (k + kk + 1) % maxk;
-                    int uv2 = (k + kk + 2) % maxk;
-                    int uv3 = (k + kk + 3) % maxk;
-                    int u0 = uv0 / kernel_w;
-                    int u1 = uv1 / kernel_w;
-                    int u2 = uv2 / kernel_w;
-                    int u3 = uv3 / kernel_w;
-                    int v0 = uv0 % kernel_w;
-                    int v1 = uv1 % kernel_w;
-                    int v2 = uv2 % kernel_w;
-                    int v3 = uv3 % kernel_w;
+                    __m128i _puv_offset;
+                    {
+                        __m128i _offset = _mm_setr_epi32(0, 1, 2, 3);
+                        __m128i _puv = _mm_add_epi32(_mm_set1_epi32(k + kk), _offset);
+                        __m128i _p = div_maxk._mm_comp_div_epu32(_puv);
+                        __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
+                        __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
+                        __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
+                        _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
+                        _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
+                        _puv_offset = _mm_add_epi32(_p, _mm_add_epi32(_u, _v));
+                    }
 
-                    const Mat img0 = bottom_blob.channel(p0);
-                    const Mat img1 = bottom_blob.channel(p1);
-                    const Mat img2 = bottom_blob.channel(p2);
-                    const Mat img3 = bottom_blob.channel(p3);
+                    int puv_offset[4];
+                    _mm_storeu_si128((__m128i*)puv_offset, _puv_offset);
 
-                    int x00 = dx0 + dilation_w * v0;
-                    int x01 = dx1 + dilation_w * v0;
-                    int y00 = dy0 + dilation_h * u0;
-                    int y01 = dy1 + dilation_h * u0;
-                    int x10 = dx0 + dilation_w * v1;
-                    int x11 = dx1 + dilation_w * v1;
-                    int y10 = dy0 + dilation_h * u1;
-                    int y11 = dy1 + dilation_h * u1;
-                    int x20 = dx0 + dilation_w * v2;
-                    int x21 = dx1 + dilation_w * v2;
-                    int y20 = dy0 + dilation_h * u2;
-                    int y21 = dy1 + dilation_h * u2;
-                    int x30 = dx0 + dilation_w * v3;
-                    int x31 = dx1 + dilation_w * v3;
-                    int y30 = dy0 + dilation_h * u3;
-                    int y31 = dy1 + dilation_h * u3;
+                    int offset00 = dxy_offset0 + puv_offset[0];
+                    int offset01 = dxy_offset1 + puv_offset[0];
+                    int offset10 = dxy_offset0 + puv_offset[1];
+                    int offset11 = dxy_offset1 + puv_offset[1];
+                    int offset20 = dxy_offset0 + puv_offset[2];
+                    int offset21 = dxy_offset1 + puv_offset[2];
+                    int offset30 = dxy_offset0 + puv_offset[3];
+                    int offset31 = dxy_offset1 + puv_offset[3];
 
-                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-                    const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
-                    const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
-                    const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
-                    const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
+                    const signed char* sptr00 = (const signed char*)bottom_blob + offset00;
+                    const signed char* sptr01 = (const signed char*)bottom_blob + offset01;
+                    const signed char* sptr10 = (const signed char*)bottom_blob + offset10;
+                    const signed char* sptr11 = (const signed char*)bottom_blob + offset11;
+                    const signed char* sptr20 = (const signed char*)bottom_blob + offset20;
+                    const signed char* sptr21 = (const signed char*)bottom_blob + offset21;
+                    const signed char* sptr30 = (const signed char*)bottom_blob + offset30;
+                    const signed char* sptr31 = (const signed char*)bottom_blob + offset31;
 
 #if __AVXVNNIINT8__
                     pp[0] = sptr00[0];
@@ -7514,22 +7894,18 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     int v0 = uv0 % kernel_w;
                     int v1 = uv1 % kernel_w;
 
-                    const Mat img0 = bottom_blob.channel(p0);
-                    const Mat img1 = bottom_blob.channel(p1);
+                    int puv_offset0 = p0 * bottom_blob.cstep + u0 * dilation_h * w + v0 * dilation_w;
+                    int puv_offset1 = p1 * bottom_blob.cstep + u1 * dilation_h * w + v1 * dilation_w;
 
-                    int x00 = dx0 + dilation_w * v0;
-                    int x01 = dx1 + dilation_w * v0;
-                    int y00 = dy0 + dilation_h * u0;
-                    int y01 = dy1 + dilation_h * u0;
-                    int x10 = dx0 + dilation_w * v1;
-                    int x11 = dx1 + dilation_w * v1;
-                    int y10 = dy0 + dilation_h * u1;
-                    int y11 = dy1 + dilation_h * u1;
+                    int offset00 = dxy_offset0 + puv_offset0;
+                    int offset01 = dxy_offset1 + puv_offset0;
+                    int offset10 = dxy_offset0 + puv_offset1;
+                    int offset11 = dxy_offset1 + puv_offset1;
 
-                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                    const signed char* sptr00 = (const signed char*)bottom_blob + offset00;
+                    const signed char* sptr01 = (const signed char*)bottom_blob + offset01;
+                    const signed char* sptr10 = (const signed char*)bottom_blob + offset10;
+                    const signed char* sptr11 = (const signed char*)bottom_blob + offset11;
 
                     pp[0] = sptr00[0];
                     pp[1] = sptr10[0];
@@ -7539,20 +7915,16 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                 }
                 for (; kk < max_kk; kk += 1)
                 {
-                    int p0 = (k + kk) / maxk;
-                    int uv0 = (k + kk) % maxk;
-                    int u0 = uv0 / kernel_w;
-                    int v0 = uv0 % kernel_w;
+                    int p = (k + kk) / maxk;
+                    int uv = (k + kk) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
 
-                    const Mat img0 = bottom_blob.channel(p0);
+                    int offset0 = dxy_offset0 + p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w;
+                    int offset1 = dxy_offset1 + p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w;
 
-                    int x00 = dx0 + dilation_w * v0;
-                    int x01 = dx1 + dilation_w * v0;
-                    int y00 = dy0 + dilation_h * u0;
-                    int y01 = dy1 + dilation_h * u0;
-
-                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr00 = (const signed char*)bottom_blob + offset0;
+                    const signed char* sptr01 = (const signed char*)bottom_blob + offset1;
 
                     pp[0] = sptr00[0];
                     pp[1] = sptr01[0];
@@ -7569,15 +7941,11 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     int u = uv / kernel_w;
                     int v = uv % kernel_w;
 
-                    const Mat img = bottom_blob.channel(p);
+                    int offset0 = (dxy_offset0 + p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w) * 8;
+                    int offset1 = (dxy_offset1 + p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w) * 8;
 
-                    int x0 = dx0 + dilation_w * v;
-                    int x1 = dx1 + dilation_w * v;
-                    int y0 = dy0 + dilation_h * u;
-                    int y1 = dy1 + dilation_h * u;
-
-                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
-                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+                    const signed char* sptr0 = (const signed char*)bottom_blob + offset0;
+                    const signed char* sptr1 = (const signed char*)bottom_blob + offset1;
 
                     __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
                     __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
@@ -7605,50 +7973,43 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
         dy *= stride_h;
         dx *= stride_w;
 
-        int kk = 0;
+        dy *= w;
+
+        const int dxy_offset = dx + dy;
+
         if (elempack == 1)
         {
+            int kk = 0;
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int p2 = (k + kk + 2) / maxk;
-                int p3 = (k + kk + 3) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int uv2 = (k + kk + 2) % maxk;
-                int uv3 = (k + kk + 3) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int u2 = uv2 / kernel_w;
-                int u3 = uv3 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-                int v2 = uv2 % kernel_w;
-                int v3 = uv3 % kernel_w;
+                __m128i _puv_offset;
+                {
+                    __m128i _offset = _mm_setr_epi32(0, 1, 2, 3);
+                    __m128i _puv = _mm_add_epi32(_mm_set1_epi32(k + kk), _offset);
+                    __m128i _p = div_maxk._mm_comp_div_epu32(_puv);
+                    __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
+                    __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
+                    __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
+                    _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                    _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
+                    _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
+                    _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
+                    _puv_offset = _mm_add_epi32(_p, _mm_add_epi32(_u, _v));
+                }
 
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-                const Mat img2 = bottom_blob.channel(p2);
-                const Mat img3 = bottom_blob.channel(p3);
+                int puv_offset[4];
+                _mm_storeu_si128((__m128i*)puv_offset, _puv_offset);
 
-                int x0 = dx + dilation_w * v0;
-                int y0 = dy + dilation_h * u0;
+                int offset0 = dxy_offset + puv_offset[0];
+                int offset1 = dxy_offset + puv_offset[1];
+                int offset2 = dxy_offset + puv_offset[2];
+                int offset3 = dxy_offset + puv_offset[3];
 
-                int x1 = dx + dilation_w * v1;
-                int y1 = dy + dilation_h * u1;
-
-                int x2 = dx + dilation_w * v2;
-                int y2 = dy + dilation_h * u2;
-
-                int x3 = dx + dilation_w * v3;
-                int y3 = dy + dilation_h * u3;
-
-                const signed char* sptr0 = img0.row<const signed char>(y0) + x0;
-                const signed char* sptr1 = img1.row<const signed char>(y1) + x1;
-                const signed char* sptr2 = img2.row<const signed char>(y2) + x2;
-                const signed char* sptr3 = img3.row<const signed char>(y3) + x3;
+                const signed char* sptr0 = (const signed char*)bottom_blob + offset0;
+                const signed char* sptr1 = (const signed char*)bottom_blob + offset1;
+                const signed char* sptr2 = (const signed char*)bottom_blob + offset2;
+                const signed char* sptr3 = (const signed char*)bottom_blob + offset3;
 
 #if __AVXVNNIINT8__
                 pp[0] = sptr0[0];
@@ -7675,17 +8036,11 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                 int v0 = uv0 % kernel_w;
                 int v1 = uv1 % kernel_w;
 
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
+                int offset0 = dxy_offset + p0 * bottom_blob.cstep + u0 * dilation_h * w + v0 * dilation_w;
+                int offset1 = dxy_offset + p1 * bottom_blob.cstep + u1 * dilation_h * w + v1 * dilation_w;
 
-                int x0 = dx + dilation_w * v0;
-                int y0 = dy + dilation_h * u0;
-
-                int x1 = dx + dilation_w * v1;
-                int y1 = dy + dilation_h * u1;
-
-                const signed char* sptr0 = img0.row<const signed char>(y0) + x0;
-                const signed char* sptr1 = img1.row<const signed char>(y1) + x1;
+                const signed char* sptr0 = (const signed char*)bottom_blob + offset0;
+                const signed char* sptr1 = (const signed char*)bottom_blob + offset1;
 
                 pp[0] = sptr0[0];
                 pp[1] = sptr1[0];
@@ -7693,17 +8048,14 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
             }
             for (; kk < max_kk; kk += 1)
             {
-                int p0 = (k + kk) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int u0 = uv0 / kernel_w;
-                int v0 = uv0 % kernel_w;
+                int p = (k + kk) / maxk;
+                int uv = (k + kk) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
 
-                const Mat img0 = bottom_blob.channel(p0);
+                int offset = dxy_offset + p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w;
 
-                int x0 = dx + dilation_w * v0;
-                int y0 = dy + dilation_h * u0;
-
-                const signed char* sptr0 = img0.row<const signed char>(y0) + x0;
+                const signed char* sptr0 = (const signed char*)bottom_blob + offset;
 
                 pp[0] = sptr0[0];
                 pp += 1;
@@ -7712,6 +8064,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 #if __SSE2__
         if (elempack == 8)
         {
+            int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
                 int p = (k / 8 + kk) / maxk;
@@ -7719,12 +8072,9 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                 int u = uv / kernel_w;
                 int v = uv % kernel_w;
 
-                const Mat img = bottom_blob.channel(p);
+                int offset = (dxy_offset + p * bottom_blob.cstep + u * dilation_h * w + v * dilation_w) * 8;
 
-                int x = dx + dilation_w * v;
-                int y = dy + dilation_h * u;
-
-                const signed char* sptr = img.row<const signed char>(y) + x * 8;
+                const signed char* sptr = (const signed char*)bottom_blob + offset;
 
                 __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr);
 #if __AVX512VNNI__ || __AVXVNNI__
@@ -7801,11 +8151,11 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
     }
 #endif
 
-    // if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-    // {
-    //     convolution_im2col_input_tile_conv1x1s1d1_int8(bottom_blob, B, j, max_jj, k, max_kk);
-    //     return;
-    // }
+    if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        convolution_im2col_input_tile_conv1x1s1d1_int8(bottom_blob, B, j, max_jj, k, max_kk);
+        return;
+    }
 
     //     if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2)
     //     {
