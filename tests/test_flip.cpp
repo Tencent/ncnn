@@ -124,9 +124,41 @@ static int test_flip_3()
 int main()
 {
     SRAND(7767517);
-    return 0
-           || test_flip_0()
-           || test_flip_1()
-           || test_flip_2()
-           || test_flip_3();
+    // return 0
+    //        || test_flip_0()
+    //        || test_flip_1()
+    //        || test_flip_2()
+    //        || test_flip_3();
+
+    // debug 测出所有异常
+    test_flip(RandomMat(2, 3, 4, 5), IntArrayMat(0));
+    test_flip(RandomMat(3, 2, 4, 5), IntArrayMat(1));
+    test_flip(RandomMat(4, 3, 2, 5), IntArrayMat(2));
+    test_flip(RandomMat(2, 3, 1, 5), IntArrayMat(3));
+    test_flip(RandomMat(6, 3, 4, 5), IntArrayMat(0, 1));
+    test_flip(RandomMat(2, 3, 1, 6), IntArrayMat(0, 2));
+    test_flip(RandomMat(5, 1, 2, 5), IntArrayMat(0, 3));
+    test_flip(RandomMat(5, 2, 1, 5), IntArrayMat(1, 2));
+    test_flip(RandomMat(4, 5, 2, 3), IntArrayMat(1, 3));
+    test_flip(RandomMat(2, 6, 4, 5), IntArrayMat(2, 3));
+    test_flip(RandomMat(6, 1, 4, 5), IntArrayMat(0, 1, 2));
+    test_flip(RandomMat(5, 2, 1, 5), IntArrayMat(0, 1, 3));
+    test_flip(RandomMat(4, 3, 3, 5), IntArrayMat(0, 2, 3));
+    test_flip(RandomMat(4, 3, 4, 5), IntArrayMat(1, 2, 3));
+    test_flip(RandomMat(6, 3, 3, 2), IntArrayMat(0, 1, 2, 3));
+
+    test_flip(RandomMat(2, 3, 5), IntArrayMat(0));
+    test_flip(RandomMat(3, 3, 5), IntArrayMat(1));
+    test_flip(RandomMat(4, 3, 5), IntArrayMat(2));
+    test_flip(RandomMat(3, 1, 5), IntArrayMat(0, 1));
+    test_flip(RandomMat(3, 2, 5), IntArrayMat(0, 2));
+    test_flip(RandomMat(3, 3, 4), IntArrayMat(1, 2));
+    test_flip(RandomMat(4, 3, 2), IntArrayMat(0, 1, 2));
+
+    test_flip(RandomMat(8, 2), IntArrayMat(-2));
+    test_flip(RandomMat(16, 3), IntArrayMat(-1));
+    test_flip(RandomMat(7, 2), IntArrayMat(-2, -1));
+
+    test_flip(RandomMat(18), IntArrayMat(-1));
+    return 0;
 }
