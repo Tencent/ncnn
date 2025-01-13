@@ -15,7 +15,7 @@ on:
       - "!tools/pnnx/**"
       - "examples/**"
   pull_request:
-    # branches: [master]
+    branches: [master]
     paths:
       - ".github/workflows/linux-x64-cpu-gcc.yml"
       - "toolchains/host-c.gcc.toolchain.cmake"
