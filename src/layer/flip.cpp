@@ -116,8 +116,6 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     else if (dims == 3)
     {
         top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
         if (axis.w == 1)
         {
             // w、h、c
@@ -181,7 +179,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                     {
                         // 组合两种翻转：channel维度和行维度同时翻转
                         const float* ptr = bottom_blob.channel(channels - 1 - i).row(h - 1 - j);
-                        float* outptr = const_cast<float*>(top_blob.channel(i).row(j));
+                        float* outptr = top_blob.channel(i).row(j);
                         memcpy(outptr, ptr, w * sizeof(float));
                     }
                 }
@@ -253,13 +251,12 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                 for (int c = 0; c < channels; c++) // 遍历channels=3
                 {
                     int flipped_c = channels - 1 - c; // 计算channels翻转位置
-
-                    for (int z = 0; z < d; z++) // 遍历d=2维度
+                    for (int z = 0; z < d; z++)       // 遍历d=2维度
                     {
                         for (int j = 0; j < h; j++) // 遍历行
                         {
                             const float* ptr = bottom_blob.channel(c).row(z * h + j);
-                            float* outptr = const_cast<float*>(top_blob.channel(flipped_c).row(z * h + j));
+                            float* outptr = top_blob.channel(flipped_c).row(z * h + j);
                             memcpy(outptr, ptr, w * sizeof(float));
                         }
                     }
@@ -276,7 +273,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                         {
                             // 翻转d维度的数据读取位置
                             const float* ptr = bottom_blob.channel(i).row((d - 1 - z) * h + j);
-                            float* outptr = const_cast<float*>(top_blob.channel(i).row(z * h + j));
+                            float* outptr = top_blob.channel(i).row(z * h + j);
                             // 逐行复制w元素
                             memcpy(outptr, ptr, w * sizeof(float));
                         }
@@ -339,7 +336,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                         for (int j = 0; j < h; j++) // 遍历行
                         {
                             const float* ptr = bottom_blob.channel(c).row(z * h + j);
-                            float* outptr = const_cast<float*>(top_blob.channel(flipped_c).row(flipped_d * h + j));
+                            float* outptr = top_blob.channel(flipped_c).row(flipped_d * h + j);
                             memcpy(outptr, ptr, w * sizeof(float));
                         }
                     }
@@ -358,8 +355,8 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                         for (int i = 0; i < h; i++)
                         {
                             const float* ptr = bottom_blob.channel(c).row(z * h + i);
-                            float* outptr = const_cast<float*>(top_blob.channel(flipped_c).row(z * h + (h - 1 - i))); // 保持z维度顺序,翻转h维度
-                            memcpy(outptr, ptr, w * sizeof(float));                                                   // 按行复制，保持 w 维度顺序
+                            float* outptr = top_blob.channel(flipped_c).row(z * h + (h - 1 - i)); // 保持z维度顺序,翻转h维度
+                            memcpy(outptr, ptr, w * sizeof(float));                               // 按行复制，保持 w 维度顺序
                         }
                     }
                 }
@@ -379,7 +376,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                             for (int j = 0; j < h; j++) // h维度保持不变
                             {
                                 const float* ptr = bottom_blob.channel(c).row(z * h + j);
-                                float* outptr = const_cast<float*>(top_blob.channel(flipped_c).row(z * h + j));
+                                float* outptr = top_blob.channel(flipped_c).row(z * h + j);
 
                                 // 翻转w维度
                                 for (int k = 0; k < w; k++)
@@ -404,7 +401,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                                 int flipped_h = h - 1 - j;
                                 // 读取源数据
                                 const float* ptr = bottom_blob.channel(c).row(z * h + j);
-                                float* outptr = const_cast<float*>(top_blob.channel(c).row(flipped_d * h + flipped_h));
+                                float* outptr = top_blob.channel(c).row(flipped_d * h + flipped_h);
                                 memcpy(outptr, ptr, w * sizeof(float));
                             }
                         }
@@ -423,7 +420,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                         for (int j = 0; j < h; j++)
                         {
                             const float* ptr = bottom_blob.channel(c).row(z * h + j);
-                            float* outptr = const_cast<float*>(top_blob.channel(c).row(flipped_d * h + j)); // c维度保持不变
+                            float* outptr = top_blob.channel(c).row(flipped_d * h + j); // c维度保持不变
 
                             // 翻转 w 维度
                             for (int k = 0; k < w; k++)
@@ -444,7 +441,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                         for (int j = 0; j < h; j++)
                         {
                             const float* ptr = bottom_blob.channel(c).row(z * h + j);
-                            float* outptr = const_cast<float*>(top_blob.channel(c).row(z * h + (h - 1 - j))); // 翻转 h 维度
+                            float* outptr = top_blob.channel(c).row(z * h + (h - 1 - j)); // 翻转 h 维度
 
                             // 翻转 w 维度
                             for (int k = 0; k < w; k++)
@@ -476,10 +473,8 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
                         for (int i = 0; i < h; i++)
                         {
-                            // 修改前：const float* ptr = bottom_blob.channel(c).row(z * h + i);
-                            // 修改为：使用depth()访问方式
                             const float* ptr = bottom_blob.channel(c).depth(z).row(i);
-                            float* outptr = const_cast<float*>(top_blob.channel(flipped_c).depth(flipped_d).row(h - 1 - i));
+                            float* outptr = top_blob.channel(flipped_c).depth(flipped_d).row(h - 1 - i);
                             memcpy(outptr, ptr, w * sizeof(float));
                         }
                     }
@@ -499,7 +494,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                         for (int i = 0; i < h; i++)
                         {
                             const float* ptr = bottom_blob.channel(c).row(z * h + i);
-                            float* outptr = const_cast<float*>(top_blob.channel(flipped_c).row(flipped_d * h + i)); // h维度保持不变
+                            float* outptr = top_blob.channel(flipped_c).row(flipped_d * h + i); // h维度保持不变
 
                             // 翻转w维度
                             for (int k = 0; k < w; k++)
@@ -522,7 +517,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                         for (int i = 0; i < h; i++)
                         {
                             const float* ptr = bottom_blob.channel(c).depth(z).row(i);
-                            float* outptr = const_cast<float*>(top_blob.channel(flipped_c).depth(z).row(h - 1 - i)); // 翻转h维度
+                            float* outptr = top_blob.channel(flipped_c).depth(z).row(h - 1 - i); // 翻转h维度
 
                             // 翻转w维度
                             for (int k = 0; k < w; k++)
@@ -544,12 +539,8 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
                         for (int i = 0; i < h; i++)
                         {
-                            // const float* ptr = bottom_blob.channel(c).row(z * h + i);
-                            // float* outptr = const_cast<float*>(top_blob.channel(c).row(flipped_d * h + (h - 1 - i))); // 翻转h维度
-
-                            // 修改为使用depth()访问方式
                             const float* ptr = bottom_blob.channel(c).depth(z).row(i);
-                            float* outptr = const_cast<float*>(top_blob.channel(c).depth(flipped_d).row(h - 1 - i)); // 翻转h维度
+                            float* outptr = top_blob.channel(c).depth(flipped_d).row(h - 1 - i); // 翻转h维度
                             // 翻转w维度
                             for (int k = 0; k < w; k++)
                             {
@@ -574,7 +565,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                     for (int i = 0; i < h; i++)
                     {
                         const float* ptr = bottom_blob.channel(c).row(z * h + i);
-                        float* outptr = const_cast<float*>(top_blob.channel(flipped_c).row(flipped_d * h + (h - 1 - i))); // 翻转h维度
+                        float* outptr = top_blob.channel(flipped_c).row(flipped_d * h + (h - 1 - i)); // 翻转h维度
 
                         // 翻转w维度
                         for (int k = 0; k < w; k++)
