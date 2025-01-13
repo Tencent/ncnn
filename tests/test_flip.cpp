@@ -15,7 +15,7 @@
 #include "layer.h"
 #include "testutil.h"
 
-// 为兼容低于c++11弃用如下实现
+// 为兼容低于c++11
 // ncnn::Mat axis_mat(axis.size());
 // for (size_t i = 0; i < axis.size(); i++)
 // {
@@ -69,7 +69,7 @@ static int test_flip(const ncnn::Mat& a, const ncnn::Mat& axis)
     int ret = test_layer("Flip", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_flip failed a.dims=%d a=(%d %d %d) axis_w=%d", a.dims, a.w, a.h, a.c, axis.w);
+        fprintf(stderr, "test_flip failed a.dims=%d a=(%d %d %d %d) axis_w=%d\n", a.dims, a.w, a.h, a.d, a.c, axis.w);
     }
 
     return ret;

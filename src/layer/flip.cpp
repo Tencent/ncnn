@@ -458,6 +458,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         }
         else if (axis.w == 3)
         {
+            return 0; // 在线debug
             // dch3、dcw4、chw6
             int axis0 = axis_ptr[0] < 0 ? 4 + axis_ptr[0] : axis_ptr[0];
             int axis1 = axis_ptr[1] < 0 ? 4 + axis_ptr[1] : axis_ptr[1];
