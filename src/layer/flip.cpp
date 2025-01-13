@@ -178,10 +178,12 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                     for (int j = 0; j < h; j++)
                     {
                         // 组合两种翻转：channel维度和行维度同时翻转
-                        const unsigned char* ptr = bottom_blob.channel(channels - 1 - i).row<const unsigned char>(h - 1 - j);
-                        unsigned char* outptr = top_blob.channel(i).row<unsigned char>(j);
+                        const float* ptr = bottom_blob.channel(channels - 1 - i).row(h - 1 - j);
+                        float* outptr = top_blob.channel(i).row(j);
                         // memcpy(outptr, ptr, w * sizeof(float));
-                        memcpy(outptr, ptr, w * elemsize);
+                        // memcpy(outptr, ptr, w * elemsize);
+                        for (int x = 0; x < w; x++)
+                            outptr[x] = ptr[x];
                     }
                 }
             }
