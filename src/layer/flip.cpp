@@ -166,28 +166,28 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         }
         else if (axis.w == 2)
         {
-            // wh、wc、hc
+            // ch、cw、hw
             int axis0 = axis_ptr[0] < 0 ? 3 + axis_ptr[0] : axis_ptr[0];
             int axis1 = axis_ptr[1] < 0 ? 3 + axis_ptr[1] : axis_ptr[1];
             int axis_sum = axis0 + axis1;
             if (axis_sum == 1)
             {
-                // 对应wh
+                // 对应ch
                 for (int i = 0; i < channels; i++)
                 {
                     for (int j = 0; j < h; j++)
                     {
                         // 组合两种翻转：channel维度和行维度同时翻转
-                        const float* ptr = bottom_blob.channel(channels - 1 - i).row(h - 1 - j);
-                        float* outptr = top_blob.channel(i).row(j);
-                        // memcpy(outptr, ptr, w * sizeof(float)); ctest修复测试
+                        const unsigned char* ptr = bottom_blob.channel(channels - 1 - i).row<const unsigned char>(h - 1 - j);
+                        unsigned char* outptr = top_blob.channel(i).row<unsigned char>(j);
+                        // memcpy(outptr, ptr, w * sizeof(float));
                         memcpy(outptr, ptr, w * elemsize);
                     }
                 }
             }
             else if (axis_sum == 2)
             {
-                // 对应wc
+                // 对应cw
                 for (int i = 0; i < channels; i++)
                 {
                     for (int j = 0; j < h; j++)
@@ -203,7 +203,7 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             }
             else if (axis_sum == 3)
             {
-                // 对应hc
+                // 对应hw
                 for (int i = 0; i < channels; i++)
                 {
                     for (int j = 0; j < h; j++)
