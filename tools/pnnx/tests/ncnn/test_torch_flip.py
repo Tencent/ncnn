@@ -66,6 +66,7 @@ class Model(nn.Module):
         z3 = torch.flip(z, [0, 1])
         z4 = torch.flip(z, [0, 2])
         z5 = torch.flip(z, [1, 2])
+        z6 = torch.flip(z, [0, 1, 2])
         # 4D
         d0 = torch.flip(d, [-1])
         d1 = torch.flip(d, [-2])
@@ -79,8 +80,9 @@ class Model(nn.Module):
         d9 = torch.flip(d, [2, 3])
         d10 = torch.flip(d, [0, 1, 2])
         d11 = torch.flip(d, [0, 1, 3])
-        d12 = torch.flip(d, [1, 2, 3])
-        d13 = torch.flip(d, [0, 1, 2, 3])
+        d12 = torch.flip(d, [0, 2, 3])
+        d13 = torch.flip(d, [1, 2, 3])
+        d14 = torch.flip(d, [0, 1, 2, 3])
 
         return (
             x0,
@@ -93,6 +95,7 @@ class Model(nn.Module):
             z3,
             z4,
             z5,
+            z6,
             d0,
             d1,
             d2,
@@ -107,6 +110,7 @@ class Model(nn.Module):
             d11,
             d12,
             d13,
+            d14,
         )
 
 
