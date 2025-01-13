@@ -116,6 +116,8 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     else if (dims == 3)
     {
         top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
         if (axis.w == 1)
         {
             // w、h、c
