@@ -180,7 +180,8 @@ int Flip::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                         // 组合两种翻转：channel维度和行维度同时翻转
                         const float* ptr = bottom_blob.channel(channels - 1 - i).row(h - 1 - j);
                         float* outptr = top_blob.channel(i).row(j);
-                        memcpy(outptr, ptr, w * sizeof(float));
+                        // memcpy(outptr, ptr, w * sizeof(float)); ctest修复测试
+                        memcpy(outptr, ptr, w * elemsize);
                     }
                 }
             }
