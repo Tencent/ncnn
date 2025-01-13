@@ -160,5 +160,5 @@ int main()
     test_flip(RandomMat(7, 2), IntArrayMat(-2, -1));
 
     test_flip(RandomMat(18), IntArrayMat(-1));
-    return 0;
+    return -1;
 }
