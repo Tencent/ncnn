@@ -5799,7 +5799,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 _r7 = _mm_add_epi8(_r7, _v127);
 #endif // __AVXVNNIINT8__
 
-#else // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                 __m128i _t0 = _mm_unpacklo_epi16(_r01, _r23);
                 __m128i _t1 = _mm_unpackhi_epi16(_r01, _r23);
                 __m128i _t2 = _mm_unpacklo_epi16(_r45, _r67);
@@ -5937,7 +5937,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 _r3 = _mm_add_epi8(_r3, _v127);
 #endif // __AVXVNNIINT8__
 
-#else // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                 __m128i _t0 = _mm_unpacklo_epi16(_r01, _r23);
                 __m128i _t1 = _mm_unpackhi_epi16(_r01, _r23);
                 __m128i _t2 = _mm_unpacklo_epi16(_r45, _r67);
@@ -6042,7 +6042,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 _r1 = _mm_add_epi8(_r1, _v127);
 #endif // __AVXVNNIINT8__
 
-#else // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                 __m128i _t0 = _mm_unpacklo_epi16(_r01, _r23);
                 __m128i _t1 = _mm_unpackhi_epi16(_r01, _r23);
 
@@ -6148,7 +6148,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 #else  // __AVXVNNIINT8__
                 _r01 = _mm_add_epi8(_r01, _mm_set1_epi8(127));
 #endif // __AVXVNNIINT8__
-#else // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
                 __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
 #endif // __AVX512VNNI__ || __AVXVNNI__
                 _mm_storeu_si128((__m128i*)pp, _r01);
@@ -6969,7 +6969,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r0 = _mm256_shuffle_epi32(_r0, _MM_SHUFFLE(3, 1, 2, 0));
                     _r1 = _mm256_shuffle_epi32(_r1, _MM_SHUFFLE(3, 1, 2, 0));
 
-
 #endif // __AVX512VNNI__ || __AVXVNNI__
 
                     _mm256_storeu_si256((__m256i*)pp, _r0);
@@ -7265,7 +7264,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm256_storeu_si256((__m256i*)pp, _r0);
                     _mm256_storeu_si256((__m256i*)(pp + 32), _r1);
-#else // __AVX2__
+#else  // __AVX2__
 
                     __m128i _vindex0 = _mm_add_epi32(_dxy_offset0, _mm_set1_epi32(puv_offset));
                     __m128i _vindex1 = _mm_add_epi32(_dxy_offset1, _mm_set1_epi32(puv_offset));
@@ -7452,7 +7451,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r0 = _mm_add_epi8(_r0, _v127);
                     _r1 = _mm_add_epi8(_r1, _v127);
 #endif // __AVXVNNIINT8__
-
 
 #else // __AVX512VNNI__ || __AVXVNNI__
 
@@ -7730,7 +7728,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r0 = _mm_shuffle_epi8(_r0, _mm_setr_epi8(0, 2, 4, 6, 1, 3, 5, 7, 0, 0, 0, 0, 0, 0, 0, 0));
 
 #if __AVXVNNIINT8__
-#else  // __AVXVNNIINT8__
+#else // __AVXVNNIINT8__
 
                     __m128i _v127 = _mm_set1_epi8(127);
 
