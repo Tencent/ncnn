@@ -49,9 +49,9 @@ void convolution_im2col_input_tile_int8_avx2(const Mat& bottom_blob, Mat& B, int
     convolution_im2col_input_tile_int8(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
 }
 
-void unpack_output_tile_int32_to_fp32_avx2(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj, const Mat& descales, const Mat& bias_data)
+void unpack_output_tile_int32_avx2(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
-    unpack_output_tile_int32_to_fp32(topT, top_blob, i, max_ii, j, max_jj, descales, bias_data);
+    unpack_output_tile_int32(topT, top_blob, i, max_ii, j, max_jj);
 }
 
 // winograd
