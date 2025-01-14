@@ -29,6 +29,9 @@ void convolution_im2col_input_tile_int8_avxvnni(const Mat& bottom_blob, Mat& B, 
 // int convolution_im2col_gemm_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt);
 
 void convolution_im2col_input_tile_int8_avx2(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h);
+
+void unpack_output_tile_int32_to_fp32_avx2(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj, const Mat& descales, const Mat& bias_data);
+
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
@@ -5702,9 +5705,9 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
         }
 
 #if __AVX512F__
-        TILE_N = std::max(4, tile_size / 4 * 4);
+        TILE_N = std::max(15, tile_size / 16 * 16);
 #elif __AVX__
-        TILE_N = std::max(4, tile_size / 4 * 4);
+        TILE_N = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
         TILE_N = std::max(4, tile_size / 4 * 4);
 #else
@@ -5713,9 +5716,9 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
 
         int nn_N = (N + TILE_N - 1) / TILE_N;
 #if __AVX512F__
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 15) / 16 * 16);
 #elif __AVX__
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
 #elif __SSE2__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #else
@@ -8153,8 +8156,8 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
 
     if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
-        convolution_im2col_input_tile_conv1x1s1d1_int8(bottom_blob, B, j, max_jj, k, max_kk);
-        return;
+        // convolution_im2col_input_tile_conv1x1s1d1_int8(bottom_blob, B, j, max_jj, k, max_kk);
+        // return;
     }
 
     //     if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2)
@@ -8322,13 +8325,13 @@ static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat
 
 static void unpack_output_tile_int32_to_fp32(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj, const Mat& descales, const Mat& bias_data)
 {
-    // #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
-    //     if (ncnn::cpu_support_x86_avx2())
-    //     {
-    //         unpack_output_tile_int32_to_fp32_avx2(topT, top_blob, i, max_ii, j, max_jj, descales);
-    //         return;
-    //     }
-    // #endif
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        unpack_output_tile_int32_to_fp32_avx2(topT, top_blob, i, max_ii, j, max_jj, descales, bias_data);
+        return;
+    }
+#endif
 
     const int out_elempack = top_blob.elempack;
     // const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
@@ -8336,7 +8339,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, Mat& top_blob, int
 
     const float* bias_ptr = bias_data;
 
-    // NCNN_LOGE("unpack_output_tile_int32_to_fp32  %d %d %d %d  %d  %d  %d  %d", i, max_ii, j, max_jj, out_elempack, broadcast_type_C, c_elempack, output_transpose);
+    // NCNN_LOGE("unpack_output_tile_int32_to_fp32  %d %d %d %d   @%d", i, max_ii, j, max_jj, out_elempack);
 
     const int* pp = topT;
 
