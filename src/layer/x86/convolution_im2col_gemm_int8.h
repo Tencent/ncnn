@@ -33,11 +33,11 @@ void unpack_output_tile_int32_avx2(const Mat& topT, Mat& top_blob, int i, int ma
 #endif
 
 // gemm_x86.h
-#if __AVX512F__
+#if NCNN_RUNTIME_CPU && __AVX512F__
 namespace Gemm_x86_avx512_utility {
-#elif __FMA__
+#elif NCNN_RUNTIME_CPU && __FMA__
 namespace Gemm_x86_fma_utility {
-#elif __AVX__
+#elif NCNN_RUNTIME_CPU && __AVX__
 namespace Gemm_x86_avx_utility {
 #else
 namespace Gemm_x86_utility {
@@ -50,11 +50,11 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 {
     // A = (pa, maxk, inch/pa), outch
 
-#if __AVX512F__
+#if NCNN_RUNTIME_CPU && __AVX512F__
     Gemm_x86_avx512_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
-#elif __FMA__
+#elif NCNN_RUNTIME_CPU && __FMA__
     Gemm_x86_fma_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
-#elif __AVX__
+#elif NCNN_RUNTIME_CPU && __AVX__
     Gemm_x86_avx_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
 #else
     Gemm_x86_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
@@ -65,11 +65,11 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 {
     // NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
-#if __AVX512F__
+#if NCNN_RUNTIME_CPU && __AVX512F__
     Gemm_x86_avx512_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
-#elif __FMA__
+#elif NCNN_RUNTIME_CPU && __FMA__
     Gemm_x86_fma_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
-#elif __AVX__
+#elif NCNN_RUNTIME_CPU && __AVX__
     Gemm_x86_avx_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 #else
     Gemm_x86_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
@@ -1604,22 +1604,22 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _mm_storeu_si128((__m128i*)offsets2, _vindex2);
                     _mm_storeu_si128((__m128i*)offsets3, _vindex3);
 
-                    pp[0] = offsets0[0];
-                    pp[1] = offsets2[0];
-                    pp[2] = offsets0[1];
-                    pp[3] = offsets2[1];
-                    pp[4] = offsets0[2];
-                    pp[5] = offsets2[2];
-                    pp[6] = offsets0[3];
-                    pp[7] = offsets2[3];
-                    pp[8] = offsets1[0];
-                    pp[9] = offsets3[0];
-                    pp[10] = offsets1[1];
-                    pp[11] = offsets3[1];
-                    pp[12] = offsets1[2];
-                    pp[13] = offsets3[2];
-                    pp[14] = offsets1[3];
-                    pp[15] = offsets3[3];
+                    pp[0] = ((const signed char*)bottom_blob)[offsets0[0]];
+                    pp[1] = ((const signed char*)bottom_blob)[offsets2[0]];
+                    pp[2] = ((const signed char*)bottom_blob)[offsets0[1]];
+                    pp[3] = ((const signed char*)bottom_blob)[offsets2[1]];
+                    pp[4] = ((const signed char*)bottom_blob)[offsets0[2]];
+                    pp[5] = ((const signed char*)bottom_blob)[offsets2[2]];
+                    pp[6] = ((const signed char*)bottom_blob)[offsets0[3]];
+                    pp[7] = ((const signed char*)bottom_blob)[offsets2[3]];
+                    pp[8] = ((const signed char*)bottom_blob)[offsets1[0]];
+                    pp[9] = ((const signed char*)bottom_blob)[offsets3[0]];
+                    pp[10] = ((const signed char*)bottom_blob)[offsets1[1]];
+                    pp[11] = ((const signed char*)bottom_blob)[offsets3[1]];
+                    pp[12] = ((const signed char*)bottom_blob)[offsets1[2]];
+                    pp[13] = ((const signed char*)bottom_blob)[offsets3[2]];
+                    pp[14] = ((const signed char*)bottom_blob)[offsets1[3]];
+                    pp[15] = ((const signed char*)bottom_blob)[offsets3[3]];
 
 #endif // __AVX2__
 
@@ -1651,14 +1651,14 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _mm_storeu_si128((__m128i*)offsets0, _vindex0);
                     _mm_storeu_si128((__m128i*)offsets1, _vindex1);
 
-                    pp[0] = offsets0[0];
-                    pp[1] = offsets0[1];
-                    pp[2] = offsets0[2];
-                    pp[3] = offsets0[3];
-                    pp[4] = offsets1[0];
-                    pp[5] = offsets1[1];
-                    pp[6] = offsets1[2];
-                    pp[7] = offsets1[3];
+                    pp[0] = ((const signed char*)bottom_blob)[offsets0[0]];
+                    pp[1] = ((const signed char*)bottom_blob)[offsets0[1]];
+                    pp[2] = ((const signed char*)bottom_blob)[offsets0[2]];
+                    pp[3] = ((const signed char*)bottom_blob)[offsets0[3]];
+                    pp[4] = ((const signed char*)bottom_blob)[offsets1[0]];
+                    pp[5] = ((const signed char*)bottom_blob)[offsets1[1]];
+                    pp[6] = ((const signed char*)bottom_blob)[offsets1[2]];
+                    pp[7] = ((const signed char*)bottom_blob)[offsets1[3]];
 
 #endif // __AVX2__
 

@@ -41,7 +41,7 @@ public:
     Mat CT_data;
 };
 
-// expose some gemm internal routines
+// expose some gemm internal routines for convolution uses
 namespace Gemm_x86_utility {
 #if NCNN_INT8
 void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
