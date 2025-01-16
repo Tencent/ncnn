@@ -76,7 +76,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #endif
 }
 
-static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+static NCNN_FORCEINLINE void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
     const size_t l2_cache_size_int8 = (int)(get_cpu_level2_cache_size() / sizeof(signed char));
@@ -205,10 +205,12 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
     }
 }
 
-static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+static NCNN_FORCEINLINE void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
 {
     const int elempack = bottom_blob.elempack;
     const int cstep = (int)bottom_blob.cstep;
+
+    // NCNN_LOGE("convolution_im2col_input_tile_conv1x1s1d1_int8  %d %d %d %d  @%d", j, max_jj, k, max_kk, elempack);
 
     signed char* pp = B;
 
@@ -820,7 +822,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
                         __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
                         __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
-                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(cstep));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
                         _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
@@ -1031,7 +1033,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
                         __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
                         __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
-                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(cstep));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
                         _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
@@ -1316,7 +1318,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
                         __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
                         __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
-                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(cstep));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
                         _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
@@ -1523,7 +1525,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
                         __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
                         __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
-                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(cstep));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
                         _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
@@ -1835,7 +1837,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
                         __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
                         __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
-                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(cstep));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
                         _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
@@ -1974,7 +1976,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
                         __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
                         __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
-                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(cstep));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
                         _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
@@ -2197,7 +2199,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
                         __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
                         __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
-                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(cstep));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
                         _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
@@ -2321,7 +2323,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
                         __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
                         __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
-                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                        _p = _mm_mullo_epi32(_p, _mm_set1_epi32(cstep));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
                         _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
                         _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));
@@ -2481,7 +2483,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     __m128i _uv = _mm_sub_epi32(_puv, _mm_mullo_epi32(_p, _mm_set1_epi32(maxk)));
                     __m128i _u = div_kernel_w._mm_comp_div_epu32(_uv);
                     __m128i _v = _mm_sub_epi32(_uv, _mm_mullo_epi32(_u, _mm_set1_epi32(kernel_w)));
-                    _p = _mm_mullo_epi32(_p, _mm_set1_epi32(bottom_blob.cstep));
+                    _p = _mm_mullo_epi32(_p, _mm_set1_epi32(cstep));
                     _u = _mm_mullo_epi32(_u, _mm_set1_epi32(dilation_h));
                     _v = _mm_mullo_epi32(_v, _mm_set1_epi32(dilation_w));
                     _u = _mm_mullo_epi32(_u, _mm_set1_epi32(w));

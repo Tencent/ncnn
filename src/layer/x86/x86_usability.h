@@ -42,7 +42,7 @@
 class FastDivider_epu32
 {
 public:
-    FastDivider_epu32(unsigned int d)
+    NCNN_FORCEINLINE FastDivider_epu32(unsigned int d)
     {
         unsigned int m, sh1, sh2;
         if (d == 1)
@@ -54,13 +54,7 @@ public:
         else
         {
             // sh = ceil(log2(d))
-#ifdef _MSC_VER
-            unsigned long index;
-            _BitScanReverse(&index, d - 1);
-            uint32_t sh = index + 1;
-#else
-            uint32_t sh = 32 - __builtin_clz(d - 1);
-#endif
+            uint32_t sh = portable_ceil_log2(d);
             uint32_t m0 = sh == 32 ? 0 : 1 << sh;
 
             m = 1 + uint32_t((uint64_t(m0 - d) << 32) / d);
@@ -81,7 +75,7 @@ public:
 
 #if __AVX2__
 #if __AVX512F__
-    __m512i _mm512_comp_div_epu32(__m512i x) const
+    NCNN_FORCEINLINE __m512i _mm512_comp_div_epu32(__m512i x) const
     {
         // xm = (x * multiplier) >> 32
         __m512i xm_low = _mm512_srli_epi64(_mm512_mul_epu32(x, _multiplier), 32);
@@ -93,13 +87,13 @@ public:
     }
 #endif // __AVX512F__
 
-    __m256i _mm256_comp_div_epu32(__m256i x) const
+    NCNN_FORCEINLINE __m256i _mm256_comp_div_epu32(__m256i x) const
     {
         // xm = (x * multiplier) >> 32
 #if __AVX512F__
         __m256i xm_low = _mm256_srli_epi64(_mm256_mul_epu32(x, _mm512_castsi512_si256(_multiplier)), 32);
         __m256i xm_high = _mm256_mul_epu32(_mm256_srli_epi64(x, 32), _mm512_castsi512_si256(_multiplier));
-#elif __AVX2__
+#else
         __m256i xm_low = _mm256_srli_epi64(_mm256_mul_epu32(x, _multiplier), 32);
         __m256i xm_high = _mm256_mul_epu32(_mm256_srli_epi64(x, 32), _multiplier);
 #endif
@@ -109,7 +103,7 @@ public:
     }
 #endif // __AVX2__
 
-    __m128i _mm_comp_div_epu32(__m128i x) const
+    NCNN_FORCEINLINE __m128i _mm_comp_div_epu32(__m128i x) const
     {
         // xm = (x * multiplier) >> 32
 #if __AVX512F__
