@@ -641,6 +641,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -676,6 +677,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 4;
                 p0 += bottom_blob.cstep * 2;
             }
+#endif // __SSE2__
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -715,6 +717,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -733,6 +736,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 p0 += bottom_blob.cstep * 4;
             }
 #endif // __AVX512VNNI__ || __AVXVNNI__
+#endif // __SSE2__
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -2179,6 +2183,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
             if (elempack == 1)
             {
                 int kk = 0;
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk; kk += 4)
                 {
@@ -2242,6 +2247,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     pp[3] = sptr1[1];
                     pp += 4;
                 }
+#endif // __SSE2__
                 for (; kk < max_kk; kk += 1)
                 {
                     int p0 = (k + kk) / maxk;
@@ -2301,6 +2307,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
             int kk = 0;
             if (elempack == 1)
             {
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk; kk += 4)
                 {
@@ -2392,6 +2399,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     pp[3] = sptr11[0];
                     pp += 4;
                 }
+#endif // __SSE2__
                 for (; kk < max_kk; kk += 1)
                 {
                     int p = (k + kk) / maxk;
@@ -2459,6 +2467,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
         if (elempack == 1)
         {
             int kk = 0;
+#if __SSE2__
 #if __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -2525,6 +2534,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                 pp[1] = sptr1[0];
                 pp += 2;
             }
+#endif // __SSE2__
             for (; kk < max_kk; kk += 1)
             {
                 int p = (k + kk) / maxk;
