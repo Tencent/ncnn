@@ -79,7 +79,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 static NCNN_FORCEINLINE void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
-    const size_t l2_cache_size_int8 = (int)(get_cpu_level2_cache_size() / sizeof(signed char));
+    const int l2_cache_size_int8 = (int)(get_cpu_level2_cache_size() / sizeof(signed char));
 
     if (nT == 0)
         nT = get_physical_big_cpu_count();
