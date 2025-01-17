@@ -993,7 +993,14 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
 #if __SSE2__
     if (opt.use_packing_layout)
     {
+#if __AVX512F__
+        out_elempack_int32 = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#elif __AVX__
+        out_elempack_int32 = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+#endif
+        // out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
     }
 #endif // __SSE2__
 

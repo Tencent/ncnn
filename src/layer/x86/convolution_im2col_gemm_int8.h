@@ -76,7 +76,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #endif
 }
 
-static NCNN_FORCEINLINE void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
     const int l2_cache_size_int8 = (int)(get_cpu_level2_cache_size() / sizeof(signed char));
@@ -205,7 +205,7 @@ static NCNN_FORCEINLINE void convolution_im2col_gemm_get_optimal_tile_mnk_int8(i
     }
 }
 
-static NCNN_FORCEINLINE void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
 {
     const int elempack = bottom_blob.elempack;
     const int cstep = (int)bottom_blob.cstep;
@@ -895,8 +895,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     __m128i _p0 = _mm_loadu_si128((const __m128i*)((const signed char*)bottom_blob + offset0));
 
                     _mm_store_si128((__m128i*)pp, _p0);
-
-                    // NCNN_LOGE("qwq");
 
                     pp += 16;
                 }
