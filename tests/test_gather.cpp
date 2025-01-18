@@ -67,7 +67,7 @@ static ncnn::Mat IntMat(int dims, int axis)
                 1,
             };
             ncnn::Mat in1(6);
-            auto ptr1 = (int*)in1.data;
+            int* ptr1 = (int*)in1.data;
             memcpy(ptr1, int_data, sizeof(int_data));
             in1 = in1.reshape(3, 2); // 3D
             return in1;
@@ -91,7 +91,7 @@ static ncnn::Mat IntMat(int dims, int axis)
                 6,
             };
             ncnn::Mat in1(12);
-            auto ptr1 = (int*)in1.data;
+            int* ptr1 = (int*)in1.data;
             memcpy(ptr1, int_data, sizeof(int_data));
             in1 = in1.reshape(6, 2); // 3D
             return in1;
@@ -112,7 +112,7 @@ static ncnn::Mat IntMat(int dims, int axis)
                 1,
             };
             ncnn::Mat in1(6);
-            auto ptr1 = (int*)in1.data;
+            int* ptr1 = (int*)in1.data;
             memcpy(ptr1, int_data, sizeof(int_data));
             in1 = in1.reshape(1, 3, 2); // 3D
             return in1;
@@ -130,7 +130,7 @@ static ncnn::Mat IntMat(int dims, int axis)
                 0,
             };
             ncnn::Mat in1(6);
-            auto ptr1 = (int*)in1.data;
+            int* ptr1 = (int*)in1.data;
             memcpy(ptr1, int_data, sizeof(int_data));
             in1 = in1.reshape(1, 3, 2); // 3D
             return in1;
@@ -150,7 +150,7 @@ static ncnn::Mat IntMat(int dims, int axis)
                 3,
             };
             ncnn::Mat in1(8);
-            auto ptr1 = (int*)in1.data;
+            int* ptr1 = (int*)in1.data;
             memcpy(ptr1, int_data, sizeof(int_data));
             in1 = in1.reshape(4, 1, 2); // 3D
             return in1;
@@ -211,7 +211,7 @@ static ncnn::Mat IntMat(int dims, int axis)
             0,
         };
         ncnn::Mat in1(40);
-        auto ptr1 = (int*)in1.data;
+        int* ptr1 = (int*)in1.data;
         memcpy(ptr1, int_data, sizeof(int_data));
         in1 = in1.reshape(5, 4, 1, 2); // 3D
         return in1;
