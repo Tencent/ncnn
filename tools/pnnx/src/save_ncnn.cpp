@@ -301,7 +301,7 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 continue;
             }
 
-            if (fp16 && attr.type == 0 && attr.data == std::vector<char>{0, 0, 0, 0})
+            if (fp16 && attr.type == 0 && attr.data == std::vector<char> {0, 0, 0, 0})
             {
                 // write fp16 flag
                 unsigned int fp16_flag = 0x01306B47;
