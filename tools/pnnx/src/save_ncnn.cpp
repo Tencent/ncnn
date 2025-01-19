@@ -124,6 +124,16 @@ static size_t alignSize(size_t sz, int n)
     return (sz + n - 1) & -n;
 }
 
+static int32_t safe_int64_to_int32(int64_t value)
+{
+    if (value > INT32_MAX || value < INT32_MIN)
+    {
+        fprintf(stderr, "Warning: int64 value %lld exceeds int32 range\n", value);
+        return (value > INT32_MAX) ? INT32_MAX : INT32_MIN;
+    }
+    return static_cast<int32_t>(value);
+}
+
 int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, int fp16)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
@@ -291,13 +301,29 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 continue;
             }
 
-            if (fp16 && attr.type == 0 && attr.data == std::vector<char> {0, 0, 0, 0})
+            if (fp16 && attr.type == 0 && attr.data == std::vector<char>{0, 0, 0, 0})
             {
                 // write fp16 flag
                 unsigned int fp16_flag = 0x01306B47;
                 fwrite((const char*)&fp16_flag, sizeof(fp16_flag), 1, binfp);
 
                 is_type_flag_fp32 = true;
+                continue;
+            }
+
+            if (attr.type == 5) // i64 --> i32
+            {
+                const int64_t* p = (const int64_t*)attr.data.data();
+                int len = attr.data.size() / sizeof(int64_t);
+
+                std::vector<int32_t> data_int32(len);
+
+                for (int i = 0; i < len; i++)
+                {
+                    data_int32[i] = safe_int64_to_int32(p[i]);
+                }
+
+                fwrite(data_int32.data(), data_int32.size() * sizeof(int32_t), 1, binfp);
                 continue;
             }
 
