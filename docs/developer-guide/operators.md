@@ -103,15 +103,15 @@ y = abs(x)
 # ArgMax
 
 ```
-y = argmax(x, out_max_val, topk)
+y = argmax(x, dim,keepdim)
 ```
 
 - one_blob_only
 
-| param id | name        | type | default | description |
-| -------- | ----------- | ---- | ------- | ----------- |
-| 0        | out_max_val | int  | 0       |             |
-| 1        | topk        | int  | 1       |             |
+| param id | name    | type | default | description |
+| -------- | ------- | ---- | ------- | ----------- |
+| 0        | dim     | int  | 0       |             |
+| 1        | keepdim | int  | 0       |             |
 
 # BatchNorm
 
