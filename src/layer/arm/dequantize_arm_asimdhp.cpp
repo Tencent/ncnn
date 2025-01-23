@@ -30,28 +30,19 @@ static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_da
 
     // NCNN_LOGE("dequantize_fp16s %d %d   %d %d", scale_data_size, bias_data_size, elemcount, elempack);
 
-    const float* scale_ptr = scale_data;
-
-    float scale = 0.f;
-    float32x4_t _scale0 = vdupq_n_f32();
-    float32x4_t _scale1 = vdupq_n_f32();
-
-    if (scale_data_size == 1 || elempack == 1)
-    {
-        scale = scale_ptr[0];
-        _scale0 = vdupq_n_f32(scale);
-        _scale1 = _scale0;
-    }
-    else
+    float scale = scale_data[0];
+    float32x4_t _scale0 = vdupq_n_f32(scale);
+    float32x4_t _scale1 = _scale0;
+    if (scale_data_size > 1)
     {
         if (elempack == 8)
         {
-            _scale0 = vld1q_f32(scale_ptr);
-            _scale1 = vld1q_f32(scale_ptr + 4);
+            _scale0 = vld1q_f32((const float*)scale_data);
+            _scale1 = vld1q_f32((const float*)scale_data + 4);
         }
         if (elempack == 4)
         {
-            _scale0 = vld1q_f32(scale_ptr);
+            _scale0 = vld1q_f32((const float*)scale_data);
             _scale1 = _scale0;
         }
     }
@@ -86,28 +77,19 @@ static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_da
     }
     else
     {
-        const float* bias_ptr = bias_data;
-
-        float bias = 0.f;
-        float32x4_t _bias0 = vdupq_n_f32();
-        float32x4_t _bias1 = vdupq_n_f32();
-
-        if (bias_data_size == 1 || elempack == 1)
-        {
-            bias = bias_ptr[0];
-            _bias0 = vdupq_n_f32(bias);
-            _bias1 = _bias0;
-        }
-        else
+        float bias = bias_data[0];
+        float32x4_t _bias0 = vdupq_n_f32(bias);
+        float32x4_t _bias1 = _bias0;
+        if (bias_data_size > 1)
         {
             if (elempack == 8)
             {
-                _bias0 = vld1q_f32(bias_ptr);
-                _bias1 = vld1q_f32(bias_ptr + 4);
+                _bias0 = vld1q_f32((const float*)bias_data);
+                _bias1 = vld1q_f32((const float*)bias_data + 4);
             }
             if (elempack == 4)
             {
-                _bias0 = vld1q_f32(bias_ptr);
+                _bias0 = vld1q_f32((const float*)bias_data);
                 _bias1 = _bias0;
             }
         }

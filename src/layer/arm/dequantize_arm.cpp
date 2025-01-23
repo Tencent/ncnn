@@ -46,29 +46,17 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
 
     // NCNN_LOGE("dequantize %d %d   %d %d", scale_data_size, bias_data_size, elemcount, elempack);
 
-    const float* scale_ptr = scale_data;
-
-    float scale = 0.f;
+    float scale = scale_data[0];
 #if __ARM_NEON
-    float32x4_t _scale = vdupq_n_f32();
-#endif // __ARM_NEON
-
-    if (scale_data_size == 1 || elempack == 1)
+    float32x4_t _scale = vdupq_n_f32(scale);
+    if (scale_data_size > 1)
     {
-        scale = scale_ptr[0];
-#if __ARM_NEON
-        _scale = vdupq_n_f32(scale);
-#endif // __ARM_NEON
-    }
-    else
-    {
-#if __ARM_NEON
         if (elempack == 4)
         {
-            _scale = vld1q_f32(scale_ptr);
+            _scale = vld1q_f32((const float*)scale_data);
         }
-#endif // __ARM_NEON
     }
+#endif // __ARM_NEON
 
     if (bias_data_size == 0)
     {
@@ -92,29 +80,17 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
     }
     else
     {
-        const float* bias_ptr = bias_data;
-
-        float bias = 0.f;
+        float bias = bias_data[0];
 #if __ARM_NEON
-        float32x4_t _bias = vdupq_n_f32();
-#endif // __ARM_NEON
-
-        if (bias_data_size == 1 || elempack == 1)
+        float32x4_t _bias = vdupq_n_f32(bias);
+        if (bias_data_size > 1)
         {
-            bias = bias_ptr[0];
-#if __ARM_NEON
-            _bias = vdupq_n_f32(bias);
-#endif // __ARM_NEON
-        }
-        else
-        {
-#if __ARM_NEON
             if (elempack == 4)
             {
-                _bias = vld1q_f32(bias_ptr);
+                _bias = vld1q_f32((const float*)bias_data);
             }
-#endif // __ARM_NEON
         }
+#endif // __ARM_NEON
 
         int i = 0;
 #if __ARM_NEON
