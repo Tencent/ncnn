@@ -147,10 +147,7 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage)
     {
-        if (opt.use_fp16_arithmetic)
-            return forward_fp16sa(bottom_blob, top_blob, opt);
-        else
-            return forward_fp16s(bottom_blob, top_blob, opt);
+        return forward_fp16s(bottom_blob, top_blob, opt);
     }
 #endif
 
