@@ -152,7 +152,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
             const int size = std::min(w - i, wp) * elempack;
 
-            dequantize_f16s(intptr, ptr, scale_data, bias_data, size, 1);
+            dequantize_fp16s(intptr, ptr, scale_data, bias_data, size, 1);
         }
     }
 
@@ -167,7 +167,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
             const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
             const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * elempack, elempack) : bias_data;
 
-            dequantize_f16s(intptr, ptr, scale_data_i, bias_data_i, w, elempack);
+            dequantize_fp16s(intptr, ptr, scale_data_i, bias_data_i, w, elempack);
         }
     }
 
@@ -182,7 +182,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
             const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
             const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
 
-            dequantize_f16s(intptr, ptr, scale_data_q, bias_data_q, w * h, elempack);
+            dequantize_fp16s(intptr, ptr, scale_data_q, bias_data_q, w * h, elempack);
         }
     }
 
