@@ -129,13 +129,14 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
     const int h = bottom_blob.h;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
-
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
+    const size_t out_elemsize = elempack * 2u;
 
     if (dims == 1)
     {
+        top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
         const int wp = std::max(1, w / opt.num_threads);
         const int nn_w = (w + wp - 1) / wp;
 
@@ -158,6 +159,10 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
     if (dims == 2)
     {
+        top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
@@ -173,6 +178,10 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
     if (dims == 3)
     {
+        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
