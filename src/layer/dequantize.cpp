@@ -48,23 +48,11 @@ int Dequantize::load_model(const ModelBin& mb)
 
 static void dequantize(const int* intptr, float* ptr, float scale, float bias, int size)
 {
-    if (bias == 0.f)
+    for (int i = 0; i < size; i++)
     {
-        for (int i = 0; i < size; i++)
-        {
-            *ptr = *intptr * scale;
-            intptr++;
-            ptr++;
-        }
-    }
-    else
-    {
-        for (int i = 0; i < size; i++)
-        {
-            *ptr = *intptr * scale + bias;
-            intptr++;
-            ptr++;
-        }
+        *ptr = *intptr * scale + bias;
+        intptr++;
+        ptr++;
     }
 }
 
