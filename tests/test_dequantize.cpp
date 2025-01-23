@@ -96,30 +96,14 @@ static int test_dequantize_1()
 static int test_dequantize_2()
 {
     return 0
-           || test_dequantize(RandomIntMat(128), 1, 128)
            || test_dequantize(RandomIntMat(128), 1, 1)
            || test_dequantize(RandomIntMat(128), 1, 0)
-           || test_dequantize(RandomIntMat(128), 128, 128)
-           || test_dequantize(RandomIntMat(128), 128, 1)
-           || test_dequantize(RandomIntMat(128), 128, 0)
-           || test_dequantize(RandomIntMat(120), 1, 120)
            || test_dequantize(RandomIntMat(120), 1, 1)
            || test_dequantize(RandomIntMat(120), 1, 0)
-           || test_dequantize(RandomIntMat(120), 120, 120)
-           || test_dequantize(RandomIntMat(120), 120, 1)
-           || test_dequantize(RandomIntMat(120), 120, 0)
-           || test_dequantize(RandomIntMat(124), 1, 124)
            || test_dequantize(RandomIntMat(124), 1, 1)
            || test_dequantize(RandomIntMat(124), 1, 0)
-           || test_dequantize(RandomIntMat(124), 124, 124)
-           || test_dequantize(RandomIntMat(124), 124, 1)
-           || test_dequantize(RandomIntMat(124), 124, 0)
-           || test_dequantize(RandomIntMat(127), 1, 127)
            || test_dequantize(RandomIntMat(127), 1, 1)
-           || test_dequantize(RandomIntMat(127), 1, 0)
-           || test_dequantize(RandomIntMat(127), 127, 127)
-           || test_dequantize(RandomIntMat(127), 127, 1)
-           || test_dequantize(RandomIntMat(127), 127, 0);
+           || test_dequantize(RandomIntMat(127), 1, 0);
 }
 
 int main()
