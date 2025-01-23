@@ -133,7 +133,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             _v = activation_avx512(_v, activation_type, activation_params);
             _v = _mm512_mul_ps(_v, _scale_out_avx512);
             _mm_storeu_si128((__m128i*)ptr, float2int8_avx512(_v));
-#else // __AVX512F__
+#else  // __AVX512F__
             __m256 _v0 = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
             __m256 _v1 = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)(intptr + 8)));
             _v0 = _mm256_mul_ps(_v0, _scale_in_avx);
@@ -156,7 +156,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             _v = activation_avx(_v, activation_type, activation_params);
             _v = _mm256_mul_ps(_v, _scale_out_avx);
             *(int64_t*)ptr = float2int8_avx(_v);
-#else // __AVX__
+#else  // __AVX__
             __m128 _v0 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr));
             __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)(intptr + 4)));
             _v0 = _mm_mul_ps(_v0, _scale_in);
@@ -246,7 +246,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             _v = activation_avx512(_v, activation_type, activation_params);
             _v = _mm512_mul_ps(_v, _scale_out_avx512);
             _mm_storeu_si128((__m128i*)ptr, float2int8_avx512(_v));
-#else // __AVX512F__
+#else  // __AVX512F__
             __m256 _v0 = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
             __m256 _v1 = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)(intptr + 8)));
             _v0 = _mm256_comp_fmadd_ps(_v0, _scale_in_avx, _bias_avx);
@@ -269,7 +269,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             _v = activation_avx(_v, activation_type, activation_params);
             _v = _mm256_mul_ps(_v, _scale_out_avx);
             *(int64_t*)ptr = float2int8_avx(_v);
-#else // __AVX__
+#else  // __AVX__
             __m128 _v0 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr));
             __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)(intptr + 4)));
             _v0 = _mm_comp_fmadd_ps(_v0, _scale_in, _bias);
