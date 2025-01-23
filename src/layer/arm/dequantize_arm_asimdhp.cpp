@@ -70,7 +70,7 @@ static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_da
         }
         for (; i < size; i++)
         {
-            *ptr = (__fp16*)(*intptr * scale);
+            *ptr = (__fp16)(*intptr * scale);
             intptr++;
             ptr++;
         }
@@ -115,7 +115,7 @@ static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_da
         }
         for (; i < size; i++)
         {
-            *ptr = (__fp16*)(*intptr * scale + bias);
+            *ptr = (__fp16)(*intptr * scale + bias);
             intptr++;
             ptr++;
         }
