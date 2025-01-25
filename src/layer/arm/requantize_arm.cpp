@@ -97,7 +97,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         for (; i + 7 < size; i += 8)
         {
             float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
-            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32((intptr + 4)));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
             _v0 = vmulq_f32(_v0, _scale0);
             _v1 = vmulq_f32(_v1, _scale1);
             vst1_s8(ptr, float2int8relu(_v0, _v1));
@@ -158,7 +158,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         for (; i + 7 < size; i += 8)
         {
             float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
-            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32((intptr + 4)));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
 #if __aarch64__
             _v0 = vfmaq_f32(_bias0, _v0, _scale0);
             _v1 = vfmaq_f32(_bias1, _v1, _scale1);
@@ -265,7 +265,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         for (; i + 7 < size; i += 8)
         {
             float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
-            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32((intptr + 4)));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
             _v0 = vmulq_f32(_v0, _scale0);
             _v1 = vmulq_f32(_v1, _scale1);
             vst1_s8(ptr, float2int8leakyrelu(_v0, _v1, _slope));
@@ -326,7 +326,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         for (; i + 7 < size; i += 8)
         {
             float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
-            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32((intptr + 4)));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
 #if __aarch64__
             _v0 = vfmaq_f32(_bias0, _v0, _scale0);
             _v1 = vfmaq_f32(_bias1, _v1, _scale1);
@@ -433,7 +433,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         for (; i + 7 < size; i += 8)
         {
             float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
-            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32((intptr + 4)));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
             _v0 = vmulq_f32(_v0, _scale_in0);
             _v1 = vmulq_f32(_v1, _scale_in1);
             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -494,7 +494,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         for (; i + 7 < size; i += 8)
         {
             float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
-            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32((intptr + 4)));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
 #if __aarch64__
             _v0 = vfmaq_f32(_bias0, _v0, _scale_in0);
             _v1 = vfmaq_f32(_bias1, _v1, _scale_in1);

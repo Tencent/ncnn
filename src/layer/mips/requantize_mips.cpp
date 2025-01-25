@@ -97,7 +97,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         {
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
             _v0 = __msa_fmul_w(_v0, _scale0);
             _v1 = __msa_fmul_w(_v1, _scale1);
             *((int64_t*)ptr) = float2int8relu(_v0, _v1);
@@ -159,7 +159,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         {
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
             _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
             _v1 = __msa_fmadd_w(_bias1, _v1, _scale1);
             *((int64_t*)ptr) = float2int8relu(_v0, _v1);
@@ -258,7 +258,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         {
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
             _v0 = __msa_fmul_w(_v0, _scale0);
             _v1 = __msa_fmul_w(_v1, _scale1);
             *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
@@ -320,7 +320,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         {
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
             _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
             _v1 = __msa_fmadd_w(_bias1, _v1, _scale1);
             *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
@@ -419,7 +419,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         {
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
             _v0 = __msa_fmul_w(_v0, _scale_in0);
             _v1 = __msa_fmul_w(_v1, _scale_in1);
             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -481,7 +481,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         {
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
             _v0 = __msa_fmadd_w(_bias0, _v0, _scale_in0);
             _v1 = __msa_fmadd_w(_bias1, _v1, _scale_in1);
             _v0 = activation_ps(_v0, activation_type, activation_params);
