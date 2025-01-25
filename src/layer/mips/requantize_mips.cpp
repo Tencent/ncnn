@@ -53,12 +53,12 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
     {
         if (elempack == 8)
         {
-            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data);
-            _scale_in1 = (v4f32)__msa_ld_w((const float*)scale_in_data + 4);
+            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data, 0);
+            _scale_in1 = (v4f32)__msa_ld_w((const float*)scale_in_data + 4, 0);
         }
         if (elempack == 4)
         {
-            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data);
+            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data, 0);
             _scale_in1 = _scale_in0;
         }
     }
@@ -72,12 +72,12 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
     {
         if (elempack == 8)
         {
-            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data);
-            _scale_out1 = (v4f32)__msa_ld_w((const float*)scale_out_data + 4);
+            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data, 0);
+            _scale_out1 = (v4f32)__msa_ld_w((const float*)scale_out_data + 4, 0);
         }
         if (elempack == 4)
         {
-            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data);
+            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data, 0);
             _scale_out1 = _scale_out0;
         }
     }
@@ -96,8 +96,8 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4)));
+            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
             _v0 = __msa_fmul_w(_v0, _scale0);
             _v1 = __msa_fmul_w(_v1, _scale1);
             *((int64_t*)ptr) = float2int8relu(_v0, _v1);
@@ -106,7 +106,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         }
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
+            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmul_w(_v, _scale0);
             v16i8 v = float2int8relu(_v, _v);
             ptr[0] = v[0];
@@ -136,12 +136,12 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         {
             if (elempack == 8)
             {
-                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data);
-                _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + 4);
+                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data, 0);
+                _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + 4, 0);
             }
             if (elempack == 4)
             {
-                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data);
+                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data, 0);
                 _bias1 = _bias0;
             }
         }
@@ -158,8 +158,8 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4)));
+            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
             _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
             _v1 = __msa_fmadd_w(_bias1, _v1, _scale1);
             *((int64_t*)ptr) = float2int8relu(_v0, _v1);
@@ -168,7 +168,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         }
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
+            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmadd_w(_bias0, _v, _scale0);
             v16i8 v = float2int8relu(_v, _v);
             ptr[0] = v[0];
@@ -213,12 +213,12 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
     {
         if (elempack == 8)
         {
-            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data);
-            _scale_in1 = (v4f32)__msa_ld_w((const float*)scale_in_data + 4);
+            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data, 0);
+            _scale_in1 = (v4f32)__msa_ld_w((const float*)scale_in_data + 4, 0);
         }
         if (elempack == 4)
         {
-            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data);
+            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data, 0);
             _scale_in1 = _scale_in0;
         }
     }
@@ -232,12 +232,12 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
     {
         if (elempack == 8)
         {
-            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data);
-            _scale_out1 = (v4f32)__msa_ld_w((const float*)scale_out_data + 4);
+            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data, 0);
+            _scale_out1 = (v4f32)__msa_ld_w((const float*)scale_out_data + 4, 0);
         }
         if (elempack == 4)
         {
-            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data);
+            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data, 0);
             _scale_out1 = _scale_out0;
         }
     }
@@ -257,8 +257,8 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4)));
+            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
             _v0 = __msa_fmul_w(_v0, _scale0);
             _v1 = __msa_fmul_w(_v1, _scale1);
             *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
@@ -267,7 +267,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         }
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
+            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmul_w(_v, _scale0);
             v16i8 v = float2int8leakyrelu(_v, _v, _slope);
             ptr[0] = v[0];
@@ -297,12 +297,12 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         {
             if (elempack == 8)
             {
-                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data);
-                _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + 4);
+                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data, 0);
+                _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + 4, 0);
             }
             if (elempack == 4)
             {
-                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data);
+                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data, 0);
                 _bias1 = _bias0;
             }
         }
@@ -319,8 +319,8 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4)));
+            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
             _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
             _v1 = __msa_fmadd_w(_bias1, _v1, _scale1);
             *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
@@ -329,7 +329,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         }
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
+            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmadd_w(_bias0, _v, _scale0);
             v16i8 v = float2int8leakyrelu(_v, _v, _slope);
             ptr[0] = v[0];
@@ -381,12 +381,12 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
     {
         if (elempack == 8)
         {
-            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data);
-            _scale_in1 = (v4f32)__msa_ld_w((const float*)scale_in_data + 4);
+            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data, 0);
+            _scale_in1 = (v4f32)__msa_ld_w((const float*)scale_in_data + 4, 0);
         }
         if (elempack == 4)
         {
-            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data);
+            _scale_in0 = (v4f32)__msa_ld_w((const float*)scale_in_data, 0);
             _scale_in1 = _scale_in0;
         }
     }
@@ -400,12 +400,12 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
     {
         if (elempack == 8)
         {
-            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data);
-            _scale_out1 = (v4f32)__msa_ld_w((const float*)scale_out_data + 4);
+            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data, 0);
+            _scale_out1 = (v4f32)__msa_ld_w((const float*)scale_out_data + 4, 0);
         }
         if (elempack == 4)
         {
-            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data);
+            _scale_out0 = (v4f32)__msa_ld_w((const float*)scale_out_data, 0);
             _scale_out1 = _scale_out0;
         }
     }
@@ -418,8 +418,8 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4)));
+            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
             _v0 = __msa_fmul_w(_v0, _scale_in0);
             _v1 = __msa_fmul_w(_v1, _scale_in1);
             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -432,7 +432,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         }
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
+            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmul_w(_v, _scale_in0);
             _v = activation_ps(_v, activation_type, activation_params);
             _v = __msa_fmul_w(_v, _scale_out0);
@@ -464,12 +464,12 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         {
             if (elempack == 8)
             {
-                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data);
-                _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + 4);
+                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data, 0);
+                _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + 4, 0);
             }
             if (elempack == 4)
             {
-                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data);
+                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data, 0);
                 _bias1 = _bias0;
             }
         }
@@ -480,8 +480,8 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
-            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4)));
+            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w((intptr + 4, 0)));
             _v0 = __msa_fmadd_w(_bias0, _v0, _scale_in0);
             _v1 = __msa_fmadd_w(_bias1, _v1, _scale_in1);
             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -494,7 +494,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         }
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr));
+            v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmadd_w(_bias0, _v, _scale_in0);
             _v = activation_ps(_v, activation_type, activation_params);
             _v = __msa_fmul_w(_v, _scale_out0);
