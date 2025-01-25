@@ -108,7 +108,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         {
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmul_s(_v, _scale0);
-            v16i8 v = (v16i8)float2int8relu(_v, _v);
+            v16i8 v = (v16i8)float2int8relu(_v);
             ptr[0] = v[0];
             ptr[1] = v[1];
             ptr[2] = v[2];
@@ -170,7 +170,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         {
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmadd_s(_v, _scale0, _bias0);
-            v16i8 v = (v16i8)float2int8relu(_v, _v);
+            v16i8 v = (v16i8)float2int8relu(_v);
             ptr[0] = v[0];
             ptr[1] = v[1];
             ptr[2] = v[2];
@@ -269,7 +269,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         {
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmul_s(_v, _scale0);
-            v16i8 v = (v16i8)float2int8leakyrelu(_v, _v, _slope);
+            v16i8 v = (v16i8)float2int8leakyrelu(_v, _slope);
             ptr[0] = v[0];
             ptr[1] = v[1];
             ptr[2] = v[2];
@@ -331,7 +331,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         {
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmadd_s(_v, _scale0, _bias0);
-            v16i8 v = (v16i8)float2int8leakyrelu(_v, _v, _slope);
+            v16i8 v = (v16i8)float2int8leakyrelu(_v, _slope);
             ptr[0] = v[0];
             ptr[1] = v[1];
             ptr[2] = v[2];
@@ -436,7 +436,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             _v = __lsx_vfmul_s(_v, _scale_in0);
             _v = activation_ps(_v, activation_type, activation_params);
             _v = __lsx_vfmul_s(_v, _scale_out0);
-            v16i8 v = (v16i8)float2int8(_v, _v);
+            v16i8 v = (v16i8)float2int8(_v);
             ptr[0] = v[0];
             ptr[1] = v[1];
             ptr[2] = v[2];
@@ -498,7 +498,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             _v = __lsx_vfmadd_s(_v, _scale_in0, _bias0);
             _v = activation_ps(_v, activation_type, activation_params);
             _v = __lsx_vfmul_s(_v, _scale_out0);
-            v16i8 v = (v16i8)float2int8(_v, _v);
+            v16i8 v = (v16i8)float2int8(_v);
             ptr[0] = v[0];
             ptr[1] = v[1];
             ptr[2] = v[2];
