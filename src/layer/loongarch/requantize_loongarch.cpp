@@ -96,8 +96,8 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            __m128 _v0 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
-            __m128 _v1 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr + 4, 0));
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
             _v0 = __lsx_vfmul_s(_v0, _scale0);
             _v1 = __lsx_vfmul_s(_v1, _scale1);
             *((int64_t*)ptr) = float2int8relu(_v0, _v1);
@@ -106,7 +106,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _v = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmul_s(_v, _scale0);
             v16i8 v = (v16i8)float2int8relu(_v, _v);
             ptr[0] = v[0];
@@ -158,8 +158,8 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            __m128 _v0 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
-            __m128 _v1 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr + 4, 0));
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
             _v0 = __lsx_vfmadd_s(_v0, _scale0, _bias0);
             _v1 = __lsx_vfmadd_s(_v1, _scale1, _bias1);
             *((int64_t*)ptr) = float2int8relu(_v0, _v1);
@@ -168,7 +168,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _v = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmadd_s(_v, _scale0, _bias0);
             v16i8 v = (v16i8)float2int8relu(_v, _v);
             ptr[0] = v[0];
@@ -257,8 +257,8 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            __m128 _v0 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
-            __m128 _v1 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr + 4, 0));
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
             _v0 = __lsx_vfmul_s(_v0, _scale0);
             _v1 = __lsx_vfmul_s(_v1, _scale1);
             *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
@@ -267,7 +267,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _v = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmul_s(_v, _scale0);
             v16i8 v = (v16i8)float2int8leakyrelu(_v, _v, _slope);
             ptr[0] = v[0];
@@ -319,8 +319,8 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            __m128 _v0 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
-            __m128 _v1 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr + 4, 0));
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
             _v0 = __lsx_vfmadd_s(_v0, _scale0, _bias0);
             _v1 = __lsx_vfmadd_s(_v1, _scale1, _bias1);
             *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
@@ -329,7 +329,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _v = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmadd_s(_v, _scale0, _bias0);
             v16i8 v = (v16i8)float2int8leakyrelu(_v, _v, _slope);
             ptr[0] = v[0];
@@ -418,8 +418,8 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            __m128 _v0 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
-            __m128 _v1 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr + 4, 0));
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
             _v0 = __lsx_vfmul_s(_v0, _scale_in0);
             _v1 = __lsx_vfmul_s(_v1, _scale_in1);
             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -432,7 +432,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _v = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmul_s(_v, _scale_in0);
             _v = activation_ps(_v, activation_type, activation_params);
             _v = __lsx_vfmul_s(_v, _scale_out0);
@@ -480,8 +480,8 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         for (; i + 7 < size; i += 8)
         {
             __builtin_prefetch(intptr + 32);
-            __m128 _v0 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
-            __m128 _v1 = (__m128)__msa_ffint_s_w(__lsx_vld(intptr + 4, 0));
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
             _v0 = __lsx_vfmadd_s(_v0, _scale_in0, _bias0);
             _v1 = __lsx_vfmadd_s(_v1, _scale_in1, _bias1);
             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -494,7 +494,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _v = (__m128)__msa_ffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmadd_s(_v, _scale_in0, _bias0);
             _v = activation_ps(_v, activation_type, activation_params);
             _v = __lsx_vfmul_s(_v, _scale_out0);
