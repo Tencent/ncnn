@@ -123,7 +123,7 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
     __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
     if (scale_data_size > 1)
     {
-        _scale = (__m128)__lsx_vld((const float*)scale_data);
+        _scale = (__m128)__lsx_vld((const float*)scale_data, 0);
     }
 
     int i = 0;
@@ -131,7 +131,7 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
     {
         __m128 _v = (__m128)__lsx_vld(ptr, 0);
         _v = __lsx_vfmul_s(_v, _scale);
-        v16i8 v = float2int8(_v, _v);
+        v16i8 v = (v16i8)float2int8(_v, _v);
         s8ptr0[0] = v[0];
         s8ptr1[0] = v[1];
         s8ptr2[0] = v[2];

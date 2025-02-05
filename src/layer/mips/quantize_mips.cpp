@@ -123,7 +123,7 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
     v4f32 _scale = (v4f32)__msa_fill_w_f32(scale);
     if (scale_data_size > 1)
     {
-        _scale = (v4f32)__msa_ld_w((const float*)scale_data);
+        _scale = (v4f32)__msa_ld_w((const float*)scale_data, 0);
     }
 
     int i = 0;
