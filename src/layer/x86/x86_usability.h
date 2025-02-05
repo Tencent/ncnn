@@ -727,6 +727,7 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
     __m256i _v0_i = _mm256_cvttps_epi32(_v0_adj);
 #if __AVX512F__
     __m128i _v8 = _mm256_cvtsepi32_epi8(_v0_i);
+    _v8 = _mm_max_epi8(_v8, _mm_set1_epi8(-127));
 #else // __AVX512F__
 #if __AVX2__
     __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v0_i);
@@ -1457,7 +1458,9 @@ static NCNN_FORCEINLINE __m128i float2int8_avx512(const __m512& _v0)
     __m512 _v0_p5 = _mm512_or_ps(_p5, _sign);
     __m512 _v0_adj = _mm512_add_ps(_v0, _v0_p5);
     __m512i _v0_i = _mm512_cvttps_epi32(_v0_adj);
-    return _mm512_cvtsepi32_epi8(_v0_i);
+    __m128i _v8 = _mm512_cvtsepi32_epi8(_v0_i);
+    _v8 = _mm_max_epi8(_v8, _mm_set1_epi8(-127));
+    return _v8;
 }
 
 static NCNN_FORCEINLINE __m512 bfloat2float_avx512(const __m256i& v0)
