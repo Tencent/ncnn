@@ -1006,7 +1006,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
 #else
             out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
 #endif
-        // out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+            // out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
         }
     }
 #endif // __SSE2__
