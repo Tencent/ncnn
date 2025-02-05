@@ -65,7 +65,7 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
     {
         v4f32 _v = (v4f32)__msa_ld_w(ptr, 0);
         _v = __msa_fmul_w(_v, _scale);
-        v16i8 v = float2int8(_v, _v);
+        v16i8 v = float2int8(_v);
         s8ptr[0] = v[0];
         s8ptr[1] = v[1];
         s8ptr[2] = v[2];
