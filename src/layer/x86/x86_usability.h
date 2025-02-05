@@ -915,7 +915,9 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
     __m256 _v0_p5 = _mm256_or_ps(_p5, _sign);
     __m256 _v0_adj = _mm256_add_ps(_v0, _v0_p5);
     __m256i _v0_i = _mm256_cvttps_epi32(_v0_adj);
-
+#if __AVX512F__
+    __m128i _v8 = _mm256_cvtsepi32_epi8(_v0_i);
+#else // __AVX512F__
 #if __AVX2__
     __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v0_i);
     _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
@@ -932,6 +934,7 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
     _v01_s16low = _mm_max_epi16(_v01_s16low, _mm_set1_epi16(-127));
 
     __m128i _v8 = _mm_packs_epi16(_v01_s16low, _v01_s16low);
+#endif // __AVX512F__
 
 #if defined(__x86_64__) || defined(_M_X64)
     return _mm_cvtsi128_si64(_v8);
@@ -1769,7 +1772,7 @@ static NCNN_FORCEINLINE __m128i float2int8_avx512(const __m512& _v0)
     __m512 _v0_p5 = _mm512_or_ps(_p5, _sign);
     __m512 _v0_adj = _mm512_add_ps(_v0, _v0_p5);
     __m512i _v0_i = _mm512_cvttps_epi32(_v0_adj);
-    return _mm512_cvtepi32_epi8(_v0_i);
+    return _mm512_cvtsepi32_epi8(_v0_i);
 }
 
 static NCNN_FORCEINLINE __m512 bfloat2float_avx512(const __m256i& v0)
