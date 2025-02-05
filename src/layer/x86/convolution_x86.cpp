@@ -998,7 +998,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
 #if __AVX__
             out_elempack_int32 = num_output % 8 == 0 ? 8 : 1;
 #else
-            out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+            out_elempack_int32 = num_output % 8 == 0 ? 4 : 1;
 #endif
         }
         else
