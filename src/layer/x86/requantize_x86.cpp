@@ -73,18 +73,6 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             _scale_in1 = _mm_loadu_ps((const float*)scale_in_data + 4);
 #endif // __AVX__
         }
-        if (elempack == 4)
-        {
-            _scale_in0 = _mm_loadu_ps((const float*)scale_in_data);
-#if __AVX__
-            _scale_in_avx = combine4x2_ps(_scale_in0, _scale_in0);
-#if __AVX512F__
-            _scale_in_avx512 = combine8x2_ps(_scale_in_avx, _scale_in_avx);
-#endif // __AVX512F__
-#else  // __AVX__
-            _scale_in1 = _scale_in0;
-#endif // __AVX__
-        }
     }
 #endif // __SSE2__
 
@@ -117,18 +105,6 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
 #else  // __AVX__
             _scale_out0 = _mm_loadu_ps((const float*)scale_out_data);
             _scale_out1 = _mm_loadu_ps((const float*)scale_out_data + 4);
-#endif // __AVX__
-        }
-        if (elempack == 4)
-        {
-            _scale_out0 = _mm_loadu_ps((const float*)scale_out_data);
-#if __AVX__
-            _scale_out_avx = combine4x2_ps(_scale_out0, _scale_out0);
-#if __AVX512F__
-            _scale_out_avx512 = combine8x2_ps(_scale_out_avx, _scale_out_avx);
-#endif // __AVX512F__
-#else  // __AVX__
-            _scale_out1 = _scale_out0;
 #endif // __AVX__
         }
     }
@@ -239,18 +215,6 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
 #else  // __AVX__
                 _bias0 = _mm_loadu_ps((const float*)bias_data);
                 _bias1 = _mm_loadu_ps((const float*)bias_data + 4);
-#endif // __AVX__
-            }
-            if (elempack == 4)
-            {
-                _bias0 = _mm_loadu_ps((const float*)bias_data);
-#if __AVX__
-                _bias_avx = combine4x2_ps(_bias0, _bias0);
-#if __AVX512F__
-                _bias_avx512 = combine8x2_ps(_bias_avx, _bias_avx);
-#endif // __AVX512F__
-#else  // __AVX__
-                _bias1 = _bias0;
 #endif // __AVX__
             }
         }
