@@ -1085,6 +1085,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else
         {
+#if __AVX__
             // TODO implement winograd and packed int8 avx pack8 output
             if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 0)
             {
@@ -1092,6 +1093,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 convert_packing(top_blob_int32, tmp, 8, opt);
                 top_blob_int32 = tmp;
             }
+#endif // __AVX__
         }
     }
 #endif
