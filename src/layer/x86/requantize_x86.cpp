@@ -330,6 +330,82 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
     }
 }
 
+#if __SSE2__
+#if !__AVX__
+static void requantize_pack4to8(const int* intptr0, const int* intptr1, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int activation_type, const Mat& activation_params, int elemcount)
+{
+    const int scale_in_data_size = scale_in_data.w;
+    const int bias_data_size = bias_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+
+    // NCNN_LOGE("requantize_pack4to8 %d %d %d   %d", scale_in_data_size, bias_data_size, scale_out_data_size, elemcount);
+
+    __m128 _scale_in0 = _mm_set1_ps(scale_in_data[0]);
+    __m128 _scale_in1 = _scale_in0;
+    if (scale_in_data_size > 1)
+    {
+        _scale_in0 = _mm_loadu_ps((const float*)scale_in_data);
+        _scale_in1 = _mm_loadu_ps((const float*)scale_in_data + 4);
+    }
+
+    __m128 _scale_out0 = _mm_set1_ps(scale_out_data[0]);
+    __m128 _scale_out1 = _scale_out0;
+    if (scale_out_data_size > 1)
+    {
+        _scale_out0 = _mm_loadu_ps((const float*)scale_out_data);
+        _scale_out1 = _mm_loadu_ps((const float*)scale_out_data + 4);
+    }
+
+    if (bias_data_size == 0)
+    {
+        int i = 0;
+        for (; i < elemcount; i++)
+        {
+            __m128 _v0 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr0));
+            __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr1));
+            _v0 = _mm_mul_ps(_v0, _scale_in0);
+            _v1 = _mm_mul_ps(_v1, _scale_in1);
+            _v0 = activation_sse(_v0, activation_type, activation_params);
+            _v1 = activation_sse(_v1, activation_type, activation_params);
+            _v0 = _mm_mul_ps(_v0, _scale_out0);
+            _v1 = _mm_mul_ps(_v1, _scale_out1);
+            *(int64_t*)ptr = float2int8_sse(_v0, _v1);
+            intptr0 += 4;
+            intptr1 += 4;
+            ptr += 8;
+        }
+    }
+    else
+    {
+        __m128 _bias0 = _mm_set1_ps(bias_data[0]);
+        __m128 _bias1 = _bias0;
+        if (bias_data_size > 1)
+        {
+            _bias0 = _mm_loadu_ps((const float*)bias_data);
+            _bias1 = _mm_loadu_ps((const float*)bias_data + 4);
+        }
+
+        int i = 0;
+        for (; i < elemcount; i++)
+        {
+            __m128 _v0 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr0));
+            __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr1));
+            _v0 = _mm_comp_fmadd_ps(_v0, _scale_in0, _bias0);
+            _v1 = _mm_comp_fmadd_ps(_v1, _scale_in1, _bias1);
+            _v0 = activation_sse(_v0, activation_type, activation_params);
+            _v1 = activation_sse(_v1, activation_type, activation_params);
+            _v0 = _mm_mul_ps(_v0, _scale_out0);
+            _v1 = _mm_mul_ps(_v1, _scale_out1);
+            *(int64_t*)ptr = float2int8_sse(_v0, _v1);
+            intptr0 += 4;
+            intptr1 += 4;
+            ptr += 8;
+        }
+    }
+}
+#endif // !__AVX__
+#endif // __SSE2__
+
 int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int dims = bottom_blob.dims;
@@ -337,11 +413,20 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
     const int h = bottom_blob.h;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
-    const size_t out_elemsize = elempack * 1u;
 
     if (dims == 1)
     {
-        top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
+        int out_elempack = 1;
+#if __SSE2__
+        if (opt.use_packing_layout)
+        {
+            out_elempack = w * elempack % 8 == 0 ? 8 : 1;
+        }
+#endif
+        const int outw = w * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -368,41 +453,107 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
     if (dims == 2)
     {
-        top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
+        int out_elempack = 1;
+#if __SSE2__
+        if (opt.use_packing_layout)
+        {
+            out_elempack = h * elempack % 8 == 0 ? 8 : 1;
+        }
+#endif
+        const int outh = h * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < h; i++)
+#if __SSE2__
+#if !__AVX__
+        if (elempack == 4 && out_elempack == 8)
         {
-            const int* intptr = bottom_blob.row<const int>(i);
-            signed char* ptr = top_blob.row<signed char>(i);
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < outh; i++)
+            {
+                const int* intptr0 = bottom_blob.row<const int>(i * 2);
+                const int* intptr1 = bottom_blob.row<const int>(i * 2 + 1);
+                signed char* ptr = top_blob.row<signed char>(i);
 
-            const Mat scale_in_data_i = scale_in_data_size > 1 ? scale_in_data.range(i * elempack, elempack) : scale_in_data;
-            const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * elempack, elempack) : bias_data;
-            const Mat scale_out_data_i = scale_out_data_size > 1 ? scale_out_data.range(i * elempack, elempack) : scale_out_data;
+                const Mat scale_in_data_i = scale_in_data_size > 1 ? scale_in_data.range(i * out_elempack, out_elempack) : scale_in_data;
+                const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * out_elempack, out_elempack) : bias_data;
+                const Mat scale_out_data_i = scale_out_data_size > 1 ? scale_out_data.range(i * out_elempack, out_elempack) : scale_out_data;
 
-            requantize(intptr, ptr, scale_in_data_i, bias_data_i, scale_out_data_i, activation_type, activation_params, w, elempack);
+                requantize_pack4to8(intptr0, intptr1, ptr, scale_in_data_i, bias_data_i, scale_out_data_i, activation_type, activation_params, w);
+            }
+        }
+#endif // !__AVX__
+#endif // __SSE2__
+        if (elempack == out_elempack)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const int* intptr = bottom_blob.row<const int>(i);
+                signed char* ptr = top_blob.row<signed char>(i);
+
+                const Mat scale_in_data_i = scale_in_data_size > 1 ? scale_in_data.range(i * elempack, elempack) : scale_in_data;
+                const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * elempack, elempack) : bias_data;
+                const Mat scale_out_data_i = scale_out_data_size > 1 ? scale_out_data.range(i * elempack, elempack) : scale_out_data;
+
+                requantize(intptr, ptr, scale_in_data_i, bias_data_i, scale_out_data_i, activation_type, activation_params, w, elempack);
+            }
         }
     }
 
     if (dims == 3)
     {
-        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
+        int out_elempack = 1;
+#if __SSE2__
+        if (opt.use_packing_layout)
+        {
+            out_elempack = channels * elempack % 8 == 0 ? 8 : 1;
+        }
+#endif
+        const int outc = channels * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+#if __SSE2__
+#if !__AVX__
+        if (elempack == 4 && out_elempack == 8)
         {
-            const int* intptr = bottom_blob.channel(q);
-            signed char* ptr = top_blob.channel(q);
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < outc; q++)
+            {
+                const int* intptr0 = bottom_blob.channel(q * 2);
+                const int* intptr1 = bottom_blob.channel(q * 2 + 1);
+                signed char* ptr = top_blob.channel(q);
 
-            const Mat scale_in_data_q = scale_in_data_size > 1 ? scale_in_data.range(q * elempack, elempack) : scale_in_data;
-            const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
-            const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * elempack, elempack) : scale_out_data;
+                const Mat scale_in_data_q = scale_in_data_size > 1 ? scale_in_data.range(q * out_elempack, out_elempack) : scale_in_data;
+                const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * out_elempack, out_elempack) : bias_data;
+                const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * out_elempack, out_elempack) : scale_out_data;
 
-            requantize(intptr, ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h, elempack);
+                requantize_pack4to8(intptr0, intptr1, ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h);
+            }
+        }
+#endif // !__AVX__
+#endif // __SSE2__
+        if (elempack == out_elempack)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const int* intptr = bottom_blob.channel(q);
+                signed char* ptr = top_blob.channel(q);
+
+                const Mat scale_in_data_q = scale_in_data_size > 1 ? scale_in_data.range(q * elempack, elempack) : scale_in_data;
+                const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
+                const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * elempack, elempack) : scale_out_data;
+
+                requantize(intptr, ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h, elempack);
+            }
         }
     }
 
