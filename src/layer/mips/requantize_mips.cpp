@@ -120,8 +120,8 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         for (; i < size; i++)
         {
             float v = *intptr * scale;
+            if (v < 0) v = 0;
             *ptr = float2int8(v);
-            if (*ptr < 0) *ptr = 0;
             intptr++;
             ptr++;
         }
@@ -182,8 +182,8 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         for (; i < size; i++)
         {
             float v = *intptr * scale + bias;
+            if (v < 0) v = 0;
             *ptr = float2int8(v);
-            if (*ptr < 0) *ptr = 0;
             intptr++;
             ptr++;
         }
@@ -281,8 +281,8 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         for (; i < size; i++)
         {
             float v = *intptr * scale;
+            if (v < 0) v *= slope;
             *ptr = float2int8(v);
-            if (*ptr < 0) *ptr *= slope;
             intptr++;
             ptr++;
         }
@@ -343,8 +343,8 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         for (; i < size; i++)
         {
             float v = *intptr * scale + bias;
+            if (v < 0) v *= slope;
             *ptr = float2int8(v);
-            if (*ptr < 0) *ptr *= slope;
             intptr++;
             ptr++;
         }
