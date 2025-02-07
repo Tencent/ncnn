@@ -121,6 +121,73 @@ jobs:
         plugins: noop
         files: build/lcov.info
 
+  linux-gcc-x64-sde-combined:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: update
+      run: sudo apt-get update
+    - name: gcc14
+      run: sudo apt-get install gcc-14 g++-14
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: Setup SDE binaries
+      uses: petarpetrovt/setup-sde@v2.4
+    - name: build
+      env:
+        CC: gcc-14
+        CXX: g++-14
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-p4p
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-p4p;--" ctest --output-on-failure -j $(nproc)
+    - name: test-snb
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-snb;--" ctest --output-on-failure -j $(nproc)
+    - name: test-hsw
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-hsw;--" ctest --output-on-failure -j $(nproc)
+    - name: test-adl
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-adl;--" ctest --output-on-failure -j $(nproc)
+    - name: test-arl
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-arl;--" ctest --output-on-failure -j $(nproc)
+    - name: test-skx
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-skx;--" ctest --output-on-failure -j $(nproc)
+    - name: test-spr
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j $(nproc)
+    - name: test-gnr
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-gnr;--" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov --gcov-tool gcov-14 -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
   linux-gcc-riscv64-rvv:
     strategy:
       matrix:
