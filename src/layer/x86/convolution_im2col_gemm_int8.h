@@ -2558,32 +2558,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
     }
 }
 
-// template<int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h>
-// #if __AVX512F__
-// void convolution_im2col_input_tile_int8_avx512(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
-// #else  // __AVX512F__
-// void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
-// #endif // __AVX512F__
-// {
-//     convolution_im2col_input_tile_int8_impl(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
-// }
-//
-// #if __AVX512F__
-// template void convolution_im2col_input_tile_int8_avx512<1, 1, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8_avx512<3, 3, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8_avx512<3, 3, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8_avx512<5, 5, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8_avx512<5, 5, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8_avx512<7, 7, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// #else  // __AVX512F__
-// template void convolution_im2col_input_tile_int8<1, 1, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8<3, 3, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8<3, 3, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8<5, 5, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8<5, 5, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// template void convolution_im2col_input_tile_int8<7, 7, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
-// #endif // __AVX512F__
-
 static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
@@ -2624,72 +2598,14 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
         return;
     }
 
-    //     if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2)
-    //     {
-    // #if __AVX512F__
-    //         convolution_im2col_input_tile_int8_avx512<1, 1, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #else  // __AVX512F__
-    //         convolution_im2col_input_tile_int8<1, 1, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #endif // __AVX512F__
-    //         return;
-    //     }
-    //
-    //     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-    //     {
-    // #if __AVX512F__
-    //         convolution_im2col_input_tile_int8_avx512<3, 3, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #else  // __AVX512F__
-    //         convolution_im2col_input_tile_int8<3, 3, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #endif // __AVX512F__
-    //         return;
-    //     }
-    //
-    //     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-    //     {
-    // #if __AVX512F__
-    //         convolution_im2col_input_tile_int8_avx512<3, 3, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #else  // __AVX512F__
-    //         convolution_im2col_input_tile_int8<3, 3, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #endif // __AVX512F__
-    //         return;
-    //     }
-    //
-    //     if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-    //     {
-    // #if __AVX512F__
-    //         convolution_im2col_input_tile_int8_avx512<5, 5, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #else  // __AVX512F__
-    //         convolution_im2col_input_tile_int8<5, 5, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #endif // __AVX512F__
-    //         return;
-    //     }
-    //
-    //     if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-    //     {
-    // #if __AVX512F__
-    //         convolution_im2col_input_tile_int8_avx512<5, 5, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #else  // __AVX512F__
-    //         convolution_im2col_input_tile_int8<5, 5, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #endif // __AVX512F__
-    //         return;
-    //     }
-    //
-    //     if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-    //     {
-    // #if __AVX512F__
-    //         convolution_im2col_input_tile_int8_avx512<7, 7, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #else  // __AVX512F__
-    //         convolution_im2col_input_tile_int8<7, 7, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
-    // #endif // __AVX512F__
-    //         return;
-    //     }
+    // TODO specialized template initialization for 1x1s2 3x3s1 3x2s2 5x5s1 5x5s2 7x7s2
 
     convolution_im2col_input_tile_int8_impl(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
 }
 
 static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, int kernel_w, int kernel_h, const Option& opt)
 {
-    // NCNN_LOGE("convolution_im2col_gemm_transform_kernel");
+    // NCNN_LOGE("convolution_im2col_gemm_transform_kernel_int8");
     const int maxk = kernel_w * kernel_h;
 
     const int M = outch;
