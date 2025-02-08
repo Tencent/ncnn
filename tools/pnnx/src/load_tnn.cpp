@@ -542,6 +542,9 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
 
         // binary
         if (op->type == "tnn.Add") op->type = "aten::add";
+        if (op->type == "tnn.Sub") op->type = "aten::sub";
+        if (op->type == "tnn.Mul") op->type = "aten::mul";
+        if (op->type == "tnn.Div") op->type = "aten::div";
     }
 
     return 0;
