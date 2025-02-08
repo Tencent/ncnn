@@ -32,6 +32,9 @@
 #if BUILD_ONNX2PNNX
 #include "load_onnx.h"
 #endif
+#if BUILD_TNN2PNNX
+#include "load_tnn.h"
+#endif
 
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
@@ -313,6 +316,14 @@ int main(int argc, char** argv)
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
     pnnx::Graph pnnx_graph;
+#if BUILD_TNN2PNNX
+    if (1)
+    {
+        fprintf(stderr, "TODO distinguish tnnproto file\n");
+        load_tnn(ptpath, pnnx_graph);
+    }
+    else
+#endif
 #if BUILD_ONNX2PNNX
     if (!model_file_maybe_torchscript(ptpath))
     {

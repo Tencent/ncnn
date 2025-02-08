@@ -715,6 +715,19 @@ else()
     message(STATUS "Building without onnx2pnnx")
 endif()
 
+if(PNNX_TNN2PNNX)
+    set(tnn2pnnx_SRCS
+        load_tnn.cpp
+    )
+
+    add_library(tnn2pnnx OBJECT ${tnn2pnnx_SRCS})
+    target_compile_definitions(tnn2pnnx PRIVATE BUILD_TNN2PNNX)
+
+    message(STATUS "Building with tnn2pnnx")
+else()
+    message(STATUS "Building without tnn2pnnx")
+endif()
+
 if(NOT MSVC)
     add_definitions(-Wall -Wextra)
 endif()
@@ -763,6 +776,11 @@ endif()
 if(onnxruntime_FOUND)
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_ONNX2PNNX)
     target_link_libraries(pnnx PRIVATE onnx2pnnx)
+endif()
+
+if(PNNX_TNN2PNNX)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TNN2PNNX)
+    target_link_libraries(pnnx PRIVATE tnn2pnnx)
 endif()
 
 if(PNNX_COVERAGE)
