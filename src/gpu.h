@@ -309,6 +309,7 @@ public:
     int support_VK_EXT_descriptor_indexing() const;
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
+    int support_VK_EXT_pageable_device_local_memory() const;
     int support_VK_EXT_queue_family_foreign() const;
     int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
