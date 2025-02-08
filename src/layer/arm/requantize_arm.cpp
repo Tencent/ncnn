@@ -57,11 +57,6 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
             _scale_in0 = vld1q_f32((const float*)scale_in_data);
             _scale_in1 = vld1q_f32((const float*)scale_in_data + 4);
         }
-        if (elempack == 4)
-        {
-            _scale_in0 = vld1q_f32((const float*)scale_in_data);
-            _scale_in1 = _scale_in0;
-        }
     }
 #endif // __ARM_NEON
 
@@ -75,11 +70,6 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         {
             _scale_out0 = vld1q_f32((const float*)scale_out_data);
             _scale_out1 = vld1q_f32((const float*)scale_out_data + 4);
-        }
-        if (elempack == 4)
-        {
-            _scale_out0 = vld1q_f32((const float*)scale_out_data);
-            _scale_out1 = _scale_out0;
         }
     }
 #endif // __ARM_NEON
@@ -138,11 +128,6 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
             {
                 _bias0 = vld1q_f32((const float*)bias_data);
                 _bias1 = vld1q_f32((const float*)bias_data + 4);
-            }
-            if (elempack == 4)
-            {
-                _bias0 = vld1q_f32((const float*)bias_data);
-                _bias1 = _bias0;
             }
         }
 #endif // __ARM_NEON
@@ -224,11 +209,6 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
             _scale_in0 = vld1q_f32((const float*)scale_in_data);
             _scale_in1 = vld1q_f32((const float*)scale_in_data + 4);
         }
-        if (elempack == 4)
-        {
-            _scale_in0 = vld1q_f32((const float*)scale_in_data);
-            _scale_in1 = _scale_in0;
-        }
     }
 #endif // __ARM_NEON
 
@@ -242,11 +222,6 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         {
             _scale_out0 = vld1q_f32((const float*)scale_out_data);
             _scale_out1 = vld1q_f32((const float*)scale_out_data + 4);
-        }
-        if (elempack == 4)
-        {
-            _scale_out0 = vld1q_f32((const float*)scale_out_data);
-            _scale_out1 = _scale_out0;
         }
     }
 #endif // __ARM_NEON
@@ -306,11 +281,6 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
             {
                 _bias0 = vld1q_f32((const float*)bias_data);
                 _bias1 = vld1q_f32((const float*)bias_data + 4);
-            }
-            if (elempack == 4)
-            {
-                _bias0 = vld1q_f32((const float*)bias_data);
-                _bias1 = _bias0;
             }
         }
 #endif // __ARM_NEON
@@ -399,11 +369,6 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             _scale_in0 = vld1q_f32((const float*)scale_in_data);
             _scale_in1 = vld1q_f32((const float*)scale_in_data + 4);
         }
-        if (elempack == 4)
-        {
-            _scale_in0 = vld1q_f32((const float*)scale_in_data);
-            _scale_in1 = _scale_in0;
-        }
     }
 #endif // __ARM_NEON
 
@@ -417,11 +382,6 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         {
             _scale_out0 = vld1q_f32((const float*)scale_out_data);
             _scale_out1 = vld1q_f32((const float*)scale_out_data + 4);
-        }
-        if (elempack == 4)
-        {
-            _scale_out0 = vld1q_f32((const float*)scale_out_data);
-            _scale_out1 = _scale_out0;
         }
     }
 #endif // __ARM_NEON
@@ -480,11 +440,6 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             {
                 _bias0 = vld1q_f32((const float*)bias_data);
                 _bias1 = vld1q_f32((const float*)bias_data + 4);
-            }
-            if (elempack == 4)
-            {
-                _bias0 = vld1q_f32((const float*)bias_data);
-                _bias1 = _bias0;
             }
         }
 #endif // __ARM_NEON
