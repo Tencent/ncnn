@@ -322,7 +322,6 @@ int main(int argc, char** argv)
         fprintf(stderr, "TODO distinguish tnnproto file\n");
         load_tnn(ptpath, pnnx_graph);
     }
-    else
 #endif
 #if BUILD_ONNX2PNNX
     if (!model_file_maybe_torchscript(ptpath))
