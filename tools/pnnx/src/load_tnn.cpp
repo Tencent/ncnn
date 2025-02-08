@@ -362,7 +362,6 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         op->inputs.push_back(r);
     }
 
-
     fclose(fp);
 
     // replace simple operator
