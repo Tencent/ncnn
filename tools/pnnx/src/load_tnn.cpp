@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unordered_map>
 
 namespace pnnx {
 
@@ -116,29 +117,95 @@ static float vstr_to_float(const char vstr[16])
     return sign ? (float)v : (float)-v;
 }
 
+static size_t type_to_elemsize(int type)
+{
+    if (type == 1) return 4;
+    if (type == 2) return 8;
+    if (type == 3) return 2;
+    if (type == 4) return 4;
+    if (type == 5) return 8;
+    if (type == 6) return 2;
+    if (type == 7) return 1;
+    if (type == 8) return 1;
+    if (type == 9) return 1;
+    if (type == 10) return 8;
+    if (type == 11) return 16;
+    if (type == 12) return 4;
+    return 0; // null
+}
+
+static int get_tnn_tensor_type(int dt)
+{
+    if (dt == 0) return 1;
+
+    fprintf(stderr, "unsupported tnn tensor type %d\n", dt);
+    return 0; // unknown type
+}
+
+Attribute::Attribute(FILE* bp)
+{
+    unsigned int magic;
+    int datatype;
+    int length;
+    int ndim;
+    fread(&magic, 1, sizeof(unsigned int), bp);
+    fread(&datatype, 1, sizeof(int), bp);
+    fread(&length, 1, sizeof(int), bp);
+    fread(&ndim, 1, sizeof(int), bp);
+
+    type = get_tnn_tensor_type(datatype);
+
+    if (ndim == 0)
+    {
+        shape = {1};
+
+        data.resize(type_to_elemsize(type));
+
+        // assert length == type_to_elemsize(type)
+        fread((void*)data.data(), 1, length, bp);
+
+        return;
+    }
+
+    shape.resize(ndim);
+    for (int i = 0; i < ndim; i++)
+    {
+        fread(&shape[i], 1, sizeof(int), bp);
+    }
+
+    data.resize(elemcount() * type_to_elemsize(type));
+
+    // assert length == elemcount() * type_to_elemsize(type)
+    fread((void*)data.data(), 1, length, bp);
+}
+
 int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
 {
     fprintf(stderr, "############# pass_level0 tnn\n");
 
-    fprintf(stderr, "load_tnn %s\n", tnnpath.c_str());
+    // generate proto and model path
+    std::string tnnprotopath = tnnpath;
+    std::string tnnmodelpath = tnnpath.substr(0, tnnpath.size() - 8) + "tnnmodel";
 
-    FILE* fp = fopen(tnnpath.c_str(), "rb");
-    if (!fp)
+    fprintf(stderr, "load_tnn %s %s\n", tnnprotopath.c_str(), tnnmodelpath.c_str());
+
+    FILE* pp = fopen(tnnprotopath.c_str(), "rb");
+    if (!pp)
     {
-        fprintf(stderr, "fopen %s failed\n", tnnpath.c_str());
+        fprintf(stderr, "fopen %s failed\n", tnnprotopath.c_str());
         return -1;
     }
 
     char line[4096];
 
     // "1 57 1 4206624772 ,"
-    fgets(line, 4096, fp);
+    fgets(line, 4096, pp);
     int blob_count = 57;
-    unsigned int magic = 4206624772;
+    unsigned int proto_magic = 4206624772;
 
     // "input 2 1 80000 0 ,"
-    fgets(line, 4096, fp);
-    if (magic == 4206624772)
+    fgets(line, 4096, pp);
+    if (proto_magic == 4206624772)
     {
         // strip leading and tail double quote
         line[strlen(line) - 2] = '\0';
@@ -175,16 +242,14 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         r->producer = op;
 
         r->shape = shape;
-
-        if (datatype == 0)
-            r->type = 1;
+        r->type = get_tnn_tensor_type(datatype);
 
         op->outputs.push_back(r);
     }
 
     // all operand names
     // " 108 109 110 111 112 113 114 116 118 119 120 125 126 128 130 131 132 133 135 136 138 139 142 144 145 147 148 151 153 154 156 157 160 162 163 165 166 169 171 172 174 175 178 180 181 183 184 188 189 190 191 192 194 85 clipwise_output embedding input ,"
-    fgets(line, 4096, fp);
+    fgets(line, 4096, pp);
     {
         // strip leading and tail double quote
         line[strlen(line) - 2] = '\0';
@@ -211,7 +276,7 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
 
     // all output names
     // "clipwise_output embedding ,"
-    fgets(line, 4096, fp);
+    fgets(line, 4096, pp);
 
     std::vector<std::string> output_names;
     {
@@ -240,13 +305,13 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
 
     // layer count
     // " 56 ,"
-    fgets(line, 4096, fp);
+    fgets(line, 4096, pp);
     int layer_count = 56;
 
     for (int i = 0; i < layer_count; i++)
     {
         // "Unsqueeze Unsqueeze_0 1 1 input 85 1 1 ,"
-        fgets(line, 4096, fp);
+        fgets(line, 4096, pp);
 
         // strip leading and tail double quote
         line[strlen(line) - 2] = '\0';
@@ -362,7 +427,110 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         op->inputs.push_back(r);
     }
 
-    fclose(fp);
+    fclose(pp);
+
+    FILE* bp = fopen(tnnmodelpath.c_str(), "rb");
+    if (!bp)
+    {
+        fprintf(stderr, "fopen %s failed\n", tnnmodelpath.c_str());
+        return -1;
+    }
+
+    // magic 0xfabc0004
+    unsigned int model_magic;
+    fread(&model_magic, 1, sizeof(unsigned int), bp);
+    if (model_magic != 0xfabc0004)
+    {
+        fprintf(stderr, "model_magic %x failed\n", model_magic);
+        return -1;
+    }
+
+    int weight_count = 0;
+    fread(&weight_count, 1, sizeof(int), bp);
+
+    fprintf(stderr, "weight_count = %d\n", weight_count);
+
+    std::unordered_map<std::string, Operator*> op_map;
+    for (auto x : pnnx_graph.ops)
+    {
+        op_map[x->name] = x;
+    }
+
+    for (int i = 0; i < weight_count; i++)
+    {
+        int opid;
+        fread(&opid, 1, sizeof(int), bp);
+
+        int type_size;
+        std::string type;
+        fread(&type_size, 1, sizeof(int), bp);
+        type.resize(type_size);
+        fread((void*)type.data(), 1, type_size, bp);
+
+        int name_size;
+        std::string name;
+        fread(&name_size, 1, sizeof(int), bp);
+        name.resize(name_size);
+        fread((void*)name.data(), 1, name_size, bp);
+
+        fprintf(stderr, "model %d %s %s\n", opid, type.c_str(), name.c_str());
+
+        Operator* op = op_map.at(name);
+
+        int attribute_count = 0;
+
+        if (type == "Convolution1D" || type == "Convolution")
+        {
+            // skip name2 == name
+            int name2_size;
+            std::string name2;
+            fread(&name2_size, 1, sizeof(int), bp);
+            name2.resize(name2_size);
+            fread((void*)name2.data(), 1, name2_size, bp);
+
+            // bias
+            int bias;
+            fread(&bias, 1, sizeof(int), bp);
+
+            attribute_count = bias ? 2 : 1;
+        }
+        if (type == "InnerProduct")
+        {
+            // skip name2 == name
+            int name2_size;
+            std::string name2;
+            fread(&name2_size, 1, sizeof(int), bp);
+            name2.resize(name2_size);
+            fread((void*)name2.data(), 1, name2_size, bp);
+
+            attribute_count = 2;
+        }
+        if (type == "MatMul")
+        {
+            attribute_count = 1;
+        }
+        if (type == "Add" || type == "Sub" || type == "Mul" || type == "Div")
+        {
+            attribute_count = 1;
+        }
+        if (type == "BatchNormCxx")
+        {
+            attribute_count = 2;
+        }
+
+        for (int j = 0; j < attribute_count; j++)
+        {
+            Operator* op_scale = pnnx_graph.new_operator_before("pnnx.Attribute", name + "_attr" + std::to_string(j), op);
+            Operand* r0 = pnnx_graph.new_operand(name + "_attr" + std::to_string(j));
+            op_scale->attrs["data"] = Attribute(bp);
+            op_scale->outputs.push_back(r0);
+            r0->producer = op_scale;
+            r0->consumers.push_back(op);
+            op->inputs.push_back(r0);
+        }
+    }
+
+    fclose(bp);
 
     // replace simple operator
     for (Operator* op : pnnx_graph.ops)
