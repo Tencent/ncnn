@@ -803,7 +803,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
         if (dy0 == dyf && stride_w == 1)
         {
-            // NCNN_LOGE("qaq");
             const int dx0 = _mm_extract_epi32(_mm512_extracti32x4_epi32(_dx, 0), 0);
 
             const int dxy_offset = dx0 + dy0;
@@ -852,8 +851,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _mm_store_si128((__m128i*)(pp + 32), _p2);
                     _mm_store_si128((__m128i*)(pp + 48), _p3);
 
-                    // NCNN_LOGE("qwq");
-
                     pp += 64;
                 }
 #endif //__AVX512VNNI__ || __AVXVNNI__
@@ -879,8 +876,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _mm_store_si128((__m128i*)pp, _t0);
                     _mm_store_si128((__m128i*)(pp + 16), _t1);
 
-                    // NCNN_LOGE("qwq");
-
                     pp += 32;
                 }
                 for (; kk < max_kk; kk += 1)
@@ -904,7 +899,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                 int kk = 0;
                 for (; kk < max_kk / 8; kk++)
                 {
-                    // NCNN_LOGE("qwq");
                     int p = (k / 8 + kk) / maxk;
                     int uv = (k / 8 + kk) % maxk;
                     int u = uv / kernel_w;
@@ -914,8 +908,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     __m512i _r0 = _mm512_loadu_si512((const __m512i*)((const signed char*)bottom_blob + offset));
                     __m512i _r1 = _mm512_loadu_si512((const __m512i*)((const signed char*)bottom_blob + offset + 64));
-
-                    // NCNN_LOGE("qwq");
 
 #if __AVX512VNNI__ || __AVXVNNI__
 
@@ -1064,8 +1056,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _mm_store_si128((__m128i*)(pp + 32), _p2);
                     _mm_store_si128((__m128i*)(pp + 48), _p3);
 
-                    // NCNN_LOGE("qwq");
-
                     pp += 64;
                 }
 #endif //__AVX512VNNI__ || __AVXVNNI__
@@ -1094,8 +1084,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _mm_store_si128((__m128i*)pp, _t0);
                     _mm_store_si128((__m128i*)(pp + 16), _t1);
 
-                    // NCNN_LOGE("qwq");
-
                     pp += 32;
                 }
                 for (; kk < max_kk; kk += 1)
@@ -1113,8 +1101,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm_store_si128((__m128i*)pp, _p0);
 
-                    // NCNN_LOGE("qwq");
-
                     pp += 16;
                 }
             }
@@ -1123,7 +1109,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                 int kk = 0;
                 for (; kk < max_kk / 8; kk++)
                 {
-                    // NCNN_LOGE("qwq");
                     int p = (k / 8 + kk) / maxk;
                     int uv = (k / 8 + kk) % maxk;
                     int u = uv / kernel_w;
@@ -1137,8 +1122,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     __m512i _r0 = _mm512_i32gather_epi64(_mm512_extracti32x8_epi32(_vindex, 0), bottom_blob, sizeof(signed char));
                     __m512i _r1 = _mm512_i32gather_epi64(_mm512_extracti32x8_epi32(_vindex, 1), bottom_blob, sizeof(signed char));
-
-                    // NCNN_LOGE("qwq");
 
 #if __AVX512VNNI__ || __AVXVNNI__
 
@@ -1293,7 +1276,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
         if (dy0 == dy7 && stride_w == 1)
         {
-            // NCNN_LOGE("qaq");
 #if __AVX2__
             const int dx0 = _mm_extract_epi32(_mm256_extractf128_si256(_dx, 0), 0);
 #else
@@ -1493,8 +1475,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _r5 = _mm_unpackhi_epi64(_r0, _r1);
                     _r6 = _mm_unpacklo_epi64(_r2, _r3);
                     _r7 = _mm_unpackhi_epi64(_r2, _r3);
-
-                    // NCNN_LOGE("qwq");
 
                     _mm_storeu_si128((__m128i*)pp, _r4);
                     _mm_storeu_si128((__m128i*)(pp + 16), _r5);
@@ -1769,8 +1749,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     __m128i _r5 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets1[1]));
                     __m128i _r6 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets1[2]));
                     __m128i _r7 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets1[3]));
-
-                    // NCNN_LOGE("qwq");
 
                     __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
                     __m128i _r23 = _mm_unpacklo_epi16(_r2, _r3);
@@ -2090,7 +2068,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                 int kk = 0;
                 for (; kk < max_kk / 8; kk++)
                 {
-                    // NCNN_LOGE("qwq");
                     int p = (k / 8 + kk) / maxk;
                     int uv = (k / 8 + kk) % maxk;
                     int u = uv / kernel_w;
@@ -2181,7 +2158,6 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
         {
             const int dxy_offset = dxy_offset0;
 
-            // NCNN_LOGE("qwq");
             if (elempack == 1)
             {
                 int kk = 0;
@@ -2776,7 +2752,6 @@ static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat
     if (has_w_shift)
     {
         int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
-        // NCNN_LOGE("w_shift_count = %d", w_shift_count);
         AT.create((TILE_K + w_shift_count * 4) * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, (size_t)1u, 1);
     }
     else
