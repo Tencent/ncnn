@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import re
+import shutil
 import subprocess
 
 from setuptools import setup, find_packages, Extension
@@ -176,6 +177,11 @@ if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
 
 requirements = ["numpy", "tqdm", "requests", "portalocker", "opencv-python"]
+setup_requires = []
+if shutil.which("cmake") is None:
+    setup_requires += ["cmake>=3.12"]
+if shutil.which("ninja") is None:
+    setup_requires += ["ninja; sys_platform != 'win32'"]
 
 with io.open("README.md", encoding="utf-8") as h:
     long_description = h.read()
@@ -206,6 +212,7 @@ setup(
     python_requires=">=3.5",
     packages=find_packages("python"),
     package_dir={"": "python"},
+    setup_requires=setup_requires,
     install_requires=requirements,
     ext_modules=[CMakeExtension("ncnn")],
     cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},
