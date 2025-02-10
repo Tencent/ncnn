@@ -2253,11 +2253,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     {
                         if (op->type == "Tensor.index_put" && it.first == "values")
                         {
-                            fprintf(pyfp, "torch.tensor(%f)", param.f);
+                            fprintf(pyfp, "torch.tensor(%g)", param.f);
                         }
                         else
                         {
-                            fprintf(pyfp, "%f", param.f);
+                            fprintf(pyfp, "%g", param.f);
                         }
                     }
                     if (param.type == 4)
@@ -2316,7 +2316,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         fprintf(pyfp, "(");
                         for (size_t i = 0; i < param.af.size(); i++)
                         {
-                            fprintf(pyfp, "%f", param.af[i]);
+                            fprintf(pyfp, "%g", param.af[i]);
                             if (i + 1 != param.af.size() || param.af.size() == 1)
                                 fprintf(pyfp, ",");
                         }
