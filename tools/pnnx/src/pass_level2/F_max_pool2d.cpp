@@ -298,4 +298,74 @@ pnnx.Output             output      2 0 out indices
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_1, 120)
 
+class F_max_pool2d_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.Pooling             op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.max_pool2d";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int pool_type = captured_params.at("op_0.arg0").i;
+        if (pool_type != 0)
+            return false;
+
+        const int kernel_h = captured_params.at("op_0.arg1").i;
+        const int kernel_w = captured_params.at("op_0.arg2").i;
+        if (kernel_h == 0 && kernel_w == 0)
+            return false;
+
+        if (captured_params.find("op_0.arg11") != captured_params.end())
+        {
+            const int is_adaptive = captured_params.at("op_0.arg11").i;
+            if (is_adaptive != 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        // captured_params.at("op_0.arg0"); // pool_type
+        op->params["kernel_size"] = {captured_params.at("op_0.arg1").i, captured_params.at("op_0.arg2").i};
+        op->params["stride"] = {captured_params.at("op_0.arg3").i, captured_params.at("op_0.arg4").i};
+        op->params["padding"] = {captured_params.at("op_0.arg5").i, captured_params.at("op_0.arg6").i};
+
+        const int kernel_index_h = captured_params.at("op_0.arg7").i;
+        const int kernel_index_w = captured_params.at("op_0.arg8").i;
+        if (kernel_index_h != -1 || kernel_index_w != -1)
+        {
+            fprintf(stderr, "unsupported F.avg_pool2d kernel_index %d %d\n", kernel_index_h, kernel_index_w);
+        }
+
+        const int pad_type = captured_params.at("op_0.arg9").i;
+        if (pad_type > 0)
+        {
+            fprintf(stderr, "unsupported F.avg_pool2d pad_type %d\n", pad_type);
+        }
+
+        op->params["ceil_mode"] = captured_params.at("op_0.arg10").i ? true : false;
+        // captured_params.at("op_0.arg11"); // is_adaptive
+        // captured_params.at("op_0.arg12"); // output_h
+        // captured_params.at("op_0.arg13"); // output_w
+
+        op->params["return_indices"] = false;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_tnn, 120)
+
 } // namespace pnnx
