@@ -20,6 +20,9 @@
 #include <string.h>
 #include <unordered_map>
 
+#include "pass_tnn/lower_convolution_activation.h"
+#include "pass_tnn/lower_power.h"
+
 namespace pnnx {
 
 static bool vstr_is_float(const char vstr[16])
@@ -546,6 +549,10 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         if (op->type == "tnn.Mul") op->type = "aten::mul";
         if (op->type == "tnn.Div") op->type = "aten::div";
     }
+
+    tnn2pnnx::lower_convolution_activation(pnnx_graph);
+
+    tnn2pnnx::lower_power(pnnx_graph);
 
     return 0;
 }

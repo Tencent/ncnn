@@ -716,7 +716,13 @@ else()
 endif()
 
 if(PNNX_TNN2PNNX)
+    set(pnnx_pass_tnn_SRCS
+        pass_tnn/lower_convolution_activation.cpp
+        pass_tnn/lower_power.cpp
+    )
+
     set(tnn2pnnx_SRCS
+        ${pnnx_pass_tnn_SRCS}
         load_tnn.cpp
     )
 
