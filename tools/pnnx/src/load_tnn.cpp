@@ -207,7 +207,6 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
 
     // "1 57 1 4206624772 ,"
     fgets(line, 4096, pp);
-    int blob_count = 0;
     unsigned int proto_magic = 4206624772;
     {
         // strip leading and tail double quote
@@ -215,15 +214,10 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         line[0] = '\0';
         const char* pline = line + 1;
 
-        sscanf(pline, "%*d %d %*d %u", &blob_count, &proto_magic);
+        sscanf(pline, "%*d %*d %*d %u", &proto_magic);
         if (proto_magic != 4206624772)
         {
             fprintf(stderr, "wrong magic %u\n", proto_magic);
-        }
-
-        if (blob_count == 0)
-        {
-            fprintf(stderr, "wrong blob_count %d\n", blob_count);
         }
     }
 
@@ -270,37 +264,14 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         op->outputs.push_back(r);
     }
 
-    // all operand names
-    // " 108 109 110 111 112 113 114 116 118 119 120 125 126 128 130 131 132 133 135 136 138 139 142 144 145 147 148 151 153 154 156 157 160 162 163 165 166 169 171 172 174 175 178 180 181 183 184 188 189 190 191 192 194 85 clipwise_output embedding input ,"
+    // skip the very long operand names
+    // " 108 109 ........ clipwise_output embedding input ,"
+    fscanf(pp, "%*[^,]");
     fgets(line, 4096, pp);
-    {
-        // strip leading and tail double quote
-        line[strlen(line) - 2] = '\0';
-        line[0] = '\0';
-        const char* pline = line + 1;
-
-        int ncomsumed = 0;
-
-        for (int i = 0; i < blob_count; i++)
-        {
-            char blob_name[32];
-            sscanf(pline, "%s%n", blob_name, &ncomsumed);
-
-            pline += ncomsumed;
-
-            // fprintf(stderr, "blob %s\n", blob_name);
-
-            if (!pnnx_graph.get_operand(blob_name))
-            {
-                pnnx_graph.new_operand(blob_name);
-            }
-        }
-    }
 
     // all output names
     // "clipwise_output embedding ,"
     fgets(line, 4096, pp);
-
     std::vector<std::string> output_names;
     {
         // strip leading and tail double quote
@@ -320,7 +291,7 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
             if (strcmp(blob_name, ",") == 0)
                 break;
 
-            // fprintf(stderr, "blob %s\n", blob_name);
+            fprintf(stderr, "blob %s\n", blob_name);
 
             output_names.push_back(blob_name);
         }
@@ -380,7 +351,15 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
             Operand* r = pnnx_graph.get_operand(blob_name);
             if (!r)
             {
-                fprintf(stderr, "%s bottom %s not found\n", layer_name, blob_name);
+                // insert constant producer
+                Operator* op_constant = pnnx_graph.new_operator_before("pnnx.Attribute", blob_name, op);
+
+                r = pnnx_graph.new_operand(blob_name);
+
+                // op_constant->attrs["data"] = attrs[j];
+                op_constant->outputs.push_back(r);
+
+                r->producer = op_constant;
             }
             r->consumers.push_back(op);
             op->inputs.push_back(r);
@@ -398,7 +377,7 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
             Operand* r = pnnx_graph.get_operand(blob_name);
             if (!r)
             {
-                fprintf(stderr, "%s top %s not found\n", layer_name, blob_name);
+                r = pnnx_graph.new_operand(blob_name);
             }
             r->producer = op;
             op->outputs.push_back(r);
@@ -515,6 +494,19 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
 
         std::vector<Attribute> attrs;
 
+        if (type == "Add" || type == "Sub" || type == "Mul" || type == "Div")
+        {
+            attrs.push_back(Attribute(bp));
+        }
+        if (type == "BatchNormCxx")
+        {
+            attrs.push_back(Attribute(bp));
+            attrs.push_back(Attribute(bp));
+        }
+        if (type == "ConstantOfShape")
+        {
+            attrs.push_back(Attribute(bp));
+        }
         if (type == "Convolution1D" || type == "Convolution")
         {
             // skip name2 == name
@@ -533,31 +525,6 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
             {
                 attrs.push_back(Attribute(bp));
             }
-        }
-        if (type == "InnerProduct")
-        {
-            // skip name2 == name
-            int name2_size;
-            std::string name2;
-            fread(&name2_size, 1, sizeof(int), bp);
-            name2.resize(name2_size);
-            fread((void*)name2.data(), 1, name2_size, bp);
-
-            attrs.push_back(Attribute(bp));
-            attrs.push_back(Attribute(bp));
-        }
-        if (type == "MatMul")
-        {
-            attrs.push_back(Attribute(bp));
-        }
-        if (type == "Add" || type == "Sub" || type == "Mul" || type == "Div")
-        {
-            attrs.push_back(Attribute(bp));
-        }
-        if (type == "BatchNormCxx")
-        {
-            attrs.push_back(Attribute(bp));
-            attrs.push_back(Attribute(bp));
         }
         if (type == "Gather")
         {
@@ -579,19 +546,65 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
                 attrs.push_back(Attribute(bp));
             }
         }
+        if (type == "InnerProduct")
+        {
+            // skip name2 == name
+            int name2_size;
+            std::string name2;
+            fread(&name2_size, 1, sizeof(int), bp);
+            name2.resize(name2_size);
+            fread((void*)name2.data(), 1, name2_size, bp);
+
+            attrs.push_back(Attribute(bp));
+            attrs.push_back(Attribute(bp));
+        }
+        if (type == "MatMul")
+        {
+            attrs.push_back(Attribute(bp));
+        }
 
         const int attribute_count = (int)attrs.size();
 
         for (int j = 0; j < attribute_count; j++)
         {
-            Operator* op_scale = pnnx_graph.new_operator_before("pnnx.Attribute", name + "_attr" + std::to_string(j), op);
+            Operator* op_constant = pnnx_graph.new_operator_before("pnnx.Attribute", name + "_attr" + std::to_string(j), op);
             Operand* r0 = pnnx_graph.new_operand(name + "_attr" + std::to_string(j));
-            op_scale->attrs["data"] = attrs[j];
-            op_scale->outputs.push_back(r0);
-            r0->producer = op_scale;
+            op_constant->attrs["data"] = attrs[j];
+            op_constant->outputs.push_back(r0);
+            r0->producer = op_constant;
             r0->consumers.push_back(op);
             op->inputs.push_back(r0);
         }
+    }
+
+    // magic 0xfabc0004
+    // unsigned int model_magic;
+    fread(&model_magic, 1, sizeof(unsigned int), bp);
+    if (model_magic != 0xfabc0004)
+    {
+        fprintf(stderr, "model_magic %x failed\n", model_magic);
+        return -1;
+    }
+
+    int constant_count = 0;
+    fread(&constant_count, 1, sizeof(int), bp);
+
+    fprintf(stderr, "constant_count = %d\n", constant_count);
+
+    // collect constants
+    for (int i = 0; i < constant_count; i++)
+    {
+        int name_size;
+        std::string name;
+        fread(&name_size, 1, sizeof(int), bp);
+        name.resize(name_size);
+        fread((void*)name.data(), 1, name_size, bp);
+
+        fprintf(stderr, "model constant %s\n", name.c_str());
+
+        Operator* op_constant = op_map.at(name);
+
+        op_constant->attrs["data"] = Attribute(bp);
     }
 
     fclose(bp);
