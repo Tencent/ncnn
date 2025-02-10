@@ -203,7 +203,7 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         std::vector<int> dim;
-        for (int i = 1; ; i++)
+        for (int i = 1;; i++)
         {
             if (captured_params.find("op_0.arg" + std::to_string(i)) == captured_params.end())
                 break;
