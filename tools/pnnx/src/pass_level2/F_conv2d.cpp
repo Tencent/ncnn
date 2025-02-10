@@ -343,6 +343,10 @@ pnnx.Output             output      1 0 out
         // captured_params.at("op_0.arg9"); // bias
         // captured_params.at("op_0.arg10"); // pad_type
         op->params["dilation"] = {captured_params.at("op_0.arg11").i, captured_params.at("op_0.arg12").i};
+        if (op->params["dilation"].ai == std::vector{-1, -1})
+        {
+            op->params["dilation"] = {1, 1};
+        }
         // captured_params.at("op_0.arg13"); // activation
     }
 };

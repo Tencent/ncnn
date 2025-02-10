@@ -60,4 +60,39 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_matmul_onnx, 90)
 
+class torch_matmul_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 other
+tnn.MatMul              op_0        2 1 input other out arg0=%weight_position
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.matmul";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int weight_position = captured_params.at("weight_position").i;
+        if (weight_position == 0)
+        {
+            // swap input and weight
+            std::swap(op->inputs[0], op->inputs[1]);
+        }
+    }
+
+protected:
+    mutable int weight_position;
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_matmul_tnn, 90)
+
 } // namespace pnnx

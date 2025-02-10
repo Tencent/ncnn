@@ -503,10 +503,23 @@ pnnx.Output             output      1 0 out
         const int ndim = captured_params.at("op_0.arg0").i;
 
         std::vector<int> pads(ndim * 2);
-        for (int i = 0; i < ndim * 2; i++)
+        for (int i = 0; i < ndim; i++)
         {
-            pads[i] = captured_params.at("op_0.arg" + std::to_string(i + 1)).i;
+            pads[(ndim - 1 - i) * 2] = captured_params.at("op_0.arg" + std::to_string(i + 1)).i;
         }
+        for (int i = 0; i < ndim; i++)
+        {
+            pads[(ndim - 1 - i) * 2 + 1] = captured_params.at("op_0.arg" + std::to_string(ndim + i + 1)).i;
+        }
+
+        // strip zero pads for higher dims
+        // (3,3,0,0,0,0) to (3,3)
+        for (int i = ndim - 1; i >= 0; i--)
+        {
+            if (pads[i * 2] == 0 && pads[i * 2 + 1] == 0)
+                pads.resize(i * 2);
+        }
+
         op->params["pad"] = pads;
 
         const int type = captured_params.at("op_0.arg" + std::to_string(ndim * 2 + 1)).i;
