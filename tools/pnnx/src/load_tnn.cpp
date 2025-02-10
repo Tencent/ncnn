@@ -139,7 +139,11 @@ static size_t type_to_elemsize(int type)
 
 static int get_tnn_tensor_type(int dt)
 {
-    if (dt == 0) return 1;
+    if (dt == 0) return 1;// fp32
+    if (dt == 1) return 3;// fp16
+    if (dt == 2) return 7;// int8
+    if (dt == 3) return 4;// int32
+    if (dt == 4) return 13;// bf16
 
     fprintf(stderr, "unsupported tnn tensor type %d\n", dt);
     return 0; // unknown type
@@ -203,12 +207,28 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
 
     // "1 57 1 4206624772 ,"
     fgets(line, 4096, pp);
-    int blob_count = 57;
+    int blob_count = 0;
     unsigned int proto_magic = 4206624772;
+    {
+        // strip leading and tail double quote
+        line[strlen(line) - 2] = '\0';
+        line[0] = '\0';
+        const char* pline = line + 1;
+
+        sscanf(pline, "%*d %d %*d %u", &blob_count, &proto_magic);
+        if (proto_magic != 4206624772)
+        {
+            fprintf(stderr, "wrong magic %u\n", proto_magic);
+        }
+
+        if (blob_count == 0)
+        {
+            fprintf(stderr, "wrong blob_count %d\n", blob_count);
+        }
+    }
 
     // "input 2 1 80000 0 ,"
     fgets(line, 4096, pp);
-    if (proto_magic == 4206624772)
     {
         // strip leading and tail double quote
         line[strlen(line) - 2] = '\0';
@@ -309,7 +329,20 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
     // layer count
     // " 56 ,"
     fgets(line, 4096, pp);
-    int layer_count = 56;
+    int layer_count = 0;
+    {
+        // strip leading and tail double quote
+        line[strlen(line) - 2] = '\0';
+        line[0] = '\0';
+        const char* pline = line + 1;
+
+        sscanf(pline, "%d", &layer_count);
+
+        if (layer_count == 0)
+        {
+            fprintf(stderr, "wrong layer_count %d\n", layer_count);
+        }
+    }
 
     for (int i = 0; i < layer_count; i++)
     {
@@ -480,7 +513,7 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
 
         Operator* op = op_map.at(name);
 
-        int attribute_count = 0;
+        std::vector<Attribute> attrs;
 
         if (type == "Convolution1D" || type == "Convolution")
         {
@@ -495,7 +528,11 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
             int bias;
             fread(&bias, 1, sizeof(int), bp);
 
-            attribute_count = bias ? 2 : 1;
+            attrs.push_back(Attribute(bp));
+            if (bias)
+            {
+                attrs.push_back(Attribute(bp));
+            }
         }
         if (type == "InnerProduct")
         {
@@ -506,26 +543,50 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
             name2.resize(name2_size);
             fread((void*)name2.data(), 1, name2_size, bp);
 
-            attribute_count = 2;
+            attrs.push_back(Attribute(bp));
+            attrs.push_back(Attribute(bp));
         }
         if (type == "MatMul")
         {
-            attribute_count = 1;
+            attrs.push_back(Attribute(bp));
         }
         if (type == "Add" || type == "Sub" || type == "Mul" || type == "Div")
         {
-            attribute_count = 1;
+            attrs.push_back(Attribute(bp));
         }
         if (type == "BatchNormCxx")
         {
-            attribute_count = 2;
+            attrs.push_back(Attribute(bp));
+            attrs.push_back(Attribute(bp));
         }
+        if (type == "Gather")
+        {
+            // data_in_resource
+            int data_in_resource;
+            fread(&data_in_resource, 1, sizeof(int), bp);
+
+            if (data_in_resource)
+            {
+                attrs.push_back(Attribute(bp));
+            }
+
+            // indices_in_resource
+            int indices_in_resource;
+            fread(&indices_in_resource, 1, sizeof(int), bp);
+
+            if (indices_in_resource)
+            {
+                attrs.push_back(Attribute(bp));
+            }
+        }
+
+        const int attribute_count = (int)attrs.size();
 
         for (int j = 0; j < attribute_count; j++)
         {
             Operator* op_scale = pnnx_graph.new_operator_before("pnnx.Attribute", name + "_attr" + std::to_string(j), op);
             Operand* r0 = pnnx_graph.new_operand(name + "_attr" + std::to_string(j));
-            op_scale->attrs["data"] = Attribute(bp);
+            op_scale->attrs["data"] = attrs[j];
             op_scale->outputs.push_back(r0);
             r0->producer = op_scale;
             r0->consumers.push_back(op);
@@ -541,6 +602,7 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         // unary
         if (op->type == "tnn.Log") op->type = "aten::log";
         if (op->type == "tnn.ReLU") op->type = "aten::relu";
+        if (op->type == "tnn.ReLU6") op->type = "aten::relu6";
         if (op->type == "tnn.Sigmoid") op->type = "aten::sigmoid";
 
         // binary
