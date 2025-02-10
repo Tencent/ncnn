@@ -45,6 +45,9 @@ class torch_index_select_tnn : public GraphRewriterPass
 public:
     const char* match_pattern_graph() const
     {
+        // clang-format off
+        // *INDENT-OFF*
+
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
@@ -52,6 +55,9 @@ pnnx.Attribute          op_0        0 1 index @data=(?)i32
 tnn.Gather              op_1        2 1 input index out arg0=%dim arg1=0 arg2=1
 pnnx.Output             output      1 0 out
 )PNNXIR";
+
+        // *INDENT-ON*
+        // clang-format on
     }
 
     const char* replace_pattern_graph() const
