@@ -84,11 +84,10 @@ pnnx.Output             output      1 0 out
         {
             indices[i] = p[i];
         }
-        op_index->attrs["data"].type = 5;// i64
+        op_index->attrs["data"].type = 5; // i64
         op_index->attrs["data"].shape = {n};
         op_index->attrs["data"].data.resize(n * 8);
         memcpy((void*)op_index->attrs["data"].data.data(), (const void*)indices.data(), n * 8);
-
 
         Operator* op_gather = ops.at("select");
         op_gather->params["dim"] = captured_params.at("dim");

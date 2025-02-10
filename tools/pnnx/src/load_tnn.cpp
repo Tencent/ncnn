@@ -139,11 +139,11 @@ static size_t type_to_elemsize(int type)
 
 static int get_tnn_tensor_type(int dt)
 {
-    if (dt == 0) return 1;// fp32
-    if (dt == 1) return 3;// fp16
-    if (dt == 2) return 7;// int8
-    if (dt == 3) return 4;// int32
-    if (dt == 4) return 13;// bf16
+    if (dt == 0) return 1;  // fp32
+    if (dt == 1) return 3;  // fp16
+    if (dt == 2) return 7;  // int8
+    if (dt == 3) return 4;  // int32
+    if (dt == 4) return 13; // bf16
 
     fprintf(stderr, "unsupported tnn tensor type %d\n", dt);
     return 0; // unknown type
