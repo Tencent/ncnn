@@ -190,7 +190,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-tnn.ReduceMax           op_0        1 1 input out arg0=%keepdims arg1=%dim
+tnn.ReduceMax           op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -202,8 +202,24 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["dim"] = captured_params.at("dim");
-        op->params["keepdim"] = captured_params.at("keepdims").i ? true : false;
+        std::vector<int> dim;
+        for (int i = 1; ; i++)
+        {
+            if (captured_params.find("op_0.arg" + std::to_string(i)) == captured_params.end())
+                break;
+
+            dim.push_back(captured_params.at("op_0.arg" + std::to_string(i)).i);
+        }
+
+        if (dim.size() == 1)
+        {
+            op->params["dim"] = dim[0];
+        }
+        else
+        {
+            fprintf(stderr, "fallback to reduce max all\n");
+        }
+        op->params["keepdim"] = captured_params.at("op_0.arg0").i ? true : false;
     }
 };
 
