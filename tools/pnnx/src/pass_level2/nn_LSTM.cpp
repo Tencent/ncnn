@@ -803,7 +803,6 @@ pnnx.Output             output      3 0 out outh outc
             op->attrs["weight_hh_l0"] = Attribute({4 * hidden_size, hidden_size}, R2);
         }
 
-
         bool has_bias = false;
         for (auto b : B.get_float32_data())
         {
