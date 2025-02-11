@@ -77,6 +77,9 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
+        if (captured_params.find("op_0.arg13") == captured_params.end())
+            return false;
+
         this->activation = captured_params.at("op_0.arg13").i;
         return activation != 0;
     }
@@ -205,6 +208,9 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
+        if (captured_params.find("op_0.arg9") == captured_params.end())
+            return false;
+
         this->activation = captured_params.at("op_0.arg9").i;
         return activation != 0;
     }
