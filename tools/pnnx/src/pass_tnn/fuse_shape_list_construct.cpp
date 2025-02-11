@@ -118,7 +118,6 @@ void fuse_shape_list_construct(Graph& graph)
         if (!matched)
             break;
     }
-
 }
 
 } // namespace tnn2pnnx
