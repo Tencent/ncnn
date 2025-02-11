@@ -20,6 +20,8 @@
 #include <string.h>
 #include <unordered_map>
 
+#include "pass_tnn/fuse_shape_size.h"
+#include "pass_tnn/fuse_shape_list_construct.h"
 #include "pass_tnn/lower_convolution_activation.h"
 #include "pass_tnn/lower_power.h"
 
@@ -624,6 +626,9 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         if (op->type == "tnn.Mul") op->type = "aten::mul";
         if (op->type == "tnn.Div") op->type = "aten::div";
     }
+
+    tnn2pnnx::fuse_shape_size(pnnx_graph);
+    tnn2pnnx::fuse_shape_list_construct(pnnx_graph);
 
     tnn2pnnx::lower_convolution_activation(pnnx_graph);
 

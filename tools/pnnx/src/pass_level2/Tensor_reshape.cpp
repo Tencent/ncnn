@@ -123,4 +123,70 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_2, 61)
 
+class Tensor_reshape_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.Reshape             op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.reshape";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int axis = captured_params.at("op_0.arg0").i;
+        const int num_axes = captured_params.at("op_0.arg1").i;
+        const int shape_rank = captured_params.at("op_0.arg2").i;
+
+        std::vector<int> shape(shape_rank);
+        for (int i = 0; i < shape_rank; i++)
+        {
+            shape[i] = captured_params.at("op_0.arg" + std::to_string(i + 3)).i;
+        }
+
+        const int reshape_type = captured_params.at("op_0.arg" + std::to_string(shape_rank + 3)).i;
+
+        // HACK
+        if (shape == std::vector{0, -1, 0, 0})
+        {
+            shape = {-1};
+        }
+
+        op->params["shape"] = shape;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_tnn, 60)
+
+class Tensor_reshape_tnn_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Input              shape       0 1 shape
+tnn.Reshape             op_0        2 1 input shape out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.reshape";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_tnn_1, 60)
+
 } // namespace pnnx
