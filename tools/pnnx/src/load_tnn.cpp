@@ -22,6 +22,7 @@
 
 #include "pass_tnn/fuse_shape_size.h"
 #include "pass_tnn/fuse_shape_list_construct.h"
+#include "pass_tnn/lower_concat.h"
 #include "pass_tnn/lower_convolution_activation.h"
 #include "pass_tnn/lower_power.h"
 
@@ -625,6 +626,8 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         if (op->type == "tnn.Sub") op->type = "aten::sub";
         if (op->type == "tnn.Mul") op->type = "aten::mul";
         if (op->type == "tnn.Div") op->type = "aten::div";
+
+        // misc
     }
 
     tnn2pnnx::fuse_shape_size(pnnx_graph);
@@ -633,6 +636,8 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
     tnn2pnnx::lower_convolution_activation(pnnx_graph);
 
     tnn2pnnx::lower_power(pnnx_graph);
+
+    tnn2pnnx::lower_concat(pnnx_graph);
 
     return 0;
 }

@@ -719,6 +719,7 @@ if(PNNX_TNN2PNNX)
     set(pnnx_pass_tnn_SRCS
         pass_tnn/fuse_shape_size.cpp
         pass_tnn/fuse_shape_list_construct.cpp
+        pass_tnn/lower_concat.cpp
         pass_tnn/lower_convolution_activation.cpp
         pass_tnn/lower_power.cpp
     )

@@ -144,4 +144,41 @@ pnnx.Output             output      1 0 out
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_fro, 90)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_fro_dims, 90)
 
+class torch_norm_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.ReduceL2            op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.norm";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        std::vector<int> dim;
+        for (int i = 1;; i++)
+        {
+            if (captured_params.find("op_0.arg" + std::to_string(i)) == captured_params.end())
+                break;
+
+            dim.push_back(captured_params.at("op_0.arg" + std::to_string(i)).i);
+        }
+
+        op->params["dim"] = dim;
+        op->params["keepdim"] = captured_params.at("op_0.arg0").i ? true : false;
+        op->params["p"] = 2;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_tnn, 90)
+
 } // namespace pnnx

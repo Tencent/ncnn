@@ -60,6 +60,11 @@ void fuse_shape_list_construct(Graph& graph)
                 if (op2->inputs[0] != op->outputs[0])
                     continue;
             }
+            else if (op2->type == "tnn.Expand")
+            {
+                if (op2->inputs[1] != op->outputs[0])
+                    continue;
+            }
             else
             {
                 continue;
@@ -67,7 +72,7 @@ void fuse_shape_list_construct(Graph& graph)
 
             matched = true;
 
-            fprintf(stderr, "match concat + reshape/constantofshape\n");
+            fprintf(stderr, "match concat + reshape/constantofshape/expand\n");
 
             op->type = "prim::ListConstruct";
 
@@ -109,6 +114,11 @@ void fuse_shape_list_construct(Graph& graph)
             if (op2->type == "tnn.Reshape")
             {
                 // drop tnn.Reshape args
+                op2->params.clear();
+            }
+            if (op2->type == "tnn.Expand")
+            {
+                // drop tnn.Expand args
                 op2->params.clear();
             }
 
