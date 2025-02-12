@@ -731,6 +731,7 @@ if(PNNX_TNN2PNNX)
 
     add_library(tnn2pnnx OBJECT ${tnn2pnnx_SRCS})
     target_compile_definitions(tnn2pnnx PRIVATE BUILD_TNN2PNNX)
+    target_compile_options(tnn2pnnx PUBLIC "${TORCH_CXX_FLAGS}")
 
     message(STATUS "Building with tnn2pnnx")
 else()
