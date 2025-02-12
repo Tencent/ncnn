@@ -605,6 +605,13 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
 
         fprintf(stderr, "model constant %s\n", name.c_str());
 
+        if (op_map.find(name) == op_map.end())
+        {
+            // FIXME
+            Attribute skip(bp);
+            continue;
+        }
+
         Operator* op_constant = op_map.at(name);
 
         op_constant->attrs["data"] = Attribute(bp);
@@ -616,10 +623,13 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
     for (Operator* op : pnnx_graph.ops)
     {
         // unary
+        if (op->type == "tnn.Erf") op->type = "aten::erf";
         if (op->type == "tnn.Log") op->type = "aten::log";
         if (op->type == "tnn.ReLU") op->type = "aten::relu";
         if (op->type == "tnn.ReLU6") op->type = "aten::relu6";
         if (op->type == "tnn.Sigmoid") op->type = "aten::sigmoid";
+        if (op->type == "tnn.Sqrt") op->type = "aten::sqrt";
+        if (op->type == "tnn.Tanh") op->type = "aten::tanh";
 
         // binary
         if (op->type == "tnn.Add") op->type = "aten::add";

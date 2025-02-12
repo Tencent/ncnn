@@ -1030,6 +1030,7 @@ static std::string expand_expression(const Operator* op)
                  || t == "ceil"
                  || t == "cos"
                  || t == "cosh"
+                 || t == "erf"
                  || t == "exp"
                  || t == "floor"
                  || t == "log"
@@ -1062,6 +1063,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "ceil") unaryop = "torch.ceil";
             if (t == "cos") unaryop = "torch.cos";
             if (t == "cosh") unaryop = "torch.cosh";
+            if (t == "erf") unaryop = "torch.erf";
             if (t == "exp") unaryop = "torch.exp";
             if (t == "floor") unaryop = "torch.floor";
             if (t == "log") unaryop = "torch.log";

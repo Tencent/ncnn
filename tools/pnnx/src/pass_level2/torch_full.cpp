@@ -112,7 +112,7 @@ pnnx.Output             output      1 0 out
         return "torch.full";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
     {
         op->params["fill_value"] = ((const float*)captured_attrs.at("value.data").data.data())[0];
         op->params["dtype"] = "torch.float";
