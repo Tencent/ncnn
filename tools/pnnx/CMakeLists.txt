@@ -123,6 +123,8 @@ else()
     set(onnxruntime_FOUND FALSE)
 endif()
 
+option(PNNX_TNN2PNNX "build tnn2pnnx" ON)
+
 add_subdirectory(src)
 
 enable_testing()

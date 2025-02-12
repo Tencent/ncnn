@@ -480,4 +480,62 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_onnx_1, 110)
 
+class F_pad_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.PadV2               op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.pad";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int ndim = captured_params.at("op_0.arg0").i;
+
+        std::vector<int> pads(ndim * 2);
+        for (int i = 0; i < ndim; i++)
+        {
+            pads[(ndim - 1 - i) * 2] = captured_params.at("op_0.arg" + std::to_string(i + 1)).i;
+        }
+        for (int i = 0; i < ndim; i++)
+        {
+            pads[(ndim - 1 - i) * 2 + 1] = captured_params.at("op_0.arg" + std::to_string(ndim + i + 1)).i;
+        }
+
+        // strip zero pads for higher dims
+        // (3,3,0,0,0,0) to (3,3)
+        for (int i = ndim - 1; i >= 0; i--)
+        {
+            if (pads[i * 2] == 0 && pads[i * 2 + 1] == 0)
+                pads.resize(i * 2);
+        }
+
+        op->params["pad"] = pads;
+
+        const int type = captured_params.at("op_0.arg" + std::to_string(ndim * 2 + 1)).i;
+        if (type == 0)
+        {
+            op->params["mode"] = "constant";
+            op->params["value"] = captured_params.at("op_0.arg" + std::to_string(ndim * 2 + 2));
+        }
+        if (type == 1)
+        {
+            op->params["mode"] = "reflect";
+            op->params["value"] = Parameter();
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_tnn, 110)
+
 } // namespace pnnx

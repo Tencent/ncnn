@@ -175,6 +175,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "ceil"
                  || t == "cos"
                  || t == "cosh"
+                 || t == "erf"
                  || t == "exp"
                  || t == "floor"
                  || t == "log"
@@ -260,6 +261,11 @@ static std::string eval_expression(const Operator* op)
                 if (t == "cosh")
                 {
                     float r = cosh(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "erf")
+                {
+                    float r = erf(af);
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "exp")
