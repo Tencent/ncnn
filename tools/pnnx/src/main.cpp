@@ -176,6 +176,34 @@ static bool model_file_maybe_torchscript(const std::string& path)
     return signature == 0x04034b50;
 }
 
+static bool model_file_maybe_tnnproto(const std::string& path)
+{
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "open failed %s\n", path.c_str());
+        return false;
+    }
+
+    char line[256];
+    char* s = fgets(line, 256, fp);
+    if (!s)
+    {
+        fclose(fp);
+        return false;
+    }
+
+    uint32_t signature = 0;
+    if (line[0] == '\"')
+    {
+        sscanf(line + 1, "%*d %*d %*d %d", &signature);
+    }
+
+    fclose(fp);
+
+    return signature == 4206624772;
+}
+
 static void show_usage()
 {
     fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
@@ -316,12 +344,16 @@ int main(int argc, char** argv)
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
     pnnx::Graph pnnx_graph;
+
+    // clang-format off
+    // *INDENT-OFF*
+
 #if BUILD_TNN2PNNX
-    if (1)
+    if (model_file_maybe_tnnproto(ptpath))
     {
-        fprintf(stderr, "TODO distinguish tnnproto file\n");
         load_tnn(ptpath, pnnx_graph);
     }
+    else
 #endif
 #if BUILD_ONNX2PNNX
     if (!model_file_maybe_torchscript(ptpath))
@@ -339,6 +371,9 @@ int main(int argc, char** argv)
                          customop_modules, module_operators,
                          foldable_constants_zippath, foldable_constants);
     }
+
+    // *INDENT-ON*
+    // clang-format on
 
     fprintf(stderr, "############# pass_level2\n");
 
