@@ -44,6 +44,11 @@ public:
     int attn_mask;
     float scale;
 
+    int q_affine;
+    int k_affine;
+    int v_affine;
+    int out_affine;
+
     int int8_scale_term;
 
     Mat q_weight_data;
