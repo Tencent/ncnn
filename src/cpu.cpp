@@ -2055,15 +2055,10 @@ static void initialize_global_cpu_info()
 #endif // defined __ANDROID__ || defined __linux__
 }
 
-static int g_cpu_info_initialized = 0;
-
 static inline void try_initialize_global_cpu_info()
 {
-    if (!g_cpu_info_initialized)
-    {
-        initialize_global_cpu_info();
-        g_cpu_info_initialized = 1;
-    }
+    static ncnn::OnceFlag flag = OnceFlagInit;
+    ncnn::CallOnce(flag, &initialize_global_cpu_info);
 }
 
 namespace ncnn {
