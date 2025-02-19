@@ -569,6 +569,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
+    pass_ncnn/torch_argmax.cpp
     pass_ncnn/torch_bmm.cpp
     pass_ncnn/torch_clamp.cpp
     pass_ncnn/torch_clone.cpp
