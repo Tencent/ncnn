@@ -45,29 +45,15 @@
 
    set(ncnn_DIR {ncnnConfig.cmake所在目录})
 
-- ## 找不到 Vulkan, 
-
-   cmake版本 3.10，否则没有带 FindVulkan.cmake
-
-   android-api >= 24
-
-   macos 要先执行安装脚本
-
-- ## 如何安装 vulkan sdk
-
 - ## 找不到库（需要根据系统/编译器指定）
 
    undefined reference to __kmpc_for_static_init_4 __kmpc_for_static_fini __kmpc_fork_call ...
 
    需要链接openmp库 
 
-   undefined reference to vkEnumerateInstanceExtensionProperties vkGetInstanceProcAddr vkQueueSubmit ...
-
-   需要 vulkan-1.lib
-
    undefined reference to glslang::InitializeProcess() glslang::TShader::TShader(EShLanguage) ...
 
-   需要 glslang.lib OGLCompiler.lib SPIRV.lib OSDependent.lib
+   需要 glslang.lib glslang-default-resource-limits.lib
 
    undefined reference to AAssetManager_fromJava AAssetManager_open AAsset_seek ...
 
