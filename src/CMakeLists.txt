@@ -330,7 +330,7 @@ if(NCNN_VULKAN)
 
     # link in-house glslang
     target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
-    target_link_libraries(ncnn PRIVATE glslang)
+    target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
 
 if(NCNN_PLATFORM_API AND ANDROID)

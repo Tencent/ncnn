@@ -758,7 +758,6 @@ if(NCNN_VULKAN)
         find_package(SPIRV-Tools QUIET)
         find_package(SPIRV-Tools-opt QUIET)
         find_package(glslang QUIET)
-
         if(glslang_FOUND)
             add_library(glslang ALIAS glslang::glslang)
             add_library(SPIRV ALIAS glslang::SPIRV)
