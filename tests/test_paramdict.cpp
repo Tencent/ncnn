@@ -499,7 +499,7 @@ static int test_paramdict_5()
 
 static int compare_paramdict(const ncnn::ParamDict& pd, const ncnn::ParamDict& pd0)
 {
-    for (int id = 0; ; id++)
+    for (int id = 0;; id++)
     {
         const int type0 = pd0.type(id);
         if (type0 == 0)
