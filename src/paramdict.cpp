@@ -372,14 +372,6 @@ int ParamDict::load_param(const DataReader& dr)
                 d->params[id].s = std::string(vstr);
             }
 
-#if NCNN_SIMPLESTL
-            // simple stl string has no tail zero by default, append one
-            int len = d->params[id].s.size();
-            d->params[id].s.resize(len + 1);
-            d->params[id].s[len] = '\0';
-            d->params[id].s.resize(len);
-#endif
-
             d->params[id].type = 7;
 
             continue;
@@ -564,13 +556,6 @@ int ParamDict::load_param_bin(const DataReader& dr)
             tmpstr[len_padded] = '\0';
 
             d->params[id].s = tmpstr.data();
-
-#if NCNN_SIMPLESTL
-            // simple stl string has no tail zero by default, append one
-            d->params[id].s.resize(len + 1);
-            d->params[id].s[len] = '\0';
-            d->params[id].s.resize(len);
-#endif
 
             d->params[id].type = 7;
         }
