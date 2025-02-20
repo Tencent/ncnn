@@ -574,6 +574,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_clone.cpp
     pass_ncnn/torch_cumsum.cpp
     pass_ncnn/torch_diag.cpp
+    pass_ncnn/torch_equal.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_istft.cpp
     pass_ncnn/torch_logsumexp.cpp
