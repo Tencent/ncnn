@@ -202,7 +202,7 @@ static int test_paramdict_2()
     std::string s = pdt.get(0, "");
     if (s != "bij,bjk->bik")
     {
-        fprintf(stderr, "test_paramdict string text failed %d != bij,bjk->bik\n", s.c_str());
+        fprintf(stderr, "test_paramdict string text failed %s != bij,bjk->bik\n", s.c_str());
         return -1;
     }
 
@@ -216,7 +216,7 @@ static int test_paramdict_2()
     s = pdt.get(1, "");
     if (s != "This_is_a_very_long_long_string")
     {
-        fprintf(stderr, "test_paramdict string text failed %d != This_is_a_very_long_long_string\n", s.c_str());
+        fprintf(stderr, "test_paramdict string text failed %s != This_is_a_very_long_long_string\n", s.c_str());
         return -1;
     }
 
@@ -230,7 +230,7 @@ static int test_paramdict_2()
     s = pdt.get(2, "");
     if (s != "X")
     {
-        fprintf(stderr, "test_paramdict string text failed %d != X\n", s.c_str());
+        fprintf(stderr, "test_paramdict string text failed %s != X\n", s.c_str());
         return -1;
     }
 
@@ -461,7 +461,7 @@ static int test_paramdict_5()
     std::string s = pdt.get(0, "");
     if (s != "bij,bjk->bik")
     {
-        fprintf(stderr, "test_paramdict string text failed %d != bij,bjk->bik\n", s.c_str());
+        fprintf(stderr, "test_paramdict string text failed %s != bij,bjk->bik\n", s.c_str());
         return -1;
     }
 
@@ -475,7 +475,7 @@ static int test_paramdict_5()
     s = pdt.get(1, "");
     if (s != "This_is_a_very_long_long_string")
     {
-        fprintf(stderr, "test_paramdict string text failed %d != This_is_a_very_long_long_string\n", s.c_str());
+        fprintf(stderr, "test_paramdict string text failed %s != This_is_a_very_long_long_string\n", s.c_str());
         return -1;
     }
 
@@ -489,7 +489,7 @@ static int test_paramdict_5()
     s = pdt.get(2, "");
     if (s != "X")
     {
-        fprintf(stderr, "test_paramdict string text failed %d != X\n", s.c_str());
+        fprintf(stderr, "test_paramdict string text failed %s != X\n", s.c_str());
         return -1;
     }
 
