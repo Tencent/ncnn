@@ -40,7 +40,7 @@ int ParamDictTest::load_param_bin(const unsigned char* mem)
 static int test_paramdict_0()
 {
     ParamDictTest pdt;
-    pdt.load_param("0=100 1=1,-1,4,5,1,4 2=1.250000 -23303=5,0.1,0.2,-0.4,0.8,1.0");
+    pdt.load_param("0=100 1=1,-1,4,5,1,4 2=1.250000 -23303=5,0.1,0.2,-0.4,0.8,1.0 -23304=3,-1,10,-88");
 
     // int
     int typei = pdt.type(0);
@@ -106,6 +106,26 @@ static int test_paramdict_0()
     if (af[0] != 0.1f || af[1] != 0.2f || af[2] != -0.4f || af[3] != 0.8f || af[4] != 1.0f)
     {
         fprintf(stderr, "test_paramdict float array value failed %f %f %f %f %f\n", af[0], af[1], af[2], af[3], af[4]);
+        return -1;
+    }
+
+    // int array
+    typeai = pdt.type(4);
+    if (typeai != 5)
+    {
+        fprintf(stderr, "test_paramdict int array type failed %d != 5\n", typeai);
+        return -1;
+    }
+    ai = pdt.get(4, ncnn::Mat());
+    if (ai.w != 3)
+    {
+        fprintf(stderr, "test_paramdict int array size failed %d != 3\n", ai.w);
+        return -1;
+    }
+    p = ai;
+    if (p[0] != -1 || p[1] != 10 || p[2] != -88)
+    {
+        fprintf(stderr, "test_paramdict int array value failed %d %d %d\n", p[0], p[1], p[2]);
         return -1;
     }
 
@@ -627,7 +647,8 @@ static int test_paramdict_6()
 
     // assign
     {
-        ncnn::ParamDict pd = pd0;
+        ncnn::ParamDict pd;
+        pd = pd0;
 
         int ret = compare_paramdict(pd, pd0);
         if (ret != 0)
