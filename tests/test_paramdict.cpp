@@ -115,7 +115,7 @@ static int test_paramdict_0()
 static int test_paramdict_1()
 {
     ParamDictTest pdt;
-    pdt.load_param("0=-1 1=4, 2=0.01 3=-1.45e-2,");
+    pdt.load_param("0=-1 1=4, 2=0.01 3=-1.45e-2,3.14");
 
     // int
     int typei = pdt.type(0);
@@ -173,14 +173,14 @@ static int test_paramdict_1()
         return -1;
     }
     ncnn::Mat af = pdt.get(3, ncnn::Mat());
-    if (af.w != 1)
+    if (af.w != 2)
     {
-        fprintf(stderr, "test_paramdict float array size failed %d != 1\n", af.w);
+        fprintf(stderr, "test_paramdict float array size failed %d != 2\n", af.w);
         return -1;
     }
-    if (af[0] != -0.0145f)
+    if (af[0] != -0.0145f || af[1] != 3.14f)
     {
-        fprintf(stderr, "test_paramdict float array value failed %f\n", af[0]);
+        fprintf(stderr, "test_paramdict float array value failed %f %f\n", af[0], af[1]);
         return -1;
     }
 
@@ -346,8 +346,9 @@ static int test_paramdict_4()
         0x02, 0x00, 0x00, 0x00,
         0x0a, 0xd7, 0x23, 0x3c,
         0xf9, 0xa4, 0xff, 0xff,
-        0x01, 0x00, 0x00, 0x00,
+        0x02, 0x00, 0x00, 0x00,
         0x68, 0x91, 0x6d, 0xbc,
+        0xc3, 0xf5, 0x48, 0x40,
         0x17, 0xff, 0xff, 0xff
     };
 
@@ -410,14 +411,14 @@ static int test_paramdict_4()
         return -1;
     }
     ncnn::Mat af = pdt.get(3, ncnn::Mat());
-    if (af.w != 1)
+    if (af.w != 2)
     {
-        fprintf(stderr, "test_paramdict float array size failed %d != 1\n", af.w);
+        fprintf(stderr, "test_paramdict float array size failed %d != 2\n", af.w);
         return -1;
     }
-    if (af[0] != -0.0145f)
+    if (af[0] != -0.0145f || af[1] != 3.14f)
     {
-        fprintf(stderr, "test_paramdict float array value failed %f\n", af[0]);
+        fprintf(stderr, "test_paramdict float array value failed %f %f\n", af[0], af[1]);
         return -1;
     }
 
