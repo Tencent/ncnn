@@ -636,6 +636,8 @@ static int test_paramdict_6()
             return -1;
         }
     }
+
+    return 0;
 }
 
 int main()
