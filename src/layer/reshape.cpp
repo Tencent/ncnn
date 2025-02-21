@@ -35,7 +35,6 @@ int Reshape::load_param(const ParamDict& pd)
     if (permute == 1)
     {
         NCNN_LOGE("reshape permute is deprecated, and will be removed");
-        return 0;
     }
 
     ndim = 4;
