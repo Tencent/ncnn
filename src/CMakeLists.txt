@@ -22,6 +22,7 @@ set(ncnn_SRCS
     command.cpp
     cpu.cpp
     datareader.cpp
+    expression.cpp
     gpu.cpp
     layer.cpp
     mat.cpp

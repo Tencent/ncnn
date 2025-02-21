@@ -14,6 +14,8 @@
 
 #include "reshape.h"
 
+#include "expression.h"
+
 namespace ncnn {
 
 Reshape::Reshape()
@@ -30,6 +32,12 @@ int Reshape::load_param(const ParamDict& pd)
     c = pd.get(2, -233);
     permute = pd.get(3, 0);
 
+    if (permute == 1)
+    {
+        NCNN_LOGE("reshape permute is deprecated, and will be removed");
+        return 0;
+    }
+
     ndim = 4;
     if (d == -233)
         ndim = 3;
@@ -40,22 +48,23 @@ int Reshape::load_param(const ParamDict& pd)
     if (w == -233)
         ndim = 0;
 
+    shape_expr = pd.get(6, "");
+
+    // count reference blobs
+    if (!shape_expr.empty() && count_expression_blobs(shape_expr) > 1)
+    {
+        one_blob_only = false;
+    }
+
     return 0;
 }
 
-int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, int outh, int outd, int outc, int permute, const Option& opt)
 {
     size_t elemsize = bottom_blob.elemsize;
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
 
     int dims = bottom_blob.dims;
-
-    // resolve out shape
-
-    int outw = w;
-    int outh = h;
-    int outd = d;
-    int outc = c;
 
     if (ndim == 1)
     {
@@ -349,6 +358,78 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         return -100;
 
     return 0;
+}
+
+int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int outw = w;
+    int outh = h;
+    int outd = d;
+    int outc = c;
+
+    // resolve out shape
+    if (!shape_expr.empty())
+    {
+        eval_shape_expr(bottom_blob, outw, outh, outd, outc);
+    }
+
+    return reshape(bottom_blob, top_blob, ndim, outw, outh, outd, outc, permute, opt);
+}
+
+int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    int outw = w;
+    int outh = h;
+    int outd = d;
+    int outc = c;
+
+    // resolve out shape
+    if (!shape_expr.empty())
+    {
+        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+    }
+
+    return reshape(bottom_blobs[0], top_blobs[0], ndim, outw, outh, outd, outc, permute, opt);
+}
+
+void Reshape::eval_shape_expr(const Mat& bottom_blob, int& outw, int& outh, int& outd, int& outc) const
+{
+    std::vector<Mat> bottom_blobs(1);
+    bottom_blobs[0] = bottom_blob;
+    eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+}
+
+void Reshape::eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const
+{
+    // [size(@0,0),size(@0,1),12,64]
+    std::vector<int> shape = eval_list_expression(shape_expr, bottom_blobs);
+
+    outw = 1;
+    outh = 1;
+    outd = 1;
+    outc = 1;
+    if (shape.size() == 1)
+    {
+        outw = shape[0];
+    }
+    if (shape.size() == 2)
+    {
+        outw = shape[0];
+        outh = shape[1];
+    }
+    if (shape.size() == 3)
+    {
+        outw = shape[0];
+        outh = shape[1];
+        outc = shape[2];
+    }
+    if (shape.size() == 4)
+    {
+        outw = shape[0];
+        outh = shape[1];
+        outd = shape[2];
+        outc = shape[3];
+    }
 }
 
 } // namespace ncnn

@@ -210,7 +210,7 @@ static int test_paramdict_1()
 static int test_paramdict_2()
 {
     ParamDictTest pdt;
-    pdt.load_param("0=bij,bjk->bik 1=This_is_a_very_long_long_string 2=X");
+    pdt.load_param("0=bij,bjk->bik 1=This_is_a_very_long_long_string 3=\"1,2,3 and 6.667          zzz\" 2=\"X\"");
 
     // string
     int types = pdt.type(0);
@@ -251,6 +251,20 @@ static int test_paramdict_2()
     if (s != "X")
     {
         fprintf(stderr, "test_paramdict string text failed %s != X\n", s.c_str());
+        return -1;
+    }
+
+    // string
+    types = pdt.type(3);
+    if (types != 7)
+    {
+        fprintf(stderr, "test_paramdict string type failed %d != 7\n", types);
+        return -1;
+    }
+    s = pdt.get(3, "");
+    if (s != "1,2,3 and 6.667          zzz")
+    {
+        fprintf(stderr, "test_paramdict string text failed %s != \"1,2,3 and 6.667          zzz\"\n", s.c_str());
         return -1;
     }
 
@@ -661,8 +675,25 @@ static int test_paramdict_6()
     return 0;
 }
 
+#include "expression.h"
+
 int main()
 {
+
+    std::vector<ncnn::Mat> blobs(2);
+    blobs[0].w = 100;
+    blobs[0].h = 200;
+    blobs[0].c = 44;
+
+    blobs[1].w = 10;
+    blobs[1].h = 20;
+    blobs[1].c = 4;
+
+    // outshape = ( int(a.w * 0.5) + (a.c - 10), floor(b.h / 0.5), a.c + b.c, round(2.0) )
+    std::vector<int> outshape = eval_list_expression("+(trunc(*(0w,0.5)),-(0c,10)),floor(/(1h,0.5)),+(0c,1c),round(2.0)", blobs);
+
+    fprintf(stderr, "%d   %d %d %d %d\n", (int)outshape.size(), outshape[0], outshape[1], outshape[2], outshape[3]);
+
     return 0
            || test_paramdict_0()
            || test_paramdict_1()
