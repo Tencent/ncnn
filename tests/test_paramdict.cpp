@@ -679,7 +679,6 @@ static int test_paramdict_6()
 
 int main()
 {
-
     std::vector<ncnn::Mat> blobs(2);
     blobs[0].w = 100;
     blobs[0].h = 200;

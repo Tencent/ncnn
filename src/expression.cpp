@@ -63,20 +63,20 @@ int count_expression_blobs(const std::string& expr)
 
 std::vector<int> eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs)
 {
-// /(0w,2),*(0h,2),0c
+    // /(0w,2),*(0h,2),0c
 
-// split by , ( )
-//
-//     /
-//         0w
-//         2
-// -------------------
-//     *
-//         0h
-//         2
-// -------------------
-//     0c
-// -------------------
+    // split by , ( )
+    //
+    //     /
+    //         0w
+    //         2
+    // -------------------
+    //     *
+    //         0h
+    //         2
+    // -------------------
+    //     0c
+    // -------------------
 
     // split by , ( )
 
@@ -124,9 +124,18 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             float f;
         };
 
-        typed_value() : type(0), i(0) {}
-        typed_value(int _i) : type(0), i(_i) {}
-        typed_value(float _f) : type(1), f(_f) {}
+        typed_value()
+            : type(0), i(0)
+        {
+        }
+        typed_value(int _i)
+            : type(0), i(_i)
+        {
+        }
+        typed_value(float _f)
+            : type(1), f(_f)
+        {
+        }
 
         int to_int()
         {
