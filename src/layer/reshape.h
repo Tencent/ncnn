@@ -28,6 +28,12 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+protected:
+    void eval_shape_expr(const Mat& bottom_blob, int& outw, int& outh, int& outd, int& outc) const;
+    void eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const;
+
 public:
     // reshape flag
     // 0 = copy from bottom
@@ -42,6 +48,9 @@ public:
     int permute;
 
     int ndim;
+
+    // [size(@0,0),size(@0,1),12,64]
+    std::string shape_expr;
 };
 
 } // namespace ncnn
