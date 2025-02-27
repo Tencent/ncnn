@@ -50,9 +50,16 @@ int Reshape::load_param(const ParamDict& pd)
     shape_expr = pd.get(6, "");
 
     // count reference blobs
-    if (!shape_expr.empty() && count_expression_blobs(shape_expr) > 1)
+    if (!shape_expr.empty())
     {
-        one_blob_only = false;
+        const int blob_count = count_expression_blobs(shape_expr);
+        if (blob_count > 1)
+            one_blob_only = false;
+
+        // resolve ndim from expression
+        std::vector<Mat> blobs(blob_count);
+        ndim = (int)eval_list_expression(shape_expr, blobs).size();
+        NCNN_LOGE("ndim = %d", ndim);
     }
 
     return 0;

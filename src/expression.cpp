@@ -160,11 +160,11 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             size_t blob_index = t[0] - '0';
             if (blob_index >= blobs.size())
             {
-                NCNN_LOGE("shape expression blob index %d out of bound!", blob_index);
+                NCNN_LOGE("shape expression blob index %d out of bound!", (int)blob_index);
                 blob_index = 0;
             }
 
-            const Mat& blob = blobs[blob_index];
+            const Mat& blob = blobs[blob_index].shape();
             int size;
             if (t[1] == 'w')
                 size = blob.w;
@@ -537,6 +537,8 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
 #endif
         list.push_back(size);
     }
+
+    NCNN_LOGE("shape = %d %d %d %d", list[0], list[1], list[2], list[3]);
 
     return list;
 }
