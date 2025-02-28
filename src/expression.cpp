@@ -177,7 +177,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
 
             exprstack.push_back(size);
         }
-        else if (t == "+" || t == "-" || t == "*" || t == "/" || t == "max" || t == "min")
+        else if (t == "+" || t == "-" || t == "*" || t == "//" || t == "max" || t == "min")
         {
 #if NCNN_SIMPLESTL
             typed_value ta = exprstack[exprstack.size() - 1];
@@ -208,7 +208,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     exprstack.push_back(a * b);
                 }
-                if (t == "/")
+                if (t == "//")
                 {
                     if (b == 0)
                     {
@@ -246,9 +246,9 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     exprstack.push_back(a * b);
                 }
-                if (t == "/")
+                if (t == "//")
                 {
-                    exprstack.push_back(a / b);
+                    exprstack.push_back(floorf(a / b));
                 }
                 if (t == "max")
                 {
@@ -449,7 +449,8 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 exprstack.push_back(tanhf(a));
             }
         }
-        else if (t == "atan2"
+        else if (t == "/"
+                 || t == "atan2"
                  || t == "fmod"
                  || t == "pow"
                  || t == "remainder"
@@ -470,6 +471,10 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             float a = ta.type == 0 ? ta.i : ta.f;
             float b = tb.type == 0 ? tb.i : tb.f;
 
+            if (t == "/")
+            {
+                exprstack.push_back(a / b);
+            }
             if (t == "atan2")
             {
                 exprstack.push_back(atan2f(a, b));
@@ -492,6 +497,46 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             if (t == "logaddexp")
             {
                 exprstack.push_back(logf(expf(a) + expf(b)));
+            }
+        }
+        else if (t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
+        {
+#if NCNN_SIMPLESTL
+            typed_value ta = exprstack[exprstack.size() - 1];
+            exprstack.resize(exprstack.size() - 1);
+            typed_value tb = exprstack[exprstack.size() - 1];
+            exprstack.resize(exprstack.size() - 1);
+#else
+            typed_value ta = exprstack.back();
+            exprstack.pop_back();
+            typed_value tb = exprstack.back();
+            exprstack.pop_back();
+#endif
+
+            // assert ta.type == 0 && tb.type == 0
+
+            int a = ta.i;
+            int b = tb.i;
+
+            if (t == "and")
+            {
+                exprstack.push_back(a & b);
+            }
+            if (t == "or")
+            {
+                exprstack.push_back(a | b);
+            }
+            if (t == "xor")
+            {
+                exprstack.push_back(a ^ b);
+            }
+            if (t == "lshift")
+            {
+                exprstack.push_back(a << b);
+            }
+            if (t == "rshift")
+            {
+                exprstack.push_back(a >> b);
             }
         }
         else
