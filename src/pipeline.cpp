@@ -113,6 +113,98 @@ void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
 
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
+    int local_size = w * h * c;
+
+    // be multiple of subgroup size
+    int subgroup_size = vkdev->info.subgroup_size();
+    int local_size2 = std::max(1, local_size / subgroup_size) * subgroup_size;
+    for (; local_size > local_size2; local_size = w * h * c)
+    {
+        if (local_size == local_size2 * 2)
+        {
+            if (c % 2 == 0)
+                c /= 2;
+            else if (h % 2 == 0)
+                w /= 2;
+            else if (w % 2 == 0)
+                h /= 2;
+            else
+                c /= 2;
+        }
+        else if (local_size == local_size2 * 4)
+        {
+            if (w % 2 == 0 && h % 2 == 0)
+            {
+                w /= 2;
+                h /= 2;
+            }
+            else if (h % 2 == 0 && c % 2 == 0)
+            {
+                h /= 2;
+                c /= 2;
+            }
+            else if (w % 2 == 0 && c % 2 == 0)
+            {
+                w /= 2;
+                c /= 2;
+            }
+            else if (c % 4 == 0)
+            {
+                c /= 4;
+            }
+            else if (h % 4 == 0)
+            {
+                h /= 4;
+            }
+            else if (w % 4 == 0)
+            {
+                w /= 4;
+            }
+            else if (c % 2 == 0)
+            {
+                h /= 2;
+                c /= 2;
+            }
+            else if (h % 2 == 0)
+            {
+                w /= 2;
+                h /= 2;
+            }
+            else if (w % 2 == 0)
+            {
+                w /= 2;
+                h /= 2;
+            }
+            else
+            {
+                w /= 2;
+                h /= 2;
+            }
+        }
+        else
+        {
+            if (w % 2 != 0 && h % 2 != 0 && c % 2 != 0)
+            {
+                w /= 2;
+                h /= 2;
+                c /= 2;
+            }
+            else
+            {
+                if (c % 2 == 0)
+                    c /= 2;
+                if (h % 2 == 0)
+                    h /= 2;
+                if (w % 2 == 0)
+                    w /= 2;
+            }
+        }
+
+        w = std::max(1, w);
+        h = std::max(1, h);
+        c = std::max(1, c);
+    }
+
     d->local_size_x = w;
     d->local_size_y = h;
     d->local_size_z = c;
