@@ -126,25 +126,25 @@ static std::string eval_expression(const Operator* op)
         typed_expr(int _i)
             : type(0), literal(1), i(_i), f(0.f)
         {
-            fprintf(stderr, "typed_expr i %d\n", i);
+            // fprintf(stderr, "typed_expr i %d\n", i);
         }
 
         typed_expr(float _f)
             : type(1), literal(1), i(0), f(_f)
         {
-            fprintf(stderr, "typed_expr f %f\n", f);
+            // fprintf(stderr, "typed_expr f %f\n", f);
         }
 
         typed_expr(const std::string& _expr)
             : expr(_expr), type(3), literal(0), i(0), f(0.f)
         {
-            fprintf(stderr, "typed_expr ? %s\n", expr.c_str());
+            // fprintf(stderr, "typed_expr ? %s\n", expr.c_str());
         }
 
         typed_expr(const std::string& _expr, int _type)
             : expr(_expr), type(_type), literal(0), i(0), f(0.f)
         {
-            fprintf(stderr, "typed_expr %d %s\n", type, expr.c_str());
+            // fprintf(stderr, "typed_expr %d %s\n", type, expr.c_str());
         }
 
         bool is_literal() const
@@ -749,7 +749,7 @@ static std::string eval_expression(const Operator* op)
         exprstack.pop();
     }
 
-    fprintf(stderr, "eval_expression return %s\n", r.c_str());
+    // fprintf(stderr, "eval_expression return %s\n", r.c_str());
 
     return r;
 }
