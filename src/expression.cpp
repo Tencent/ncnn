@@ -332,10 +332,6 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             {
                 float a = ta.f;
 
-                if (t == "neg")
-                {
-                    exprstack.push_back(-a);
-                }
                 if (t == "trunc")
                 {
                     exprstack.push_back((int)a);

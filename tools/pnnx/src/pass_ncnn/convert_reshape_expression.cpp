@@ -238,6 +238,38 @@ void convert_reshape_expression(Graph& graph)
 
             const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
+            struct typed_value
+            {
+                int type; // 0=i 1=f
+                union
+                {
+                    int i;
+                    float f;
+                };
+
+                typed_value()
+                    : type(0), i(0)
+                {
+                }
+                typed_value(int _i)
+                    : type(0), i(_i)
+                {
+                }
+                typed_value(float _f)
+                    : type(1), f(_f)
+                {
+                }
+
+                int to_int()
+                {
+                    if (type == 0)
+                        return i;
+
+                    // trunc by default
+                    return (int)f;
+                }
+            };
+
             // scan and stack
             std::stack<std::string> exprstack;
             for (int i = (int)tokens.size() - 1; i >= 0; i--)
@@ -352,6 +384,17 @@ void convert_reshape_expression(Graph& graph)
                         }
                     }
                 }
+                else if (t == "ceil"
+                        || t == "floor"
+                        || t == "round"
+                        || t == "trunc")
+                {
+                    std::string a = exprstack.top();
+                    exprstack.pop();
+
+                    std::string r = t + "(" + a + ")";
+                    exprstack.push(r);
+                }
                 else if (t == "abs"
                         || t == "acos"
                         || t == "acosh"
@@ -359,17 +402,14 @@ void convert_reshape_expression(Graph& graph)
                         || t == "asinh"
                         || t == "atan"
                         || t == "atanh"
-                        || t == "ceil"
                         || t == "cos"
                         || t == "cosh"
                         || t == "erf"
                         || t == "exp"
-                        || t == "floor"
                         || t == "log"
                         || t == "log10"
                         || t == "neg"
                         || t == "reciprocal"
-                        || t == "round"
                         || t == "rsqrt"
                         || t == "sign"
                         || t == "sin"
@@ -377,8 +417,7 @@ void convert_reshape_expression(Graph& graph)
                         || t == "sqrt"
                         || t == "square"
                         || t == "tan"
-                        || t == "tanh"
-                        || t == "trunc")
+                        || t == "tanh")
                 {
                     std::string a = exprstack.top();
                     exprstack.pop();
