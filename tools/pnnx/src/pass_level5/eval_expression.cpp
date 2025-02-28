@@ -612,30 +612,28 @@ static std::string eval_expression(const Operator* op)
                 const float af = a.type == 0 ? a.i : a.f;
                 const float bf = b.type == 0 ? b.i : b.f;
 
+                float r = 0.f;
                 if (t == "atan2")
                 {
-                    exprstack.push(atan2(af, bf));
+                    r = atan2(af, bf);
                 }
                 if (t == "div")
                 {
-                    float r = af / bf;
-                    exprstack.push(std::to_string(r));
+                    r = af / bf;
                 }
                 if (t == "fmod")
                 {
-                    float r = fmod(af, bf);
-                    exprstack.push(std::to_string(r));
+                    r = fmod(af, bf);
                 }
                 if (t == "pow")
                 {
-                    float r = pow(af, bf);
-                    exprstack.push(std::to_string(r));
+                    r = pow(af, bf);
                 }
                 if (t == "logaddexp")
                 {
-                    float r = log(exp(af) + exp(bf));
-                    exprstack.push(std::to_string(r));
+                    r = log(exp(af) + exp(bf));
                 }
+                exprstack.push(r);
             }
             else
             {
@@ -662,26 +660,28 @@ static std::string eval_expression(const Operator* op)
                 const int ai = a.i;
                 const int bi = b.i;
 
+                int r = 0;
                 if (t == "and")
                 {
-                    exprstack.push(ai & bi);
+                    r = ai & bi;
                 }
                 if (t == "or")
                 {
-                    exprstack.push(ai | bi);
+                    r = ai | bi;
                 }
                 if (t == "xor")
                 {
-                    exprstack.push(ai ^ bi);
+                    r = ai ^ bi;
                 }
                 if (t == "lshift")
                 {
-                    exprstack.push(ai << bi);
+                    r = ai << bi;
                 }
                 if (t == "rshift")
                 {
-                    exprstack.push(ai >> bi);
+                    r = ai >> bi;
                 }
+                exprstack.push(r);
             }
             else
             {
