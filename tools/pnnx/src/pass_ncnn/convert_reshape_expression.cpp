@@ -385,9 +385,9 @@ void convert_reshape_expression(Graph& graph)
                     }
                 }
                 else if (t == "ceil"
-                        || t == "floor"
-                        || t == "round"
-                        || t == "trunc")
+                         || t == "floor"
+                         || t == "round"
+                         || t == "trunc")
                 {
                     std::string a = exprstack.top();
                     exprstack.pop();
@@ -396,28 +396,28 @@ void convert_reshape_expression(Graph& graph)
                     exprstack.push(r);
                 }
                 else if (t == "abs"
-                        || t == "acos"
-                        || t == "acosh"
-                        || t == "asin"
-                        || t == "asinh"
-                        || t == "atan"
-                        || t == "atanh"
-                        || t == "cos"
-                        || t == "cosh"
-                        || t == "erf"
-                        || t == "exp"
-                        || t == "log"
-                        || t == "log10"
-                        || t == "neg"
-                        || t == "reciprocal"
-                        || t == "rsqrt"
-                        || t == "sign"
-                        || t == "sin"
-                        || t == "sinh"
-                        || t == "sqrt"
-                        || t == "square"
-                        || t == "tan"
-                        || t == "tanh")
+                         || t == "acos"
+                         || t == "acosh"
+                         || t == "asin"
+                         || t == "asinh"
+                         || t == "atan"
+                         || t == "atanh"
+                         || t == "cos"
+                         || t == "cosh"
+                         || t == "erf"
+                         || t == "exp"
+                         || t == "log"
+                         || t == "log10"
+                         || t == "neg"
+                         || t == "reciprocal"
+                         || t == "rsqrt"
+                         || t == "sign"
+                         || t == "sin"
+                         || t == "sinh"
+                         || t == "sqrt"
+                         || t == "square"
+                         || t == "tan"
+                         || t == "tanh")
                 {
                     std::string a = exprstack.top();
                     exprstack.pop();
@@ -426,17 +426,17 @@ void convert_reshape_expression(Graph& graph)
                     exprstack.push(r);
                 }
                 else if (t == "+"
-                        || t == "-"
-                        || t == "*"
-                        || t == "/"
-                        || t == "//"
-                        || t == "atan2"
-                        || t == "max"
-                        || t == "min"
-                        || t == "fmod"
-                        || t == "pow"
-                        || t == "remainder"
-                        || t == "logaddexp")
+                         || t == "-"
+                         || t == "*"
+                         || t == "/"
+                         || t == "//"
+                         || t == "atan2"
+                         || t == "max"
+                         || t == "min"
+                         || t == "fmod"
+                         || t == "pow"
+                         || t == "remainder"
+                         || t == "logaddexp")
                 {
                     std::string a = exprstack.top();
                     exprstack.pop();
@@ -479,7 +479,7 @@ void convert_reshape_expression(Graph& graph)
 
                     // reverse order
                     std::string r;
-                    for (int j = (int)elements.size() - 1; j >= 0 ; j--)
+                    for (int j = (int)elements.size() - 1; j >= 0; j--)
                     {
                         r += elements[j];
                         if (j != 0)
