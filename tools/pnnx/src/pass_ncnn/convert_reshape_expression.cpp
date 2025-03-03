@@ -236,8 +236,6 @@ void convert_reshape_expression(Graph& graph)
 
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
-            const int batch_index = op->inputs[0]->params["__batch_index"].i;
-
             struct typed_value
             {
                 int type; // 0=i 1=f
@@ -322,7 +320,7 @@ void convert_reshape_expression(Graph& graph)
                                     if (bi < 0)
                                         bi = a_rank + bi;
 
-                                    if (bi > batch_index)
+                                    if (bi > a_batch_index)
                                     {
                                         a_rank -= 1;
                                         bi -= 1;
@@ -468,6 +466,9 @@ void convert_reshape_expression(Graph& graph)
                     }
 
                     // drop output batch index
+                    const int batch_index = op->outputs[0]->params["__batch_index"].i;
+                    // fprintf(stderr, "batch_index = %d\n", batch_index);
+
                     if (batch_index != 233)
                     {
                         for (int j = batch_index; j + 1 < (int)elements.size(); j++)

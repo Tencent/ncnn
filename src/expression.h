@@ -17,7 +17,7 @@
 namespace ncnn {
 
 // count how many blobs are referenced inside expression
-int count_expression_blobs(const std::string& expr);
+NCNN_EXPORT int count_expression_blobs(const std::string& expr);
 
 // resolve reshape shape from expression and input blobs
 // resolve slice indices(starts, ends) from expression and input blobs
@@ -26,6 +26,6 @@ int count_expression_blobs(const std::string& expr);
 // expr = "/(0w,2),*(1h,2),0c"
 // blobs = (A, B)
 // outlist = (A.w/2, B.h*2, A.c)
-std::vector<int> eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs);
+NCNN_EXPORT std::vector<int> eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs);
 
 } // namespace ncnn
