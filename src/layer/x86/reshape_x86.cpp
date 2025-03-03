@@ -32,8 +32,22 @@ Reshape_x86::Reshape_x86()
 #endif // __SSE2__
 }
 
-static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, int outh, int outd, int outc, const Option& opt)
+int Reshape_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    const Mat& bottom_blob = bottom_blobs[0];
+    Mat& top_blob = top_blobs[0];
+
+    // resolve out shape
+    int outw = w;
+    int outh = h;
+    int outd = d;
+    int outc = c;
+
+    if (!shape_expr.empty())
+    {
+        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+    }
+
     if (ndim == 1)
     {
         // flatten
@@ -678,22 +692,6 @@ static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, in
     }
 
     return 0;
-}
-
-int Reshape_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    int outw = w;
-    int outh = h;
-    int outd = d;
-    int outc = c;
-
-    // resolve out shape
-    if (!shape_expr.empty())
-    {
-        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
-    }
-
-    return reshape(bottom_blobs[0], top_blobs[0], ndim, outw, outh, outd, outc, opt);
 }
 
 } // namespace ncnn

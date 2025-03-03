@@ -36,8 +36,34 @@ Reshape_arm::Reshape_arm()
 #endif
 }
 
-static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, int outh, int outd, int outc, const Option& opt)
+int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    const Mat& bottom_blob = bottom_blobs[0];
+    Mat& top_blob = top_blobs[0];
+
+    int elembits = bottom_blob.elembits();
+
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
+#endif
+
+    // resolve out shape
+    int outw = w;
+    int outh = h;
+    int outd = d;
+    int outc = c;
+
+    if (!shape_expr.empty())
+    {
+        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+    }
+
     if (ndim == 1)
     {
         // flatten
@@ -298,36 +324,22 @@ static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, in
     return 0;
 }
 
-int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    int elembits = bottom_blobs[0].elembits();
+    const Mat& bottom_blob = bottom_blobs[0];
+    Mat& top_blob = top_blobs[0];
 
-#if NCNN_ARM82
-    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
-        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
-#endif
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && elembits == 16)
-        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
-#endif
-
+    // resolve out shape
     int outw = w;
     int outh = h;
     int outd = d;
     int outc = c;
 
-    // resolve out shape
     if (!shape_expr.empty())
     {
         eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
     }
 
-    return reshape(bottom_blobs[0], top_blobs[0], ndim, outw, outh, outd, outc, opt);
-}
-
-static int reshape_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, int outh, int outd, int outc, bool support_fp16_storage, const Option& opt)
-{
     if (ndim == 1)
     {
         // flatten
@@ -727,22 +739,6 @@ static int reshape_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int ndim, 
     }
 
     return 0;
-}
-
-int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    int outw = w;
-    int outh = h;
-    int outd = d;
-    int outc = c;
-
-    // resolve out shape
-    if (!shape_expr.empty())
-    {
-        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
-    }
-
-    return reshape_bf16s_fp16s(bottom_blobs[0], top_blobs[0], ndim, outw, outh, outd, outc, support_fp16_storage, opt);
 }
 
 } // namespace ncnn

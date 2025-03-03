@@ -230,7 +230,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
     return 0;
 }
 
-int Reshape_vulkan::destroy_pipeline(const Option& opt)
+int Reshape_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_reshape;
     pipeline_reshape = 0;
@@ -264,6 +264,19 @@ int Reshape_vulkan::destroy_pipeline(const Option& opt)
 
 int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
+    std::vector<VkMat> bottom_blobs(1);
+    bottom_blobs[0] = bottom_blob;
+    std::vector<VkMat> top_blobs(1);
+    int ret = forward(bottom_blobs, top_blobs, cmd, opt);
+    top_blob = top_blobs[0];
+    return ret;
+}
+
+int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    const VkMat& bottom_blob = bottom_blobs[0];
+    VkMat& top_blob = top_blobs[0];
+
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
@@ -276,6 +289,16 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int outh = h;
     int outd = d;
     int outc = c;
+
+    if (!shape_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_shape_expr(bottom_blob_shapes, outw, outh, outd, outc);
+    }
 
     if (ndim == 1)
     {
@@ -460,6 +483,19 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
 int Reshape_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
+    std::vector<VkImageMat> bottom_blobs(1);
+    bottom_blobs[0] = bottom_blob;
+    std::vector<VkImageMat> top_blobs(1);
+    int ret = forward(bottom_blobs, top_blobs, cmd, opt);
+    top_blob = top_blobs[0];
+    return ret;
+}
+
+int Reshape_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    const VkImageMat& bottom_blob = bottom_blobs[0];
+    VkImageMat& top_blob = top_blobs[0];
+
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
@@ -472,6 +508,16 @@ int Reshape_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     int outh = h;
     int outd = d;
     int outc = c;
+
+    if (!shape_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_shape_expr(bottom_blob_shapes, outw, outh, outd, outc);
+    }
 
     if (ndim == 1)
     {
