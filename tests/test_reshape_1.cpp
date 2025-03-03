@@ -48,11 +48,15 @@ static int test_reshape_refs(const std::vector<ncnn::Mat>& as, const char* shape
 
 static int test_reshape_0()
 {
-    ncnn::Mat a = RandomMat(3, 8, 5, 32);
+    ncnn::Mat a = RandomMat(3, 8, 25, 32);
 
     return 0
            || test_reshape(a, "0w,0h,*(0d,2),-1")
-           || test_reshape(a, "-1,0w,5,4");
+           || test_reshape(a, "-1,0w,5,4")
+           || test_reshape(a, "-1,square(neg(abs(max(min(//(*(-(+(0w,1),-1),4),4),100),-4))))")
+           || test_reshape(a, "-1,square(neg(abs(max(min(//(*(-(+(0w,1.0),-1.0),2.0),2.0),100.3),-2.2)))")
+           || test_reshape(a, "-1,trunc(*(round(-(floor(+(ceil(*(0w,1.2)),0.7)),-0.4)),1.0001))")
+           || test_reshape(a, "-1,ceil(sqrt(square(*(asinh(sinh(atanh(tanh(atan(tan(acos(cos(asin(sin(/(0w,2))))))))))),16))))");
 }
 
 static int test_reshape_1()

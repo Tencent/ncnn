@@ -436,6 +436,18 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             {
                 exprstack.push_back(1.f / sqrtf(a));
             }
+            if (t == "sin")
+            {
+                exprstack.push_back(sinf(a));
+            }
+            if (t == "sinh")
+            {
+                exprstack.push_back(sinhf(a));
+            }
+            if (t == "sqrt")
+            {
+                exprstack.push_back(sqrtf(a));
+            }
             if (t == "tan")
             {
                 exprstack.push_back(tanf(a));
@@ -579,7 +591,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
         list.push_back(size);
     }
 
-    // NCNN_LOGE("shape = %d %d %d %d", list[0], list[1], list[2], list[3]);
+    // NCNN_LOGE("shape %s = %d %d", expr.c_str(), list[0], list[1]);
 
     return list;
 }
