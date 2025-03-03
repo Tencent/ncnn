@@ -59,7 +59,7 @@ int Reshape::load_param(const ParamDict& pd)
         // resolve ndim from expression
         std::vector<Mat> blobs(blob_count);
         ndim = (int)eval_list_expression(shape_expr, blobs).size();
-        NCNN_LOGE("ndim = %d", ndim);
+        // NCNN_LOGE("ndim = %d", ndim);
     }
 
     return 0;

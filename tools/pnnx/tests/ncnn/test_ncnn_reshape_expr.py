@@ -20,8 +20,14 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
+    @torch.jit.script
+    def dynamic_division(x):
+        return int(x.size(0) // 3)
+
     def forward(self, x, y):
         x = x.reshape(x.size(0) // 128, y.size(1), -1)
+        x = x * 2
+        x = x.reshape(-1, y.size(0) // 2, 4)
         return x * 3.3
 
 def test():
@@ -30,7 +36,7 @@ def test():
 
     torch.manual_seed(0)
     x0 = torch.rand(128)
-    y0 = torch.rand(16, 64)
+    y0 = torch.rand(64, 16)
 
     x1 = torch.rand(256)
     y1 = torch.rand(32, 128)
@@ -44,7 +50,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_ncnn_reshape_expr.pt inputshape=[128],[16,64] inputshape2=[256],[32,128]")
+    os.system("../../src/pnnx test_ncnn_reshape_expr.pt inputshape=[128],[64,16] inputshape2=[256],[32,128]")
 
     # ncnn inference
     import numpy as np

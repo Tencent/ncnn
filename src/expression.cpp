@@ -579,7 +579,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
         list.push_back(size);
     }
 
-    NCNN_LOGE("shape = %d %d %d %d", list[0], list[1], list[2], list[3]);
+    // NCNN_LOGE("shape = %d %d %d %d", list[0], list[1], list[2], list[3]);
 
     return list;
 }

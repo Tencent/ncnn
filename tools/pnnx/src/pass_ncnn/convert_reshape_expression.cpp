@@ -73,15 +73,15 @@ static bool token_is_literal(const std::string& t)
     return iss.eof() && !iss.fail();
 }
 
-static void print_tokens(const std::vector<std::string>& tokens)
-{
-    std::string r;
-    for (auto x : tokens)
-    {
-        r += x + " ";
-    }
-    fprintf(stderr, "tokens = %s\n", r.c_str());
-}
+// static void print_tokens(const std::vector<std::string>& tokens)
+// {
+//     std::string r;
+//     for (auto x : tokens)
+//     {
+//         r += x + " ";
+//     }
+//     fprintf(stderr, "tokens = %s\n", r.c_str());
+// }
 
 void convert_reshape_expression(Graph& graph)
 {
@@ -107,7 +107,7 @@ void convert_reshape_expression(Graph& graph)
 
             // fuse expression into reshape expr
 
-            fprintf(stderr, "convert reshape expression begin %s\n", expr.c_str());
+            // fprintf(stderr, "convert reshape expression begin %s\n", expr.c_str());
 
             // split into tokens
             std::vector<std::string> tokens;
@@ -143,7 +143,7 @@ void convert_reshape_expression(Graph& graph)
                 }
             }
 
-            print_tokens(tokens);
+            // print_tokens(tokens);
 
             // filter unknown tokens
             for (std::string& t : tokens)
@@ -187,7 +187,7 @@ void convert_reshape_expression(Graph& graph)
                 token_indexes.push_back(i);
             }
 
-            print_tokens(tokens);
+            // print_tokens(tokens);
 
             // insert input blob as reference if not exists
             if (references.find(op->inputs[0]) == references.end())
@@ -195,18 +195,18 @@ void convert_reshape_expression(Graph& graph)
                 references[op->inputs[0]] = INT_MAX;
             }
 
-            print_tokens(tokens);
+            // print_tokens(tokens);
 
             // reorder reference id to make input blob always zero
             {
                 int old_self_idx = references[op->inputs[0]];
-                for (auto x : references)
+                for (auto& x : references)
                 {
                     if (x.second == old_self_idx)
                     {
                         x.second = 0;
                     }
-                    if (x.second < old_self_idx)
+                    else if (x.second < old_self_idx)
                     {
                         x.second += 1;
                     }
@@ -226,7 +226,7 @@ void convert_reshape_expression(Graph& graph)
                 }
             }
 
-            print_tokens(tokens);
+            // print_tokens(tokens);
 
             std::vector<Operand*> ordered_references(references.size());
             for (auto x : references)
@@ -281,7 +281,7 @@ void convert_reshape_expression(Graph& graph)
                     std::string a = exprstack.top();
                     exprstack.pop();
 
-                    fprintf(stderr, "size %s\n", a.c_str());
+                    // fprintf(stderr, "size %s\n", a.c_str());
 
                     if (exprstack.empty())
                     {
@@ -293,7 +293,7 @@ void convert_reshape_expression(Graph& graph)
                         std::string b = exprstack.top();
                         exprstack.pop();
 
-                        fprintf(stderr, "size %s %s\n", a.c_str(), b.c_str());
+                        // fprintf(stderr, "size %s %s\n", a.c_str(), b.c_str());
 
                         if (token_is_argument(a) && token_is_literal(b))
                         {
@@ -507,7 +507,7 @@ void convert_reshape_expression(Graph& graph)
                 exprstack.pop();
             }
 
-            fprintf(stderr, "convert reshape expression %s\n", r.c_str());
+            fprintf(stderr, "convert reshape expression %s => %s\n", expr.c_str(), r.c_str());
 
             op->type = "Reshape";
 
