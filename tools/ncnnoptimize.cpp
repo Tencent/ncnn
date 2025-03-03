@@ -2357,7 +2357,7 @@ int NetOptimize::eliminate_reshape_after_global_pooling()
             continue;
 
         ncnn::Reshape* reshape = (ncnn::Reshape*)layers[j];
-        if (reshape->h != -233 || reshape->c != -233 || reshape->permute != 0)
+        if (reshape->h != -233 || reshape->c != -233)
             continue;
 
         fprintf(stderr, "eliminate_reshape_after_global_pooling %s %s\n", pooling->name.c_str(), reshape->name.c_str());
@@ -2465,7 +2465,7 @@ int NetOptimize::eliminate_reshape_before_binaryop()
             continue;
 
         ncnn::Reshape* reshape = (ncnn::Reshape*)layers[i];
-        if (reshape->w != 1 || reshape->h != 1 || reshape->permute != 0)
+        if (reshape->w != 1 || reshape->h != 1)
             continue;
 
         // Reshape - BinaryOp
