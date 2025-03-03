@@ -685,46 +685,6 @@ static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, in
 
 int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (permute == 1)
-    {
-        // TODO implement permute on-the-fly
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-
-        Mat bottom_blob_unpacked;
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
-
-        Mat top_blob_unpacked;
-        int ret = Reshape::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
-        if (ret != 0)
-            return ret;
-
-        int out_elempack = 1;
-#if __SSE2__
-        if (opt.use_packing_layout)
-        {
-            // resolve dst_elempack
-            int dims = top_blob_unpacked.dims;
-#if __AVX512F__
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 16 == 0 ? 16 : top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 16 == 0 ? 16 : top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 16 == 0 ? 16 : top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#elif __AVX__
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#else
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#endif
-        }
-#endif // __SSE2__
-        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
-
-        return 0;
-    }
-
     int outw = w;
     int outh = h;
     int outd = d;
@@ -741,46 +701,6 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
 int Reshape_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    if (permute == 1)
-    {
-        // TODO implement permute on-the-fly
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-
-        Mat bottom_blob_unpacked;
-        convert_packing(bottom_blobs[0], bottom_blob_unpacked, 1, opt_pack);
-
-        Mat top_blob_unpacked;
-        int ret = Reshape::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
-        if (ret != 0)
-            return ret;
-
-        int out_elempack = 1;
-#if __SSE2__
-        if (opt.use_packing_layout)
-        {
-            // resolve dst_elempack
-            int dims = top_blob_unpacked.dims;
-#if __AVX512F__
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 16 == 0 ? 16 : top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 16 == 0 ? 16 : top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 16 == 0 ? 16 : top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#elif __AVX__
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#else
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#endif
-        }
-#endif // __SSE2__
-        convert_packing(top_blob_unpacked, top_blobs[0], out_elempack, opt);
-
-        return 0;
-    }
-
     int outw = w;
     int outh = h;
     int outd = d;

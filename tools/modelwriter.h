@@ -2344,7 +2344,6 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 11=%d", d)
             fprintf_param_value(" 2=%d", c)
-            fprintf_param_value(" 3=%d", permute)
         }
         else if (layer->type == "RMSNorm")
         {

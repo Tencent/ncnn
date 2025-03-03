@@ -52,34 +52,6 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     int elempack = bottom_blob.elempack;
 
-    if (permute == 1)
-    {
-        // TODO implement permute on-the-fly
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-
-        Mat bottom_blob_unpacked;
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
-
-        Mat top_blob_unpacked;
-        int ret = Reshape::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
-        if (ret != 0)
-            return ret;
-
-        int out_elempack = 1;
-        if (opt.use_packing_layout)
-        {
-            // resolve dst_elempack
-            int dims = top_blob_unpacked.dims;
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-        }
-        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
-
-        return 0;
-    }
-
     if (ndim == 1)
     {
         // flatten
@@ -353,46 +325,6 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int elempack = bottom_blob.elempack;
-
-    if (permute == 1)
-    {
-        // TODO implement permute on-the-fly
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-
-        Mat bottom_blob_unpacked;
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
-
-        Mat bottom_blob_unpacked_fp32;
-        cast_bfloat16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack);
-
-        Mat top_blob_unpacked_fp32;
-        int ret = Reshape::forward(bottom_blob_unpacked_fp32, top_blob_unpacked_fp32, opt_pack);
-        if (ret != 0)
-            return ret;
-
-        Mat top_blob_unpacked;
-        cast_float32_to_bfloat16(top_blob_unpacked_fp32, top_blob_unpacked, opt_pack);
-
-        int out_elempack = 1;
-        if (opt.use_packing_layout)
-        {
-            // resolve dst_elempack
-            int dims = top_blob_unpacked.dims;
-#if NCNN_ARM82
-            if (dims == 1) out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#else
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#endif
-        }
-        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
-
-        return 0;
-    }
 
     if (ndim == 1)
     {

@@ -30,12 +30,6 @@ int Reshape::load_param(const ParamDict& pd)
     h = pd.get(1, -233);
     d = pd.get(11, -233);
     c = pd.get(2, -233);
-    permute = pd.get(3, 0);
-
-    if (permute == 1)
-    {
-        NCNN_LOGE("reshape permute is deprecated, and will be removed");
-    }
 
     ndim = 4;
     if (d == -233)
@@ -65,7 +59,7 @@ int Reshape::load_param(const ParamDict& pd)
     return 0;
 }
 
-static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, int outh, int outd, int outc, int permute, const Option& opt)
+static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, int outh, int outd, int outc, const Option& opt)
 {
     size_t elemsize = bottom_blob.elemsize;
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
@@ -158,192 +152,6 @@ static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, in
         }
     }
 
-    bool need_permute = permute == 1;
-    if (dims == 2 && ndim == 2 && bottom_blob.h == outh)
-        need_permute = false;
-    if (dims == 3 && ndim == 3 && bottom_blob.c == outc)
-        need_permute = false;
-    if (dims == 4 && ndim == 4 && bottom_blob.c == outc)
-        need_permute = false;
-
-    if (need_permute)
-    {
-        Mat bottom_blob_permuted = bottom_blob;
-
-        if (dims == 2)
-        {
-            // hw -> wh
-            int _w = bottom_blob.w;
-            int _h = bottom_blob.h;
-
-            bottom_blob_permuted.create(_h, _w, elemsize, opt.workspace_allocator);
-            if (bottom_blob_permuted.empty())
-                return -100;
-
-            const float* ptr = bottom_blob;
-            float* outptr = bottom_blob_permuted;
-
-            for (int i = 0; i < _w; i++)
-            {
-                for (int j = 0; j < _h; j++)
-                {
-                    *outptr++ = ptr[j * _w + i];
-                }
-            }
-        }
-        if (dims == 3)
-        {
-            // chw -> hwc
-            int _w = bottom_blob.w;
-            int _h = bottom_blob.h;
-            int channels = bottom_blob.c;
-
-            bottom_blob_permuted.create(channels, _w, _h, elemsize, opt.workspace_allocator);
-            if (bottom_blob_permuted.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < _h; q++)
-            {
-                float* outptr = bottom_blob_permuted.channel(q);
-
-                for (int i = 0; i < _w; i++)
-                {
-                    for (int j = 0; j < channels; j++)
-                    {
-                        *outptr++ = bottom_blob.channel(j).row(q)[i];
-                    }
-                }
-            }
-        }
-
-        if (dims == 4)
-        {
-            // cdhw -> dhwc
-            int _w = bottom_blob.w;
-            int _h = bottom_blob.h;
-            int _d = bottom_blob.d;
-            int channels = bottom_blob.c;
-
-            bottom_blob_permuted.create(channels, _w, _h, _d, elemsize, opt.workspace_allocator);
-            if (bottom_blob_permuted.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int z = 0; z < _d; z++)
-            {
-                float* outptr = bottom_blob_permuted.channel(z);
-
-                for (int q = 0; q < _h; q++)
-                {
-                    for (int i = 0; i < _w; i++)
-                    {
-                        for (int j = 0; j < channels; j++)
-                        {
-                            *outptr++ = bottom_blob.channel(j).depth(z).row(q)[i];
-                        }
-                    }
-                }
-            }
-        }
-
-        if (ndim == 1)
-        {
-            top_blob = bottom_blob_permuted.reshape(outw, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            return 0;
-        }
-
-        // permute on ndhwc/nhwc/nhc
-        Mat top_blob_permuted;
-        if (ndim == 2)
-        {
-            top_blob_permuted = bottom_blob_permuted.reshape(outh, outw, opt.workspace_allocator);
-        }
-        if (ndim == 3)
-        {
-            top_blob_permuted = bottom_blob_permuted.reshape(outc, outw, outh, opt.workspace_allocator);
-        }
-        if (ndim == 4)
-        {
-            top_blob_permuted = bottom_blob_permuted.reshape(outc, outw, outh, outd, opt.workspace_allocator);
-        }
-        if (top_blob_permuted.empty())
-            return -100;
-
-        if (ndim == 2)
-        {
-            // wh -> hw
-            top_blob.create(outw, outh, elemsize, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            const float* ptr = top_blob_permuted;
-            float* outptr = top_blob;
-
-            for (int i = 0; i < outh; i++)
-            {
-                for (int j = 0; j < outw; j++)
-                {
-                    *outptr++ = ptr[j * outh + i];
-                }
-            }
-        }
-        if (ndim == 3)
-        {
-            // hwc -> chw
-            top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
-            {
-                float* outptr = top_blob.channel(q);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    const float* ptr = top_blob_permuted.channel(i);
-
-                    for (int j = 0; j < outw; j++)
-                    {
-                        *outptr++ = ptr[j * outc + q];
-                    }
-                }
-            }
-        }
-        if (ndim == 4)
-        {
-            // dhwc -> cdhw
-            top_blob.create(outw, outh, outd, outc, elemsize, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
-            {
-                float* outptr = top_blob.channel(q);
-
-                for (int k = 0; k < outd; k++)
-                {
-                    const float* ptr = top_blob_permuted.channel(k);
-
-                    for (int i = 0; i < outh; i++)
-                    {
-                        for (int j = 0; j < outw; j++)
-                        {
-                            *outptr++ = ptr[i * outw * outc + j * outc + q];
-                        }
-                    }
-                }
-            }
-        }
-
-        return 0;
-    }
-
     if (ndim == 1)
     {
         top_blob = bottom_blob.reshape(outw, opt.blob_allocator);
@@ -379,7 +187,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         eval_shape_expr(bottom_blob, outw, outh, outd, outc);
     }
 
-    return reshape(bottom_blob, top_blob, ndim, outw, outh, outd, outc, permute, opt);
+    return reshape(bottom_blob, top_blob, ndim, outw, outh, outd, outc, opt);
 }
 
 int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -395,7 +203,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
     }
 
-    return reshape(bottom_blobs[0], top_blobs[0], ndim, outw, outh, outd, outc, permute, opt);
+    return reshape(bottom_blobs[0], top_blobs[0], ndim, outw, outh, outd, outc, opt);
 }
 
 void Reshape::eval_shape_expr(const Mat& bottom_blob, int& outw, int& outh, int& outd, int& outc) const

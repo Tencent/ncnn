@@ -43,9 +43,6 @@ public:
     int d;
     int c;
 
-    // flag permute chw->hwc or hw->wh before and after reshape
-    int permute;
-
     int ndim;
 
     // [size(@0,0),size(@0,1),12,64]
