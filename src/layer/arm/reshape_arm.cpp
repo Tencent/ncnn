@@ -36,22 +36,8 @@ Reshape_arm::Reshape_arm()
 #endif
 }
 
-int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, int outh, int outd, int outc, const Option& opt)
 {
-    int elembits = bottom_blob.elembits();
-
-#if NCNN_ARM82
-    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
-        return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
-#endif
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && elembits == 16)
-        return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
-#endif
-
-    int elempack = bottom_blob.elempack;
-
     if (ndim == 1)
     {
         // flatten
@@ -62,30 +48,28 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 
-    int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
+    const int dims = bottom_blob.dims;
+    const int elempack = bottom_blob.elempack;
+    const size_t elemsize = bottom_blob.elemsize;
 
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
+    const int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
 
     if (ndim == 2)
     {
-        int _w = w;
-        int _h = h;
+        if (outw == 0)
+            outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+        if (outh == 0)
+            outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
 
-        if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-        if (_h == 0)
-            _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+        if (outw == -1)
+            outw = total / outh;
+        if (outh == -1)
+            outh = total / outw;
 
-        if (_w == -1)
-            _w = total / _h;
-        if (_h == -1)
-            _h = total / _w;
-
-        int out_elempack = opt.use_packing_layout && _h % 4 == 0 ? 4 : 1;
+        int out_elempack = opt.use_packing_layout && outh % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 2 && bottom_blob.h * elempack == _h && elempack == out_elempack)
+        if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -99,9 +83,9 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return -100;
 
             top_blob.dims = 2;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            top_blob.cstep = _w * _h;
+            top_blob.w = outw;
+            top_blob.h = outh;
+            top_blob.cstep = (size_t)outw * outh;
             top_blob.elemsize = out_elemsize;
             top_blob.elempack = out_elempack;
 
@@ -119,23 +103,20 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return -100;
         }
 
-        top_blob.create(_w, _h / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
-
-        int outw = top_blob.w;
-        int outh = top_blob.h;
 
         // assert out_elempack == 4
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < outh; i++)
+        for (int i = 0; i < top_blob.h; i++)
         {
             const float* ptr0 = (const float*)bottom_blob_flattened + outw * i * 4;
             const float* ptr1 = (const float*)bottom_blob_flattened + outw * (i * 4 + 1);
             const float* ptr2 = (const float*)bottom_blob_flattened + outw * (i * 4 + 2);
             const float* ptr3 = (const float*)bottom_blob_flattened + outw * (i * 4 + 3);
-            float* outptr = (float*)top_blob.row(i);
+            float* outptr = top_blob.row(i);
 
             int j = 0;
 #if __ARM_NEON
@@ -170,60 +151,55 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     if (ndim == 3 || ndim == 4)
     {
-        int _w = w;
-        int _h = h;
-        int _d = d;
-        int _c = c;
-
         if (ndim == 3)
         {
-            if (_w == 0)
-                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-            if (_h == 0)
-                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-            if (_c == 0)
-                _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
+            if (outw == 0)
+                outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (outh == 0)
+                outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (outc == 0)
+                outc = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
 
-            if (_w == -1)
-                _w = total / _c / _h;
-            if (_h == -1)
-                _h = total / _c / _w;
-            if (_c == -1)
-                _c = total / _h / _w;
+            if (outw == -1)
+                outw = total / outc / outh;
+            if (outh == -1)
+                outh = total / outc / outw;
+            if (outc == -1)
+                outc = total / outh / outw;
 
-            _d = 1;
+            outd = 1;
         }
         else // if (ndim == 4)
         {
-            if (_w == 0)
-                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-            if (_h == 0)
-                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-            if (_d == 0)
-                _d = bottom_blob.d;
-            if (_c == 0)
-                _c = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
+            if (outw == 0)
+                outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (outh == 0)
+                outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (outd == 0)
+                outd = bottom_blob.d;
+            if (outc == 0)
+                outc = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
 
-            if (_w == -1)
-                _w = total / _c / _d / _h;
-            if (_h == -1)
-                _h = total / _c / _d / _w;
-            if (_d == -1)
-                _d = total / _c / _h / _w;
-            if (_c == -1)
-                _c = total / _d / _h / _w;
+            if (outw == -1)
+                outw = total / outc / outd / outh;
+            if (outh == -1)
+                outh = total / outc / outd / outw;
+            if (outd == -1)
+                outd = total / outc / outh / outw;
+            if (outc == -1)
+                outc = total / outd / outh / outw;
         }
 
-        int out_elempack = opt.use_packing_layout && _c % 4 == 0 ? 4 : 1;
+        int out_elempack = opt.use_packing_layout && outc % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == _c && elempack == out_elempack)
+        if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.dims = ndim;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            top_blob.d = _d;
+            top_blob.w = outw;
+            top_blob.h = outh;
+            top_blob.d = outd;
             return 0;
         }
 
@@ -240,11 +216,11 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (ndim == 3)
         {
-            top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         }
         else // if (ndim == 4)
         {
-            top_blob.create(_w, _h, _d, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         }
         if (top_blob.empty())
             return -100;
@@ -322,10 +298,36 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     return 0;
 }
 
-int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    int elempack = bottom_blob.elempack;
+    int elembits = bottom_blobs[0].elembits();
 
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
+#endif
+
+    int outw = w;
+    int outh = h;
+    int outd = d;
+    int outc = c;
+
+    // resolve out shape
+    if (!shape_expr.empty())
+    {
+        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+    }
+
+    return reshape(bottom_blobs[0], top_blobs[0], ndim, outw, outh, outd, outc, opt);
+}
+
+static int reshape_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, int outh, int outd, int outc, bool support_fp16_storage, const Option& opt)
+{
     if (ndim == 1)
     {
         // flatten
@@ -336,38 +338,36 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         return 0;
     }
 
-    int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
+    const int dims = bottom_blob.dims;
+    const int elempack = bottom_blob.elempack;
+    const size_t elemsize = bottom_blob.elemsize;
 
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
+    const int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
 
     if (ndim == 2)
     {
-        int _w = w;
-        int _h = h;
+        if (outw == 0)
+            outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+        if (outh == 0)
+            outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
 
-        if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-        if (_h == 0)
-            _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-
-        if (_w == -1)
-            _w = total / _h;
-        if (_h == -1)
-            _h = total / _w;
+        if (outw == -1)
+            outw = total / outh;
+        if (outh == -1)
+            outh = total / outw;
 
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
 #if NCNN_ARM82
-            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && _h % 8 == 0 ? 8 : _h % 4 == 0 ? 4 : 1;
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #else
-            out_elempack = _h % 4 == 0 ? 4 : 1;
+            out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 2 && bottom_blob.h * elempack == _h && elempack == out_elempack)
+        if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -381,9 +381,9 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 return -100;
 
             top_blob.dims = 2;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            top_blob.cstep = _w * _h;
+            top_blob.w = outw;
+            top_blob.h = outh;
+            top_blob.cstep = (size_t)outw * outh;
             top_blob.elemsize = out_elemsize;
             top_blob.elempack = out_elempack;
 
@@ -401,18 +401,15 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 return -100;
         }
 
-        top_blob.create(_w, _h / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
-
-        int outw = top_blob.w;
-        int outh = top_blob.h;
 
 #if NCNN_ARM82
         if (out_elempack == 8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int i = 0; i < top_blob.h; i++)
             {
                 const unsigned short* ptr0 = (const unsigned short*)bottom_blob_flattened + outw * i * 8;
                 const unsigned short* ptr1 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 1);
@@ -473,7 +470,7 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         if (out_elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int i = 0; i < top_blob.h; i++)
             {
                 const unsigned short* ptr0 = (const unsigned short*)bottom_blob_flattened + outw * i * 4;
                 const unsigned short* ptr1 = (const unsigned short*)bottom_blob_flattened + outw * (i * 4 + 1);
@@ -515,68 +512,63 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
     if (ndim == 3 || ndim == 4)
     {
-        int _w = w;
-        int _h = h;
-        int _d = d;
-        int _c = c;
-
         if (ndim == 3)
         {
-            if (_w == 0)
-                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-            if (_h == 0)
-                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-            if (_c == 0)
-                _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
+            if (outw == 0)
+                outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (outh == 0)
+                outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (outc == 0)
+                outc = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
 
-            if (_w == -1)
-                _w = total / _c / _h;
-            if (_h == -1)
-                _h = total / _c / _w;
-            if (_c == -1)
-                _c = total / _h / _w;
+            if (outw == -1)
+                outw = total / outc / outh;
+            if (outh == -1)
+                outh = total / outc / outw;
+            if (outc == -1)
+                outc = total / outh / outw;
 
-            _d = 1;
+            outd = 1;
         }
         else // if (ndim == 4)
         {
-            if (_w == 0)
-                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-            if (_h == 0)
-                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-            if (_d == 0)
-                _d = bottom_blob.d;
-            if (_c == 0)
-                _c = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
+            if (outw == 0)
+                outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (outh == 0)
+                outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (outd == 0)
+                outd = bottom_blob.d;
+            if (outc == 0)
+                outc = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
 
-            if (_w == -1)
-                _w = total / _c / _d / _h;
-            if (_h == -1)
-                _h = total / _c / _d / _w;
-            if (_d == -1)
-                _d = total / _c / _h / _w;
-            if (_c == -1)
-                _c = total / _d / _h / _w;
+            if (outw == -1)
+                outw = total / outc / outd / outh;
+            if (outh == -1)
+                outh = total / outc / outd / outw;
+            if (outd == -1)
+                outd = total / outc / outh / outw;
+            if (outc == -1)
+                outc = total / outd / outh / outw;
         }
 
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
 #if NCNN_ARM82
-            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && _c % 8 == 0 ? 8 : _c % 4 == 0 ? 4 : 1;
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 #else
-            out_elempack = _c % 4 == 0 ? 4 : 1;
+            out_elempack = outc % 4 == 0 ? 4 : 1;
 #endif
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == _c && elempack == out_elempack)
+        if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.dims = ndim;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            top_blob.d = _d;
+            top_blob.w = outw;
+            top_blob.h = outh;
+            top_blob.d = outd;
             return 0;
         }
 
@@ -593,11 +585,11 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
         if (ndim == 3)
         {
-            top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         }
         else // if (ndim == 4)
         {
-            top_blob.create(_w, _h, _d, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         }
         if (top_blob.empty())
             return -100;
@@ -735,6 +727,22 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     }
 
     return 0;
+}
+
+int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    int outw = w;
+    int outh = h;
+    int outd = d;
+    int outc = c;
+
+    // resolve out shape
+    if (!shape_expr.empty())
+    {
+        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+    }
+
+    return reshape_bf16s_fp16s(bottom_blobs[0], top_blobs[0], ndim, outw, outh, outd, outc, support_fp16_storage, opt);
 }
 
 } // namespace ncnn

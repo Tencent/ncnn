@@ -52,9 +52,6 @@ static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, in
 
     if (ndim == 2)
     {
-        // int _w = outw;
-        // int _h = outh;
-
         if (outw == 0)
             outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
         if (outh == 0)
@@ -681,22 +678,6 @@ static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, in
     }
 
     return 0;
-}
-
-int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    int outw = w;
-    int outh = h;
-    int outd = d;
-    int outc = c;
-
-    // resolve out shape
-    if (!shape_expr.empty())
-    {
-        eval_shape_expr(bottom_blob, outw, outh, outd, outc);
-    }
-
-    return reshape(bottom_blob, top_blob, ndim, outw, outh, outd, outc, opt);
 }
 
 int Reshape_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const

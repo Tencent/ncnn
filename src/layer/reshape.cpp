@@ -61,7 +61,6 @@ int Reshape::load_param(const ParamDict& pd)
 
 static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, int outh, int outd, int outc, const Option& opt)
 {
-    size_t elemsize = bottom_blob.elemsize;
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
 
     int dims = bottom_blob.dims;
@@ -176,18 +175,12 @@ static int reshape(const Mat& bottom_blob, Mat& top_blob, int ndim, int outw, in
 
 int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int outw = w;
-    int outh = h;
-    int outd = d;
-    int outc = c;
-
-    // resolve out shape
-    if (!shape_expr.empty())
-    {
-        eval_shape_expr(bottom_blob, outw, outh, outd, outc);
-    }
-
-    return reshape(bottom_blob, top_blob, ndim, outw, outh, outd, outc, opt);
+    std::vector<Mat> bottom_blobs(1);
+    bottom_blobs[0] = bottom_blob;
+    std::vector<Mat> top_blobs(1);
+    int ret = forward(bottom_blobs, top_blobs, opt);
+    top_blob = top_blobs[0];
+    return ret;
 }
 
 int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
