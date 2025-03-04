@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -58,7 +59,10 @@ def test():
     a1 = net(x1, y1, z1)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x0, y0, z0), _store_inputs=False)
+    if version.parse(torch.__version__) < version.parse('2.0'):
+        mod = torch.jit.trace(net, (x0, y0, z0))
+    else:
+        mod = torch.jit.trace(net, (x0, y0, z0), _store_inputs=False)
     mod.save("test_ncnn_reshape_expr.pt")
 
     # torchscript to pnnx
