@@ -117,7 +117,7 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 ptr1 += 2;
 
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < size - 1; i++)
                 {
                     float32x4_t _p0 = vld1q_f32(ptr0);
                     float32x4_t _p1 = vld1q_f32(ptr1);
@@ -129,6 +129,21 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     ptr0 += 4;
                     ptr1 += 4;
                     outptr0 += 4;
+                }
+
+                for (int i = 0; i < 4; i++)
+                {
+                    if (i % 2)
+                    {
+                        *outptr0 = *ptr1;
+                        ptr1 += 1;
+                    }
+                    else
+                    {
+                        *outptr0 = *ptr0;
+                        ptr0 += 1;
+                    }
+                    outptr0 += 1;
                 }
             }
 
@@ -364,7 +379,7 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
                 ptr1 += 4;
 
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < size - 1; i++)
                 {
                     uint16x4_t _p0 = vld1_u16(ptr0);
                     uint16x4_t _p1 = vld1_u16(ptr1);
@@ -377,6 +392,21 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
                     ptr0 += 8;
                     ptr1 += 8;
                     outptr0 += 8;
+                }
+
+                for (int i = 0; i < 8; i++)
+                {
+                    if (i % 2)
+                    {
+                        *outptr0 = *ptr1;
+                        ptr1 += 1;
+                    }
+                    else
+                    {
+                        *outptr0 = *ptr0;
+                        ptr0 += 1;
+                    }
+                    outptr0 += 1;
                 }
             }
 
@@ -598,7 +628,7 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
                 ptr1 += 2;
 
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < size - 1; i++)
                 {
                     uint16x4_t _p0 = vld1_u16(ptr0);
                     uint16x4_t _p1 = vld1_u16(ptr1);
@@ -610,6 +640,21 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
                     ptr0 += 4;
                     ptr1 += 4;
                     outptr0 += 4;
+                }
+
+                for (int i = 0; i < 4; i++)
+                {
+                    if (i % 2)
+                    {
+                        *outptr0 = *ptr1;
+                        ptr1 += 1;
+                    }
+                    else
+                    {
+                        *outptr0 = *ptr0;
+                        ptr0 += 1;
+                    }
+                    outptr0 += 1;
                 }
             }
 
