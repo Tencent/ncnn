@@ -148,7 +148,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
     };
 
     // scan and stack
-    std::vector<typed_value> exprstack;
+    std::stack<typed_value> exprstack;
     for (int i = (int)tokens.size() - 1; i >= 0; i--)
     {
         const std::string& t = tokens[i];
@@ -179,21 +179,14 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
 
             // NCNN_LOGE("t = %s  =>  %d", t.c_str(), size);
 
-            exprstack.push_back(size);
+            exprstack.push(size);
         }
         else if (t == "+" || t == "-" || t == "*" || t == "//" || t == "max" || t == "min")
         {
-#if NCNN_SIMPLESTL
-            typed_value ta = exprstack[exprstack.size() - 1];
-            exprstack.resize(exprstack.size() - 1);
-            typed_value tb = exprstack[exprstack.size() - 1];
-            exprstack.resize(exprstack.size() - 1);
-#else
-            typed_value ta = exprstack.back();
-            exprstack.pop_back();
-            typed_value tb = exprstack.back();
-            exprstack.pop_back();
-#endif
+            typed_value ta = exprstack.top();
+            exprstack.pop();
+            typed_value tb = exprstack.top();
+            exprstack.pop();
 
             if (ta.type == 0 && tb.type == 0)
             {
@@ -233,7 +226,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = std::min(a, b);
                 }
-                exprstack.push_back(r);
+                exprstack.push(r);
             }
             else
             {
@@ -265,18 +258,13 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = std::min(a, b);
                 }
-                exprstack.push_back(r);
+                exprstack.push(r);
             }
         }
         else if (t == "abs" || t == "neg" || t == "sign" || t == "square")
         {
-#if NCNN_SIMPLESTL
-            typed_value ta = exprstack[exprstack.size() - 1];
-            exprstack.resize(exprstack.size() - 1);
-#else
-            typed_value ta = exprstack.back();
-            exprstack.pop_back();
-#endif
+            typed_value ta = exprstack.top();
+            exprstack.pop();
 
             if (ta.type == 0)
             {
@@ -299,7 +287,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = a * a;
                 }
-                exprstack.push_back(r);
+                exprstack.push(r);
             }
             else
             {
@@ -322,23 +310,18 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = a * a;
                 }
-                exprstack.push_back(r);
+                exprstack.push(r);
             }
         }
         else if (t == "trunc" || t == "ceil" || t == "floor" || t == "round")
         {
-#if NCNN_SIMPLESTL
-            typed_value ta = exprstack[exprstack.size() - 1];
-            exprstack.resize(exprstack.size() - 1);
-#else
-            typed_value ta = exprstack.back();
-            exprstack.pop_back();
-#endif
+            typed_value ta = exprstack.top();
+            exprstack.pop();
 
             if (ta.type == 0)
             {
                 const int a = ta.i;
-                exprstack.push_back(a);
+                exprstack.push(a);
             }
             else
             {
@@ -361,7 +344,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = (int)round(a);
                 }
-                exprstack.push_back(r);
+                exprstack.push(r);
             }
         }
         else if (t == "acos"
@@ -384,13 +367,8 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                  || t == "tan"
                  || t == "tanh")
         {
-#if NCNN_SIMPLESTL
-            typed_value ta = exprstack[exprstack.size() - 1];
-            exprstack.resize(exprstack.size() - 1);
-#else
-            typed_value ta = exprstack.back();
-            exprstack.pop_back();
-#endif
+            typed_value ta = exprstack.top();
+            exprstack.pop();
 
             const float a = ta.type == 0 ? ta.i : ta.f;
 
@@ -471,7 +449,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             {
                 r = tanhf(a);
             }
-            exprstack.push_back(r);
+            exprstack.push(r);
         }
         else if (t == "/"
                  || t == "atan2"
@@ -480,17 +458,10 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                  || t == "remainder"
                  || t == "logaddexp")
         {
-#if NCNN_SIMPLESTL
-            typed_value ta = exprstack[exprstack.size() - 1];
-            exprstack.resize(exprstack.size() - 1);
-            typed_value tb = exprstack[exprstack.size() - 1];
-            exprstack.resize(exprstack.size() - 1);
-#else
-            typed_value ta = exprstack.back();
-            exprstack.pop_back();
-            typed_value tb = exprstack.back();
-            exprstack.pop_back();
-#endif
+            typed_value ta = exprstack.top();
+            exprstack.pop();
+            typed_value tb = exprstack.top();
+            exprstack.pop();
 
             const float a = ta.type == 0 ? ta.i : ta.f;
             const float b = tb.type == 0 ? tb.i : tb.f;
@@ -522,21 +493,14 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             {
                 r = logf(expf(a) + expf(b));
             }
-            exprstack.push_back(r);
+            exprstack.push(r);
         }
         else if (t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
         {
-#if NCNN_SIMPLESTL
-            typed_value ta = exprstack[exprstack.size() - 1];
-            exprstack.resize(exprstack.size() - 1);
-            typed_value tb = exprstack[exprstack.size() - 1];
-            exprstack.resize(exprstack.size() - 1);
-#else
-            typed_value ta = exprstack.back();
-            exprstack.pop_back();
-            typed_value tb = exprstack.back();
-            exprstack.pop_back();
-#endif
+            typed_value ta = exprstack.top();
+            exprstack.pop();
+            typed_value tb = exprstack.top();
+            exprstack.pop();
 
             // assert ta.type == 0 && tb.type == 0
 
@@ -564,7 +528,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             {
                 r = a >> b;
             }
-            exprstack.push_back(r);
+            exprstack.push(r);
         }
         else
         {
@@ -575,38 +539,28 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             int nscanf = sscanf(t.c_str(), "%f", &vf);
             if (nscani == 1 && nscanf == 1 && vi == vf)
             {
-                exprstack.push_back(vi);
+                exprstack.push(vi);
             }
             else if (nscanf == 1)
             {
-                exprstack.push_back(vf);
+                exprstack.push(vf);
             }
             else
             {
                 NCNN_LOGE("malformed literal token %s", t.c_str());
-                exprstack.push_back(0);
+                exprstack.push(0);
             }
         }
     }
 
     std::vector<int> list;
-#if NCNN_SIMPLESTL
-    int size = exprstack[exprstack.size() - 1].to_int();
-    exprstack.resize(exprstack.size() - 1);
-#else
-    int size = exprstack.back().to_int();
-    exprstack.pop_back();
-#endif
+    int size = exprstack.top().to_int();
+    exprstack.pop();
     list.push_back(size);
     while (!exprstack.empty())
     {
-#if NCNN_SIMPLESTL
-        size = exprstack[exprstack.size() - 1].to_int();
-        exprstack.resize(exprstack.size() - 1);
-#else
-        size = exprstack.back().to_int();
-        exprstack.pop_back();
-#endif
+        size = exprstack.top().to_int();
+        exprstack.pop();
         list.push_back(size);
     }
 

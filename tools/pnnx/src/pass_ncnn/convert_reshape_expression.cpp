@@ -303,6 +303,12 @@ void convert_reshape_expression(Graph& graph)
                             }
                             else
                             {
+                                if (input_index > 9)
+                                {
+                                    // ncnn can only handle at most 10 reference blobs
+                                    fprintf(stderr, "expression with large reference id %d is not supported yet\n");
+                                }
+
                                 int bi = std::stoi(b);
 
                                 const int a_batch_index = ordered_references[input_index]->params["__batch_index"].i;
