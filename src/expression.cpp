@@ -61,6 +61,38 @@ int count_expression_blobs(const std::string& expr)
     return count;
 }
 
+struct typed_value
+{
+    int type; // 0=i 1=f
+    union
+    {
+        int i;
+        float f;
+    };
+
+    typed_value()
+        : type(0), i(0)
+    {
+    }
+    typed_value(int _i)
+        : type(0), i(_i)
+    {
+    }
+    typed_value(float _f)
+        : type(1), f(_f)
+    {
+    }
+
+    int to_int()
+    {
+        if (type == 0)
+            return i;
+
+        // trunc by default
+        return (int)f;
+    }
+};
+
 std::vector<int> eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs)
 {
     // /(0w,2),*(0h,2),0c
@@ -114,38 +146,6 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
     }
 
     //      / 0w 2 * 0h 2 0c
-
-    struct typed_value
-    {
-        int type; // 0=i 1=f
-        union
-        {
-            int i;
-            float f;
-        };
-
-        typed_value()
-            : type(0), i(0)
-        {
-        }
-        typed_value(int _i)
-            : type(0), i(_i)
-        {
-        }
-        typed_value(float _f)
-            : type(1), f(_f)
-        {
-        }
-
-        int to_int()
-        {
-            if (type == 0)
-                return i;
-
-            // trunc by default
-            return (int)f;
-        }
-    };
 
     // scan and stack
     std::stack<typed_value> exprstack;
@@ -379,7 +379,11 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             }
             else if (t == "acosh")
             {
+#if NCNN_SIMPLEMATH
+                NCNN_LOGE("acosh not implemented in simplemath!");
+#else
                 r = acoshf(a);
+#endif
             }
             else if (t == "asin")
             {
@@ -387,7 +391,11 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             }
             else if (t == "asinh")
             {
+#if NCNN_SIMPLEMATH
+                NCNN_LOGE("asinh not implemented in simplemath!");
+#else
                 r = asinhf(a);
+#endif
             }
             else if (t == "atan")
             {
@@ -395,7 +403,11 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             }
             else if (t == "atanh")
             {
+#if NCNN_SIMPLEMATH
+                NCNN_LOGE("atanh not implemented in simplemath!");
+#else
                 r = atanhf(a);
+#endif
             }
             else if (t == "cos")
             {

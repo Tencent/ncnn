@@ -50,7 +50,25 @@ static int test_eval_list_expression(const std::string& expr, std::vector<ncnn::
     va_end(ap);
 
     std::vector<int> list = ncnn::eval_list_expression(expr, blobs);
-    if (list != true_list)
+
+    bool failed = false;
+    if (list.size() != true_list.size())
+    {
+        failed = true;
+    }
+    else
+    {
+        for (size_t i = 0; i < list.size(); i++)
+        {
+            if (list[i] != true_list[i])
+            {
+                failed = true;
+                break;
+            }
+        }
+    }
+
+    if (failed)
     {
         fprintf(stderr, "test_eval_list_expression failed expr=%s got [", expr.c_str());
         for (size_t i = 0; i < list.size(); i++)
