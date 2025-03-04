@@ -48,7 +48,7 @@ static int test_reshape_refs(const std::vector<ncnn::Mat>& as, const char* shape
 
 static int test_reshape_0()
 {
-    ncnn::Mat a = RandomMat(3, 8, 25, 32);
+    ncnn::Mat a = RandomMat(3, 2, 25, 32);
 
     return 0
            || test_reshape(a, "0w,0h,*(0d,2),-1")
