@@ -732,6 +732,7 @@ if(NCNN_INSTALL_SDK)
         command.h
         cpu.h
         datareader.h
+        expression.h
         gpu.h
         layer.h
         layer_shader_type.h

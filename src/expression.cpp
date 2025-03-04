@@ -175,6 +175,8 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             else // if (t[1] == 'c')
                 size = blob.c;
 
+            // NCNN_LOGE("t = %s  =>  %d", t.c_str(), size);
+
             exprstack.push_back(size);
         }
         else if (t == "+" || t == "-" || t == "*" || t == "//" || t == "max" || t == "min")
@@ -193,71 +195,75 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
 
             if (ta.type == 0 && tb.type == 0)
             {
-                int a = ta.i;
-                int b = tb.i;
+                const int a = ta.i;
+                const int b = tb.i;
 
+                int r = 0;
                 if (t == "+")
                 {
-                    exprstack.push_back(a + b);
+                    r = a + b;
                 }
                 if (t == "-")
                 {
-                    exprstack.push_back(a - b);
+                    r = a - b;
                 }
                 if (t == "*")
                 {
-                    exprstack.push_back(a * b);
+                    r = a * b;
                 }
                 if (t == "//")
                 {
                     if (b == 0)
                     {
                         NCNN_LOGE("expr divide by zero");
-                        exprstack.push_back(a);
+                        r = a;
                     }
                     else
                     {
-                        exprstack.push_back(a / b);
+                        r = a / b;
                     }
                 }
                 if (t == "max")
                 {
-                    exprstack.push_back(std::max(a, b));
+                    r = std::max(a, b);
                 }
                 if (t == "min")
                 {
-                    exprstack.push_back(std::min(a, b));
+                    r = std::min(a, b);
                 }
+                exprstack.push_back(r);
             }
             else
             {
-                float a = ta.type == 0 ? ta.i : ta.f;
-                float b = tb.type == 0 ? tb.i : tb.f;
+                const float a = ta.type == 0 ? ta.i : ta.f;
+                const float b = tb.type == 0 ? tb.i : tb.f;
 
+                float r = 0.f;
                 if (t == "+")
                 {
-                    exprstack.push_back(a + b);
+                    r = a + b;
                 }
                 if (t == "-")
                 {
-                    exprstack.push_back(a - b);
+                    r = a - b;
                 }
                 if (t == "*")
                 {
-                    exprstack.push_back(a * b);
+                    r = a * b;
                 }
                 if (t == "//")
                 {
-                    exprstack.push_back(floorf(a / b));
+                    r = floorf(a / b);
                 }
                 if (t == "max")
                 {
-                    exprstack.push_back(std::max(a, b));
+                    r = std::max(a, b);
                 }
                 if (t == "min")
                 {
-                    exprstack.push_back(std::min(a, b));
+                    r = std::min(a, b);
                 }
+                exprstack.push_back(r);
             }
         }
         else if (t == "abs" || t == "neg" || t == "sign" || t == "square")
@@ -272,45 +278,49 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
 
             if (ta.type == 0)
             {
-                int a = ta.i;
+                const int a = ta.i;
 
+                int r = 0;
                 if (t == "abs")
                 {
-                    exprstack.push_back(a > 0 ? a : -a);
+                    r = a > 0 ? a : -a;
                 }
                 if (t == "neg")
                 {
-                    exprstack.push_back(-a);
+                    r = -a;
                 }
                 if (t == "sign")
                 {
-                    exprstack.push_back(a > 0 ? 1 : (a == 0 ? 0 : -1));
+                    r = a > 0 ? 1 : (a == 0 ? 0 : -1);
                 }
                 if (t == "square")
                 {
-                    exprstack.push_back(a * a);
+                    r = a * a;
                 }
+                exprstack.push_back(r);
             }
             else
             {
-                float a = ta.f;
+                const float a = ta.f;
 
+                float r = 0;
                 if (t == "abs")
                 {
-                    exprstack.push_back(fabsf(a));
+                    r = fabsf(a);
                 }
                 if (t == "neg")
                 {
-                    exprstack.push_back(-a);
+                    r = -a;
                 }
                 if (t == "sign")
                 {
-                    exprstack.push_back(a > 0.f ? 1 : (a == 0.f ? 0 : -1));
+                    r = a > 0.f ? 1 : (a == 0.f ? 0 : -1);
                 }
                 if (t == "square")
                 {
-                    exprstack.push_back(a * a);
+                    r = a * a;
                 }
+                exprstack.push_back(r);
             }
         }
         else if (t == "trunc" || t == "ceil" || t == "floor" || t == "round")
@@ -325,29 +335,31 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
 
             if (ta.type == 0)
             {
-                int a = ta.i;
+                const int a = ta.i;
                 exprstack.push_back(a);
             }
             else
             {
-                float a = ta.f;
+                const float a = ta.f;
 
+                int r = 0;
                 if (t == "trunc")
                 {
-                    exprstack.push_back((int)a);
+                    r = (int)a;
                 }
                 if (t == "ceil")
                 {
-                    exprstack.push_back((int)ceil(a));
+                    r = (int)ceil(a);
                 }
                 if (t == "floor")
                 {
-                    exprstack.push_back((int)floor(a));
+                    r = (int)floor(a);
                 }
                 if (t == "round")
                 {
-                    exprstack.push_back((int)round(a));
+                    r = (int)round(a);
                 }
+                exprstack.push_back(r);
             }
         }
         else if (t == "acos"
@@ -378,84 +390,86 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             exprstack.pop_back();
 #endif
 
-            float a = ta.type == 0 ? ta.i : ta.f;
+            const float a = ta.type == 0 ? ta.i : ta.f;
 
+            float r = 0;
             if (t == "acos")
             {
-                exprstack.push_back(acosf(a));
+                r = acosf(a);
             }
             if (t == "acosh")
             {
-                exprstack.push_back(acoshf(a));
+                r = acoshf(a);
             }
             if (t == "asin")
             {
-                exprstack.push_back(asinf(a));
+                r = asinf(a);
             }
             if (t == "asinh")
             {
-                exprstack.push_back(asinhf(a));
+                r = asinhf(a);
             }
             if (t == "atan")
             {
-                exprstack.push_back(atanf(a));
+                r = atanf(a);
             }
             if (t == "atanh")
             {
-                exprstack.push_back(atanhf(a));
+                r = atanhf(a);
             }
             if (t == "cos")
             {
-                exprstack.push_back(cosf(a));
+                r = cosf(a);
             }
             if (t == "cosh")
             {
-                exprstack.push_back(coshf(a));
+                r = coshf(a);
             }
             if (t == "erf")
             {
-                exprstack.push_back(erff(a));
+                r = erff(a);
             }
             if (t == "exp")
             {
-                exprstack.push_back(expf(a));
+                r = expf(a);
             }
             if (t == "log")
             {
-                exprstack.push_back(logf(a));
+                r = logf(a);
             }
             if (t == "log10")
             {
-                exprstack.push_back(log10f(a));
+                r = log10f(a);
             }
             if (t == "reciprocal")
             {
-                exprstack.push_back(1.f / a);
+                r = 1.f / a;
             }
             if (t == "rsqrt")
             {
-                exprstack.push_back(1.f / sqrtf(a));
+                r = 1.f / sqrtf(a);
             }
             if (t == "sin")
             {
-                exprstack.push_back(sinf(a));
+                r = sinf(a);
             }
             if (t == "sinh")
             {
-                exprstack.push_back(sinhf(a));
+                r = sinhf(a);
             }
             if (t == "sqrt")
             {
-                exprstack.push_back(sqrtf(a));
+                r = sqrtf(a);
             }
             if (t == "tan")
             {
-                exprstack.push_back(tanf(a));
+                r = tanf(a);
             }
             if (t == "tanh")
             {
-                exprstack.push_back(tanhf(a));
+                r = tanhf(a);
             }
+            exprstack.push_back(r);
         }
         else if (t == "/"
                  || t == "atan2"
@@ -476,36 +490,37 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             exprstack.pop_back();
 #endif
 
-            float a = ta.type == 0 ? ta.i : ta.f;
-            float b = tb.type == 0 ? tb.i : tb.f;
+            const float a = ta.type == 0 ? ta.i : ta.f;
+            const float b = tb.type == 0 ? tb.i : tb.f;
 
+            float r = 0.f;
             if (t == "/")
             {
-                exprstack.push_back(a / b);
+                r = a / b;
             }
             if (t == "atan2")
             {
-                exprstack.push_back(atan2f(a, b));
+                r = atan2f(a, b);
             }
             if (t == "fmod")
             {
-                exprstack.push_back(fmodf(a, b));
+                r = fmodf(a, b);
             }
             if (t == "pow")
             {
-                exprstack.push_back(powf(a, b));
+                r = powf(a, b);
             }
             if (t == "remainder")
             {
-                float r = fmodf(a, b);
+                r = fmodf(a, b);
                 if (a * b < 0)
                     r += b;
-                exprstack.push_back(r);
             }
             if (t == "logaddexp")
             {
-                exprstack.push_back(logf(expf(a) + expf(b)));
+                r = logf(expf(a) + expf(b));
             }
+            exprstack.push_back(r);
         }
         else if (t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
         {
@@ -523,29 +538,31 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
 
             // assert ta.type == 0 && tb.type == 0
 
-            int a = ta.i;
-            int b = tb.i;
+            const int a = ta.i;
+            const int b = tb.i;
 
+            int r = 0;
             if (t == "and")
             {
-                exprstack.push_back(a & b);
+                r = a & b;
             }
             if (t == "or")
             {
-                exprstack.push_back(a | b);
+                r = a | b;
             }
             if (t == "xor")
             {
-                exprstack.push_back(a ^ b);
+                r = a ^ b;
             }
             if (t == "lshift")
             {
-                exprstack.push_back(a << b);
+                r = a << b;
             }
             if (t == "rshift")
             {
-                exprstack.push_back(a >> b);
+                r = a >> b;
             }
+            exprstack.push_back(r);
         }
         else
         {
