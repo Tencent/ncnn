@@ -379,11 +379,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             }
             else if (t == "acosh")
             {
-#if NCNN_SIMPLEMATH
-                NCNN_LOGE("acosh not implemented in simplemath!");
-#else
                 r = acoshf(a);
-#endif
             }
             else if (t == "asin")
             {
@@ -391,11 +387,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             }
             else if (t == "asinh")
             {
-#if NCNN_SIMPLEMATH
-                NCNN_LOGE("asinh not implemented in simplemath!");
-#else
                 r = asinhf(a);
-#endif
             }
             else if (t == "atan")
             {
@@ -403,11 +395,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             }
             else if (t == "atanh")
             {
-#if NCNN_SIMPLEMATH
-                NCNN_LOGE("atanh not implemented in simplemath!");
-#else
                 r = atanhf(a);
-#endif
             }
             else if (t == "cos")
             {

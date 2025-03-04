@@ -55,6 +55,9 @@ NCNN_EXPORT float atan2f(float, float);
 NCNN_EXPORT float sinhf(float);
 NCNN_EXPORT float coshf(float);
 NCNN_EXPORT float tanhf(float);
+NCNN_EXPORT float asinhf(float);
+NCNN_EXPORT float acoshf(float);
+NCNN_EXPORT float atanhf(float);
 
 /*
 * ====================================================

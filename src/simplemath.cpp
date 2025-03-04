@@ -320,24 +320,39 @@ float atan2f(float y, float x)
     }
 }
 
-float sinhf(float v)
+float sinhf(float x)
 {
-    return 0.5 * (expf(v) - expf(-v));
+    return 0.5 * (expf(x) - expf(-x));
 }
 
-float coshf(float v)
+float coshf(float x)
 {
-    return 0.5 * (expf(v) + expf(-v));
+    return 0.5 * (expf(x) + expf(-x));
 }
 
-float tanhf(float v)
+float tanhf(float x)
 {
-    if (v >= 8 || v <= -8)
+    if (x >= 8 || x <= -8)
     {
-        return copysignf(1, v);
+        return copysignf(1, x);
     }
-    float exp2v = expf(2 * v);
+    float exp2v = expf(2 * x);
     return (exp2v - 1) / (exp2v + 1);
+}
+
+float asinhf(float x)
+{
+    return logf(x + sqrtf(x * x + 1));
+}
+
+float acoshf(float x)
+{
+    return logf(x + sqrtf(x * x - 1));
+}
+
+float atanhf(float x)
+{
+    return 0.5f * logf((1 + x) / (1 - x));
 }
 
 /*
