@@ -153,6 +153,8 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
     {
         const std::string& t = tokens[i];
 
+        // NCNN_LOGE("t = %s", t.c_str());
+
         // + - * / 0w 0h 0d 0c 12345
 
         if (t.size() == 2 && (t[0] >= '0' && t[0] <= '9') && (t[1] == 'w' || t[1] == 'h' || t[1] == 'd' || t[1] == 'c'))
@@ -203,15 +205,15 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = a + b;
                 }
-                if (t == "-")
+                else if (t == "-")
                 {
                     r = a - b;
                 }
-                if (t == "*")
+                else if (t == "*")
                 {
                     r = a * b;
                 }
-                if (t == "//")
+                else if (t == "//")
                 {
                     if (b == 0)
                     {
@@ -223,11 +225,11 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                         r = a / b;
                     }
                 }
-                if (t == "max")
+                else if (t == "max")
                 {
                     r = std::max(a, b);
                 }
-                if (t == "min")
+                else // if (t == "min")
                 {
                     r = std::min(a, b);
                 }
@@ -243,23 +245,23 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = a + b;
                 }
-                if (t == "-")
+                else if (t == "-")
                 {
                     r = a - b;
                 }
-                if (t == "*")
+                else if (t == "*")
                 {
                     r = a * b;
                 }
-                if (t == "//")
+                else if (t == "//")
                 {
                     r = floorf(a / b);
                 }
-                if (t == "max")
+                else if (t == "max")
                 {
                     r = std::max(a, b);
                 }
-                if (t == "min")
+                else // if (t == "min")
                 {
                     r = std::min(a, b);
                 }
@@ -285,15 +287,15 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = a > 0 ? a : -a;
                 }
-                if (t == "neg")
+                else if (t == "neg")
                 {
                     r = -a;
                 }
-                if (t == "sign")
+                else if (t == "sign")
                 {
                     r = a > 0 ? 1 : (a == 0 ? 0 : -1);
                 }
-                if (t == "square")
+                else // if (t == "square")
                 {
                     r = a * a;
                 }
@@ -308,15 +310,15 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = fabsf(a);
                 }
-                if (t == "neg")
+                else if (t == "neg")
                 {
                     r = -a;
                 }
-                if (t == "sign")
+                else if (t == "sign")
                 {
                     r = a > 0.f ? 1 : (a == 0.f ? 0 : -1);
                 }
-                if (t == "square")
+                else // if (t == "square")
                 {
                     r = a * a;
                 }
@@ -347,15 +349,15 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                 {
                     r = (int)a;
                 }
-                if (t == "ceil")
+                else if (t == "ceil")
                 {
                     r = (int)ceil(a);
                 }
-                if (t == "floor")
+                else if (t == "floor")
                 {
                     r = (int)floor(a);
                 }
-                if (t == "round")
+                else // if (t == "round")
                 {
                     r = (int)round(a);
                 }
@@ -397,75 +399,75 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             {
                 r = acosf(a);
             }
-            if (t == "acosh")
+            else if (t == "acosh")
             {
                 r = acoshf(a);
             }
-            if (t == "asin")
+            else if (t == "asin")
             {
                 r = asinf(a);
             }
-            if (t == "asinh")
+            else if (t == "asinh")
             {
                 r = asinhf(a);
             }
-            if (t == "atan")
+            else if (t == "atan")
             {
                 r = atanf(a);
             }
-            if (t == "atanh")
+            else if (t == "atanh")
             {
                 r = atanhf(a);
             }
-            if (t == "cos")
+            else if (t == "cos")
             {
                 r = cosf(a);
             }
-            if (t == "cosh")
+            else if (t == "cosh")
             {
                 r = coshf(a);
             }
-            if (t == "erf")
+            else if (t == "erf")
             {
                 r = erff(a);
             }
-            if (t == "exp")
+            else if (t == "exp")
             {
                 r = expf(a);
             }
-            if (t == "log")
+            else if (t == "log")
             {
                 r = logf(a);
             }
-            if (t == "log10")
+            else if (t == "log10")
             {
                 r = log10f(a);
             }
-            if (t == "reciprocal")
+            else if (t == "reciprocal")
             {
                 r = 1.f / a;
             }
-            if (t == "rsqrt")
+            else if (t == "rsqrt")
             {
                 r = 1.f / sqrtf(a);
             }
-            if (t == "sin")
+            else if (t == "sin")
             {
                 r = sinf(a);
             }
-            if (t == "sinh")
+            else if (t == "sinh")
             {
                 r = sinhf(a);
             }
-            if (t == "sqrt")
+            else if (t == "sqrt")
             {
                 r = sqrtf(a);
             }
-            if (t == "tan")
+            else if (t == "tan")
             {
                 r = tanf(a);
             }
-            if (t == "tanh")
+            else // if (t == "tanh")
             {
                 r = tanhf(a);
             }
@@ -498,25 +500,25 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             {
                 r = a / b;
             }
-            if (t == "atan2")
+            else if (t == "atan2")
             {
                 r = atan2f(a, b);
             }
-            if (t == "fmod")
+            else if (t == "fmod")
             {
                 r = fmodf(a, b);
             }
-            if (t == "pow")
+            else if (t == "pow")
             {
                 r = powf(a, b);
             }
-            if (t == "remainder")
+            else if (t == "remainder")
             {
                 r = fmodf(a, b);
                 if (a * b < 0)
                     r += b;
             }
-            if (t == "logaddexp")
+            else // if (t == "logaddexp")
             {
                 r = logf(expf(a) + expf(b));
             }
@@ -546,19 +548,19 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             {
                 r = a & b;
             }
-            if (t == "or")
+            else if (t == "or")
             {
                 r = a | b;
             }
-            if (t == "xor")
+            else if (t == "xor")
             {
                 r = a ^ b;
             }
-            if (t == "lshift")
+            else if (t == "lshift")
             {
                 r = a << b;
             }
-            if (t == "rshift")
+            else // if (t == "rshift")
             {
                 r = a >> b;
             }
