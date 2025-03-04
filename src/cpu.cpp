@@ -36,6 +36,7 @@
 #ifdef _MSC_VER
 #include <intrin.h>    // __cpuid()
 #include <immintrin.h> // _xgetbv()
+#include <unordered_map>
 #endif
 #if defined(__clang__) || defined(__GNUC__)
 #include <cpuid.h> // __get_cpuid() and __cpuid_count()
@@ -1557,45 +1558,116 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
     }
 
 #if defined _WIN32
-    // get max freq mhz for all cores
-    int max_freq_mhz_min = INT_MAX;
-    int max_freq_mhz_max = 0;
-    std::vector<int> cpu_max_freq_mhz = get_max_freq_mhz();
-    for (int i = 0; i < g_cpucount; i++)
+// Check SDK >= Win7
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN7 // win7
+
+    // Load GetLogicalProcessorInformationEx
+    HMODULE kernel32 = LoadLibrary(TEXT("kernel32.dll"));
+    if (!kernel32)
     {
-        int max_freq_mhz = cpu_max_freq_mhz[i];
-
-        // NCNN_LOGE("%d max freq = %d khz", i, max_freq_mhz);
-
-        if (max_freq_mhz > max_freq_mhz_max)
-            max_freq_mhz_max = max_freq_mhz;
-        if (max_freq_mhz < max_freq_mhz_min)
-            max_freq_mhz_min = max_freq_mhz;
-    }
-
-    int max_freq_mhz_medium = (max_freq_mhz_min + max_freq_mhz_max) / 2;
-    if (max_freq_mhz_medium == max_freq_mhz_max)
-    {
-        mask_little.disable_all();
-        mask_big = mask_all;
+        NCNN_LOGE("LoadLibrary kernel32.dll failed");
         return;
     }
 
-    ncnn::CpuSet smt_cpu_mask = get_smt_cpu_mask();
+    typedef BOOL(WINAPI * LPFN_GLPIE)(LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
+    LPFN_GLPIE glpie = (LPFN_GLPIE)GetProcAddress(kernel32, "GetLogicalProcessorInformationEx");
 
-    for (int i = 0; i < g_cpucount; i++)
+    if (glpie != NULL)
     {
-        if (smt_cpu_mask.is_enabled(i))
+        DWORD bufferSize = 0;
+        glpie(RelationProcessorCore, nullptr, &bufferSize);
+        std::vector<BYTE> buffer(bufferSize);
+        if (!GetLogicalProcessorInformationEx(RelationProcessorCore,
+            reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(buffer.data()), &bufferSize))
         {
-            // always treat smt core as big core
-            mask_big.enable(i);
-            continue;
+            NCNN_LOGE("GetLogicalProcessorInformationEx failed");
+            return;
         }
 
-        if (cpu_max_freq_mhz[i] < max_freq_mhz_medium)
-            mask_little.enable(i);
-        else
-            mask_big.enable(i);
+        // A map from processor number to whether it is an E core
+        std::unordered_map<DWORD, bool> processorCoreType; // 0: E core, 1: P core
+        BYTE maxEfficiencyClass = 0; // In a system without E cores, all cores EfficiencyClass is 0
+
+        BYTE* ptr = buffer.data();
+        while (ptr < buffer.data() + bufferSize) {
+            auto info = reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(ptr);
+            if (info->Relationship == RelationProcessorCore) {
+                bool isECore = (info->Processor.EfficiencyClass == 0);
+                maxEfficiencyClass = (std::max)(maxEfficiencyClass, info->Processor.EfficiencyClass);
+
+                for (WORD g = 0; g < info->Processor.GroupCount; ++g) {
+                    const GROUP_AFFINITY& ga = info->Processor.GroupMask[g];
+                    KAFFINITY mask = ga.Mask;
+                    WORD group = ga.Group;
+                    for (int bit = 0; bit < 64; ++bit) { // for each bit in the mask
+                        if (mask & (static_cast<KAFFINITY>(1) << bit)) {
+                            DWORD processorNumber = group * 64 + bit;
+                            processorCoreType[processorNumber] = isECore;
+                        }
+                    }
+                }
+            }
+            ptr += info->Size;
+        }
+
+        if (maxEfficiencyClass == 0) {
+            // All cores are P cores
+            mask_little.disable_all();
+            mask_big = mask_all;
+        }
+        else {
+            for (int i = 0; i < g_cpucount; i++) {
+                if (processorCoreType[i]) {
+                    mask_little.enable(i);
+                }
+                else {
+                    mask_big.enable(i);
+                }
+            }
+        }
+    } else
+#endif
+    {
+        // get max freq mhz for all cores
+        int max_freq_mhz_min = INT_MAX;
+        int max_freq_mhz_max = 0;
+        std::vector<int> cpu_max_freq_mhz = get_max_freq_mhz();
+        for (int i = 0; i < g_cpucount; i++)
+        {
+            int max_freq_mhz = cpu_max_freq_mhz[i];
+
+            // NCNN_LOGE("%d max freq = %d khz", i, max_freq_mhz);
+
+            if (max_freq_mhz > max_freq_mhz_max)
+                max_freq_mhz_max = max_freq_mhz;
+            if (max_freq_mhz < max_freq_mhz_min)
+                max_freq_mhz_min = max_freq_mhz;
+        }
+
+        int max_freq_mhz_medium = (max_freq_mhz_min + max_freq_mhz_max) / 2;
+        if (max_freq_mhz_medium == max_freq_mhz_max)
+        {
+            mask_little.disable_all();
+            mask_big = mask_all;
+            return;
+        }
+
+        ncnn::CpuSet smt_cpu_mask = get_smt_cpu_mask();
+
+        for (int i = 0; i < g_cpucount; i++)
+        {
+            if (smt_cpu_mask.is_enabled(i))
+            {
+                // always treat smt core as big core
+                mask_big.enable(i);
+                continue;
+            }
+
+            if (cpu_max_freq_mhz[i] < max_freq_mhz_medium)
+                mask_little.enable(i);
+            else
+                mask_big.enable(i);
+        }
     }
 #elif defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
