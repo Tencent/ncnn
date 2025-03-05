@@ -71,6 +71,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
 endif()
 
 ncnn_add_layer_test(AbsVal)
+ncnn_add_layer_test(ArgMax)
 ncnn_add_layer_test(BatchNorm)
 ncnn_add_layer_test(Bias)
 ncnn_add_layer_test(BinaryOp)
