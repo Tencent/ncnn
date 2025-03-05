@@ -1584,7 +1584,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         }
 
         // A map from processor number to whether it is an E core
-        std::vector<bool> processorCoreType(g_cpucount, false);
+        std::vector<std::pair<DWORD,bool>> processorCoreType;
         BYTE maxEfficiencyClass = 0; // In a system without E cores, all cores EfficiencyClass is 0
 
         BYTE* ptr = buffer.data();
@@ -1601,7 +1601,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
                     for (int bit = 0; bit < 64; ++bit) { // for each bit in the mask
                         if (mask & (static_cast<KAFFINITY>(1) << bit)) {
                             DWORD processorNumber = group * 64 + bit;
-                            processorCoreType[processorNumber] = isECore;
+                            processorCoreType.push_back(std::pair<DWORD,bool>(processorNumber, isECore));
                         }
                     }
                 }
@@ -1616,7 +1616,16 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         }
         else {
             for (int i = 0; i < g_cpucount; i++) {
-                if (processorCoreType[i]) {
+                bool isECore = false;
+                for (auto& p : processorCoreType) {
+                    if (p.first == i) {
+                        isECore = p.second;
+                        break;
+                    }
+                }
+                // fprintf(stderr, "processor %d is %s\n", i, isECore ? "E" : "P");
+
+                if (isECore) {
                     mask_little.enable(i);
                 }
                 else {
