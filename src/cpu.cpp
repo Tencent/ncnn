@@ -36,7 +36,6 @@
 #ifdef _MSC_VER
 #include <intrin.h>    // __cpuid()
 #include <immintrin.h> // _xgetbv()
-#include <map>
 #endif
 #if defined(__clang__) || defined(__GNUC__)
 #include <cpuid.h> // __get_cpuid() and __cpuid_count()
@@ -1585,7 +1584,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         }
 
         // A map from processor number to whether it is an E core
-        std::map<DWORD, bool> processorCoreType; // 0: E core, 1: P core
+        std::vector<bool> processorCoreType(g_cpucount, false);
         BYTE maxEfficiencyClass = 0; // In a system without E cores, all cores EfficiencyClass is 0
 
         BYTE* ptr = buffer.data();
