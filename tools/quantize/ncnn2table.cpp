@@ -217,19 +217,18 @@ void QuantNet::print_quant_info() const
 inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npypath)
 {
     npy::npy_data<float> d = npy::read_npy<float>(npypath);
-    // std::vector<unsigned long> npy_shape = d.shape; // shape check ?
     size_t dims = shape.size();
 
     switch (dims)
     {
     case 1:
-        return ncnn::Mat(shape[0], (void*)(d.data.data())).clone();
+        return ncnn::Mat(shape[0], (void*)(d.data.data())).reshape(shape[0]).clone();
     case 2:
-        return ncnn::Mat(shape[0], shape[1], (void*)(d.data.data())).clone();
+        return ncnn::Mat(shape[0] * shape[1], (void*)(d.data.data())).reshape(shape[0], shape[1]).clone();
     case 3:
-        return ncnn::Mat(shape[0], shape[1], shape[2], (void*)(d.data.data())).clone();
+        return ncnn::Mat(shape[0] * shape[1] * shape[2], (void*)(d.data.data())).reshape(shape[0], shape[1], shape[2]).clone();
     case 4:
-        return ncnn::Mat(shape[0], shape[1], shape[2], shape[3], (void*)(d.data.data())).clone();
+        return ncnn::Mat(shape[0] * shape[1] * shape[2] * shape[3], (void*)(d.data.data())).reshape(shape[0], shape[1], shape[2], shape[3]).clone();
     default:
         fprintf(stderr, "dims:%ld illegal!", dims);
         return ncnn::Mat();
