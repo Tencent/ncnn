@@ -1577,20 +1577,22 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         glpie(RelationProcessorCore, nullptr, &bufferSize);
         std::vector<BYTE> buffer(bufferSize);
         if (!GetLogicalProcessorInformationEx(RelationProcessorCore,
-            reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(buffer.data()), &bufferSize))
+                                              reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(buffer.data()), &bufferSize))
         {
             NCNN_LOGE("GetLogicalProcessorInformationEx failed");
             return;
         }
 
         // A map from processor number to whether it is an E core
-        std::vector<std::pair<DWORD,bool>> processorCoreType;
+        std::vector<std::pair<DWORD, bool> > processorCoreType;
         BYTE maxEfficiencyClass = 0; // In a system without E cores, all cores EfficiencyClass is 0
 
         BYTE* ptr = buffer.data();
-        while (ptr < buffer.data() + bufferSize) {
+        while (ptr < buffer.data() + bufferSize)
+        {
             auto info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr;
-            if (info->Relationship == RelationProcessorCore) {
+            if (info->Relationship == RelationProcessorCore)
+            {
                 // Mingw and some old MSVC do not have EfficiencyClass in PROCESSOR_RELATIONSHIP
                 // So we should redefine PROCESSOR_RELATIONSHIP
                 // Because ncnn need to support c++98, so we can't use some new features in c++11
@@ -1601,14 +1603,17 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
                 bool isECore = (efficiencyClass == 0);
                 maxEfficiencyClass = (std::max)(maxEfficiencyClass, efficiencyClass);
 
-                for (WORD g = 0; g < info->Processor.GroupCount; ++g) {
+                for (WORD g = 0; g < info->Processor.GroupCount; ++g)
+                {
                     const GROUP_AFFINITY& ga = info->Processor.GroupMask[g];
                     KAFFINITY mask = ga.Mask;
                     WORD group = ga.Group;
-                    for (int bit = 0; bit < 64; ++bit) { // for each bit in the mask
-                        if (mask & (static_cast<KAFFINITY>(1) << bit)) {
+                    for (int bit = 0; bit < 64; ++bit)
+                    {   // for each bit in the mask
+                        if (mask & (static_cast<KAFFINITY>(1) << bit))
+                        {
                             DWORD processorNumber = group * 64 + bit;
-                            processorCoreType.push_back(std::pair<DWORD,bool>(processorNumber, isECore));
+                            processorCoreType.push_back(std::pair<DWORD, bool>(processorNumber, isECore));
                         }
                     }
                 }
@@ -1616,31 +1621,39 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
             ptr += info->Size;
         }
 
-        if (maxEfficiencyClass == 0) {
+        if (maxEfficiencyClass == 0)
+        {
             // All cores are P cores
             mask_little.disable_all();
             mask_big = mask_all;
         }
-        else {
-            for (int i = 0; i < g_cpucount; i++) {
+        else
+        {
+            for (int i = 0; i < g_cpucount; i++)
+            {
                 bool isECore = false;
-                for (auto& p : processorCoreType) {
-                    if (p.first == i) {
+                for (auto& p : processorCoreType)
+                {
+                    if (p.first == i)
+                    {
                         isECore = p.second;
                         break;
                     }
                 }
                 // fprintf(stderr, "processor %d is %s\n", i, isECore ? "E" : "P");
 
-                if (isECore) {
+                if (isECore)
+                {
                     mask_little.enable(i);
                 }
-                else {
+                else
+                {
                     mask_big.enable(i);
                 }
             }
         }
-    } else
+    }
+    else
 #endif
     {
         // get max freq mhz for all cores
