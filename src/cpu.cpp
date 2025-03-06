@@ -1589,10 +1589,17 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
 
         BYTE* ptr = buffer.data();
         while (ptr < buffer.data() + bufferSize) {
-            auto info = reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(ptr);
+            auto info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr;
             if (info->Relationship == RelationProcessorCore) {
-                bool isECore = (info->Processor.EfficiencyClass == 0);
-                maxEfficiencyClass = (std::max)(maxEfficiencyClass, info->Processor.EfficiencyClass);
+                // Mingw and some old MSVC do not have EfficiencyClass in PROCESSOR_RELATIONSHIP
+                // So we should redefine PROCESSOR_RELATIONSHIP
+                // Because ncnn need to support c++98, so we can't use some new features in c++11
+                // So there is a ugly implementation
+
+                BYTE efficiencyClass = ((BYTE*)&info->Processor)[1];
+
+                bool isECore = (efficiencyClass == 0);
+                maxEfficiencyClass = (std::max)(maxEfficiencyClass, efficiencyClass);
 
                 for (WORD g = 0; g < info->Processor.GroupCount; ++g) {
                     const GROUP_AFFINITY& ga = info->Processor.GroupMask[g];
