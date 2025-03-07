@@ -96,7 +96,7 @@ static int test_expression_1()
     return 0
            || test_eval_list_expression("+(trunc(*(0w,0.5)),-(0c,10)),floor(/(1h,0.5)),+(0c,1c),round(2.0)", blobs, 4, 84, 40, 48, 2)
            || test_eval_list_expression("//(0w,3),+(0w,1w),-(0h,1h),*(0c,1c)", blobs, 4, 33, 110, 180, 176)
-           || test_eval_list_expression("floor(//(0w,3.0)),round(+(0w,1.0)),trunc(-(0h,2.0)),ceil(*(1d,3.0))", blobs, 4, 33, 101, 198, 6)
+           || test_eval_list_expression("floor(//(0w,2.99)),round(+(0w,1.01)),trunc(-(0h,1.9)),ceil(*(1d,2.99))", blobs, 4, 33, 101, 198, 6)
            || test_eval_list_expression("round(*(abs(asin(sin(0w))),10.11)),ceil(*(abs(acos(cos(+(0w,3)))),10.11))", blobs, 2, 5, 25)
            || test_eval_list_expression("floor(*(abs(asinh(sinh(/(0w,100)))),10.11)),trunc(*(abs(acosh(cosh(*(0w,0.004)))),10.11))", blobs, 2, 10, 4)
            || test_eval_list_expression("round(*(abs(atan(tan(0w))),10.11)),ceil(*(abs(atanh(tanh(-(0w,99)))),10.11))", blobs, 2, 5, 11)
@@ -105,12 +105,37 @@ static int test_expression_1()
            || test_eval_list_expression("round(*(erf(reciprocal(log10(1h))),999))", blobs, 1, 722)
            || test_eval_list_expression("ceil(pow(fmod(atan2(0w,1d),1c),14.14)),floor(logaddexp(remainder(0c,10),6))", blobs, 2, 495, 6)
            || test_eval_list_expression("floor(*(square(sqrt(0w)),1.2121))", blobs, 1, 121)
-           || test_eval_list_expression("rshift(lshift(xor(or(and(1d,18),9),4),4),2)", blobs, 1, 60);
+           || test_eval_list_expression("rshift(lshift(xor(or(and(1d,18),9),4),4),2)", blobs, 1, 60)
+           || test_eval_list_expression("ceil(*(rsqrt(+(+(sign(1w),10),*(sign(-(neg(1d)),0.5),3))),100))", blobs, 1, 36);
+}
+
+static int test_expression_2()
+{
+    std::vector<ncnn::Mat> blobs(2);
+    blobs[0] = ncnn::Mat(10, 20, 4);
+    blobs[1] = ncnn::Mat(1, 2, 3, 4);
+
+    // expect error blob index out of bound
+    if (test_eval_list_expression("0w,1h,2c,1d", blobs, 0) != -1)
+        return -1;
+
+    // expect error divide by zero
+    if (test_eval_list_expression("//(0w,-(0c,1c))", blobs, 0) != -1)
+        return -1;
+
+    // expect error malformed token
+    if (test_eval_list_expression("1c,#(0w,1)", blobs, 0) != -1)
+        return -1;
+    if (test_eval_list_expression("1c,+(qwq,1w)", blobs, 0) != -1)
+        return -1;
+
+    return 0;
 }
 
 int main()
 {
     return 0
            || test_expression_0()
-           || test_expression_1();
+           || test_expression_1()
+           || test_expression_2();
 }
