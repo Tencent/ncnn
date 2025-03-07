@@ -46,6 +46,22 @@ static int test_reshape_refs(const std::vector<ncnn::Mat>& as, const char* shape
     return ret;
 }
 
+static int test_reshape_refs(const ncnn::Mat& a, const char* shape_expr)
+{
+    ncnn::ParamDict pd;
+    pd.set(6, std::string(shape_expr));
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int ret = test_layer("Reshape", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_reshape_refs failed a.dims=%d a=(%d %d %d %d) shape_expr=%s\n", a.dims, a.w, a.h, a.d, a.c, shape_expr);
+    }
+
+    return ret;
+}
+
 static int test_reshape_0()
 {
     ncnn::Mat a = RandomMat(3, 2, 25, 32);
@@ -70,11 +86,22 @@ static int test_reshape_1()
            || test_reshape_refs(as, "*(0w,0h),-(-(1c,0c),16)");
 }
 
+static int test_reshape_2()
+{
+    ncnn::Mat a = RandomMat(14, 15, 16);
+
+    return 0
+           || test_reshape_refs(a, "*(0w,0.5),/(0h,3),-1")
+           || test_reshape_refs(a, "-1")
+           || test_reshape_refs(a, "*(0w,0h),0c");
+}
+
 int main()
 {
     SRAND(7767517);
 
     return 0
            || test_reshape_0()
-           || test_reshape_1();
+           || test_reshape_1()
+           || test_reshape_2();
 }

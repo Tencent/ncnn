@@ -30,7 +30,6 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
-    int eval_shape_expr(const Mat& bottom_blob, int& outw, int& outh, int& outd, int& outc) const;
     int eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const;
 
 public:

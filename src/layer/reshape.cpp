@@ -58,7 +58,6 @@ int Reshape::load_param(const ParamDict& pd)
             return -1;
 
         ndim = (int)outshape.size();
-        // NCNN_LOGE("ndim = %d", ndim);
     }
 
     return 0;
@@ -200,13 +199,6 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         return -100;
 
     return 0;
-}
-
-int Reshape::eval_shape_expr(const Mat& bottom_blob, int& outw, int& outh, int& outd, int& outc) const
-{
-    std::vector<Mat> bottom_blobs(1);
-    bottom_blobs[0] = bottom_blob;
-    return eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
 }
 
 int Reshape::eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const
