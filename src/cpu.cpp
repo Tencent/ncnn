@@ -1577,14 +1577,14 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         glpie(RelationProcessorCore, nullptr, &bufferSize);
         std::vector<BYTE> buffer(bufferSize);
         if (!GetLogicalProcessorInformationEx(RelationProcessorCore,
-            reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(buffer.data()), &bufferSize))
+            (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
         {
             NCNN_LOGE("GetLogicalProcessorInformationEx failed");
             return;
         }
 
         // A map from processor number to whether it is an E core
-        std::vector<std::pair<DWORD,bool>> processorCoreType;
+        std::vector<std::pair<DWORD, bool> > processorCoreType;
         BYTE maxEfficiencyClass = 0; // In a system without E cores, all cores EfficiencyClass is 0
 
         BYTE* ptr = buffer.data();
@@ -1633,15 +1633,18 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
                 }
                 // fprintf(stderr, "processor %d is %s\n", i, isECore ? "E" : "P");
 
-                if (isECore) {
+                if (isECore)
+                {
                     mask_little.enable(i);
                 }
-                else {
+                else
+                {
                     mask_big.enable(i);
                 }
             }
         }
-    } else
+    }
+    else
 #endif
     {
         // get max freq mhz for all cores
