@@ -49,7 +49,10 @@ static int test_eval_list_expression(const std::string& expr, std::vector<ncnn::
     }
     va_end(ap);
 
-    std::vector<int> list = ncnn::eval_list_expression(expr, blobs);
+    std::vector<int> list;
+    int er = ncnn::eval_list_expression(expr, blobs, list);
+    if (er != 0)
+        return -1;
 
     bool failed = false;
     if (list.size() != true_list.size())
