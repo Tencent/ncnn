@@ -2360,6 +2360,9 @@ int NetOptimize::eliminate_reshape_after_global_pooling()
         if (reshape->h != -233 || reshape->c != -233)
             continue;
 
+        if (!reshape->shape_expr.empty())
+            continue;
+
         fprintf(stderr, "eliminate_reshape_after_global_pooling %s %s\n", pooling->name.c_str(), reshape->name.c_str());
 
         int top_blob_index_final = reshape->tops[0];
@@ -2466,6 +2469,9 @@ int NetOptimize::eliminate_reshape_before_binaryop()
 
         ncnn::Reshape* reshape = (ncnn::Reshape*)layers[i];
         if (reshape->w != 1 || reshape->h != 1)
+            continue;
+
+        if (!reshape->shape_expr.empty())
             continue;
 
         // Reshape - BinaryOp
