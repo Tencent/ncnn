@@ -44,7 +44,7 @@ public:
 
     int ndim;
 
-    // [size(@0,0),size(@0,1),12,64]
+    // see docs/developer-guide/expression.md
     std::string shape_expr;
 };
 
