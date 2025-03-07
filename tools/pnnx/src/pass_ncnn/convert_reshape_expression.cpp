@@ -306,7 +306,7 @@ void convert_reshape_expression(Graph& graph)
                                 if (input_index > 9)
                                 {
                                     // ncnn can only handle at most 10 reference blobs
-                                    fprintf(stderr, "expression with large reference id %d is not supported yet\n");
+                                    fprintf(stderr, "expression with large reference id %d is not supported yet\n", input_index);
                                 }
 
                                 int bi = std::stoi(b);
