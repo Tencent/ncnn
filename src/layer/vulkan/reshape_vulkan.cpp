@@ -297,7 +297,9 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         {
             bottom_blob_shapes[i] = bottom_blobs[i].shape();
         }
-        eval_shape_expr(bottom_blob_shapes, outw, outh, outd, outc);
+        int er = eval_shape_expr(bottom_blob_shapes, outw, outh, outd, outc);
+        if (er != 0)
+            return -1;
     }
 
     if (ndim == 1)
@@ -516,7 +518,9 @@ int Reshape_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         {
             bottom_blob_shapes[i] = bottom_blobs[i].shape();
         }
-        eval_shape_expr(bottom_blob_shapes, outw, outh, outd, outc);
+        int er = eval_shape_expr(bottom_blob_shapes, outw, outh, outd, outc);
+        if (er != 0)
+            return -1;
     }
 
     if (ndim == 1)

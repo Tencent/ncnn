@@ -93,7 +93,7 @@ struct typed_value
     }
 };
 
-std::vector<int> eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs)
+int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs, std::vector<int>& outlist)
 {
     // /(0w,2),*(0h,2),0c
 
@@ -163,7 +163,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             if (blob_index >= blobs.size())
             {
                 NCNN_LOGE("shape expression blob index %d out of bound!", (int)blob_index);
-                blob_index = 0;
+                return -1;
             }
 
             const Mat& blob = blobs[blob_index].shape();
@@ -211,7 +211,7 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
                     if (b == 0)
                     {
                         NCNN_LOGE("expr divide by zero");
-                        r = a;
+                        return -1;
                     }
                     else
                     {
@@ -548,25 +548,24 @@ std::vector<int> eval_list_expression(const std::string& expr, const std::vector
             else
             {
                 NCNN_LOGE("malformed literal token %s", t.c_str());
-                exprstack.push(0);
+                return -1;
             }
         }
     }
 
-    std::vector<int> list;
     int size = exprstack.top().to_int();
     exprstack.pop();
-    list.push_back(size);
+    outlist.push_back(size);
     while (!exprstack.empty())
     {
         size = exprstack.top().to_int();
         exprstack.pop();
-        list.push_back(size);
+        outlist.push_back(size);
     }
 
     // NCNN_LOGE("shape %s = %d %d", expr.c_str(), list[0], list[1]);
 
-    return list;
+    return 0;
 }
 
 } // namespace ncnn

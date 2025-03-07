@@ -45,7 +45,9 @@ int Reshape_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     if (!shape_expr.empty())
     {
-        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+        int er = eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+        if (er != 0)
+            return -1;
     }
 
     if (ndim == 1)

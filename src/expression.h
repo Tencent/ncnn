@@ -26,6 +26,7 @@ NCNN_EXPORT int count_expression_blobs(const std::string& expr);
 // expr = "/(0w,2),*(1h,2),0c"
 // blobs = (A, B)
 // outlist = (A.w/2, B.h*2, A.c)
-NCNN_EXPORT std::vector<int> eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs);
+// return 0 if success
+NCNN_EXPORT int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs, std::vector<int>& outlist);
 
 } // namespace ncnn

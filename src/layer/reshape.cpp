@@ -52,7 +52,12 @@ int Reshape::load_param(const ParamDict& pd)
 
         // resolve ndim from expression
         std::vector<Mat> blobs(blob_count);
-        ndim = (int)eval_list_expression(shape_expr, blobs).size();
+        std::vector<int> outshape;
+        int er = eval_list_expression(shape_expr, blobs, outshape);
+        if (er != 0)
+            return -1;
+
+        ndim = (int)outshape.size();
         // NCNN_LOGE("ndim = %d", ndim);
     }
 
@@ -197,17 +202,20 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     return 0;
 }
 
-void Reshape::eval_shape_expr(const Mat& bottom_blob, int& outw, int& outh, int& outd, int& outc) const
+int Reshape::eval_shape_expr(const Mat& bottom_blob, int& outw, int& outh, int& outd, int& outc) const
 {
     std::vector<Mat> bottom_blobs(1);
     bottom_blobs[0] = bottom_blob;
-    eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+    return eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
 }
 
-void Reshape::eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const
+int Reshape::eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const
 {
     // [size(@0,0),size(@0,1),12,64]
-    std::vector<int> shape = eval_list_expression(shape_expr, bottom_blobs);
+    std::vector<int> shape;
+    int er = eval_list_expression(shape_expr, bottom_blobs, shape);
+    if (er != 0)
+        return -1;
 
     outw = 1;
     outh = 1;
@@ -235,6 +243,8 @@ void Reshape::eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, i
         outd = shape[2];
         outc = shape[3];
     }
+
+    return 0;
 }
 
 } // namespace ncnn

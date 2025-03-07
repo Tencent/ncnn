@@ -61,7 +61,9 @@ int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     if (!shape_expr.empty())
     {
-        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+        int er = eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+        if (er != 0)
+            return -1;
     }
 
     if (ndim == 1)
@@ -337,7 +339,9 @@ int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
 
     if (!shape_expr.empty())
     {
-        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+        int er = eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+        if (er != 0)
+            return -1;
     }
 
     if (ndim == 1)
