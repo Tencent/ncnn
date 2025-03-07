@@ -131,6 +131,12 @@ static int test_cpu_info()
     fprintf(stderr, "bigcpucount = %d\n", bigcpucount);
     fprintf(stderr, "littlecpucount = %d\n", littlecpucount);
 
+    if ((cpucount != bigcpucount + littlecpucount) || (bigcpucount > cpucount) || (littlecpucount > cpucount))
+    {
+        fprintf(stderr, "The number of big and little cpus must be less than or equal to the total number of cpus\n");
+        return -1;
+    }
+
     return 0;
 }
 

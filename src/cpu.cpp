@@ -1589,7 +1589,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
 
         BYTE* ptr = buffer.data();
         while (ptr < buffer.data() + bufferSize) {
-            auto info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr;
+            SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX* info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr;
             if (info->Relationship == RelationProcessorCore) {
                 // Mingw and some old MSVC do not have EfficiencyClass in PROCESSOR_RELATIONSHIP
                 // So we should redefine PROCESSOR_RELATIONSHIP
@@ -1624,7 +1624,8 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         else {
             for (int i = 0; i < g_cpucount; i++) {
                 bool isECore = false;
-                for (auto& p : processorCoreType) {
+                for (int j = 0; j < processorCoreType.size(); j++) {
+                    std::pair<DWORD,bool> p = processorCoreType[j];
                     if (p.first == i) {
                         isECore = p.second;
                         break;
