@@ -21,11 +21,7 @@ NCNN_EXPORT int count_expression_blobs(const std::string& expr);
 
 // resolve reshape shape from expression and input blobs
 // resolve slice indices(starts, ends) from expression and input blobs
-// supported binary operator: + - * / max min
-// supported unary operator: neg trunc ceil floor round
-// expr = "/(0w,2),*(1h,2),0c"
-// blobs = (A, B)
-// outlist = (A.w/2, B.h*2, A.c)
+// see docs/developer-guide/expression.md
 // return 0 if success
 NCNN_EXPORT int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs, std::vector<int>& outlist);
 
