@@ -32,48 +32,22 @@ Reshape_x86::Reshape_x86()
 #endif // __SSE2__
 }
 
-int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Reshape_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    int elempack = bottom_blob.elempack;
+    const Mat& bottom_blob = bottom_blobs[0];
+    Mat& top_blob = top_blobs[0];
 
-    if (permute == 1)
+    // resolve out shape
+    int outw = w;
+    int outh = h;
+    int outd = d;
+    int outc = c;
+
+    if (!shape_expr.empty())
     {
-        // TODO implement permute on-the-fly
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-
-        Mat bottom_blob_unpacked;
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
-
-        Mat top_blob_unpacked;
-        int ret = Reshape::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
-        if (ret != 0)
-            return ret;
-
-        int out_elempack = 1;
-#if __SSE2__
-        if (opt.use_packing_layout)
-        {
-            // resolve dst_elempack
-            int dims = top_blob_unpacked.dims;
-#if __AVX512F__
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 16 == 0 ? 16 : top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 16 == 0 ? 16 : top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 16 == 0 ? 16 : top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#elif __AVX__
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#else
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#endif
-        }
-#endif // __SSE2__
-        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
-
-        return 0;
+        int er = eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+        if (er != 0)
+            return -1;
     }
 
     if (ndim == 1)
@@ -86,42 +60,40 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 
-    int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
+    const int dims = bottom_blob.dims;
+    const int elempack = bottom_blob.elempack;
+    const size_t elemsize = bottom_blob.elemsize;
 
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
+    const int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
 
     if (ndim == 2)
     {
-        int _w = w;
-        int _h = h;
+        if (outw == 0)
+            outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+        if (outh == 0)
+            outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
 
-        if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-        if (_h == 0)
-            _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-
-        if (_w == -1)
-            _w = total / _h;
-        if (_h == -1)
-            _h = total / _w;
+        if (outw == -1)
+            outw = total / outh;
+        if (outh == -1)
+            outh = total / outw;
 
         int out_elempack = 1;
 #if __SSE2__
         if (opt.use_packing_layout)
         {
 #if __AVX512F__
-            out_elempack = _h % 16 == 0 ? 16 : _h % 8 == 0 ? 8 : _h % 4 == 0 ? 4 : 1;
+            out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #elif __AVX__
-            out_elempack = _h % 8 == 0 ? 8 : _h % 4 == 0 ? 4 : 1;
+            out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #else
-            out_elempack = _h % 4 == 0 ? 4 : 1;
+            out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif
         }
 #endif // __SSE2__
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 2 && bottom_blob.h * elempack == _h && elempack == out_elempack)
+        if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -135,9 +107,9 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return -100;
 
             top_blob.dims = 2;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            top_blob.cstep = (size_t)_w * _h;
+            top_blob.w = outw;
+            top_blob.h = outh;
+            top_blob.cstep = (size_t)outw * outh;
             top_blob.elemsize = out_elemsize;
             top_blob.elempack = out_elempack;
 
@@ -155,12 +127,9 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return -100;
         }
 
-        top_blob.create(_w, _h / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
-
-        int outw = top_blob.w;
-        int outh = top_blob.h;
 
 #if __SSE2__
 #if __AVX__
@@ -168,7 +137,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (out_elempack == 16)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int i = 0; i < top_blob.h; i++)
             {
                 const float* ptr0 = (const float*)bottom_blob_flattened + outw * i * 16;
                 const float* ptr1 = (const float*)bottom_blob_flattened + outw * (i * 16 + 1);
@@ -273,7 +242,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (out_elempack == 8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int i = 0; i < top_blob.h; i++)
             {
                 const float* ptr0 = (const float*)bottom_blob_flattened + outw * i * 8;
                 const float* ptr1 = (const float*)bottom_blob_flattened + outw * (i * 8 + 1);
@@ -338,7 +307,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (out_elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int i = 0; i < top_blob.h; i++)
             {
                 const float* ptr0 = (const float*)bottom_blob_flattened + outw * i * 4;
                 const float* ptr1 = (const float*)bottom_blob_flattened + outw * (i * 4 + 1);
@@ -383,48 +352,43 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     if (ndim == 3 || ndim == 4)
     {
-        int _w = w;
-        int _h = h;
-        int _d = d;
-        int _c = c;
-
         if (ndim == 3)
         {
-            if (_w == 0)
-                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-            if (_h == 0)
-                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-            if (_c == 0)
-                _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
+            if (outw == 0)
+                outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (outh == 0)
+                outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (outc == 0)
+                outc = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
 
-            if (_w == -1)
-                _w = total / _c / _h;
-            if (_h == -1)
-                _h = total / _c / _w;
-            if (_c == -1)
-                _c = total / _h / _w;
+            if (outw == -1)
+                outw = total / outc / outh;
+            if (outh == -1)
+                outh = total / outc / outw;
+            if (outc == -1)
+                outc = total / outh / outw;
 
-            _d = 1;
+            outd = 1;
         }
         else // if (ndim == 4)
         {
-            if (_w == 0)
-                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-            if (_h == 0)
-                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-            if (_d == 0)
-                _d = bottom_blob.d;
-            if (_c == 0)
-                _c = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
+            if (outw == 0)
+                outw = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (outh == 0)
+                outh = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (outd == 0)
+                outd = bottom_blob.d;
+            if (outc == 0)
+                outc = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
 
-            if (_w == -1)
-                _w = total / _c / _d / _h;
-            if (_h == -1)
-                _h = total / _c / _d / _w;
-            if (_d == -1)
-                _d = total / _c / _h / _w;
-            if (_c == -1)
-                _c = total / _d / _h / _w;
+            if (outw == -1)
+                outw = total / outc / outd / outh;
+            if (outh == -1)
+                outh = total / outc / outd / outw;
+            if (outd == -1)
+                outd = total / outc / outh / outw;
+            if (outc == -1)
+                outc = total / outd / outh / outw;
         }
 
         int out_elempack = 1;
@@ -432,23 +396,23 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (opt.use_packing_layout)
         {
 #if __AVX512F__
-            out_elempack = _c % 16 == 0 ? 16 : _c % 8 == 0 ? 8 : _c % 4 == 0 ? 4 : 1;
+            out_elempack = outc % 16 == 0 ? 16 : outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 #elif __AVX__
-            out_elempack = _c % 8 == 0 ? 8 : _c % 4 == 0 ? 4 : 1;
+            out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 #else
-            out_elempack = _c % 4 == 0 ? 4 : 1;
+            out_elempack = outc % 4 == 0 ? 4 : 1;
 #endif
         }
 #endif // __SSE2__
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == _c && elempack == out_elempack)
+        if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.dims = ndim;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            top_blob.d = _d;
+            top_blob.w = outw;
+            top_blob.h = outh;
+            top_blob.d = outd;
             return 0;
         }
 
@@ -465,11 +429,11 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (ndim == 3)
         {
-            top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         }
         else // if (ndim == 4)
         {
-            top_blob.create(_w, _h, _d, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         }
         if (top_blob.empty())
             return -100;

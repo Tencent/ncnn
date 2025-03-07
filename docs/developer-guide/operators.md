@@ -1688,8 +1688,7 @@ y = float2int8(x3 * scale_out)
 
 # Reshape
 ```
-if permute == 1     y = hwc2chw(reshape(chw2hwc(x)))
-else                y = reshape(x)
+y = reshape(x)
 ```
 
 * one_blob_only
@@ -1700,7 +1699,6 @@ else                y = reshape(x)
 | 1         | h             | int   | -233      |                   |
 | 11        | d             | int   | -233      |                   |
 | 2         | c             | int   | -233      |                   |
-| 3         | permute       | int   | 0         |                   |
 
 Reshape flag:
 - 0 = copy from bottom

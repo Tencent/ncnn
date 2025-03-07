@@ -188,7 +188,7 @@ static bool vstr_is_float(const char vstr[16])
 
 static bool vstr_is_string(const char vstr[16])
 {
-    return isalpha(vstr[0]);
+    return isalpha(vstr[0]) || vstr[0] == '\"';
 }
 
 static float vstr_to_float(const char vstr[16])
@@ -356,7 +356,14 @@ int ParamDict::load_param(const DataReader& dr)
             // scan the remaining string
             char vstr2[256];
             vstr2[241] = '\0'; // max 255 = 15 + 240
-            nscan = dr.scan("%255[^\n ]", vstr2);
+            if (vstr[0] == '\"')
+            {
+                nscan = dr.scan("%255[^\"]\"", vstr2);
+            }
+            else
+            {
+                nscan = dr.scan("%255[^\n ]", vstr2);
+            }
             if (nscan == 1)
             {
                 if (vstr2[241] != '\0')
@@ -365,12 +372,21 @@ int ParamDict::load_param(const DataReader& dr)
                     return -1;
                 }
 
-                d->params[id].s = std::string(vstr) + vstr2;
+                if (vstr[0] == '\"')
+                    d->params[id].s = std::string(&vstr[1]) + vstr2;
+                else
+                    d->params[id].s = std::string(vstr) + vstr2;
             }
             else
             {
-                d->params[id].s = std::string(vstr);
+                if (vstr[0] == '\"')
+                    d->params[id].s = std::string(&vstr[1]);
+                else
+                    d->params[id].s = std::string(vstr);
             }
+
+            if (d->params[id].s[d->params[id].s.size() - 1] == '\"')
+                d->params[id].s.resize(d->params[id].s.size() - 1);
 
             d->params[id].type = 7;
 

@@ -498,6 +498,20 @@ struct vector
         return pos;
     }
 
+    void pop_back()
+    {
+        if (size_ > 0)
+        {
+            data_[size_ - 1].~T();
+            size_--;
+        }
+    }
+
+    T& back() const
+    {
+        return data_[size_ - 1];
+    }
+
 protected:
     T* data_;
     size_t size_;
@@ -516,6 +530,40 @@ protected:
             }
             data_ = new_data;
         }
+    }
+};
+
+template<typename T>
+struct stack : protected vector<T>
+{
+    void push(const T& t)
+    {
+        vector<T>::push_back(t);
+    }
+
+    void pop()
+    {
+        vector<T>::pop_back();
+    }
+
+    T& top()
+    {
+        return vector<T>::back();
+    }
+
+    bool empty() const
+    {
+        return vector<T>::empty();
+    }
+
+    size_t size() const
+    {
+        return vector<T>::size();
+    }
+
+    void clear()
+    {
+        vector<T>::clear();
     }
 };
 

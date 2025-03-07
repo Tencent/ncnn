@@ -136,6 +136,12 @@ float frac(float x)
     return x - floor(x);
 }
 
+float fmodf(float x, float y)
+{
+    float m = frac(fabsf(x / y)) * fabsf(y);
+    return (x < 0) ? -m : m;
+}
+
 /*
 * ====================================================
 * trigonometric functions
@@ -314,14 +320,39 @@ float atan2f(float y, float x)
     }
 }
 
-float tanhf(float v)
+float sinhf(float x)
 {
-    if (v >= 8 || v <= -8)
+    return 0.5 * (expf(x) - expf(-x));
+}
+
+float coshf(float x)
+{
+    return 0.5 * (expf(x) + expf(-x));
+}
+
+float tanhf(float x)
+{
+    if (x >= 8 || x <= -8)
     {
-        return copysignf(1, v);
+        return copysignf(1, x);
     }
-    float exp2v = expf(2 * v);
+    float exp2v = expf(2 * x);
     return (exp2v - 1) / (exp2v + 1);
+}
+
+float asinhf(float x)
+{
+    return logf(x + sqrtf(x * x + 1));
+}
+
+float acoshf(float x)
+{
+    return logf(x + sqrtf(x * x - 1));
+}
+
+float atanhf(float x)
+{
+    return 0.5f * logf((1 + x) / (1 - x));
 }
 
 /*

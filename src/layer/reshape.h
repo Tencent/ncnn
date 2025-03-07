@@ -27,6 +27,10 @@ public:
     virtual int load_param(const ParamDict& pd);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+protected:
+    int eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const;
 
 public:
     // reshape flag
@@ -38,10 +42,10 @@ public:
     int d;
     int c;
 
-    // flag permute chw->hwc or hw->wh before and after reshape
-    int permute;
-
     int ndim;
+
+    // see docs/developer-guide/expression.md
+    std::string shape_expr;
 };
 
 } // namespace ncnn

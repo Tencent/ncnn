@@ -272,6 +272,7 @@ static inline void swap_endianness_32(void* x)
 #include <algorithm>
 #include <list>
 #include <vector>
+#include <stack>
 #include <string>
 #endif
 
