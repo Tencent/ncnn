@@ -25,13 +25,48 @@ static int test_softmax(const ncnn::Mat& a, int axis)
     int ret = test_layer("Softmax", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);
+        fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d %d) axis=%d\n", a.dims, a.w, a.h, a.d, a.c, axis);
     }
 
     return ret;
 }
 
 static int test_softmax_0()
+{
+    ncnn::Mat a = RandomMat(23, 25, 27, 32);
+    ncnn::Mat b = RandomMat(24, 27, 29, 28);
+    ncnn::Mat c = RandomMat(25, 23, 25, 27);
+
+    return 0
+           || test_softmax(a, 0)
+           || test_softmax(a, 1)
+           || test_softmax(a, 2)
+           || test_softmax(a, 3)
+           || test_softmax(a, -1)
+           || test_softmax(a, -2)
+           || test_softmax(a, -3)
+           || test_softmax(a, -4)
+
+           || test_softmax(b, 0)
+           || test_softmax(b, 1)
+           || test_softmax(b, 2)
+           || test_softmax(b, 3)
+           || test_softmax(b, -1)
+           || test_softmax(b, -2)
+           || test_softmax(b, -3)
+           || test_softmax(b, -4)
+
+           || test_softmax(c, 0)
+           || test_softmax(c, 1)
+           || test_softmax(c, 2)
+           || test_softmax(c, 3)
+           || test_softmax(c, -1)
+           || test_softmax(c, -2)
+           || test_softmax(c, -3)
+           || test_softmax(c, -4);
+}
+
+static int test_softmax_1()
 {
     ncnn::Mat a = RandomMat(25, 27, 32);
     ncnn::Mat b = RandomMat(27, 29, 28);
@@ -60,7 +95,7 @@ static int test_softmax_0()
            || test_softmax(c, -3);
 }
 
-static int test_softmax_1()
+static int test_softmax_2()
 {
     ncnn::Mat a = RandomMat(25, 32);
     ncnn::Mat b = RandomMat(27, 28);
@@ -83,7 +118,7 @@ static int test_softmax_1()
            || test_softmax(c, -2);
 }
 
-static int test_softmax_2()
+static int test_softmax_3()
 {
     ncnn::Mat a = RandomMat(128);
     ncnn::Mat b = RandomMat(124);
@@ -107,5 +142,6 @@ int main()
     return 0
            || test_softmax_0()
            || test_softmax_1()
-           || test_softmax_2();
+           || test_softmax_2()
+           || test_softmax_3();
 }
