@@ -39,6 +39,7 @@ NCNN_EXPORT float ceilf(float);
 NCNN_EXPORT float fmaxf(float, float);
 NCNN_EXPORT float truncf(float);
 NCNN_EXPORT float frac(float);
+NCNN_EXPORT float fmodf(float, float);
 /*
 * ====================================================
 * trigonometric functions
@@ -51,7 +52,12 @@ NCNN_EXPORT float asinf(float);
 NCNN_EXPORT float acosf(float);
 NCNN_EXPORT float atanf(float);
 NCNN_EXPORT float atan2f(float, float);
+NCNN_EXPORT float sinhf(float);
+NCNN_EXPORT float coshf(float);
 NCNN_EXPORT float tanhf(float);
+NCNN_EXPORT float asinhf(float);
+NCNN_EXPORT float acoshf(float);
+NCNN_EXPORT float atanhf(float);
 
 /*
 * ====================================================
