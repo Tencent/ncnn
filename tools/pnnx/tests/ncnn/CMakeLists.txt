@@ -203,6 +203,7 @@ pnnx_ncnn_add_test(torch_square)
 pnnx_ncnn_add_test(torch_tan)
 pnnx_ncnn_add_test(torch_tanh)
 pnnx_ncnn_add_test(torch_trunc)
+pnnx_ncnn_add_test(torch_topk)
 
 pnnx_ncnn_add_test(convnext_tiny)
 pnnx_ncnn_add_test(mobilenet_v2)
