@@ -33,7 +33,7 @@ class Model(nn.Module):
         x = self.act_0(x)
         y = self.act_1(y)
         z = self.act_2(z)
-        # w = self.act_3(w) TODO
+        w = self.act_3(w)
         return x, y, z, w
 
 def test():
