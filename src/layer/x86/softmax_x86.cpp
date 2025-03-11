@@ -84,8 +84,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            max = std::max(max, ptr[0]);
-            ptr++;
+            max = std::max(max, *ptr++);
         }
     }
 
