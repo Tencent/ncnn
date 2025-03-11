@@ -216,8 +216,34 @@ void QuantNet::print_quant_info() const
 
 inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npypath)
 {
-    npy::npy_data<float> d = npy::read_npy<float>(npypath);
+    npy::npy_data<float> d;
+    try
+    {
+        d = npy::read_npy<float>(npypath);
+    }
+    catch (const std::exception& e)
+    {
+        fprintf(stderr, "npy::read_npy exception: %s\n", e.what());
+        std::exit(EXIT_FAILURE);
+    }
+
+    std::vector<unsigned long> npy_shape = d.shape;
     size_t dims = shape.size();
+
+    if (dims != npy_shape.size())
+    {
+        fprintf(stderr, "expect %d dims, but got: %d, npy file:%s\n", dims, npy_shape.size(), npypath);
+        std::exit(EXIT_FAILURE);
+    }
+
+    for (size_t i = 0; i < dims; ++i)
+    {
+        if (static_cast<unsigned long>(shape[i]) != npy_shape[dims-1-i])
+        {
+            fprintf(stderr, "shape mismatch!\n");
+            std::exit(EXIT_FAILURE);
+        }
+    }
 
     switch (dims)
     {

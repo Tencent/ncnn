@@ -52,9 +52,11 @@ Use the same preprocessing as the training set to get the input vectors, in the 
 
 
 test net, shape is in NCHW format, but there's no `N`.
+```txt
 in0, shape=[512]
 in1, shape=[2, 1, 64]
 in2, shape=[2, 1, 64]
+```
 
 filelist_in0.txt
 ```txt
