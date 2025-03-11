@@ -207,20 +207,32 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
+    if (elempack == 16)
+    {
+        _sum_avx512 = _mm512_div_ps(_mm512_set1_ps(1.f), _sum_avx512);
+    }
+#endif // __AVX512F__
     if (elempack == 8)
     {
+#if __AVX512F__
         {
             __m256 _sum0 = _mm512_castps512_ps256(_sum_avx512);
             __m256 _sum1 = _mm256_castpd_ps(_mm512_extractf64x4_pd(_mm512_castps_pd(_sum_avx512), 1));
             _sum_avx = _mm256_add_ps(_sum_avx, _sum0);
             _sum_avx = _mm256_add_ps(_sum_avx, _sum1);
         }
-
-        _sum_avx512 = combine8x2_ps(_sum_avx, _sum_avx);
-    }
 #endif // __AVX512F__
+
+        _sum_avx = _mm256_div_ps(_mm256_set1_ps(1.f), _sum_avx);
+
+#if __AVX512F__
+        _sum_avx512 = combine8x2_ps(_sum_avx, _sum_avx);
+#endif // __AVX512F__
+    }
+#endif // __AVX__
     if (elempack == 4)
     {
+#if __AVX__
 #if __AVX512F__
         {
             __m256 _sum0 = _mm512_castps512_ps256(_sum_avx512);
@@ -235,24 +247,10 @@ static void softmax(float* _ptr, int elemcount, int elempack)
             _sum = _mm_add_ps(_sum, _sum0);
             _sum = _mm_add_ps(_sum, _sum1);
         }
-
-        _sum_avx = combine4x2_ps(_sum, _sum);
-#if __AVX512F__
-        _sum_avx512 = combine8x2_ps(_sum_avx, _sum_avx);
-#endif // __AVX512F__
-    }
 #endif // __AVX__
-    if (elempack == 1)
-    {
-#if __AVX__
-#if __AVX512F__
-        sum += _mm512_comp_reduce_add_ps(_sum_avx512);
-#endif // __AVX512F__
-        sum += _mm256_reduce_add_ps(_sum_avx);
-#endif // __AVX__
-        sum += _mm_reduce_add_ps(_sum);
 
-        _sum = _mm_set1_ps(sum);
+        _sum = _mm_div_ps(_mm_set1_ps(1.f), _sum);
+
 #if __AVX__
         _sum_avx = combine4x2_ps(_sum, _sum);
 #if __AVX512F__
@@ -261,6 +259,30 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 #endif // __AVX__
     }
 #endif // __SSE2__
+    if (elempack == 1)
+    {
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        sum += _mm512_comp_reduce_add_ps(_sum_avx512);
+#endif // __AVX512F__
+        sum += _mm256_reduce_add_ps(_sum_avx);
+#endif // __AVX__
+        sum += _mm_reduce_add_ps(_sum);
+#endif // __SSE2__
+
+        sum = 1.f / sum;
+
+#if __SSE2__
+        _sum = _mm_set1_ps(sum);
+#if __AVX__
+        _sum_avx = combine4x2_ps(_sum, _sum);
+#if __AVX512F__
+        _sum_avx512 = combine8x2_ps(_sum_avx, _sum_avx);
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+    }
 
     // div sum
     {
@@ -273,7 +295,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         for (; i + 15 < size; i += 16)
         {
             __m512 _p = _mm512_loadu_ps(ptr);
-            _p = _mm512_div_ps(_p, _sum_avx512);
+            _p = _mm512_mul_ps(_p, _sum_avx512);
             _mm512_storeu_ps(ptr, _p);
             ptr += 16;
         }
@@ -281,7 +303,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
-            _p = _mm256_div_ps(_p, _sum_avx);
+            _p = _mm256_mul_ps(_p, _sum_avx);
             _mm256_storeu_ps(ptr, _p);
             ptr += 8;
         }
@@ -289,14 +311,14 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = _mm_loadu_ps(ptr);
-            _p = _mm_div_ps(_p, _sum);
+            _p = _mm_mul_ps(_p, _sum);
             _mm_storeu_ps(ptr, _p);
             ptr += 4;
         }
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            *ptr++ /= sum;
+            *ptr++ *= sum;
         }
     }
 }
@@ -419,6 +441,8 @@ static void softmax_unroll16(float* _ptr, int elemcount, int elempack, int strid
         // fine
     }
 
+    _sum_avx512 = _mm512_div_ps(_mm512_set1_ps(1.f), _sum_avx512);
+
     // div sum
     {
         float* ptr = _ptr;
@@ -426,7 +450,7 @@ static void softmax_unroll16(float* _ptr, int elemcount, int elempack, int strid
         for (int i = 0; i < elemcount; i++)
         {
             __m512 _p = _mm512_loadu_ps(ptr);
-            _p = _mm512_div_ps(_p, _sum_avx512);
+            _p = _mm512_mul_ps(_p, _sum_avx512);
             _mm512_storeu_ps(ptr, _p);
             ptr += stride;
         }
@@ -512,6 +536,8 @@ static void softmax_unroll8(float* _ptr, int elemcount, int elempack, int stride
         // fine
     }
 
+    _sum_avx = _mm256_div_ps(_mm256_set1_ps(1.f), _sum_avx);
+
     // div sum
     {
         float* ptr = _ptr;
@@ -519,7 +545,7 @@ static void softmax_unroll8(float* _ptr, int elemcount, int elempack, int stride
         for (int i = 0; i < elemcount; i++)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
-            _p = _mm256_div_ps(_p, _sum_avx);
+            _p = _mm256_mul_ps(_p, _sum_avx);
             _mm256_storeu_ps(ptr, _p);
             ptr += stride;
         }
@@ -582,6 +608,8 @@ static void softmax_unroll4(float* _ptr, int elemcount, int elempack, int stride
         // fine
     }
 
+    _sum = _mm_div_ps(_mm_set1_ps(1.f), _sum);
+
     // div sum
     {
         float* ptr = _ptr;
@@ -589,7 +617,7 @@ static void softmax_unroll4(float* _ptr, int elemcount, int elempack, int stride
         for (int i = 0; i < elemcount; i++)
         {
             __m128 _p = _mm_loadu_ps(ptr);
-            _p = _mm_div_ps(_p, _sum);
+            _p = _mm_mul_ps(_p, _sum);
             _mm_storeu_ps(ptr, _p);
             ptr += stride;
         }
@@ -633,14 +661,17 @@ static void softmax_unroll2(float* _ptr, int elemcount, int /*elempack*/, int st
         }
     }
 
+    sum0 = 1.f / sum0;
+    sum1 = 1.f / sum1;
+
     // div sum
     {
         float* ptr = _ptr;
 
         for (int i = 0; i < elemcount; i++)
         {
-            ptr[0] /= sum0;
-            ptr[1] /= sum1;
+            ptr[0] *= sum0;
+            ptr[1] *= sum1;
             ptr += stride;
         }
     }
@@ -676,13 +707,15 @@ static void softmax(float* _ptr, int elemcount, int /*elempack*/, int stride)
         }
     }
 
+    sum = 1.f / sum;
+
     // div sum
     {
         float* ptr = _ptr;
 
         for (int i = 0; i < elemcount; i++)
         {
-            *ptr /= sum;
+            *ptr *= sum;
             ptr += stride;
         }
     }
