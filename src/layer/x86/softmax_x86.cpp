@@ -826,6 +826,11 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += 4;
             }
 #endif // __SSE2__
+            for (; i + 1 < size; i += 2)
+            {
+                softmax_unroll2(ptr, d, 1, size);
+                ptr += 2;
+            }
             for (; i < size; i++)
             {
                 softmax(ptr, d, 1, size);
@@ -867,6 +872,11 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     ptr += 4;
                 }
 #endif // __SSE2__
+                for (; j + 1 < size; j += 2)
+                {
+                    softmax_unroll2(ptr, h, 1, size);
+                    ptr += 2;
+                }
                 for (; j < size; j++)
                 {
                     softmax(ptr, h, 1, size);
