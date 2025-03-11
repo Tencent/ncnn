@@ -345,42 +345,25 @@ static void softmax_unroll16(float* _ptr, int elemcount, int elempack, int strid
     {
         // reduce max 16 to 1
         // broadcast 1 to 16
-        float max = _mm512_comp_reduce_max_ps(_max_avx512);
-        _max_avx512 = _mm512_set1_ps(max);
+        _max_avx512 = _mm512_max_ps(_max_avx512, _mm512_permute_ps(_max_avx512, _MM_PERM_CDAB));
+        _max_avx512 = _mm512_max_ps(_max_avx512, _mm512_permute_ps(_max_avx512, _MM_PERM_BADC));
+        _max_avx512 = _mm512_max_ps(_max_avx512, _mm512_shuffle_f32x4(_max_avx512, _max_avx512, _MM_SHUFFLE(2, 3, 0, 1)));
+        _max_avx512 = _mm512_max_ps(_max_avx512, _mm512_shuffle_f32x4(_max_avx512, _max_avx512, _MM_SHUFFLE(1, 0, 3, 2)));
     }
     if (elempack == 8)
     {
         // reduce max 8,8 to 1,1
         // broadcast 1,1 to 8,8
-        __m256 _max0 = _mm512_castps512_ps256(_max_avx512);
-        __m256 _max1 = _mm256_castpd_ps(_mm512_extractf64x4_pd(_mm512_castps_pd(_max_avx512), 1));
-        float max0 = _mm256_reduce_max_ps(_max0);
-        float max1 = _mm256_reduce_max_ps(_max1);
-        _max0 = _mm256_set1_ps(max0);
-        _max1 = _mm256_set1_ps(max1);
-        _max_avx512 = combine8x2_ps(_max0, _max1);
+        _max_avx512 = _mm512_max_ps(_max_avx512, _mm512_permute_ps(_max_avx512, _MM_PERM_CDAB));
+        _max_avx512 = _mm512_max_ps(_max_avx512, _mm512_permute_ps(_max_avx512, _MM_PERM_BADC));
+        _max_avx512 = _mm512_max_ps(_max_avx512, _mm512_shuffle_f32x4(_max_avx512, _max_avx512, _MM_SHUFFLE(2, 3, 0, 1)));
     }
     if (elempack == 4)
     {
         // reduce max 4,4,4,4 to 1,1,1,1
         // broadcast 1,1,1,1 to 4,4,4,4
-        __m128 _max0 = _mm512_extractf32x4_ps(_max_avx512, 0);
-        __m128 _max1 = _mm512_extractf32x4_ps(_max_avx512, 1);
-        __m128 _max2 = _mm512_extractf32x4_ps(_max_avx512, 2);
-        __m128 _max3 = _mm512_extractf32x4_ps(_max_avx512, 3);
-        float max0 = _mm_reduce_max_ps(_max0);
-        float max1 = _mm_reduce_max_ps(_max1);
-        float max2 = _mm_reduce_max_ps(_max2);
-        float max3 = _mm_reduce_max_ps(_max3);
-        _max0 = _mm_set1_ps(max0);
-        _max1 = _mm_set1_ps(max1);
-        _max2 = _mm_set1_ps(max2);
-        _max3 = _mm_set1_ps(max3);
-        _max_avx512 = combine4x4_ps(_max0, _max1, _max2, _max3);
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _max_avx512 = _mm512_max_ps(_max_avx512, _mm512_permute_ps(_max_avx512, _MM_PERM_CDAB));
+        _max_avx512 = _mm512_max_ps(_max_avx512, _mm512_permute_ps(_max_avx512, _MM_PERM_BADC));
     }
 
     // reduce exp(x - max)
@@ -403,42 +386,25 @@ static void softmax_unroll16(float* _ptr, int elemcount, int elempack, int strid
     {
         // reduce sum 16 to 1
         // broadcast 1 to 16
-        float sum = _mm512_comp_reduce_add_ps(_sum_avx512);
-        _sum_avx512 = _mm512_set1_ps(sum);
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _mm512_permute_ps(_sum_avx512, _MM_PERM_CDAB));
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _mm512_permute_ps(_sum_avx512, _MM_PERM_BADC));
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _mm512_shuffle_f32x4(_sum_avx512, _sum_avx512, _MM_SHUFFLE(2, 3, 0, 1)));
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _mm512_shuffle_f32x4(_sum_avx512, _sum_avx512, _MM_SHUFFLE(1, 0, 3, 2)));
     }
     if (elempack == 8)
     {
         // reduce sum 8,8 to 1,1
         // broadcast 1,1 to 8,8
-        __m256 _sum0 = _mm512_castps512_ps256(_sum_avx512);
-        __m256 _sum1 = _mm256_castpd_ps(_mm512_extractf64x4_pd(_mm512_castps_pd(_sum_avx512), 1));
-        float sum0 = _mm256_reduce_add_ps(_sum0);
-        float sum1 = _mm256_reduce_add_ps(_sum1);
-        _sum0 = _mm256_set1_ps(sum0);
-        _sum1 = _mm256_set1_ps(sum1);
-        _sum_avx512 = combine8x2_ps(_sum0, _sum1);
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _mm512_permute_ps(_sum_avx512, _MM_PERM_CDAB));
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _mm512_permute_ps(_sum_avx512, _MM_PERM_BADC));
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _mm512_shuffle_f32x4(_sum_avx512, _sum_avx512, _MM_SHUFFLE(2, 3, 0, 1)));
     }
     if (elempack == 4)
     {
         // reduce sum 4,4,4,4 to 1,1,1,1
         // broadcast 1,1,1,1 to 4,4,4,4
-        __m128 _sum0 = _mm512_extractf32x4_ps(_sum_avx512, 0);
-        __m128 _sum1 = _mm512_extractf32x4_ps(_sum_avx512, 1);
-        __m128 _sum2 = _mm512_extractf32x4_ps(_sum_avx512, 2);
-        __m128 _sum3 = _mm512_extractf32x4_ps(_sum_avx512, 3);
-        float sum0 = _mm_reduce_add_ps(_sum0);
-        float sum1 = _mm_reduce_add_ps(_sum1);
-        float sum2 = _mm_reduce_add_ps(_sum2);
-        float sum3 = _mm_reduce_add_ps(_sum3);
-        _sum0 = _mm_set1_ps(sum0);
-        _sum1 = _mm_set1_ps(sum1);
-        _sum2 = _mm_set1_ps(sum2);
-        _sum3 = _mm_set1_ps(sum3);
-        _sum_avx512 = combine4x4_ps(_sum0, _sum1, _sum2, _sum3);
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _mm512_permute_ps(_sum_avx512, _MM_PERM_CDAB));
+        _sum_avx512 = _mm512_add_ps(_sum_avx512, _mm512_permute_ps(_sum_avx512, _MM_PERM_BADC));
     }
 
     _sum_avx512 = _mm512_div_ps(_mm512_set1_ps(1.f), _sum_avx512);
@@ -477,24 +443,16 @@ static void softmax_unroll8(float* _ptr, int elemcount, int elempack, int stride
     {
         // reduce max 8 to 1
         // broadcast 1 to 8
-        float max = _mm256_reduce_max_ps(_max_avx);
-        _max_avx = _mm256_set1_ps(max);
+        _max_avx = _mm256_max_ps(_max_avx, _mm256_permute_ps(_max_avx, _MM_SHUFFLE(2, 3, 0, 1)));
+        _max_avx = _mm256_max_ps(_max_avx, _mm256_permute_ps(_max_avx, _MM_SHUFFLE(1, 0, 3, 2)));
+        _max_avx = _mm256_max_ps(_max_avx, _mm256_permute2f128_ps(_max_avx, _max_avx, _MM_SHUFFLE(0, 0, 0, 1)));
     }
     if (elempack == 4)
     {
         // reduce max 4,4 to 1,1
         // broadcast 1,1 to 4,4
-        __m128 _max0 = _mm256_castps256_ps128(_max_avx);
-        __m128 _max1 = _mm256_extractf128_ps(_max_avx, 1);
-        float max0 = _mm_reduce_max_ps(_max0);
-        float max1 = _mm_reduce_max_ps(_max1);
-        _max0 = _mm_set1_ps(max0);
-        _max1 = _mm_set1_ps(max1);
-        _max_avx = combine4x2_ps(_max0, _max1);
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _max_avx = _mm256_max_ps(_max_avx, _mm256_permute_ps(_max_avx, _MM_SHUFFLE(2, 3, 0, 1)));
+        _max_avx = _mm256_max_ps(_max_avx, _mm256_permute_ps(_max_avx, _MM_SHUFFLE(1, 0, 3, 2)));
     }
 
     __m256 _sum_avx = _mm256_set1_ps(0.f);
@@ -516,24 +474,16 @@ static void softmax_unroll8(float* _ptr, int elemcount, int elempack, int stride
     {
         // reduce sum 8 to 1
         // broadcast 1 to 8
-        float sum = _mm256_reduce_add_ps(_sum_avx);
-        _sum_avx = _mm256_set1_ps(sum);
+        _sum_avx = _mm256_add_ps(_sum_avx, _mm256_permute_ps(_sum_avx, _MM_SHUFFLE(2, 3, 0, 1)));
+        _sum_avx = _mm256_add_ps(_sum_avx, _mm256_permute_ps(_sum_avx, _MM_SHUFFLE(1, 0, 3, 2)));
+        _sum_avx = _mm256_add_ps(_sum_avx, _mm256_permute2f128_ps(_sum_avx, _sum_avx, _MM_SHUFFLE(0, 0, 0, 1)));
     }
     if (elempack == 4)
     {
         // reduce sum 4,4 to 1,1
         // broadcast 1,1 to 4,4
-        __m128 _sum0 = _mm256_castps256_ps128(_sum_avx);
-        __m128 _sum1 = _mm256_extractf128_ps(_sum_avx, 1);
-        float sum0 = _mm_reduce_add_ps(_sum0);
-        float sum1 = _mm_reduce_add_ps(_sum1);
-        _sum0 = _mm_set1_ps(sum0);
-        _sum1 = _mm_set1_ps(sum1);
-        _sum_avx = combine4x2_ps(_sum0, _sum1);
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _sum_avx = _mm256_add_ps(_sum_avx, _mm256_permute_ps(_sum_avx, _MM_SHUFFLE(2, 3, 0, 1)));
+        _sum_avx = _mm256_add_ps(_sum_avx, _mm256_permute_ps(_sum_avx, _MM_SHUFFLE(1, 0, 3, 2)));
     }
 
     _sum_avx = _mm256_div_ps(_mm256_set1_ps(1.f), _sum_avx);
@@ -572,12 +522,8 @@ static void softmax_unroll4(float* _ptr, int elemcount, int elempack, int stride
     {
         // reduce max 4 to 1
         // broadcast 1 to 4
-        float max = _mm_reduce_max_ps(_max);
-        _max = _mm_set1_ps(max);
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _max = _mm_max_ps(_max, _mm_shuffle_ps(_max, _max, _MM_SHUFFLE(2, 3, 0, 1)));
+        _max = _mm_max_ps(_max, _mm_shuffle_ps(_max, _max, _MM_SHUFFLE(1, 0, 3, 2)));
     }
 
     // reduce exp(x - max)
@@ -600,12 +546,8 @@ static void softmax_unroll4(float* _ptr, int elemcount, int elempack, int stride
     {
         // reduce sum 4 to 1
         // broadcast 1 to 4
-        float sum = _mm_reduce_add_ps(_sum);
-        _sum = _mm_set1_ps(sum);
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _sum = _mm_add_ps(_sum, _mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(2, 3, 0, 1)));
+        _sum = _mm_add_ps(_sum, _mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(1, 0, 3, 2)));
     }
 
     _sum = _mm_div_ps(_mm_set1_ps(1.f), _sum);
