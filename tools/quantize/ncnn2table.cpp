@@ -238,7 +238,7 @@ inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npyp
 
     for (size_t i = 0; i < dims; ++i)
     {
-        if (static_cast<unsigned long>(shape[i]) != npy_shape[dims-1-i])
+        if (static_cast<unsigned long>(shape[i]) != npy_shape[dims - 1 - i])
         {
             fprintf(stderr, "shape mismatch!\n");
             std::exit(EXIT_FAILURE);
