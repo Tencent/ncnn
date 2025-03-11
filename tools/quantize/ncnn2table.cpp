@@ -232,7 +232,7 @@ inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npyp
 
     if (dims != npy_shape.size())
     {
-        fprintf(stderr, "expect %d dims, but got: %d, npy file:%s\n", (int)dims, (int)npy_shape.size(), npypath);
+        fprintf(stderr, "expect %d dims, but got: %d\n", (int)dims, (int)npy_shape.size());
         std::exit(EXIT_FAILURE);
     }
 
