@@ -232,7 +232,7 @@ inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npyp
 
     if (dims != npy_shape.size())
     {
-        fprintf(stderr, "expect %d dims, but got: %d, npy file:%s\n", dims, npy_shape.size(), npypath);
+        fprintf(stderr, "expect %d dims, but got: %d, npy file:%s\n", (int)dims, (int)npy_shape.size(), npypath);
         std::exit(EXIT_FAILURE);
     }
 
@@ -256,7 +256,7 @@ inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npyp
     case 4:
         return ncnn::Mat(shape[0] * shape[1] * shape[2] * shape[3], (void*)(d.data.data())).reshape(shape[0], shape[1], shape[2], shape[3]).clone();
     default:
-        fprintf(stderr, "dims:%ld illegal!", dims);
+        fprintf(stderr, "dims:%d illegal!", (int)dims);
         return ncnn::Mat();
     }
 }
