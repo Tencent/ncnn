@@ -125,7 +125,7 @@ static void softmax_fp16s(__fp16* _ptr, int elemcount, int elempack)
 
     _sum8 = vdivq_f16(vdupq_n_f16(1.f), _sum8);
     _sum4 = vdiv_f16(vdup_n_f16(1.f), _sum4);
-    sum = (__fp16)(1.f / sum);
+    sum = (__fp16)1.f / sum;
 
     // div sum
     {
@@ -331,8 +331,8 @@ static void softmax_fp16s_unroll2(__fp16* _ptr, int elemcount, int /*elempack*/,
         }
     }
 
-    sum0 = (__fp16)(1.f / sum0);
-    sum1 = (__fp16)(1.f / sum1);
+    sum0 = (__fp16)1.f / sum0;
+    sum1 = (__fp16)1.f / sum1;
 
     // div sum
     {
@@ -377,7 +377,7 @@ static void softmax_fp16s(__fp16* _ptr, int elemcount, int /*elempack*/, int str
         }
     }
 
-    sum = (__fp16)(1.f / sum);
+    sum = (__fp16)1.f / sum;
 
     // div sum
     {
