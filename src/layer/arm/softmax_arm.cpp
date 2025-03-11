@@ -172,12 +172,8 @@ static void softmax_unroll4(float* _ptr, int elemcount, int elempack, int stride
     {
         // reduce max 4 to 1
         // broadcast 1 to 4
-        _max = vmaxq_f32(_max, vextq_f32(_max, _max, 1));
+        _max = vmaxq_f32(_max, vrev64q_f32(_max));
         _max = vmaxq_f32(_max, vextq_f32(_max, _max, 2));
-    }
-    if (elempack == 1)
-    {
-        // fine
     }
 
     // reduce exp(x - max)
@@ -200,12 +196,8 @@ static void softmax_unroll4(float* _ptr, int elemcount, int elempack, int stride
     {
         // reduce sum 4 to 1
         // broadcast 1 to 4
-        _sum = vaddq_f32(_sum, vextq_f32(_sum, _sum, 1));
+        _sum = vaddq_f32(_sum, vrev64q_f32(_sum));
         _sum = vaddq_f32(_sum, vextq_f32(_sum, _sum, 2));
-    }
-    if (elempack == 1)
-    {
-        // fine
     }
 
     _sum = div_ps(vdupq_n_f32(1.f), _sum);
@@ -652,12 +644,8 @@ static void softmax_bf16s_unroll4(unsigned short* _ptr, int elemcount, int elemp
     {
         // reduce max 4 to 1
         // broadcast 1 to 4
-        _max = vmaxq_f32(_max, vextq_f32(_max, _max, 1));
+        _max = vmaxq_f32(_max, vrev64q_f32(_max));
         _max = vmaxq_f32(_max, vextq_f32(_max, _max, 2));
-    }
-    if (elempack == 1)
-    {
-        // fine
     }
 
     // reduce exp(x - max)
@@ -680,12 +668,8 @@ static void softmax_bf16s_unroll4(unsigned short* _ptr, int elemcount, int elemp
     {
         // reduce sum 4 to 1
         // broadcast 1 to 4
-        _sum = vaddq_f32(_sum, vextq_f32(_sum, _sum, 1));
+        _sum = vaddq_f32(_sum, vrev64q_f32(_sum));
         _sum = vaddq_f32(_sum, vextq_f32(_sum, _sum, 2));
-    }
-    if (elempack == 1)
-    {
-        // fine
     }
 
     _sum = div_ps(vdupq_n_f32(1.f), _sum);

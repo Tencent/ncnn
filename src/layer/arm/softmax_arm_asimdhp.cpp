@@ -173,7 +173,7 @@ static void softmax_fp16s_unroll8(__fp16* _ptr, int elemcount, int elempack, int
         // reduce max 8 to 1
         // broadcast 1 to 8
         _max = vmaxq_f16(_max, vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_max))));
-        _max = vmaxq_f16(_max, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_u16(_max))));
+        _max = vmaxq_f16(_max, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_max))));
         _max = vmaxq_f16(_max, vextq_f16(_max, _max, 4));
     }
     if (elempack == 4)
@@ -181,11 +181,7 @@ static void softmax_fp16s_unroll8(__fp16* _ptr, int elemcount, int elempack, int
         // reduce max 4,4 to 1,1
         // broadcast 1,1 to 4,4
         _max = vmaxq_f16(_max, vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_max))));
-        _max = vmaxq_f16(_max, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_u16(_max))));
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _max = vmaxq_f16(_max, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_max))));
     }
 
     // reduce exp(x - max)
@@ -209,7 +205,7 @@ static void softmax_fp16s_unroll8(__fp16* _ptr, int elemcount, int elempack, int
         // reduce sum 8 to 1
         // broadcast 1 to 8
         _sum = vaddq_f16(_sum, vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_sum))));
-        _sum = vaddq_f16(_sum, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_u16(_sum))));
+        _sum = vaddq_f16(_sum, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_sum))));
         _sum = vaddq_f16(_sum, vextq_f16(_sum, _sum, 4));
     }
     if (elempack == 4)
@@ -217,11 +213,7 @@ static void softmax_fp16s_unroll8(__fp16* _ptr, int elemcount, int elempack, int
         // reduce sum 4,4 to 1,1
         // broadcast 1,1 to 4,4
         _sum = vaddq_f16(_sum, vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_sum))));
-        _sum = vaddq_f16(_sum, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_u16(_sum))));
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _sum = vaddq_f16(_sum, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_sum))));
     }
 
     _sum = vdivq_f16(vdupq_n_f16(1.f), _sum);
@@ -260,11 +252,7 @@ static void softmax_fp16s_unroll4(__fp16* _ptr, int elemcount, int elempack, int
         // reduce max 4 to 1
         // broadcast 1 to 4
         _max = vmax_f16(_max, vreinterpret_f16_u16(vrev32_u16(vreinterpret_u16_f16(_max))));
-        _max = vmax_f16(_max, vreinterpret_f16_u32(vrev64_u32(vreinterpret_u32_u16(_max))));
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _max = vmax_f16(_max, vreinterpret_f16_u32(vrev64_u32(vreinterpret_u32_f16(_max))));
     }
 
     // reduce exp(x - max)
@@ -288,11 +276,7 @@ static void softmax_fp16s_unroll4(__fp16* _ptr, int elemcount, int elempack, int
         // reduce sum 4 to 1
         // broadcast 1 to 4
         _sum = vadd_f16(_sum, vreinterpret_f16_u16(vrev32_u16(vreinterpret_u16_f16(_sum))));
-        _sum = vadd_f16(_sum, vreinterpret_f16_u32(vrev64_u32(vreinterpret_u32_u16(_sum))));
-    }
-    if (elempack == 1)
-    {
-        // fine
+        _sum = vadd_f16(_sum, vreinterpret_f16_u32(vrev64_u32(vreinterpret_u32_f16(_sum))));
     }
 
     _sum = vdiv_f16(vdup_n_f16(1.f), _sum);
