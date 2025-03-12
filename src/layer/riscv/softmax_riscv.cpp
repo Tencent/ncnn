@@ -145,7 +145,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
             ptr += vl;
         }
     }
-#else // __riscv_vector
+#else  // __riscv_vector
     float max = -FLT_MAX;
     {
         const float* ptr = _ptr;
@@ -453,7 +453,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             ptr += vl;
             n -= vl;
         }
-#else // __riscv_vector
+#else  // __riscv_vector
         int i = 0;
         for (; i + 1 < size; i += 2)
         {
@@ -499,7 +499,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             ptr += vl;
             n -= vl;
         }
-#else // __riscv_vector
+#else  // __riscv_vector
         int i = 0;
         for (; i + 1 < size; i += 2)
         {
@@ -551,7 +551,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 ptr += vl;
                 n -= vl;
             }
-#else // __riscv_vector
+#else  // __riscv_vector
             int i = 0;
             for (; i + 1 < size; i += 2)
             {
@@ -589,7 +589,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     ptr += vl;
                     n -= vl;
                 }
-#else // __riscv_vector
+#else  // __riscv_vector
                 int j = 0;
                 for (; j + 1 < size; j += 2)
                 {
