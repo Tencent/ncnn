@@ -417,7 +417,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #if __riscv_vector
         const int packn = csrr_vlenb() / 4;
         const int sizen = (size / opt.num_threads + (packn - 1)) / packn * packn;
-        int nn_size = size / sizen;
+        int nn_size = std::max(size / sizen, 1);
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
@@ -476,7 +476,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #if __riscv_vector
         const int packn = csrr_vlenb() / 4;
         const int sizen = (size / opt.num_threads + (packn - 1)) / packn * packn;
-        int nn_size = size / sizen;
+        int nn_size = std::max(size / sizen, 1);
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
