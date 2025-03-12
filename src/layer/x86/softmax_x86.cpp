@@ -685,38 +685,61 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         const int size = w * elempack;
 
-        int i = 0;
+        int nn_size = 0;
+        int remain_size_start = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        for (; i + 15 < size; i += 16)
+        nn_size = (size - remain_size_start) / 16;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            const int i = remain_size_start + ii * 16;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll16(ptr, h, elempack, size);
         }
+        remain_size_start += nn_size * 16;
+        nn_size = (size - remain_size_start) / 8;
+#else  // __AVX512F__
+        nn_size = (size - remain_size_start) / 8;
+        #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX512F__
-        for (; i + 7 < size; i += 8)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            int i = remain_size_start + ii * 8;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll8(ptr, h, elempack, size);
         }
+        remain_size_start += nn_size * 8;
+        nn_size = (size - remain_size_start) / 4;
+#else  // __AVX__
+        nn_size = (size - remain_size_start) / 4;
+        #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX__
-        for (; i + 3 < size; i += 4)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            int i = remain_size_start + ii * 4;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll4(ptr, h, elempack, size);
         }
+        remain_size_start += nn_size * 4;
+        nn_size = (size - remain_size_start) / 2;
+#else  // __SSE2__
+        nn_size = (size - remain_size_start) / 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __SSE2__
-        for (; i + 1 < size; i += 2)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            int i = remain_size_start + ii * 2;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll2(ptr, h, elempack, size);
         }
-        for (; i < size; i++)
+        remain_size_start += nn_size * 2;
+        for (int i = remain_size_start; i < size; i++)
         {
             float* ptr = (float*)bottom_top_blob + i;
 
@@ -740,38 +763,61 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         const int size = w * h * d * elempack;
         const int stride = bottom_top_blob.cstep * elempack;
 
-        int i = 0;
+        int nn_size = 0;
+        int remain_size_start = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        for (; i + 15 < size; i += 16)
+        nn_size = (size - remain_size_start) / 16;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            const int i = remain_size_start + ii * 16;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll16(ptr, channels, elempack, stride);
         }
+        remain_size_start += nn_size * 16;
+        nn_size = (size - remain_size_start) / 8;
+#else  // __AVX512F__
+        nn_size = (size - remain_size_start) / 8;
+        #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX512F__
-        for (; i + 7 < size; i += 8)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            int i = remain_size_start + ii * 8;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll8(ptr, channels, elempack, stride);
         }
+        remain_size_start += nn_size * 8;
+        nn_size = (size - remain_size_start) / 4;
+#else  // __AVX__
+        nn_size = (size - remain_size_start) / 4;
+        #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX__
-        for (; i + 3 < size; i += 4)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            int i = remain_size_start + ii * 4;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll4(ptr, channels, elempack, stride);
         }
+        remain_size_start += nn_size * 4;
+        nn_size = (size - remain_size_start) / 2;
+#else  // __SSE2__
+        nn_size = (size - remain_size_start) / 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __SSE2__
-        for (; i + 1 < size; i += 2)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            int i = remain_size_start + ii * 2;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll2(ptr, channels, elempack, stride);
         }
-        for (; i < size; i++)
+        remain_size_start += nn_size * 2;
+        for (int i = remain_size_start; i < size; i++)
         {
             float* ptr = (float*)bottom_top_blob + i;
 

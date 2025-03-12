@@ -414,13 +414,16 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
     {
         const int size = w * elempack;
 
-        int i = 0;
-        for (; i + 7 < size; i += 8)
+        int nn_size = size / 8;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            const int i = ii * 8;
             __fp16* ptr = (__fp16*)bottom_top_blob + i;
 
             softmax_fp16s_unroll8(ptr, h, elempack, size);
         }
+        int i = nn_size * 8;
         for (; i + 3 < size; i += 4)
         {
             __fp16* ptr = (__fp16*)bottom_top_blob + i;
@@ -457,13 +460,16 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         const int size = w * h * d * elempack;
         const int stride = bottom_top_blob.cstep * elempack;
 
-        int i = 0;
-        for (; i + 7 < size; i += 8)
+        int nn_size = size / 8;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            const int i = ii * 8;
             __fp16* ptr = (__fp16*)bottom_top_blob + i;
 
             softmax_fp16s_unroll8(ptr, channels, elempack, stride);
         }
+        int i = nn_size * 8;
         for (; i + 3 < size; i += 4)
         {
             __fp16* ptr = (__fp16*)bottom_top_blob + i;

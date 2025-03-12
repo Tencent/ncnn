@@ -441,26 +441,39 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         const int size = w * elempack;
 
 #if __riscv_vector
-        float* ptr = (float*)bottom_top_blob;
-
-        int n = size;
-        while (n > 0)
+        const int packn = csrr_vlenb() / 4;
+        const int sizen = (size / opt.num_threads + (packn - 1)) / packn * packn;
+        int nn_size = size / sizen;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
+            const int i = ii * sizen;
+            const int size1 = std::min(sizen, size - i);
 
-            softmax_unrollm8(ptr, h, elempack, size, vl);
+            float* ptr = (float*)bottom_top_blob + i;
 
-            ptr += vl;
-            n -= vl;
+            int n = size1;
+            while (n > 0)
+            {
+                size_t vl = __riscv_vsetvl_e32m8(n);
+
+                softmax_unrollm8(ptr, h, elempack, size1, vl);
+
+                ptr += vl;
+                n -= vl;
+            }
         }
 #else  // __riscv_vector
-        int i = 0;
-        for (; i + 1 < size; i += 2)
+        int nn_size = size / 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            const int i = ii * 2;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll2(ptr, h, elempack, size);
         }
+        int i = nn_size * 2;
         for (; i < size; i++)
         {
             float* ptr = (float*)bottom_top_blob + i;
@@ -487,26 +500,39 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         const int stride = bottom_top_blob.cstep * elempack;
 
 #if __riscv_vector
-        float* ptr = (float*)bottom_top_blob;
-
-        int n = size;
-        while (n > 0)
+        const int packn = csrr_vlenb() / 4;
+        const int sizen = (size / opt.num_threads + (packn - 1)) / packn * packn;
+        int nn_size = size / sizen;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
+            const int i = ii * sizen;
+            const int size1 = std::min(sizen, size - i);
 
-            softmax_unrollm8(ptr, channels, elempack, stride, vl);
+            float* ptr = (float*)bottom_top_blob + i;
 
-            ptr += vl;
-            n -= vl;
+            int n = size1;
+            while (n > 0)
+            {
+                size_t vl = __riscv_vsetvl_e32m8(n);
+
+                softmax_unrollm8(ptr, channels, elempack, stride, vl);
+
+                ptr += vl;
+                n -= vl;
+            }
         }
 #else  // __riscv_vector
-        int i = 0;
-        for (; i + 1 < size; i += 2)
+        int nn_size = size / 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
+            const int i = ii * 2;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll2(ptr, channels, elempack, stride);
         }
+        int i = nn_size * 2;
         for (; i < size; i++)
         {
             float* ptr = (float*)bottom_top_blob + i;
