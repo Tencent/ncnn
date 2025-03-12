@@ -363,7 +363,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         remain_size_start += nn_size * 4;
         nn_size = (size - remain_size_start) / 2;
-#else  // __ARM_NEON
+#else // __ARM_NEON
         nn_size = (size - remain_size_start) / 2;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __ARM_NEON
@@ -413,7 +413,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         remain_size_start += nn_size * 4;
         nn_size = (size - remain_size_start) / 2;
-#else  // __ARM_NEON
+#else // __ARM_NEON
         nn_size = (size - remain_size_start) / 2;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __ARM_NEON
@@ -845,7 +845,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         }
         remain_size_start += nn_size * 4;
         nn_size = (size - remain_size_start) / 2;
-#else  // __ARM_NEON
+#else // __ARM_NEON
         nn_size = (size - remain_size_start) / 2;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __ARM_NEON
@@ -895,7 +895,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         }
         remain_size_start += nn_size * 4;
         nn_size = (size - remain_size_start) / 2;
-#else  // __ARM_NEON
+#else // __ARM_NEON
         nn_size = (size - remain_size_start) / 2;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __ARM_NEON

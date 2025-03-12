@@ -701,7 +701,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         remain_size_start += nn_size * 16;
         nn_size = (size - remain_size_start) / 8;
-#else  // __AVX512F__
+#else // __AVX512F__
         nn_size = (size - remain_size_start) / 8;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX512F__
@@ -714,7 +714,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         remain_size_start += nn_size * 8;
         nn_size = (size - remain_size_start) / 4;
-#else  // __AVX__
+#else // __AVX__
         nn_size = (size - remain_size_start) / 4;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX__
@@ -727,7 +727,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         remain_size_start += nn_size * 4;
         nn_size = (size - remain_size_start) / 2;
-#else  // __SSE2__
+#else // __SSE2__
         nn_size = (size - remain_size_start) / 2;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __SSE2__
@@ -779,7 +779,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         remain_size_start += nn_size * 16;
         nn_size = (size - remain_size_start) / 8;
-#else  // __AVX512F__
+#else // __AVX512F__
         nn_size = (size - remain_size_start) / 8;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX512F__
@@ -792,7 +792,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         remain_size_start += nn_size * 8;
         nn_size = (size - remain_size_start) / 4;
-#else  // __AVX__
+#else // __AVX__
         nn_size = (size - remain_size_start) / 4;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX__
@@ -805,7 +805,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         remain_size_start += nn_size * 4;
         nn_size = (size - remain_size_start) / 2;
-#else  // __SSE2__
+#else // __SSE2__
         nn_size = (size - remain_size_start) / 2;
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __SSE2__

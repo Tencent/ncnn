@@ -463,7 +463,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 n -= vl;
             }
         }
-#else  // __riscv_vector
+#else // __riscv_vector
         int nn_size = size / 2;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
@@ -522,7 +522,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 n -= vl;
             }
         }
-#else  // __riscv_vector
+#else // __riscv_vector
         int nn_size = size / 2;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
