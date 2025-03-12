@@ -779,6 +779,53 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
     }
 
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            for (int i = 0; i < d; i++)
+            {
+                float* ptr = bottom_top_blob.channel(q).depth(i);
+
+                const int size = w * elempack;
+
+                int j = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                for (; j + 15 < size; j += 16)
+                {
+                    softmax_unroll16(ptr, h, 1, size);
+                    ptr += 16;
+                }
+#endif // __AVX512F__
+                for (; j + 7 < size; j += 8)
+                {
+                    softmax_unroll8(ptr, h, 1, size);
+                    ptr += 8;
+                }
+#endif // __AVX__
+                for (; j + 3 < size; j += 4)
+                {
+                    softmax_unroll4(ptr, h, 1, size);
+                    ptr += 4;
+                }
+#endif // __SSE2__
+                for (; j + 1 < size; j += 2)
+                {
+                    softmax_unroll2(ptr, h, 1, size);
+                    ptr += 2;
+                }
+                for (; j < size; j++)
+                {
+                    softmax(ptr, h, 1, size);
+                    ptr++;
+                }
+            }
+        }
+    }
+
     if (dims == 3 && positive_axis == 2)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -834,53 +881,6 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 softmax(ptr, d, 1, size);
                 ptr++;
-            }
-        }
-    }
-
-    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            for (int i = 0; i < d; i++)
-            {
-                float* ptr = bottom_top_blob.channel(q).depth(i);
-
-                const int size = w * elempack;
-
-                int j = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-                for (; j + 15 < size; j += 16)
-                {
-                    softmax_unroll16(ptr, h, 1, size);
-                    ptr += 16;
-                }
-#endif // __AVX512F__
-                for (; j + 7 < size; j += 8)
-                {
-                    softmax_unroll8(ptr, h, 1, size);
-                    ptr += 8;
-                }
-#endif // __AVX__
-                for (; j + 3 < size; j += 4)
-                {
-                    softmax_unroll4(ptr, h, 1, size);
-                    ptr += 4;
-                }
-#endif // __SSE2__
-                for (; j + 1 < size; j += 2)
-                {
-                    softmax_unroll2(ptr, h, 1, size);
-                    ptr += 2;
-                }
-                for (; j < size; j++)
-                {
-                    softmax(ptr, h, 1, size);
-                    ptr++;
-                }
             }
         }
     }

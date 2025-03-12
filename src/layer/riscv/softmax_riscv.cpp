@@ -516,6 +516,45 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #endif // __riscv_vector
     }
 
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            for (int i = 0; i < d; i++)
+            {
+                float* ptr = bottom_top_blob.channel(q).depth(i);
+
+                const int size = w * elempack;
+
+#if __riscv_vector
+                int n = size;
+                while (n > 0)
+                {
+                    size_t vl = __riscv_vsetvl_e32m8(n);
+
+                    softmax_unrollm8(ptr, h, 1, size, vl);
+
+                    ptr += vl;
+                    n -= vl;
+                }
+#else  // __riscv_vector
+                int j = 0;
+                for (; j + 1 < size; j += 2)
+                {
+                    softmax_unroll2(ptr, h, 1, size);
+                    ptr += 2;
+                }
+                for (; j < size; j++)
+                {
+                    softmax(ptr, h, 1, size);
+                    ptr++;
+                }
+#endif // __riscv_vector
+            }
+        }
+    }
+
     if (dims == 3 && positive_axis == 2)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -564,45 +603,6 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 ptr++;
             }
 #endif // __riscv_vector
-        }
-    }
-
-    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            for (int i = 0; i < d; i++)
-            {
-                float* ptr = bottom_top_blob.channel(q).depth(i);
-
-                const int size = w * elempack;
-
-#if __riscv_vector
-                int n = size;
-                while (n > 0)
-                {
-                    size_t vl = __riscv_vsetvl_e32m8(n);
-
-                    softmax_unrollm8(ptr, h, 1, size, vl);
-
-                    ptr += vl;
-                    n -= vl;
-                }
-#else  // __riscv_vector
-                int j = 0;
-                for (; j + 1 < size; j += 2)
-                {
-                    softmax_unroll2(ptr, h, 1, size);
-                    ptr += 2;
-                }
-                for (; j < size; j++)
-                {
-                    softmax(ptr, h, 1, size);
-                    ptr++;
-                }
-#endif // __riscv_vector
-            }
         }
     }
 

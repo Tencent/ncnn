@@ -411,6 +411,39 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
     }
 
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            for (int i = 0; i < d; i++)
+            {
+                float* ptr = bottom_top_blob.channel(q).depth(i);
+
+                const int size = w * elempack;
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    softmax_unroll4(ptr, h, 1, size);
+                    ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j + 1 < size; j += 2)
+                {
+                    softmax_unroll2(ptr, h, 1, size);
+                    ptr += 2;
+                }
+                for (; j < size; j++)
+                {
+                    softmax(ptr, h, 1, size);
+                    ptr++;
+                }
+            }
+        }
+    }
+
     if (dims == 3 && positive_axis == 2)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -452,39 +485,6 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 softmax(ptr, d, 1, size);
                 ptr++;
-            }
-        }
-    }
-
-    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            for (int i = 0; i < d; i++)
-            {
-                float* ptr = bottom_top_blob.channel(q).depth(i);
-
-                const int size = w * elempack;
-
-                int j = 0;
-#if __ARM_NEON
-                for (; j + 3 < size; j += 4)
-                {
-                    softmax_unroll4(ptr, h, 1, size);
-                    ptr += 4;
-                }
-#endif // __ARM_NEON
-                for (; j + 1 < size; j += 2)
-                {
-                    softmax_unroll2(ptr, h, 1, size);
-                    ptr += 2;
-                }
-                for (; j < size; j++)
-                {
-                    softmax(ptr, h, 1, size);
-                    ptr++;
-                }
             }
         }
     }
@@ -871,6 +871,39 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         }
     }
 
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            for (int i = 0; i < d; i++)
+            {
+                unsigned short* ptr = bottom_top_blob.channel(q).depth(i);
+
+                const int size = w * elempack;
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    softmax_bf16s_unroll4(ptr, h, 1, size);
+                    ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j + 1 < size; j += 2)
+                {
+                    softmax_bf16s_unroll2(ptr, h, 1, size);
+                    ptr += 2;
+                }
+                for (; j < size; j++)
+                {
+                    softmax_bf16s(ptr, h, 1, size);
+                    ptr++;
+                }
+            }
+        }
+    }
+
     if (dims == 3 && positive_axis == 2)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -912,39 +945,6 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             {
                 softmax_bf16s(ptr, d, 1, size);
                 ptr++;
-            }
-        }
-    }
-
-    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            for (int i = 0; i < d; i++)
-            {
-                unsigned short* ptr = bottom_top_blob.channel(q).depth(i);
-
-                const int size = w * elempack;
-
-                int j = 0;
-#if __ARM_NEON
-                for (; j + 3 < size; j += 4)
-                {
-                    softmax_bf16s_unroll4(ptr, h, 1, size);
-                    ptr += 4;
-                }
-#endif // __ARM_NEON
-                for (; j + 1 < size; j += 2)
-                {
-                    softmax_bf16s_unroll2(ptr, h, 1, size);
-                    ptr += 2;
-                }
-                for (; j < size; j++)
-                {
-                    softmax_bf16s(ptr, h, 1, size);
-                    ptr++;
-                }
             }
         }
     }
