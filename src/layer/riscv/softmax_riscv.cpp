@@ -60,15 +60,9 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         // reduce max n,n,n,n,n,n,n,n to n
         // broadcast n to n,n,n,n,n,n,n,n
 
-        vfloat32m4_t _max0 = __riscv_vget_v_f32m8_f32m4(_max, 0);
-        vfloat32m4_t _max1 = __riscv_vget_v_f32m8_f32m4(_max, 1);
-        _max0 = __riscv_vfmax_vv_f32m4(_max0, _max1, __riscv_vsetvlmax_e32m4());
-        vfloat32m2_t _max2 = __riscv_vget_v_f32m4_f32m2(_max0, 0);
-        vfloat32m2_t _max3 = __riscv_vget_v_f32m4_f32m2(_max0, 1);
-        _max2 = __riscv_vfmax_vv_f32m2(_max2, _max3, __riscv_vsetvlmax_e32m2());
-        vfloat32m1_t _max4 = __riscv_vget_v_f32m2_f32m1(_max2, 0);
-        vfloat32m1_t _max5 = __riscv_vget_v_f32m2_f32m1(_max2, 1);
-        _max4 = __riscv_vfmax_vv_f32m1(_max4, _max5, __riscv_vsetvlmax_e32m1());
+        vfloat32m4_t _max0 = __riscv_vfmax_vv_f32m4(__riscv_vget_v_f32m8_f32m4(_max, 0), __riscv_vget_v_f32m8_f32m4(_max, 1), __riscv_vsetvlmax_e32m4());
+        vfloat32m2_t _max2 = __riscv_vfmax_vv_f32m2(__riscv_vget_v_f32m4_f32m2(_max0, 0), __riscv_vget_v_f32m4_f32m2(_max0, 1), __riscv_vsetvlmax_e32m2());
+        vfloat32m1_t _max4 = __riscv_vfmax_vv_f32m1(__riscv_vget_v_f32m2_f32m1(_max2, 0), __riscv_vget_v_f32m2_f32m1(_max2, 1), __riscv_vsetvlmax_e32m1());
         _max = __riscv_vcreate_v_f32m1_f32m8(_max4, _max4, _max4, _max4, _max4, _max4, _max4, _max4);
     }
     if (elempack == 1)
@@ -106,15 +100,9 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         // reduce sum n,n,n,n,n,n,n,n to n
         // broadcast n to n,n,n,n,n,n,n,n
 
-        vfloat32m4_t _sum0 = __riscv_vget_v_f32m8_f32m4(_sum, 0);
-        vfloat32m4_t _sum1 = __riscv_vget_v_f32m8_f32m4(_sum, 1);
-        _sum0 = __riscv_vfadd_vv_f32m4(_sum0, _sum1, __riscv_vsetvlmax_e32m4());
-        vfloat32m2_t _sum2 = __riscv_vget_v_f32m4_f32m2(_sum0, 0);
-        vfloat32m2_t _sum3 = __riscv_vget_v_f32m4_f32m2(_sum0, 1);
-        _sum2 = __riscv_vfadd_vv_f32m2(_sum2, _sum3, __riscv_vsetvlmax_e32m2());
-        vfloat32m1_t _sum4 = __riscv_vget_v_f32m2_f32m1(_sum2, 0);
-        vfloat32m1_t _sum5 = __riscv_vget_v_f32m2_f32m1(_sum2, 1);
-        _sum4 = __riscv_vfadd_vv_f32m1(_sum4, _sum5, __riscv_vsetvlmax_e32m1());
+        vfloat32m4_t _sum0 = __riscv_vfadd_vv_f32m4(__riscv_vget_v_f32m8_f32m4(_sum, 0), __riscv_vget_v_f32m8_f32m4(_sum, 1), __riscv_vsetvlmax_e32m4());
+        vfloat32m2_t _sum2 = __riscv_vfadd_vv_f32m2(__riscv_vget_v_f32m4_f32m2(_sum0, 0), __riscv_vget_v_f32m4_f32m2(_sum0, 1), __riscv_vsetvlmax_e32m2());
+        vfloat32m1_t _sum4 = __riscv_vfadd_vv_f32m1(__riscv_vget_v_f32m2_f32m1(_sum2, 0), __riscv_vget_v_f32m2_f32m1(_sum2, 1), __riscv_vsetvlmax_e32m1());
         _sum = __riscv_vcreate_v_f32m1_f32m8(_sum4, _sum4, _sum4, _sum4, _sum4, _sum4, _sum4, _sum4);
     }
     if (elempack == 1)
@@ -236,14 +224,7 @@ static void softmax_unrollm8(float* _ptr, int elemcount, int elempack, int strid
         _max5 = __riscv_vrgather_vx_f32m1(_max5, 0, vl5);
         _max6 = __riscv_vrgather_vx_f32m1(_max6, 0, vl6);
         _max7 = __riscv_vrgather_vx_f32m1(_max7, 0, vl7);
-        _max = __riscv_vset_v_f32m1_f32m8(_max, 0, _max0);
-        _max = __riscv_vset_v_f32m1_f32m8(_max, 1, _max1);
-        _max = __riscv_vset_v_f32m1_f32m8(_max, 2, _max2);
-        _max = __riscv_vset_v_f32m1_f32m8(_max, 3, _max3);
-        _max = __riscv_vset_v_f32m1_f32m8(_max, 4, _max4);
-        _max = __riscv_vset_v_f32m1_f32m8(_max, 5, _max5);
-        _max = __riscv_vset_v_f32m1_f32m8(_max, 6, _max6);
-        _max = __riscv_vset_v_f32m1_f32m8(_max, 7, _max7);
+        _max = __riscv_vcreate_v_f32m1_f32m8(_max0, _max1, _max2, _max3, _max4, _max5, _max6, _max7);
     }
 
     // reduce exp(x - max)
@@ -294,14 +275,7 @@ static void softmax_unrollm8(float* _ptr, int elemcount, int elempack, int strid
         _sum5 = __riscv_vrgather_vx_f32m1(_sum5, 0, vl5);
         _sum6 = __riscv_vrgather_vx_f32m1(_sum6, 0, vl6);
         _sum7 = __riscv_vrgather_vx_f32m1(_sum7, 0, vl7);
-        _sum = __riscv_vset_v_f32m1_f32m8(_sum, 0, _sum0);
-        _sum = __riscv_vset_v_f32m1_f32m8(_sum, 1, _sum1);
-        _sum = __riscv_vset_v_f32m1_f32m8(_sum, 2, _sum2);
-        _sum = __riscv_vset_v_f32m1_f32m8(_sum, 3, _sum3);
-        _sum = __riscv_vset_v_f32m1_f32m8(_sum, 4, _sum4);
-        _sum = __riscv_vset_v_f32m1_f32m8(_sum, 5, _sum5);
-        _sum = __riscv_vset_v_f32m1_f32m8(_sum, 6, _sum6);
-        _sum = __riscv_vset_v_f32m1_f32m8(_sum, 7, _sum7);
+        _sum = __riscv_vcreate_v_f32m1_f32m8(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
     }
 
     _sum = __riscv_vfrdiv_vf_f32m8(_sum, 1.f, vl);
