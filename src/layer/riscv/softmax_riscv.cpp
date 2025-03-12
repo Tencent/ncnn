@@ -457,7 +457,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 size_t vl = __riscv_vsetvl_e32m8(n);
 
-                softmax_unrollm8(ptr, h, elempack, size1, vl);
+                softmax_unrollm8(ptr, h, elempack, size, vl);
 
                 ptr += vl;
                 n -= vl;
