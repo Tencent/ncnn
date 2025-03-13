@@ -49,7 +49,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         {
             size_t vl = __riscv_vsetvl_e32m8(n);
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-            _max = __riscv_vfmax_vv_f32m8(_max, _p, vl);
+            _max = __riscv_vfmax_vv_f32m8_tu(_max, _max, _p, vl);
             ptr += vl;
             n -= vl;
         }
