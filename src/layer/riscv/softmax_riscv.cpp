@@ -30,6 +30,20 @@ Softmax_riscv::Softmax_riscv()
 #endif // __riscv_vector
 }
 
+#if __riscv_vector
+#if __riscv_xtheadvector
+// FIXME inline causes illegal instruction :(
+__attribute__((noinline))
+#endif // __riscv_xtheadvector
+static vfloat32m8_t reset_tails(vfloat32m8_t x, size_t vl, float v)
+{
+    const size_t vlm8 = __riscv_vsetvlmax_e32m8();
+    vbool4_t _vl_mask = __riscv_vmsgeu_vx_u32m8_b4(__riscv_vid_v_u32m8(vlm8), vl, vlm8);
+    x = __riscv_vfmerge_vfm_f32m8(x, v, _vl_mask, vlm8);
+    return x;
+}
+#endif // __riscv_vector
+
 static void softmax(float* _ptr, int elemcount, int elempack)
 {
     const int size = elemcount * elempack;
@@ -44,14 +58,27 @@ static void softmax(float* _ptr, int elemcount, int elempack)
     {
         const float* ptr = _ptr;
 
-        int n = size;
+        int n = size / __riscv_vsetvlmax_e32m8() * __riscv_vsetvlmax_e32m8();
+        const size_t vl = __riscv_vsetvlmax_e32m8();
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-            _max = __riscv_vfmax_vv_f32m8_tu(_max, _max, _p, vl);
+            _max = __riscv_vfmax_vv_f32m8(_max, _p, vl);
             ptr += vl;
             n -= vl;
+        }
+        int remain = size % __riscv_vsetvlmax_e32m8();
+        if (remain > 0)
+        {
+            size_t vlr = __riscv_vsetvl_e32m8(remain);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vlr);
+#if __riscv_xtheadvector
+            // xtheadvector does not support tail undisturbed policy
+            _p = reset_tails(_p, vlr, -FLT_MAX);
+            _max = __riscv_vfmax_vv_f32m8(_max, _p, vl);
+#else // __riscv_xtheadvector
+            _max = __riscv_vfmax_vv_f32m8_tu(_max, _max, _p, vlr);
+#endif // __riscv_xtheadvector
         }
     }
 
@@ -81,17 +108,33 @@ static void softmax(float* _ptr, int elemcount, int elempack)
     {
         float* ptr = _ptr;
 
-        int n = size;
+        int n = size / __riscv_vsetvlmax_e32m8() * __riscv_vsetvlmax_e32m8();
+        const size_t vl = __riscv_vsetvlmax_e32m8();
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
             _p = __riscv_vfsub_vv_f32m8(_p, _max, vl);
             _p = exp_ps(_p, vl);
             __riscv_vse32_v_f32m8(ptr, _p, vl);
-            _sum = __riscv_vfadd_vv_f32m8_tu(_sum, _sum, _p, vl);
+            _sum = __riscv_vfadd_vv_f32m8(_sum, _p, vl);
             ptr += vl;
             n -= vl;
+        }
+        int remain = size % __riscv_vsetvlmax_e32m8();
+        if (remain > 0)
+        {
+            size_t vlr = __riscv_vsetvl_e32m8(remain);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vlr);
+            _p = __riscv_vfsub_vv_f32m8(_p, _max, vlr);
+            _p = exp_ps(_p, vlr);
+            __riscv_vse32_v_f32m8(ptr, _p, vlr);
+#if __riscv_xtheadvector
+            // xtheadvector does not support tail undisturbed policy
+            _p = reset_tails(_p, vlr, 0.f);
+            _sum = __riscv_vfadd_vv_f32m8(_sum, _p, vl);
+#else // __riscv_xtheadvector
+            _sum = __riscv_vfadd_vv_f32m8_tu(_sum, _sum, _p, vlr);
+#endif // __riscv_xtheadvector
         }
     }
 
@@ -197,33 +240,27 @@ static void softmax_unrollm8(float* _ptr, int elemcount, int elempack, int strid
         // reduce max n,n,n,n,n,n,n,n to 1,1,1,1,1,1,1,1
         // broadcast 1,1,1,1,1,1,1,1 to n,n,n,n,n,n,n,n
 
+        _max = reset_tails(_max, vl, -FLT_MAX);
+
         // but there is no __riscv_vfredmax_vs_f32m8_f32m8  :(
         const size_t vlm1 = __riscv_vsetvlmax_e32m1();
-        const size_t vl0 = vl < vlm1 * 1 ? vl - vlm1 * 0 : vlm1;
-        const size_t vl1 = vl < vlm1 * 2 ? vl - vlm1 * 1 : vlm1;
-        const size_t vl2 = vl < vlm1 * 3 ? vl - vlm1 * 2 : vlm1;
-        const size_t vl3 = vl < vlm1 * 4 ? vl - vlm1 * 3 : vlm1;
-        const size_t vl4 = vl < vlm1 * 5 ? vl - vlm1 * 4 : vlm1;
-        const size_t vl5 = vl < vlm1 * 6 ? vl - vlm1 * 5 : vlm1;
-        const size_t vl6 = vl < vlm1 * 7 ? vl - vlm1 * 6 : vlm1;
-        const size_t vl7 = vl < vlm1 * 8 ? vl - vlm1 * 7 : vlm1;
         vfloat32m1_t _negmax = __riscv_vfmv_s_f_f32m1(-FLT_MAX, vlm1);
-        vfloat32m1_t _max0 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 0), _negmax, vl0);
-        vfloat32m1_t _max1 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 1), _negmax, vl1);
-        vfloat32m1_t _max2 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 2), _negmax, vl2);
-        vfloat32m1_t _max3 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 3), _negmax, vl3);
-        vfloat32m1_t _max4 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 4), _negmax, vl4);
-        vfloat32m1_t _max5 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 5), _negmax, vl5);
-        vfloat32m1_t _max6 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 6), _negmax, vl6);
-        vfloat32m1_t _max7 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 7), _negmax, vl7);
-        _max0 = __riscv_vrgather_vx_f32m1(_max0, 0, vl0);
-        _max1 = __riscv_vrgather_vx_f32m1(_max1, 0, vl1);
-        _max2 = __riscv_vrgather_vx_f32m1(_max2, 0, vl2);
-        _max3 = __riscv_vrgather_vx_f32m1(_max3, 0, vl3);
-        _max4 = __riscv_vrgather_vx_f32m1(_max4, 0, vl4);
-        _max5 = __riscv_vrgather_vx_f32m1(_max5, 0, vl5);
-        _max6 = __riscv_vrgather_vx_f32m1(_max6, 0, vl6);
-        _max7 = __riscv_vrgather_vx_f32m1(_max7, 0, vl7);
+        vfloat32m1_t _max0 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 0), _negmax, vlm1);
+        vfloat32m1_t _max1 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 1), _negmax, vlm1);
+        vfloat32m1_t _max2 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 2), _negmax, vlm1);
+        vfloat32m1_t _max3 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 3), _negmax, vlm1);
+        vfloat32m1_t _max4 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 4), _negmax, vlm1);
+        vfloat32m1_t _max5 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 5), _negmax, vlm1);
+        vfloat32m1_t _max6 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 6), _negmax, vlm1);
+        vfloat32m1_t _max7 = __riscv_vfredmax_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_max, 7), _negmax, vlm1);
+        _max0 = __riscv_vrgather_vx_f32m1(_max0, 0, vlm1);
+        _max1 = __riscv_vrgather_vx_f32m1(_max1, 0, vlm1);
+        _max2 = __riscv_vrgather_vx_f32m1(_max2, 0, vlm1);
+        _max3 = __riscv_vrgather_vx_f32m1(_max3, 0, vlm1);
+        _max4 = __riscv_vrgather_vx_f32m1(_max4, 0, vlm1);
+        _max5 = __riscv_vrgather_vx_f32m1(_max5, 0, vlm1);
+        _max6 = __riscv_vrgather_vx_f32m1(_max6, 0, vlm1);
+        _max7 = __riscv_vrgather_vx_f32m1(_max7, 0, vlm1);
         _max = __riscv_vcreate_v_f32m1_f32m8(_max0, _max1, _max2, _max3, _max4, _max5, _max6, _max7);
     }
 
@@ -248,33 +285,27 @@ static void softmax_unrollm8(float* _ptr, int elemcount, int elempack, int strid
         // reduce sum n,n,n,n,n,n,n,n to 1,1,1,1,1,1,1,1
         // broadcast 1,1,1,1,1,1,1,1 to n,n,n,n,n,n,n,n
 
+        _sum = reset_tails(_sum, vl, 0.f);
+
         // but there is no __riscv_vfredusum_vs_f32m8_f32m8  :(
         const size_t vlm1 = __riscv_vsetvlmax_e32m1();
-        const size_t vl0 = vl < vlm1 * 1 ? vl - vlm1 * 0 : vlm1;
-        const size_t vl1 = vl < vlm1 * 2 ? vl - vlm1 * 1 : vlm1;
-        const size_t vl2 = vl < vlm1 * 3 ? vl - vlm1 * 2 : vlm1;
-        const size_t vl3 = vl < vlm1 * 4 ? vl - vlm1 * 3 : vlm1;
-        const size_t vl4 = vl < vlm1 * 5 ? vl - vlm1 * 4 : vlm1;
-        const size_t vl5 = vl < vlm1 * 6 ? vl - vlm1 * 5 : vlm1;
-        const size_t vl6 = vl < vlm1 * 7 ? vl - vlm1 * 6 : vlm1;
-        const size_t vl7 = vl < vlm1 * 8 ? vl - vlm1 * 7 : vlm1;
         vfloat32m1_t _zero = __riscv_vfmv_s_f_f32m1(0.f, vlm1);
-        vfloat32m1_t _sum0 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 0), _zero, vl0);
-        vfloat32m1_t _sum1 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 1), _zero, vl1);
-        vfloat32m1_t _sum2 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 2), _zero, vl2);
-        vfloat32m1_t _sum3 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 3), _zero, vl3);
-        vfloat32m1_t _sum4 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 4), _zero, vl4);
-        vfloat32m1_t _sum5 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 5), _zero, vl5);
-        vfloat32m1_t _sum6 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 6), _zero, vl6);
-        vfloat32m1_t _sum7 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 7), _zero, vl7);
-        _sum0 = __riscv_vrgather_vx_f32m1(_sum0, 0, vl0);
-        _sum1 = __riscv_vrgather_vx_f32m1(_sum1, 0, vl1);
-        _sum2 = __riscv_vrgather_vx_f32m1(_sum2, 0, vl2);
-        _sum3 = __riscv_vrgather_vx_f32m1(_sum3, 0, vl3);
-        _sum4 = __riscv_vrgather_vx_f32m1(_sum4, 0, vl4);
-        _sum5 = __riscv_vrgather_vx_f32m1(_sum5, 0, vl5);
-        _sum6 = __riscv_vrgather_vx_f32m1(_sum6, 0, vl6);
-        _sum7 = __riscv_vrgather_vx_f32m1(_sum7, 0, vl7);
+        vfloat32m1_t _sum0 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 0), _zero, vlm1);
+        vfloat32m1_t _sum1 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 1), _zero, vlm1);
+        vfloat32m1_t _sum2 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 2), _zero, vlm1);
+        vfloat32m1_t _sum3 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 3), _zero, vlm1);
+        vfloat32m1_t _sum4 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 4), _zero, vlm1);
+        vfloat32m1_t _sum5 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 5), _zero, vlm1);
+        vfloat32m1_t _sum6 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 6), _zero, vlm1);
+        vfloat32m1_t _sum7 = __riscv_vfredusum_vs_f32m1_f32m1(__riscv_vget_v_f32m8_f32m1(_sum, 7), _zero, vlm1);
+        _sum0 = __riscv_vrgather_vx_f32m1(_sum0, 0, vlm1);
+        _sum1 = __riscv_vrgather_vx_f32m1(_sum1, 0, vlm1);
+        _sum2 = __riscv_vrgather_vx_f32m1(_sum2, 0, vlm1);
+        _sum3 = __riscv_vrgather_vx_f32m1(_sum3, 0, vlm1);
+        _sum4 = __riscv_vrgather_vx_f32m1(_sum4, 0, vlm1);
+        _sum5 = __riscv_vrgather_vx_f32m1(_sum5, 0, vlm1);
+        _sum6 = __riscv_vrgather_vx_f32m1(_sum6, 0, vlm1);
+        _sum7 = __riscv_vrgather_vx_f32m1(_sum7, 0, vlm1);
         _sum = __riscv_vcreate_v_f32m1_f32m8(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
     }
 
