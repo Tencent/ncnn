@@ -35,7 +35,8 @@ Softmax_riscv::Softmax_riscv()
 // FIXME inline causes illegal instruction :(
 __attribute__((noinline))
 #endif // __riscv_xtheadvector
-static vfloat32m8_t reset_tails(vfloat32m8_t x, size_t vl, float v)
+static vfloat32m8_t
+reset_tails(vfloat32m8_t x, size_t vl, float v)
 {
     const size_t vlm8 = __riscv_vsetvlmax_e32m8();
     vbool4_t _vl_mask = __riscv_vmsgeu_vx_u32m8_b4(__riscv_vid_v_u32m8(vlm8), vl, vlm8);
@@ -76,7 +77,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
             // xtheadvector does not support tail undisturbed policy
             _p = reset_tails(_p, vlr, -FLT_MAX);
             _max = __riscv_vfmax_vv_f32m8(_max, _p, vl);
-#else // __riscv_xtheadvector
+#else  // __riscv_xtheadvector
             _max = __riscv_vfmax_vv_f32m8_tu(_max, _max, _p, vlr);
 #endif // __riscv_xtheadvector
         }
@@ -132,7 +133,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
             // xtheadvector does not support tail undisturbed policy
             _p = reset_tails(_p, vlr, 0.f);
             _sum = __riscv_vfadd_vv_f32m8(_sum, _p, vl);
-#else // __riscv_xtheadvector
+#else  // __riscv_xtheadvector
             _sum = __riscv_vfadd_vv_f32m8_tu(_sum, _sum, _p, vlr);
 #endif // __riscv_xtheadvector
         }
