@@ -732,75 +732,31 @@ static void softmax(float* _ptr, int elemcount, int /*elempack*/, int stride)
 
 #if __SSE2__
 #if __AVX__
-#if __AVX512F__
-#if defined(__x86_64__) || defined(_M_X64)
-template void softmax_avx512<16>(float* _ptr, int elemcount, int elempack, int stride);
-template void softmax_avx512<8>(float* _ptr, int elemcount, int elempack, int stride);
-#endif // defined(__x86_64__) || defined(_M_X64)
-template void softmax_avx512<4>(float* _ptr, int elemcount, int elempack, int stride);
-template void softmax_avx512<2>(float* _ptr, int elemcount, int elempack, int stride);
-template void softmax_avx512<1>(float* _ptr, int elemcount, int elempack, int stride);
-#else // __AVX512F__
-#if defined(__x86_64__) || defined(_M_X64)
-template void softmax_avx<8>(float* _ptr, int elemcount, int elempack, int stride);
-#endif // defined(__x86_64__) || defined(_M_X64)
-template void softmax_avx<4>(float* _ptr, int elemcount, int elempack, int stride);
-template void softmax_avx<2>(float* _ptr, int elemcount, int elempack, int stride);
-#endif // __AVX512F__
-template void softmax_avx<1>(float* _ptr, int elemcount, int elempack, int stride);
-#else // __AVX__
-#if defined(__x86_64__) || defined(_M_X64)
-template void softmax_sse2<8>(float* _ptr, int elemcount, int elempack, int stride);
-#endif // defined(__x86_64__) || defined(_M_X64)
-template void softmax_sse2<4>(float* _ptr, int elemcount, int elempack, int stride);
-template void softmax_sse2<2>(float* _ptr, int elemcount, int elempack, int stride);
-#endif // __AVX__
-template void softmax_sse2<1>(float* _ptr, int elemcount, int elempack, int stride);
-#else  // __SSE2__
-template void softmax<4>(float* _ptr, int elemcount, int elempack, int stride);
-#endif // __SSE2__
-template void softmax<2>(float* _ptr, int elemcount, int elempack, int stride);
-template void softmax<1>(float* _ptr, int elemcount, int elempack, int stride);
-
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
-static void softmax_unroll256(float* _ptr, int elemcount, int elempack, int stride)
-{
-    softmax_avx512<16>(_ptr, elemcount, elempack, stride);
-}
-
 static void softmax_unroll128(float* _ptr, int elemcount, int elempack, int stride)
 {
     softmax_avx512<8>(_ptr, elemcount, elempack, stride);
 }
+
+static void softmax_unroll64(float* _ptr, int elemcount, int elempack, int stride)
+{
+    softmax_avx512<4>(_ptr, elemcount, elempack, stride);
+}
 #endif // __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
 
 #if __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
-static void softmax_unroll64(float* _ptr, int elemcount, int elempack, int stride)
+static void softmax_unroll32(float* _ptr, int elemcount, int elempack, int stride)
 {
 #if __AVX512F__
-    softmax_avx512<4>(_ptr, elemcount, elempack, stride);
+    softmax_avx512<2>(_ptr, elemcount, elempack, stride);
 #else
-    softmax_avx<8>(_ptr, elemcount, elempack, stride);
+    softmax_avx<4>(_ptr, elemcount, elempack, stride);
 #endif
 }
 #endif // __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
 #endif // __AVX__
 
 #if __AVX__ || (defined(__x86_64__) || defined(_M_X64))
-static void softmax_unroll32(float* _ptr, int elemcount, int elempack, int stride)
-{
-#if __AVX512F__
-    softmax_avx512<2>(_ptr, elemcount, elempack, stride);
-#elif __AVX__
-    softmax_avx<4>(_ptr, elemcount, elempack, stride);
-#else
-    softmax_sse2<8>(_ptr, elemcount, elempack, stride);
-#endif
-}
-#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
-
 static void softmax_unroll16(float* _ptr, int elemcount, int elempack, int stride)
 {
 #if __AVX512F__
@@ -811,6 +767,7 @@ static void softmax_unroll16(float* _ptr, int elemcount, int elempack, int strid
     softmax_sse2<4>(_ptr, elemcount, elempack, stride);
 #endif
 }
+#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
 
 static void softmax_unroll8(float* _ptr, int elemcount, int elempack, int stride)
 {
@@ -869,17 +826,8 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
-        nn_size = (size - remain_size_start) / 256;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++)
-        {
-            const int i = remain_size_start + ii * 256;
-            float* ptr = (float*)bottom_top_blob + i;
-
-            softmax_unroll256(ptr, h, elempack, size);
-        }
-        remain_size_start += nn_size * 256;
         nn_size = (size - remain_size_start) / 128;
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             const int i = remain_size_start + ii * 128;
@@ -888,12 +836,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             softmax_unroll128(ptr, h, elempack, size);
         }
         remain_size_start += nn_size * 128;
-#endif // __AVX512F__ && (defined(__x86_64__) || defined(_M_X64)
-#if __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
         nn_size = (size - remain_size_start) / 64;
-#if !(__AVX512F__ && (defined(__x86_64__) || defined(_M_X64)))
-        #pragma omp parallel for num_threads(opt.num_threads)
-#endif
         for (int ii = 0; ii < nn_size; ii++)
         {
             const int i = remain_size_start + ii * 64;
@@ -902,11 +845,10 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             softmax_unroll64(ptr, h, elempack, size);
         }
         remain_size_start += nn_size * 64;
-#endif // __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
-#endif // __AVX__
-#if __AVX__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX512F__ && (defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
         nn_size = (size - remain_size_start) / 32;
-#if !(__AVX512F__ || (__AVX__ && (defined(__x86_64__) || defined(_M_X64))))
+#if !(__AVX512F__ && (defined(__x86_64__) || defined(_M_X64)))
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif
         for (int ii = 0; ii < nn_size; ii++)
@@ -917,9 +859,11 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             softmax_unroll32(ptr, h, elempack, size);
         }
         remain_size_start += nn_size * 32;
-#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX__
+#if __AVX__ || (defined(__x86_64__) || defined(_M_X64))
         nn_size = (size - remain_size_start) / 16;
-#if !(__AVX__ || (__SSE2__ && (defined(__x86_64__) || defined(_M_X64))))
+#if !(__AVX512F__ || (__AVX__ && (defined(__x86_64__) || defined(_M_X64))))
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif
         for (int ii = 0; ii < nn_size; ii++)
@@ -930,10 +874,14 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             softmax_unroll16(ptr, h, elempack, size);
         }
         remain_size_start += nn_size * 16;
+#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
         nn_size = (size - remain_size_start) / 8;
+#if !(__AVX__ || (__SSE2__ && (defined(__x86_64__) || defined(_M_X64))))
+        #pragma omp parallel for num_threads(opt.num_threads)
+#endif
         for (int ii = 0; ii < nn_size; ii++)
         {
-            int i = remain_size_start + ii * 8;
+            const int i = remain_size_start + ii * 8;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll8(ptr, h, elempack, size);
@@ -990,17 +938,8 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
-        nn_size = (size - remain_size_start) / 256;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++)
-        {
-            const int i = remain_size_start + ii * 256;
-            float* ptr = (float*)bottom_top_blob + i;
-
-            softmax_unroll256(ptr, channels, elempack, stride);
-        }
-        remain_size_start += nn_size * 256;
         nn_size = (size - remain_size_start) / 128;
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             const int i = remain_size_start + ii * 128;
@@ -1009,12 +948,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             softmax_unroll128(ptr, channels, elempack, stride);
         }
         remain_size_start += nn_size * 128;
-#endif // __AVX512F__ && (defined(__x86_64__) || defined(_M_X64)
-#if __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
         nn_size = (size - remain_size_start) / 64;
-#if !(__AVX512F__ && (defined(__x86_64__) || defined(_M_X64)))
-        #pragma omp parallel for num_threads(opt.num_threads)
-#endif
         for (int ii = 0; ii < nn_size; ii++)
         {
             const int i = remain_size_start + ii * 64;
@@ -1023,11 +957,10 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             softmax_unroll64(ptr, channels, elempack, stride);
         }
         remain_size_start += nn_size * 64;
-#endif // __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
-#endif // __AVX__
-#if __AVX__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX512F__ && (defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
         nn_size = (size - remain_size_start) / 32;
-#if !(__AVX512F__ || (__AVX__ && (defined(__x86_64__) || defined(_M_X64))))
+#if !(__AVX512F__ && (defined(__x86_64__) || defined(_M_X64)))
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif
         for (int ii = 0; ii < nn_size; ii++)
@@ -1038,9 +971,11 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             softmax_unroll32(ptr, channels, elempack, stride);
         }
         remain_size_start += nn_size * 32;
-#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX__
+#if __AVX__ || (defined(__x86_64__) || defined(_M_X64))
         nn_size = (size - remain_size_start) / 16;
-#if !(__AVX__ || (__SSE2__ && (defined(__x86_64__) || defined(_M_X64))))
+#if !(__AVX512F__ || (__AVX__ && (defined(__x86_64__) || defined(_M_X64))))
         #pragma omp parallel for num_threads(opt.num_threads)
 #endif
         for (int ii = 0; ii < nn_size; ii++)
@@ -1051,11 +986,14 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             softmax_unroll16(ptr, channels, elempack, stride);
         }
         remain_size_start += nn_size * 16;
+#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
         nn_size = (size - remain_size_start) / 8;
-        // #pragma omp parallel for num_threads(opt.num_threads)
+#if !(__AVX__ || (__SSE2__ && (defined(__x86_64__) || defined(_M_X64))))
+        #pragma omp parallel for num_threads(opt.num_threads)
+#endif
         for (int ii = 0; ii < nn_size; ii++)
         {
-            int i = remain_size_start + ii * 8;
+            const int i = remain_size_start + ii * 8;
             float* ptr = (float*)bottom_top_blob + i;
 
             softmax_unroll8(ptr, channels, elempack, stride);
@@ -1106,37 +1044,32 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
-                for (; j + 255 < size; j += 256)
-                {
-                    softmax_unroll256(ptr, h, 1, size);
-                    ptr += 256;
-                }
                 for (; j + 127 < size; j += 128)
                 {
                     softmax_unroll128(ptr, h, 1, size);
                     ptr += 128;
                 }
-#endif // __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
-#if __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
                 for (; j + 63 < size; j += 64)
                 {
                     softmax_unroll64(ptr, h, 1, size);
                     ptr += 64;
                 }
-#endif // __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
-#endif // __AVX__
-#if __AVX__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
+#if __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
                 for (; j + 31 < size; j += 32)
                 {
                     softmax_unroll32(ptr, h, 1, size);
                     ptr += 32;
                 }
-#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX__
+#if __AVX__ || (defined(__x86_64__) || defined(_M_X64))
                 for (; j + 15 < size; j += 16)
                 {
                     softmax_unroll16(ptr, h, 1, size);
                     ptr += 16;
                 }
+#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
                 for (; j + 7 < size; j += 8)
                 {
                     softmax_unroll8(ptr, h, 1, size);
@@ -1190,37 +1123,32 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
-            for (; i + 255 < size; i += 256)
-            {
-                softmax_unroll256(ptr, d, 1, size);
-                ptr += 256;
-            }
             for (; i + 127 < size; i += 128)
             {
                 softmax_unroll128(ptr, d, 1, size);
                 ptr += 128;
             }
-#endif // __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
-#if __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
             for (; i + 63 < size; i += 64)
             {
                 softmax_unroll64(ptr, d, 1, size);
                 ptr += 64;
             }
-#endif // __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
-#endif // __AVX__
-#if __AVX__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX512F__ && (defined(__x86_64__) || defined(_M_X64))
+#if __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
             for (; i + 31 < size; i += 32)
             {
                 softmax_unroll32(ptr, d, 1, size);
                 ptr += 32;
             }
-#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX512F__ || (defined(__x86_64__) || defined(_M_X64))
+#endif // __AVX__
+#if __AVX__ || (defined(__x86_64__) || defined(_M_X64))
             for (; i + 15 < size; i += 16)
             {
                 softmax_unroll16(ptr, d, 1, size);
                 ptr += 16;
             }
+#endif // __AVX__ || (defined(__x86_64__) || defined(_M_X64))
             for (; i + 7 < size; i += 8)
             {
                 softmax_unroll8(ptr, d, 1, size);

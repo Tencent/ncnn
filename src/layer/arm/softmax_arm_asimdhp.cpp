@@ -153,17 +153,25 @@ static void softmax_fp16s(__fp16* _ptr, int elemcount, int elempack)
     }
 }
 
-static void softmax_fp16s_unroll8(__fp16* _ptr, int elemcount, int elempack, int stride)
+template<int UNROLL>
+static void softmax_fp16s_neon(__fp16* _ptr, int elemcount, int elempack, int stride)
 {
     // reduce max
-    float16x8_t _max = vdupq_n_f16(-65504.f);
+    float16x8_t _max[UNROLL];
+    for (int k = 0; k < UNROLL; k++)
+    {
+        _max[k] = vdupq_n_f16(-65504.f);
+    }
     {
         const __fp16* ptr = _ptr;
 
         for (int i = 0; i < elemcount; i++)
         {
-            float16x8_t _p = vld1q_f16(ptr);
-            _max = vmaxq_f16(_max, _p);
+            for (int k = 0; k < UNROLL; k++)
+            {
+                float16x8_t _p = vld1q_f16(ptr + k * 8);
+                _max[k] = vmaxq_f16(_max[k], _p);
+            }
             ptr += stride;
         }
     }
@@ -172,30 +180,43 @@ static void softmax_fp16s_unroll8(__fp16* _ptr, int elemcount, int elempack, int
     {
         // reduce max 8 to 1
         // broadcast 1 to 8
-        _max = vmaxq_f16(_max, vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_max))));
-        _max = vmaxq_f16(_max, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_max))));
-        _max = vmaxq_f16(_max, vextq_f16(_max, _max, 4));
+        for (int k = 0; k < UNROLL; k++)
+        {
+            _max[k] = vmaxq_f16(_max[k], vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_max[k]))));
+            _max[k] = vmaxq_f16(_max[k], vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_max[k]))));
+            _max[k] = vmaxq_f16(_max[k], vextq_f16(_max[k], _max[k], 4));
+        }
     }
     if (elempack == 4)
     {
         // reduce max 4,4 to 1,1
         // broadcast 1,1 to 4,4
-        _max = vmaxq_f16(_max, vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_max))));
-        _max = vmaxq_f16(_max, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_max))));
+        for (int k = 0; k < UNROLL; k++)
+        {
+            _max[k] = vmaxq_f16(_max[k], vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_max[k]))));
+            _max[k] = vmaxq_f16(_max[k], vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_max[k]))));
+        }
     }
 
     // reduce exp(x - max)
-    float16x8_t _sum = vdupq_n_f16(0.f);
+    float16x8_t _sum[UNROLL];
+    for (int k = 0; k < UNROLL; k++)
+    {
+        _sum[k] = vdupq_n_f16(0.f);
+    }
     {
         __fp16* ptr = _ptr;
 
         for (int i = 0; i < elemcount; i++)
         {
-            float16x8_t _p = vld1q_f16(ptr);
-            _p = vsubq_f16(_p, _max);
-            _p = exp_ps_f16(_p);
-            vst1q_f16(ptr, _p);
-            _sum = vaddq_f16(_sum, _p);
+            for (int k = 0; k < UNROLL; k++)
+            {
+                float16x8_t _p = vld1q_f16(ptr + k * 8);
+                _p = vsubq_f16(_p, _max[k]);
+                _p = exp_ps_f16(_p);
+                vst1q_f16(ptr + k * 8, _p);
+                _sum[k] = vaddq_f16(_sum[k], _p);
+            }
             ptr += stride;
         }
     }
@@ -204,19 +225,28 @@ static void softmax_fp16s_unroll8(__fp16* _ptr, int elemcount, int elempack, int
     {
         // reduce sum 8 to 1
         // broadcast 1 to 8
-        _sum = vaddq_f16(_sum, vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_sum))));
-        _sum = vaddq_f16(_sum, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_sum))));
-        _sum = vaddq_f16(_sum, vextq_f16(_sum, _sum, 4));
+        for (int k = 0; k < UNROLL; k++)
+        {
+            _sum[k] = vaddq_f16(_sum[k], vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_sum[k]))));
+            _sum[k] = vaddq_f16(_sum[k], vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_sum[k]))));
+            _sum[k] = vaddq_f16(_sum[k], vextq_f16(_sum[k], _sum[k], 4));
+        }
     }
     if (elempack == 4)
     {
         // reduce sum 4,4 to 1,1
         // broadcast 1,1 to 4,4
-        _sum = vaddq_f16(_sum, vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_sum))));
-        _sum = vaddq_f16(_sum, vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_sum))));
+        for (int k = 0; k < UNROLL; k++)
+        {
+            _sum[k] = vaddq_f16(_sum[k], vreinterpretq_f16_u16(vrev32q_u16(vreinterpretq_u16_f16(_sum[k]))));
+            _sum[k] = vaddq_f16(_sum[k], vreinterpretq_f16_u32(vrev64q_u32(vreinterpretq_u32_f16(_sum[k]))));
+        }
     }
 
-    _sum = vdivq_f16(vdupq_n_f16(1.f), _sum);
+    for (int k = 0; k < UNROLL; k++)
+    {
+        _sum[k] = vdivq_f16(vdupq_n_f16(1.f), _sum[k]);
+    }
 
     // div sum
     {
@@ -224,12 +254,35 @@ static void softmax_fp16s_unroll8(__fp16* _ptr, int elemcount, int elempack, int
 
         for (int i = 0; i < elemcount; i++)
         {
-            float16x8_t _p = vld1q_f16(ptr);
-            _p = vmulq_f16(_p, _sum);
-            vst1q_f16(ptr, _p);
+            for (int k = 0; k < UNROLL; k++)
+            {
+                float16x8_t _p = vld1q_f16(ptr + k * 8);
+                _p = vmulq_f16(_p, _sum[k]);
+                vst1q_f16(ptr + k * 8, _p);
+            }
             ptr += stride;
         }
     }
+}
+
+static void softmax_fp16s_unroll64(__fp16* _ptr, int elemcount, int elempack, int stride)
+{
+    softmax_fp16s_neon<8>(_ptr, elemcount, elempack, stride);
+}
+
+static void softmax_fp16s_unroll32(__fp16* _ptr, int elemcount, int elempack, int stride)
+{
+    softmax_fp16s_neon<4>(_ptr, elemcount, elempack, stride);
+}
+
+static void softmax_fp16s_unroll16(__fp16* _ptr, int elemcount, int elempack, int stride)
+{
+    softmax_fp16s_neon<2>(_ptr, elemcount, elempack, stride);
+}
+
+static void softmax_fp16s_unroll8(__fp16* _ptr, int elemcount, int elempack, int stride)
+{
+    softmax_fp16s_neon<1>(_ptr, elemcount, elempack, stride);
 }
 
 static void softmax_fp16s_unroll4(__fp16* _ptr, int elemcount, int elempack, int stride)
@@ -414,16 +467,34 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
     {
         const int size = w * elempack;
 
-        int nn_size = size / 8;
+        int nn_size = size / 64;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
-            const int i = ii * 8;
+            const int i = ii * 64;
+            __fp16* ptr = (__fp16*)bottom_top_blob + i;
+
+            softmax_fp16s_unroll64(ptr, h, elempack, size);
+        }
+        int i = nn_size * 64;
+        for (; i + 31 < size; i += 32)
+        {
+            __fp16* ptr = (__fp16*)bottom_top_blob + i;
+
+            softmax_fp16s_unroll32(ptr, h, elempack, size);
+        }
+        for (; i + 15 < size; i += 16)
+        {
+            __fp16* ptr = (__fp16*)bottom_top_blob + i;
+
+            softmax_fp16s_unroll16(ptr, h, elempack, size);
+        }
+        for (; i + 7 < size; i += 8)
+        {
             __fp16* ptr = (__fp16*)bottom_top_blob + i;
 
             softmax_fp16s_unroll8(ptr, h, elempack, size);
         }
-        int i = nn_size * 8;
         for (; i + 3 < size; i += 4)
         {
             __fp16* ptr = (__fp16*)bottom_top_blob + i;
@@ -460,16 +531,34 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         const int size = w * h * d * elempack;
         const int stride = bottom_top_blob.cstep * elempack;
 
-        int nn_size = size / 8;
+        int nn_size = size / 64;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
-            const int i = ii * 8;
+            const int i = ii * 64;
+            __fp16* ptr = (__fp16*)bottom_top_blob + i;
+
+            softmax_fp16s_unroll64(ptr, channels, elempack, stride);
+        }
+        int i = nn_size * 64;
+        for (; i + 31 < size; i += 32)
+        {
+            __fp16* ptr = (__fp16*)bottom_top_blob + i;
+
+            softmax_fp16s_unroll32(ptr, channels, elempack, stride);
+        }
+        for (; i + 15 < size; i += 16)
+        {
+            __fp16* ptr = (__fp16*)bottom_top_blob + i;
+
+            softmax_fp16s_unroll16(ptr, channels, elempack, stride);
+        }
+        for (; i + 7 < size; i += 8)
+        {
             __fp16* ptr = (__fp16*)bottom_top_blob + i;
 
             softmax_fp16s_unroll8(ptr, channels, elempack, stride);
         }
-        int i = nn_size * 8;
         for (; i + 3 < size; i += 4)
         {
             __fp16* ptr = (__fp16*)bottom_top_blob + i;
@@ -502,6 +591,21 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 const int size = w * elempack;
 
                 int j = 0;
+                for (; j + 63 < size; j += 64)
+                {
+                    softmax_fp16s_unroll64(ptr, h, 1, size);
+                    ptr += 64;
+                }
+                for (; j + 31 < size; j += 32)
+                {
+                    softmax_fp16s_unroll32(ptr, h, 1, size);
+                    ptr += 32;
+                }
+                for (; j + 15 < size; j += 16)
+                {
+                    softmax_fp16s_unroll16(ptr, h, 1, size);
+                    ptr += 16;
+                }
                 for (; j + 7 < size; j += 8)
                 {
                     softmax_fp16s_unroll8(ptr, h, 1, size);
@@ -551,6 +655,21 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
             const int size = w * h * elempack;
 
             int i = 0;
+            for (; i + 63 < size; i += 64)
+            {
+                softmax_fp16s_unroll64(ptr, d, 1, size);
+                ptr += 64;
+            }
+            for (; i + 31 < size; i += 32)
+            {
+                softmax_fp16s_unroll32(ptr, d, 1, size);
+                ptr += 32;
+            }
+            for (; i + 15 < size; i += 16)
+            {
+                softmax_fp16s_unroll16(ptr, d, 1, size);
+                ptr += 16;
+            }
             for (; i + 7 < size; i += 8)
             {
                 softmax_fp16s_unroll8(ptr, d, 1, size);
