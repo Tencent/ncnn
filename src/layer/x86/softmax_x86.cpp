@@ -756,7 +756,7 @@ template void softmax_sse2<4>(float* _ptr, int elemcount, int elempack, int stri
 template void softmax_sse2<2>(float* _ptr, int elemcount, int elempack, int stride);
 #endif // __AVX__
 template void softmax_sse2<1>(float* _ptr, int elemcount, int elempack, int stride);
-#else // __SSE2__
+#else  // __SSE2__
 template void softmax<4>(float* _ptr, int elemcount, int elempack, int stride);
 #endif // __SSE2__
 template void softmax<2>(float* _ptr, int elemcount, int elempack, int stride);
