@@ -318,7 +318,7 @@ static void softmax_fp16s_pack8(__fp16* _ptr, int elemcount, int stride, int siz
         }
         for (; j < size1; j++)
         {
-            *sumptr = 1.f / *sumptr;
+            *sumptr = (__fp16)1.f / *sumptr;
             sumptr++;
         }
     }
@@ -524,7 +524,7 @@ static void softmax_fp16s_pack4(__fp16* _ptr, int elemcount, int stride, int siz
         }
         for (; j < size1; j++)
         {
-            *sumptr = 1.f / *sumptr;
+            *sumptr = (__fp16)1.f / *sumptr;
             sumptr++;
         }
     }
@@ -686,7 +686,7 @@ static void softmax_fp16s_pack1(__fp16* _ptr, int elemcount, int stride, int siz
         }
         for (; j < size1; j++)
         {
-            *sumptr = 1.f / *sumptr;
+            *sumptr = (__fp16)1.f / *sumptr;
             sumptr++;
         }
     }
