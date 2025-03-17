@@ -210,7 +210,7 @@ static int test_paramdict_1()
 static int test_paramdict_2()
 {
     ParamDictTest pdt;
-    pdt.load_param("0=bij,bjk->bik 1=This_is_a_very_long_long_string 2=X");
+    pdt.load_param("0=bij,bjk->bik 1=This_is_a_very_long_long_string 3=\"1,2,3 and 6.667          zzz\" 2=\"X\"");
 
     // string
     int types = pdt.type(0);
@@ -251,6 +251,20 @@ static int test_paramdict_2()
     if (s != "X")
     {
         fprintf(stderr, "test_paramdict string text failed %s != X\n", s.c_str());
+        return -1;
+    }
+
+    // string
+    types = pdt.type(3);
+    if (types != 7)
+    {
+        fprintf(stderr, "test_paramdict string type failed %d != 7\n", types);
+        return -1;
+    }
+    s = pdt.get(3, "");
+    if (s != "1,2,3 and 6.667          zzz")
+    {
+        fprintf(stderr, "test_paramdict string text failed %s != \"1,2,3 and 6.667          zzz\"\n", s.c_str());
         return -1;
     }
 
