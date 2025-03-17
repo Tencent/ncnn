@@ -305,4 +305,79 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx_1, 140)
 
+class F_conv2d_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+tnn.Convolution         op_0        3 1 input weight bias out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.conv2d";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.arg13") == captured_params.end())
+            return true;
+
+        const int activation = captured_params.at("op_0.arg13").i;
+        return activation == 0;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["groups"] = captured_params.at("op_0.arg0");
+        // captured_params.at("op_0.arg1"); // inch
+        // captured_params.at("op_0.arg2"); // outch
+        // captured_params.at("op_0.arg3"); // kernel_h
+        // captured_params.at("op_0.arg4"); // kernel_w
+        op->params["stride"] = {captured_params.at("op_0.arg5").i, captured_params.at("op_0.arg6").i};
+        op->params["padding"] = {captured_params.at("op_0.arg7").i, captured_params.at("op_0.arg8").i};
+        // captured_params.at("op_0.arg9"); // bias
+        // captured_params.at("op_0.arg10"); // pad_type
+        op->params["dilation"] = {captured_params.at("op_0.arg11").i, captured_params.at("op_0.arg12").i};
+        if (op->params["dilation"].ai == std::vector{-1, -1})
+        {
+            op->params["dilation"] = {1, 1};
+        }
+        // captured_params.at("op_0.arg13"); // activation
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_tnn, 140)
+
+class F_conv2d_tnn_1 : public F_conv2d_tnn
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Convolution         op_0        2 1 input weight out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        F_conv2d_tnn::write(op, captured_params);
+
+        op->params["bias"] = Parameter();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_tnn_1, 140)
+
 } // namespace pnnx

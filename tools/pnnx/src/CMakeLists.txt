@@ -402,6 +402,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_module_op.cpp
     pass_ncnn/convert_half_to_float.cpp
     pass_ncnn/convert_input.cpp
+    pass_ncnn/convert_reshape_expression.cpp
     pass_ncnn/convert_torch_cat.cpp
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_einsum.cpp
@@ -715,6 +716,29 @@ else()
     message(STATUS "Building without onnx2pnnx")
 endif()
 
+if(PNNX_TNN2PNNX)
+    set(pnnx_pass_tnn_SRCS
+        pass_tnn/fuse_shape_size.cpp
+        pass_tnn/fuse_shape_list_construct.cpp
+        pass_tnn/lower_concat.cpp
+        pass_tnn/lower_convolution_activation.cpp
+        pass_tnn/lower_power.cpp
+    )
+
+    set(tnn2pnnx_SRCS
+        ${pnnx_pass_tnn_SRCS}
+        load_tnn.cpp
+    )
+
+    add_library(tnn2pnnx OBJECT ${tnn2pnnx_SRCS})
+    target_compile_definitions(tnn2pnnx PRIVATE BUILD_TNN2PNNX)
+    target_compile_options(tnn2pnnx PUBLIC "${TORCH_CXX_FLAGS}")
+
+    message(STATUS "Building with tnn2pnnx")
+else()
+    message(STATUS "Building without tnn2pnnx")
+endif()
+
 if(NOT MSVC)
     add_definitions(-Wall -Wextra)
 endif()
@@ -763,6 +787,11 @@ endif()
 if(onnxruntime_FOUND)
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_ONNX2PNNX)
     target_link_libraries(pnnx PRIVATE onnx2pnnx)
+endif()
+
+if(PNNX_TNN2PNNX)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TNN2PNNX)
+    target_link_libraries(pnnx PRIVATE tnn2pnnx)
 endif()
 
 if(PNNX_COVERAGE)

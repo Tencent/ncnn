@@ -249,6 +249,22 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             {
                 fprintf(paramfp, " %d=%e", idkey, param.f);
             }
+            if (param.type == 4)
+            {
+                bool is_identifier = isalpha(param.s[0]);
+                for (auto x : param.s)
+                {
+                    if (isalpha(x) || isdigit(x) || x == '_')
+                        continue;
+
+                    is_identifier = false;
+                    break;
+                }
+                if (is_identifier)
+                    fprintf(paramfp, " %d=%s", idkey, param.s.c_str());
+                else
+                    fprintf(paramfp, " %d=\"%s\"", idkey, param.s.c_str());
+            }
             if (param.type == 5)
             {
                 const int array_size = (int)param.ai.size();

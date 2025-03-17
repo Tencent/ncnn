@@ -8370,4 +8370,18 @@ int Gemm_x86::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 }
 #endif
 
+namespace Gemm_x86_utility {
+#if NCNN_INT8
+void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+{
+    ncnn::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
+}
+
+void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk)
+{
+    ncnn::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+}
+#endif
+} // namespace Gemm_x86_utility
+
 } // namespace ncnn

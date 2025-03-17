@@ -60,6 +60,8 @@ endif()
 
 ncnn_add_test(c_api)
 ncnn_add_test(cpu)
+ncnn_add_test(expression)
+ncnn_add_test(paramdict)
 
 if(NCNN_VULKAN)
     ncnn_add_test(command)
