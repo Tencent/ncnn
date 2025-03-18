@@ -14,6 +14,8 @@ Example with mobilenet, just need three steps.
 
 ### 2. Create the calibration table file
 
+#### 2.1 From image
+
 We suggest that using the verification dataset for calibration, which is more than 5000 images.
 
 Some imagenet sample images here https://github.com/nihui/imagenet-sample-images
@@ -41,6 +43,49 @@ If your model has multiple input nodes, you can use multiple list files and othe
 ```shell
 ./ncnn2table mobilenet-opt.param mobilenet-opt.bin imagelist-bgr.txt,imagelist-depth.txt mobilenet.table mean=[104,117,123],[128] norm=[0.017,0.017,0.017],[0.0078125] shape=[224,224,3],[224,224,1] pixel=BGR,GRAY thread=8 method=kl
 ```
+
+#### 2.2 From npy
+
+We suggest that using the validation(development) set for calibration.
+
+Use the same preprocessing as the training set to get the input vectors, in the case of batchsize=1, store each input vector as an npy file, n inputs correspond to n npy files, the actual stored vectors to remove the batch dimension.
+
+
+test net, shape is in NCHW format, but there's no `N`.
+```txt
+in0, shape=[512]
+in1, shape=[2, 1, 64]
+in2, shape=[2, 1, 64]
+```
+
+filelist_in0.txt
+```txt
+0_in0.npy
+1_in0.npy
+2_in0.npy
+...
+```
+
+filelist_in1.txt
+```txt
+0_in1.npy
+1_in1.npy
+2_in1.npy
+...
+```
+
+filelist_in2.txt
+```txt
+0_in2.npy
+1_in2.npy
+2_in2.npy
+...
+```
+
+```shell
+./ncnn2table test.param test.bin filelist_in0.txt,filelist_in1.txt,filelist_in2.txt test.table shape=[512],[64,1,2],[64,1,2] thread=8 method=kl type=1
+```
+**Here shape is WHC, because the order of the arguments to `ncnn::Mat`.**
 
 ### 3. Quantize model
 
