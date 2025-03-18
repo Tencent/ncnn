@@ -406,7 +406,7 @@ static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, flo
             ptr += vl;
             maxptr += vl;
         }
-#else // __riscv_vector
+#else  // __riscv_vector
         for (int j = 0; j < size1; j++)
         {
             *maxptr = std::max(*maxptr, *ptr);
@@ -441,7 +441,7 @@ static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, flo
             maxptr += vl;
             sumptr += vl;
         }
-#else // __riscv_vector
+#else  // __riscv_vector
         for (int j = 0; j < size1; j++)
         {
             float v = expf(*ptr - *maxptr);
@@ -467,7 +467,7 @@ static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, flo
             n -= vl;
             sumptr += vl;
         }
-#else // __riscv_vector
+#else  // __riscv_vector
         for (int j = 0; j < size1; j++)
         {
             *sumptr = 1.f / *sumptr;
@@ -495,7 +495,7 @@ static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, flo
             ptr += vl;
             sumptr += vl;
         }
-#else // __riscv_vector
+#else  // __riscv_vector
         for (int j = 0; j < size1; j++)
         {
             *ptr *= *sumptr;
@@ -522,7 +522,7 @@ static void softmax(float* _ptr, int elemcount, int elempack, int stride, int si
             n -= vl;
             maxptr += vl;
         }
-#else // __riscv_vector
+#else  // __riscv_vector
         for (int j = 0; j < size1; j++)
         {
             *maxptr++ = -FLT_MAX;
@@ -544,7 +544,7 @@ static void softmax(float* _ptr, int elemcount, int elempack, int stride, int si
             n -= vl;
             sumptr += vl;
         }
-#else // __riscv_vector
+#else  // __riscv_vector
         for (int j = 0; j < size1; j++)
         {
             *sumptr++ = 0.f;
