@@ -21,6 +21,8 @@
 #include "rvv_mathfun.h"
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Softmax_riscv::Softmax_riscv()
