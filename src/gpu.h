@@ -249,6 +249,10 @@ public:
 
     // subgroup
     uint32_t subgroup_size() const;
+    uint32_t min_subgroup_size() const;
+    uint32_t max_subgroup_size() const;
+    uint32_t max_compute_workgroup_subgroups() const;
+    bool support_subgroup_size_control() const;
     bool support_subgroup_basic() const;
     bool support_subgroup_vote() const;
     bool support_subgroup_ballot() const;
@@ -310,6 +314,7 @@ public:
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
+    int support_VK_EXT_subgroup_size_control() const;
     int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer() const;
