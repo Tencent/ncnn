@@ -1300,7 +1300,7 @@ typedef struct VkPhysicalDeviceSubgroupSizeControlProperties
     uint32_t minSubgroupSize;
     uint32_t maxSubgroupSize;
     uint32_t maxComputeWorkgroupSubgroups;
-    VkShaderStageFlags    requiredSubgroupSizeStages;
+    VkShaderStageFlags requiredSubgroupSizeStages;
 } VkPhysicalDeviceSubgroupSizeControlProperties;
 typedef struct VkPipelineShaderStageRequiredSubgroupSizeCreateInfo
 {
