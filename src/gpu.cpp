@@ -315,6 +315,7 @@ public:
     uint32_t max_subgroup_size;
     uint32_t max_compute_workgroup_subgroups;
     bool support_subgroup_size_control;
+    bool support_compute_full_subgroups;
     bool support_subgroup_basic;
     bool support_subgroup_vote;
     bool support_subgroup_ballot;
@@ -597,6 +598,11 @@ uint32_t GpuInfo::max_compute_workgroup_subgroups() const
 bool GpuInfo::support_subgroup_size_control() const
 {
     return d->support_subgroup_size_control;
+}
+
+bool GpuInfo::support_compute_full_subgroups() const
+{
+    return d->support_compute_full_subgroups;
 }
 
 bool GpuInfo::support_subgroup_basic() const
@@ -1803,6 +1809,7 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.max_subgroup_size = gpu_info.subgroup_size;
         gpu_info.max_compute_workgroup_subgroups = std::max(gpu_info.max_workgroup_invocations / gpu_info.subgroup_size, 1u);
         gpu_info.support_subgroup_size_control = gpu_info.support_VK_EXT_subgroup_size_control;
+        gpu_info.support_compute_full_subgroups = gpu_info.support_VK_EXT_subgroup_size_control;
         gpu_info.support_subgroup_basic = false;
         gpu_info.support_subgroup_vote = false;
         gpu_info.support_subgroup_ballot = false;
@@ -1916,6 +1923,7 @@ int create_gpu_instance(const char* driver_path)
             if (gpu_info.support_VK_EXT_subgroup_size_control >= 2)
             {
                 gpu_info.support_subgroup_size_control = querySubgroupSizeControlFeatures.subgroupSizeControl;
+                gpu_info.support_compute_full_subgroups = querySubgroupSizeControlFeatures.computeFullSubgroups;
             }
 
             void* queryDeviceProperties = 0;
@@ -1944,7 +1952,7 @@ int create_gpu_instance(const char* driver_path)
             VkPhysicalDeviceSubgroupSizeControlPropertiesEXT querySubgroupSizeControlProperties;
             querySubgroupSizeControlProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT;
             querySubgroupSizeControlProperties.pNext = 0;
-            if (gpu_info.support_VK_EXT_subgroup_size_control || (VK_VERSION_MAJOR(instance_api_version) >= 1 && VK_VERSION_MINOR(instance_api_version) >= 3))
+            if (gpu_info.support_VK_EXT_subgroup_size_control)
             {
                 querySubgroupSizeControlProperties.pNext = queryDeviceProperties;
                 queryDeviceProperties = &querySubgroupSizeControlProperties;
@@ -1987,7 +1995,7 @@ int create_gpu_instance(const char* driver_path)
                 gpu_info.driver_id = queryDriverProperties.driverID;
                 memcpy(gpu_info.driver_name, queryDriverProperties.driverName, VK_MAX_DRIVER_NAME_SIZE);
             }
-            if (gpu_info.support_VK_EXT_subgroup_size_control || (VK_VERSION_MAJOR(instance_api_version) >= 1 && VK_VERSION_MINOR(instance_api_version) >= 3))
+            if (gpu_info.support_VK_EXT_subgroup_size_control)
             {
                 gpu_info.min_subgroup_size = querySubgroupSizeControlProperties.minSubgroupSize;
                 gpu_info.max_subgroup_size = querySubgroupSizeControlProperties.maxSubgroupSize;
@@ -2632,6 +2640,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_memory_priority");
     if (info.support_VK_EXT_queue_family_foreign())
         enabledExtensions.push_back("VK_EXT_queue_family_foreign");
+    if (info.support_VK_EXT_subgroup_size_control())
+        enabledExtensions.push_back("VK_EXT_subgroup_size_control");
     if (info.support_VK_AMD_device_coherent_memory())
         enabledExtensions.push_back("VK_AMD_device_coherent_memory");
 #if __ANDROID_API__ >= 26
@@ -2716,6 +2726,18 @@ VulkanDevice::VulkanDevice(int device_index)
             queryCooperativeMatrixFeaturesNV.pNext = enabledExtensionFeatures;
             enabledExtensionFeatures = &queryCooperativeMatrixFeaturesNV;
         }
+    }
+
+    // enable subgroup size control
+    VkPhysicalDeviceSubgroupSizeControlFeaturesEXT querySubgroupSizeControlFeatures;
+    querySubgroupSizeControlFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT;
+    querySubgroupSizeControlFeatures.pNext = 0;
+    querySubgroupSizeControlFeatures.subgroupSizeControl = info.support_subgroup_size_control();
+    querySubgroupSizeControlFeatures.computeFullSubgroups = info.support_compute_full_subgroups();
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_subgroup_size_control())
+    {
+        querySubgroupSizeControlFeatures.pNext = enabledExtensionFeatures;
+        enabledExtensionFeatures = &querySubgroupSizeControlFeatures;
     }
 
     std::vector<float> compute_queue_priorities(info.compute_queue_count(), 1.f);   // 0.f ~ 1.f
@@ -3151,7 +3173,7 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     return 0;
 }
 
-int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, VkPipeline* pipeline) const
+int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const
 {
     const int specialization_count = specializations.size();
 
@@ -3177,6 +3199,27 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     pipelineShaderStageCreateInfo.module = shader_module;
     pipelineShaderStageCreateInfo.pName = "main";
     pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
+
+    if (info.support_compute_full_subgroups())
+    {
+        pipelineShaderStageCreateInfo.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
+    }
+
+    void* enabledExtensionFeatures = 0;
+
+    // subgroup size control
+    VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT pipelineShaderStageRequiredSubgroupSizeCreateInfo;
+    pipelineShaderStageRequiredSubgroupSizeCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT;
+    pipelineShaderStageRequiredSubgroupSizeCreateInfo.pNext = 0;
+    pipelineShaderStageRequiredSubgroupSizeCreateInfo.requiredSubgroupSize = subgroup_size;
+    if (info.support_subgroup_size_control())
+    {
+        // pipelineShaderStageCreateInfo.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT;
+        pipelineShaderStageRequiredSubgroupSizeCreateInfo.pNext = enabledExtensionFeatures;
+        enabledExtensionFeatures = &pipelineShaderStageRequiredSubgroupSizeCreateInfo;
+    }
+
+    pipelineShaderStageCreateInfo.pNext = enabledExtensionFeatures;
 
     VkComputePipelineCreateInfo computePipelineCreateInfo;
     computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
