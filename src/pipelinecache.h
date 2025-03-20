@@ -36,7 +36,7 @@ public:
     void clear();
 
     int get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
-                     uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
+                     uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
                      VkShaderModule* shader_module,
                      VkDescriptorSetLayout* descriptorset_layout,
                      VkPipelineLayout* pipeline_layout,
@@ -45,7 +45,7 @@ public:
                      ShaderInfo& shader_info) const;
 
     int get_pipeline(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
-                     uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
+                     uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
                      VkShaderModule* shader_module,
                      VkDescriptorSetLayout* descriptorset_layout,
                      VkPipelineLayout* pipeline_layout,
@@ -54,10 +54,11 @@ public:
                      ShaderInfo& shader_info) const;
 
 protected:
-    int create_shader_module(int shader_type_index, const Option& opt, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
+    int create_shader_module(int shader_type_index, const Option& opt,
+                             uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
                              VkShaderModule* _shader_module, ShaderInfo& si) const;
 
-    int new_pipeline(VkShaderModule shader_module, const ShaderInfo& shader_info, const std::vector<vk_specialization_type>& specializations,
+    int new_pipeline(VkShaderModule shader_module, const ShaderInfo& shader_info, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size,
                      VkDescriptorSetLayout* descriptorset_layout,
                      VkPipelineLayout* pipeline_layout,
                      VkPipeline* pipeline,

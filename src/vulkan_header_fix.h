@@ -1278,4 +1278,48 @@ typedef VkConformanceVersion VkConformanceVersionKHR;
 typedef VkPhysicalDeviceDriverProperties VkPhysicalDeviceDriverPropertiesKHR;
 #endif // VK_KHR_driver_properties
 
+#ifndef VK_EXT_subgroup_size_control
+#define VK_EXT_subgroup_size_control                                                   1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES               (VkStructureType)1000225002
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES             (VkStructureType)1000225000
+#define VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO     (VkStructureType)1000225001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT           VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES
+#define VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO
+typedef enum VkPipelineShaderStageCreateFlagBits
+{
+    VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT = 0x00000001,
+    VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT = 0x00000002,
+    VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT = VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT,
+    VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT = VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT,
+    VK_PIPELINE_SHADER_STAGE_CREATE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
+} VkPipelineShaderStageCreateFlagBits;
+typedef VkFlags VkPipelineShaderStageCreateFlags;
+typedef struct VkPhysicalDeviceSubgroupSizeControlFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 subgroupSizeControl;
+    VkBool32 computeFullSubgroups;
+} VkPhysicalDeviceSubgroupSizeControlFeatures;
+typedef struct VkPhysicalDeviceSubgroupSizeControlProperties
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t minSubgroupSize;
+    uint32_t maxSubgroupSize;
+    uint32_t maxComputeWorkgroupSubgroups;
+    VkShaderStageFlags requiredSubgroupSizeStages;
+} VkPhysicalDeviceSubgroupSizeControlProperties;
+typedef struct VkPipelineShaderStageRequiredSubgroupSizeCreateInfo
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t requiredSubgroupSize;
+} VkPipelineShaderStageRequiredSubgroupSizeCreateInfo;
+typedef VkPhysicalDeviceSubgroupSizeControlFeatures VkPhysicalDeviceSubgroupSizeControlFeaturesEXT;
+typedef VkPhysicalDeviceSubgroupSizeControlProperties VkPhysicalDeviceSubgroupSizeControlPropertiesEXT;
+typedef VkPipelineShaderStageRequiredSubgroupSizeCreateInfo VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT;
+#endif // VK_EXT_subgroup_size_control
+
 #endif // NCNN_VULKAN_HEADER_FIX_H

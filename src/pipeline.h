@@ -36,6 +36,7 @@ public:
     void set_optimal_local_size_xyz(int w = 4, int h = 4, int c = 4);
     void set_optimal_local_size_xyz(const Mat& local_size_xyz);
     void set_local_size_xyz(int w, int h, int c);
+    void set_subgroup_size(uint32_t subgroup_size);
 
     int create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations);
 
