@@ -328,7 +328,7 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     vkdev->create_pipeline_layout(_shader_info.push_constant_count, descriptorset_layout(), &pipeline_layout);
 
-    vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, &pipeline);
+    vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, vkdev->info.subgroup_size(), &pipeline);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template())
     {
