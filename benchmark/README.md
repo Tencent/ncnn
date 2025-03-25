@@ -7020,6 +7020,98 @@ cooling_down = 0
            nanodet_m  min =    3.54  max =    4.78  avg =    3.86
 ```
 
+### MacBook Air (13-inch, M3, 2024)
+```
+MacBook-Air benchmark % ./benchncnn 10 1 0 -1 0
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =    3.59  max =    4.20  avg =    3.80
+     squeezenet_int8  min =    2.61  max =    2.82  avg =    2.74
+           mobilenet  min =    6.67  max =    6.92  avg =    6.85
+      mobilenet_int8  min =    3.61  max =    3.66  avg =    3.62
+        mobilenet_v2  min =    4.08  max =    4.15  avg =    4.10
+        mobilenet_v3  min =    3.32  max =    3.44  avg =    3.34
+          shufflenet  min =    2.08  max =    2.13  avg =    2.10
+       shufflenet_v2  min =    2.35  max =    2.44  avg =    2.37
+             mnasnet  min =    4.14  max =    4.23  avg =    4.18
+     proxylessnasnet  min =    5.09  max =    5.15  avg =    5.11
+     efficientnet_b0  min =    6.67  max =    6.75  avg =    6.70
+   efficientnetv2_b0  min =    8.79  max =    8.83  avg =    8.81
+        regnety_400m  min =    5.68  max =    5.73  avg =    5.69
+           blazeface  min =    0.75  max =    0.77  avg =    0.76
+           googlenet  min =   15.94  max =   15.97  avg =   15.96
+      googlenet_int8  min =   10.88  max =   10.92  avg =   10.89
+            resnet18  min =   12.60  max =   12.63  avg =   12.61
+       resnet18_int8  min =    9.88  max =    9.95  avg =    9.90
+             alexnet  min =   12.72  max =   12.82  avg =   12.77
+               vgg16  min =   57.85  max =   61.44  avg =   58.40
+          vgg16_int8  min =   78.53  max =   79.85  avg =   78.83
+            resnet50  min =   34.79  max =   34.85  avg =   34.81
+       resnet50_int8  min =   20.56  max =   20.62  avg =   20.58
+      squeezenet_ssd  min =    9.64  max =    9.82  avg =    9.69
+ squeezenet_ssd_int8  min =    8.21  max =    8.34  avg =    8.25
+       mobilenet_ssd  min =   14.21  max =   14.34  avg =   14.25
+  mobilenet_ssd_int8  min =    7.35  max =    7.41  avg =    7.37
+      mobilenet_yolo  min =   31.61  max =   31.74  avg =   31.64
+  mobilenetv2_yolov3  min =   15.79  max =   15.87  avg =   15.83
+         yolov4-tiny  min =   22.93  max =   22.99  avg =   22.96
+           nanodet_m  min =    5.58  max =    5.62  avg =    5.59
+    yolo-fastest-1.1  min =    2.00  max =    2.05  avg =    2.01
+      yolo-fastestv2  min =    1.75  max =    1.77  avg =    1.76
+  vision_transformer  min = 1020.57  max = 1046.02  avg = 1028.75
+          FastestDet  min =    1.88  max =    1.93  avg =    1.89
+
+MacBook-Air benchmark % ./benchncnn 10 8 0 0 0
+[0 Apple M3]  queueC=0[1]  queueG=0[1]  queueT=0[1]
+[0 Apple M3]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 Apple M3]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/1/1/1
+[0 Apple M3]  subgroup=32  basic/vote/ballot/shuffle=1/1/1/1
+[0 Apple M3]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=0/0/0/0
+loop_count = 10
+num_threads = 8
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =    1.79  max =    2.48  avg =    2.16
+     squeezenet_int8  min =    2.78  max =    2.93  avg =    2.80
+           mobilenet  min =    1.40  max =    1.85  avg =    1.68
+      mobilenet_int8  min =    3.60  max =    3.67  avg =    3.61
+        mobilenet_v2  min =    1.68  max =    2.28  avg =    1.97
+        mobilenet_v3  min =    1.71  max =    2.29  avg =    2.00
+          shufflenet  min =    1.18  max =    2.49  avg =    1.78
+       shufflenet_v2  min =    1.45  max =    2.09  avg =    1.70
+             mnasnet  min =    1.74  max =    2.25  avg =    2.05
+     proxylessnasnet  min =    1.75  max =    2.18  avg =    2.02
+     efficientnet_b0  min =    2.71  max =    3.19  avg =    2.99
+   efficientnetv2_b0  min =    6.77  max =    7.04  avg =    6.88
+        regnety_400m  min =    1.94  max =    2.40  avg =    2.10
+           blazeface  min =    1.05  max =    1.43  avg =    1.24
+           googlenet  min =    3.99  max =    4.42  avg =    4.27
+      googlenet_int8  min =   10.83  max =   10.86  avg =   10.85
+            resnet18  min =    2.50  max =    2.77  avg =    2.70
+       resnet18_int8  min =    9.86  max =    9.91  avg =    9.88
+             alexnet  min =    2.99  max =    3.28  avg =    3.11
+               vgg16  min =   12.41  max =   13.13  avg =   12.54
+          vgg16_int8  min =   78.52  max =   78.67  avg =   78.61
+            resnet50  min =    5.46  max =    5.52  avg =    5.49
+       resnet50_int8  min =   20.57  max =   20.59  avg =   20.58
+      squeezenet_ssd  min =    3.86  max =    4.53  avg =    4.17
+ squeezenet_ssd_int8  min =    8.20  max =    8.35  avg =    8.25
+       mobilenet_ssd  min =    3.19  max =    3.75  avg =    3.52
+  mobilenet_ssd_int8  min =    7.35  max =    7.41  avg =    7.37
+      mobilenet_yolo  min =    4.77  max =    4.88  avg =    4.81
+  mobilenetv2_yolov3  min =    4.28  max =    4.88  avg =    4.62
+         yolov4-tiny  min =    6.76  max =    7.38  avg =    7.21
+           nanodet_m  min =    2.92  max =    4.71  avg =    3.46
+    yolo-fastest-1.1  min =    1.48  max =    2.04  avg =    1.87
+      yolo-fastestv2  min =    1.41  max =    1.97  avg =    1.74
+  vision_transformer  min =   80.34  max =   80.66  avg =   80.44
+          FastestDet  min =    1.43  max =    2.04  avg =    1.73
+```
+
 ### Ingenic T40XP Xburst2 Core X2 1.4Ghz (without MSA)
 ```
 loop_count = 8
