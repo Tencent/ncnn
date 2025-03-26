@@ -315,6 +315,7 @@ public:
     int support_VK_KHR_shader_subgroup_extended_types() const;
     int support_VK_KHR_storage_buffer_storage_class() const;
     int support_VK_KHR_swapchain() const;
+    int support_VK_KHR_zero_initialize_workgroup_memory() const;
     int support_VK_EXT_buffer_device_address() const;
     int support_VK_EXT_descriptor_indexing() const;
     int support_VK_EXT_memory_budget() const;

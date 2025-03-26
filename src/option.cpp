@@ -62,6 +62,7 @@ Option::Option()
     use_subgroup_quad = false;
 
     use_subgroup_extended_types = false;
+    use_zero_initialize_workgroup_memory = false;
     use_subgroup_reserved_1 = false;
 
     use_subgroup_reserved_2 = false;
