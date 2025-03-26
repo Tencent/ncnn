@@ -1408,6 +1408,8 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_subgroup_rotate_clustered()) opt.use_subgroup_rotate_clustered = false;
 
         if (!d->vkdev->info.support_VK_KHR_shader_subgroup_extended_types()) opt.use_subgroup_extended_types = false;
+        if (!d->vkdev->info.support_VK_EXT_shader_atomic_float()) opt.use_shader_atomic_float = false;
+        if (!d->vkdev->info.support_VK_EXT_shader_atomic_float2()) opt.use_shader_atomic_float16 = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
 
@@ -1715,6 +1717,8 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_subgroup_quad()) opt.use_subgroup_quad = false;
 
         if (!d->vkdev->info.support_VK_KHR_shader_subgroup_extended_types()) opt.use_subgroup_extended_types = false;
+        if (!d->vkdev->info.support_VK_EXT_shader_atomic_float()) opt.use_shader_atomic_float = false;
+        if (!d->vkdev->info.support_VK_EXT_shader_atomic_float2()) opt.use_shader_atomic_float16 = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
 

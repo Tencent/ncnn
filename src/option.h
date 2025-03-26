@@ -123,7 +123,10 @@ public:
     bool use_subgroup_extended_types : 1;
     bool use_zero_initialize_workgroup_memory : 1;
 
-    bool use_subgroup_reserved_2;
+    bool use_subgroup_reserved_2 : 6;
+    bool use_shader_atomic_float : 1;
+    bool use_shader_atomic_float16 : 1;
+
     bool use_subgroup_reserved_3;
 
     // turn on for adreno

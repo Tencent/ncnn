@@ -68,6 +68,9 @@ Option::Option()
     use_zero_initialize_workgroup_memory = false;
 
     use_subgroup_reserved_2 = false;
+    use_shader_atomic_float = false;
+    use_shader_atomic_float16 = false;
+
     use_subgroup_reserved_3 = false;
 
     use_image_storage = false;

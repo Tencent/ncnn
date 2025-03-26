@@ -377,6 +377,8 @@ public:
     int support_VK_EXT_memory_budget;
     int support_VK_EXT_memory_priority;
     int support_VK_EXT_queue_family_foreign;
+    int support_VK_EXT_shader_atomic_float;
+    int support_VK_EXT_shader_atomic_float2;
     int support_VK_EXT_subgroup_size_control;
     int support_VK_AMD_device_coherent_memory;
 #if __ANDROID_API__ >= 26
@@ -893,6 +895,16 @@ int GpuInfo::support_VK_EXT_memory_priority() const
 int GpuInfo::support_VK_EXT_queue_family_foreign() const
 {
     return d->support_VK_EXT_queue_family_foreign;
+}
+
+int GpuInfo::support_VK_EXT_shader_atomic_float() const
+{
+    return d->support_VK_EXT_shader_atomic_float;
+}
+
+int GpuInfo::support_VK_EXT_shader_atomic_float2() const
+{
+    return d->support_VK_EXT_shader_atomic_float2;
 }
 
 int GpuInfo::support_VK_EXT_subgroup_size_control() const
@@ -1746,6 +1758,8 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.support_VK_EXT_memory_budget = 0;
         gpu_info.support_VK_EXT_memory_priority = 0;
         gpu_info.support_VK_EXT_queue_family_foreign = 0;
+        gpu_info.support_VK_EXT_shader_atomic_float = 0;
+        gpu_info.support_VK_EXT_shader_atomic_float2 = 0;
         gpu_info.support_VK_EXT_subgroup_size_control = 0;
         gpu_info.support_VK_AMD_device_coherent_memory = 0;
 #if __ANDROID_API__ >= 26
@@ -1817,6 +1831,10 @@ int create_gpu_instance(const char* driver_path)
                 gpu_info.support_VK_EXT_memory_priority = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_EXT_queue_family_foreign") == 0)
                 gpu_info.support_VK_EXT_queue_family_foreign = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_EXT_shader_atomic_float") == 0)
+                gpu_info.support_VK_EXT_shader_atomic_float = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_EXT_shader_atomic_float2") == 0)
+                gpu_info.support_VK_EXT_shader_atomic_float2 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_EXT_subgroup_size_control") == 0)
                 gpu_info.support_VK_EXT_subgroup_size_control = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_AMD_device_coherent_memory") == 0)
@@ -2720,6 +2738,10 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_memory_priority");
     if (info.support_VK_EXT_queue_family_foreign())
         enabledExtensions.push_back("VK_EXT_queue_family_foreign");
+    if (info.support_VK_EXT_shader_atomic_float())
+        enabledExtensions.push_back("VK_EXT_shader_atomic_float");
+    if (info.support_VK_EXT_shader_atomic_float2())
+        enabledExtensions.push_back("VK_EXT_shader_atomic_float2");
     if (info.support_VK_EXT_subgroup_size_control())
         enabledExtensions.push_back("VK_EXT_subgroup_size_control");
     if (info.support_VK_AMD_device_coherent_memory())
@@ -4630,6 +4652,16 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_zero_initialize_workgroup_memory)
     {
         custom_defines.push_back(std::make_pair("NCNN_zero_initialize_workgroup_memory", "1"));
+    }
+
+    if (opt.use_shader_atomic_float)
+    {
+        custom_defines.push_back(std::make_pair("NCNN_shader_atomic_float", "1"));
+
+        if (opt.use_shader_atomic_float16)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_shader_atomic_float16", "1"));
+        }
     }
 
     if (opt.use_shader_local_memory)

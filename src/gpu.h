@@ -324,6 +324,8 @@ public:
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
+    int support_VK_EXT_shader_atomic_float() const;
+    int support_VK_EXT_shader_atomic_float2() const;
     int support_VK_EXT_subgroup_size_control() const;
     int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
