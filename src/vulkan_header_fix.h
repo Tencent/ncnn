@@ -1340,4 +1340,48 @@ typedef struct VkPhysicalDeviceShaderSubgroupRotateFeatures
 typedef VkPhysicalDeviceShaderSubgroupRotateFeatures VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR;
 #endif // VK_KHR_shader_subgroup_rotate
 
+#ifndef VK_EXT_shader_atomic_float
+#define VK_EXT_shader_atomic_float                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT (VkStructureType)1000260000
+typedef struct VkPhysicalDeviceShaderAtomicFloatFeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderBufferFloat32Atomics;
+    VkBool32 shaderBufferFloat32AtomicAdd;
+    VkBool32 shaderBufferFloat64Atomics;
+    VkBool32 shaderBufferFloat64AtomicAdd;
+    VkBool32 shaderSharedFloat32Atomics;
+    VkBool32 shaderSharedFloat32AtomicAdd;
+    VkBool32 shaderSharedFloat64Atomics;
+    VkBool32 shaderSharedFloat64AtomicAdd;
+    VkBool32 shaderImageFloat32Atomics;
+    VkBool32 shaderImageFloat32AtomicAdd;
+    VkBool32 sparseImageFloat32Atomics;
+    VkBool32 sparseImageFloat32AtomicAdd;
+} VkPhysicalDeviceShaderAtomicFloatFeaturesEXT;
+#endif // VK_EXT_shader_atomic_float
+
+#ifndef VK_EXT_shader_atomic_float2
+#define VK_EXT_shader_atomic_float2                                          1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_2_FEATURES_EXT (VkStructureType)1000273000
+typedef struct VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderBufferFloat16Atomics;
+    VkBool32 shaderBufferFloat16AtomicAdd;
+    VkBool32 shaderBufferFloat16AtomicMinMax;
+    VkBool32 shaderBufferFloat32AtomicMinMax;
+    VkBool32 shaderBufferFloat64AtomicMinMax;
+    VkBool32 shaderSharedFloat16Atomics;
+    VkBool32 shaderSharedFloat16AtomicAdd;
+    VkBool32 shaderSharedFloat16AtomicMinMax;
+    VkBool32 shaderSharedFloat32AtomicMinMax;
+    VkBool32 shaderSharedFloat64AtomicMinMax;
+    VkBool32 shaderImageFloat32AtomicMinMax;
+    VkBool32 sparseImageFloat32AtomicMinMax;
+} VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT;
+#endif // VK_EXT_shader_atomic_float2
+
 #endif // NCNN_VULKAN_HEADER_FIX_H
