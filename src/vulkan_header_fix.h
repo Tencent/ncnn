@@ -1322,4 +1322,22 @@ typedef VkPhysicalDeviceSubgroupSizeControlProperties VkPhysicalDeviceSubgroupSi
 typedef VkPipelineShaderStageRequiredSubgroupSizeCreateInfo VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT;
 #endif // VK_EXT_subgroup_size_control
 
+#ifndef VK_KHR_shader_subgroup_rotate
+#define VK_KHR_shader_subgroup_rotate                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES     (VkStructureType)1000416000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES
+#define VK_SUBGROUP_FEATURE_ROTATE_BIT                                        (VkSubgroupFeatureFlagBits)0x00000200
+#define VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT                              (VkSubgroupFeatureFlagBits)0x00000400
+#define VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR                                    VK_SUBGROUP_FEATURE_ROTATE_BIT
+#define VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR                          VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT
+typedef struct VkPhysicalDeviceShaderSubgroupRotateFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderSubgroupRotate;
+    VkBool32 shaderSubgroupRotateClustered;
+} VkPhysicalDeviceShaderSubgroupRotateFeatures;
+typedef VkPhysicalDeviceShaderSubgroupRotateFeatures VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR;
+#endif // VK_KHR_shader_subgroup_rotate
+
 #endif // NCNN_VULKAN_HEADER_FIX_H
