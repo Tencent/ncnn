@@ -256,8 +256,12 @@ public:
     bool support_compute_full_subgroups() const;
     bool support_subgroup_basic() const;
     bool support_subgroup_vote() const;
+    bool support_subgroup_arithmetic() const;
     bool support_subgroup_ballot() const;
     bool support_subgroup_shuffle() const;
+    bool support_subgroup_shuffle_relative() const;
+    bool support_subgroup_clustered() const;
+    bool support_subgroup_quad() const;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1() const;
@@ -308,6 +312,7 @@ public:
     int support_VK_KHR_sampler_ycbcr_conversion() const;
     int support_VK_KHR_shader_float16_int8() const;
     int support_VK_KHR_shader_float_controls() const;
+    int support_VK_KHR_shader_subgroup_extended_types() const;
     int support_VK_KHR_storage_buffer_storage_class() const;
     int support_VK_KHR_swapchain() const;
     int support_VK_EXT_buffer_device_address() const;

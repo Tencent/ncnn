@@ -108,10 +108,20 @@ public:
     bool use_shader_pack8;
 
     // subgroup option
-    bool use_subgroup_basic;
-    bool use_subgroup_vote;
-    bool use_subgroup_ballot;
-    bool use_subgroup_shuffle;
+    bool use_subgroup_basic : 1;
+    bool use_subgroup_vote : 1;
+    bool use_subgroup_arithmetic : 1;
+    bool use_subgroup_ballot : 1;
+    bool use_subgroup_shuffle : 1;
+    bool use_subgroup_shuffle_relative : 1;
+    bool use_subgroup_clustered : 1;
+    bool use_subgroup_quad: 1;
+
+    bool use_subgroup_extended_types : 1;
+    bool use_subgroup_reserved_1 : 7;
+
+    bool use_subgroup_reserved_2;
+    bool use_subgroup_reserved_3;
 
     // turn on for adreno
     bool use_image_storage;
