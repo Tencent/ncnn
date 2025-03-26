@@ -262,6 +262,8 @@ public:
     bool support_subgroup_shuffle_relative() const;
     bool support_subgroup_clustered() const;
     bool support_subgroup_quad() const;
+    bool support_subgroup_rotate() const;
+    bool support_subgroup_rotate_clustered() const;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1() const;
@@ -313,6 +315,7 @@ public:
     int support_VK_KHR_shader_float16_int8() const;
     int support_VK_KHR_shader_float_controls() const;
     int support_VK_KHR_shader_subgroup_extended_types() const;
+    int support_VK_KHR_shader_subgroup_rotate() const;
     int support_VK_KHR_storage_buffer_storage_class() const;
     int support_VK_KHR_swapchain() const;
     int support_VK_KHR_zero_initialize_workgroup_memory() const;

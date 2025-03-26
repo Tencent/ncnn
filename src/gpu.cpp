@@ -368,6 +368,7 @@ public:
     int support_VK_KHR_shader_float16_int8;
     int support_VK_KHR_shader_float_controls;
     int support_VK_KHR_shader_subgroup_extended_types;
+    int support_VK_KHR_shader_subgroup_rotate;
     int support_VK_KHR_storage_buffer_storage_class;
     int support_VK_KHR_swapchain;
     int support_VK_KHR_zero_initialize_workgroup_memory;
@@ -644,6 +645,16 @@ bool GpuInfo::support_subgroup_quad() const
     return d->subgroup_operations & VK_SUBGROUP_FEATURE_QUAD_BIT;
 }
 
+bool GpuInfo::support_subgroup_rotate() const
+{
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR;
+}
+
+bool GpuInfo::support_subgroup_rotate_clustered() const
+{
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR;
+}
+
 bool GpuInfo::bug_storage_buffer_no_l1() const
 {
     return d->bug_storage_buffer_no_l1;
@@ -837,6 +848,11 @@ int GpuInfo::support_VK_KHR_shader_float_controls() const
 int GpuInfo::support_VK_KHR_shader_subgroup_extended_types() const
 {
     return d->support_VK_KHR_shader_subgroup_extended_types;
+}
+
+int GpuInfo::support_VK_KHR_shader_subgroup_rotate() const
+{
+    return d->support_VK_KHR_shader_subgroup_rotate;
 }
 
 int GpuInfo::support_VK_KHR_storage_buffer_storage_class() const
@@ -1721,6 +1737,7 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.support_VK_KHR_shader_float16_int8 = 0;
         gpu_info.support_VK_KHR_shader_float_controls = 0;
         gpu_info.support_VK_KHR_shader_subgroup_extended_types = 0;
+        gpu_info.support_VK_KHR_shader_subgroup_rotate = 0;
         gpu_info.support_VK_KHR_storage_buffer_storage_class = 0;
         gpu_info.support_VK_KHR_swapchain = 0;
         gpu_info.support_VK_KHR_zero_initialize_workgroup_memory = 0;
@@ -1782,6 +1799,8 @@ int create_gpu_instance(const char* driver_path)
                 gpu_info.support_VK_KHR_shader_float_controls = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_shader_subgroup_extended_types") == 0)
                 gpu_info.support_VK_KHR_shader_subgroup_extended_types = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_shader_subgroup_rotate") == 0)
+                gpu_info.support_VK_KHR_shader_subgroup_rotate = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_storage_buffer_storage_class") == 0)
                 gpu_info.support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_swapchain") == 0)
@@ -1918,6 +1937,16 @@ int create_gpu_instance(const char* driver_path)
                 queryExtensionFeatures = &querySubgroupSizeControlFeatures;
             }
 
+            // query subgroup rotate
+            VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR queryShaderSubgroupRotateFeatures;
+            queryShaderSubgroupRotateFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR;
+            queryShaderSubgroupRotateFeatures.pNext = 0;
+            if (gpu_info.support_VK_KHR_shader_subgroup_rotate)
+            {
+                queryShaderSubgroupRotateFeatures.pNext = queryExtensionFeatures;
+                queryExtensionFeatures = &queryShaderSubgroupRotateFeatures;
+            }
+
             VkPhysicalDeviceFeatures2KHR queryFeatures;
             queryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR;
             queryFeatures.pNext = queryExtensionFeatures;
@@ -1956,6 +1985,13 @@ int create_gpu_instance(const char* driver_path)
             {
                 gpu_info.support_subgroup_size_control = querySubgroupSizeControlFeatures.subgroupSizeControl;
                 gpu_info.support_compute_full_subgroups = querySubgroupSizeControlFeatures.computeFullSubgroups;
+            }
+            if (gpu_info.support_VK_KHR_shader_subgroup_rotate)
+            {
+                if (queryShaderSubgroupRotateFeatures.shaderSubgroupRotate)
+                    gpu_info.subgroup_operations |= VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR;
+                if (queryShaderSubgroupRotateFeatures.shaderSubgroupRotateClustered)
+                    gpu_info.subgroup_operations |= VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR;
             }
 
             void* queryDeviceProperties = 0;
@@ -2001,7 +2037,7 @@ int create_gpu_instance(const char* driver_path)
                 gpu_info.subgroup_size = physicalDeviceSubgroupProperties.subgroupSize;
                 if (physicalDeviceSubgroupProperties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT)
                 {
-                    gpu_info.subgroup_operations = physicalDeviceSubgroupProperties.supportedOperations;
+                    gpu_info.subgroup_operations |= physicalDeviceSubgroupProperties.supportedOperations;
                 }
             }
             else
@@ -2199,7 +2235,7 @@ int create_gpu_instance(const char* driver_path)
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_uniform, gpu_info.support_fp16_arithmetic,
                   gpu_info.support_int8_packed, gpu_info.support_int8_storage, gpu_info.support_int8_uniform, gpu_info.support_int8_arithmetic);
 
-        NCNN_LOGE("[%u %s]  subgroup=%u(%u~%u)  ops=%d/%d/%d/%d/%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
+        NCNN_LOGE("[%u %s]  subgroup=%u(%u~%u)  ops=%d/%d/%d/%d/%d/%d/%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.subgroup_size, gpu_info.min_subgroup_size, gpu_info.max_subgroup_size,
                   (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_BASIC_BIT) != 0,
                   (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_VOTE_BIT) != 0,
@@ -2208,7 +2244,9 @@ int create_gpu_instance(const char* driver_path)
                   (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) != 0,
                   (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT) != 0,
                   (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_CLUSTERED_BIT) != 0,
-                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_QUAD_BIT) != 0);
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_QUAD_BIT) != 0,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR) != 0,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR) != 0);
 
         NCNN_LOGE("[%u %s]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_cooperative_matrix_8_8_16, gpu_info.support_cooperative_matrix_16_8_8,
@@ -2664,6 +2702,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_shader_float_controls");
     if (info.support_VK_KHR_shader_subgroup_extended_types())
         enabledExtensions.push_back("VK_KHR_shader_subgroup_extended_types");
+    if (info.support_VK_KHR_shader_subgroup_rotate())
+        enabledExtensions.push_back("VK_KHR_shader_subgroup_rotate");
     if (info.support_VK_KHR_storage_buffer_storage_class())
         enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
     if (info.support_VK_KHR_swapchain())
@@ -2778,6 +2818,18 @@ VulkanDevice::VulkanDevice(int device_index)
     {
         querySubgroupSizeControlFeatures.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &querySubgroupSizeControlFeatures;
+    }
+
+    // enable subgroup rotate
+    VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR queryShaderSubgroupRotateFeatures;
+    queryShaderSubgroupRotateFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR;
+    queryShaderSubgroupRotateFeatures.pNext = 0;
+    queryShaderSubgroupRotateFeatures.shaderSubgroupRotate = info.support_subgroup_rotate();
+    queryShaderSubgroupRotateFeatures.shaderSubgroupRotateClustered = info.support_subgroup_rotate_clustered();
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_subgroup_size_control())
+    {
+        queryShaderSubgroupRotateFeatures.pNext = enabledExtensionFeatures;
+        enabledExtensionFeatures = &queryShaderSubgroupRotateFeatures;
     }
 
     std::vector<float> compute_queue_priorities(info.compute_queue_count(), 1.f);   // 0.f ~ 1.f
@@ -4559,6 +4611,14 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         if (opt.use_subgroup_quad)
         {
             custom_defines.push_back(std::make_pair("NCNN_subgroup_quad", "1"));
+        }
+        if (opt.use_subgroup_rotate)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_rotate", "1"));
+        }
+        if (opt.use_subgroup_rotate_clustered)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_rotate_clustered", "1"));
         }
 
         if (opt.use_subgroup_extended_types)

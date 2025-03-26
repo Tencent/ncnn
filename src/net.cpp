@@ -1404,6 +1404,8 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_subgroup_shuffle_relative()) opt.use_subgroup_shuffle_relative = false;
         if (!d->vkdev->info.support_subgroup_clustered()) opt.use_subgroup_clustered = false;
         if (!d->vkdev->info.support_subgroup_quad()) opt.use_subgroup_quad = false;
+        if (!d->vkdev->info.support_subgroup_rotate()) opt.use_subgroup_rotate = false;
+        if (!d->vkdev->info.support_subgroup_rotate_clustered()) opt.use_subgroup_rotate_clustered = false;
 
         if (!d->vkdev->info.support_VK_KHR_shader_subgroup_extended_types()) opt.use_subgroup_extended_types = false;
 

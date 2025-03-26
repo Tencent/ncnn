@@ -263,6 +263,18 @@ PYBIND11_MODULE(ncnn, m)
         opt.use_subgroup_quad = v;
     })
     .def_property(
+    "use_subgroup_rotate", [](const Option& opt) {
+        return opt.use_subgroup_rotate;
+    }, [](Option& opt, bool v) {
+        opt.use_subgroup_rotate = v;
+    })
+    .def_property(
+    "use_subgroup_rotate_clustered", [](const Option& opt) {
+        return opt.use_subgroup_rotate_clustered;
+    }, [](Option& opt, bool v) {
+        opt.use_subgroup_rotate_clustered = v;
+    })
+    .def_property(
     "use_subgroup_extended_types", [](const Option& opt) {
         return opt.use_subgroup_extended_types;
     }, [](Option& opt, bool v) {

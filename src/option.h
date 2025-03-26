@@ -116,10 +116,12 @@ public:
     bool use_subgroup_shuffle_relative : 1;
     bool use_subgroup_clustered : 1;
     bool use_subgroup_quad : 1;
+    bool use_subgroup_rotate : 1;
+    bool use_subgroup_rotate_clustered : 1;
 
+    bool use_subgroup_reserved_1 : 4;
     bool use_subgroup_extended_types : 1;
     bool use_zero_initialize_workgroup_memory : 1;
-    bool use_subgroup_reserved_1 : 6;
 
     bool use_subgroup_reserved_2;
     bool use_subgroup_reserved_3;
