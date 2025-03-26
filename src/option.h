@@ -118,7 +118,8 @@ public:
     bool use_subgroup_quad : 1;
 
     bool use_subgroup_extended_types : 1;
-    bool use_subgroup_reserved_1 : 7;
+    bool use_zero_initialize_workgroup_memory : 1;
+    bool use_subgroup_reserved_1 : 6;
 
     bool use_subgroup_reserved_2;
     bool use_subgroup_reserved_3;
