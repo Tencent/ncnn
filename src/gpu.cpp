@@ -316,10 +316,7 @@ public:
     uint32_t max_compute_workgroup_subgroups;
     bool support_subgroup_size_control;
     bool support_compute_full_subgroups;
-    bool support_subgroup_basic;
-    bool support_subgroup_vote;
-    bool support_subgroup_ballot;
-    bool support_subgroup_shuffle;
+    uint32_t subgroup_operations;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1;
@@ -370,6 +367,7 @@ public:
     int support_VK_KHR_sampler_ycbcr_conversion;
     int support_VK_KHR_shader_float16_int8;
     int support_VK_KHR_shader_float_controls;
+    int support_VK_KHR_shader_subgroup_extended_types;
     int support_VK_KHR_storage_buffer_storage_class;
     int support_VK_KHR_swapchain;
     int support_VK_EXT_buffer_device_address;
@@ -607,22 +605,42 @@ bool GpuInfo::support_compute_full_subgroups() const
 
 bool GpuInfo::support_subgroup_basic() const
 {
-    return d->support_subgroup_basic;
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_BASIC_BIT;
 }
 
 bool GpuInfo::support_subgroup_vote() const
 {
-    return d->support_subgroup_vote;
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_VOTE_BIT;
+}
+
+bool GpuInfo::support_subgroup_arithmetic() const
+{
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
 }
 
 bool GpuInfo::support_subgroup_ballot() const
 {
-    return d->support_subgroup_ballot;
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_BALLOT_BIT;
 }
 
 bool GpuInfo::support_subgroup_shuffle() const
 {
-    return d->support_subgroup_shuffle;
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+}
+
+bool GpuInfo::support_subgroup_shuffle_relative() const
+{
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT;
+}
+
+bool GpuInfo::support_subgroup_clustered() const
+{
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_CLUSTERED_BIT;
+}
+
+bool GpuInfo::support_subgroup_quad() const
+{
+    return d->subgroup_operations & VK_SUBGROUP_FEATURE_QUAD_BIT;
 }
 
 bool GpuInfo::bug_storage_buffer_no_l1() const
@@ -813,6 +831,11 @@ int GpuInfo::support_VK_KHR_shader_float16_int8() const
 int GpuInfo::support_VK_KHR_shader_float_controls() const
 {
     return d->support_VK_KHR_shader_float_controls;
+}
+
+int GpuInfo::support_VK_KHR_shader_subgroup_extended_types() const
+{
+    return d->support_VK_KHR_shader_subgroup_extended_types;
 }
 
 int GpuInfo::support_VK_KHR_storage_buffer_storage_class() const
@@ -1691,6 +1714,7 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.support_VK_KHR_sampler_ycbcr_conversion = 0;
         gpu_info.support_VK_KHR_shader_float16_int8 = 0;
         gpu_info.support_VK_KHR_shader_float_controls = 0;
+        gpu_info.support_VK_KHR_shader_subgroup_extended_types = 0;
         gpu_info.support_VK_KHR_storage_buffer_storage_class = 0;
         gpu_info.support_VK_KHR_swapchain = 0;
         gpu_info.support_VK_EXT_buffer_device_address = 0;
@@ -1749,6 +1773,8 @@ int create_gpu_instance(const char* driver_path)
                 gpu_info.support_VK_KHR_shader_float16_int8 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_shader_float_controls") == 0)
                 gpu_info.support_VK_KHR_shader_float_controls = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_shader_subgroup_extended_types") == 0)
+                gpu_info.support_VK_KHR_shader_subgroup_extended_types = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_storage_buffer_storage_class") == 0)
                 gpu_info.support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_swapchain") == 0)
@@ -1810,10 +1836,7 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.max_compute_workgroup_subgroups = std::max(gpu_info.max_workgroup_invocations / gpu_info.subgroup_size, 1u);
         gpu_info.support_subgroup_size_control = gpu_info.support_VK_EXT_subgroup_size_control;
         gpu_info.support_compute_full_subgroups = gpu_info.support_VK_EXT_subgroup_size_control;
-        gpu_info.support_subgroup_basic = false;
-        gpu_info.support_subgroup_vote = false;
-        gpu_info.support_subgroup_ballot = false;
-        gpu_info.support_subgroup_shuffle = false;
+        gpu_info.subgroup_operations = 0;
         if (support_VK_KHR_get_physical_device_properties2)
         {
             void* queryExtensionFeatures = 0;
@@ -1969,10 +1992,7 @@ int create_gpu_instance(const char* driver_path)
                 gpu_info.subgroup_size = physicalDeviceSubgroupProperties.subgroupSize;
                 if (physicalDeviceSubgroupProperties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT)
                 {
-                    gpu_info.support_subgroup_basic = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BASIC_BIT;
-                    gpu_info.support_subgroup_vote = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_VOTE_BIT;
-                    gpu_info.support_subgroup_ballot = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BALLOT_BIT;
-                    gpu_info.support_subgroup_shuffle = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+                    gpu_info.subgroup_operations = physicalDeviceSubgroupProperties.supportedOperations;
                 }
             }
             else
@@ -2170,9 +2190,16 @@ int create_gpu_instance(const char* driver_path)
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_uniform, gpu_info.support_fp16_arithmetic,
                   gpu_info.support_int8_packed, gpu_info.support_int8_storage, gpu_info.support_int8_uniform, gpu_info.support_int8_arithmetic);
 
-        NCNN_LOGE("[%u %s]  subgroup=%u(%u~%u)  basic/vote/ballot/shuffle=%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
-                  gpu_info.subgroup_size, gpu_info.min_subgroup_size, gpu_info.max_subgroup_size, gpu_info.support_subgroup_basic, gpu_info.support_subgroup_vote,
-                  gpu_info.support_subgroup_ballot, gpu_info.support_subgroup_shuffle);
+        NCNN_LOGE("[%u %s]  subgroup=%u(%u~%u)  ops=%d/%d/%d/%d/%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.subgroup_size, gpu_info.min_subgroup_size, gpu_info.max_subgroup_size,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_BASIC_BIT) != 0,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_VOTE_BIT) != 0,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT) != 0,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_BALLOT_BIT) != 0,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) != 0,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT) != 0,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_CLUSTERED_BIT) != 0,
+                  (gpu_info.subgroup_operations & VK_SUBGROUP_FEATURE_QUAD_BIT) != 0);
 
         NCNN_LOGE("[%u %s]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_cooperative_matrix_8_8_16, gpu_info.support_cooperative_matrix_16_8_8,
@@ -2626,6 +2653,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_shader_float16_int8");
     if (info.support_VK_KHR_shader_float_controls())
         enabledExtensions.push_back("VK_KHR_shader_float_controls");
+    if (info.support_VK_KHR_shader_subgroup_extended_types())
+        enabledExtensions.push_back("VK_KHR_shader_subgroup_extended_types");
     if (info.support_VK_KHR_storage_buffer_storage_class())
         enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
     if (info.support_VK_KHR_swapchain())
@@ -4496,6 +4525,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         {
             custom_defines.push_back(std::make_pair("NCNN_subgroup_vote", "1"));
         }
+        if (opt.use_subgroup_arithmetic)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_arithmetic", "1"));
+        }
         if (opt.use_subgroup_ballot)
         {
             custom_defines.push_back(std::make_pair("NCNN_subgroup_ballot", "1"));
@@ -4503,6 +4536,23 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         if (opt.use_subgroup_shuffle)
         {
             custom_defines.push_back(std::make_pair("NCNN_subgroup_shuffle", "1"));
+        }
+        if (opt.use_subgroup_shuffle_relative)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_shuffle_relative", "1"));
+        }
+        if (opt.use_subgroup_clustered)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_clustered", "1"));
+        }
+        if (opt.use_subgroup_quad)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_quad", "1"));
+        }
+
+        if (opt.use_subgroup_extended_types)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_extended_types", "1"));
         }
     }
 

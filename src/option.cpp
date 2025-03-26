@@ -54,8 +54,18 @@ Option::Option()
 
     use_subgroup_basic = false;
     use_subgroup_vote = false;
+    use_subgroup_arithmetic = false;
     use_subgroup_ballot = false;
     use_subgroup_shuffle = false;
+    use_subgroup_shuffle_relative = false;
+    use_subgroup_clustered = false;
+    use_subgroup_quad = false;
+
+    use_subgroup_extended_types = false;
+    use_subgroup_reserved_1 = false;
+
+    use_subgroup_reserved_2 = false;
+    use_subgroup_reserved_3 = false;
 
     use_image_storage = false;
     use_tensor_storage = false;

@@ -1396,6 +1396,17 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
 
+        if (!d->vkdev->info.support_subgroup_basic()) opt.use_subgroup_basic = false;
+        if (!d->vkdev->info.support_subgroup_vote()) opt.use_subgroup_vote = false;
+        if (!d->vkdev->info.support_subgroup_arithmetic()) opt.use_subgroup_arithmetic = false;
+        if (!d->vkdev->info.support_subgroup_ballot()) opt.use_subgroup_ballot = false;
+        if (!d->vkdev->info.support_subgroup_shuffle()) opt.use_subgroup_shuffle = false;
+        if (!d->vkdev->info.support_subgroup_shuffle_relative()) opt.use_subgroup_shuffle_relative = false;
+        if (!d->vkdev->info.support_subgroup_clustered()) opt.use_subgroup_clustered = false;
+        if (!d->vkdev->info.support_subgroup_quad()) opt.use_subgroup_quad = false;
+
+        if (!d->vkdev->info.support_VK_KHR_shader_subgroup_extended_types()) opt.use_subgroup_extended_types = false;
+
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
 
         // enable local memory optimization on discrete gpu only
@@ -1691,6 +1702,17 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
+
+        if (!d->vkdev->info.support_subgroup_basic()) opt.use_subgroup_basic = false;
+        if (!d->vkdev->info.support_subgroup_vote()) opt.use_subgroup_vote = false;
+        if (!d->vkdev->info.support_subgroup_arithmetic()) opt.use_subgroup_arithmetic = false;
+        if (!d->vkdev->info.support_subgroup_ballot()) opt.use_subgroup_ballot = false;
+        if (!d->vkdev->info.support_subgroup_shuffle()) opt.use_subgroup_shuffle = false;
+        if (!d->vkdev->info.support_subgroup_shuffle_relative()) opt.use_subgroup_shuffle_relative = false;
+        if (!d->vkdev->info.support_subgroup_clustered()) opt.use_subgroup_clustered = false;
+        if (!d->vkdev->info.support_subgroup_quad()) opt.use_subgroup_quad = false;
+
+        if (!d->vkdev->info.support_VK_KHR_shader_subgroup_extended_types()) opt.use_subgroup_extended_types = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
 
