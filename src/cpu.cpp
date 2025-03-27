@@ -51,13 +51,16 @@
 #include <windows.h>
 #endif
 
-#if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__ || defined __OHOS__ || __linux__
 #if defined __ANDROID__
 #if __ANDROID_API__ >= 18
 #include <sys/auxv.h> // getauxval()
 #endif
 #include <sys/system_properties.h> // __system_property_get()
 #include <dlfcn.h>
+#endif
+#if defined __OHOS__
+#include <sys/auxv.h> // getauxval()
 #endif
 #include <ctype.h>
 #include <stdint.h>
@@ -256,7 +259,7 @@ static bool is_being_debugged()
 #endif
 }
 
-#if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__ || defined __OHOS__ || defined __linux__
 
 #define AT_HWCAP  16
 #define AT_HWCAP2 26
@@ -300,10 +303,12 @@ static bool is_being_debugged()
 #define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
 #endif
 
-#if defined __ANDROID__
+#if defined __ANDROID__ || defined __OHOS__
 // Probe the system's C library for a 'getauxval' function and call it if
 // it exits, or return 0 for failure. This function is available since API
 // level 18.
+//
+// HarmonyOS NEXT support `getauxval` directly.
 //
 // Note that getauxval() can't really be re-implemented here, because
 // its implementation does not parse /proc/self/auxv. Instead it depends
@@ -311,6 +316,9 @@ static bool is_being_debugged()
 // C runtime initialization layer.
 static unsigned int get_elf_hwcap_from_getauxval(unsigned int type)
 {
+#if defined __OHOS__
+    return getauxval(type);
+#else
 #if __ANDROID_API__ >= 18
     unsigned int hwcap = getauxval(type);
     if (hwcap)
@@ -341,8 +349,9 @@ static unsigned int get_elf_hwcap_from_getauxval(unsigned int type)
     dlclose(libc_handle);
 
     return result;
+#endif
 }
-#endif // defined __ANDROID__
+#endif // defined __ANDROID__ || defined __OHOS__
 
 // extract the ELF HW capabilities bitmap from /proc/self/auxv
 static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
@@ -395,7 +404,7 @@ static unsigned int get_elf_hwcap(unsigned int type)
 {
     unsigned int hwcap = 0;
 
-#if defined __ANDROID__
+#if defined __ANDROID__ || defined __OHOS__
     hwcap = get_elf_hwcap_from_getauxval(type);
 #endif
 
@@ -423,7 +432,7 @@ static unsigned int get_elf_hwcap(unsigned int type)
 
     return hwcap;
 }
-#endif // defined __ANDROID__ || defined __linux__
+#endif // defined __ANDROID__ || defined __OHOS__ || defined __linux__
 
 #if __APPLE__
 static unsigned int get_hw_cpufamily()
