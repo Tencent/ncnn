@@ -16,6 +16,7 @@
 
 #if NCNN_VULKAN
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -4557,11 +4558,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("NCNN_moltenvk", 1);
 #endif
 
+    bool support_shader_int64 = false;
+
     if (opt.blob_vkallocator)
     {
         const VulkanDevice* vkdev = opt.blob_vkallocator->vkdev;
 
         const GpuInfo& info = vkdev->info;
+
+        support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
 
         // pull in device extensions
         {
@@ -4911,10 +4916,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         NCNN_LOGE("opt.blob_vkallocator is null");
     }
 
-    std::string preamble;
-    std::vector<std::string> processes;
+    std::string define_macro_data;
 
-    processes.resize(custom_defines.definitions.size() + device_defines.definitions.size());
     for (size_t i = 0; i < custom_defines.definitions.size(); i++)
     {
         const char* key = custom_defines.definitions[i].first;
@@ -4922,8 +4925,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         if (def.type == 0)
         {
-            preamble += std::string("#define ") + key + " " + def.s + "\n";
-            processes[i] = std::string("define-macro ") + key + "=" + def.s + "";
+            define_macro_data += std::string("#define ") + key + " " + def.s + "\n";
         }
         else
         {
@@ -4942,15 +4944,22 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             }
             if (def.type == 4)
             {
-                sprintf(defstr, "%luu", def.u64);
+                if (support_shader_int64)
+                {
+                    sprintf(defstr, "%luull", def.u64);
+                }
+                else
+                {
+                    uint32_t u32 = def.u64 > UINT_MAX ? UINT_MAX : (uint32_t)def.u64;
+                    sprintf(defstr, "%uu", u32);
+                }
             }
             if (def.type == 5)
             {
                 sprintf(defstr, "%e", def.f32);
             }
 
-            preamble += std::string("#define ") + key + " " + defstr + "\n";
-            processes[i] = std::string("define-macro ") + key + "=" + defstr;
+            define_macro_data += std::string("#define ") + key + " " + defstr + "\n";
         }
     }
     for (size_t i = 0; i < device_defines.definitions.size(); i++)
@@ -4960,8 +4969,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         if (def.type == 0)
         {
-            preamble += std::string("#define __ncnn_") + key + " \"" + def.s + "\"\n";
-            processes[custom_defines.definitions.size() + i] = std::string("define-macro __ncnn_") + key + "=\"" + def.s + "\"";
+            define_macro_data += std::string("#define __ncnn_") + key + " \"" + def.s + "\"\n";
         }
         else
         {
@@ -4980,30 +4988,67 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             }
             if (def.type == 4)
             {
-                sprintf(defstr, "%luu", def.u64);
+                if (support_shader_int64)
+                {
+                    sprintf(defstr, "%luull", def.u64);
+                }
+                else
+                {
+                    uint32_t u32 = def.u64 > UINT_MAX ? UINT_MAX : (uint32_t)def.u64;
+                    sprintf(defstr, "%uu", u32);
+                }
             }
             if (def.type == 5)
             {
                 sprintf(defstr, "%e", def.f32);
             }
 
-            preamble += std::string("#define __ncnn_") + key + " " + defstr + "\n";
-            processes[custom_defines.definitions.size() + i] = std::string("define-macro __ncnn_") + key + "=" + defstr;
+            define_macro_data += std::string("#define __ncnn_") + key + " " + defstr + "\n";
         }
     }
 
+    // enable extensions
+    std::string custom_exts;
+    if (support_shader_int64)
+    {
+        custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int64: require\n";
+    }
+    if (opt.use_fp16_storage)
+    {
+        custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
+        // custom_exts += "struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };\n";
+    }
+    if (opt.use_fp16_arithmetic)
+    {
+        custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_float16: require\n";
+    }
+
     // debug
-    NCNN_LOGE("%s", preamble.c_str());
+    // NCNN_LOGE("%s", define_macro_data.c_str());
 
     bool compile_success = true;
 
     {
         glslang::TShader s(EShLangCompute);
 
-        s.setStringsWithLengths(&comp_data, &comp_data_size, 1);
+        // split shader source by token "#version 450\n"
+        int nversion = 0;
+        sscanf(comp_data, "#version %*d\n%n", &nversion);
+        if (nversion == 0)
+        {
+            NCNN_LOGE("shader source has no #version token");
+            return -1;
+        }
 
-        s.setPreamble(preamble.c_str());
-        s.addProcesses(processes);
+        const char* comp_data_2 = comp_data + nversion;
+        int comp_data_size_1 = nversion;
+        int comp_data_size_2 = comp_data_size - comp_data_size_1;
+
+        const char* comp_datas[4] = {comp_data, custom_exts.c_str(), define_macro_data.c_str(), comp_data_2};
+        const int comp_data_sizes[4] = {comp_data_size_1, (int)custom_exts.size(), (int)define_macro_data.size(), comp_data_size_2};
+
+        s.setStringsWithLengths(comp_datas, comp_data_sizes, 4);
+
         s.setEntryPoint("main");
         s.setSourceEntryPoint("main");
 
