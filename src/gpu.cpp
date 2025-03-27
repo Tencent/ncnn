@@ -4045,12 +4045,30 @@ public:
 public:
     struct typed_value
     {
-        typed_value(const char* _s) : type(0), s(_s) {}
-        typed_value(uint8_t _u8) : type(1), u8(_u8) {}
-        typed_value(uint32_t _u32) : type(2), u32(_u32) {}
-        typed_value(int32_t _i32) : type(3), i32(_i32) {}
-        typed_value(uint64_t _u64) : type(4), u64(_u64) {}
-        typed_value(float _f32) : type(5), f32(_f32) {}
+        typed_value(const char* _s)
+            : type(0), s(_s)
+        {
+        }
+        typed_value(uint8_t _u8)
+            : type(1), u8(_u8)
+        {
+        }
+        typed_value(uint32_t _u32)
+            : type(2), u32(_u32)
+        {
+        }
+        typed_value(int32_t _i32)
+            : type(3), i32(_i32)
+        {
+        }
+        typed_value(uint64_t _u64)
+            : type(4), u64(_u64)
+        {
+        }
+        typed_value(float _f32)
+            : type(5), f32(_f32)
+        {
+        }
 
         int type;
         union
@@ -4698,11 +4716,13 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             // DD_APPEND_PROPERTY(pipelineCacheUUID)
 
 #define DD_APPEND_PROPERTY_LIMIT(X) device_defines.append(#X, properties.limits.X);
-#define DD_APPEND_PROPERTY_LIMIT_2(X) device_defines.append(#X "_0", properties.limits.X[0]); \
-                                      device_defines.append(#X "_1", properties.limits.X[1]);
-#define DD_APPEND_PROPERTY_LIMIT_3(X) device_defines.append(#X "_0", properties.limits.X[0]); \
-                                      device_defines.append(#X "_1", properties.limits.X[1]); \
-                                      device_defines.append(#X "_2", properties.limits.X[2]);
+#define DD_APPEND_PROPERTY_LIMIT_2(X)                       \
+    device_defines.append(#X "_0", properties.limits.X[0]); \
+    device_defines.append(#X "_1", properties.limits.X[1]);
+#define DD_APPEND_PROPERTY_LIMIT_3(X)                       \
+    device_defines.append(#X "_0", properties.limits.X[0]); \
+    device_defines.append(#X "_1", properties.limits.X[1]); \
+    device_defines.append(#X "_2", properties.limits.X[2]);
 
             DD_APPEND_PROPERTY_LIMIT(maxImageDimension1D)
             DD_APPEND_PROPERTY_LIMIT(maxImageDimension2D)
