@@ -214,72 +214,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_int8_arithmetic", &Option::use_int8_arithmetic)
     .def_readwrite("use_packing_layout", &Option::use_packing_layout)
     .def_readwrite("use_shader_pack8", &Option::use_shader_pack8)
-    .def_property(
-    "use_subgroup_basic", [](const Option& opt) {
-        return opt.use_subgroup_basic;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_basic = v;
-    })
-    .def_property(
-    "use_subgroup_vote", [](const Option& opt) {
-        return opt.use_subgroup_vote;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_vote = v;
-    })
-    .def_property(
-    "use_subgroup_arithmetic", [](const Option& opt) {
-        return opt.use_subgroup_arithmetic;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_arithmetic = v;
-    })
-    .def_property(
-    "use_subgroup_ballot", [](const Option& opt) {
-        return opt.use_subgroup_ballot;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_ballot = v;
-    })
-    .def_property(
-    "use_subgroup_shuffle", [](const Option& opt) {
-        return opt.use_subgroup_shuffle;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_shuffle = v;
-    })
-    .def_property(
-    "use_subgroup_shuffle_relative", [](const Option& opt) {
-        return opt.use_subgroup_shuffle_relative;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_shuffle_relative = v;
-    })
-    .def_property(
-    "use_subgroup_clustered", [](const Option& opt) {
-        return opt.use_subgroup_clustered;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_clustered = v;
-    })
-    .def_property(
-    "use_subgroup_quad", [](const Option& opt) {
-        return opt.use_subgroup_quad;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_quad = v;
-    })
-    .def_property(
-    "use_subgroup_rotate", [](const Option& opt) {
-        return opt.use_subgroup_rotate;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_rotate = v;
-    })
-    .def_property(
-    "use_subgroup_rotate_clustered", [](const Option& opt) {
-        return opt.use_subgroup_rotate_clustered;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_rotate_clustered = v;
-    })
-    .def_property(
-    "use_subgroup_extended_types", [](const Option& opt) {
-        return opt.use_subgroup_extended_types;
-    }, [](Option& opt, bool v) {
-        opt.use_subgroup_extended_types = v;
-    })
+    .def_readwrite("use_subgroup_ops", &Option::use_subgroup_ops)
     .def_readwrite("use_image_storage", &Option::use_image_storage)
     .def_readwrite("use_tensor_storage", &Option::use_tensor_storage);
 
