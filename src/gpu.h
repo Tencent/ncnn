@@ -205,6 +205,9 @@ public:
     // memory properties
     const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties() const;
 
+    // extension properties
+    const std::vector<VkExtensionProperties>& deviceExtensionProperties() const;
+
     // info
     uint32_t api_version() const;
     uint32_t driver_version() const;

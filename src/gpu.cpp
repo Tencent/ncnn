@@ -277,6 +277,9 @@ public:
     // memory properties
     VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
 
+    // extension properties
+    std::vector<VkExtensionProperties> deviceExtensionProperties;
+
     // 0 = discrete gpu
     // 1 = integrated gpu
     // 2 = virtual gpu
@@ -637,7 +640,7 @@ int GpuInfoPrivate::query_extensions()
         return -1;
     }
 
-    std::vector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionPropertyCount);
+    deviceExtensionProperties.resize(deviceExtensionPropertyCount);
     ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, deviceExtensionProperties.data());
     if (ret != VK_SUCCESS)
     {
@@ -1151,6 +1154,11 @@ const VkPhysicalDeviceProperties& GpuInfo::physicalDeviceProperties() const
 const VkPhysicalDeviceMemoryProperties& GpuInfo::physicalDeviceMemoryProperties() const
 {
     return d->physicalDeviceMemoryProperties;
+}
+
+const std::vector<VkExtensionProperties>& GpuInfo::deviceExtensionProperties() const
+{
+    return d->deviceExtensionProperties;
 }
 
 uint32_t GpuInfo::api_version() const
@@ -4554,6 +4562,17 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         const VulkanDevice* vkdev = opt.blob_vkallocator->vkdev;
 
         const GpuInfo& info = vkdev->info;
+
+        // pull in device extensions
+        {
+            const std::vector<VkExtensionProperties>& properties = info.deviceExtensionProperties();
+
+            for (size_t i = 0; i < properties.size(); i++)
+            {
+                const VkExtensionProperties& exp = properties[i];
+                device_defines.append(exp.extensionName, exp.specVersion);
+            }
+        }
 
 #define DD_APPEND_FEATURE(X) device_defines.append(#X, features.X ? 1 : 0);
 
