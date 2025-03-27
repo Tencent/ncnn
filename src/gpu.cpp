@@ -4809,7 +4809,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_PROPERTY_LIMIT_2(maxViewportDimensions)
             DD_APPEND_PROPERTY_LIMIT_2(viewportBoundsRange)
             DD_APPEND_PROPERTY_LIMIT(viewportSubPixelBits)
-            DD_APPEND_PROPERTY_LIMIT(minMemoryMapAlignment)
+            device_defines.append("minMemoryMapAlignment", (uint32_t)properties.limits.minMemoryMapAlignment);
             DD_APPEND_PROPERTY_LIMIT(minTexelBufferOffsetAlignment)
             DD_APPEND_PROPERTY_LIMIT(minUniformBufferOffsetAlignment)
             DD_APPEND_PROPERTY_LIMIT(minStorageBufferOffsetAlignment)
