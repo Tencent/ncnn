@@ -5016,7 +5016,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_fp16_storage)
     {
         custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
-        // custom_exts += "struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };\n";
+        custom_exts += "struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };\n";
     }
     if (opt.use_fp16_arithmetic)
     {
