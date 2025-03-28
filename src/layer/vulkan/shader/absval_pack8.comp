@@ -14,10 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-
 #define shape_constant_id_offset 0
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
