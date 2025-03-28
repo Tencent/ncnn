@@ -283,6 +283,9 @@ public:
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
 
+    // r16f format in storage image
+    bool support_fp16_image() const;
+
     // ycbcr conversion feature
     bool support_ycbcr_conversion() const;
 
