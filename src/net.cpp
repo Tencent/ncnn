@@ -1395,10 +1395,15 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
+
+        if (opt.use_image_storage && !d->vkdev->info.support_fp16_image())
+        {
+            opt.use_fp16_storage = false;
+            opt.use_fp16_uniform = false;
+        }
 
         // enable local memory optimization on discrete gpu only
         if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
@@ -1693,10 +1698,15 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
+
+        if (opt.use_image_storage && !d->vkdev->info.support_fp16_image())
+        {
+            opt.use_fp16_storage = false;
+            opt.use_fp16_uniform = false;
+        }
 
         // enable local memory optimization on discrete gpu only
         if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;

@@ -1417,6 +1417,11 @@ bool GpuInfo::support_int8_arithmetic() const
     return d->queryFloat16Int8Features.shaderInt8;
 }
 
+bool GpuInfo::support_fp16_image() const
+{
+    return d->physicalDevicefeatures.shaderStorageImageExtendedFormats;
+}
+
 bool GpuInfo::support_ycbcr_conversion() const
 {
     return d->querySamplerYcbcrConversionFeatures.samplerYcbcrConversion;
