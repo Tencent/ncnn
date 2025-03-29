@@ -317,6 +317,7 @@ public:
     int support_VK_KHR_sampler_ycbcr_conversion() const;
     int support_VK_KHR_shader_float16_int8() const;
     int support_VK_KHR_shader_float_controls() const;
+    int support_VK_KHR_shader_non_semantic_info() const;
     int support_VK_KHR_shader_subgroup_extended_types() const;
     int support_VK_KHR_shader_subgroup_rotate() const;
     int support_VK_KHR_storage_buffer_storage_class() const;
