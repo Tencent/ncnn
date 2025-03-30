@@ -131,19 +131,14 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     outptr0 += 4;
                 }
 
-                for (int i = 0; i < 4; i++)
                 {
-                    if (i % 2)
-                    {
-                        *outptr0 = *ptr1;
-                        ptr1 += 1;
-                    }
-                    else
-                    {
-                        *outptr0 = *ptr0;
-                        ptr0 += 1;
-                    }
-                    outptr0 += 1;
+                    outptr0[0] = ptr0[0];
+                    outptr0[1] = ptr1[0];
+                    outptr0[2] = ptr0[1];
+                    outptr0[3] = ptr1[1];
+                    ptr0 += 2;
+                    ptr1 += 2;
+                    outptr0 += 4;
                 }
             }
 
@@ -642,19 +637,14 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
                     outptr0 += 4;
                 }
 
-                for (int i = 0; i < 4; i++)
                 {
-                    if (i % 2)
-                    {
-                        *outptr0 = *ptr1;
-                        ptr1 += 1;
-                    }
-                    else
-                    {
-                        *outptr0 = *ptr0;
-                        ptr0 += 1;
-                    }
-                    outptr0 += 1;
+                    outptr0[0] = ptr0[0];
+                    outptr0[1] = ptr1[0];
+                    outptr0[2] = ptr0[1];
+                    outptr0[3] = ptr1[1];
+                    ptr0 += 2;
+                    ptr1 += 2;
+                    outptr0 += 4;
                 }
             }
 

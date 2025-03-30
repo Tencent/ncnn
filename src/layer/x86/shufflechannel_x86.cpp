@@ -651,19 +651,14 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     outptr += 4;
                 }
 
-                for (int i = 0; i < 4; i++)
                 {
-                    if (i % 2)
-                    {
-                        *outptr = *ptr1;
-                        ptr1 += 1;
-                    }
-                    else
-                    {
-                        *outptr = *ptr0;
-                        ptr0 += 1;
-                    }
-                    outptr += 1;
+                    outptr[0] = ptr0[0];  
+                    outptr[1] = ptr1[0];  
+                    outptr[2] = ptr0[1];  
+                    outptr[3] = ptr1[1];  
+                    ptr0 += 2;  
+                    ptr1 += 2;  
+                    outptr += 4;
                 }
             }
 
