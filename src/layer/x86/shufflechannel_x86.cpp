@@ -622,12 +622,12 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
 
                 {
-                    outptr[0] = ptr0[0];  
-                    outptr[1] = ptr1[0];  
-                    outptr[2] = ptr0[1];  
-                    outptr[3] = ptr1[1];  
-                    ptr0 += 2;  
-                    ptr1 += 2;  
+                    outptr[0] = ptr0[0];
+                    outptr[1] = ptr1[0];
+                    outptr[2] = ptr0[1];
+                    outptr[3] = ptr1[1];
+                    ptr0 += 2;
+                    ptr1 += 2;
                     outptr += 4;
                 }
             }
