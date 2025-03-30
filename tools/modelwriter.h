@@ -2038,6 +2038,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%d", vdim)
             fprintf_param_value(" 5=%d", attn_mask)
             fprintf_param_value(" 6=%e", scale)
+            fprintf_param_value(" 18=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->q_weight_data, bp);
             fwrite_weight_data(op->q_bias_data, bp);
@@ -2047,6 +2048,19 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->v_bias_data, bp);
             fwrite_weight_tag_data(op->out_weight_data, bp);
             fwrite_weight_data(op->out_bias_data, bp);
+
+#if NCNN_INT8
+            // write int8_scale data
+            if (op->int8_scale_term)
+            {
+                fwrite_weight_data(op->q_weight_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->k_weight_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->v_weight_data_int8_scales, bp, 90, 100);
+                ncnn::Mat out_weight_data_int8_scales(1);
+                out_weight_data_int8_scales[0] = op->out_weight_data_int8_scale;
+                fwrite_weight_data(out_weight_data_int8_scales, bp, 90, 100);
+            }
+#endif // NCNN_INT8
         }
         else if (layer->type == "MVN")
         {
@@ -2330,7 +2344,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 11=%d", d)
             fprintf_param_value(" 2=%d", c)
-            fprintf_param_value(" 3=%d", permute)
+            {
+                if (op->shape_expr != op_default->shape_expr) fprintf(pp, " 6=%s", op->shape_expr.c_str());
+            }
         }
         else if (layer->type == "RMSNorm")
         {

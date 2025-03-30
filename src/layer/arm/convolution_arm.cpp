@@ -1376,7 +1376,23 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-        out_elempack_int32 = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        if (use_int8_requantize)
+        {
+            out_elempack_int32 = num_output % 8 == 0 ? 8 : 1;
+        }
+        else
+        {
+#if NCNN_ARM82
+            if (ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
+            {
+                out_elempack_int32 = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+            }
+            else
+#endif // NCNN_ARM82
+            {
+                out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+            }
+        }
     }
 #endif // __ARM_NEON
 

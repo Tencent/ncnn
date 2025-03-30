@@ -52,10 +52,11 @@ Option::Option()
 
     use_shader_pack8 = false;
 
-    use_subgroup_basic = false;
-    use_subgroup_vote = false;
-    use_subgroup_ballot = false;
-    use_subgroup_shuffle = false;
+    use_subgroup_ops = false;
+
+    use_subgroup_reserved_1 = false;
+    use_subgroup_reserved_2 = false;
+    use_subgroup_reserved_3 = false;
 
     use_image_storage = false;
     use_tensor_storage = false;

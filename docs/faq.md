@@ -45,29 +45,15 @@
 
    set(ncnn_DIR {ncnnConfig.cmake所在目录})
 
-- ## 找不到 Vulkan, 
-
-   cmake版本 3.10，否则没有带 FindVulkan.cmake
-
-   android-api >= 24
-
-   macos 要先执行安装脚本
-
-- ## 如何安装 vulkan sdk
-
 - ## 找不到库（需要根据系统/编译器指定）
 
    undefined reference to __kmpc_for_static_init_4 __kmpc_for_static_fini __kmpc_fork_call ...
 
    需要链接openmp库 
 
-   undefined reference to vkEnumerateInstanceExtensionProperties vkGetInstanceProcAddr vkQueueSubmit ...
-
-   需要 vulkan-1.lib
-
    undefined reference to glslang::InitializeProcess() glslang::TShader::TShader(EShLanguage) ...
 
-   需要 glslang.lib OGLCompiler.lib SPIRV.lib OSDependent.lib
+   需要 glslang.lib glslang-default-resource-limits.lib
 
    undefined reference to AAssetManager_fromJava AAssetManager_open AAsset_seek ...
 
@@ -229,6 +215,33 @@ ln -sf /opt/cmake-3.18.2/bin/* /usr/bin/
    出现此类问题请先更新GPU驱动。Please upgrade your GPU driver if you encounter this crash or error.
    这里提供了一些品牌的GPU驱动下载网址.We have provided some drivers' download pages here.
    [Intel](https://downloadcenter.intel.com/product/80939/Graphics-Drivers)，[AMD](https://www.amd.com/en/support)，[Nvidia](https://www.nvidia.com/Download/index.aspx)
+
+- ## docker 环境里面 nvidia-smi 能看到显卡也能跑 cuda 却不能跑 vulkan
+
+   因为这个docker环境的nvidia驱动没有安装opengl/vulkan支持
+
+  首先运行 nvidia-smi 查看当前驱动版本
+
+```
+NVIDIA-SMI 535.161.07
+Driver Version: 535.161.07
+CUDA Version: 12.2
+```
+
+然后去下载对应版本的NVIDIA驱动，安装用户态驱动文件，跳过内核部分
+
+```
+wget https://us.download.nvidia.com/tesla/535.161.07/NVIDIA-Linux-x86_64-535.161.07.run
+chmod +x NVIDIA-Linux-x86_64-535.161.07.run
+./NVIDIA-Linux-x86_64-535.161.07.run --silent --no-kernel-module
+```
+
+安装时会报一些文件权限错误，不用管，安装完成后 vulkan 支持就可用了。最后安装 vulkaninfo 查看gpu信息
+
+```
+dnf install vulkan-tools
+vulkaninfo
+```
 
 - ## ModuleNotFoundError: No module named 'ncnn.ncnn'
 

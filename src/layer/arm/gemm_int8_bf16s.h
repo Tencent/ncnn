@@ -38,8 +38,8 @@ static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_s
 
     const float v127_B_scale = 127.f * B_scale;
 
-    float* ps = scales;
-    float* pods = out_descales;
+    float* ps = (float*)scales + i;
+    float* pods = (float*)out_descales + i;
 
 #if __ARM_NEON
     if (elempack == 4)
@@ -217,8 +217,8 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     {
         const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * elempack;
 
-        float32x4_t _scale0 = vld1q_f32((const float*)scales + ii);
-        float32x4_t _scale1 = vld1q_f32((const float*)scales + ii + 4);
+        float32x4_t _scale0 = vld1q_f32((const float*)scales + i + ii);
+        float32x4_t _scale1 = vld1q_f32((const float*)scales + i + ii + 4);
 
         if (elempack == 4)
         {
@@ -665,7 +665,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     {
         const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * elempack;
 
-        float32x4_t _scale = vld1q_f32((const float*)scales + ii);
+        float32x4_t _scale = vld1q_f32((const float*)scales + i + ii);
 
         if (elempack == 4)
         {
@@ -958,8 +958,8 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     {
         const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
 
-        const float scale0 = scales[ii];
-        const float scale1 = scales[ii + 1];
+        const float scale0 = scales[i + ii];
+        const float scale1 = scales[i + ii + 1];
 
         // if (elempack == 1)
         {
@@ -1048,7 +1048,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
     {
         const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
 
-        const float scale = scales[ii];
+        const float scale = scales[i + ii];
 
         // if (elempack == 1)
         {
@@ -1121,8 +1121,8 @@ static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales,
 #endif
 #endif
 
-    float* ps = scales;
-    float* pods = out_descales;
+    float* ps = (float*)scales + i;
+    float* pods = (float*)out_descales + i;
 
 #if __ARM_NEON
     if (elempack == 4)
@@ -1362,8 +1362,8 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
     {
         const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * elempack;
 
-        float32x4_t _scale0 = vld1q_f32((const float*)scales + ii);
-        float32x4_t _scale1 = vld1q_f32((const float*)scales + ii + 4);
+        float32x4_t _scale0 = vld1q_f32((const float*)scales + i + ii);
+        float32x4_t _scale1 = vld1q_f32((const float*)scales + i + ii + 4);
 
         if (elempack == 4)
         {
@@ -1731,7 +1731,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
     {
         const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * elempack;
 
-        float32x4_t _scale = vld1q_f32((const float*)scales + ii);
+        float32x4_t _scale = vld1q_f32((const float*)scales + i + ii);
 
         if (elempack == 4)
         {
@@ -1963,8 +1963,8 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
     {
         const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * elempack;
 
-        const float scale0 = scales[ii];
-        const float scale1 = scales[ii + 1];
+        const float scale0 = scales[i + ii];
+        const float scale1 = scales[i + ii + 1];
 
 #if __ARM_NEON
         float32x4_t _scale0 = vdupq_n_f32(scale0);
@@ -2187,7 +2187,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
     {
         const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * elempack;
 
-        const float scale = scales[ii];
+        const float scale = scales[i + ii];
 
 #if __ARM_NEON
         float32x4_t _scale = vdupq_n_f32(scale);
@@ -4169,8 +4169,8 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
     {
         unsigned short* p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        float32x4_t _descale0 = vld1q_f32((const float*)descales + ii);
-        float32x4_t _descale1 = vld1q_f32((const float*)descales + ii + 4);
+        float32x4_t _descale0 = vld1q_f32((const float*)descales + i + ii);
+        float32x4_t _descale1 = vld1q_f32((const float*)descales + i + ii + 4);
 
         float32x4_t _c0;
         float32x4_t _c1;
@@ -5189,7 +5189,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
     {
         unsigned short* p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        float32x4_t _descale = vld1q_f32((const float*)descales + ii);
+        float32x4_t _descale = vld1q_f32((const float*)descales + i + ii);
 
         float32x4_t _c0;
         if (pC)
@@ -5794,10 +5794,10 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
         // out_elempack == 1
         unsigned short* p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
-        const float descale0 = descales[ii];
-        const float descale1 = descales[ii + 1];
+        const float descale0 = descales[i + ii];
+        const float descale1 = descales[i + ii + 1];
 #if __ARM_NEON
-        float32x2_t _descale = vld1_f32((const float*)descales + ii);
+        float32x2_t _descale = vld1_f32((const float*)descales + i + ii);
 #endif
 
         float c0;
@@ -6097,7 +6097,7 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
         // out_elempack == 1
         unsigned short* p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
-        const float descale = descales[ii];
+        const float descale = descales[i + ii];
 #if __ARM_NEON
         float32x4_t _descale = vdupq_n_f32(descale);
 #endif
@@ -6359,8 +6359,8 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
     {
         unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
 
-        float32x4_t _descale0 = vld1q_f32((const float*)descales + ii);
-        float32x4_t _descale1 = vld1q_f32((const float*)descales + ii + 4);
+        float32x4_t _descale0 = vld1q_f32((const float*)descales + i + ii);
+        float32x4_t _descale1 = vld1q_f32((const float*)descales + i + ii + 4);
 
         float32x4_t _c0;
         float32x4_t _c1;
@@ -7318,7 +7318,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
     {
         unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
 
-        float32x4_t _descale = vld1q_f32((const float*)descales + ii);
+        float32x4_t _descale = vld1q_f32((const float*)descales + i + ii);
 
         float32x4_t _c0;
         if (pC)
@@ -7902,10 +7902,10 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
     {
         unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
 
-        const float descale0 = descales[ii];
-        const float descale1 = descales[ii + 1];
+        const float descale0 = descales[i + ii];
+        const float descale1 = descales[i + ii + 1];
 #if __ARM_NEON
-        float32x2_t _descale01 = vld1_f32((const float*)descales + ii);
+        float32x2_t _descale01 = vld1_f32((const float*)descales + i + ii);
 #endif
 
         float c0;
@@ -8250,7 +8250,7 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
     {
         unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
 
-        const float descale = descales[ii];
+        const float descale = descales[i + ii];
 #if __ARM_NEON
         float32x4_t _descale = vdupq_n_f32(descale);
 #endif

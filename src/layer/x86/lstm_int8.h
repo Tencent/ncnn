@@ -18,7 +18,7 @@ void lstm_dynamic_quantize_scale2int8_avx512vnni(const float* ptr, int size, flo
 void lstm_int8_avx512vnni(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
 void lstm_transform_weight_int8_avxvnni(const Mat& weight_xc, const Mat& weight_xc_int8_scales, const Mat& weight_hc, const Mat& weight_hc_int8_scales, const Mat& bias_c, Mat& weight_data_tm, Mat& weight_data_tm_int8_descales, Mat& bias_c_tm, int size, int num_output, int num_directions, int hidden_size, const Option& opt);
 void lstm_dynamic_quantize_scale2int8_avxvnni(const float* ptr, int size, float scale, signed char* outptr);
 void lstm_int8_avxvnni(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
@@ -43,7 +43,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         lstm_transform_weight_int8_avxvnni(weight_xc, weight_xc_int8_scales, weight_hc, weight_hc_int8_scales, bias_c, weight_data_tm, weight_data_tm_int8_descales, bias_c_tm, size, num_output, num_directions, hidden_size, opt);
@@ -870,10 +870,10 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
                 __m256i _w2 = _mm256_loadu_si256((const __m256i*)(kptr + 64));
                 __m256i _w3 = _mm256_loadu_si256((const __m256i*)(kptr + 96));
-                _w0_shift = _mm256_dpbusd_epi32(_w0_shift, _v127, _w0);
-                _w1_shift = _mm256_dpbusd_epi32(_w1_shift, _v127, _w1);
-                _w2_shift = _mm256_dpbusd_epi32(_w2_shift, _v127, _w2);
-                _w3_shift = _mm256_dpbusd_epi32(_w3_shift, _v127, _w3);
+                _w0_shift = _mm256_comp_dpbusd_epi32(_w0_shift, _v127, _w0);
+                _w1_shift = _mm256_comp_dpbusd_epi32(_w1_shift, _v127, _w1);
+                _w2_shift = _mm256_comp_dpbusd_epi32(_w2_shift, _v127, _w2);
+                _w3_shift = _mm256_comp_dpbusd_epi32(_w3_shift, _v127, _w3);
 
                 kptr += 128;
             }
@@ -900,8 +900,8 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
                 __m256i _w0 = _mm256_loadu_si256((const __m256i*)kptr);
                 __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
-                _w0_shift = _mm256_dpbusd_epi32(_w0_shift, _v127, _w0);
-                _w1_shift = _mm256_dpbusd_epi32(_w1_shift, _v127, _w1);
+                _w0_shift = _mm256_comp_dpbusd_epi32(_w0_shift, _v127, _w0);
+                _w1_shift = _mm256_comp_dpbusd_epi32(_w1_shift, _v127, _w1);
 
                 kptr += 64;
             }
@@ -946,7 +946,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[24 + 7] = weight_xc_G_1[i + 3];
 
                 __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
-                _w_shift = _mm256_dpbusd_epi32(_w_shift, _v127, _w);
+                _w_shift = _mm256_comp_dpbusd_epi32(_w_shift, _v127, _w);
 
                 kptr += 32;
             }
@@ -1062,10 +1062,10 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
                 __m256i _w2 = _mm256_loadu_si256((const __m256i*)(kptr + 64));
                 __m256i _w3 = _mm256_loadu_si256((const __m256i*)(kptr + 96));
-                _w0_shift = _mm256_dpbusd_epi32(_w0_shift, _v127, _w0);
-                _w1_shift = _mm256_dpbusd_epi32(_w1_shift, _v127, _w1);
-                _w2_shift = _mm256_dpbusd_epi32(_w2_shift, _v127, _w2);
-                _w3_shift = _mm256_dpbusd_epi32(_w3_shift, _v127, _w3);
+                _w0_shift = _mm256_comp_dpbusd_epi32(_w0_shift, _v127, _w0);
+                _w1_shift = _mm256_comp_dpbusd_epi32(_w1_shift, _v127, _w1);
+                _w2_shift = _mm256_comp_dpbusd_epi32(_w2_shift, _v127, _w2);
+                _w3_shift = _mm256_comp_dpbusd_epi32(_w3_shift, _v127, _w3);
 
                 kptr += 128;
             }
@@ -1092,8 +1092,8 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
                 __m256i _w0 = _mm256_loadu_si256((const __m256i*)kptr);
                 __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
-                _w0_shift = _mm256_dpbusd_epi32(_w0_shift, _v127, _w0);
-                _w1_shift = _mm256_dpbusd_epi32(_w1_shift, _v127, _w1);
+                _w0_shift = _mm256_comp_dpbusd_epi32(_w0_shift, _v127, _w0);
+                _w1_shift = _mm256_comp_dpbusd_epi32(_w1_shift, _v127, _w1);
 
                 kptr += 64;
             }
@@ -1138,7 +1138,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[24 + 7] = weight_hc_G_1[i + 3];
 
                 __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
-                _w_shift = _mm256_dpbusd_epi32(_w_shift, _v127, _w);
+                _w_shift = _mm256_comp_dpbusd_epi32(_w_shift, _v127, _w);
 
                 kptr += 32;
             }
@@ -1299,10 +1299,10 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
                 __m128i _w2 = _mm_loadu_si128((const __m128i*)(kptr + 32));
                 __m128i _w3 = _mm_loadu_si128((const __m128i*)(kptr + 48));
-                _w0_shift = _mm_dpbusd_epi32(_w0_shift, _v127, _w0);
-                _w1_shift = _mm_dpbusd_epi32(_w1_shift, _v127, _w1);
-                _w2_shift = _mm_dpbusd_epi32(_w2_shift, _v127, _w2);
-                _w3_shift = _mm_dpbusd_epi32(_w3_shift, _v127, _w3);
+                _w0_shift = _mm_comp_dpbusd_epi32(_w0_shift, _v127, _w0);
+                _w1_shift = _mm_comp_dpbusd_epi32(_w1_shift, _v127, _w1);
+                _w2_shift = _mm_comp_dpbusd_epi32(_w2_shift, _v127, _w2);
+                _w3_shift = _mm_comp_dpbusd_epi32(_w3_shift, _v127, _w3);
 
                 kptr += 64;
             }
@@ -1326,8 +1326,8 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
                 __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
                 __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
-                _w0_shift = _mm_dpbusd_epi32(_w0_shift, _v127, _w0);
-                _w1_shift = _mm_dpbusd_epi32(_w1_shift, _v127, _w1);
+                _w0_shift = _mm_comp_dpbusd_epi32(_w0_shift, _v127, _w0);
+                _w1_shift = _mm_comp_dpbusd_epi32(_w1_shift, _v127, _w1);
 
                 kptr += 32;
             }
@@ -1356,7 +1356,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[8 + 7] = weight_xc_G[i + 3];
 
                 __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
-                _w_shift = _mm_dpbusd_epi32(_w_shift, _v127, _w);
+                _w_shift = _mm_comp_dpbusd_epi32(_w_shift, _v127, _w);
 
                 kptr += 16;
             }
@@ -1437,10 +1437,10 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
                 __m128i _w2 = _mm_loadu_si128((const __m128i*)(kptr + 32));
                 __m128i _w3 = _mm_loadu_si128((const __m128i*)(kptr + 48));
-                _w0_shift = _mm_dpbusd_epi32(_w0_shift, _v127, _w0);
-                _w1_shift = _mm_dpbusd_epi32(_w1_shift, _v127, _w1);
-                _w2_shift = _mm_dpbusd_epi32(_w2_shift, _v127, _w2);
-                _w3_shift = _mm_dpbusd_epi32(_w3_shift, _v127, _w3);
+                _w0_shift = _mm_comp_dpbusd_epi32(_w0_shift, _v127, _w0);
+                _w1_shift = _mm_comp_dpbusd_epi32(_w1_shift, _v127, _w1);
+                _w2_shift = _mm_comp_dpbusd_epi32(_w2_shift, _v127, _w2);
+                _w3_shift = _mm_comp_dpbusd_epi32(_w3_shift, _v127, _w3);
 
                 kptr += 64;
             }
@@ -1464,8 +1464,8 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
                 __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
                 __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
-                _w0_shift = _mm_dpbusd_epi32(_w0_shift, _v127, _w0);
-                _w1_shift = _mm_dpbusd_epi32(_w1_shift, _v127, _w1);
+                _w0_shift = _mm_comp_dpbusd_epi32(_w0_shift, _v127, _w0);
+                _w1_shift = _mm_comp_dpbusd_epi32(_w1_shift, _v127, _w1);
 
                 kptr += 32;
             }
@@ -1494,7 +1494,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[8 + 7] = weight_hc_G[i + 3];
 
                 __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
-                _w_shift = _mm_dpbusd_epi32(_w_shift, _v127, _w);
+                _w_shift = _mm_comp_dpbusd_epi32(_w_shift, _v127, _w);
 
                 kptr += 16;
             }
@@ -1621,7 +1621,7 @@ static void lstm_dynamic_quantize_scale2int8(const float* ptr, int size, float s
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         lstm_dynamic_quantize_scale2int8_avxvnni(ptr, size, scale, outptr);
@@ -1705,7 +1705,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         lstm_int8_avxvnni(bottom_blob_int8, bottom_blob_int8_descales, top_blob, reverse, weight_data_tm, weight_data_tm_int8_descales, bias_c, weight_hr, hidden_state, cell_state, opt);
@@ -2004,11 +2004,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
                 __m512i _xixi0 = _mm512_shuffle_epi32(_xixi, _MM_PERM_AAAA);
 
-#if __AVX512VNNI__
-                _lstm_IFOGx0 = _mm512_dpwssd_epi32(_lstm_IFOGx0, _ww, _xixi0);
-#else
-                _lstm_IFOGx0 = _mm512_add_epi32(_lstm_IFOGx0, _mm512_madd_epi16(_ww, _xixi0));
-#endif // __AVX512VNNI__
+                _lstm_IFOGx0 = _mm512_comp_dpwssd_epi32(_lstm_IFOGx0, _ww, _xixi0);
 
                 kptr += 32;
             }
@@ -2191,11 +2187,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
                 __m512i _hh_cont0 = _mm512_shuffle_epi32(_hh_cont, _MM_PERM_AAAA);
 
-#if __AVX512VNNI__
-                _lstm_IFOGh0 = _mm512_dpwssd_epi32(_lstm_IFOGh0, _ww, _hh_cont0);
-#else
-                _lstm_IFOGh0 = _mm512_add_epi32(_lstm_IFOGh0, _mm512_madd_epi16(_ww, _hh_cont0));
-#endif // __AVX512VNNI__
+                _lstm_IFOGh0 = _mm512_comp_dpwssd_epi32(_lstm_IFOGh0, _ww, _hh_cont0);
 
                 kptr += 32;
             }
@@ -2273,10 +2265,10 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
                 __m256i _xii = _mm256_inserti128_si256(_mm256_castsi128_si256(_xi), _xi, 1);
 
-                _sum0 = _mm256_dpbusd_epi32(_sum0, _xii, _w0);
-                _sum1 = _mm256_dpbusd_epi32(_sum1, _xii, _w1);
-                _sum2 = _mm256_dpbusd_epi32(_sum2, _xii, _w2);
-                _sum3 = _mm256_dpbusd_epi32(_sum3, _xii, _w3);
+                _sum0 = _mm256_comp_dpbusd_epi32(_sum0, _xii, _w0);
+                _sum1 = _mm256_comp_dpbusd_epi32(_sum1, _xii, _w1);
+                _sum2 = _mm256_comp_dpbusd_epi32(_sum2, _xii, _w2);
+                _sum3 = _mm256_comp_dpbusd_epi32(_sum3, _xii, _w3);
 
                 kptr += 128;
             }
@@ -2296,8 +2288,8 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m256i _w0 = _mm256_loadu_si256((const __m256i*)kptr);
                 __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
 
-                _sum0 = _mm256_dpbusd_epi32(_sum0, _xi, _w0);
-                _sum1 = _mm256_dpbusd_epi32(_sum1, _xi, _w1);
+                _sum0 = _mm256_comp_dpbusd_epi32(_sum0, _xi, _w0);
+                _sum1 = _mm256_comp_dpbusd_epi32(_sum1, _xi, _w1);
 
                 kptr += 64;
             }
@@ -2314,7 +2306,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 #ifdef _MSC_VER
                 _xi = _mm256_add_epi32(_xi, _mm256_set1_epi8(127));
 #endif
-                _lstm_IFOGx0 = _mm256_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
+                _lstm_IFOGx0 = _mm256_comp_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
 
                 kptr += 32;
             }
@@ -2394,11 +2386,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
                 __m256i _xixi0 = _mm256_shuffle_epi32(_xixi, _MM_SHUFFLE(0, 0, 0, 0));
 
-#if __AVXVNNI__ || __AVX512VNNI__
-                _lstm_IFOGx0 = _mm256_dpwssd_epi32(_lstm_IFOGx0, _ww, _xixi0);
-#else
-                _lstm_IFOGx0 = _mm256_add_epi32(_lstm_IFOGx0, _mm256_madd_epi16(_ww, _xixi0));
-#endif // __AVXVNNI__ || __AVX512VNNI__
+                _lstm_IFOGx0 = _mm256_comp_dpwssd_epi32(_lstm_IFOGx0, _ww, _xixi0);
 
                 kptr += 16;
             }
@@ -2434,10 +2422,10 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
                 __m256i _hh_cont = _mm256_broadcastsi128_si256(_h_cont);
 
-                _sum0 = _mm256_dpbusd_epi32(_sum0, _hh_cont, _w0);
-                _sum1 = _mm256_dpbusd_epi32(_sum1, _hh_cont, _w1);
-                _sum2 = _mm256_dpbusd_epi32(_sum2, _hh_cont, _w2);
-                _sum3 = _mm256_dpbusd_epi32(_sum3, _hh_cont, _w3);
+                _sum0 = _mm256_comp_dpbusd_epi32(_sum0, _hh_cont, _w0);
+                _sum1 = _mm256_comp_dpbusd_epi32(_sum1, _hh_cont, _w1);
+                _sum2 = _mm256_comp_dpbusd_epi32(_sum2, _hh_cont, _w2);
+                _sum3 = _mm256_comp_dpbusd_epi32(_sum3, _hh_cont, _w3);
 
                 kptr += 128;
             }
@@ -2457,8 +2445,8 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m256i _w0 = _mm256_loadu_si256((const __m256i*)kptr);
                 __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
 
-                _sum0 = _mm256_dpbusd_epi32(_sum0, _h_cont, _w0);
-                _sum1 = _mm256_dpbusd_epi32(_sum1, _h_cont, _w1);
+                _sum0 = _mm256_comp_dpbusd_epi32(_sum0, _h_cont, _w0);
+                _sum1 = _mm256_comp_dpbusd_epi32(_sum1, _h_cont, _w1);
 
                 kptr += 64;
             }
@@ -2475,7 +2463,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 #ifdef _MSC_VER
                 _h_cont = _mm256_add_epi32(_h_cont, _mm256_set1_epi8(127));
 #endif
-                _lstm_IFOGh0 = _mm256_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
+                _lstm_IFOGh0 = _mm256_comp_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
 
                 kptr += 32;
             }
@@ -2555,11 +2543,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
                 __m256i _hh_cont0 = _mm256_shuffle_epi32(_hh_cont, _MM_SHUFFLE(0, 0, 0, 0));
 
-#if __AVXVNNI__ || __AVX512VNNI__
-                _lstm_IFOGh0 = _mm256_dpwssd_epi32(_lstm_IFOGh0, _ww, _hh_cont0);
-#else
-                _lstm_IFOGh0 = _mm256_add_epi32(_lstm_IFOGh0, _mm256_madd_epi16(_ww, _hh_cont0));
-#endif // __AVXVNNI__ || __AVX512VNNI__
+                _lstm_IFOGh0 = _mm256_comp_dpwssd_epi32(_lstm_IFOGh0, _ww, _hh_cont0);
 
                 kptr += 16;
             }
@@ -2635,10 +2619,10 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w2 = _mm_loadu_si128((const __m128i*)(kptr + 32));
                 __m128i _w3 = _mm_loadu_si128((const __m128i*)(kptr + 48));
 
-                _sum0 = _mm_dpbusd_epi32(_sum0, _xi, _w0);
-                _sum1 = _mm_dpbusd_epi32(_sum1, _xi, _w1);
-                _sum2 = _mm_dpbusd_epi32(_sum2, _xi, _w2);
-                _sum3 = _mm_dpbusd_epi32(_sum3, _xi, _w3);
+                _sum0 = _mm_comp_dpbusd_epi32(_sum0, _xi, _w0);
+                _sum1 = _mm_comp_dpbusd_epi32(_sum1, _xi, _w1);
+                _sum2 = _mm_comp_dpbusd_epi32(_sum2, _xi, _w2);
+                _sum3 = _mm_comp_dpbusd_epi32(_sum3, _xi, _w3);
 
                 kptr += 64;
             }
@@ -2659,8 +2643,8 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
                 __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
 
-                _sum0 = _mm_dpbusd_epi32(_sum0, _xi, _w0);
-                _sum1 = _mm_dpbusd_epi32(_sum1, _xi, _w1);
+                _sum0 = _mm_comp_dpbusd_epi32(_sum0, _xi, _w0);
+                _sum1 = _mm_comp_dpbusd_epi32(_sum1, _xi, _w1);
 
                 kptr += 32;
             }
@@ -2677,7 +2661,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 #ifdef _MSC_VER
                 _xi = _mm_add_epi32(_xi, _mm_set1_epi8(127));
 #endif
-                _lstm_IFOGx0 = _mm_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
+                _lstm_IFOGx0 = _mm_comp_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
 
                 kptr += 16;
             }
@@ -2712,21 +2696,10 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 _w3 = _mm_unpacklo_epi8(_w3, _mm_cmpgt_epi8(_mm_setzero_si128(), _w3));
 #endif
 
-#if __XOP__
-                _sum0 = _mm_maddd_epi16(_w0, _xi, _sum0);
-                _sum1 = _mm_maddd_epi16(_w1, _xi, _sum1);
-                _sum2 = _mm_maddd_epi16(_w2, _xi, _sum2);
-                _sum3 = _mm_maddd_epi16(_w3, _xi, _sum3);
-#else
-                __m128i _s0 = _mm_madd_epi16(_w0, _xi);
-                __m128i _s1 = _mm_madd_epi16(_w1, _xi);
-                __m128i _s2 = _mm_madd_epi16(_w2, _xi);
-                __m128i _s3 = _mm_madd_epi16(_w3, _xi);
-                _sum0 = _mm_add_epi32(_sum0, _s0);
-                _sum1 = _mm_add_epi32(_sum1, _s1);
-                _sum2 = _mm_add_epi32(_sum2, _s2);
-                _sum3 = _mm_add_epi32(_sum3, _s3);
-#endif
+                _sum0 = _mm_comp_dpwssd_epi32(_sum0, _w0, _xi);
+                _sum1 = _mm_comp_dpwssd_epi32(_sum1, _w1, _xi);
+                _sum2 = _mm_comp_dpwssd_epi32(_sum2, _w2, _xi);
+                _sum3 = _mm_comp_dpwssd_epi32(_sum3, _w3, _xi);
 
                 kptr += 32;
             }
@@ -2757,15 +2730,8 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 _w1 = _mm_unpacklo_epi8(_w1, _mm_cmpgt_epi8(_mm_setzero_si128(), _w1));
 #endif
 
-#if __XOP__
-                _sum0 = _mm_maddd_epi16(_w0, _xi, _sum0);
-                _sum1 = _mm_maddd_epi16(_w1, _xi, _sum1);
-#else
-                __m128i _s0 = _mm_madd_epi16(_w0, _xi);
-                __m128i _s1 = _mm_madd_epi16(_w1, _xi);
-                _sum0 = _mm_add_epi32(_sum0, _s0);
-                _sum1 = _mm_add_epi32(_sum1, _s1);
-#endif
+                _sum0 = _mm_comp_dpwssd_epi32(_sum0, _w0, _xi);
+                _sum1 = _mm_comp_dpwssd_epi32(_sum1, _w1, _xi);
 
                 kptr += 16;
             }
@@ -2794,11 +2760,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 _xi = _mm_unpacklo_epi8(_xi, _mm_cmpgt_epi8(_mm_setzero_si128(), _xi));
 #endif
 
-#if __XOP__
-                _lstm_IFOGx0 = _mm_maddd_epi16(_w, _xi, _lstm_IFOGx0);
-#else
-                _lstm_IFOGx0 = _mm_add_epi32(_lstm_IFOGx0, _mm_madd_epi16(_w, _xi));
-#endif
+                _lstm_IFOGx0 = _mm_comp_dpwssd_epi32(_lstm_IFOGx0, _w, _xi);
 
                 kptr += 8;
             }
@@ -2844,10 +2806,10 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w2 = _mm_loadu_si128((const __m128i*)(kptr + 32));
                 __m128i _w3 = _mm_loadu_si128((const __m128i*)(kptr + 48));
 
-                _sum0 = _mm_dpbusd_epi32(_sum0, _h_cont, _w0);
-                _sum1 = _mm_dpbusd_epi32(_sum1, _h_cont, _w1);
-                _sum2 = _mm_dpbusd_epi32(_sum2, _h_cont, _w2);
-                _sum3 = _mm_dpbusd_epi32(_sum3, _h_cont, _w3);
+                _sum0 = _mm_comp_dpbusd_epi32(_sum0, _h_cont, _w0);
+                _sum1 = _mm_comp_dpbusd_epi32(_sum1, _h_cont, _w1);
+                _sum2 = _mm_comp_dpbusd_epi32(_sum2, _h_cont, _w2);
+                _sum3 = _mm_comp_dpbusd_epi32(_sum3, _h_cont, _w3);
 
                 kptr += 64;
             }
@@ -2868,8 +2830,8 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
                 __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
 
-                _sum0 = _mm_dpbusd_epi32(_sum0, _h_cont, _w0);
-                _sum1 = _mm_dpbusd_epi32(_sum1, _h_cont, _w1);
+                _sum0 = _mm_comp_dpbusd_epi32(_sum0, _h_cont, _w0);
+                _sum1 = _mm_comp_dpbusd_epi32(_sum1, _h_cont, _w1);
 
                 kptr += 32;
             }
@@ -2886,7 +2848,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 #ifdef _MSC_VER
                 _h_cont = _mm_add_epi32(_h_cont, _mm_set1_epi8(127));
 #endif
-                _lstm_IFOGh0 = _mm_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
+                _lstm_IFOGh0 = _mm_comp_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
 
                 kptr += 16;
             }
@@ -2921,21 +2883,10 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 _w3 = _mm_unpacklo_epi8(_w3, _mm_cmpgt_epi8(_mm_setzero_si128(), _w3));
 #endif
 
-#if __XOP__
-                _sum0 = _mm_maddd_epi16(_w0, _h_cont, _sum0);
-                _sum1 = _mm_maddd_epi16(_w1, _h_cont, _sum1);
-                _sum2 = _mm_maddd_epi16(_w2, _h_cont, _sum2);
-                _sum3 = _mm_maddd_epi16(_w3, _h_cont, _sum3);
-#else
-                __m128i _s0 = _mm_madd_epi16(_w0, _h_cont);
-                __m128i _s1 = _mm_madd_epi16(_w1, _h_cont);
-                __m128i _s2 = _mm_madd_epi16(_w2, _h_cont);
-                __m128i _s3 = _mm_madd_epi16(_w3, _h_cont);
-                _sum0 = _mm_add_epi32(_sum0, _s0);
-                _sum1 = _mm_add_epi32(_sum1, _s1);
-                _sum2 = _mm_add_epi32(_sum2, _s2);
-                _sum3 = _mm_add_epi32(_sum3, _s3);
-#endif
+                _sum0 = _mm_comp_dpwssd_epi32(_sum0, _w0, _h_cont);
+                _sum1 = _mm_comp_dpwssd_epi32(_sum1, _w1, _h_cont);
+                _sum2 = _mm_comp_dpwssd_epi32(_sum2, _w2, _h_cont);
+                _sum3 = _mm_comp_dpwssd_epi32(_sum3, _w3, _h_cont);
 
                 kptr += 32;
             }
@@ -2966,15 +2917,8 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 _w1 = _mm_unpacklo_epi8(_w1, _mm_cmpgt_epi8(_mm_setzero_si128(), _w1));
 #endif
 
-#if __XOP__
-                _sum0 = _mm_maddd_epi16(_w0, _h_cont, _sum0);
-                _sum1 = _mm_maddd_epi16(_w1, _h_cont, _sum1);
-#else
-                __m128i _s0 = _mm_madd_epi16(_w0, _h_cont);
-                __m128i _s1 = _mm_madd_epi16(_w1, _h_cont);
-                _sum0 = _mm_add_epi32(_sum0, _s0);
-                _sum1 = _mm_add_epi32(_sum1, _s1);
-#endif
+                _sum0 = _mm_comp_dpwssd_epi32(_sum0, _w0, _h_cont);
+                _sum1 = _mm_comp_dpwssd_epi32(_sum1, _w1, _h_cont);
 
                 kptr += 16;
             }
@@ -3003,11 +2947,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 _h_cont = _mm_unpacklo_epi8(_h_cont, _mm_cmpgt_epi8(_mm_setzero_si128(), _h_cont));
 #endif
 
-#if __XOP__
-                _lstm_IFOGh0 = _mm_maddd_epi16(_w, _h_cont, _lstm_IFOGh0);
-#else
-                _lstm_IFOGh0 = _mm_add_epi32(_lstm_IFOGh0, _mm_madd_epi16(_w, _h_cont));
-#endif
+                _lstm_IFOGh0 = _mm_comp_dpwssd_epi32(_lstm_IFOGh0, _w, _h_cont);
 
                 kptr += 8;
             }

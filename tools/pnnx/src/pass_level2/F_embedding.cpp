@@ -39,7 +39,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding, 140)
 
 class F_embedding_onnx : public GraphRewriterPass
 {
@@ -67,6 +67,34 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding_onnx, 140)
+
+class F_embedding_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Gather              op_0        2 1 input weight out arg0=0 arg1=1 arg2=0
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.embedding";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        op->params["scale_grad_by_freq"] = false;
+        op->params["sparse"] = false;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding_tnn, 140)
 
 } // namespace pnnx

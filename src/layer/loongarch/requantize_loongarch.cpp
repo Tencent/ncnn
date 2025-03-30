@@ -23,13 +23,6 @@
 
 namespace ncnn {
 
-#if __loongarch_sx
-#include "requantize_leakyrelu_pack4.h"
-#include "requantize_leakyrelu_pack8.h"
-#include "requantize_relu_pack4.h"
-#include "requantize_relu_pack8.h"
-#endif // __loongarch_sx
-
 Requantize_loongarch::Requantize_loongarch()
 {
 #if __loongarch_sx
@@ -37,1344 +30,522 @@ Requantize_loongarch::Requantize_loongarch()
 #endif
 }
 
-int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int elemcount, int elempack)
 {
-    int dims = bottom_blob.dims;
-    int elempack = bottom_blob.elempack;
+    const int scale_in_data_size = scale_in_data.w;
+    const int bias_data_size = bias_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+    const int size = elemcount * elempack;
 
+    // NCNN_LOGE("requantize_relu %d %d %d   %d %d", scale_in_data_size, bias_data_size, scale_out_data_size, elemcount, elempack);
+
+    // int8(relu(v * scale_in) * scale_out)
+    // int8_relu(v * (scale_in * scale_out))
+
+    // int8(relu(v * scale_in + bias) * scale_out)
+    // int8_relu(v * (scale_in * scale_out) + (bias * scale_out))
+
+    float scale_in = scale_in_data[0];
 #if __loongarch_sx
-    if (elempack == 8)
+    __m128 _scale_in0 = (__m128)__lsx_vreplfr2vr_s(scale_in);
+    __m128 _scale_in1 = _scale_in0;
+    if (scale_in_data_size > 1)
     {
-        if (dims == 1)
+        if (elempack == 8)
         {
-            int w = bottom_blob.w;
-
-            top_blob.create(w, (size_t)8u, 8, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (scale_in_data_size == 1 && scale_out_data_size == 1)
-            {
-                __m128 _scale_in = (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]);
-                __m128 _scale_out = (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]);
-
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmul_s(_v0, _scale_in);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_in);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-                else if (bias_data_size == 1)
-                {
-                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias);
-                        _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias0);
-                        _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-            }
-            else if (scale_in_data_size == 1 && scale_out_data_size > 1)
-            {
-                __m128 _scale_in = (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]);
-
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmul_s(_v0, _scale_in);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_in);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-                else if (bias_data_size == 1)
-                {
-                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias);
-                        _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias0);
-                        _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-            }
-            else if (scale_in_data_size > 1 && scale_out_data_size == 1)
-            {
-                __m128 _scale_out = (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]);
-
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmul_s(_v0, _scale_in0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_in1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-                else if (bias_data_size == 1)
-                {
-                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias);
-                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
-                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-            }
-            else // if (scale_in_data_size > 1 && scale_out_data_size > 1)
-            {
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmul_s(_v0, _scale_in0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_in1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-                else if (bias_data_size == 1)
-                {
-                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias);
-                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 8;
-                        signed char* ptr = (signed char*)top_blob + i * 8;
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
-                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-                    }
-                }
-            }
+            _scale_in0 = (__m128)__lsx_vld((const float*)scale_in_data, 0);
+            _scale_in1 = (__m128)__lsx_vld((const float*)scale_in_data + 4, 0);
         }
-
-        if (dims == 2)
-        {
-            int w = bottom_blob.w;
-            int h = bottom_blob.h;
-
-            top_blob.create(w, h, (size_t)8u, 8, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
-                {
-                    const int* intptr = bottom_blob.row<const int>(i);
-                    signed char* ptr = top_blob.row<signed char>(i);
-
-                    __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                    __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                    __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                    __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        __builtin_prefetch(intptr + 32);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmul_s(_v0, _scale_in0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_in1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-
-                        intptr += 8;
-                        ptr += 8;
-                    }
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
-                {
-                    const int* intptr = bottom_blob.row<const int>(i);
-                    signed char* ptr = top_blob.row<signed char>(i);
-
-                    __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                    __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                    __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                    __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                    __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
-                    __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        __builtin_prefetch(intptr + 32);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
-                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-
-                        intptr += 8;
-                        ptr += 8;
-                    }
-                }
-            }
-        }
-
-        if (dims == 3)
-        {
-            int w = bottom_blob.w;
-            int h = bottom_blob.h;
-            int channels = bottom_blob.c;
-            int size = w * h;
-
-            top_blob.create(w, h, channels, (size_t)8u, 8, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (activation_type == 1)
-            {
-                requantize_relu_pack8_lsx(bottom_blob, top_blob, scale_in_data, scale_out_data, bias_data, opt);
-                return 0;
-            }
-
-            if (activation_type == 2 && activation_params[0] > 0.f)
-            {
-                requantize_leakyrelu_pack8_lsx(bottom_blob, top_blob, scale_in_data, scale_out_data, bias_data, activation_params[0], opt);
-                return 0;
-            }
-
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const int* intptr = bottom_blob.channel(q);
-                    signed char* ptr = top_blob.channel(q);
-
-                    __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                    __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                    __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                    __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        __builtin_prefetch(intptr + 32);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmul_s(_v0, _scale_in0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_in1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-
-                        intptr += 8;
-                        ptr += 8;
-                    }
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const int* intptr = bottom_blob.channel(q);
-                    signed char* ptr = top_blob.channel(q);
-
-                    __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                    __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                    __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                    __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
-                    __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8, 0);
-                    __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        __builtin_prefetch(intptr + 32);
-                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
-                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
-                        _v0 = activation_ps(_v0, activation_type, activation_params);
-                        _v1 = activation_ps(_v1, activation_type, activation_params);
-                        _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                        _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                        *((int64_t*)ptr) = float2int8(_v0, _v1);
-
-                        intptr += 8;
-                        ptr += 8;
-                    }
-                }
-            }
-        }
-
-        return 0;
-    }
-
-    if (elempack == 4)
-    {
-        if (dims == 1)
-        {
-            int w = bottom_blob.w;
-            int out_elempack = opt.use_packing_layout && w * elempack % 8 == 0 ? 8 : 1;
-            int outw = w * elempack / out_elempack;
-
-            top_blob.create(outw, (size_t)out_elempack, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (scale_in_data_size == 1 && scale_out_data_size == 1)
-            {
-                __m128 _scale_in = (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]);
-                __m128 _scale_out = (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]);
-
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmul_s(_v, _scale_in);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-                else if (bias_data_size == 1)
-                {
-                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-            }
-            else if (scale_in_data_size == 1 && scale_out_data_size > 1)
-            {
-                __m128 _scale_in = (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]);
-
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmul_s(_v, _scale_in);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-                else if (bias_data_size == 1)
-                {
-                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-            }
-            else if (scale_in_data_size > 1 && scale_out_data_size == 1)
-            {
-                __m128 _scale_out = (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]);
-
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmul_s(_v, _scale_in);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-                else if (bias_data_size == 1)
-                {
-                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-            }
-            else // if (scale_in_data_size > 1 && scale_out_data_size > 1)
-            {
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmul_s(_v, _scale_in);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-                else if (bias_data_size == 1)
-                {
-                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        const int* intptr = (const int*)bottom_blob + i * 4;
-                        signed char* ptr = (signed char*)top_blob + i * 4;
-
-                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                        _v = activation_ps(_v, activation_type, activation_params);
-                        _v = __lsx_vfmul_s(_v, _scale_out);
-                        v16i8 v = (v16i8)float2int8(_v);
-                        ptr[0] = v[0];
-                        ptr[1] = v[1];
-                        ptr[2] = v[2];
-                        ptr[3] = v[3];
-                    }
-                }
-            }
-        }
-
-        if (dims == 2)
-        {
-            int w = bottom_blob.w;
-            int h = bottom_blob.h;
-            int out_elempack = opt.use_packing_layout && h * elempack % 8 == 0 ? 8 : 1;
-            int outh = h * elempack / out_elempack;
-
-            top_blob.create(w, outh, (size_t)out_elempack, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (out_elempack == 8)
-            {
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < outh; i++)
-                    {
-                        const int* intptr0 = bottom_blob.row<const int>(i * 2);
-                        const int* intptr1 = bottom_blob.row<const int>(i * 2 + 1);
-                        signed char* ptr = top_blob.row<signed char>(i);
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-
-                        for (int j = 0; j < w; j++)
-                        {
-                            __builtin_prefetch(intptr0 + 16);
-                            __builtin_prefetch(intptr1 + 16);
-                            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                            _v0 = __lsx_vfmul_s(_v0, _scale_in0);
-                            _v1 = __lsx_vfmul_s(_v1, _scale_in1);
-                            _v0 = activation_ps(_v0, activation_type, activation_params);
-                            _v1 = activation_ps(_v1, activation_type, activation_params);
-                            _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                            _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                            *((int64_t*)ptr) = float2int8(_v0, _v1);
-
-                            intptr0 += 4;
-                            intptr1 += 4;
-                            ptr += 8;
-                        }
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < outh; i++)
-                    {
-                        const int* intptr0 = bottom_blob.row<const int>(i * 2);
-                        const int* intptr1 = bottom_blob.row<const int>(i * 2 + 1);
-                        signed char* ptr = top_blob.row<signed char>(i);
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-
-                        for (int j = 0; j < w; j++)
-                        {
-                            __builtin_prefetch(intptr0 + 16);
-                            __builtin_prefetch(intptr1 + 16);
-                            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                            _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
-                            _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
-                            _v0 = activation_ps(_v0, activation_type, activation_params);
-                            _v1 = activation_ps(_v1, activation_type, activation_params);
-                            _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                            _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                            *((int64_t*)ptr) = float2int8(_v0, _v1);
-
-                            intptr0 += 4;
-                            intptr1 += 4;
-                            ptr += 8;
-                        }
-                    }
-                }
-            }
-            if (out_elempack == 1)
-            {
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < h; i++)
-                    {
-                        const int* intptr = bottom_blob.row<const int>(i);
-                        signed char* ptr0 = top_blob.row<signed char>(i * 4);
-                        signed char* ptr1 = top_blob.row<signed char>(i * 4 + 1);
-                        signed char* ptr2 = top_blob.row<signed char>(i * 4 + 2);
-                        signed char* ptr3 = top_blob.row<signed char>(i * 4 + 3);
-
-                        __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-
-                        for (int j = 0; j < w; j++)
-                        {
-                            __builtin_prefetch(intptr + 16);
-                            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                            _v = __lsx_vfmul_s(_v, _scale_in);
-                            _v = activation_ps(_v, activation_type, activation_params);
-                            _v = __lsx_vfmul_s(_v, _scale_out);
-                            v16i8 v = (v16i8)float2int8(_v);
-                            ptr0[0] = v[0];
-                            ptr1[0] = v[1];
-                            ptr2[0] = v[2];
-                            ptr3[0] = v[3];
-
-                            intptr += 4;
-                            ptr0 += 1;
-                            ptr1 += 1;
-                            ptr2 += 1;
-                            ptr3 += 1;
-                        }
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < h; i++)
-                    {
-                        const int* intptr = bottom_blob.row<const int>(i);
-                        signed char* ptr0 = top_blob.row<signed char>(i * 4);
-                        signed char* ptr1 = top_blob.row<signed char>(i * 4 + 1);
-                        signed char* ptr2 = top_blob.row<signed char>(i * 4 + 2);
-                        signed char* ptr3 = top_blob.row<signed char>(i * 4 + 3);
-
-                        __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        __m128 _bias = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
-
-                        for (int j = 0; j < w; j++)
-                        {
-                            __builtin_prefetch(intptr + 16);
-                            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                            _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                            _v = activation_ps(_v, activation_type, activation_params);
-                            _v = __lsx_vfmul_s(_v, _scale_out);
-                            v16i8 v = (v16i8)float2int8(_v);
-                            ptr0[0] = v[0];
-                            ptr1[0] = v[1];
-                            ptr2[0] = v[2];
-                            ptr3[0] = v[3];
-
-                            intptr += 4;
-                            ptr0 += 1;
-                            ptr1 += 1;
-                            ptr2 += 1;
-                            ptr3 += 1;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (dims == 3)
-        {
-            int w = bottom_blob.w;
-            int h = bottom_blob.h;
-            int channels = bottom_blob.c;
-            int size = w * h;
-            int out_elempack = opt.use_packing_layout && channels * elempack % 8 == 0 ? 8 : 1;
-            int outc = channels * elempack / out_elempack;
-
-            top_blob.create(w, h, outc, (size_t)out_elempack, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (activation_type == 1)
-            {
-                requantize_relu_pack4_lsx(bottom_blob, top_blob, scale_in_data, scale_out_data, bias_data, opt);
-                return 0;
-            }
-
-            if (activation_type == 2 && activation_params[0] > 0.f)
-            {
-                requantize_leakyrelu_pack4_lsx(bottom_blob, top_blob, scale_in_data, scale_out_data, bias_data, activation_params[0], opt);
-                return 0;
-            }
-
-            if (out_elempack == 8)
-            {
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < outc; q++)
-                    {
-                        const int* intptr0 = bottom_blob.channel(q * 2);
-                        const int* intptr1 = bottom_blob.channel(q * 2 + 1);
-                        signed char* ptr = top_blob.channel(q);
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
-
-                        for (int i = 0; i < size; i++)
-                        {
-                            __builtin_prefetch(intptr0 + 16);
-                            __builtin_prefetch(intptr1 + 16);
-                            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                            _v0 = __lsx_vfmul_s(_v0, _scale_in0);
-                            _v1 = __lsx_vfmul_s(_v1, _scale_in1);
-                            _v0 = activation_ps(_v0, activation_type, activation_params);
-                            _v1 = activation_ps(_v1, activation_type, activation_params);
-                            _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                            _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                            *((int64_t*)ptr) = float2int8(_v0, _v1);
-
-                            intptr0 += 4;
-                            intptr1 += 4;
-                            ptr += 8;
-                        }
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < outc; q++)
-                    {
-                        const int* intptr0 = bottom_blob.channel(q * 2);
-                        const int* intptr1 = bottom_blob.channel(q * 2 + 1);
-                        signed char* ptr = top_blob.channel(q);
-
-                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
-                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8, 0);
-                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
-
-                        for (int i = 0; i < size; i++)
-                        {
-                            __builtin_prefetch(intptr0 + 16);
-                            __builtin_prefetch(intptr1 + 16);
-                            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                            _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
-                            _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
-                            _v0 = activation_ps(_v0, activation_type, activation_params);
-                            _v1 = activation_ps(_v1, activation_type, activation_params);
-                            _v0 = __lsx_vfmul_s(_v0, _scale_out0);
-                            _v1 = __lsx_vfmul_s(_v1, _scale_out1);
-                            *((int64_t*)ptr) = float2int8(_v0, _v1);
-
-                            intptr0 += 4;
-                            intptr1 += 4;
-                            ptr += 8;
-                        }
-                    }
-                }
-            }
-            if (out_elempack == 1)
-            {
-                if (bias_data_size == 0)
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < channels; q++)
-                    {
-                        const int* intptr = bottom_blob.channel(q);
-                        signed char* ptr0 = top_blob.channel(q * 4);
-                        signed char* ptr1 = top_blob.channel(q * 4 + 1);
-                        signed char* ptr2 = top_blob.channel(q * 4 + 2);
-                        signed char* ptr3 = top_blob.channel(q * 4 + 3);
-
-                        __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 4, 0);
-                        __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 4, 0);
-
-                        for (int i = 0; i < size; i++)
-                        {
-                            __builtin_prefetch(intptr + 16);
-                            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                            _v = __lsx_vfmul_s(_v, _scale_in);
-                            _v = activation_ps(_v, activation_type, activation_params);
-                            _v = __lsx_vfmul_s(_v, _scale_out);
-                            v16i8 v = (v16i8)float2int8(_v);
-                            ptr0[0] = v[0];
-                            ptr1[0] = v[1];
-                            ptr2[0] = v[2];
-                            ptr3[0] = v[3];
-
-                            intptr += 4;
-                            ptr0 += 1;
-                            ptr1 += 1;
-                            ptr2 += 1;
-                            ptr3 += 1;
-                        }
-                    }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < channels; q++)
-                    {
-                        const int* intptr = bottom_blob.channel(q);
-                        signed char* ptr0 = top_blob.channel(q * 4);
-                        signed char* ptr1 = top_blob.channel(q * 4 + 1);
-                        signed char* ptr2 = top_blob.channel(q * 4 + 2);
-                        signed char* ptr3 = top_blob.channel(q * 4 + 3);
-
-                        __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 4, 0);
-                        __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 4, 0);
-                        __m128 _bias = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 4, 0);
-
-                        for (int i = 0; i < size; i++)
-                        {
-                            __builtin_prefetch(intptr + 16);
-                            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                            _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
-                            _v = activation_ps(_v, activation_type, activation_params);
-                            _v = __lsx_vfmul_s(_v, _scale_out);
-                            v16i8 v = (v16i8)float2int8(_v);
-                            ptr0[0] = v[0];
-                            ptr1[0] = v[1];
-                            ptr2[0] = v[2];
-                            ptr3[0] = v[3];
-
-                            intptr += 4;
-                            ptr0 += 1;
-                            ptr1 += 1;
-                            ptr2 += 1;
-                            ptr3 += 1;
-                        }
-                    }
-                }
-            }
-        }
-
-        return 0;
     }
 #endif // __loongarch_sx
 
+    float scale_out = scale_out_data[0];
+#if __loongarch_sx
+    __m128 _scale_out0 = (__m128)__lsx_vreplfr2vr_s(scale_out);
+    __m128 _scale_out1 = _scale_out0;
+    if (scale_out_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_out0 = (__m128)__lsx_vld((const float*)scale_out_data, 0);
+            _scale_out1 = (__m128)__lsx_vld((const float*)scale_out_data + 4, 0);
+        }
+    }
+#endif // __loongarch_sx
+
+    float scale = scale_in * scale_out;
+#if __loongarch_sx
+    __m128 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
+    __m128 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
+#endif // __loongarch_sx
+
+    if (bias_data_size == 0)
+    {
+        int i = 0;
+#if __loongarch_sx
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+            _v0 = __lsx_vfmul_s(_v0, _scale0);
+            _v1 = __lsx_vfmul_s(_v1, _scale1);
+            *((int64_t*)ptr) = float2int8relu(_v0, _v1);
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            _v = __lsx_vfmul_s(_v, _scale0);
+            v16i8 v = (v16i8)float2int8relu(_v);
+            ptr[0] = v[0];
+            ptr[1] = v[1];
+            ptr[2] = v[2];
+            ptr[3] = v[3];
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale;
+            if (v < 0) v = 0;
+            *ptr = float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+    else
+    {
+        float bias = bias_data[0];
+#if __loongarch_sx
+        __m128 _bias0 = (__m128)__lsx_vreplfr2vr_s(bias);
+        __m128 _bias1 = _bias0;
+        if (bias_data_size > 1)
+        {
+            if (elempack == 8)
+            {
+                _bias0 = (__m128)__lsx_vld((const float*)bias_data, 0);
+                _bias1 = (__m128)__lsx_vld((const float*)bias_data + 4, 0);
+            }
+        }
+#endif // __loongarch_sx
+
+        bias = bias * scale_out;
+#if __loongarch_sx
+        _bias0 = __lsx_vfmul_s(_bias0, _scale_out0);
+        _bias1 = __lsx_vfmul_s(_bias1, _scale_out1);
+#endif // __loongarch_sx
+
+        int i = 0;
+#if __loongarch_sx
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+            _v0 = __lsx_vfmadd_s(_v0, _scale0, _bias0);
+            _v1 = __lsx_vfmadd_s(_v1, _scale1, _bias1);
+            *((int64_t*)ptr) = float2int8relu(_v0, _v1);
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            _v = __lsx_vfmadd_s(_v, _scale0, _bias0);
+            v16i8 v = (v16i8)float2int8relu(_v);
+            ptr[0] = v[0];
+            ptr[1] = v[1];
+            ptr[2] = v[2];
+            ptr[3] = v[3];
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale + bias;
+            if (v < 0) v = 0;
+            *ptr = float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+}
+
+static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, float slope, int elemcount, int elempack)
+{
+    const int scale_in_data_size = scale_in_data.w;
+    const int bias_data_size = bias_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+    const int size = elemcount * elempack;
+
+    // NCNN_LOGE("requantize_leakyrelu %d %d %d   %d %d", scale_in_data_size, bias_data_size, scale_out_data_size, elemcount, elempack);
+
+    // int8(leakyrelu(v * scale_in, slope) * scale_out)
+    // int8_leakyrelu(v * (scale_in * scale_out), slope)
+
+    // int8(leakyrelu(v * scale_in + bias, slope) * scale_out)
+    // int8_leakyrelu(v * (scale_in * scale_out) + (bias * scale_out), slope)
+
+    float scale_in = scale_in_data[0];
+#if __loongarch_sx
+    __m128 _scale_in0 = (__m128)__lsx_vreplfr2vr_s(scale_in);
+    __m128 _scale_in1 = _scale_in0;
+    if (scale_in_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_in0 = (__m128)__lsx_vld((const float*)scale_in_data, 0);
+            _scale_in1 = (__m128)__lsx_vld((const float*)scale_in_data + 4, 0);
+        }
+    }
+#endif // __loongarch_sx
+
+    float scale_out = scale_out_data[0];
+#if __loongarch_sx
+    __m128 _scale_out0 = (__m128)__lsx_vreplfr2vr_s(scale_out);
+    __m128 _scale_out1 = _scale_out0;
+    if (scale_out_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_out0 = (__m128)__lsx_vld((const float*)scale_out_data, 0);
+            _scale_out1 = (__m128)__lsx_vld((const float*)scale_out_data + 4, 0);
+        }
+    }
+#endif // __loongarch_sx
+
+    float scale = scale_in * scale_out;
+#if __loongarch_sx
+    __m128 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
+    __m128 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
+    __m128 _slope = (__m128)__lsx_vreplfr2vr_s(slope);
+#endif // __loongarch_sx
+
+    if (bias_data_size == 0)
+    {
+        int i = 0;
+#if __loongarch_sx
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+            _v0 = __lsx_vfmul_s(_v0, _scale0);
+            _v1 = __lsx_vfmul_s(_v1, _scale1);
+            *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            _v = __lsx_vfmul_s(_v, _scale0);
+            v16i8 v = (v16i8)float2int8leakyrelu(_v, _slope);
+            ptr[0] = v[0];
+            ptr[1] = v[1];
+            ptr[2] = v[2];
+            ptr[3] = v[3];
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale;
+            if (v < 0) v *= slope;
+            *ptr = float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+    else
+    {
+        float bias = bias_data[0];
+#if __loongarch_sx
+        __m128 _bias0 = (__m128)__lsx_vreplfr2vr_s(bias);
+        __m128 _bias1 = _bias0;
+        if (bias_data_size > 1)
+        {
+            if (elempack == 8)
+            {
+                _bias0 = (__m128)__lsx_vld((const float*)bias_data, 0);
+                _bias1 = (__m128)__lsx_vld((const float*)bias_data + 4, 0);
+            }
+        }
+#endif // __loongarch_sx
+
+        bias = bias * scale_out;
+#if __loongarch_sx
+        _bias0 = __lsx_vfmul_s(_bias0, _scale_out0);
+        _bias1 = __lsx_vfmul_s(_bias1, _scale_out1);
+#endif // __loongarch_sx
+
+        int i = 0;
+#if __loongarch_sx
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+            _v0 = __lsx_vfmadd_s(_v0, _scale0, _bias0);
+            _v1 = __lsx_vfmadd_s(_v1, _scale1, _bias1);
+            *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            _v = __lsx_vfmadd_s(_v, _scale0, _bias0);
+            v16i8 v = (v16i8)float2int8leakyrelu(_v, _slope);
+            ptr[0] = v[0];
+            ptr[1] = v[1];
+            ptr[2] = v[2];
+            ptr[3] = v[3];
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale + bias;
+            if (v < 0) v *= slope;
+            *ptr = float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+}
+
+static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int activation_type, const Mat& activation_params, int elemcount, int elempack)
+{
+    if (activation_type == 1)
+    {
+        requantize_relu(intptr, ptr, scale_in_data, bias_data, scale_out_data, elemcount, elempack);
+        return;
+    }
+
+    if (activation_type == 2 && activation_params[0] > 0.f)
+    {
+        const float slope = activation_params[0];
+        requantize_leakyrelu(intptr, ptr, scale_in_data, bias_data, scale_out_data, slope, elemcount, elempack);
+        return;
+    }
+
+    const int scale_in_data_size = scale_in_data.w;
+    const int bias_data_size = bias_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+    const int size = elemcount * elempack;
+
+    // NCNN_LOGE("requantize %d %d %d   %d %d", scale_in_data_size, bias_data_size, scale_out_data_size, elemcount, elempack);
+
+    float scale_in = scale_in_data[0];
+#if __loongarch_sx
+    __m128 _scale_in0 = (__m128)__lsx_vreplfr2vr_s(scale_in);
+    __m128 _scale_in1 = _scale_in0;
+    if (scale_in_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_in0 = (__m128)__lsx_vld((const float*)scale_in_data, 0);
+            _scale_in1 = (__m128)__lsx_vld((const float*)scale_in_data + 4, 0);
+        }
+    }
+#endif // __loongarch_sx
+
+    float scale_out = scale_out_data[0];
+#if __loongarch_sx
+    __m128 _scale_out0 = (__m128)__lsx_vreplfr2vr_s(scale_out);
+    __m128 _scale_out1 = _scale_out0;
+    if (scale_out_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_out0 = (__m128)__lsx_vld((const float*)scale_out_data, 0);
+            _scale_out1 = (__m128)__lsx_vld((const float*)scale_out_data + 4, 0);
+        }
+    }
+#endif // __loongarch_sx
+
+    if (bias_data_size == 0)
+    {
+        int i = 0;
+#if __loongarch_sx
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+            _v0 = __lsx_vfmul_s(_v0, _scale_in0);
+            _v1 = __lsx_vfmul_s(_v1, _scale_in1);
+            _v0 = activation_ps(_v0, activation_type, activation_params);
+            _v1 = activation_ps(_v1, activation_type, activation_params);
+            _v0 = __lsx_vfmul_s(_v0, _scale_out0);
+            _v1 = __lsx_vfmul_s(_v1, _scale_out1);
+            *((int64_t*)ptr) = float2int8(_v0, _v1);
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            _v = __lsx_vfmul_s(_v, _scale_in0);
+            _v = activation_ps(_v, activation_type, activation_params);
+            _v = __lsx_vfmul_s(_v, _scale_out0);
+            v16i8 v = (v16i8)float2int8(_v);
+            ptr[0] = v[0];
+            ptr[1] = v[1];
+            ptr[2] = v[2];
+            ptr[3] = v[3];
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale_in;
+            v = activation_ss(v, activation_type, activation_params);
+            *ptr = float2int8(v * scale_out);
+            intptr++;
+            ptr++;
+        }
+    }
+    else
+    {
+        float bias = bias_data[0];
+#if __loongarch_sx
+        __m128 _bias0 = (__m128)__lsx_vreplfr2vr_s(bias);
+        __m128 _bias1 = _bias0;
+        if (bias_data_size > 1)
+        {
+            if (elempack == 8)
+            {
+                _bias0 = (__m128)__lsx_vld((const float*)bias_data, 0);
+                _bias1 = (__m128)__lsx_vld((const float*)bias_data + 4, 0);
+            }
+        }
+#endif // __loongarch_sx
+
+        int i = 0;
+#if __loongarch_sx
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+            _v0 = __lsx_vfmadd_s(_v0, _scale_in0, _bias0);
+            _v1 = __lsx_vfmadd_s(_v1, _scale_in1, _bias1);
+            _v0 = activation_ps(_v0, activation_type, activation_params);
+            _v1 = activation_ps(_v1, activation_type, activation_params);
+            _v0 = __lsx_vfmul_s(_v0, _scale_out0);
+            _v1 = __lsx_vfmul_s(_v1, _scale_out1);
+            *((int64_t*)ptr) = float2int8(_v0, _v1);
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            _v = __lsx_vfmadd_s(_v, _scale_in0, _bias0);
+            _v = activation_ps(_v, activation_type, activation_params);
+            _v = __lsx_vfmul_s(_v, _scale_out0);
+            v16i8 v = (v16i8)float2int8(_v);
+            ptr[0] = v[0];
+            ptr[1] = v[1];
+            ptr[2] = v[2];
+            ptr[3] = v[3];
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale_in + bias;
+            v = activation_ss(v, activation_type, activation_params);
+            *ptr = float2int8(v * scale_out);
+            intptr++;
+            ptr++;
+        }
+    }
+}
+
+int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int dims = bottom_blob.dims;
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const int elempack = bottom_blob.elempack;
+    const size_t out_elemsize = elempack * 1u;
+
     if (dims == 1)
     {
-        int w = bottom_blob.w;
-
-        top_blob.create(w, (size_t)1u, opt.blob_allocator);
+        top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        const int* intptr = bottom_blob;
-        signed char* ptr = top_blob;
+        const int wp = std::max(1, w / opt.num_threads);
+        const int nn_w = (w + wp - 1) / wp;
 
-        if (scale_in_data_size == 1 && scale_out_data_size == 1)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_w; ii++)
         {
-            const float scale_in = scale_in_data[0];
-            const float scale_out = scale_out_data[0];
+            const int i = ii * wp;
 
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-            else if (bias_data_size == 1)
-            {
-                const float bias = bias_data[0];
+            const int* intptr = (const int*)bottom_blob + i * elempack;
+            signed char* ptr = (signed char*)top_blob + i * elempack;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in + bias_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-        }
-        else if (scale_in_data_size == 1 && scale_out_data_size > 1)
-        {
-            const float scale_in = scale_in_data[0];
+            // assert scale_in_data_size == 1
+            // assert bias_data_size == 0 || bias_data_size == 1
+            // assert scale_out_data_size == 1
 
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-            else if (bias_data_size == 1)
-            {
-                const float bias = bias_data[0];
+            const int size = std::min(w - i, wp) * elempack;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in + bias_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-        }
-        else if (scale_in_data_size > 1 && scale_out_data_size == 1)
-        {
-            const float scale_out = scale_out_data[0];
-
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-            else if (bias_data_size == 1)
-            {
-                const float bias = bias_data[0];
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i] + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i] + bias_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-        }
-        else // if (scale_in_data_size > 1 && scale_out_data_size > 1)
-        {
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-            else if (bias_data_size == 1)
-            {
-                const float bias = bias_data[0];
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i] + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i] + bias_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
+            requantize(intptr, ptr, scale_in_data, bias_data, scale_out_data, activation_type, activation_params, size, 1);
         }
     }
 
     if (dims == 2)
     {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-
-        top_blob.create(w, h, (size_t)1u, opt.blob_allocator);
+        top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        if (bias_data_size == 0)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const int* intptr = bottom_blob.row<const int>(i);
-                signed char* ptr = top_blob.row<signed char>(i);
+            const int* intptr = bottom_blob.row<const int>(i);
+            signed char* ptr = top_blob.row<signed char>(i);
 
-                const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[i];
-                const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[i];
+            const Mat scale_in_data_i = scale_in_data_size > 1 ? scale_in_data.range(i * elempack, elempack) : scale_in_data;
+            const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * elempack, elempack) : bias_data;
+            const Mat scale_out_data_i = scale_out_data_size > 1 ? scale_out_data.range(i * elempack, elempack) : scale_out_data;
 
-                for (int j = 0; j < w; j++)
-                {
-                    float v = intptr[j] * scale_in;
-                    ptr[j] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const int* intptr = bottom_blob.row<const int>(i);
-                signed char* ptr = top_blob.row<signed char>(i);
-
-                const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[i];
-                const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[i];
-                const float bias = bias_data_size == 1 ? bias_data[0] : bias_data[i];
-
-                for (int j = 0; j < w; j++)
-                {
-                    float v = intptr[j] * scale_in + bias;
-                    ptr[j] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
+            requantize(intptr, ptr, scale_in_data_i, bias_data_i, scale_out_data_i, activation_type, activation_params, w, elempack);
         }
     }
 
     if (dims == 3)
     {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-        int channels = bottom_blob.c;
-        int size = w * h;
-
-        top_blob.create(w, h, channels, (size_t)1u, opt.blob_allocator);
+        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        if (bias_data_size == 0)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const int* intptr = bottom_blob.channel(q);
-                signed char* ptr = top_blob.channel(q);
+            const int* intptr = bottom_blob.channel(q);
+            signed char* ptr = top_blob.channel(q);
 
-                const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[q];
-                const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[q];
+            const Mat scale_in_data_q = scale_in_data_size > 1 ? scale_in_data.range(q * elempack, elempack) : scale_in_data;
+            const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
+            const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * elempack, elempack) : scale_out_data;
 
-                for (int i = 0; i < size; i++)
-                {
-                    float v = intptr[i] * scale_in;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const int* intptr = bottom_blob.channel(q);
-                signed char* ptr = top_blob.channel(q);
-
-                const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[q];
-                const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[q];
-                const float bias = bias_data_size == 1 ? bias_data[0] : bias_data[q];
-
-                for (int i = 0; i < size; i++)
-                {
-                    float v = intptr[i] * scale_in + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
+            requantize(intptr, ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h, elempack);
         }
     }
 

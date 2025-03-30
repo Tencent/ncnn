@@ -91,6 +91,34 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_full_onnx, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_full_onnx, 21)
+
+class torch_full_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 size
+pnnx.Attribute          value       0 1 value @data=(1)f32
+tnn.ConstantOfShape     op_0        2 1 size value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.full";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        op->params["fill_value"] = ((const float*)captured_attrs.at("value.data").data.data())[0];
+        op->params["dtype"] = "torch.float";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_full_tnn, 21)
 
 } // namespace pnnx

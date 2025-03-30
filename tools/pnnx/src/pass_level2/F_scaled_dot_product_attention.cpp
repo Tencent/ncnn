@@ -40,7 +40,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention, 140)
 
 class F_scaled_dot_product_attention_1 : public GraphRewriterPass
 {
@@ -78,7 +78,52 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_1, 140)
+
+class F_scaled_dot_product_attention_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 9
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 attn_mask
+prim::Constant          op_0        0 1 dropout_p value=%dropout_p
+prim::Constant          op_1        0 1 is_causal value=%is_causal
+prim::Constant          op_2        0 1 scale value=%scale
+prim::Constant          op_3        0 1 enable_gqa value=%enable_gqa
+aten::scaled_dot_product_attention  op_4 8 1 query key value attn_mask dropout_p is_causal scale enable_gqa out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.scaled_dot_product_attention";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(op, captured_params, captured_attrs);
+
+        if (captured_params.at("scale").type == 0)
+        {
+            // drop scale=None for compatibility with old torch
+            op->params.erase("scale");
+        }
+
+        if (captured_params.at("enable_gqa").type == 1 && captured_params.at("enable_gqa").b == false)
+        {
+            // drop enable_gqa=False for compatibility with old torch
+            op->params.erase("enable_gqa");
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_2, 140)
 
 static bool NearlyEqual(float a, float b, float epsilon)
 {
@@ -103,14 +148,14 @@ public:
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
-Transpose               op_0        1 1 key kt perm=(0,1,3,2)
+Tensor.permute          op_0        1 1 key kt dims=(0,1,3,2)
 prim::Constant          op_1        0 1 scale value=%sqrt_scale
 aten::mul               op_2        2 1 query scale q
 prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
 aten::mul               op_4        2 1 kt scale2 k
-MatMul                  op_5        2 1 q k qk
-Softmax                 op_6        1 1 qk 4 axis=-1
-MatMul                  op_7        2 1 4 value out
+torch.matmul            op_5        2 1 q k qk
+F.softmax               op_6        1 1 qk 4 dim=-1
+torch.matmul            op_7        2 1 4 value out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -142,7 +187,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_onnx, 140)
 
 class F_scaled_dot_product_attention_onnx_1 : public F_scaled_dot_product_attention_onnx
 {
@@ -155,20 +200,20 @@ pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 attn_mask
-Transpose               op_0        1 1 key kt perm=(0,1,3,2)
+Tensor.permute          op_0        1 1 key kt dims=(0,1,3,2)
 prim::Constant          op_1        0 1 scale value=%sqrt_scale
 aten::mul               op_2        2 1 query scale q
 prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
 aten::mul               op_4        2 1 kt scale2 k
-MatMul                  op_5        2 1 q k qk
+torch.matmul            op_5        2 1 q k qk
 aten::add               op_6        2 1 qk attn_mask qkm
-Softmax                 op_7        1 1 qkm 4 axis=-1
-MatMul                  op_8        2 1 4 value out
+F.softmax               op_7        1 1 qkm 4 dim=-1
+torch.matmul            op_8        2 1 4 value out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_onnx_1, 140)
 
 } // namespace pnnx

@@ -950,6 +950,29 @@ int Convolution_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& t
         }
     }
 
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+        // NCNN_LOGE("top_blob_int32  %d  %d", top_blob_int32.c, top_blob_int32.elempack);
+        if (use_int8_requantize)
+        {
+            // TODO implement winograd sgemm packed int8 pack1 output
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 1)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 1, opt);
+                top_blob_int32 = tmp;
+            }
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 0)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 8, opt);
+                top_blob_int32 = tmp;
+            }
+        }
+    }
+#endif
+
     if (use_int8_requantize)
     {
         requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);

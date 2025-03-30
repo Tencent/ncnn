@@ -29,6 +29,7 @@
 
 #include "pass_onnx/canonicalize.h"
 #include "pass_onnx/dead_code_elimination.h"
+#include "pass_onnx/eliminate_initializer_input.h"
 #include "pass_onnx/eliminate_noop.h"
 #include "pass_onnx/fold_constants.h"
 #include "pass_onnx/inline_containers.h"
@@ -530,6 +531,8 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
         fprintf(stderr, "read_proto_from_binary failed\n");
         return -1;
     }
+
+    onnx2pnnx::eliminate_initializer_input(model);
 
     // input shape sanity check
     if (!check_input_shape(model, input_shapes, input_types))

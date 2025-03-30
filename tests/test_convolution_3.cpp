@@ -369,7 +369,9 @@ static int test_convolution_1()
            || test_convolution_int8(16, 10, 31, 32, 2, 1, 3, 0, 0)
            || test_convolution_int8(5, 10, 5, 32, 3, 2, 1, 0, 1)
            || test_convolution_int8(3, 9, 16, 13, 2, 2, 1, 0, 0)
-           || test_convolution_int8(33, 5, 15, 5, 2, 1, 3, 0, 1);
+           || test_convolution_int8(33, 5, 15, 5, 2, 1, 3, 0, 1)
+           || test_convolution_int8(23, 11, 33, 28, 5, 1, 1, 0, 1)
+           || test_convolution_int8(3, 63, 2, 28, 2, 1, 2, 0, 0);
 }
 
 static int test_convolution_1_2()

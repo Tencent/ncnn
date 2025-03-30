@@ -1,0 +1,354 @@
+name: linux-riscv64
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-riscv64.yml'
+    - 'toolchains/riscv64-linux-gnu.toolchain.cmake'
+    - 'toolchains/riscv64-unknown-linux-gnu.toolchain.cmake'
+    - 'toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-riscv64.yml'
+    - 'toolchains/riscv64-linux-gnu.toolchain.cmake'
+    - 'toolchains/riscv64-unknown-linux-gnu.toolchain.cmake'
+    - 'toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+concurrency:
+  group: linux-riscv64-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  gcc-riscv64:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v4
+      with:
+        path: qemu-install
+        key: qemu-riscv64-install-20220502-4
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: riscv64-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-riscv64-linux-gnu
+
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j $(nproc)
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j $(nproc)
+
+  xuantie:
+    name: xuantie-${{ matrix.cpu }}
+    runs-on: [self-hosted, linux, ubuntu]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cpu: c906, QEMU_CPU: c906fdv, OPENMP: OFF, RVV: OFF, XTHEADVECTOR: ON,  ZFH: ON, ZVFH: OFF }
+          - { cpu: c910, QEMU_CPU: c910v,   OPENMP: ON,  RVV: OFF, XTHEADVECTOR: ON,  ZFH: ON, ZVFH: OFF }
+          - { cpu: c908, QEMU_CPU: c908v,   OPENMP: ON,  RVV: ON,  XTHEADVECTOR: OFF, ZFH: ON, ZVFH: ON  }
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: build
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.cpu }}-v301.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
+            -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
+            -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_RVV=${{ matrix.RVV }} \
+            -DNCNN_XTHEADVECTOR=${{ matrix.XTHEADVECTOR }} \
+            -DNCNN_ZFH=${{ matrix.ZFH }} \
+            -DNCNN_ZVFH=${{ matrix.ZVFH }} \
+            -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test
+      run: |
+        export PATH=/data/action/osd/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.0.4-B20241127-1130/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }}" ctest --output-on-failure -j 8
+
+  spacemit:
+    name: spacemit-${{ matrix.cpu }}
+    runs-on: [self-hosted, linux, ubuntu]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cpu: x60, QEMU_CPU: rv64, OPENMP: ON, RVV: ON, XTHEADVECTOR: OFF, ZFH: ON, ZVFH: ON }
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: build-gcc
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.0.5
+        mkdir build-gcc && cd build-gcc
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/k1.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
+            -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
+            -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_RVV=${{ matrix.RVV }} \
+            -DNCNN_XTHEADVECTOR=${{ matrix.XTHEADVECTOR }} \
+            -DNCNN_ZFH=${{ matrix.ZFH }} \
+            -DNCNN_ZVFH=${{ matrix.ZVFH }} \
+            -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: build-llvm
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.0.5
+        mkdir build-llvm && cd build-llvm
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/k1.llvm.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
+            -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
+            -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_RVV=${{ matrix.RVV }} \
+            -DNCNN_XTHEADVECTOR=${{ matrix.XTHEADVECTOR }} \
+            -DNCNN_ZFH=${{ matrix.ZFH }} \
+            -DNCNN_ZVFH=${{ matrix.ZVFH }} \
+            -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    # - name: test-gcc
+    #   run: |
+    #     export PATH=/data/action/osd/spacemit-ai-sdk.v1.1.0/spacemit-qemu/bin:$PATH
+    #     cd build-gcc
+    #     TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }}" ctest --output-on-failure -j 8
+
+  gcc-rvv:
+    runs-on: [self-hosted, linux, ubuntu]
+    steps:
+    - uses: actions/checkout@v4
+
+    #- name: cache-qemu
+      #id: cache-qemu
+      #uses: actions/cache@v4
+      #with:
+        #path: qemu-install
+        #key: qemu-riscv64-install-20241202
+    #- name: install-qemu-build-deps
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev ninja-build
+    #- name: checkout-qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v4
+      #with:
+        #repository: qemu/qemu
+        #path: qemu
+        #ref: 72b88908d12ee9347d13539c7dd9a252625158d1
+    #- name: qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #cd qemu
+        #./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        #make -j4
+        #make install
+
+    #- name: cache-riscv
+      #id: cache-riscv
+      #uses: actions/cache@v4
+      #with:
+        #path: riscv-install
+        #key: riscv-linux-install-20241202
+
+    #- name: install-riscv-build-deps
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+
+    #- name: checkout-riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v4
+      #with:
+        #repository: riscv-collab/riscv-gnu-toolchain
+        #path: riscv-gnu-toolchain
+        #ref: 20f615317e2ce888dfc11b29ccde4a649494b654
+    #- name: checkout-riscv-gnu-toolchain-submodules
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #git submodule update --init --recursive --depth 1 glibc
+        #git submodule update --init --recursive --depth 1 newlib
+        #git submodule update --init --recursive --depth 1 riscv-binutils
+        #git submodule update --init --recursive --depth 1 riscv-gcc
+        #git submodule update --init --recursive --depth 1 riscv-dejagnu
+        #git submodule update --init --recursive --depth 1 riscv-gdb
+    #- name: riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #./configure --prefix=$GITHUB_WORKSPACE/riscv
+        #make linux -j4
+
+    #- name: riscv-strip-install
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: find $GITHUB_WORKSPACE/riscv -type f | xargs -i strip -g {} || true
+
+    - name: configure
+      run: export RISCV_ROOT_PATH=/data/action/osd/riscv && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 8
+
+    - name: test-vlen256
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+    - name: test-vlen128
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+  clang-rvv:
+    runs-on: [self-hosted, linux, ubuntu]
+    steps:
+    - uses: actions/checkout@v4
+
+    #- name: cache-qemu
+      #id: cache-qemu
+      #uses: actions/cache@v4
+      #with:
+        #path: qemu-install
+        #key: qemu-riscv64-install-20241202
+    #- name: install-qemu-build-deps
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev ninja-build
+    #- name: checkout-qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v4
+      #with:
+        #repository: qemu/qemu
+        #path: qemu
+        #ref: 72b88908d12ee9347d13539c7dd9a252625158d1
+    #- name: qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #cd qemu
+        #./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        #make -j4
+        #make install
+
+    #- name: cache-riscv
+      #id: cache-riscv
+      #uses: actions/cache@v4
+      #with:
+        #path: riscv-install
+        #key: riscv-linux-install-20241202
+
+    #- name: install-riscv-build-deps
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+
+    #- name: checkout-riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v4
+      #with:
+        #repository: riscv-collab/riscv-gnu-toolchain
+        #path: riscv-gnu-toolchain
+        #ref: 20f615317e2ce888dfc11b29ccde4a649494b654
+    #- name: checkout-riscv-gnu-toolchain-submodules
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #git submodule update --init --recursive --depth 1 glibc
+        #git submodule update --init --recursive --depth 1 newlib
+        #git submodule update --init --recursive --depth 1 riscv-binutils
+        #git submodule update --init --recursive --depth 1 riscv-gcc
+        #git submodule update --init --recursive --depth 1 riscv-dejagnu
+        #git submodule update --init --recursive --depth 1 riscv-gdb
+    #- name: riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #./configure --prefix=$GITHUB_WORKSPACE/riscv
+        #make linux -j4
+
+    #- name: riscv-strip-install
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: find $GITHUB_WORKSPACE/riscv -type f | xargs -i strip -g {} || true
+
+    # - name: install-clang
+    #   run: |
+    #     wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.4/llvm-project-19.1.4.src.tar.xz
+    #     tar -xf llvm-project-19.1.4.src.tar.xz
+    #     cd llvm-project-19.1.4.src
+    #     mkdir build
+    #     cd build
+    #     cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/riscv -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DLLVM_ENABLE_PROJECTS="clang" -DLLVM_TARGETS_TO_BUILD="RISCV" -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF ../llvm/
+    #     make -j16
+    #     make install
+
+    - name: build
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/riscv
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test-vlen256
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+    - name: test-vlen128
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8

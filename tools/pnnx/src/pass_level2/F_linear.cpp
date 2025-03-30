@@ -37,7 +37,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear, 111)
 
 class F_linear_1 : public GraphRewriterPass
 {
@@ -63,7 +63,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_1, 110)
 
 class F_linear_2 : public GraphRewriterPass
 {
@@ -91,7 +91,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_2, 111)
 
 class F_linear_3 : public GraphRewriterPass
 {
@@ -117,7 +117,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_3, 111)
 
 class F_linear_onnx : public GraphRewriterPass
 {
@@ -173,7 +173,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx, 112)
 
 class F_linear_onnx_1 : public GraphRewriterPass
 {
@@ -252,7 +252,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_1, 111)
 
 class F_linear_onnx_2 : public F_linear_onnx_1
 {
@@ -263,7 +263,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Attribute          weight      0 1 weight @data=(%in_features,%out_features)f32
-MatMul                  matmul      2 1 input weight out
+torch.matmul            matmul      2 1 input weight out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -280,7 +280,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_2, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_2, 111)
 
 class F_linear_onnx_3 : public F_linear_onnx_1
 {
@@ -292,7 +292,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Attribute          weight      0 1 weight @data=(%in_features,%out_features)f32
 pnnx.Attribute          bias        0 1 bias @data=(%out_features)f32
-MatMul                  matmul      2 1 input weight mm
+torch.matmul            matmul      2 1 input weight mm
 aten::add               add         2 1 mm bias out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -319,7 +319,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_3, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_3, 110)
 
 class F_linear_onnx_4 : public F_linear_onnx_3
 {
@@ -331,13 +331,36 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Attribute          weight      0 1 weight @data=(%in_features,%out_features)f32
 pnnx.Attribute          bias        0 1 bias @data=(%out_features)f32
-MatMul                  matmul      2 1 input weight mm
+torch.matmul            matmul      2 1 input weight mm
 aten::add               add         2 1 bias mm out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_4, 8)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_4, 110)
+
+class F_linear_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight @data=(%in_features,%out_features)f32
+pnnx.Input              input_2     0 1 bias @data=(%out_features)f32
+tnn.InnerProduct        op_0        3 1 input weight bias out arg0=* arg1=* arg2=0 arg3=1
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.linear";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_tnn, 140)
 
 } // namespace pnnx

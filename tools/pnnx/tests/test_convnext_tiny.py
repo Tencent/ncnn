@@ -35,7 +35,10 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_convnext_tiny.pt inputshape=[1,3,224,224]")
+    if version.parse(torch.__version__) >= version.parse('2.0'):
+        os.system("../src/pnnx test_convnext_tiny.pt")
+    else:
+        os.system("../src/pnnx test_convnext_tiny.pt inputshape=[1,3,224,224]")
 
     # pnnx inference
     import test_convnext_tiny_pnnx
