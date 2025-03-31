@@ -171,6 +171,16 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            if (captured_params.at("op_0.auto_pad").type != 4)
+                return false;
+
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+            if (auto_pad == "SAME_LOWER")
+                return false;
+        }
+
         return true;
     }
 
@@ -202,6 +212,19 @@ pnnx.Output             output      1 0 out
         else
         {
             op->params["padding"] = {0, 0, 0};
+        }
+
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+            if (auto_pad == "VALID")
+            {
+                op->params["padding"] = "valid";
+            }
+            if (auto_pad == "SAME_UPPER")
+            {
+                op->params["padding"] = "same";
+            }
         }
 
         if (captured_params.find("op_0.group") != captured_params.end())
