@@ -4925,6 +4925,14 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_PROPERTY(requiredSubgroupSizeStages)
         }
 
+#if ENABLE_VALIDATION_LAYER
+        if (info.support_VK_KHR_shader_non_semantic_info())
+        {
+            device_defines.append("enable_validataion_layer", VK_TRUE);
+            custom_defines.append("NCNN_LOGE", "debugPrintfEXT");
+        }
+#endif
+
 #undef DD_APPEND_PROPERTY
     }
     else
@@ -5038,15 +5046,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_float16: require\n";
     }
-    {
 #if ENABLE_VALIDATION_LAYER
-        define_macro_data += "#define ncnn_enable_validataion_layer 1\n";
+    {
         custom_exts += "#extension GL_EXT_debug_printf : require\n";
-        define_macro_data += "#define NCNN_LOGE debugPrintfEXT\n";
-#else
-        define_macro_data += "#define ncnn_enable_validataion_layer 0\n";
-#endif
     }
+#endif
 
     // debug
     // NCNN_LOGE("%s", define_macro_data.c_str());
