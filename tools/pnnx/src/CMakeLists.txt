@@ -429,6 +429,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_deconvolution_activation.cpp
     pass_ncnn/fuse_deconvolutiondepthwise_activation.cpp
     pass_ncnn/fuse_innerproduct_activation.cpp
+    pass_ncnn/fuse_padding_convolution.cpp
     pass_ncnn/fuse_transpose_matmul.cpp
     pass_ncnn/fuse_binaryop_eltwise.cpp
     pass_ncnn/insert_reshape_numpy_binaryop_broadcast.cpp

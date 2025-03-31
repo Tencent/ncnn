@@ -46,6 +46,7 @@
 #include "pass_ncnn/fuse_deconvolution_activation.h"
 #include "pass_ncnn/fuse_deconvolutiondepthwise_activation.h"
 #include "pass_ncnn/fuse_innerproduct_activation.h"
+#include "pass_ncnn/fuse_padding_convolution.h"
 #include "pass_ncnn/fuse_transpose_matmul.h"
 #include "pass_ncnn/fuse_binaryop_eltwise.h"
 #include "pass_ncnn/insert_reshape_numpy_binaryop_broadcast.h"
@@ -131,6 +132,7 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 
     ncnn::fuse_transpose_matmul(g);
     ncnn::fuse_binaryop_eltwise(g);
+    ncnn::fuse_padding_convolution(g);
     ncnn::fuse_convolution_activation(g);
     ncnn::fuse_convolution1d_activation(g);
     ncnn::fuse_convolutiondepthwise_activation(g);
