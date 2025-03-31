@@ -44,7 +44,7 @@ pnnx.Output             output      1 0 out
         return "padconv";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         // check type = CONSTANT
         if (captured_params.find("op_0.4") != captured_params.end())
@@ -73,6 +73,13 @@ pnnx.Output             output      1 0 out
             if (captured_params.at("op_0.8").i != 0)
                 return false;
         }
+
+        const int conv_pad_left = captured_params.find("op_1.4") != captured_params.end() ? captured_params.at("op_1.4").i : 0;
+        const int conv_pad_top = captured_params.find("op_1.14") != captured_params.end() ? captured_params.at("op_1.14").i : conv_pad_left;
+        const int conv_pad_right = captured_params.find("op_1.15") != captured_params.end() ? captured_params.at("op_1.15").i : conv_pad_left;
+        const int conv_pad_bottom = captured_params.find("op_1.16") != captured_params.end() ? captured_params.at("op_1.16").i : conv_pad_top;
+        if (conv_pad_left == 0 && conv_pad_top == 0 && conv_pad_right == 0 && conv_pad_bottom == 0)
+            return true;
 
         // check padding value == convolution pad_value
         float padding_value = captured_params.find("op_0.5") != captured_params.end() ? captured_params.at("op_0.5").f : 0.f;
@@ -127,6 +134,10 @@ pnnx.Output             output      1 0 out
             op->params["15"] = new_conv_pad_right;
         if (new_conv_pad_bottom != new_conv_pad_top)
             op->params["16"] = new_conv_pad_bottom;
+
+        float padding_value = captured_params.find("op_0.5") != captured_params.end() ? captured_params.at("op_0.5").f : 0.f;
+        if (padding_value != 0.f)
+            op->params["18"] = padding_value;
     }
 };
 
