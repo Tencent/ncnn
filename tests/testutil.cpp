@@ -726,6 +726,13 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
     if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
+    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    if (opt.use_image_storage && !vkdev->info.support_fp16_image())
+    {
+        opt.use_fp16_storage = false;
+        opt.use_fp16_uniform = false;
+    }
 
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;
@@ -1085,6 +1092,13 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
     if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
+    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    if (opt.use_image_storage && !vkdev->info.support_fp16_image())
+    {
+        opt.use_fp16_storage = false;
+        opt.use_fp16_uniform = false;
+    }
 
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;

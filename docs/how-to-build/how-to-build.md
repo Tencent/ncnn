@@ -766,21 +766,27 @@ cd ../examples
 
 ### Build for QNX
 
-Set QNX environment variables
+Request license and download SDP from QNX Software Center: https://www.qnx.com/products/everywhere/ .
 
-```shell
-export QNX_HOST=/opt/qnx710/host/linux/x86_64
-export QNX_TARGET=/opt/qnx710/target/qnx7
+Setup QNX environment by invoking SDP's bundled script:
+
+on Windows, open cmd and run
+```batch
+call C:\Users\zz\qnx800\qnxsdp-env.bat
 ```
 
-Create ld link to solve 'cannot find ld' issue
+on Linux, use /bin/bash and run
+```shell
+source /home/zz/qnx800/qnxsdp-env.sh
+```
 
+If it gives error `cannot find ld` on Linux, solve it by creaing link file:
 ```shell
 cd ${QNX_HOST}/usr/bin/
 ln -s aarch64-unknown-nto-qnx7.1.0-ld ld
 ```
 
-Build ncnn with cmake
+Build ncnn with cmake in same shell:
 
 ```shell
 git clone https://github.com/Tencent/ncnn.git
@@ -788,7 +794,7 @@ cd ncnn
 git submodule update --init
 mkdir -p build-qnx
 cd build-qnx
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/qnx710.toolchain.cmake ..
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-qnx.toolchain.cmake ..
 make -j$(nproc)
 make install
 ```

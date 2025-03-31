@@ -334,6 +334,7 @@ public:
     int support_VK_KHR_sampler_ycbcr_conversion;
     int support_VK_KHR_shader_float16_int8;
     int support_VK_KHR_shader_float_controls;
+    int support_VK_KHR_shader_non_semantic_info;
     int support_VK_KHR_shader_subgroup_extended_types;
     int support_VK_KHR_shader_subgroup_rotate;
     int support_VK_KHR_storage_buffer_storage_class;
@@ -670,6 +671,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_sampler_ycbcr_conversion = 0;
     support_VK_KHR_shader_float16_int8 = 0;
     support_VK_KHR_shader_float_controls = 0;
+    support_VK_KHR_shader_non_semantic_info = 0;
     support_VK_KHR_shader_subgroup_extended_types = 0;
     support_VK_KHR_shader_subgroup_rotate = 0;
     support_VK_KHR_storage_buffer_storage_class = 0;
@@ -733,6 +735,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_KHR_shader_float16_int8 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_float_controls") == 0)
             support_VK_KHR_shader_float_controls = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_non_semantic_info") == 0)
+            support_VK_KHR_shader_non_semantic_info = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_subgroup_extended_types") == 0)
             support_VK_KHR_shader_subgroup_extended_types = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_subgroup_rotate") == 0)
@@ -1417,6 +1421,11 @@ bool GpuInfo::support_int8_arithmetic() const
     return d->queryFloat16Int8Features.shaderInt8;
 }
 
+bool GpuInfo::support_fp16_image() const
+{
+    return d->physicalDevicefeatures.shaderStorageImageExtendedFormats;
+}
+
 bool GpuInfo::support_ycbcr_conversion() const
 {
     return d->querySamplerYcbcrConversionFeatures.samplerYcbcrConversion;
@@ -1545,6 +1554,11 @@ int GpuInfo::support_VK_KHR_shader_float16_int8() const
 int GpuInfo::support_VK_KHR_shader_float_controls() const
 {
     return d->support_VK_KHR_shader_float_controls;
+}
+
+int GpuInfo::support_VK_KHR_shader_non_semantic_info() const
+{
+    return d->support_VK_KHR_shader_non_semantic_info;
 }
 
 int GpuInfo::support_VK_KHR_shader_subgroup_extended_types() const
@@ -2711,6 +2725,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_shader_float16_int8");
     if (info.support_VK_KHR_shader_float_controls())
         enabledExtensions.push_back("VK_KHR_shader_float_controls");
+    if (info.support_VK_KHR_shader_non_semantic_info())
+        enabledExtensions.push_back("VK_KHR_shader_non_semantic_info");
     if (info.support_VK_KHR_shader_subgroup_extended_types())
         enabledExtensions.push_back("VK_KHR_shader_subgroup_extended_types");
     if (info.support_VK_KHR_shader_subgroup_rotate())
