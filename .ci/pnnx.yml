@@ -168,7 +168,7 @@ jobs:
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: pnnx-deps-onnx-onnxruntime
-      if: steps.cache-pnnx-deps-onnx.outputs.cacheHit != 'true'
+      # if: steps.cache-pnnx-deps-onnx.outputs.cacheHit != 'true'
       run: |
         export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
         wget -q https://github.com/microsoft/onnxruntime/archive/v${{variables.onnxruntime_version}}.zip -O onnxruntime-${{variables.onnxruntime_version}}.zip
