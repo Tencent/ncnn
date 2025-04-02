@@ -21,7 +21,7 @@ set(NCNN_VERSION_PATCH ${NCNN_VERSION})
 set(NCNN_VERSION_STRING ${NCNN_VERSION_MAJOR}.${NCNN_VERSION_MINOR}.${NCNN_VERSION_PATCH})
 message(STATUS "NCNN_VERSION_STRING = ${NCNN_VERSION_STRING}")
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.8.12...3.10)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
@@ -50,6 +50,11 @@ if(MSVC AND NOT CMAKE_VERSION VERSION_LESS "3.15")
         # cmake before version 3.15 not work
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     endif()
+endif()
+
+if(CMAKE_FIND_LIBRARY_SUFFIXES_INIT)
+    # project() overwrite CMAKE_FIND_LIBRARY_SUFFIXES in toolchain, restore it
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_INIT})
 endif()
 
 option(NCNN_SHARED_LIB "shared library support" OFF)
