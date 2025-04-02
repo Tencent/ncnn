@@ -29,6 +29,7 @@ if(NOT CMAKE_FIND_ROOT_PATH_MODE_PACKAGE)
     set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 endif()
 
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 set(CMAKE_C_FLAGS "-march=rv64gcv_zicbom_zicbop_zicboz_zihintpause_zfh_zvfh_zba_zbb_zbc_zbs_svinval_svnapot_svpbmt_xtheadc_xtheadvdot -mabi=lp64d -mtune=c908 -static")
 set(CMAKE_CXX_FLAGS "-march=rv64gcv_zicbom_zicbop_zicboz_zihintpause_zfh_zvfh_zba_zbb_zbc_zbs_svinval_svnapot_svpbmt_xtheadc_xtheadvdot -mabi=lp64d -mtune=c908 -static")
 
