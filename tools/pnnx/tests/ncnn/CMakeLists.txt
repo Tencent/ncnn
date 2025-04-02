@@ -215,6 +215,7 @@ pnnx_ncnn_add_test(vit_b_32)
 pnnx_ncnn_add_test(ncnn_fuse_transpose_matmul)
 pnnx_ncnn_add_test(ncnn_fuse_shufflechannel_slice)
 pnnx_ncnn_add_test(ncnn_fuse_binaryop_eltwise)
+pnnx_ncnn_add_test(ncnn_fuse_pad_conv)
 pnnx_ncnn_add_test(ncnn_numpy_binaryop_broadcast)
 pnnx_ncnn_add_test(ncnn_reshape_expr)
 

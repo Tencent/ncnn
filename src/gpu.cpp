@@ -4925,6 +4925,14 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_PROPERTY(requiredSubgroupSizeStages)
         }
 
+#if ENABLE_VALIDATION_LAYER
+        if (info.support_VK_KHR_shader_non_semantic_info())
+        {
+            device_defines.append("enable_validataion_layer", VK_TRUE);
+            custom_defines.append("NCNN_LOGE", "debugPrintfEXT");
+        }
+#endif
+
 #undef DD_APPEND_PROPERTY
     }
     else
@@ -5038,6 +5046,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_float16: require\n";
     }
+#if ENABLE_VALIDATION_LAYER
+    {
+        custom_exts += "#extension GL_EXT_debug_printf : require\n";
+    }
+#endif
 
     // debug
     // NCNN_LOGE("%s", define_macro_data.c_str());
@@ -5048,16 +5061,37 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         glslang::TShader s(EShLangCompute);
 
         // split shader source by token "#version 450\n"
-        int nversion = 0;
-        sscanf(comp_data, "#version %*d\n%n", &nversion);
-        if (nversion == 0)
+        int version_end_pos = -1;
         {
-            NCNN_LOGE("shader source has no #version token");
-            return -1;
+            for (int i = 0; i < comp_data_size - 8; i++)
+            {
+                if (strncmp(comp_data + i, "#version", 8) != 0)
+                    continue;
+
+                // #version shall be the very beginning or after newline
+                if (i != 0 && comp_data[i - 1] != '\n')
+                    continue;
+
+                int nversion = 0;
+                sscanf(comp_data + i, "#version %*d\n%n", &nversion);
+                if (nversion == 0)
+                    continue;
+
+                version_end_pos = i + nversion;
+                break;
+            }
+
+            if (version_end_pos == -1)
+            {
+                NCNN_LOGE("shader source has no #version token");
+                return -1;
+            }
+
+            // NCNN_LOGE("version_end_pos = %d", version_end_pos);
         }
 
-        const char* comp_data_2 = comp_data + nversion;
-        int comp_data_size_1 = nversion;
+        const char* comp_data_2 = comp_data + version_end_pos;
+        int comp_data_size_1 = version_end_pos;
         int comp_data_size_2 = comp_data_size - comp_data_size_1;
 
         const char* comp_datas[4] = {comp_data, custom_exts.c_str(), define_macro_data.c_str(), comp_data_2};

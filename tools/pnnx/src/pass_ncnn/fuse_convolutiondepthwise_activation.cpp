@@ -46,7 +46,7 @@ pnnx.Output             output      1 0 out
         return "convdwrelu";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         return captured_params.find("op_0.9") == captured_params.end();
     }
@@ -113,7 +113,7 @@ pnnx.Output             output      1 0 out
         return "convdwclip";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         return captured_params.find("op_0.9") == captured_params.end();
     }
@@ -178,7 +178,7 @@ pnnx.Output             output      1 0 out
         return "convdwsigmoid";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         return captured_params.find("op_0.9") == captured_params.end();
     }
@@ -231,7 +231,7 @@ pnnx.Output             output      1 0 out
         return "convdwmish";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         return captured_params.find("op_0.9") == captured_params.end();
     }
