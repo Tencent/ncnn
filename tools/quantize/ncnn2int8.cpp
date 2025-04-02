@@ -1071,6 +1071,7 @@ int main(int argc, char** argv)
     const char* int8scale_table_path = argc == 6 ? argv[5] : NULL;
 
     NetQuantize quantizer;
+    quantizer.storage_type = 1; // use fp16 where int8 not applied
 
     // parse the calibration scale table
     if (int8scale_table_path)

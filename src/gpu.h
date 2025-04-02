@@ -194,10 +194,19 @@ public:
     virtual ~GpuInfo();
 
     // vulkan physical device
-    VkPhysicalDevice physical_device() const;
+    VkPhysicalDevice physicalDevice() const;
+
+    // features
+    const VkPhysicalDeviceFeatures& physicalDevicefeatures() const;
+
+    // properties
+    const VkPhysicalDeviceProperties& physicalDeviceProperties() const;
 
     // memory properties
-    const VkPhysicalDeviceMemoryProperties& physical_device_memory_properties() const;
+    const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties() const;
+
+    // extension properties
+    const std::vector<VkExtensionProperties>& deviceExtensionProperties() const;
 
     // info
     uint32_t api_version() const;
@@ -249,10 +258,12 @@ public:
 
     // subgroup
     uint32_t subgroup_size() const;
-    bool support_subgroup_basic() const;
-    bool support_subgroup_vote() const;
-    bool support_subgroup_ballot() const;
-    bool support_subgroup_shuffle() const;
+    uint32_t min_subgroup_size() const;
+    uint32_t max_subgroup_size() const;
+    uint32_t max_compute_workgroup_subgroups() const;
+    bool support_subgroup_size_control() const;
+    bool support_compute_full_subgroups() const;
+    uint32_t support_subgroup_ops() const;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1() const;
@@ -271,6 +282,9 @@ public:
     bool support_int8_storage() const;
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
+
+    // r16f format in storage image
+    bool support_fp16_image() const;
 
     // ycbcr conversion feature
     bool support_ycbcr_conversion() const;
@@ -303,18 +317,44 @@ public:
     int support_VK_KHR_sampler_ycbcr_conversion() const;
     int support_VK_KHR_shader_float16_int8() const;
     int support_VK_KHR_shader_float_controls() const;
+    int support_VK_KHR_shader_non_semantic_info() const;
+    int support_VK_KHR_shader_subgroup_extended_types() const;
+    int support_VK_KHR_shader_subgroup_rotate() const;
     int support_VK_KHR_storage_buffer_storage_class() const;
     int support_VK_KHR_swapchain() const;
+    int support_VK_KHR_zero_initialize_workgroup_memory() const;
     int support_VK_EXT_buffer_device_address() const;
     int support_VK_EXT_descriptor_indexing() const;
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
+    int support_VK_EXT_shader_atomic_float() const;
+    int support_VK_EXT_shader_atomic_float2() const;
+    int support_VK_EXT_subgroup_size_control() const;
     int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer() const;
 #endif // __ANDROID_API__ >= 26
     int support_VK_NV_cooperative_matrix() const;
+
+    // extension features
+    const void* queryExtensionFeatures() const;
+    const VkPhysicalDevice8BitStorageFeaturesKHR& query8BitStorageFeatures() const;
+    const VkPhysicalDevice16BitStorageFeaturesKHR& query16BitStorageFeatures() const;
+    const VkPhysicalDeviceFloat16Int8FeaturesKHR& queryFloat16Int8Features() const;
+    const VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR& querySamplerYcbcrConversionFeatures() const;
+    const VkPhysicalDeviceCooperativeMatrixFeaturesKHR& queryCooperativeMatrixFeatures() const;
+    const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
+    const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
+    const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;
+    const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& queryShaderAtomicFloatFeatures() const;
+    const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
+
+    // extension properties
+    const void* queryDeviceProperties() const;
+    const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
+    const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
+    const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
 
 private:
     GpuInfo(const GpuInfo&);
@@ -351,7 +391,7 @@ public:
     // helper for creating pipeline
     int create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const;
     int create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
-    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, VkPipeline* pipeline) const;
+    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const;
     int create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const;
 
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;

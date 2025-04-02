@@ -1030,6 +1030,7 @@ static std::string expand_expression(const Operator* op)
                  || t == "ceil"
                  || t == "cos"
                  || t == "cosh"
+                 || t == "erf"
                  || t == "exp"
                  || t == "floor"
                  || t == "log"
@@ -1062,6 +1063,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "ceil") unaryop = "torch.ceil";
             if (t == "cos") unaryop = "torch.cos";
             if (t == "cosh") unaryop = "torch.cosh";
+            if (t == "erf") unaryop = "torch.erf";
             if (t == "exp") unaryop = "torch.exp";
             if (t == "floor") unaryop = "torch.floor";
             if (t == "log") unaryop = "torch.log";
@@ -2253,11 +2255,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     {
                         if (op->type == "Tensor.index_put" && it.first == "values")
                         {
-                            fprintf(pyfp, "torch.tensor(%f)", param.f);
+                            if (param.f == (int)param.f)
+                                fprintf(pyfp, "torch.tensor(%.1f)", param.f);
+                            else
+                                fprintf(pyfp, "torch.tensor(%g)", param.f);
                         }
                         else
                         {
-                            fprintf(pyfp, "%f", param.f);
+                            if (param.f == (int)param.f)
+                                fprintf(pyfp, "%.1f", param.f);
+                            else
+                                fprintf(pyfp, "%g", param.f);
                         }
                     }
                     if (param.type == 4)
@@ -2316,7 +2324,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         fprintf(pyfp, "(");
                         for (size_t i = 0; i < param.af.size(); i++)
                         {
-                            fprintf(pyfp, "%f", param.af[i]);
+                            if (param.af[i] == (int)param.af[i])
+                                fprintf(pyfp, "%.1f", param.af[i]);
+                            else
+                                fprintf(pyfp, "%g", param.af[i]);
                             if (i + 1 != param.af.size() || param.af.size() == 1)
                                 fprintf(pyfp, ",");
                         }
