@@ -119,7 +119,7 @@ jobs:
         cacheKey: pnnx-deps-onnx-linux-install-${{variables.cache_date}}
 
     - name: checkout-pnnx-patches
-      if: steps.cache-pnnx-deps-torch.outputs.cacheHit != 'true' || steps.cache-pnnx-deps-onnx.outputs.cacheHit != 'true'
+      # if: steps.cache-pnnx-deps-torch.outputs.cacheHit != 'true' || steps.cache-pnnx-deps-onnx.outputs.cacheHit != 'true'
       checkout: https://github.com/pnnx/pnnx.git
       with:
         refName: main
