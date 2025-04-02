@@ -19,63 +19,67 @@ concurrency:
 
 variables:
   protobuf_version: 21.12
-  libtorch_version: 2.5.0
-  libtorchvision_version: 0.20.0
-  onnxruntime_version: 1.19.2
-  cache_date: 20241018
+  libtorch_version: 2.6.0
+  libtorchvision_version: 0.21.0
+  onnxruntime_version: 1.21.0
+  cache_date: 20250401
 
 jobs:
   ubuntu:
     strategy:
       matrix:
         include:
-          - torch-version: 1.8.1
-            torchvision-version: 0.9.1
-            torchaudio-version: 0.8.1
+          # - torch-version: 1.8.1
+          #   torchvision-version: 0.9.1
+          #   torchaudio-version: 0.8.1
+          #
+          # - torch-version: 1.9.1
+          #   torchvision-version: 0.10.1
+          #   torchaudio-version: 0.9.1
+          #
+          # - torch-version: 1.10.0
+          #   torchvision-version: 0.11.1
+          #   torchaudio-version: '0.10.0+cpu'
+          #
+          # - torch-version: 1.11.0
+          #   torchvision-version: 0.12.0
+          #   torchaudio-version: '0.11.0+cpu'
+          #
+          # - torch-version: 1.12.0
+          #   torchvision-version: 0.13.0
+          #   torchaudio-version: '0.12.0+cpu'
+          #
+          # - torch-version: 1.13.0
+          #   torchvision-version: 0.14.0
+          #   torchaudio-version: '0.13.0+cpu'
+          #
+          # - torch-version: 2.0.0
+          #   torchvision-version: 0.15.1
+          #   torchaudio-version: '2.0.0+cpu'
+          #
+          # - torch-version: 2.1.0
+          #   torchvision-version: 0.16.0
+          #   torchaudio-version: '2.1.0+cpu'
+          #
+          # - torch-version: 2.2.1
+          #   torchvision-version: 0.17.1
+          #   torchaudio-version: '2.2.1+cpu'
+          #
+          # - torch-version: 2.3.0
+          #   torchvision-version: 0.18.0
+          #   torchaudio-version: '2.3.0+cpu'
+          #
+          # - torch-version: 2.4.0
+          #   torchvision-version: 0.19.0
+          #   torchaudio-version: '2.4.0+cpu'
+          #
+          # - torch-version: 2.5.0
+          #   torchvision-version: 0.20.0
+          #   torchaudio-version: '2.5.0+cpu'
 
-          - torch-version: 1.9.1
-            torchvision-version: 0.10.1
-            torchaudio-version: 0.9.1
-
-          - torch-version: 1.10.0
-            torchvision-version: 0.11.1
-            torchaudio-version: '0.10.0+cpu'
-
-          - torch-version: 1.11.0
-            torchvision-version: 0.12.0
-            torchaudio-version: '0.11.0+cpu'
-
-          - torch-version: 1.12.0
-            torchvision-version: 0.13.0
-            torchaudio-version: '0.12.0+cpu'
-
-          - torch-version: 1.13.0
-            torchvision-version: 0.14.0
-            torchaudio-version: '0.13.0+cpu'
-
-          - torch-version: 2.0.0
-            torchvision-version: 0.15.1
-            torchaudio-version: '2.0.0+cpu'
-
-          - torch-version: 2.1.0
-            torchvision-version: 0.16.0
-            torchaudio-version: '2.1.0+cpu'
-
-          - torch-version: 2.2.1
-            torchvision-version: 0.17.1
-            torchaudio-version: '2.2.1+cpu'
-
-          - torch-version: 2.3.0
-            torchvision-version: 0.18.0
-            torchaudio-version: '2.3.0+cpu'
-
-          - torch-version: 2.4.0
-            torchvision-version: 0.19.0
-            torchaudio-version: '2.4.0+cpu'
-
-          - torch-version: 2.5.0
-            torchvision-version: 0.20.0
-            torchaudio-version: '2.5.0+cpu'
+          - torch-version: 2.6.0
+            torchvision-version: 0.21.0
+            torchaudio-version: '2.6.0+cpu'
 
     runs-on:
       pool-name: docker
@@ -172,7 +176,6 @@ jobs:
         cd onnxruntime-${{variables.onnxruntime_version}}
         patch -p1 -i ${{ci.workspace}}/pnnx-patches/onnxruntime-${{variables.onnxruntime_version}}-less-mlas-features.patch
         patch -p1 -i ${{ci.workspace}}/pnnx-patches/onnxruntime-${{variables.onnxruntime_version}}-monolithic-static-library.patch
-        patch -p1 -i ${{ci.workspace}}/pnnx-patches/onnxruntime-${{variables.onnxruntime_version}}-fix-gcc-avxvnni-check.patch
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-onnx-install -DCMAKE_BUILD_TYPE=MinSizeRel -Donnxruntime_USE_FULL_PROTOBUF=ON -Donnxruntime_BUILD_SHARED_LIB=ON -Donnxruntime_BUILD_UNIT_TESTS=OFF -Donnxruntime_ENABLE_CPUINFO=OFF -Donnxruntime_DISABLE_CONTRIB_OPS=ON -Donnxruntime_DISABLE_ML_OPS=ON -Donnxruntime_DISABLE_SPARSE_TENSORS=ON --compile-no-warning-as-error ../cmake
         cmake --build . -j $(nproc)
