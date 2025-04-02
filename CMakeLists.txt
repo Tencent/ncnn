@@ -52,6 +52,11 @@ if(MSVC AND NOT CMAKE_VERSION VERSION_LESS "3.15")
     endif()
 endif()
 
+if(CMAKE_FIND_LIBRARY_SUFFIXES_INIT)
+    # project() overwrite CMAKE_FIND_LIBRARY_SUFFIXES in toolchain, restore it
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_INIT})
+endif()
+
 option(NCNN_SHARED_LIB "shared library support" OFF)
 option(NCNN_ENABLE_LTO "enable link-time optimization" OFF)
 option(NCNN_OPENMP "openmp support" ON)
