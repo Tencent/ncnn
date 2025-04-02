@@ -30,6 +30,7 @@ if(NOT CMAKE_FIND_ROOT_PATH_MODE_PACKAGE)
     set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 endif()
 
+set(CMAKE_FIND_LIBRARY_SUFFIXES_INIT ".a")
 set(CMAKE_C_FLAGS "-march=rv64gc_zfh_xtheadvector_xtheadc -mabi=lp64d -mtune=c910 -DC906=1 -D__riscv_zvfh=1 -static")
 set(CMAKE_CXX_FLAGS "-march=rv64gc_zfh_xtheadvector_xtheadc -mabi=lp64d -mtune=c910 -DC906=1 -D__riscv_zvfh=1 -static")
 
