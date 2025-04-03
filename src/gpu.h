@@ -193,8 +193,11 @@ public:
     explicit GpuInfo();
     virtual ~GpuInfo();
 
+    int device_index() const;
+
     // vulkan physical device
     VkPhysicalDevice physicalDevice() const;
+    VkPhysicalDevice physical_device() const; // api compatibility
 
     // features
     const VkPhysicalDeviceFeatures& physicalDevicefeatures() const;
@@ -204,6 +207,7 @@ public:
 
     // memory properties
     const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties() const;
+    const VkPhysicalDeviceMemoryProperties& physical_device_memory_properties() const; // api compatibility
 
     // extension properties
     const std::vector<VkExtensionProperties>& deviceExtensionProperties() const;
