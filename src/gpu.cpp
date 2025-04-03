@@ -266,6 +266,8 @@ public:
     void query_extension_properties();
 
 public:
+    int device_index;
+
     // physical device
     VkPhysicalDevice physicalDevice;
 
@@ -1141,7 +1143,17 @@ GpuInfo& GpuInfo::operator=(const GpuInfo&)
     return *this;
 }
 
+int GpuInfo::device_index() const
+{
+    return d->device_index;
+}
+
 VkPhysicalDevice GpuInfo::physicalDevice() const
+{
+    return d->physicalDevice;
+}
+
+VkPhysicalDevice GpuInfo::physical_device() const
 {
     return d->physicalDevice;
 }
@@ -1157,6 +1169,11 @@ const VkPhysicalDeviceProperties& GpuInfo::physicalDeviceProperties() const
 }
 
 const VkPhysicalDeviceMemoryProperties& GpuInfo::physicalDeviceMemoryProperties() const
+{
+    return d->physicalDeviceMemoryProperties;
+}
+
+const VkPhysicalDeviceMemoryProperties& GpuInfo::physical_device_memory_properties() const
 {
     return d->physicalDeviceMemoryProperties;
 }
@@ -2209,9 +2226,10 @@ int create_gpu_instance(const char* driver_path)
         const VkPhysicalDevice& physicalDevice = physicalDevices[i];
         delete g_gpu_infos[gpu_info_index];
         g_gpu_infos[gpu_info_index] = new GpuInfo;
-        // GpuInfoPrivate& gpu_info = *(g_gpu_infos[gpu_info_index]->d);
 
         GpuInfo& gpu_info = *g_gpu_infos[gpu_info_index];
+
+        gpu_info.d->device_index = gpu_info_index;
 
         gpu_info.d->physicalDevice = physicalDevice;
 
@@ -2591,11 +2609,10 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
 
     opt.use_vulkan_compute = true;
 
-    opt.blob_vkallocator = opt.workspace_vkallocator = vkdev->acquire_blob_allocator();
-    opt.staging_vkallocator = vkdev->acquire_staging_allocator();
-
     // cache uop pipeline as device member explicitly
     opt.pipeline_cache = 0;
+
+    opt.vulkan_device_index = vkdev->info.device_index();
 
     ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
     uop->vkdev = vkdev;
@@ -2613,9 +2630,6 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
 
     uop_packing[storage_type_from][storage_type_to][cast_type_from_index][cast_type_to_index][packing_type_to_index] = uop;
 
-    vkdev->reclaim_blob_allocator(opt.blob_vkallocator);
-    vkdev->reclaim_staging_allocator(opt.staging_vkallocator);
-
     return uop;
 }
 
@@ -2627,6 +2641,7 @@ void VulkanDevicePrivate::destroy_utility_operator()
     opt.use_int8_arithmetic = false;
     opt.use_cooperative_matrix = false;
     opt.pipeline_cache = 0;
+    opt.vulkan_device_index = vkdev->info.device_index();
 
     // from buffer | image
     // to buffer | image
@@ -4576,11 +4591,13 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     bool support_shader_int64 = false;
 
-    if (opt.blob_vkallocator)
+    // fill device macros
     {
-        const VulkanDevice* vkdev = opt.blob_vkallocator->vkdev;
+        int device_index = opt.vulkan_device_index;
+        if (device_index < 0 || device_index >= get_gpu_count())
+            device_index = get_default_gpu_index();
 
-        const GpuInfo& info = vkdev->info;
+        const GpuInfo& info = get_gpu_info(device_index);
 
         support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
 
@@ -4934,10 +4951,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 #endif
 
 #undef DD_APPEND_PROPERTY
-    }
-    else
-    {
-        NCNN_LOGE("opt.blob_vkallocator is null");
     }
 
     std::string define_macro_data;

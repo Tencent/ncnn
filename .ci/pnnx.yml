@@ -19,10 +19,10 @@ concurrency:
 
 variables:
   protobuf_version: 21.12
-  libtorch_version: 2.5.0
-  libtorchvision_version: 0.20.0
-  onnxruntime_version: 1.19.2
-  cache_date: 20241018
+  libtorch_version: 2.6.0
+  libtorchvision_version: 0.21.0
+  onnxruntime_version: 1.21.0
+  cache_date: 20250402
 
 jobs:
   ubuntu:
@@ -76,6 +76,10 @@ jobs:
           - torch-version: 2.5.0
             torchvision-version: 0.20.0
             torchaudio-version: '2.5.0+cpu'
+
+          - torch-version: 2.6.0
+            torchvision-version: 0.21.0
+            torchaudio-version: '2.6.0+cpu'
 
     runs-on:
       pool-name: docker
@@ -172,7 +176,7 @@ jobs:
         cd onnxruntime-${{variables.onnxruntime_version}}
         patch -p1 -i ${{ci.workspace}}/pnnx-patches/onnxruntime-${{variables.onnxruntime_version}}-less-mlas-features.patch
         patch -p1 -i ${{ci.workspace}}/pnnx-patches/onnxruntime-${{variables.onnxruntime_version}}-monolithic-static-library.patch
-        patch -p1 -i ${{ci.workspace}}/pnnx-patches/onnxruntime-${{variables.onnxruntime_version}}-fix-gcc-avxvnni-check.patch
+        sed -i 's/find_package(Python 3.10/find_package(Python 3.8/g' cmake/CMakeLists.txt
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-onnx-install -DCMAKE_BUILD_TYPE=MinSizeRel -Donnxruntime_USE_FULL_PROTOBUF=ON -Donnxruntime_BUILD_SHARED_LIB=ON -Donnxruntime_BUILD_UNIT_TESTS=OFF -Donnxruntime_ENABLE_CPUINFO=OFF -Donnxruntime_DISABLE_CONTRIB_OPS=ON -Donnxruntime_DISABLE_ML_OPS=ON -Donnxruntime_DISABLE_SPARSE_TENSORS=ON --compile-no-warning-as-error ../cmake
         cmake --build . -j $(nproc)
@@ -203,7 +207,7 @@ jobs:
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -Dprotobuf_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/lib/cmake/protobuf ..
-        cmake --build . -j 16 --verbose
+        cmake --build . -j 16
 
     - name: test
       run: |
