@@ -4597,7 +4597,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         if (device_index < 0 || device_index >= get_gpu_count())
             device_index = get_default_gpu_index();
 
-        const GpuInfo& info = get_gpu_info(opt.vulkan_device_index);
+        const GpuInfo& info = get_gpu_info(device_index);
 
         support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
 
