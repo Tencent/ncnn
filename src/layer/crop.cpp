@@ -47,7 +47,6 @@ int Crop::load_param(const ParamDict& pd)
     ends_expr = pd.get(20, "");
     axes_expr = pd.get(21, "");
 
-
     // NCNN_LOGE("%s %s %s", starts_expr.c_str(), ends_expr.c_str(), axes_expr.c_str());
 
     bool numpy_style_slice = !starts.empty() && !ends.empty();
