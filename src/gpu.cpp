@@ -4768,7 +4768,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_PROPERTY(vendorID)
             DD_APPEND_PROPERTY(deviceID)
             DD_APPEND_PROPERTY(deviceType)
-            DD_APPEND_PROPERTY(deviceName)
+            // DD_APPEND_PROPERTY(deviceName)
 
             // DD_APPEND_PROPERTY(pipelineCacheUUID)
 
@@ -4926,8 +4926,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         {
             const VkPhysicalDeviceDriverPropertiesKHR& properties = info.queryDriverProperties();
             DD_APPEND_PROPERTY(driverID)
-            DD_APPEND_PROPERTY(driverName)
-            DD_APPEND_PROPERTY(driverInfo)
+            // DD_APPEND_PROPERTY(driverName)
+            // DD_APPEND_PROPERTY(driverInfo)
             device_defines.append("conformanceVersion_major", properties.conformanceVersion.major);
             device_defines.append("conformanceVersion_minor", properties.conformanceVersion.minor);
             device_defines.append("conformanceVersion_subminor", properties.conformanceVersion.subminor);
@@ -5139,6 +5139,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             NCNN_LOGE("compile spir-v module failed");
             NCNN_LOGE("%s", s.getInfoLog());
             NCNN_LOGE("%s", s.getInfoDebugLog());
+
+            // for (int i = 0; i < 4; i++)
+            // {
+            //     std::string s(comp_datas[i], comp_data_sizes[i]);
+            //     NCNN_LOGE("%s", s.c_str());
+            // }
 
             compile_success = false;
         }
