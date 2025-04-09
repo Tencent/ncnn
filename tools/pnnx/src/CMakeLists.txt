@@ -403,6 +403,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_half_to_float.cpp
     pass_ncnn/convert_input.cpp
     pass_ncnn/convert_reshape_expression.cpp
+    pass_ncnn/convert_slice_expression.cpp
     pass_ncnn/convert_torch_cat.cpp
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_einsum.cpp
