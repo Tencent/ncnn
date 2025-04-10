@@ -5,7 +5,7 @@ concurrency:
   group: compare-binary-size-${{ github.ref }}
   cancel-in-progress: true
 permissions:
-  issues: write
+  contents: read
   pull-requests: write
 
 jobs:
@@ -38,8 +38,7 @@ jobs:
         COMMON_CMAKE_ARGS: -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF
       run: |
         # define target architectures
-        # archs=("x86" "x86_64" "armhf" "aarch64")
-        archs=("x86")
+        archs=("x86" "x86_64" "armhf" "aarch64")
 
         for arch in "${archs[@]}"; do
 
