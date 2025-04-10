@@ -1,7 +1,5 @@
 name: compare-binary-size
-on:
-  pull_request_target:
-    types: [opened, synchronize]
+on: [pull_request_target]
 
 concurrency:
   group: compare-binary-size-${{ github.ref }}
