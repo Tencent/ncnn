@@ -879,7 +879,6 @@ static void make_slice_indexes_expression(Graph& graph)
     // pnnx.SliceIndexes        ncnnends        1 1 15 18 indexes=(0,@0,0)
     // pnnx.SliceIndexes        ncnnselects     2 1 13 16 19 indexes=(@0,2147483647,@1)
 
-#if 1
     while (1)
     {
         bool matched = false;
@@ -964,6 +963,12 @@ static void make_slice_indexes_expression(Graph& graph)
 
             op->params["indexes"] = new_indexes;
 
+            // for (auto x : new_indexes)
+            // {
+            //     fprintf(stderr, "%s  ", x.c_str());
+            // }
+            // fprintf(stderr, "\n");
+
             // link references to slice indexes expression
             {
                 op->inputs = ordered_references;
@@ -986,7 +991,6 @@ static void make_slice_indexes_expression(Graph& graph)
         if (!matched)
             break;
     }
-#endif
 }
 
 void convert_slice_expression_multi_axis_ranged(Graph& graph)
@@ -1080,6 +1084,10 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 if (op_selects->type != "pnnx.SliceIndexes")
                     continue;
             }
+            else
+            {
+                continue;
+            }
 
             fprintf(stderr, "----------------------------convert_slice_expression_multi_axis_ranged\n");
 
@@ -1134,18 +1142,18 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 }
             }
 
-            bool has_select = !op_steps && steps.empty();
-            if (has_select)
-            {
-                starts_expr = selects_expr;
-                ends_expr.clear();
-                steps_expr.clear();
-                for (auto e : selects_expr)
-                {
-                    ends_expr.push_back(std::string("add(") + e + ",1)");
-                    steps_expr.push_back("1");
-                }
-            }
+            // bool has_select = !op_steps && steps.empty();
+            // if (has_select)
+            // {
+            //     starts_expr = selects_expr;
+            //     ends_expr.clear();
+            //     steps_expr.clear();
+            //     for (auto e : selects_expr)
+            //     {
+            //         ends_expr.push_back(std::string("add(") + e + ",1)");
+            //         steps_expr.push_back("1");
+            //     }
+            // }
 
             // collect inputs and references
             std::map<Operand*, int> references;
@@ -1156,6 +1164,8 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 references[op->inputs[0]] = reference_index++;
             }
 
+            bool has_select = false;
+
             const size_t dims_count = dims.size();
 
             for (size_t i = 0; i < dims_count; i++)
@@ -1163,63 +1173,111 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 const std::string& start_expr = starts_expr[i];
                 const std::string& end_expr = ends_expr[i];
                 const std::string& step_expr = steps_expr[i];
+                const std::string& select_expr = selects_expr[i];
 
                 // split into tokens
                 std::vector<std::string> start_tokens = split_into_raw_tokens(start_expr);
                 std::vector<std::string> end_tokens = split_into_raw_tokens(end_expr);
                 std::vector<std::string> step_tokens = split_into_raw_tokens(step_expr);
+                std::vector<std::string> select_tokens = split_into_raw_tokens(select_expr);
 
-                for (size_t j = 0; j < start_tokens.size(); j++)
+                bool is_select = true;
+                if (select_tokens.size() == 1 && select_tokens[0] == std::to_string(INT_MAX))
                 {
-                    std::string& t = start_tokens[j];
-
-                    if (t[0] != '@')
-                        continue;
-
-                    int input_index = std::stoi(t.substr(1));
-                    Operand* r = op_starts->inputs[input_index];
-
-                    if (references.find(r) == references.end())
-                    {
-                        references[r] = reference_index++;
-                    }
-
-                    t = "@" + std::to_string(references[r]);
+                    is_select = false;
                 }
-                for (size_t j = 0; j < end_tokens.size(); j++)
+
+                if (is_select)
                 {
-                    std::string& t = end_tokens[j];
+                    has_select = true;
 
-                    if (t[0] != '@')
-                        continue;
-
-                    int input_index = std::stoi(t.substr(1));
-                    Operand* r = op_ends->inputs[input_index];
-
-                    if (references.find(r) == references.end())
+                    // simulate select as slice
+                    for (size_t j = 0; j < select_tokens.size(); j++)
                     {
-                        references[r] = reference_index++;
+                        std::string& t = select_tokens[j];
+
+                        if (t[0] != '@')
+                            continue;
+
+                        int input_index = std::stoi(t.substr(1));
+                        Operand* r = op_selects->inputs[input_index];
+
+                        if (references.find(r) == references.end())
+                        {
+                            references[r] = reference_index++;
+                        }
+
+                        t = "@" + std::to_string(references[r]);
                     }
 
-                    t = "@" + std::to_string(references[r]);
+                    start_tokens = select_tokens;
+                    end_tokens.clear();
+                    step_tokens.clear();
+                    end_tokens.push_back("add");
+                    end_tokens.push_back("(");
+                    for (auto t : select_tokens)
+                    {
+                        end_tokens.push_back(t);
+                        step_tokens.push_back("1");
+                    }
+                    end_tokens.push_back(",");
+                    end_tokens.push_back("1");
+                    end_tokens.push_back(")");
                 }
-                for (size_t j = 0; j < step_tokens.size(); j++)
+                else
                 {
-                    std::string& t = step_tokens[j];
-
-                    if (t[0] != '@')
-                        continue;
-
-                    int input_index = std::stoi(t.substr(1));
-                    Operand* r = op_steps->inputs[input_index];
-
-                    if (references.find(r) == references.end())
+                    for (size_t j = 0; j < start_tokens.size(); j++)
                     {
-                        references[r] = reference_index++;
-                    }
+                        std::string& t = start_tokens[j];
 
-                    // reuse the same reference
-                    t = "@" + std::to_string(references[r]);
+                        if (t[0] != '@')
+                            continue;
+
+                        int input_index = std::stoi(t.substr(1));
+                        Operand* r = op_starts->inputs[input_index];
+
+                        if (references.find(r) == references.end())
+                        {
+                            references[r] = reference_index++;
+                        }
+
+                        t = "@" + std::to_string(references[r]);
+                    }
+                    for (size_t j = 0; j < end_tokens.size(); j++)
+                    {
+                        std::string& t = end_tokens[j];
+
+                        if (t[0] != '@')
+                            continue;
+
+                        int input_index = std::stoi(t.substr(1));
+                        Operand* r = op_ends->inputs[input_index];
+
+                        if (references.find(r) == references.end())
+                        {
+                            references[r] = reference_index++;
+                        }
+
+                        t = "@" + std::to_string(references[r]);
+                    }
+                    for (size_t j = 0; j < step_tokens.size(); j++)
+                    {
+                        std::string& t = step_tokens[j];
+
+                        if (t[0] != '@')
+                            continue;
+
+                        int input_index = std::stoi(t.substr(1));
+                        Operand* r = op_steps->inputs[input_index];
+
+                        if (references.find(r) == references.end())
+                        {
+                            references[r] = reference_index++;
+                        }
+
+                        // reuse the same reference
+                        t = "@" + std::to_string(references[r]);
+                    }
                 }
 
                 std::string new_start_expr;
