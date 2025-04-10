@@ -1,50 +1,99 @@
 name: compare-binary-size
 on:
+  push:
+    branches: [master]
   pull_request:
     types: [opened, synchronize]
 
 jobs:
   compare-size:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [x86_64, aarch64]
-
     steps:
-      - name: Check out PR branch
-        uses: actions/checkout@v4
-        with:
-          # 拉取拉取请求的源分支
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          submodules: true
+    - name: checkout pr branch
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.ref }}
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        submodules: true
+        path: pr
 
-      - name: Build PR branch
-        run: |
-          mkdir -p build_pr && cd build_pr
+    - name: checkout base branch
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.base.ref }}
+        repository: ${{ github.event.pull_request.base.repo.full_name }}
+        submodules: true
+        path: base
+
+    - name: install-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-arm-linux-gnueabihf g++-aarch64-linux-gnu
+
+    - name: Compare sizes
+      run: |
+        # Define target architectures
+        archs=("x86_64" "armv7" "aarch64")
+
+        for arch in "${archs[@]}"; do
+
+          mkdir -p pr/build_$arch
+          pushd pr/build_$arch
+          if [ "$arch" = "armv7" ]; then
+            cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
+          elif [ "$arch" = "aarch64" ]; then
+            cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
+          else
+            cmake ..
+          fi
           cmake -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
           cmake --build . -j 4
-          PR_SIZE=$(stat -c%s "src/libncnn.so.*.*.*")
-          echo "PR_SIZE=${PR_SIZE}" >> $GITHUB_ENV
+          PR_SIZE_[$arch]=$(stat -c%s "src/libncnn.so.*.*.*")
+          popd
 
-      - name: Check out base branch
-        uses: actions/checkout@v4
-        with:
-          # 拉取拉取请求的目标(base)分支
-          ref: ${{ github.event.pull_request.base.ref }}
-          repository: ${{ github.event.pull_request.base.repo.full_name }}
-          submodules: true
-
-      - name: Build base branch
-        run: |
-          mkdir -p build_base && cd build_base
+          mkdir -p base/build_$arch
+          pushd base/build_$arch
+          if [ "$arch" = "armv7" ]; then
+            cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
+          elif [ "$arch" = "aarch64" ]; then
+            cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
+          else
+            cmake ..
+          fi
           cmake -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
           cmake --build . -j 4
-          BASE_SIZE=$(stat -c%s "src/libncnn.so.*.*.*")
-          echo "BASE_SIZE=${BASE_SIZE}" >> $GITHUB_ENV
+          BASE_SIZE_[$arch]=$(stat -c%s "src/libncnn.so.*.*.*")
+          popd
 
-      - name: Compare binary size
-        run: |
-          echo "PR branch libncnn.so size:      $PR_SIZE bytes"
-          echo "Base branch libncnn.so size:    $BASE_SIZE bytes"
+        done
+
+        # generate table
+        echo "| Architecture | Base Size (bytes) | PR Size (bytes) | Difference (bytes) |" >> compare-binary-size.md
+        echo "|--------------|--------------------|-----------------|--------------------|" >> compare-binary-size.md
+
+        for arch in "${archs[@]}"; do
+          DIFF=$((${PR_SIZE_[$arch]} - ${BASE_SIZE_[$arch]}))
+          if [ $DIFF -gt 0 ]; then
+            DIFF_STR="+$DIFF"
+          else
+            DIFF_STR="$DIFF"
+          fi
+
+          echo "| $arch | ${BASE_SIZE_[$arch]} | ${PR_SIZE_[$arch]} | $DIFF_STR |" >> compare-binary-size.md
+        done
+
+    - name: Find Comment
+      uses: peter-evans/find-comment@v3
+      id: fc
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: 'github-actions[bot]'
+        body-includes: '| Architecture | Base Size (bytes) | PR Size (bytes) | Difference (bytes) |'
+
+    - name: Create or update comment
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        comment-id: ${{ steps.fc.outputs.comment-id }}
+        issue-number: ${{ github.event.pull_request.number }}
+        body-path: compare-binary-size.md
+        edit-mode: replace
