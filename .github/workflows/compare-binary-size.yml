@@ -12,7 +12,7 @@ jobs:
   compare-size:
     runs-on: ubuntu-latest
     steps:
-    - name: checkout pr branch
+    - name: checkout-pr-branch
       uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.ref }}
@@ -20,7 +20,7 @@ jobs:
         submodules: true
         path: pr
 
-    - name: checkout base branch
+    - name: checkout-base-branch
       uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.base.ref }}
@@ -40,6 +40,11 @@ jobs:
         # define target architectures
         archs=("x86_64" "armhf" "aarch64")
 
+        # generate table
+        echo "The binary size change of libncnn.so (bytes)" >> compare-binary-size.md
+        echo "| architecture | base size | pr size | difference |" >> compare-binary-size.md
+        echo "|--------------|-----------|---------|------------|" >> compare-binary-size.md
+
         for arch in "${archs[@]}"; do
 
           mkdir -p pr/build_$arch
@@ -52,7 +57,7 @@ jobs:
             cmake ${{env.COMMON_CMAKE_ARGS}} ..
           fi
           cmake --build . -j $(nproc)
-          PR_SIZE_[$arch]=$(stat -c%s $(readlink -f src/libncnn.so))
+          PR_SIZE=$(stat -c%s $(readlink -f src/libncnn.so))
           popd
 
           mkdir -p base/build_$arch
@@ -65,26 +70,20 @@ jobs:
             cmake ${{env.COMMON_CMAKE_ARGS}} ..
           fi
           cmake --build . -j $(nproc)
-          BASE_SIZE_[$arch]=$(stat -c%s $(readlink -f src/libncnn.so))
+          BASE_SIZE=$(stat -c%s $(readlink -f src/libncnn.so))
           popd
 
-        done
-
-        # generate table
-        echo "The binary size change of libncnn.so (bytes)" >> compare-binary-size.md
-        echo "| architecture | base size | pr size | difference |" >> compare-binary-size.md
-        echo "|--------------|-----------|---------|------------|" >> compare-binary-size.md
-
-        for arch in "${archs[@]}"; do
-          DIFF=$((${PR_SIZE_[$arch]} - ${BASE_SIZE_[$arch]}))
+          DIFF=$(($PR_SIZE - $BASE_SIZE))
           if [ $DIFF -gt 0 ]; then
             DIFF_STR="+$DIFF :warning:"
           else
             DIFF_STR="$DIFF :kissing_heart:"
           fi
 
-          echo "| $arch | ${BASE_SIZE_[$arch]} | ${PR_SIZE_[$arch]} | $DIFF_STR |" >> compare-binary-size.md
+          echo "| $arch | $BASE_SIZE | $PR_SIZE | $DIFF_STR |" >> compare-binary-size.md
         done
+
+        cat compare-binary-size.md
 
     - name: find-comment
       uses: peter-evans/find-comment@v3
