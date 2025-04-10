@@ -631,6 +631,11 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             std::string ends_expr = transform_nchw_annotation_and_drop_batch_index(end_tokens, ordered_references, batch_index);
             std::string steps_expr = transform_nchw_annotation_and_drop_batch_index(step_tokens, ordered_references, batch_index);
 
+            if (steps_expr != std::to_string(1))
+            {
+                fprintf(stderr, "slice with step expression %s is not supported\n", steps_expr.c_str());
+            }
+
             op->type = "Crop";
             op->name = std::string("slice1_") + std::to_string(op_index++);
 
@@ -1142,19 +1147,6 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 }
             }
 
-            // bool has_select = !op_steps && steps.empty();
-            // if (has_select)
-            // {
-            //     starts_expr = selects_expr;
-            //     ends_expr.clear();
-            //     steps_expr.clear();
-            //     for (auto e : selects_expr)
-            //     {
-            //         ends_expr.push_back(std::string("add(") + e + ",1)");
-            //         steps_expr.push_back("1");
-            //     }
-            // }
-
             // collect inputs and references
             std::map<Operand*, int> references;
 
@@ -1329,6 +1321,11 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 std::string new_start_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, batch_index);
                 std::string new_end_expr = transform_nchw_annotation_and_drop_batch_index(end_tokens, ordered_references, batch_index);
                 std::string new_step_expr = transform_nchw_annotation_and_drop_batch_index(step_tokens, ordered_references, batch_index);
+
+                if (new_step_expr != std::to_string(1))
+                {
+                    fprintf(stderr, "slice with step expression %s is not supported\n", new_step_expr.c_str());
+                }
 
                 new_starts_expr += new_start_expr;
                 new_ends_expr += new_end_expr;

@@ -54,4 +54,26 @@ pnnx.Output             output      1 0 out
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size, 10)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_dynamic, 11)
 
+class Tensor_size_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+aten::size              op_0        1 1 input shape
+Gather                  op_1        1 1 shape out axis=0 indices=%dim
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.size";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_onnx, 10)
+
 } // namespace pnnx

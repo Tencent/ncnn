@@ -358,7 +358,7 @@ int ParamDict::load_param(const DataReader& dr)
             vstr2[241] = '\0'; // max 255 = 15 + 240
             if (vstr[0] == '\"')
             {
-                nscan = dr.scan("%255[^\"]\"", vstr2);
+                nscan = dr.scan("%255[^\"\n]\"", vstr2);
             }
             else
             {
