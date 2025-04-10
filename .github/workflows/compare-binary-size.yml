@@ -1,7 +1,5 @@
 name: compare-binary-size
 on:
-  push:
-    branches: [master]
   pull_request:
     types: [opened, synchronize]
 
