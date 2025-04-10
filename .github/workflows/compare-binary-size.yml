@@ -31,22 +31,20 @@ jobs:
     - name: install-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install gcc-multilib g++-multilib g++-arm-linux-gnueabihf g++-aarch64-linux-gnu
+        sudo apt-get install g++-arm-linux-gnueabihf g++-aarch64-linux-gnu
 
     - name: compare-sizes
       env:
         COMMON_CMAKE_ARGS: -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF
       run: |
         # define target architectures
-        archs=("x86" "x86_64" "armhf" "aarch64")
+        archs=("x86_64" "armhf" "aarch64")
 
         for arch in "${archs[@]}"; do
 
           mkdir -p pr/build_$arch
           pushd pr/build_$arch
-          if [ "$arch" = "x86" ]; then
-            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake ..
-          elif [ "$arch" = "armhf" ]; then
+          if [ "$arch" = "armhf" ]; then
             cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
           elif [ "$arch" = "aarch64" ]; then
             cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
@@ -59,9 +57,7 @@ jobs:
 
           mkdir -p base/build_$arch
           pushd base/build_$arch
-          if [ "$arch" = "x86" ]; then
-            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake ..
-          elif [ "$arch" = "armhf" ]; then
+          if [ "$arch" = "armhf" ]; then
             cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
           elif [ "$arch" = "aarch64" ]; then
             cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
