@@ -6,6 +6,11 @@ on:
 jobs:
   compare-size:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+
     steps:
       - name: Check out PR branch
         uses: actions/checkout@v4
@@ -18,9 +23,9 @@ jobs:
       - name: Build PR branch
         run: |
           mkdir -p build_pr && cd build_pr
-          cmake -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON ..
+          cmake -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
           cmake --build . -j 4
-          PR_SIZE=$(stat -c%s "src/libncnn.so")
+          PR_SIZE=$(stat -c%s "src/libncnn.so.*.*.*")
           echo "PR_SIZE=${PR_SIZE}" >> $GITHUB_ENV
 
       - name: Check out base branch
@@ -34,20 +39,12 @@ jobs:
       - name: Build base branch
         run: |
           mkdir -p build_base && cd build_base
-          cmake -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON ..
+          cmake -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
           cmake --build . -j 4
-          BASE_SIZE=$(stat -c%s "src/libncnn.so")
+          BASE_SIZE=$(stat -c%s "src/libncnn.so.*.*.*")
           echo "BASE_SIZE=${BASE_SIZE}" >> $GITHUB_ENV
 
       - name: Compare binary size
         run: |
           echo "PR branch libncnn.so size:      $PR_SIZE bytes"
           echo "Base branch libncnn.so size:    $BASE_SIZE bytes"
-          DIFF=$((PR_SIZE - BASE_SIZE))
-          if [ $DIFF -gt 0 ]; then
-            echo "New build is larger by $DIFF bytes."
-          elif [ $DIFF -lt 0 ]; then
-            ABS=$((0 - DIFF))
-            echo "New build is smaller by $ABS bytes."
-          else
-            echo "Binary size is unchanged."
