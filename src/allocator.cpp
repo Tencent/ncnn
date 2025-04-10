@@ -23,9 +23,6 @@
 
 namespace ncnn {
 
-
-
-
 Allocator::~Allocator()
 {
 }
