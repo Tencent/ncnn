@@ -50,7 +50,7 @@ jobs:
             cmake ${{env.COMMON_CMAKE_ARGS}} ..
           fi
           cmake --build . -j $(nproc)
-          PR_SIZE_[$arch]=$(stat -c%s $(readlink src/libncnn.so))
+          PR_SIZE_[$arch]=$(stat -c%s $(readlink -f src/libncnn.so))
           popd
 
           mkdir -p base/build_$arch
@@ -63,21 +63,22 @@ jobs:
             cmake ${{env.COMMON_CMAKE_ARGS}} ..
           fi
           cmake --build . -j $(nproc)
-          BASE_SIZE_[$arch]=$(stat -c%s $(readlink src/libncnn.so))
+          BASE_SIZE_[$arch]=$(stat -c%s $(readlink -f src/libncnn.so))
           popd
 
         done
 
         # generate table
-        echo "| Architecture | Base Size (bytes) | PR Size (bytes) | Difference (bytes) |" >> compare-binary-size.md
-        echo "|--------------|--------------------|-----------------|--------------------|" >> compare-binary-size.md
+        echo "The binary size change of libncnn.so (bytes)" >> compare-binary-size.md
+        echo "| architecture | base size | pr size | difference |" >> compare-binary-size.md
+        echo "|--------------|-----------|---------|------------|" >> compare-binary-size.md
 
         for arch in "${archs[@]}"; do
           DIFF=$((${PR_SIZE_[$arch]} - ${BASE_SIZE_[$arch]}))
           if [ $DIFF -gt 0 ]; then
-            DIFF_STR="+$DIFF"
+            DIFF_STR="+$DIFF :warning:"
           else
-            DIFF_STR="$DIFF"
+            DIFF_STR="$DIFF :kissing_heart:"
           fi
 
           echo "| $arch | ${BASE_SIZE_[$arch]} | ${PR_SIZE_[$arch]} | $DIFF_STR |" >> compare-binary-size.md
@@ -89,7 +90,7 @@ jobs:
       with:
         issue-number: ${{ github.event.pull_request.number }}
         comment-author: 'github-actions[bot]'
-        body-includes: '| Architecture | Base Size (bytes) | PR Size (bytes) | Difference (bytes) |'
+        body-includes: 'The binary size change of libncnn.so (bytes)'
 
     - name: Create or update comment
       uses: peter-evans/create-or-update-comment@v4
