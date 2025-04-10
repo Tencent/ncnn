@@ -5,6 +5,13 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+concurrency:
+  group: compare-binary-size-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  issues: write
+  pull-requests: write
+
 jobs:
   compare-size:
     runs-on: ubuntu-latest
