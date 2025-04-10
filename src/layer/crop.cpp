@@ -118,8 +118,6 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         std::vector<Mat> bottom_blobs(1);
         bottom_blobs[0] = bottom_blob;
         eval_crop_expr(bottom_blobs, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-
-        NCNN_LOGE("%d %d   %d %d   %d %d   %d %d", _woffset, _outw, _hoffset, _outh, _doffset, _outd, _coffset, _outc);
     }
     else
     {
