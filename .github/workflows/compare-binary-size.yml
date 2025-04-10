@@ -43,11 +43,11 @@ jobs:
           mkdir -p pr/build_$arch
           pushd pr/build_$arch
           if [ "$arch" = "armv7" ]; then
-            cmake ${env.COMMON_CMAKE_ARGS} -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
+            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
           elif [ "$arch" = "aarch64" ]; then
-            cmake ${env.COMMON_CMAKE_ARGS} -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
+            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
           else
-            cmake ${env.COMMON_CMAKE_ARGS} ..
+            cmake ${{env.COMMON_CMAKE_ARGS}} ..
           fi
           cmake --build . -j $(nproc)
           PR_SIZE_[$arch]=$(stat -c%s $(readlink src/libncnn.so))
@@ -56,11 +56,11 @@ jobs:
           mkdir -p base/build_$arch
           pushd base/build_$arch
           if [ "$arch" = "armv7" ]; then
-            cmake ${env.COMMON_CMAKE_ARGS} -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
+            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
           elif [ "$arch" = "aarch64" ]; then
-            cmake ${env.COMMON_CMAKE_ARGS} -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
+            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
           else
-            cmake ${env.COMMON_CMAKE_ARGS} ..
+            cmake ${{env.COMMON_CMAKE_ARGS}} ..
           fi
           cmake --build . -j $(nproc)
           BASE_SIZE_[$arch]=$(stat -c%s $(readlink src/libncnn.so))
