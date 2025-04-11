@@ -18,6 +18,8 @@
 #include <lsxintrin.h>
 #endif // __loongarch_sx
 
+
+
 namespace ncnn {
 
 
