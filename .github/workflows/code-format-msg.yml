@@ -31,8 +31,3 @@ jobs:
         issue-number: ${{ github.event.pull_request.number }}
         body: 'Please enable github action in **YOUR FORKED REPO** to make code-format workflow work'
         edit-mode: replace
-
-    - name: restore-clang-format-cache
-      run: |
-        mkdir $GITHUB_WORKSPACE/clang-format-install
-        cp -r ~/bin/clang-format $GITHUB_WORKSPACE/clang-format-install
