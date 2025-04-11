@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -28,6 +29,9 @@ class Model(nn.Module):
     def forward(self, x):
         out0 = self.pool_0(x)
         out1 = self.pool_1(x)
+        if version.parse(torch.__version__) < version.parse('1.10'):
+            return out0, out1
+
         out2 = self.pool_2(x)
         out3 = self.pool_3(x)
         return out0, out1, out2, out3
