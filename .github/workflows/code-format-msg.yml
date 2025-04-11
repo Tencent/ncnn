@@ -12,22 +12,105 @@ permissions:
   pull-requests: write
 
 jobs:
-  on-failure:
+  remove-comment-if-success:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'pull_request' }}
     steps:
-    - name: find-comment
-      uses: peter-evans/find-comment@v3
-      id: fc
+    - name: Remove existing "format check failed" comment
+      uses: actions/github-script@v5
       with:
-        issue-number: ${{ github.event.pull_request.number }}
-        comment-author: 'github-actions[bot]'
-        body-includes: 'Please enable github action in **YOUR FORKED REPO** to make code-format workflow work'
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const commitSha = context.payload.workflow_run.head_sha;
 
-    - name: create-or-update-comment
-      uses: peter-evans/create-or-update-comment@v4
+          const { data: pullRequests } = await github.rest.pulls.list({
+            owner,
+            repo,
+            state: 'open',
+            head: `${owner}:${context.payload.workflow_run.head_branch}`,
+          });
+
+          if (!pullRequests || pullRequests.length === 0) {
+            console.log("No matching pull request found.");
+            return;
+          }
+
+          const pr = pullRequests.find(item => item.head.sha === commitSha);
+          if (!pr) {
+            console.log("No matching pull request found for the given SHA.");
+            return;
+          }
+
+          const { data: comments } = await github.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: pr.number,
+          });
+
+          const targetComment = comments.find(comment =>
+            comment.body.includes("Please enable github action in **YOUR FORKED REPO** to make code-format workflow work")
+          );
+
+          if (targetComment) {
+            await github.rest.issues.deleteComment({
+              owner,
+              repo,
+              comment_id: targetComment.id,
+            });
+            console.log("Removed existing code-format failure comment.");
+          } else {
+            console.log("No existing format failure comment to remove.");
+          }
+
+  post-comment-if-failure:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Post comment on failed code-format if not existing
+      uses: actions/github-script@v5
       with:
-        comment-id: ${{ steps.fc.outputs.comment-id }}
-        issue-number: ${{ github.event.pull_request.number }}
-        body: 'Please enable github action in **YOUR FORKED REPO** to make code-format workflow work'
-        edit-mode: replace
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const commitSha = context.payload.workflow_run.head_sha;
+
+          const { data: pullRequests } = await github.rest.pulls.list({
+            owner,
+            repo,
+            state: 'open',
+            head: `${owner}:${context.payload.workflow_run.head_branch}`,
+          });
+
+          if (!pullRequests || pullRequests.length === 0) {
+            console.log("No matching pull request found.");
+            return;
+          }
+
+          const pr = pullRequests.find(item => item.head.sha === commitSha);
+          if (!pr) {
+            console.log("No matching pull request found for the given SHA.");
+            return;
+          }
+
+          const { data: comments } = await github.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: pr.number,
+          });
+
+          const existingComment = comments.find(comment =>
+            comment.body.includes("Please enable github action in **YOUR FORKED REPO** to make code-format workflow work")
+          );
+
+          if (existingComment) {
+            console.log("A code-format failure comment already exists.");
+          } else {
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pr.number,
+              body: "Please enable github action in **YOUR FORKED REPO** to make code-format workflow work",
+            });
+            console.log("Created code-format failure comment.");
+          }
