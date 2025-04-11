@@ -1,19 +1,16 @@
 name: code-format
 
-on: [push, pull_request, pull_request_target]
+on: [push, pull_request]
 
 concurrency:
   group: code-format-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
-  contents: read
-  pull-requests: write
+  contents: write
 
 jobs:
   code-format:
-    permissions:
-      contents: write  # for stefanzweifel/git-auto-commit-action to push code in repo
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
@@ -53,28 +50,8 @@ jobs:
         export PATH=~/bin:$PATH
         sh codeformat.sh
     - uses: stefanzweifel/git-auto-commit-action@v5
-      id: commit
-      continue-on-error: true
       with:
         commit_message: apply code-format changes
-
-    - name: find-comment
-      if: steps.commit.outcome != 'success'
-      uses: peter-evans/find-comment@v3
-      id: fc
-      with:
-        issue-number: ${{ github.event.pull_request.number }}
-        comment-author: 'github-actions[bot]'
-        body-includes: 'The binary size change of libncnn.so (bytes)'
-
-    - name: create-or-update-comment
-      if: steps.commit.outcome != 'success'
-      uses: peter-evans/create-or-update-comment@v4
-      with:
-        comment-id: ${{ steps.fc.outputs.comment-id }}
-        issue-number: ${{ github.event.pull_request.number }}
-        body: 'Please enable github action in **YOUR FORKED REPO** to make code-format workflow work'
-        edit-mode: replace
 
     - name: restore-clang-format-cache
       run: |
