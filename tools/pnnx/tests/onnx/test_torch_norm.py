@@ -23,7 +23,7 @@ class Model(nn.Module):
     def forward(self, x, y, z):
         x = torch.norm(x)
         y = torch.norm(y, p=2, dim=(2,3), keepdim=False)
-        z = torch.norm(z, p=1, dim=-2, keepdim=True)
+        z = torch.norm(z, p=1, dim=(-2,), keepdim=True)
         return x, y, z
 
 def test():
