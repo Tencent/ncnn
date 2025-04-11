@@ -1,0 +1,33 @@
+name: code-format-msg
+
+on:
+  workflow_run:
+    workflows: [code-format]
+    types: [completed]
+
+concurrency:
+  group: code-format-msg-${{ github.head_ref || github.run_id }}
+
+permissions:
+  pull-requests: write
+
+jobs:
+  on-failure:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'pull_request' }}
+    steps:
+    - name: find-comment
+      uses: peter-evans/find-comment@v3
+      id: fc
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: 'github-actions[bot]'
+        body-includes: 'The binary size change of libncnn.so (bytes)'
+
+    - name: create-or-update-comment
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        comment-id: ${{ steps.fc.outputs.comment-id }}
+        issue-number: ${{ github.event.pull_request.number }}
+        body: 'Please enable github action in **YOUR FORKED REPO** to make code-format workflow work'
+        edit-mode: replace

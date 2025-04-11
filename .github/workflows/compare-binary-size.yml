@@ -2,7 +2,7 @@ name: compare-binary-size
 on: [pull_request_target]
 
 concurrency:
-  group: compare-binary-size-${{ github.ref }}
+  group: compare-binary-size-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 permissions:
   contents: read
