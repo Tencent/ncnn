@@ -144,6 +144,76 @@ pnnx.Output             output      1 0 out
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_fro, 90)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_fro_dims, 90)
 
+class torch_norm_onnx_l2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+ReduceL2                op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.norm";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.axes") == captured_params.end())
+        {
+            op->params["dim"] = Parameter();
+        }
+        else
+        {
+            op->params["dim"] = captured_params.at("op_0.axes");
+        }
+        op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
+        op->params["p"] = 2;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_onnx_l2, 90)
+
+class torch_norm_onnx_l1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+ReduceL1                op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.norm";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.axes") == captured_params.end())
+        {
+            op->params["dim"] = Parameter();
+        }
+        else
+        {
+            op->params["dim"] = captured_params.at("op_0.axes");
+        }
+        op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
+        op->params["p"] = 1;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_onnx_l1, 90)
+
 class torch_norm_tnn : public GraphRewriterPass
 {
 public:
