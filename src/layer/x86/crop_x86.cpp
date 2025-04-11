@@ -116,14 +116,23 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     int elempack = bottom_blob.elempack;
 
 #if __SSE2__
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    if (!starts_expr.empty() && !ends_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(1);
+        bottom_blob_shapes[0] = bottom_blob.shape();
+        eval_crop_expr(bottom_blob_shapes, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else
+    {
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+
 #if __AVX__
 #if __AVX512F__
     if (elempack == 16)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-
         if (dims == 1)
         {
             int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
@@ -253,10 +262,6 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     if (elempack == 8)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-
         if (dims == 1)
         {
             int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
@@ -386,10 +391,6 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     if (elempack == 4)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-
         if (dims == 1)
         {
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
@@ -546,26 +547,33 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int ref_elempack = reference_blob.elempack;
-
     Mat& top_blob = top_blobs[0];
 
 #if __SSE2__
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    if (!starts_expr.empty() && !ends_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_crop_expr(bottom_blob_shapes, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else if (woffset == -233)
+    {
+        resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else
+    {
+        resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+
 #if __AVX__
 #if __AVX512F__
     if (elempack == 16)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        if (woffset == -233)
-        {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-        else
-        {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-
         if (dims == 1)
         {
             int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
@@ -695,17 +703,6 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     if (elempack == 8)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        if (woffset == -233)
-        {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-        else
-        {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-
         if (dims == 1)
         {
             int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
@@ -835,17 +832,6 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     if (elempack == 4)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        if (woffset == -233)
-        {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-        else
-        {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-
         if (dims == 1)
         {
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
@@ -975,31 +961,22 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 #endif // __SSE2__
 
-    Mat bottom_blob_unpacked = bottom_blob;
-    if (elempack != 1)
+    std::vector<Mat> bottom_blobs_unpacked(bottom_blobs.size());
+    for (size_t i = 0; i < bottom_blobs.size(); i++)
     {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
+        Mat bottom_blob_unpacked = bottom_blobs[i];
+        if (elempack != 1)
+        {
+            Option opt_pack1 = opt;
+            opt_pack1.blob_allocator = opt.workspace_allocator;
 
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-        if (bottom_blob_unpacked.empty())
-            return -100;
+            convert_packing(bottom_blobs[i], bottom_blob_unpacked, 1, opt_pack1);
+            if (bottom_blob_unpacked.empty())
+                return -100;
+        }
+
+        bottom_blobs_unpacked[i] = bottom_blob_unpacked;
     }
-
-    Mat reference_blob_unpacked = reference_blob;
-    if (ref_elempack != 1)
-    {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(reference_blob, reference_blob_unpacked, 1, opt_pack1);
-        if (reference_blob_unpacked.empty())
-            return -100;
-    }
-
-    std::vector<Mat> bottom_blobs_unpacked(2);
-    bottom_blobs_unpacked[0] = bottom_blob_unpacked;
-    bottom_blobs_unpacked[1] = reference_blob_unpacked;
 
     return Crop::forward(bottom_blobs_unpacked, top_blobs, opt);
 }

@@ -54,8 +54,27 @@ void convert_Tensor_select(Graph& graph)
             if (axis > batch_index)
                 axis -= 1;
 
-            int dim = op->params.at("dim").i;
-            int index = op->params.at("index").i;
+            int dim;
+            int index;
+            if (op->has_param("dim"))
+            {
+                dim = op->params.at("dim").i;
+            }
+            else
+            {
+                fprintf(stderr, "select with dynamic dim is not supported\n");
+                continue;
+            }
+
+            if (op->has_param("index"))
+            {
+                index = op->params.at("index").i;
+            }
+            else
+            {
+                fprintf(stderr, "select with dynamic index is not supported\n");
+                continue;
+            }
 
             op->params["9"] = std::vector<int> {index};
             op->params["10"] = std::vector<int> {index + 1};
