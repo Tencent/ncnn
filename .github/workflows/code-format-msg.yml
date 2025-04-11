@@ -6,7 +6,7 @@ on:
     types: [completed]
 
 concurrency:
-  group: code-format-msg-${{ github.ref }}
+  group: code-format-msg-${{ github.head_ref || github.run_id }}
 
 permissions:
   pull-requests: write
