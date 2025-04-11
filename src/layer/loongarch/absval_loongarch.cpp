@@ -18,12 +18,7 @@
 #include <lsxintrin.h>
 #endif // __loongarch_sx
 
-
-
 namespace ncnn {
-
-
-
 
 AbsVal_loongarch::AbsVal_loongarch()
 {
