@@ -56,8 +56,7 @@ static int test_crop_0()
 
     return 0
            || test_crop(a, "10", "11", "1")
-           || test_crop(a, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "3,2,0")
-           ;
+           || test_crop(a, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "3,2,0");
 }
 
 static int test_crop_1()
@@ -68,8 +67,7 @@ static int test_crop_1()
 
     return 0
            || test_crop(as, "//(1h,15)", "neg(//(1w,7))", "2")
-           || test_crop(as, "//(100,0h),round(fmod(100,0c))", "-233,min(1c,0c)", "1,0")
-           ;
+           || test_crop(as, "//(100,0h),round(fmod(100,0c))", "-233,min(1c,0c)", "1,0");
 }
 
 int main()
