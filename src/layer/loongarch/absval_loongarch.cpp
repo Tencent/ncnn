@@ -20,6 +20,9 @@
 
 namespace ncnn {
 
+
+
+
 AbsVal_loongarch::AbsVal_loongarch()
 {
 #if __loongarch_sx
