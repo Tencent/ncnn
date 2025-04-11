@@ -22,7 +22,7 @@ jobs:
       with:
         issue-number: ${{ github.event.pull_request.number }}
         comment-author: 'github-actions[bot]'
-        body-includes: 'The binary size change of libncnn.so (bytes)'
+        body-includes: 'Please enable github action in **YOUR FORKED REPO** to make code-format workflow work'
 
     - name: create-or-update-comment
       uses: peter-evans/create-or-update-comment@v4
