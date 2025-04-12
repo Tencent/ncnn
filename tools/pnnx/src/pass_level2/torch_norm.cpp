@@ -144,6 +144,72 @@ pnnx.Output             output      1 0 out
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_fro, 90)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_fro_dims, 90)
 
+class torch_norm_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input       0 1 input
+aten::abs               op_0        1 1 input 4
+prim::Constant          op_1        0 1 v2 value=2.0
+aten::pow               op_2        2 1 4 v2 5
+torch.sum               op_3        1 1 5 6 dim=%dim keepdim=%keepdim
+prim::Constant          op_4        0 1 v0p5 value=0.5
+aten::pow               op_5        2 1 6 v0p5 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.norm";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["dim"] = captured_params.at("dim");
+        op->params["keepdim"] = captured_params.at("keepdim");
+        op->params["p"] = 2;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_onnx, 90)
+
+class torch_norm_onnx_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input       0 1 input
+aten::abs               op_0        1 1 input 7
+prim::Constant          op_1        0 1 v1 value=1.0
+aten::pow               op_2        2 1 7 v1 8
+torch.sum               op_3        1 1 8 9 dim=%dim keepdim=%keepdim
+prim::Constant          op_4        0 1 v1_1 value=1.0
+aten::pow               op_5        2 1 9 v1_1 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.norm";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["dim"] = captured_params.at("dim");
+        op->params["keepdim"] = captured_params.at("keepdim");
+        op->params["p"] = 1;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_onnx_2, 90)
+
 class torch_norm_onnx_l2 : public GraphRewriterPass
 {
 public:

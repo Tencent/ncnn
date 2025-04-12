@@ -39,7 +39,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class F_normalize_2 : public GraphRewriterPass
+class F_normalize_2 : public F_normalize
 {
 public:
     const char* match_pattern_graph() const
@@ -54,10 +54,22 @@ aten::div               op_3        2 1 input denorm out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
+};
 
-    const char* type_str() const
+class F_normalize_3 : public F_normalize
+{
+public:
+    const char* match_pattern_graph() const
     {
-        return "F.normalize";
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input       0 1 input
+torch.norm              op_0        1 1 input 3 p=%p dim=%dim keepdim=True
+torch.clamp             op_1        1 1 3 4 max=None min=%eps
+Tensor.expand           op_2        1 1 4 denorm shape=*
+aten::div               op_3        2 1 input denorm out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -82,5 +94,6 @@ pnnx.Output             output      1 0 out
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize, 130)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_2, 130)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_dims, 131)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_3, 131)
 
 } // namespace pnnx
