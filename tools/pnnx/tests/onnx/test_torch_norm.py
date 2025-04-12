@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -27,6 +28,12 @@ class Model(nn.Module):
         return x, y, z
 
 def test():
+    # old torch throws error
+    # RuntimeError: Attribute 'axes' is expected to have field 'ints'
+    # ==> Context: Bad node spec for node. Name: ReduceSum_1 OpType: ReduceSum
+    if version.parse(torch.__version__) < version.parse('1.12'):
+        return True
+
     net = Model()
     net.eval()
 
