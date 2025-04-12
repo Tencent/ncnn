@@ -22,6 +22,11 @@ Spectrogram::Spectrogram()
     support_inplace = false;
 }
 
+Spectrogram::~Spectrogram()
+{
+    delete conv_transpose;
+}
+
 int Spectrogram::load_param(const ParamDict& pd)
 {
     n_fft = pd.get(0, 0);
@@ -36,7 +41,7 @@ int Spectrogram::load_param(const ParamDict& pd)
 
     // assert winlen <= n_fft
     // generate window
-    window_data.create(normalized == 2 ? n_fft + 1 : n_fft);
+    window_data.create(n_fft);
     {
         float* p = window_data;
         for (int i = 0; i < (n_fft - winlen) / 2; i++)
@@ -80,9 +85,89 @@ int Spectrogram::load_param(const ParamDict& pd)
             {
                 sqsum += window_data[i] * window_data[i];
             }
-            window_data[n_fft] = 1.f / sqrt(sqsum);
+            float scale = 1.f / sqrt(sqsum);
+
+            for (int i = 0; i < n_fft; i++)
+            {
+                window_data[i] *= scale;
+            }
         }
     }
+
+    Mat theta;
+    if (onesided)
+    {
+        n_freq = n_fft / 2 + 1;
+    } else
+    {
+        n_freq = n_fft;
+    }
+    theta.create(n_fft,n_freq,size_t(8));
+
+    for (int i = 0; i<n_freq; i++)
+    {
+        for (int j = 0; j<n_fft; j++)
+        {
+            theta.row<double>(i)[j] = 2 * 3.14159265358979323846 * i * j / n_fft;
+        }
+    }
+
+    Mat real_basis, imag_basis;
+    real_basis.create(n_fft,n_freq,size_t(8));
+    imag_basis.create(n_fft,n_freq,size_t(8));
+
+    for (int i = 0; i<n_freq; i++)
+    {
+        for (int j = 0; j<n_fft; j++)
+        {
+            real_basis.row<double>(i)[j] = cos(theta.row<double>(i)[j]);
+            imag_basis.row<double>(i)[j] = -sin(theta.row<double>(i)[j]);
+        }
+    }
+
+    // multiply window
+    for (int i = 0; i<n_freq; i++)
+    {
+        for (int j = 0; j<n_fft; j++)
+        {
+            real_basis.row<double>(i)[j] *= window_data[j];
+            imag_basis.row<double>(i)[j] *= window_data[j];
+        }
+    }
+
+    if (normalized == 1)
+    {
+        double scale = 1.f / sqrt(n_fft);
+        for (int i = 0; i<n_freq; i++)
+        {
+            for (int j = 0; j<n_fft; j++)
+            {
+                real_basis.row<double>(i)[j] *= scale;
+                imag_basis.row<double>(i)[j] *= scale;
+            }
+        }
+    }
+
+    conv_data.create(n_fft,1,n_freq * 2);
+
+    for (int i = 0; i<n_freq; i++)
+    {
+        for (int j = 0; j<n_fft; j++)
+        {
+            conv_data.channel(i).row<float>(0)[j]= (float)real_basis.row<double>(i)[j];
+            conv_data.channel(i+n_freq).row<float>(0)[j] = (float)imag_basis.row<double>(i)[j];
+        }
+    }
+
+    conv_transpose = ncnn::create_layer("Convolution1D");
+    ncnn::ParamDict conv_transpose_pd;
+
+    conv_transpose_pd.set(0,2 * n_freq); // num_output
+    conv_transpose_pd.set(1,n_fft); // kernel_w
+    conv_transpose_pd.set(3,hoplen); // stride_w
+    conv_transpose_pd.set(19,1); // dynamic_weight
+
+    conv_transpose->load_param(conv_transpose_pd);
 
     return 0;
 }
@@ -110,107 +195,70 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     // const int frames = size / hoplen + 1;
     const int frames = (size - n_fft) / hoplen + 1;
-    const int freqs_onesided = n_fft / 2 + 1;
-    const int freqs = onesided ? freqs_onesided : n_fft;
 
     const size_t elemsize = bottom_blob_bordered.elemsize;
 
+    if (elemsize != sizeof(float))
+    {
+        return -100;
+    }
+
     if (power == 0)
     {
-        top_blob.create(2, frames, freqs, elemsize, opt.blob_allocator);
+        top_blob.create(2, frames, n_freq, elemsize, opt.blob_allocator);
     }
     else
     {
-        top_blob.create(frames, freqs, elemsize, opt.blob_allocator);
+        top_blob.create(frames, n_freq, elemsize, opt.blob_allocator);
     }
     if (top_blob.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < freqs_onesided; i++)
+    std::vector<Mat> inputs = {bottom_blob_bordered,conv_data};
+    std::vector<Mat> outputs = {Mat()};
+
+    Option opt_conv = opt;
+    opt_conv.use_packing_layout = false;
+
+    conv_transpose->create_pipeline(opt_conv);
+    conv_transpose->forward(inputs,outputs,opt_conv);
+    conv_transpose->destroy_pipeline(opt_conv);
+
+    Mat conv_top_blob = outputs[0]; // (2 * n_freq, frames)
+    float* conv_top_data = conv_top_blob;
+
+    if (power == 0) // as complex
     {
-        const float* ptr = bottom_blob_bordered;
-        float* outptr = power == 0 ? top_blob.channel(i) : top_blob.row(i);
-
-        for (int j = 0; j < frames; j++)
+        // copy
+        for (int i = 0; i<frames; i++)
         {
-            float re = 0.f;
-            float im = 0.f;
-            for (int k = 0; k < n_fft; k++)
+            for (int j = 0; j<n_freq; j++)
             {
-                float v = ptr[k];
-
-                // apply window
-                v *= window_data[k];
-
-                // dft
-                double angle = 2 * 3.14159265358979323846 * i * k / n_fft;
-
-                re += v * cosf(angle); // + imag * sinf(angle);
-                im -= v * sinf(angle); // + imag * cosf(angle);
+                top_blob.channel(j).row<float>(i)[0] = conv_top_data[j * frames + i];
+                top_blob.channel(j).row<float>(i)[1] = conv_top_data[(j + n_freq) * frames + i];
             }
-
-            if (normalized == 1)
-            {
-                float norm = 1.f / sqrt(n_fft);
-                re *= norm;
-                im *= norm;
-            }
-            if (normalized == 2)
-            {
-                float norm = window_data[n_fft];
-                re *= norm;
-                im *= norm;
-            }
-
-            if (power == 0)
-            {
-                // complex as real
-                outptr[0] = re;
-                outptr[1] = im;
-                outptr += 2;
-            }
-            if (power == 1)
-            {
-                // magnitude
-                outptr[0] = sqrt(re * re + im * im);
-                outptr += 1;
-            }
-            if (power == 2)
-            {
-                outptr[0] = re * re + im * im;
-                outptr += 1;
-            }
-
-            ptr += hoplen;
         }
-    }
-
-    if (!onesided)
+    } else
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = freqs_onesided; i < n_fft; i++)
+        if (power == 1) // magnitude sqrt(re * re + im * im);
         {
-            if (power == 0)
+            // copy
+            for (int i = 0; i < frames; i++)
             {
-                const float* ptr = top_blob.channel(n_fft - i);
-                float* outptr = top_blob.channel(i);
-
-                for (int j = 0; j < frames; j++)
+                for (int j = 0; j < n_freq; j++)
                 {
-                    // complex as real
-                    outptr[0] = ptr[0];
-                    outptr[1] = -ptr[1];
-                    ptr += 2;
-                    outptr += 2;
+                    top_blob.row<float>(j)[i] = sqrtf(conv_top_data[j * frames + i] * conv_top_data[j * frames + i] + conv_top_data[(j + n_freq) * frames + i] * conv_top_data[(j + n_freq) * frames + i]);
                 }
             }
-            else // if (power == 1 || power == 2)
+        } else if (power == 2) // power re * re + im * im;
+        {
+            // copy
+            for (int i = 0; i < frames; i++)
             {
-                const float* ptr = top_blob.row(n_fft - i);
-                float* outptr = top_blob.row(i);
-
-                memcpy(outptr, ptr, frames * sizeof(float));
+                for (int j = 0; j< n_freq; j++)
+                {
+                    top_blob.row<float>(j)[i] = conv_top_data[j * frames + i] * conv_top_data[j * frames + i] + conv_top_data[(j + n_freq) * frames + i] * conv_top_data[(j + n_freq) * frames + i];
+                }
             }
         }
     }

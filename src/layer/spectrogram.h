@@ -23,6 +23,7 @@ class Spectrogram : public Layer
 {
 public:
     Spectrogram();
+    ~Spectrogram();
 
     virtual int load_param(const ParamDict& pd);
 
@@ -39,7 +40,12 @@ public:
     int normalized; // 0=disabled 1=sqrt(n_fft) 2=window-l2-energy
     int onesided;
 
+    int n_freq;
+
     Mat window_data;
+    Mat conv_data;
+
+    Layer* conv_transpose = 0;
 };
 
 } // namespace ncnn
