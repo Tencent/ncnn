@@ -22,8 +22,7 @@
 
 #include "cpu.h"
 
-namespace ncnn
-{
+namespace ncnn {
 
 Eltwise_riscv::Eltwise_riscv()
 {
@@ -269,7 +268,7 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
             }
         }
     }
-    else if (op_type == Operation_MAX)
+    else
     {
         // top_blob = max(bottom_top_blob, bottom_blobs[1])
         const Mat& bottom_blob1 = bottom_blobs[1];
@@ -335,11 +334,6 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 #endif
             }
         }
-    }
-    else
-    {
-        fprintf(stderr, "Eltwise_riscv: unsupported operation type %d\n", op_type);
-        return -1;                   
     }
 
     return 0;

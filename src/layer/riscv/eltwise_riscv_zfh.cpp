@@ -240,7 +240,7 @@ int Eltwise_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vect
             }
         }
     }
-    else if (op_type == Operation_MAX)
+    else
     {
         const Mat& bottom_blob1 = bottom_blobs[1];
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -304,11 +304,6 @@ int Eltwise_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vect
 #endif
             }
         }
-    }
-    else
-    {
-        fprintf(stderr, "Eltwise_riscv: unsupported operation type %d\n", op_type);
-        return -1;
     }
 
     return 0;
