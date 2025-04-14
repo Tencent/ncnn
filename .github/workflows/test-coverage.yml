@@ -236,7 +236,7 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-gpu-llvmpipe:
-    runs-on: [self-hosted, linux, ubuntu]
+    runs-on: [self-hosted, linux, ubuntu24]
     steps:
     - uses: actions/checkout@v4
       with:
@@ -259,9 +259,12 @@ jobs:
         lcov --list lcov.info
 
     - name: codecov
-      uses: codecov/codecov-action@v5
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        disable_search: true
-        plugins: noop
-        files: build/lcov.info
+      run: |
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+        ./codecov -t ${{ secrets.CODECOV_TOKEN }} -C ${{ github.sha }} -B ${{ github.head_ref }} -f build/lcov.info
