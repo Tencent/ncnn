@@ -101,7 +101,7 @@ int Eltwise_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vect
             }
         }
     }
-    else if (op_type == Operation_SUM)
+    if (op_type == Operation_SUM)
     {
         if (coeffs.empty())
         {
@@ -240,7 +240,7 @@ int Eltwise_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vect
             }
         }
     }
-    else
+    if (op_type == Operation_MAX)
     {
         const Mat& bottom_blob1 = bottom_blobs[1];
         #pragma omp parallel for num_threads(opt.num_threads)

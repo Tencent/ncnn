@@ -125,7 +125,7 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
             }
         }
     }
-    else if (op_type == Operation_SUM)
+    if (op_type == Operation_SUM)
     {
         if (coeffs.empty())
         {
@@ -268,7 +268,7 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
             }
         }
     }
-    else
+    if (op_type == Operation_MAX)
     {
         // top_blob = max(bottom_top_blob, bottom_blobs[1])
         const Mat& bottom_blob1 = bottom_blobs[1];
