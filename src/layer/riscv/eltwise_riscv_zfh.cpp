@@ -17,38 +17,15 @@
 
 #if __riscv_vector
 #include <riscv_vector.h>
-#include "rvv_mathfun.h"
 #endif // __riscv_vector
 
-#include "cpu.h"
+namespace ncnn {
 
-namespace ncnn
-{
-
-Eltwise_riscv::Eltwise_riscv()
-{
-#if __riscv_vector
-    support_packing = true;
-#endif
 #if NCNN_ZFH
-#if __riscv_vector
-    support_fp16_storage = cpu_support_riscv_zvfh();
-#else
-    support_fp16_storage = cpu_support_riscv_zfh();
-#endif
-#endif
-}
-
-int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Eltwise_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_top_blob = bottom_blobs[0];
-#if NCNN_ZFH
-    int elembits = bottom_top_blob.elembits();
-    if (opt.use_fp16_storage && elembits == 16)
-    {
-        return forward_fp16s(bottom_blobs, top_blobs, opt);
-    }
-#endif
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
@@ -61,24 +38,23 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 
     if (op_type == Operation_PROD)
     {
-        // top_blob = bottom_top_blob * bottom_blobs[1]
         const Mat& bottom_blob1 = bottom_blobs[1];
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            const float* ptr = bottom_top_blob.channel(q);
-            const float* ptr1 = bottom_blob1.channel(q);
-            float* outptr = top_blob.channel(q);
-#if __riscv_vector
+            const __fp16* ptr = bottom_top_blob.channel(q);
+            const __fp16* ptr1 = bottom_blob1.channel(q);
+            __fp16* outptr = top_blob.channel(q);
+#if __riscv_zvfh
             int n = size;
             while (n > 0)
             {
-                size_t vl = __riscv_vsetvl_e32m8(n);
+                size_t vl = __riscv_vsetvl_e16m8(n);
 
-                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                vfloat32m8_t _p1 = __riscv_vle32_v_f32m8(ptr1, vl);
-                _p = __riscv_vfmul_vv_f32m8(_p, _p1, vl);
-                __riscv_vse32_v_f32m8(outptr, _p, vl);
+                vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+                vfloat16m8_t _p1 = __riscv_vle16_v_f16m8(ptr1, vl);
+                _p = __riscv_vfmul_vv_f16m8(_p, _p1, vl);
+                __riscv_vse16_v_f16m8(outptr, _p, vl);
 
                 ptr += vl;
                 ptr1 += vl;
@@ -93,25 +69,24 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 #endif
         }
 
-        // top_blob *= bottom_blobs[i] for i = 2, 3, ...
         for (size_t b = 2; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob1 = bottom_blobs[b];
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob1.channel(q);
-                float* outptr = top_blob.channel(q);
-#if __riscv_vector
+                const __fp16* ptr = bottom_blob1.channel(q);
+                __fp16* outptr = top_blob.channel(q);
+#if __riscv_zvfh
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = __riscv_vsetvl_e32m8(n);
+                    size_t vl = __riscv_vsetvl_e16m8(n);
 
-                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _p1 = __riscv_vle32_v_f32m8(outptr, vl);
-                    _p1 = __riscv_vfmul_vv_f32m8(_p1, _p, vl);
-                    __riscv_vse32_v_f32m8(outptr, _p1, vl);
+                    vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+                    vfloat16m8_t _p1 = __riscv_vle16_v_f16m8(outptr, vl);
+                    _p1 = __riscv_vfmul_vv_f16m8(_p1, _p, vl);
+                    __riscv_vse16_v_f16m8(outptr, _p1, vl);
 
                     ptr += vl;
                     outptr += vl;
@@ -130,24 +105,23 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     {
         if (coeffs.empty())
         {
-            // top_blob = bottom_top_blob + bottom_blobs[1]
             const Mat& bottom_blob1 = bottom_blobs[1];
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_top_blob.channel(q);
-                const float* ptr1 = bottom_blob1.channel(q);
-                float* outptr = top_blob.channel(q);
-#if __riscv_vector
+                const __fp16* ptr = bottom_top_blob.channel(q);
+                const __fp16* ptr1 = bottom_blob1.channel(q);
+                __fp16* outptr = top_blob.channel(q);
+#if __riscv_zvfh
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = __riscv_vsetvl_e32m8(n);
+                    size_t vl = __riscv_vsetvl_e16m8(n);
 
-                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _p1 = __riscv_vle32_v_f32m8(ptr1, vl);
-                    _p = __riscv_vfadd_vv_f32m8(_p, _p1, vl);
-                    __riscv_vse32_v_f32m8(outptr, _p, vl);
+                    vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+                    vfloat16m8_t _p1 = __riscv_vle16_v_f16m8(ptr1, vl);
+                    _p = __riscv_vfadd_vv_f16m8(_p, _p1, vl);
+                    __riscv_vse16_v_f16m8(outptr, _p, vl);
 
                     ptr += vl;
                     ptr1 += vl;
@@ -162,25 +136,24 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 #endif
             }
 
-            // top_blob += bottom_blobs[i] for i = 2, 3, ...
             for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    const float* ptr = bottom_blob1.channel(q);
-                    float* outptr = top_blob.channel(q);
-#if __riscv_vector
+                    const __fp16* ptr = bottom_blob1.channel(q);
+                    __fp16* outptr = top_blob.channel(q);
+#if __riscv_zvfh
                     int n = size;
                     while (n > 0)
                     {
-                        size_t vl = __riscv_vsetvl_e32m8(n);
+                        size_t vl = __riscv_vsetvl_e16m8(n);
 
-                        vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _p1 = __riscv_vle32_v_f32m8(outptr, vl);
-                        _p1 = __riscv_vfadd_vv_f32m8(_p1, _p, vl);
-                        __riscv_vse32_v_f32m8(outptr, _p1, vl);
+                        vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+                        vfloat16m8_t _p1 = __riscv_vle16_v_f16m8(outptr, vl);
+                        _p1 = __riscv_vfadd_vv_f16m8(_p1, _p, vl);
+                        __riscv_vse16_v_f16m8(outptr, _p1, vl);
 
                         ptr += vl;
                         outptr += vl;
@@ -197,28 +170,27 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
         }
         else
         {
-            // top_blob = bottom_top_blob * coeffs[0] + bottom_blobs[1] * coeffs[1]
             const Mat& bottom_blob1 = bottom_blobs[1];
-            float coeff0 = coeffs[0];
-            float coeff1 = coeffs[1];
+            __fp16 coeff0 = (__fp16)coeffs[0];
+            __fp16 coeff1 = (__fp16)coeffs[1];
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_top_blob.channel(q);
-                const float* ptr1 = bottom_blob1.channel(q);
-                float* outptr = top_blob.channel(q);
-#if __riscv_vector
+                const __fp16* ptr = bottom_top_blob.channel(q);
+                const __fp16* ptr1 = bottom_blob1.channel(q);
+                __fp16* outptr = top_blob.channel(q);
+#if __riscv_zvfh
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = __riscv_vsetvl_e32m8(n);
+                    size_t vl = __riscv_vsetvl_e16m8(n);
 
-                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _p1 = __riscv_vle32_v_f32m8(ptr1, vl);
-                    _p = __riscv_vfmul_vf_f32m8(_p, coeff0, vl);
-                    _p1 = __riscv_vfmul_vf_f32m8(_p1, coeff1, vl);
-                    _p = __riscv_vfadd_vv_f32m8(_p, _p1, vl);
-                    __riscv_vse32_v_f32m8(outptr, _p, vl);
+                    vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+                    vfloat16m8_t _p1 = __riscv_vle16_v_f16m8(ptr1, vl);
+                    _p = __riscv_vfmul_vf_f16m8(_p, coeff0, vl);
+                    _p1 = __riscv_vfmul_vf_f16m8(_p1, coeff1, vl);
+                    _p = __riscv_vfadd_vv_f16m8(_p, _p1, vl);
+                    __riscv_vse16_v_f16m8(outptr, _p, vl);
 
                     ptr += vl;
                     ptr1 += vl;
@@ -233,27 +205,26 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 #endif
             }
 
-            // top_blob += bottom_blobs[i] * coeffs[i] for i = 2, 3, ...
             for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
-                float coeff = coeffs[b];
+                __fp16 coeff = (__fp16)coeffs[b];
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    const float* ptr = bottom_blob1.channel(q);
-                    float* outptr = top_blob.channel(q);
-#if __riscv_vector
+                    const __fp16* ptr = bottom_blob1.channel(q);
+                    __fp16* outptr = top_blob.channel(q);
+#if __riscv_zvfh
                     int n = size;
                     while (n > 0)
                     {
-                        size_t vl = __riscv_vsetvl_e32m8(n);
+                        size_t vl = __riscv_vsetvl_e16m8(n);
 
-                        vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _p1 = __riscv_vle32_v_f32m8(outptr, vl);
-                        _p = __riscv_vfmul_vf_f32m8(_p, coeff, vl);
-                        _p1 = __riscv_vfadd_vv_f32m8(_p1, _p, vl);
-                        __riscv_vse32_v_f32m8(outptr, _p1, vl);
+                        vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+                        vfloat16m8_t _p1 = __riscv_vle16_v_f16m8(outptr, vl);
+                        _p = __riscv_vfmul_vf_f16m8(_p, coeff, vl);
+                        _p1 = __riscv_vfadd_vv_f16m8(_p1, _p, vl);
+                        __riscv_vse16_v_f16m8(outptr, _p1, vl);
 
                         ptr += vl;
                         outptr += vl;
@@ -271,24 +242,23 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     }
     else if (op_type == Operation_MAX)
     {
-        // top_blob = max(bottom_top_blob, bottom_blobs[1])
         const Mat& bottom_blob1 = bottom_blobs[1];
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            const float* ptr = bottom_top_blob.channel(q);
-            const float* ptr1 = bottom_blob1.channel(q);
-            float* outptr = top_blob.channel(q);
-#if __riscv_vector
+            const __fp16* ptr = bottom_top_blob.channel(q);
+            const __fp16* ptr1 = bottom_blob1.channel(q);
+            __fp16* outptr = top_blob.channel(q);
+#if __riscv_zvfh
             int n = size;
             while (n > 0)
             {
-                size_t vl = __riscv_vsetvl_e32m8(n);
+                size_t vl = __riscv_vsetvl_e16m8(n);
 
-                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                vfloat32m8_t _p1 = __riscv_vle32_v_f32m8(ptr1, vl);
-                _p = __riscv_vfmax_vv_f32m8(_p, _p1, vl);
-                __riscv_vse32_v_f32m8(outptr, _p, vl);
+                vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+                vfloat16m8_t _p1 = __riscv_vle16_v_f16m8(ptr1, vl);
+                _p = __riscv_vfmax_vv_f16m8(_p, _p1, vl);
+                __riscv_vse16_v_f16m8(outptr, _p, vl);
 
                 ptr += vl;
                 ptr1 += vl;
@@ -303,25 +273,24 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 #endif
         }
 
-        // top_blob = max(top_blob, bottom_blobs[i]) for i = 2, 3, ...
         for (size_t b = 2; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob1 = bottom_blobs[b];
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob1.channel(q);
-                float* outptr = top_blob.channel(q);
-#if __riscv_vector
+                const __fp16* ptr = bottom_blob1.channel(q);
+                __fp16* outptr = top_blob.channel(q);
+#if __riscv_zvfh
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = __riscv_vsetvl_e32m8(n);
+                    size_t vl = __riscv_vsetvl_e16m8(n);
 
-                    vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _p1 = __riscv_vle32_v_f32m8(outptr, vl);
-                    _p1 = __riscv_vfmax_vv_f32m8(_p1, _p, vl);
-                    __riscv_vse32_v_f32m8(outptr, _p1, vl);
+                    vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+                    vfloat16m8_t _p1 = __riscv_vle16_v_f16m8(outptr, vl);
+                    _p1 = __riscv_vfmax_vv_f16m8(_p1, _p, vl);
+                    __riscv_vse16_v_f16m8(outptr, _p1, vl);
 
                     ptr += vl;
                     outptr += vl;
@@ -339,10 +308,11 @@ int Eltwise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     else
     {
         fprintf(stderr, "Eltwise_riscv: unsupported operation type %d\n", op_type);
-        return -1;                   
+        return -1;
     }
 
     return 0;
 }
+#endif // NCNN_ZFH
 
 } // namespace ncnn
