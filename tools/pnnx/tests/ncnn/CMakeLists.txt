@@ -218,6 +218,7 @@ pnnx_ncnn_add_test(ncnn_fuse_binaryop_eltwise)
 pnnx_ncnn_add_test(ncnn_fuse_pad_conv)
 pnnx_ncnn_add_test(ncnn_numpy_binaryop_broadcast)
 pnnx_ncnn_add_test(ncnn_reshape_expr)
+pnnx_ncnn_add_test(ncnn_slice_expr)
 
 if(TorchVision_FOUND)
     pnnx_ncnn_add_test(torchvision_DeformConv2d)
