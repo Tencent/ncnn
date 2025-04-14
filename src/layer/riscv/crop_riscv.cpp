@@ -197,7 +197,7 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -239,7 +239,7 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -398,7 +398,7 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -440,7 +440,7 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
