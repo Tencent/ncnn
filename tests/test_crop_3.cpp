@@ -52,9 +52,9 @@ static int test_crop(const std::vector<ncnn::Mat>& as, const char* starts_expr, 
 
 static int test_crop_0()
 {
-    ncnn::Mat a = RandomMat(13, 12, 25, 32);
-    ncnn::Mat b = RandomMat(13, 12, 32);
-    ncnn::Mat c = RandomMat(13, 32);
+    ncnn::Mat a = RandomMat(13, 12, 25, 48);
+    ncnn::Mat b = RandomMat(13, 12, 48);
+    ncnn::Mat c = RandomMat(13, 48);
     ncnn::Mat d = RandomMat(128);
 
     return 0
@@ -62,6 +62,10 @@ static int test_crop_0()
            || test_crop(b, "2", "-2", "0")
            || test_crop(c, "2", "-2", "0")
            || test_crop(d, "2", "-2", "0")
+           || test_crop(a, "16", "32", "-4")
+           || test_crop(b, "16", "32", "-3")
+           || test_crop(c, "16", "32", "-2")
+           || test_crop(d, "16", "32", "-1")
            || test_crop(a, "10", "11", "1")
            || test_crop(a, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "3,2,0")
            || test_crop(b, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "2,1,0")
@@ -72,18 +76,31 @@ static int test_crop_0()
 static int test_crop_1()
 {
     std::vector<ncnn::Mat> as(2);
-    as[0] = RandomMat(14, 15, 16);
-    as[1] = RandomMat(28, 45, 48);
+    as[0] = RandomMat(4, 5, 3, 48);
+    as[1] = RandomMat(8, 5, 3, 4);
 
     std::vector<ncnn::Mat> bs(2);
-    bs[0] = RandomMat(4, 5, 3, 16);
-    bs[1] = RandomMat(8, 5, 3, 4);
+    bs[0] = RandomMat(14, 15, 48);
+    bs[1] = RandomMat(28, 45, 16);
+
+    std::vector<ncnn::Mat> cs(2);
+    cs[0] = RandomMat(24, 48);
+    cs[1] = RandomMat(28, 6);
+
+    std::vector<ncnn::Mat> ds(3);
+    ds[0] = RandomMat(128);
+    ds[1] = RandomMat(16);
+    ds[2] = RandomMat(64);
 
     return 0
-           || test_crop(as, "-(1w,20)", "-2", "0")
-           || test_crop(bs, "-(1w,4)", "neg(1h,3)", "0")
-           || test_crop(as, "//(1h,15)", "neg(//(1w,7))", "2")
-           || test_crop(as, "//(100,0h),round(fmod(100,0c))", "-233,min(1c,0c)", "1,0");
+           || test_crop(as, "*(1c,4)", "*(1c,8)", "-4")
+           || test_crop(bs, "1c", "-(0c,1c)", "-3")
+           || test_crop(cs, "+(1h,10)", "-(1h,22)", "-2")
+           || test_crop(ds, "1w", "2w", "-1")
+           || test_crop(as, "-(1w,4)", "neg(1h,3)", "0")
+           || test_crop(bs, "-(1w,20)", "-2", "0")
+           || test_crop(bs, "//(1h,15)", "neg(//(1w,7))", "2")
+           || test_crop(bs, "//(100,0h),round(fmod(100,0c))", "-233,min(1c,0c)", "1,0");
 }
 
 int main()
