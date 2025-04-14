@@ -79,50 +79,65 @@ static int test_crop_oom(const std::vector<ncnn::Mat>& as, const char* starts_ex
 
 static int test_crop_0()
 {
-    ncnn::Mat a = RandomMat(13, 12, 25, 32);
-    ncnn::Mat b = RandomMat(13, 12, 32);
-    ncnn::Mat c = RandomMat(13, 32);
+    ncnn::Mat a = RandomMat(13, 12, 25, 48);
+    ncnn::Mat b = RandomMat(13, 12, 48);
+    ncnn::Mat c = RandomMat(13, 48);
     ncnn::Mat d = RandomMat(128);
 
     return 0
            || test_crop_oom(a, 1, 1, 1, 1, -233, -233, -233, -233, 1, 1, 1, 1)
-           || test_crop_oom(b, 1, 1, 1, 1, -233, -233, -233, -233, 1, 1, 1, 1)
-           || test_crop_oom(c, 1, 1, 1, 1, -233, -233, -233, -233, 1, 1, 1, 1)
-           || test_crop_oom(d, 1, 1, 1, 1, -233, -233, -233, -233, 1, 1, 1, 1)
+           || test_crop_oom(b, 1, 1, 0, 1, -233, -233, 0, -233, 1, 1, 0, 1)
+           || test_crop_oom(c, 1, 1, 0, 0, -233, -233, 0, 0, 1, 1, 0, 0)
+           || test_crop_oom(d, 1, 0, 0, 0, -233, 0, 0, 0, 1, 0, 0, 0)
            || test_crop_oom(a, 2, 2, 2, 2, 6, 6, 6, 16, 0, 0, 0, 0)
-           || test_crop_oom(b, 2, 2, 2, 2, 6, 6, 6, 16, 0, 0, 0, 0)
-           || test_crop_oom(c, 2, 2, 2, 2, 6, 6, 6, 16, 0, 0, 0, 0)
-           || test_crop_oom(d, 2, 2, 2, 2, 6, 6, 6, 16, 0, 0, 0, 0);
+           || test_crop_oom(b, 2, 2, 0, 2, 6, 6, 0, 16, 0, 0, 0, 0)
+           || test_crop_oom(c, 2, 2, 0, 0, 6, 16, 0, 0, 0, 0, 0, 0)
+           || test_crop_oom(d, 2, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0)
+           || test_crop_oom(a, 3, 3, 3, 16, 3, 4, 5, 16, 0, 0, 0, 0)
+           || test_crop_oom(b, 3, 3, 0, 16, 3, 4, 0, 16, 0, 0, 0, 0)
+           || test_crop_oom(c, 3, 16, 0, 0, 3, 16, 0, 0, 0, 0, 0, 0)
+           || test_crop_oom(d, 16, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0);
 }
 
 static int test_crop_1()
 {
-    ncnn::Mat a = RandomMat(13, 12, 25, 33);
-    ncnn::Mat b = RandomMat(13, 12, 33);
-    ncnn::Mat c = RandomMat(13, 33);
+    ncnn::Mat a = RandomMat(13, 12, 25, 47);
+    ncnn::Mat b = RandomMat(13, 12, 47);
+    ncnn::Mat c = RandomMat(13, 47);
     ncnn::Mat d = RandomMat(129);
 
     return 0
            || test_crop_oom(a, 1, 1, 1, 1, -233, -233, -233, -233, 1, 1, 1, 1)
-           || test_crop_oom(b, 1, 1, 1, 1, -233, -233, -233, -233, 1, 1, 1, 1)
-           || test_crop_oom(c, 1, 1, 1, 1, -233, -233, -233, -233, 1, 1, 1, 1)
-           || test_crop_oom(d, 1, 1, 1, 1, -233, -233, -233, -233, 1, 1, 1, 1)
+           || test_crop_oom(b, 1, 1, 0, 1, -233, -233, 0, -233, 1, 1, 0, 1)
+           || test_crop_oom(c, 1, 1, 0, 0, -233, -233, 0, 0, 1, 1, 0, 0)
+           || test_crop_oom(d, 1, 0, 0, 0, -233, 0, 0, 0, 1, 0, 0, 0)
            || test_crop_oom(a, 2, 2, 2, 2, 6, 6, 6, 16, 0, 0, 0, 0)
-           || test_crop_oom(b, 2, 2, 2, 2, 6, 6, 6, 16, 0, 0, 0, 0)
-           || test_crop_oom(c, 2, 2, 2, 2, 6, 6, 6, 16, 0, 0, 0, 0)
-           || test_crop_oom(d, 2, 2, 2, 2, 6, 6, 6, 16, 0, 0, 0, 0);
+           || test_crop_oom(b, 2, 2, 0, 2, 6, 6, 0, 16, 0, 0, 0, 0)
+           || test_crop_oom(c, 2, 2, 0, 0, 6, 16, 0, 0, 0, 0, 0, 0)
+           || test_crop_oom(d, 2, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0)
+           || test_crop_oom(a, 3, 3, 3, 16, 6, 6, 6, 16, 0, 0, 0, 0)
+           || test_crop_oom(b, 3, 3, 0, 16, 6, 6, 0, 16, 0, 0, 0, 0)
+           || test_crop_oom(c, 3, 16, 0, 0, 6, 16, 0, 0, 0, 0, 0, 0)
+           || test_crop_oom(d, 16, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0);
 }
 
 static int test_crop_2()
 {
     ncnn::Mat a = RandomMat(13, 12, 25, 32);
     ncnn::Mat b = RandomMat(13, 12, 32);
+    ncnn::Mat c = RandomMat(13, 32);
+    ncnn::Mat d = RandomMat(128);
 
     return 0
            || test_crop_oom(a, "2", "-2", "0")
            || test_crop_oom(b, "2", "-2", "0")
+           || test_crop_oom(c, "2", "-2", "0")
+           || test_crop_oom(d, "2", "-2", "0")
            || test_crop_oom(a, "10", "11", "1")
-           || test_crop_oom(a, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "3,2,0");
+           || test_crop_oom(a, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "3,2,0")
+           || test_crop_oom(b, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "2,1,0")
+           || test_crop_oom(c, "-(0w,3),floor(*(0h,0.3))", "-1,ceil(*(0h,0.9))", "1,0")
+           || test_crop_oom(d, "floor(*(0w,0.3))", "ceil(*(0w,0.9))", "0");
 }
 
 static int test_crop_3()

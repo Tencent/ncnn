@@ -54,12 +54,19 @@ static int test_crop_0()
 {
     ncnn::Mat a = RandomMat(13, 12, 25, 32);
     ncnn::Mat b = RandomMat(13, 12, 32);
+    ncnn::Mat c = RandomMat(13, 32);
+    ncnn::Mat d = RandomMat(128);
 
     return 0
            || test_crop(a, "2", "-2", "0")
            || test_crop(b, "2", "-2", "0")
+           || test_crop(c, "2", "-2", "0")
+           || test_crop(d, "2", "-2", "0")
            || test_crop(a, "10", "11", "1")
-           || test_crop(a, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "3,2,0");
+           || test_crop(a, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "3,2,0")
+           || test_crop(b, "-(0w,3),0h//2,floor(*(0c,0.3))", "-1,0h,ceil(*(0c,0.9))", "2,1,0")
+           || test_crop(c, "-(0w,3),floor(*(0h,0.3))", "-1,ceil(*(0h,0.9))", "1,0")
+           || test_crop(d, "floor(*(0w,0.3))", "ceil(*(0w,0.9))", "0");
 }
 
 static int test_crop_1()
