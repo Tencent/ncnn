@@ -62,7 +62,7 @@ jobs:
         gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
         shasum -a 256 -c codecov.SHA256SUM
         chmod +x codecov
-        ./codecov -t ${{ secrets.CODECOV_TOKEN }} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+        ./codecov -t ${{ secrets.CODECOV_TOKEN }} -C ${{ github.sha }} -B ${{ github.head_ref }} -f build/lcov.info
 
   linux-gcc-x64-sde:
     name: linux-gcc-sde-${{ matrix.cpu }}
