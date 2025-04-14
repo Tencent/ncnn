@@ -215,6 +215,8 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     return Crop::forward(bottom_blob_unpacked, top_blob, opt);
