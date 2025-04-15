@@ -18,7 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-void convert_reshape_expression(Graph& graph);
+void convert_reshape_interp_expression(Graph& graph);
 
 } // namespace ncnn
 

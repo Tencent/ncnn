@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "convert_reshape_expression.h"
+#include "convert_reshape_interp_expression.h"
 
 #include <algorithm>
 #include <stack>
@@ -83,7 +83,7 @@ static bool token_is_literal(const std::string& t)
 //     fprintf(stderr, "tokens = %s\n", r.c_str());
 // }
 
-void convert_reshape_expression(Graph& graph)
+void convert_reshape_interp_expression(Graph& graph)
 {
     while (1)
     {
@@ -91,7 +91,8 @@ void convert_reshape_expression(Graph& graph)
 
         for (Operator* op : graph.ops)
         {
-            if (op->type != "Tensor.reshape" && op->type != "Tensor.view")
+            if (op->type != "Tensor.reshape" && op->type != "Tensor.view"
+                && op->type != "F.upsample" && op->type != "F.upsample_nearest" && op->type != "F.upsample_bilinear" && op->type != "F.interpolate")
                 continue;
 
             if (op->inputs.size() != 2)
@@ -163,7 +164,13 @@ void convert_reshape_expression(Graph& graph)
 
             // collect inputs and references
             std::map<Operand*, int> references;
-            std::vector<size_t> token_indexes;
+
+            // begin with input blob
+            int reference_index = 0;
+            {
+                references[op->inputs[0]] = reference_index++;
+            }
+
             for (size_t i = 0; i < tokens.size(); i++)
             {
                 std::string& t = tokens[i];
@@ -176,54 +183,10 @@ void convert_reshape_expression(Graph& graph)
 
                 if (references.find(r) == references.end())
                 {
-                    references[r] = input_index;
-                }
-                else
-                {
-                    // reuse the same reference
-                    t = "@" + std::to_string(references[r]);
+                    references[r] = reference_index++;
                 }
 
-                token_indexes.push_back(i);
-            }
-
-            // print_tokens(tokens);
-
-            // insert input blob as reference if not exists
-            if (references.find(op->inputs[0]) == references.end())
-            {
-                references[op->inputs[0]] = INT_MAX;
-            }
-
-            // print_tokens(tokens);
-
-            // reorder reference id to make input blob always zero
-            {
-                int old_self_idx = references[op->inputs[0]];
-                for (auto& x : references)
-                {
-                    if (x.second == old_self_idx)
-                    {
-                        x.second = 0;
-                    }
-                    else if (x.second < old_self_idx)
-                    {
-                        x.second += 1;
-                    }
-                }
-
-                for (auto i : token_indexes)
-                {
-                    int input_index = std::stoi(tokens[i].substr(1));
-                    if (input_index == old_self_idx)
-                    {
-                        tokens[i] = "@0";
-                    }
-                    if (input_index < old_self_idx)
-                    {
-                        tokens[i] = "@" + std::to_string(input_index + 1);
-                    }
-                }
+                t = "@" + std::to_string(references[r]);
             }
 
             // print_tokens(tokens);
@@ -471,17 +434,20 @@ void convert_reshape_expression(Graph& graph)
                         elements.push_back(a);
                     }
 
-                    // drop output batch index
-                    const int batch_index = op->outputs[0]->params["__batch_index"].i;
-                    // fprintf(stderr, "batch_index = %d\n", batch_index);
-
-                    if (batch_index != 233)
+                    if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
                     {
-                        for (int j = batch_index; j + 1 < (int)elements.size(); j++)
+                        // drop output batch index
+                        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+                        // fprintf(stderr, "batch_index = %d\n", batch_index);
+
+                        if (batch_index != 233)
                         {
-                            elements[j] = elements[j + 1];
+                            for (int j = batch_index; j + 1 < (int)elements.size(); j++)
+                            {
+                                elements[j] = elements[j + 1];
+                            }
+                            elements.resize(elements.size() - 1);
                         }
-                        elements.resize(elements.size() - 1);
                     }
 
                     // reverse order
@@ -514,12 +480,52 @@ void convert_reshape_expression(Graph& graph)
                 exprstack.pop();
             }
 
-            fprintf(stderr, "convert reshape expression %s => %s\n", expr.c_str(), r.c_str());
+            if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+            {
+                fprintf(stderr, "convert reshape expression %s => %s\n", expr.c_str(), r.c_str());
 
-            op->type = "Reshape";
+                op->type = "Reshape";
 
-            op->params.clear();
-            op->params["6"] = r;
+                op->params.clear();
+                op->params["6"] = r;
+            }
+            else
+            {
+                fprintf(stderr, "convert interp expression %s => %s\n", expr.c_str(), r.c_str());
+
+                op->type = "Interp";
+
+                std::string mode = "nearest";
+                bool align_corners = false;
+
+                if (op->has_param("mode"))
+                    mode = op->params.at("mode").s;
+
+                if (op->has_param("align_corners"))
+                    align_corners = op->params.at("align_corners").b;
+
+                if (op->type == "F.upsample_nearest")
+                {
+                    mode = "nearest";
+                }
+                if (op->type == "F.upsample_bilinear")
+                {
+                    mode = "bilinear";
+                }
+
+                op->params.clear();
+
+                if (mode == "nearest")
+                    op->params["0"] = 1;
+                if (mode == "bilinear" || mode == "linear")
+                    op->params["0"] = 2;
+                if (mode == "bicubic")
+                    op->params["0"] = 3;
+
+                op->params["5"] = 1; // dynamic_target_size
+                op->params["6"] = align_corners ? 1 : 0;
+                op->params["9"] = r;
+            }
 
             // link references to reshape
             {
