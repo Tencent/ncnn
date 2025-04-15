@@ -493,6 +493,9 @@ y = crop(x)
 | 9         | starts        | array | [ ]       |                   |
 | 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
+| 19        | starts_expr   | str   | ""        |                   |
+| 20        | ends_expr     | str   | ""        |                   |
+| 21        | axes_expr     | str   | ""        |                   |
 
 # CumulativeSum
 
@@ -1699,6 +1702,7 @@ y = reshape(x)
 | 1         | h             | int   | -233      |                   |
 | 11        | d             | int   | -233      |                   |
 | 2         | c             | int   | -233      |                   |
+| 6         | shape_expr    | str   | ""        |                   |
 
 Reshape flag:
 - 0 = copy from bottom
