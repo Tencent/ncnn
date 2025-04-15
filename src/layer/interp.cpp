@@ -488,8 +488,6 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     if (!size_expr.empty())
     {
         eval_size_expr(bottom_blobs, outw, outh);
-
-        // NCNN_LOGE("outsize %d = %d %d", dims, outw, outh);
     }
 
     if (dims == 1)
