@@ -348,6 +348,16 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
     int outw = reference_blob.w;
     int outh = reference_blob.h;
 
+    if (!size_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_size_expr(bottom_blob_shapes, outw, outh);
+    }
+
     if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_vkallocator);
@@ -410,7 +420,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[7].i = top_blob.h;
             constants[8].i = top_blob.c;
             constants[9].i = top_blob.cstep;
-            constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
+            constants[10].f = (resize_type == 2 || output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
             constants[11].f = 1.f;
 
             if (resize_type == 2 && align_corner)
@@ -511,8 +521,8 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
-        constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
-        constants[11].f = (resize_type == 2 || output_height) ? h / (float)outh : 1.f / height_scale;
+        constants[10].f = (resize_type == 2 || output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+        constants[11].f = (resize_type == 2 || output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
 
         if (resize_type == 2 && align_corner)
         {
@@ -628,6 +638,16 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
     int outw = reference_blob.w;
     int outh = reference_blob.h;
 
+    if (!size_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_size_expr(bottom_blob_shapes, outw, outh);
+    }
+
     if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_vkallocator);
@@ -690,7 +710,7 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
             constants[7].i = top_blob.h;
             constants[8].i = top_blob.c;
             constants[9].i = 0; //top_blob.cstep;
-            constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
+            constants[10].f = (resize_type == 2 || output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
             constants[11].f = 1.f;
 
             if (resize_type == 2 && align_corner)
@@ -791,8 +811,8 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = 0; //top_blob.cstep;
-        constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
-        constants[11].f = (resize_type == 2 || output_height) ? h / (float)outh : 1.f / height_scale;
+        constants[10].f = (resize_type == 2 || output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+        constants[11].f = (resize_type == 2 || output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
 
         if (resize_type == 2 && align_corner)
         {

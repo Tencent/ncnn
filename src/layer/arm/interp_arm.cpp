@@ -87,6 +87,16 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     int outw = reference_blob.w;
     int outh = reference_blob.h;
 
+    if (!size_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_size_expr(bottom_blob_shapes, outw, outh);
+    }
+
     if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
@@ -136,7 +146,7 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         {
             if (resize_type == 1) // nearest
             {
-                const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+                const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -239,7 +249,7 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
         if (resize_type == 1) // nearest
         {
-            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -334,8 +344,8 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     {
         if (resize_type == 1) // nearest
         {
-            const float hs = output_height ? h / (float)outh : 1.f / height_scale;
-            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+            const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -418,8 +428,8 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     if (resize_type == 1) // nearest
     {
-        const float hs = output_height ? h / (float)outh : 1.f / height_scale;
-        const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+        const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+        const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -512,6 +522,16 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
     int outw = reference_blob.w;
     int outh = reference_blob.h;
 
+    if (!size_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_size_expr(bottom_blob_shapes, outw, outh);
+    }
+
     if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
@@ -561,7 +581,7 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
         {
             if (resize_type == 1) // nearest
             {
-                const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+                const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -664,7 +684,7 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
 
         if (resize_type == 1) // nearest
         {
-            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -759,8 +779,8 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
     {
         if (resize_type == 1) // nearest
         {
-            const float hs = output_height ? h / (float)outh : 1.f / height_scale;
-            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+            const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -843,8 +863,8 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
 
     if (resize_type == 1) // nearest
     {
-        const float hs = output_height ? h / (float)outh : 1.f / height_scale;
-        const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+        const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+        const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

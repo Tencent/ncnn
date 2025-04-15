@@ -96,21 +96,11 @@ def test():
             b1.append(torch.from_numpy(np.array(out4)).unsqueeze(0))
 
     for aa, bb in zip(a0, b0):
-        print('qqq')
         if not torch.allclose(aa, bb, 1e-4, 1e-4):
-            print(aa.shape)
-            print(bb.shape)
-            print(aa)
-            print(bb)
             return False
 
     for aa, bb in zip(a1, b1):
-        print('qqq2')
         if not torch.allclose(aa, bb, 1e-4, 1e-4):
-            print(aa.shape)
-            print(bb.shape)
-            print(aa)
-            print(bb)
             return False
 
     return True
