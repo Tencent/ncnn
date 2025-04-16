@@ -2883,7 +2883,7 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
     }
 }
 
-static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, int maxk, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
     const int l2_cache_size_fp32 = (int)(get_cpu_level2_cache_size() / sizeof(float));
@@ -2924,6 +2924,9 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
 #else
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
 #endif
+
+        // TILE_K must be multiple of maxk, constraint for im2col
+        TILE_K = (TILE_K + (maxk - 1)) / maxk * maxk;
     }
 
     // solve M
@@ -4537,7 +4540,7 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
     const int K = inch * maxk;
 
     int TILE_M, TILE_N, TILE_K;
-    convolution_im2col_gemm_get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    convolution_im2col_gemm_get_optimal_tile_mnk(M, 0, K, maxk, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -4615,7 +4618,7 @@ static int convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const 
     const int K = bottom_blob.c * bottom_blob.elempack * maxk;
 
     int TILE_M, TILE_N, TILE_K;
-    convolution_im2col_gemm_get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    convolution_im2col_gemm_get_optimal_tile_mnk(M, N, K, maxk, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
