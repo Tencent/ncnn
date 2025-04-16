@@ -97,7 +97,7 @@ jobs:
     runs-on: windows-11-arm
     env:
       UseMultiToolTask: true
-      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=OFF
 
     steps:
     - uses: actions/checkout@v4
