@@ -92,7 +92,7 @@ jobs:
     - name: install-deps
       run: |
         sudo apt-get update
-        sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev libvulkan-dev glslang-dev spirv-tools
+        sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev libvulkan-dev glslang-dev glslang-tools spirv-tools
 
     - name: build
       run: |
