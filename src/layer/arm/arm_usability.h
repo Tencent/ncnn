@@ -15,6 +15,24 @@
 #ifndef ARM_USABILITY_H
 #define ARM_USABILITY_H
 
+static inline size_t greatest_common_divisor(size_t a, size_t b)
+{
+    while (b != 0)
+    {
+        size_t t = b;
+        b = a % b;
+        a = t;
+    }
+    return a;
+}
+
+static inline size_t least_common_multiple(size_t a, size_t b)
+{
+    if (a == 0 || b == 0)
+        return 0;
+    return a / greatest_common_divisor(a, b) * b;
+}
+
 static inline signed char float2int8(float v)
 {
     int int32 = (int)roundf(v);

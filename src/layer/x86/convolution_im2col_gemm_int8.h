@@ -97,29 +97,21 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
         int tile_size = (l2_cache_size_int8 - 2) / 3;
 #endif
 
+        // TILE_K must be multiple of maxk, constraint for im2col
 #if __AVX512F__
-        TILE_K = std::max(16, tile_size / 16 * 16);
+        const int multiples = least_common_multiple(maxk, 16);
 #elif __AVX__
-        TILE_K = std::max(8, tile_size / 8 * 8);
+        const int multiples = least_common_multiple(maxk, 8);
 #elif __SSE2__
-        TILE_K = std::max(4, tile_size / 4 * 4);
+        const int multiples = least_common_multiple(maxk, 4);
 #else
-        TILE_K = std::max(2, tile_size / 2 * 2);
+        const int multiples = least_common_multiple(maxk, 2);
 #endif
+
+        TILE_K = std::max(multiples, tile_size / multiples * multiples);
 
         int nn_K = (K + TILE_K - 1) / TILE_K;
-#if __AVX512F__
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 15) / 16 * 16);
-#elif __AVX__
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
-#elif __SSE2__
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
-#else
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
-#endif
-
-        // TILE_K must be multiple of maxk, constraint for im2col
-        TILE_K = (TILE_K + (maxk - 1)) / maxk * maxk;
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + (multiples - 1)) / multiples * multiples);
     }
 
     // solve M

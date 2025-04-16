@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   gcc-mipsel:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
@@ -79,7 +79,7 @@ jobs:
         TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsel-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   gcc-mipsisa32r6el:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
