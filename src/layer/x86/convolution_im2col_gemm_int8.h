@@ -102,7 +102,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
 #elif __AVX__
         TILE_K = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
-        TILE_K = std::max(4, tile_size / 4 * 4);
+        TILE_K = std::max(8, tile_size / 8 * 8);
 #else
         TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
@@ -113,7 +113,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
 #elif __AVX__
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #elif __SSE2__
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #else
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
 #endif

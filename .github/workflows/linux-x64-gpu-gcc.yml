@@ -85,7 +85,7 @@ jobs:
         cmake --build . -j 4
 
   linux-gcc-gpu-system-glslang:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 

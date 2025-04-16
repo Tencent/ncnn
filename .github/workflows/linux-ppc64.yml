@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   gcc-ppc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
@@ -77,7 +77,7 @@ jobs:
         TESTS_EXECUTABLE_LOADER=qemu-ppc TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   gcc-ppc64le:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
@@ -124,7 +124,7 @@ jobs:
         TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   gcc-power8le-vsx:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
@@ -170,7 +170,7 @@ jobs:
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power8_v2.0" ctest --output-on-failure -j $(nproc)
   gcc-power9le-vsx:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
