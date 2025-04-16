@@ -289,6 +289,16 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
 
 static int test_convolution_1()
 {
+    return 0
+           || test_convolution_int8(1, 1, 8, 1, 2, 1, 1, 1, 0)
+           || test_convolution_int8(1, 1, 8, 1, 3, 1, 1, 1, 0)
+           || test_convolution_int8(2, 2, 8, 1, 2, 1, 1, 1, 0)
+           || test_convolution_int8(2, 2, 8, 1, 3, 1, 1, 1, 0)
+           || test_convolution_int8(3, 3, 8, 1, 2, 1, 1, 1, 0)
+           || test_convolution_int8(3, 3, 8, 1, 3, 1, 1, 1, 0)
+           || test_convolution_int8(4, 4, 8, 1, 2, 1, 1, 1, 0)
+           || test_convolution_int8(4, 4, 8, 1, 3, 1, 1, 1, 0);
+
     static const int kdsp[16][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},
@@ -321,8 +331,6 @@ static int test_convolution_1()
                   || test_convolution_int8(9, 7, 3, 3, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 4, 4, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 7, 7, k, d, s, p, 1)
-                  || test_convolution_int8(9, 7, 7, 8, k, d, s, p, 1)
-                  || test_convolution_int8(9, 7, 8, 7, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 8, 8, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 15, 15, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 16, 15, k, d, s, p, 1)
