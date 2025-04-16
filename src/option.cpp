@@ -69,7 +69,7 @@ Option::Option()
     use_shader_local_memory = true;
     use_cooperative_matrix = true;
 
-    use_winograd23_convolution = true;
+    use_winograd23_convolution = false;
     use_winograd43_convolution = false;
     use_winograd63_convolution = false;
 
