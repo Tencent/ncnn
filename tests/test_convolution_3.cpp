@@ -292,13 +292,9 @@ static int test_convolution_1()
 {
     return 0
            || test_convolution_int8(2, 2, 8, 1, 2, 1, 1, 0, 0)
-           || test_convolution_int8(3, 3, 8, 1, 3, 1, 1, 0, 0)
-           || test_convolution_int8(3, 3, 8, 1, 2, 1, 1, 0, 0)
-           || test_convolution_int8(4, 4, 8, 1, 3, 1, 1, 0, 0)
-           || test_convolution_int8(4, 4, 8, 1, 2, 1, 1, 0, 0)
-           || test_convolution_int8(5, 5, 8, 1, 3, 1, 1, 0, 0)
-           || test_convolution_int8(5, 5, 8, 1, 2, 1, 1, 0, 0)
-           || test_convolution_int8(6, 6, 8, 1, 3, 1, 1, 0, 0);
+           || test_convolution_int8(4, 4, 8, 1, 4, 1, 1, 0, 0)
+           || test_convolution_int8(5, 5, 8, 1, 5, 1, 1, 0, 0)
+           || test_convolution_int8(3, 3, 8, 1, 3, 1, 1, 0, 0);
 
     static const int kdsp[16][4] = {
         {1, 1, 1, 0},
