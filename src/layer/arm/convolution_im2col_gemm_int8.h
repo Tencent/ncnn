@@ -7531,7 +7531,6 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
 {
     // resolve optimal tile size from cache size
     const size_t l2_cache_size_int8 = (int)(get_cpu_level2_cache_size() / sizeof(signed char));
-    NCNN_LOGE("im2col-sgemm l2_cache_size_int8 = %d", l2_cache_size_int8);
 
     if (nT == 0)
         nT = get_physical_big_cpu_count();
