@@ -10793,6 +10793,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
         return;
     }
 
+#if 0
     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
 #if __ARM_FEATURE_MATMUL_INT8
@@ -10852,6 +10853,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
 #endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         return;
     }
+#endif
 
     convolution_im2col_input_tile_int8_impl(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
 }
