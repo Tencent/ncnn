@@ -38,8 +38,8 @@ Option::Option()
 
     openmp_blocktime = 20;
 
-    use_winograd_convolution = false;
-    use_sgemm_convolution = false;
+    use_winograd_convolution = true;
+    use_sgemm_convolution = true;
     use_int8_inference = true;
     use_vulkan_compute = false; // TODO enable me
 
@@ -69,9 +69,9 @@ Option::Option()
     use_shader_local_memory = true;
     use_cooperative_matrix = true;
 
-    use_winograd23_convolution = false;
-    use_winograd43_convolution = false;
-    use_winograd63_convolution = false;
+    use_winograd23_convolution = true;
+    use_winograd43_convolution = true;
+    use_winograd63_convolution = true;
 
     use_a53_a55_optimized_kernel = is_current_thread_running_on_a53_a55();
 
