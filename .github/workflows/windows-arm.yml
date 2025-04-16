@@ -92,3 +92,21 @@ jobs:
       run: |
         cd build
         TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest --output-on-failure -j $(nproc)
+
+  windows-arm:
+    runs-on: windows-11-arm
+    env:
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} ..
+        cmake --build . --config Release -j 4
+    - name: test
+      run: cd build; ctest -C Release --output-on-failure -j 4
