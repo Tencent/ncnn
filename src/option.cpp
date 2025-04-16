@@ -38,7 +38,7 @@ Option::Option()
 
     openmp_blocktime = 20;
 
-    use_winograd_convolution = true;
+    use_winograd_convolution = false;
     use_sgemm_convolution = true;
     use_int8_inference = true;
     use_vulkan_compute = false; // TODO enable me
