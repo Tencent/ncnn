@@ -14,7 +14,6 @@
 
 #include "cpu.h"
 #include "mat.h"
-#include "arm_usability.h"
 
 namespace ncnn {
 

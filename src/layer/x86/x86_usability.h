@@ -151,24 +151,6 @@ protected:
 };
 #endif // __SSE2__
 
-static NCNN_FORCEINLINE size_t greatest_common_divisor(size_t a, size_t b)
-{
-    while (b != 0)
-    {
-        size_t t = b;
-        b = a % b;
-        a = t;
-    }
-    return a;
-}
-
-static NCNN_FORCEINLINE size_t least_common_multiple(size_t a, size_t b)
-{
-    if (a == 0 || b == 0)
-        return 0;
-    return a / greatest_common_divisor(a, b) * b;
-}
-
 static NCNN_FORCEINLINE signed char float2int8(float v)
 {
     int int32 = (int)round(v);
