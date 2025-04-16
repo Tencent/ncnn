@@ -105,7 +105,7 @@ jobs:
     - name: build
       run: |
         mkdir build; cd build
-        cmake -A arm64 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=OFF -DNCNN_ARM84I8MM=OFF ..
+        cmake -A arm64 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=OFF ..
         cmake --build . --config Release -j 4
     - name: test
       run: cd build; ctest -C Release --output-on-failure -j 4
