@@ -142,7 +142,7 @@ jobs:
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power8_v2.0" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power8_v2.0" ctest --output-on-failure -j $(nproc)
 
   gcc-power9le-vsx:
     runs-on: ubuntu-latest
