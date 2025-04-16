@@ -80,15 +80,14 @@ jobs:
         sudo apt-get install g++-powerpc64le-linux-gnu qemu-user-static
 
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/powerpc64le-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-      # run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/power8le-linux-gnu-vsx.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/power8le-linux-gnu-vsx.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc64le-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power8_v2.0" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   gcc-power9le-vsx:
     runs-on: ubuntu-latest
