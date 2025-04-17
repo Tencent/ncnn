@@ -487,7 +487,9 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     if (!size_expr.empty())
     {
-        eval_size_expr(bottom_blobs, outw, outh);
+        int r = eval_size_expr(bottom_blobs, outw, outh);
+        if (r != 0)
+            return -1;
     }
 
     if (dims == 1)
@@ -695,16 +697,11 @@ int Interp::eval_size_expr(const std::vector<Mat>& bottom_blobs, int& outw, int&
     if (er != 0)
         return -1;
 
-    if (sizes.size() == 1)
-    {
-        outw = sizes[0];
-        outh = bottom_blobs[0].h;
-    }
-    if (sizes.size() == 2)
-    {
-        outw = sizes[0];
-        outh = sizes[1];
-    }
+    if (sizes.size() != 2)
+        return -1;
+
+    outw = sizes[0];
+    outh = sizes[1];
 
     return 0;
 }
