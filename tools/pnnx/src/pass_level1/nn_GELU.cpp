@@ -33,10 +33,10 @@ public:
 
     void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
     {
-        const torch::jit::Node* hardtanh = find_node_by_kind(graph, "aten::gelu");
+        const torch::jit::Node* gelu = find_node_by_kind(graph, "aten::gelu");
 
-        if (upsample->hasNamedInput("approximate"))
-            op->params["approximate"] = hardtanh->namedInput("approximate");
+        if (gelu->hasNamedInput("approximate"))
+            op->params["approximate"] = gelu->namedInput("approximate");
     }
 };
 
