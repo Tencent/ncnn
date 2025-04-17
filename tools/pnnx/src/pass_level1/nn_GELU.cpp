@@ -14,6 +14,8 @@
 
 #include "pass_level1.h"
 
+#include "../utils.h"
+
 namespace pnnx {
 
 class GELU : public FuseModulePass
@@ -27,6 +29,14 @@ public:
     const char* type_str() const
     {
         return "nn.GELU";
+    }
+
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    {
+        const torch::jit::Node* hardtanh = find_node_by_kind(graph, "aten::gelu");
+
+        if (upsample->hasNamedInput("approximate"))
+            op->params["approximate"] = hardtanh->namedInput("approximate");
     }
 };
 
