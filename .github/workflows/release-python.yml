@@ -46,12 +46,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-manylinux*', build_id: cp-manylinux }
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-musllinux*', build_id: cp-musllinux }
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'pp*',            build_id: pp           }
-          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
-          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
-          - { os: ubuntu-20.04, arch: i686,       build: 'pp*',            build_id: pp           }
+          - { os: ubuntu-24.04, arch: x86_64,     build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04, arch: x86_64,     build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04, arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: ubuntu-24.04, arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04, arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04, arch: i686,       build: 'pp*',            build_id: pp           }
           - { os: windows-2019, arch: x86,        build: 'cp*',            build_id: cp           }
           - { os: windows-2019, arch: AMD64,      build: 'cp*',            build_id: cp           }
           - { os: windows-2019, arch: AMD64,      build: 'pp*',            build_id: pp           }
@@ -84,9 +84,9 @@ jobs:
       with:
         python-version: '3.x'
 
-    # build wheels for ubuntu-20.04
+    # build wheels for ubuntu-24.04
     - name: Build wheels for ubuntu
-      if: matrix.os == 'ubuntu-20.04'
+      if: matrix.os == 'ubuntu-24.04'
       uses: pypa/cibuildwheel@v2.23.2
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
@@ -240,7 +240,7 @@ jobs:
 
   build_wheels_qemu_cp:
     name: ${{ matrix.arch }} ${{ matrix.build_cp }} ${{ matrix.build_sub }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false
@@ -289,7 +289,7 @@ jobs:
 
   build_wheels_qemu_pp:
     name: ${{ matrix.arch }} ${{ matrix.build_pp }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false

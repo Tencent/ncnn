@@ -58,10 +58,8 @@ jobs:
     strategy:
       matrix:
         opt:
-          - { shared-lib: OFF, os: ubuntu-20.04, id: ubuntu-2004        }
           - { shared-lib: OFF, os: ubuntu-22.04, id: ubuntu-2204        }
           - { shared-lib: OFF, os: ubuntu-24.04, id: ubuntu-2404        }
-          - { shared-lib: ON,  os: ubuntu-20.04, id: ubuntu-2004-shared }
           - { shared-lib: ON,  os: ubuntu-22.04, id: ubuntu-2204-shared }
           - { shared-lib: ON,  os: ubuntu-24.04, id: ubuntu-2404-shared }
     runs-on: ${{ matrix.opt.os }}
