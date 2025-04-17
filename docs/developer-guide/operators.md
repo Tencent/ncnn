@@ -1140,6 +1140,7 @@ else                            y = resize(x0, size(x1))
 | 4         | output_width  | int   | 0         |                   |
 | 5         | dynamic_target_size| int | 0      |                   |
 | 6         | align_corner  | int   | 0         |                   |
+| 9         | size_expr     | str   | ""        |                   |
 
 Resize type:
 - 1 = Nearest
