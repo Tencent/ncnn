@@ -40,11 +40,16 @@ pnnx.Output          output         1 0 out
     {
         return "gelu";
     }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        op->params["0"] = 1; // fast_gelu
+    }
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_gelu, 20)
 
-class F_gelu_1 : public GraphRewriterPass
+class F_gelu_1 : public F_gelu
 {
 public:
     const char* match_pattern_graph() const
@@ -55,16 +60,6 @@ pnnx.Input           input          0 1 input
 F.gelu               op_0           1 1 input out approximate=*
 pnnx.Output          output         1 0 out
 )PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "GELU";
-    }
-
-    const char* name_str() const
-    {
-        return "gelu";
     }
 };
 
