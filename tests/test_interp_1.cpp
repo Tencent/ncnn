@@ -82,11 +82,14 @@ static int test_interp_1()
 static int test_interp_2()
 {
     ncnn::Mat a = RandomMat(14, 15, 16);
+    ncnn::Mat b = RandomMat(22, 13);
 
     return 0
            || test_interp(a, 1, 0, "*(0w,0.5),/(0h,3)")
            || test_interp(a, 1, 0, "1,4")
-           || test_interp(a, 2, 1, "*(0w,0h),0c");
+           || test_interp(a, 2, 1, "*(0w,0h),0c")
+           || test_interp(b, 1, 0, "//(0w,3)")
+           || test_interp(b, 2, 0, "-(0w,5)");
 }
 
 int main()

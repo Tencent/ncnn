@@ -697,11 +697,19 @@ int Interp::eval_size_expr(const std::vector<Mat>& bottom_blobs, int& outw, int&
     if (er != 0)
         return -1;
 
-    if (sizes.size() != 2)
+    if (sizes.empty() || sizes.size() > 2)
         return -1;
 
-    outw = sizes[0];
-    outh = sizes[1];
+    if (sizes.size() == 1)
+    {
+        outw = sizes[0];
+        outh = bottom_blobs[0].h;
+    }
+    else
+    {
+        outw = sizes[0];
+        outh = sizes[1];
+    }
 
     return 0;
 }
