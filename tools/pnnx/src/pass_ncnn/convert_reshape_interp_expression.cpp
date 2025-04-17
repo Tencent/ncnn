@@ -493,8 +493,6 @@ void convert_reshape_interp_expression(Graph& graph)
             {
                 fprintf(stderr, "convert interp expression %s => %s\n", expr.c_str(), r.c_str());
 
-                op->type = "Interp";
-
                 std::string mode = "nearest";
                 bool align_corners = false;
 
@@ -512,6 +510,8 @@ void convert_reshape_interp_expression(Graph& graph)
                 {
                     mode = "bilinear";
                 }
+
+                op->type = "Interp";
 
                 op->params.clear();
 
