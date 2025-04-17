@@ -36,7 +36,11 @@ public:
         const torch::jit::Node* gelu = find_node_by_kind(graph, "aten::gelu");
 
         if (gelu->hasNamedInput("approximate"))
+        {
             op->params["approximate"] = gelu->namedInput("approximate");
+            if (op->params["approximate"].s == "none")
+                op->params.clear();
+        }
     }
 };
 
