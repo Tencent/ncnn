@@ -26,7 +26,7 @@ static inline vfloat16m8_t __riscv_vfadd_vf_f16m8_bias(vfloat16m8_t op1, float b
 #endif // __riscv_zvfh
 
 #if NCNN_ZFH
-int AbsVal_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+int Bias_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
