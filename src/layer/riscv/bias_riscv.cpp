@@ -65,7 +65,7 @@ int Bias_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             size_t vl = __riscv_vsetvl_e32m8(n);
 
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-            _p = __riscv_vfadd_vf_f32m8(op1, bias, vl);
+            _p = __riscv_vfadd_vf_f32m8(_p, bias, vl);
             __riscv_vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
