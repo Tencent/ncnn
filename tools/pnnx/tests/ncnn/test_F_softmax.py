@@ -28,7 +28,7 @@ class Model(nn.Module):
         x = F.softmax(x, 0)
         y = F.softmax(y, 1)
         z = F.softmax(z, 2)
-        # w = F.softmax(w, -1) TODO
+        w = F.softmax(w, -1)
         return x, y, z, w
 
 def test():

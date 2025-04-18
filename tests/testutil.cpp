@@ -342,13 +342,13 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
     }
     else
 #endif // NCNN_VFPV4
-#if NCNN_RVV
-    if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+#if NCNN_ZFH
+    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
         ncnn::cast_float32_to_float16(a, a4, opt);
     }
     else
-#endif // NCNN_RVV
+#endif // NCNN_ZFH
 #if NCNN_BF16
     if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
@@ -394,8 +394,8 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
-#elif NCNN_RVV
-            const int packn = ncnn::cpu_riscv_vlenb() / (elembits / 8);
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
+            const int packn = ncnn::cpu_riscv_vlenb() / 4;
             if (elemcount % packn == 0)
                 dst_elempack = packn;
 #else
@@ -406,11 +406,11 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
         if (elembits == 16)
         {
 #if NCNN_ARM82
-            if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
+            if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && op->support_fp16_storage)
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
-#elif NCNN_RVV
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
             const int packn = ncnn::cpu_riscv_vlenb() / 2;
             if (elemcount % packn == 0)
                 dst_elempack = packn;
@@ -421,7 +421,7 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
         }
         if (elembits == 8)
         {
-#if NCNN_RVV
+#if NCNN_RVV || NCNN_XTHEADVECTOR
             const int packn = ncnn::cpu_riscv_vlenb() / 1;
             if (elemcount % packn == 0)
                 dst_elempack = packn;
@@ -470,13 +470,13 @@ static int convert_to_vanilla_layout(const ncnn::Mat& c4, ncnn::Mat& c, const nc
     }
     else
 #endif // NCNN_VFPV4
-#if NCNN_RVV
-    if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && c4_unpacked.elembits() == 16)
+#if NCNN_ZFH
+    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && op->support_fp16_storage && c4_unpacked.elembits() == 16)
     {
         ncnn::cast_float16_to_float32(c4_unpacked, c, opt);
     }
     else
-#endif // NCNN_RVV
+#endif // NCNN_ZFH
 #if NCNN_BF16
     if (opt.use_bf16_storage && op->support_bf16_storage && c4_unpacked.elembits() == 16)
     {
@@ -726,6 +726,13 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
     if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
+    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    if (opt.use_image_storage && !vkdev->info.support_fp16_image())
+    {
+        opt.use_fp16_storage = false;
+        opt.use_fp16_uniform = false;
+    }
 
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;
@@ -1085,6 +1092,13 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
     if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
+    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    if (opt.use_image_storage && !vkdev->info.support_fp16_image())
+    {
+        opt.use_fp16_storage = false;
+        opt.use_fp16_uniform = false;
+    }
 
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;

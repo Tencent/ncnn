@@ -22,34 +22,10 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-6 5
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-aten::neg               op_0        1 1 input 6
-prim::Constant          op_1        0 1 dtype value=*
-aten::softmax           op_2        3 1 6 dim dtype out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "F.softmin";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmin, 9)
-
-class F_softmin_onnx : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
 aten::neg               op_0        1 1 input 6
-Softmax                 op_1        1 1 6 out axis=%dim
+F.softmax               op_1        1 1 6 out dim=%dim
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -60,6 +36,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmin_onnx, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmin, 102)
 
 } // namespace pnnx

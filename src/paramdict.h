@@ -48,6 +48,8 @@ public:
     float get(int id, float def) const;
     // get array
     Mat get(int id, const Mat& def) const;
+    // get string
+    std::string get(int id, const std::string& def) const;
 
     // set int
     void set(int id, int i);
@@ -55,6 +57,8 @@ public:
     void set(int id, float f);
     // set array
     void set(int id, const Mat& v);
+    // set string
+    void set(int id, const std::string& s);
 
 protected:
     friend class Net;

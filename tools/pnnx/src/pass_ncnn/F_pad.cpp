@@ -99,7 +99,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.pad                   op_0        1 1 input out pad=%pad mode=%mode
+F.pad                   op_0        1 1 input out pad=%pad mode=%mode value=None
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -243,7 +243,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.pad                   op_0        1 1 input out pad=%pad mode=%mode
+F.pad                   op_0        1 1 input out pad=%pad mode=%mode value=None
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

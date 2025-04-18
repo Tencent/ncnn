@@ -39,6 +39,9 @@
 #include <string>
 #include <vector>
 
+// npy format header
+#include "npy.hpp"
+
 // ncnn public header
 #include "benchmark.h"
 #include "cpu.h"
@@ -86,6 +89,7 @@ public:
     std::vector<std::vector<int> > shapes;
     std::vector<int> type_to_pixels;
     int quantize_num_threads;
+    int file_type;
 
 public:
     int init();
@@ -159,6 +163,8 @@ int QuantNet::save_table(const char* tablepath)
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
 
+    fprintf(stdout, "param:%d\n", conv_layer_count);
+
     for (int i = 0; i < conv_layer_count; i++)
     {
         const ncnn::Mat& weight_scale = weight_scales[i];
@@ -199,6 +205,59 @@ void QuantNet::print_quant_info() const
         float scale = 127 / stat.threshold;
 
         fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale);
+    }
+}
+
+/**
+ * Read npy file
+ * shape is input as [w,h,...]
+ * @return ncnn::Mat
+ */
+
+inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npypath)
+{
+    npy::npy_data<float> d;
+    try
+    {
+        d = npy::read_npy<float>(npypath);
+    }
+    catch (const std::exception& e)
+    {
+        fprintf(stderr, "npy::read_npy exception: %s\n", e.what());
+        std::exit(EXIT_FAILURE);
+    }
+
+    std::vector<unsigned long> npy_shape = d.shape;
+    size_t dims = shape.size();
+
+    if (dims != npy_shape.size())
+    {
+        fprintf(stderr, "expect %d dims, but got: %d\n", (int)dims, (int)npy_shape.size());
+        std::exit(EXIT_FAILURE);
+    }
+
+    for (size_t i = 0; i < dims; ++i)
+    {
+        if (static_cast<unsigned long>(shape[i]) != npy_shape[dims - 1 - i])
+        {
+            fprintf(stderr, "shape mismatch!\n");
+            std::exit(EXIT_FAILURE);
+        }
+    }
+
+    switch (dims)
+    {
+    case 1:
+        return ncnn::Mat(shape[0], (void*)(d.data.data())).reshape(shape[0]).clone();
+    case 2:
+        return ncnn::Mat(shape[0] * shape[1], (void*)(d.data.data())).reshape(shape[0], shape[1]).clone();
+    case 3:
+        return ncnn::Mat(shape[0] * shape[1] * shape[2], (void*)(d.data.data())).reshape(shape[0], shape[1], shape[2]).clone();
+    case 4:
+        return ncnn::Mat(shape[0] * shape[1] * shape[2] * shape[3], (void*)(d.data.data())).reshape(shape[0], shape[1], shape[2], shape[3]).clone();
+    default:
+        fprintf(stderr, "dims:%d illegal!", (int)dims);
+        return ncnn::Mat();
     }
 }
 
@@ -256,7 +315,7 @@ int QuantNet::quantize_KL()
     const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
-    const int image_count = (int)listspaths[0].size();
+    const int file_count = (int)listspaths[0].size();
 
     const int num_histogram_bins = 2048;
 
@@ -363,11 +422,11 @@ int QuantNet::quantize_KL()
 
     // count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-    for (int i = 0; i < image_count; i++)
+    for (int i = 0; i < file_count; i++)
     {
         if (i % 100 == 0)
         {
-            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / image_count, i, image_count);
+            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
         }
 
         ncnn::Extractor ex = create_extractor();
@@ -379,19 +438,26 @@ int QuantNet::quantize_KL()
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const int type_to_pixel = type_to_pixels[j];
-            const std::vector<float>& mean_vals = means[j];
-            const std::vector<float>& norm_vals = norms[j];
+            ncnn::Mat in;
 
-            int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-            if (type_to_pixel != pixel_convert_type)
+            if (0 == file_type)
             {
-                pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                const int type_to_pixel = type_to_pixels[j];
+                const std::vector<float>& mean_vals = means[j];
+                const std::vector<float>& norm_vals = norms[j];
+
+                int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                if (type_to_pixel != pixel_convert_type)
+                {
+                    pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                }
+                in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
             }
-
-            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-
-            in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+            else
+            {
+                in = read_npy(shapes[j], listspaths[j][i]);
+            }
 
             ex.input(input_blobs[j], in);
         }
@@ -437,11 +503,11 @@ int QuantNet::quantize_KL()
 
     // build histogram
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-    for (int i = 0; i < image_count; i++)
+    for (int i = 0; i < file_count; i++)
     {
         if (i % 100 == 0)
         {
-            fprintf(stderr, "build histogram %.2f%% [ %d / %d ]\n", i * 100.f / image_count, i, image_count);
+            fprintf(stderr, "build histogram %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
         }
 
         ncnn::Extractor ex = create_extractor();
@@ -453,19 +519,26 @@ int QuantNet::quantize_KL()
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const int type_to_pixel = type_to_pixels[j];
-            const std::vector<float>& mean_vals = means[j];
-            const std::vector<float>& norm_vals = norms[j];
+            ncnn::Mat in;
 
-            int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-            if (type_to_pixel != pixel_convert_type)
+            if (0 == file_type)
             {
-                pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                const int type_to_pixel = type_to_pixels[j];
+                const std::vector<float>& mean_vals = means[j];
+                const std::vector<float>& norm_vals = norms[j];
+
+                int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                if (type_to_pixel != pixel_convert_type)
+                {
+                    pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                }
+                in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
             }
-
-            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-
-            in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+            else
+            {
+                in = read_npy(shapes[j], listspaths[j][i]);
+            }
 
             ex.input(input_blobs[j], in);
         }
@@ -720,7 +793,7 @@ int QuantNet::quantize_ACIQ()
     const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
-    const int image_count = (int)listspaths[0].size();
+    const int file_count = (int)listspaths[0].size();
 
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
@@ -829,11 +902,11 @@ int QuantNet::quantize_ACIQ()
 
     // count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-    for (int i = 0; i < image_count; i++)
+    for (int i = 0; i < file_count; i++)
     {
         if (i % 100 == 0)
         {
-            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / image_count, i, image_count);
+            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
         }
 
         ncnn::Extractor ex = create_extractor();
@@ -845,19 +918,26 @@ int QuantNet::quantize_ACIQ()
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const int type_to_pixel = type_to_pixels[j];
-            const std::vector<float>& mean_vals = means[j];
-            const std::vector<float>& norm_vals = norms[j];
+            ncnn::Mat in;
 
-            int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-            if (type_to_pixel != pixel_convert_type)
+            if (0 == file_type)
             {
-                pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                const int type_to_pixel = type_to_pixels[j];
+                const std::vector<float>& mean_vals = means[j];
+                const std::vector<float>& norm_vals = norms[j];
+
+                int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                if (type_to_pixel != pixel_convert_type)
+                {
+                    pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                }
+                in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
             }
-
-            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-
-            in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+            else
+            {
+                in = read_npy(shapes[j], listspaths[j][i]);
+            }
 
             ex.input(input_blobs[j], in);
         }
@@ -1049,7 +1129,7 @@ int QuantNet::quantize_EQ()
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
     // max 50 images for EQ
-    const int image_count = std::min((int)listspaths[0].size(), 50);
+    const int file_count = std::min((int)listspaths[0].size(), 50);
 
     const float scale_range_lower = 0.5f;
     const float scale_range_upper = 2.0f;
@@ -1073,11 +1153,11 @@ int QuantNet::quantize_EQ()
             std::vector<double> avgsims(search_steps, 0.0);
 
             #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-            for (int ii = 0; ii < image_count; ii++)
+            for (int ii = 0; ii < file_count; ii++)
             {
                 if (ii % 100 == 0)
                 {
-                    fprintf(stderr, "search weight scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / image_count, ii, image_count, j, weight_scale.w, i, conv_layer_count);
+                    fprintf(stderr, "search weight scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / file_count, ii, file_count, j, weight_scale.w, i, conv_layer_count);
                 }
 
                 ncnn::Extractor ex = create_extractor();
@@ -1089,21 +1169,28 @@ int QuantNet::quantize_EQ()
 
                 for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    const int type_to_pixel = type_to_pixels[jj];
-                    const std::vector<float>& mean_vals = means[jj];
-                    const std::vector<float>& norm_vals = norms[jj];
+                    ncnn::Mat in;
 
-                    int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-                    if (type_to_pixel != pixel_convert_type)
+                    if (0 == file_type)
                     {
-                        pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                        const int type_to_pixel = type_to_pixels[j];
+                        const std::vector<float>& mean_vals = means[j];
+                        const std::vector<float>& norm_vals = norms[j];
+
+                        int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                        if (type_to_pixel != pixel_convert_type)
+                        {
+                            pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                        }
+                        in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                        in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+                    }
+                    else
+                    {
+                        in = read_npy(shapes[j], listspaths[j][i]);
                     }
 
-                    ncnn::Mat in = read_and_resize_image(shapes[jj], listspaths[jj][ii], pixel_convert_type);
-
-                    in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
-
-                    ex.input(input_blobs[jj], in);
+                    ex.input(input_blobs[j], in);
                 }
 
                 ncnn::Mat in;
@@ -1183,11 +1270,11 @@ int QuantNet::quantize_EQ()
             std::vector<double> avgsims(search_steps, 0.0);
 
             #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-            for (int ii = 0; ii < image_count; ii++)
+            for (int ii = 0; ii < file_count; ii++)
             {
                 if (ii % 100 == 0)
                 {
-                    fprintf(stderr, "search bottom blob scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / image_count, ii, image_count, j, bottom_blob_scale.w, i, conv_layer_count);
+                    fprintf(stderr, "search bottom blob scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / file_count, ii, file_count, j, bottom_blob_scale.w, i, conv_layer_count);
                 }
 
                 ncnn::Extractor ex = create_extractor();
@@ -1199,21 +1286,28 @@ int QuantNet::quantize_EQ()
 
                 for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    const int type_to_pixel = type_to_pixels[jj];
-                    const std::vector<float>& mean_vals = means[jj];
-                    const std::vector<float>& norm_vals = norms[jj];
+                    ncnn::Mat in;
 
-                    int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-                    if (type_to_pixel != pixel_convert_type)
+                    if (0 == file_type)
                     {
-                        pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                        const int type_to_pixel = type_to_pixels[j];
+                        const std::vector<float>& mean_vals = means[j];
+                        const std::vector<float>& norm_vals = norms[j];
+
+                        int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                        if (type_to_pixel != pixel_convert_type)
+                        {
+                            pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                        }
+                        in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                        in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+                    }
+                    else
+                    {
+                        in = read_npy(shapes[j], listspaths[j][i]);
                     }
 
-                    ncnn::Mat in = read_and_resize_image(shapes[jj], listspaths[jj][ii], pixel_convert_type);
-
-                    in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
-
-                    ex.input(input_blobs[jj], in);
+                    ex.input(input_blobs[j], in);
                 }
 
                 ncnn::Mat in;
@@ -1586,7 +1680,10 @@ static void show_usage()
     fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
     fprintf(stderr, "  thread=8\n");
     fprintf(stderr, "  method=kl/aciq/eq\n");
-    fprintf(stderr, "Sample usage: ncnn2table squeezenet.param squeezenet.bin imagelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n");
+    fprintf(stderr, "  type=0/1, 0:image,1:npy\n");
+    fprintf(stderr, "Sample usage:\n");
+    fprintf(stderr, "  ncnn2table squeezenet.param squeezenet.bin filelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n");
+    fprintf(stderr, "  ncnn2table test.param test.bin filelist.txt squeezenet.table shape=[227,227,3] method=kl type=1\n");
 }
 
 int main(int argc, char** argv)
@@ -1629,6 +1726,7 @@ int main(int argc, char** argv)
     net.listspaths = parse_comma_path_list(lists);
 
     std::string method = "kl";
+    net.file_type = 0;
 
     for (int i = 5; i < argc; i++)
     {
@@ -1660,6 +1758,8 @@ int main(int argc, char** argv)
             net.quantize_num_threads = atoi(value);
         if (memcmp(key, "method", 6) == 0)
             method = std::string(value);
+        if (memcmp(key, "type", 4) == 0)
+            net.file_type = atoi(value);
     }
 
     // sanity check
@@ -1669,12 +1769,12 @@ int main(int argc, char** argv)
         fprintf(stderr, "expect %d lists, but got %d\n", (int)input_blob_count, (int)net.listspaths.size());
         return -1;
     }
-    if (net.means.size() != input_blob_count)
+    if ((0 == net.file_type) && (net.means.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d means, but got %d\n", (int)input_blob_count, (int)net.means.size());
         return -1;
     }
-    if (net.norms.size() != input_blob_count)
+    if ((0 == net.file_type) && (net.norms.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d norms, but got %d\n", (int)input_blob_count, (int)net.norms.size());
         return -1;
@@ -1684,7 +1784,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "expect %d shapes, but got %d\n", (int)input_blob_count, (int)net.shapes.size());
         return -1;
     }
-    if (net.type_to_pixels.size() != input_blob_count)
+    if ((0 == net.file_type) && (net.type_to_pixels.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d pixels, but got %d\n", (int)input_blob_count, (int)net.type_to_pixels.size());
         return -1;

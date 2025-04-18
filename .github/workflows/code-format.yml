@@ -1,19 +1,17 @@
 name: code-format
 
-on: [push, pull_request, pull_request_target]
+on: [push, pull_request]
 
 concurrency:
   group: code-format-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   code-format:
-    permissions:
-      contents: write  # for stefanzweifel/git-auto-commit-action to push code in repo
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 

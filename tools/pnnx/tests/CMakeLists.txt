@@ -360,6 +360,11 @@ if(TorchVision_FOUND)
     pnnx_add_test(torchvision_RoIAlign)
 endif()
 
+pnnx_add_test(torchaudio_F_inverse_spectrogram)
+pnnx_add_test(torchaudio_F_spectrogram)
+pnnx_add_test(torchaudio_InverseSpectrogram)
+pnnx_add_test(torchaudio_Spectrogram)
+
 add_subdirectory(ncnn)
 
 if(onnxruntime_FOUND)

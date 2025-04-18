@@ -40,6 +40,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_quantize_per_tensor, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_quantize_per_tensor, 40)
 
 } // namespace pnnx

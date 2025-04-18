@@ -38,6 +38,7 @@ public:
         // 4 = array of int/float
         // 5 = array of int
         // 6 = array of float
+        // 7 = string
         int type;
         union
         {
@@ -45,6 +46,7 @@ public:
             float f;
         };
         Mat v;
+        std::string s;
     } params[NCNN_MAX_PARAM_COUNT];
 };
 
@@ -70,6 +72,10 @@ ParamDict::ParamDict(const ParamDict& rhs)
         {
             d->params[i].i = rhs.d->params[i].i;
         }
+        else if (type == 7)
+        {
+            d->params[i].s = rhs.d->params[i].s;
+        }
         else // if (type == 4 || type == 5 || type == 6)
         {
             d->params[i].v = rhs.d->params[i].v;
@@ -89,6 +95,10 @@ ParamDict& ParamDict::operator=(const ParamDict& rhs)
         if (type == 1 || type == 2 || type == 3)
         {
             d->params[i].i = rhs.d->params[i].i;
+        }
+        else if (type == 7)
+        {
+            d->params[i].s = rhs.d->params[i].s;
         }
         else // if (type == 4 || type == 5 || type == 6)
         {
@@ -120,6 +130,11 @@ Mat ParamDict::get(int id, const Mat& def) const
     return d->params[id].type ? d->params[id].v : def;
 }
 
+std::string ParamDict::get(int id, const std::string& def) const
+{
+    return d->params[id].type ? d->params[id].s : def;
+}
+
 void ParamDict::set(int id, int i)
 {
     d->params[id].type = 2;
@@ -138,12 +153,20 @@ void ParamDict::set(int id, const Mat& v)
     d->params[id].v = v;
 }
 
+void ParamDict::set(int id, const std::string& s)
+{
+    d->params[id].type = 7;
+    d->params[id].s = s;
+}
+
 void ParamDict::clear()
 {
     for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
     {
         d->params[i].type = 0;
+        d->params[i].i = 0;
         d->params[i].v = Mat();
+        d->params[i].s.clear();
     }
 }
 
@@ -161,6 +184,11 @@ static bool vstr_is_float(const char vstr[16])
     }
 
     return false;
+}
+
+static bool vstr_is_string(const char vstr[16])
+{
+    return isalpha(vstr[0]) || vstr[0] == '\"';
 }
 
 static float vstr_to_float(const char vstr[16])
@@ -247,7 +275,8 @@ int ParamDict::load_param(const DataReader& dr)
 {
     clear();
 
-    //     0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
+    // 0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
+    // 3=0.1,0.2,0.4,0.8,1.0
 
     // parse each key=value pair
     int id = 0;
@@ -267,6 +296,7 @@ int ParamDict::load_param(const DataReader& dr)
 
         if (is_array)
         {
+            // old style array
             int len = 0;
             int nscan = dr.scan("%d", &len);
             if (nscan != 1)
@@ -307,19 +337,136 @@ int ParamDict::load_param(const DataReader& dr)
 
                 d->params[id].type = is_float ? 6 : 5;
             }
+
+            continue;
+        }
+
+        char vstr[16];
+        char comma[4];
+        int nscan = dr.scan("%15[^,\n ]", vstr);
+        if (nscan != 1)
+        {
+            NCNN_LOGE("ParamDict read value failed");
+            return -1;
+        }
+
+        bool is_string = vstr_is_string(vstr);
+        if (is_string)
+        {
+            // scan the remaining string
+            char vstr2[256];
+            vstr2[241] = '\0'; // max 255 = 15 + 240
+            if (vstr[0] == '\"')
+            {
+                nscan = dr.scan("%255[^\"\n]\"", vstr2);
+            }
+            else
+            {
+                nscan = dr.scan("%255[^\n ]", vstr2);
+            }
+            if (nscan == 1)
+            {
+                if (vstr2[241] != '\0')
+                {
+                    NCNN_LOGE("string too long (id=%d)", id);
+                    return -1;
+                }
+
+                if (vstr[0] == '\"')
+                    d->params[id].s = std::string(&vstr[1]) + vstr2;
+                else
+                    d->params[id].s = std::string(vstr) + vstr2;
+            }
+            else
+            {
+                if (vstr[0] == '\"')
+                    d->params[id].s = std::string(&vstr[1]);
+                else
+                    d->params[id].s = std::string(vstr);
+            }
+
+            if (d->params[id].s[d->params[id].s.size() - 1] == '\"')
+                d->params[id].s.resize(d->params[id].s.size() - 1);
+
+            d->params[id].type = 7;
+
+            continue;
+        }
+
+        bool is_float = vstr_is_float(vstr);
+
+        nscan = dr.scan("%1[,]", comma);
+        is_array = nscan == 1;
+
+        if (is_array)
+        {
+            std::vector<float> af;
+            std::vector<int> ai;
+
+            if (is_float)
+            {
+                af.push_back(vstr_to_float(vstr));
+            }
+            else
+            {
+                int v = 0;
+                nscan = sscanf(vstr, "%d", &v);
+                if (nscan != 1)
+                {
+                    NCNN_LOGE("ParamDict parse value failed");
+                    return -1;
+                }
+
+                ai.push_back(v);
+            }
+
+            while (1)
+            {
+                nscan = dr.scan("%15[^,\n ]", vstr);
+                if (nscan != 1)
+                {
+                    break;
+                }
+
+                if (is_float)
+                {
+                    af.push_back(vstr_to_float(vstr));
+                }
+                else
+                {
+                    int v = 0;
+                    nscan = sscanf(vstr, "%d", &v);
+                    if (nscan != 1)
+                    {
+                        NCNN_LOGE("ParamDict parse value failed");
+                        return -1;
+                    }
+
+                    ai.push_back(v);
+                }
+
+                nscan = dr.scan("%1[,]", comma);
+                if (nscan != 1)
+                {
+                    break;
+                }
+            }
+
+            if (is_float)
+            {
+                d->params[id].v.create((int)af.size());
+                memcpy(d->params[id].v.data, af.data(), af.size() * 4);
+            }
+            else
+            {
+                d->params[id].v.create((int)ai.size());
+                memcpy(d->params[id].v.data, ai.data(), ai.size() * 4);
+            }
+
+            d->params[id].type = is_float ? 6 : 5;
         }
         else
         {
-            char vstr[16];
-            int nscan = dr.scan("%15s", vstr);
-            if (nscan != 1)
-            {
-                NCNN_LOGE("ParamDict read value failed");
-                return -1;
-            }
-
-            bool is_float = vstr_is_float(vstr);
-
             if (is_float)
             {
                 d->params[id].f = vstr_to_float(vstr);
@@ -375,7 +522,12 @@ int ParamDict::load_param_bin(const DataReader& dr)
     while (id != -233)
     {
         bool is_array = id <= -23300;
-        if (is_array)
+        bool is_string = id <= -23400;
+        if (is_string)
+        {
+            id = -id - 23400;
+        }
+        else if (is_array)
         {
             id = -id - 23300;
         }
@@ -386,7 +538,44 @@ int ParamDict::load_param_bin(const DataReader& dr)
             return -1;
         }
 
-        if (is_array)
+        if (is_string)
+        {
+            int len = 0;
+            nread = dr.read(&len, sizeof(int));
+            if (nread != sizeof(int))
+            {
+                NCNN_LOGE("ParamDict read array length failed %zd", nread);
+                return -1;
+            }
+
+#if __BIG_ENDIAN__
+            swap_endianness_32(&len);
+#endif
+
+            if (len > 255)
+            {
+                NCNN_LOGE("string too long (id=%d)", id);
+                return -1;
+            }
+
+            size_t len_padded = (len + 3) / 4 * 4;
+            std::vector<char> tmpstr(len_padded + 1);
+
+            char* ptr = (char*)tmpstr.data();
+            nread = dr.read(ptr, len_padded);
+            if (nread != len_padded)
+            {
+                NCNN_LOGE("ParamDict read string failed %zd", nread);
+                return -1;
+            }
+
+            tmpstr[len_padded] = '\0';
+
+            d->params[id].s = tmpstr.data();
+
+            d->params[id].type = 7;
+        }
+        else if (is_array)
         {
             int len = 0;
             nread = dr.read(&len, sizeof(int));

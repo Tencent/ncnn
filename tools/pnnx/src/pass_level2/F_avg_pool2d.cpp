@@ -23,14 +23,14 @@ public:
     {
         return R"PNNXIR(7767517
 9 8
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 kernel_size
-pnnx.Input              input_2     0 1 stride
-pnnx.Input              input_3     0 1 padding
-prim::Constant          op_0        0 1 ceil_mode value=%ceil_mode
-prim::Constant          op_1        0 1 count_include_pad value=%count_include_pad
-prim::Constant          op_2        0 1 divisor_override value=%divisor_override
-aten::avg_pool2d        op_3        7 1 input kernel_size stride padding ceil_mode count_include_pad divisor_override out
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 kernel_size value=%kernel_size
+prim::Constant          op_1        0 1 stride value=%stride
+prim::Constant          op_2        0 1 padding value=%padding
+prim::Constant          op_3        0 1 ceil_mode value=%ceil_mode
+prim::Constant          op_4        0 1 count_include_pad value=%count_include_pad
+prim::Constant          op_5        0 1 divisor_override value=%divisor_override
+aten::avg_pool2d        op_6        7 1 input kernel_size stride padding ceil_mode count_include_pad divisor_override out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d, 120)
 
 // https://github.com/pytorch/pytorch/blob/c263bd43e8e8502d4726643bc6fd046f0130ac0e/torch/onnx/symbolic_opset9.py#L1496
 static int get_pool_ceil_padding(int w, int ksize, int stride, int pad)
@@ -203,6 +203,77 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d_onnx, 120)
+
+class F_avg_pool2d_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.Pooling             op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.avg_pool2d";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int pool_type = captured_params.at("op_0.arg0").i;
+        if (pool_type != 1)
+            return false;
+
+        const int kernel_h = captured_params.at("op_0.arg1").i;
+        const int kernel_w = captured_params.at("op_0.arg2").i;
+        if (kernel_h == 0 && kernel_w == 0)
+            return false;
+
+        if (captured_params.find("op_0.arg11") != captured_params.end())
+        {
+            const int is_adaptive = captured_params.at("op_0.arg11").i;
+            if (is_adaptive != 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        // captured_params.at("op_0.arg0"); // pool_type
+        op->params["kernel_size"] = {captured_params.at("op_0.arg1").i, captured_params.at("op_0.arg2").i};
+        op->params["stride"] = {captured_params.at("op_0.arg3").i, captured_params.at("op_0.arg4").i};
+        op->params["padding"] = {captured_params.at("op_0.arg5").i, captured_params.at("op_0.arg6").i};
+
+        const int kernel_index_h = captured_params.at("op_0.arg7").i;
+        const int kernel_index_w = captured_params.at("op_0.arg8").i;
+        if (kernel_index_h != -1 || kernel_index_w != -1)
+        {
+            fprintf(stderr, "unsupported F.avg_pool2d kernel_index %d %d\n", kernel_index_h, kernel_index_w);
+        }
+
+        const int pad_type = captured_params.at("op_0.arg9").i;
+        if (pad_type > 0)
+        {
+            fprintf(stderr, "unsupported F.avg_pool2d pad_type %d\n", pad_type);
+        }
+
+        op->params["ceil_mode"] = captured_params.at("op_0.arg10").i ? true : false;
+        // captured_params.at("op_0.arg11"); // is_adaptive
+        // captured_params.at("op_0.arg12"); // output_h
+        // captured_params.at("op_0.arg13"); // output_w
+
+        op->params["count_include_pad"] = false;
+        op->params["divisor_override"] = Parameter();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d_tnn, 120)
 
 } // namespace pnnx

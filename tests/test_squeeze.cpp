@@ -33,58 +33,61 @@ static int test_squeeze(const ncnn::Mat& a, int squeeze_w, int squeeze_h, int sq
     return ret;
 }
 
-static ncnn::Mat IntArrayMat(int a0)
+static std::vector<int> IntArray(int a0)
 {
-    ncnn::Mat m(1);
-    int* p = m;
-    p[0] = a0;
+    std::vector<int> m(1);
+    m[0] = a0;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1)
+static std::vector<int> IntArray(int a0, int a1)
 {
-    ncnn::Mat m(2);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
+    std::vector<int> m(2);
+    m[0] = a0;
+    m[1] = a1;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1, int a2)
+static std::vector<int> IntArray(int a0, int a1, int a2)
 {
-    ncnn::Mat m(3);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    p[2] = a2;
+    std::vector<int> m(3);
+    m[0] = a0;
+    m[1] = a1;
+    m[2] = a2;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1, int a2, int a3)
+static std::vector<int> IntArray(int a0, int a1, int a2, int a3)
 {
-    ncnn::Mat m(4);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    p[2] = a2;
-    p[3] = a3;
+    std::vector<int> m(4);
+    m[0] = a0;
+    m[1] = a1;
+    m[2] = a2;
+    m[3] = a3;
     return m;
 }
 
-static void print_int_array(const ncnn::Mat& a)
+static void print_int_array(const std::vector<int>& a)
 {
-    const int* pa = a;
-
     fprintf(stderr, "[");
-    for (int i = 0; i < a.w; i++)
+    for (size_t i = 0; i < a.size(); i++)
     {
-        fprintf(stderr, " %d", pa[i]);
+        fprintf(stderr, " %d", a[i]);
     }
     fprintf(stderr, " ]");
 }
 
-static int test_squeeze_axes(const ncnn::Mat& a, const ncnn::Mat& axes)
+static int test_squeeze_axes(const ncnn::Mat& a, const std::vector<int>& axes_array)
 {
+    ncnn::Mat axes(axes_array.size());
+    {
+        int* p = axes;
+        for (size_t i = 0; i < axes_array.size(); i++)
+        {
+            p[i] = axes_array[i];
+        }
+    }
+
     ncnn::ParamDict pd;
     pd.set(3, axes);
 
@@ -95,7 +98,7 @@ static int test_squeeze_axes(const ncnn::Mat& a, const ncnn::Mat& axes)
     {
         fprintf(stderr, "test_squeeze_axes failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
         fprintf(stderr, " axes=");
-        print_int_array(axes);
+        print_int_array(axes_array);
         fprintf(stderr, "\n");
     }
 
@@ -122,21 +125,21 @@ static int test_squeeze_all_params(const ncnn::Mat& a)
            || test_squeeze(a, 1, 1, 1, 0)
            || test_squeeze(a, 1, 1, 1, 1)
 
-           || test_squeeze_axes(a, IntArrayMat(0))
-           || test_squeeze_axes(a, IntArrayMat(1))
-           || test_squeeze_axes(a, IntArrayMat(2))
-           || test_squeeze_axes(a, IntArrayMat(3))
-           || test_squeeze_axes(a, IntArrayMat(0, 1))
-           || test_squeeze_axes(a, IntArrayMat(0, 2))
-           || test_squeeze_axes(a, IntArrayMat(0, 3))
-           || test_squeeze_axes(a, IntArrayMat(1, 2))
-           || test_squeeze_axes(a, IntArrayMat(1, 3))
-           || test_squeeze_axes(a, IntArrayMat(2, 3))
-           || test_squeeze_axes(a, IntArrayMat(0, 1, 2))
-           || test_squeeze_axes(a, IntArrayMat(0, 1, 3))
-           || test_squeeze_axes(a, IntArrayMat(0, 2, 3))
-           || test_squeeze_axes(a, IntArrayMat(1, 2, 3))
-           || test_squeeze_axes(a, IntArrayMat(0, 1, 2, 3));
+           || test_squeeze_axes(a, IntArray(0))
+           || test_squeeze_axes(a, IntArray(1))
+           || test_squeeze_axes(a, IntArray(2))
+           || test_squeeze_axes(a, IntArray(3))
+           || test_squeeze_axes(a, IntArray(0, 1))
+           || test_squeeze_axes(a, IntArray(0, 2))
+           || test_squeeze_axes(a, IntArray(0, 3))
+           || test_squeeze_axes(a, IntArray(1, 2))
+           || test_squeeze_axes(a, IntArray(1, 3))
+           || test_squeeze_axes(a, IntArray(2, 3))
+           || test_squeeze_axes(a, IntArray(0, 1, 2))
+           || test_squeeze_axes(a, IntArray(0, 1, 3))
+           || test_squeeze_axes(a, IntArray(0, 2, 3))
+           || test_squeeze_axes(a, IntArray(1, 2, 3))
+           || test_squeeze_axes(a, IntArray(0, 1, 2, 3));
 }
 
 static int test_squeeze_0()

@@ -739,9 +739,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "And") sim_op_type = "aten::__and__";
             if (op_type == "Or") sim_op_type = "aten::__or__";
             if (op_type == "Xor") sim_op_type = "aten::__xor__";
+            if (op_type == "Mod" && onnx2pnnx::OnnxNodeProxy(node).attribute("fmod").value_i() == 1) sim_op_type = "aten::fmod";
 
             // trinaryop
-            if (op_type == "Clip") sim_op_type = "aten::clamp";
             if (op_type == "Where") sim_op_type = "aten::where";
         }
         else if (string_starts_with(op_type, "aten_"))

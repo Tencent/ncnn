@@ -234,6 +234,9 @@ public:
 #if BUILD_ONNX2PNNX
     Attribute(const onnx::TensorProto& t);
 #endif
+#if BUILD_TNN2PNNX
+    Attribute(FILE* bp);
+#endif
 
     Attribute(const std::initializer_list<int>& shape, const std::vector<float>& t);
 

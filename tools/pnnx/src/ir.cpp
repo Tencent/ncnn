@@ -1030,6 +1030,7 @@ static std::string expand_expression(const Operator* op)
                  || t == "ceil"
                  || t == "cos"
                  || t == "cosh"
+                 || t == "erf"
                  || t == "exp"
                  || t == "floor"
                  || t == "log"
@@ -1051,7 +1052,7 @@ static std::string expand_expression(const Operator* op)
                  || t == "torch.long")
         {
             std::string unaryop = t;
-            if (t == "int") unaryop = "int";
+            if (t == "int") unaryop = ""; // but the explicit int() causes troubles in tracing
             if (t == "abs") unaryop = "torch.abs";
             if (t == "acos") unaryop = "torch.acos";
             if (t == "acosh") unaryop = "torch.acosh";
@@ -1062,6 +1063,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "ceil") unaryop = "torch.ceil";
             if (t == "cos") unaryop = "torch.cos";
             if (t == "cosh") unaryop = "torch.cosh";
+            if (t == "erf") unaryop = "torch.erf";
             if (t == "exp") unaryop = "torch.exp";
             if (t == "floor") unaryop = "torch.floor";
             if (t == "log") unaryop = "torch.log";
@@ -1458,6 +1460,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     fprintf(pyfp, "import torch.nn.functional as F\n");
     fprintf(pyfp, "try:\n");
     fprintf(pyfp, "    import torchvision\n");
+    fprintf(pyfp, "    import torchaudio\n");
     fprintf(pyfp, "except:\n");
     fprintf(pyfp, "    pass\n");
 
@@ -2201,6 +2204,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     {
                         fprintf(pyfp, "%s=", it.first.c_str());
                     }
+                    else if (op->type == "F.pad" && op->params.at("mode").s != "constant" && it.first == "value")
+                    {
+                        // skip F.pad value for non constant pad mode
+                        i++;
+                        continue;
+                    }
                     else if (op->inputs.empty() && i == 0)
                     {
                         fprintf(pyfp, "%s=", it.first.c_str());
@@ -2246,11 +2255,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     {
                         if (op->type == "Tensor.index_put" && it.first == "values")
                         {
-                            fprintf(pyfp, "torch.tensor(%f)", param.f);
+                            if (param.f == (int)param.f)
+                                fprintf(pyfp, "torch.tensor(%.1f)", param.f);
+                            else
+                                fprintf(pyfp, "torch.tensor(%g)", param.f);
                         }
                         else
                         {
-                            fprintf(pyfp, "%f", param.f);
+                            if (param.f == (int)param.f)
+                                fprintf(pyfp, "%.1f", param.f);
+                            else
+                                fprintf(pyfp, "%g", param.f);
                         }
                     }
                     if (param.type == 4)
@@ -2309,7 +2324,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         fprintf(pyfp, "(");
                         for (size_t i = 0; i < param.af.size(); i++)
                         {
-                            fprintf(pyfp, "%f", param.af[i]);
+                            if (param.af[i] == (int)param.af[i])
+                                fprintf(pyfp, "%.1f", param.af[i]);
+                            else
+                                fprintf(pyfp, "%g", param.af[i]);
                             if (i + 1 != param.af.size() || param.af.size() == 1)
                                 fprintf(pyfp, ",");
                         }
@@ -2390,6 +2408,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         fprintf(pyfp, "def export_torchscript():\n");
         fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2455,6 +2474,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         fprintf(pyfp, "def export_onnx():\n");
         fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2493,15 +2513,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
         fprintf(pyfp, "\n");
 
-        // torch.onnx._export(net, v_0, "test_swin_t.onnx", export_params=True, opset_version=14, input_names=['in0'], output_names=['out0'])
+        // torch.onnx.export(net, v_0, "test_swin_t.onnx", export_params=True, opset_version=14, input_names=['in0'], output_names=['out0'])
 
         if (input_names.size() == 1)
         {
-            fprintf(pyfp, "    torch.onnx._export(net, %s", input_names[0].c_str());
+            fprintf(pyfp, "    torch.onnx.export(net, %s", input_names[0].c_str());
         }
         else
         {
-            fprintf(pyfp, "    torch.onnx._export(net, (");
+            fprintf(pyfp, "    torch.onnx.export(net, (");
 
             for (size_t i = 0; i < input_names.size(); i++)
             {
@@ -2576,6 +2596,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");

@@ -31,7 +31,7 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 protected:
-#if __riscv_vector && __riscv_zfh
+#if NCNN_ZFH
     int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif

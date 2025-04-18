@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #extension GL_GOOGLE_include_directive: enable
 #include "vulkan_activation.comp"
 
@@ -240,13 +233,16 @@ void main()
 
 #if NCNN_image_shader
     image3d_st4(top_blob, ivec3(gx2.x, gy2.x, gz2.x), sum0);
-    image3d_st4(top_blob, ivec3(gx2.y, gy2.x, gz2.x), sum1);
-    image3d_st4(top_blob, ivec3(gx2.x, gy2.y, gz2.x), sum2);
-    image3d_st4(top_blob, ivec3(gx2.y, gy2.y, gz2.x), sum3);
-    image3d_st4(top_blob, ivec3(gx2.x, gy2.x, gz2.y), sum4);
-    image3d_st4(top_blob, ivec3(gx2.y, gy2.x, gz2.y), sum5);
-    image3d_st4(top_blob, ivec3(gx2.x, gy2.y, gz2.y), sum6);
-    image3d_st4(top_blob, ivec3(gx2.y, gy2.y, gz2.y), sum7);
+    if (gx2.y < psc(outw)) image3d_st4(top_blob, ivec3(gx2.y, gy2.x, gz2.x), sum1);
+    if (gy2.y < psc(outh)) image3d_st4(top_blob, ivec3(gx2.x, gy2.y, gz2.x), sum2);
+    if (gy2.y < psc(outh) && gx2.y < psc(outw)) image3d_st4(top_blob, ivec3(gx2.y, gy2.y, gz2.x), sum3);
+    if (gz2.y < psc(outc))
+    {
+        image3d_st4(top_blob, ivec3(gx2.x, gy2.x, gz2.y), sum4);
+        if (gx2.y < psc(outw)) image3d_st4(top_blob, ivec3(gx2.y, gy2.x, gz2.y), sum5);
+        if (gy2.y < psc(outh)) image3d_st4(top_blob, ivec3(gx2.x, gy2.y, gz2.y), sum6);
+        if (gy2.y < psc(outh) && gx2.y < psc(outw)) image3d_st4(top_blob, ivec3(gx2.y, gy2.y, gz2.y), sum7);
+    }
 #else
     const ivec2 gi = gz2 * psc(outcstep) + gy * psc(outw) + gx;
 
