@@ -17,10 +17,10 @@
 
 namespace ncnn {
 
-class Bais_riscv : public Bias
+class Bias_riscv : public Bias
 {
 public:
-    Bais_riscv();
+    Bias_riscv();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
