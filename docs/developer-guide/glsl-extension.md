@@ -329,6 +329,14 @@ judge if the current platform is moltenvk, for enabling some platform-specific w
 #endif
 ```
 
+ncnn adds additional macro definitions in the new version, which may conflict or confuse the existing glsl code. In order to obtain cross-version compatibility of ncnn, you can switch between the old and new codes according to the `ncnn_glsl_version` macro version.
+
+```c
+#if ncnn_glsl_version >= 1
+// use device macros introduced since version 1
+#endif
+```
+
 ncnn additionally defines most of the vulkan device-related features as macros, which we can use to distinguish different platforms, device extensions, features, and properties
 
 ### extension macros
