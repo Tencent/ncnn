@@ -548,6 +548,7 @@ https://github.com/Tencent/ncnn/releases/latest
   [YOLOv5](https://github.com/ultralytics/yolov5)
   [YOLOv7](https://github.com/WongKinYiu/yolov7)
   [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)
+  [YOLOv8](https://github.com/nihui/ncnn-android-yolov8)
   ...
 - Detection:
   [NanoDet](https://github.com/RangiLyu/nanodet)
