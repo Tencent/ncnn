@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Padding_vulkan : virtual public Padding
+class Padding_vulkan : public Padding
 {
 public:
     Padding_vulkan();

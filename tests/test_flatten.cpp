@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/flatten.h"
 #include "testutil.h"
 
 static int test_flatten(const ncnn::Mat& a)
@@ -21,7 +20,7 @@ static int test_flatten(const ncnn::Mat& a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Flatten>("Flatten", pd, weights, a);
+    int ret = test_layer("Flatten", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_flatten failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
@@ -60,7 +59,7 @@ static int test_flatten_int8(const ncnn::Mat& a)
     std::vector<ncnn::Mat> weights(0);
 
     int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer<ncnn::Flatten>("Flatten", pd, weights, a, 0.001, 0, flag);
+    int ret = test_layer("Flatten", pd, weights, a, 0.001, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_flatten_int8 failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
@@ -87,6 +86,7 @@ static int test_flatten_1()
            || test_flatten_int8(RandomS8Mat(13, 52))
            || test_flatten_int8(RandomS8Mat(16, 64))
            || test_flatten_int8(RandomS8Mat(8, 48))
+           || test_flatten_int8(RandomS8Mat(16, 11))
            || test_flatten_int8(RandomS8Mat(8, 8))
            || test_flatten_int8(RandomS8Mat(128))
            || test_flatten_int8(RandomS8Mat(127));

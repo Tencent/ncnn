@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_vulkan : virtual public InnerProduct
+class InnerProduct_vulkan : public InnerProduct
 {
 public:
     InnerProduct_vulkan();

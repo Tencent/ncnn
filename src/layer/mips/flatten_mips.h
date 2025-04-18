@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Flatten_mips : virtual public Flatten
+class Flatten_mips : public Flatten
 {
 public:
     Flatten_mips();

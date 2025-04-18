@@ -16,6 +16,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -42,6 +43,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             int i = 0;
             for (; i + 31 < size; i += 32)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
@@ -54,6 +56,21 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
                     : "0"(ptr),
                     "w"(_zero) // %2
                     : "memory", "v0", "v1", "v2", "v3");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x8_t _p0 = vld1q_f16(ptr);
+                float16x8_t _p1 = vld1q_f16(ptr + 8);
+                float16x8_t _p2 = vld1q_f16(ptr + 16);
+                float16x8_t _p3 = vld1q_f16(ptr + 24);
+                _p0 = vmaxq_f16(_p0, _zero);
+                _p1 = vmaxq_f16(_p1, _zero);
+                _p2 = vmaxq_f16(_p2, _zero);
+                _p3 = vmaxq_f16(_p3, _zero);
+                vst1q_f16(ptr, _p0);
+                vst1q_f16(ptr + 8, _p1);
+                vst1q_f16(ptr + 16, _p2);
+                vst1q_f16(ptr + 24, _p3);
+                ptr += 32;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i + 15 < size; i += 16)
             {
@@ -102,6 +119,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             int i = 0;
             for (; i + 31 < size; i += 32)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
@@ -122,6 +140,29 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
                     : "0"(ptr),
                     "w"(_slope) // %2
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x8_t _p0 = vld1q_f16(ptr);
+                float16x8_t _p1 = vld1q_f16(ptr + 8);
+                float16x8_t _p2 = vld1q_f16(ptr + 16);
+                float16x8_t _p3 = vld1q_f16(ptr + 24);
+                uint16x8_t _lemask0 = vcleq_f16(_p0, _zero);
+                uint16x8_t _lemask1 = vcleq_f16(_p1, _zero);
+                uint16x8_t _lemask2 = vcleq_f16(_p2, _zero);
+                uint16x8_t _lemask3 = vcleq_f16(_p3, _zero);
+                float16x8_t _ps0 = vmulq_f16(_p0, _slope);
+                float16x8_t _ps1 = vmulq_f16(_p1, _slope);
+                float16x8_t _ps2 = vmulq_f16(_p2, _slope);
+                float16x8_t _ps3 = vmulq_f16(_p3, _slope);
+                _p0 = vbslq_f16(_lemask0, _ps0, _p0);
+                _p1 = vbslq_f16(_lemask1, _ps1, _p1);
+                _p2 = vbslq_f16(_lemask2, _ps2, _p2);
+                _p3 = vbslq_f16(_lemask3, _ps3, _p3);
+                vst1q_f16(ptr, _p0);
+                vst1q_f16(ptr + 8, _p1);
+                vst1q_f16(ptr + 16, _p2);
+                vst1q_f16(ptr + 24, _p3);
+                ptr += 32;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i + 15 < size; i += 16)
             {

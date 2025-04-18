@@ -45,7 +45,7 @@ pnnx.Output             output      1 0 out
     {
         float p = 0.f;
         if (captured_params.at("p").type == 2)
-            p = captured_params.at("p").i;
+            p = (float)captured_params.at("p").i;
         if (captured_params.at("p").type == 3)
             p = captured_params.at("p").f;
         if (captured_params.at("p").type == 4 && captured_params.at("p").s == "fro")

@@ -16,8 +16,6 @@
 
 #include "x86_activation.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 TanH_x86::TanH_x86()
@@ -71,7 +69,7 @@ int TanH_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            *ptr = tanh(*ptr);
+            *ptr = tanhf(*ptr);
             ptr++;
         }
     }

@@ -54,7 +54,27 @@ void convert_Tensor_select(Graph& graph)
             if (axis > batch_index)
                 axis -= 1;
 
-            int index = op->params.at("index").i;
+            int dim;
+            int index;
+            if (op->has_param("dim"))
+            {
+                dim = op->params.at("dim").i;
+            }
+            else
+            {
+                fprintf(stderr, "select with dynamic dim is not supported\n");
+                continue;
+            }
+
+            if (op->has_param("index"))
+            {
+                index = op->params.at("index").i;
+            }
+            else
+            {
+                fprintf(stderr, "select with dynamic index is not supported\n");
+                continue;
+            }
 
             op->params["9"] = std::vector<int> {index};
             op->params["10"] = std::vector<int> {index + 1};
@@ -63,24 +83,26 @@ void convert_Tensor_select(Graph& graph)
             op->params.erase("dim");
             op->params.erase("index");
 
-            // reshape for output, squeezing the select dim
+            // squeezing the select dim
             {
                 Operand* out = op->outputs[0];
 
-                Operator* reshape = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape", op);
+                Operator* squeeze = graph.new_operator_after("torch.squeeze", op->name + "_ncnnsqueeze", op);
 
-                Operand* reshape_in = graph.new_operand(op->name + "_ncnnreshape_in");
+                Operand* squeeze_in = graph.new_operand(op->name + "_ncnnsqueeze_in");
 
-                reshape->inputs.push_back(reshape_in);
-                reshape->outputs.push_back(out);
+                squeeze->inputs.push_back(squeeze_in);
+                squeeze->outputs.push_back(out);
 
-                op->outputs[0] = reshape_in;
+                op->outputs[0] = squeeze_in;
 
-                out->producer = reshape;
-                reshape_in->producer = op;
-                reshape_in->consumers.push_back(reshape);
+                out->producer = squeeze;
+                squeeze_in->producer = op;
+                squeeze_in->consumers.push_back(squeeze);
 
-                reshape->params["shape"] = out->shape;
+                squeeze->params["dim"] = dim;
+
+                squeeze_in->params["__batch_index"] = batch_index;
             }
 
             break;

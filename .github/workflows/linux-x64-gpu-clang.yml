@@ -38,22 +38,22 @@ jobs:
   linux-clang-gpu:
     runs-on: [self-hosted, linux, cvm]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20220211
+        key: swiftshader-linux-install-20240622
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 0863290dc7f6cc1649bab1858790e812b8aef02a
+        ref: de870ac7518fe2b6bb651ecc22fc36647cf7b986
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |

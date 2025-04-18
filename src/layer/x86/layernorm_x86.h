@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class LayerNorm_x86 : virtual public LayerNorm
+class LayerNorm_x86 : public LayerNorm
 {
 public:
     LayerNorm_x86();

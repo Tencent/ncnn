@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Deconvolution_x86 : virtual public Deconvolution
+class Deconvolution_x86 : public Deconvolution
 {
 public:
     Deconvolution_x86();
@@ -29,7 +29,12 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 public:
+    Layer* activation;
+    Layer* gemm;
+
     Mat weight_data_tm;
 };
 

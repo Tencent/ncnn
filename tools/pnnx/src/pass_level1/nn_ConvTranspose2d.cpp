@@ -52,6 +52,17 @@ public:
         {
             op->attrs["bias"] = mod.attr("bias").toTensor();
         }
+
+        if (op->inputs.size() > 1)
+        {
+            fprintf(stderr, "ConvTranspose2d arg output_size detected and dropped !\n");
+
+            for (size_t i = 1; i < op->inputs.size(); i++)
+            {
+                op->inputs[i]->remove_consumer(op);
+            }
+            op->inputs.resize(1);
+        }
     }
 };
 

@@ -14,8 +14,6 @@
 
 #include "layernorm.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 LayerNorm::LayerNorm()
@@ -81,7 +79,7 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         // the var maybe minus due to accuracy
         //float var = sqsum / w - mean * mean;
 
-        float a = static_cast<float>(1.f / (sqrt(var + eps)));
+        float a = 1.f / (sqrtf(var + eps));
         float b = -mean * a;
 
         if (affine)
@@ -130,7 +128,7 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             // the var maybe minus due to accuracy
             //float var = sqsum / w - mean * mean;
 
-            float a = static_cast<float>(1.f / (sqrt(var + eps)));
+            float a = 1.f / (sqrtf(var + eps));
             float b = -mean * a;
 
             if (affine)
@@ -185,7 +183,7 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     // the var maybe minus due to accuracy
                     //float var = sqsum / w - mean * mean;
 
-                    float a = static_cast<float>(1.f / (sqrt(var + eps)));
+                    float a = 1.f / (sqrtf(var + eps));
                     float b = -mean * a;
 
                     if (affine)
@@ -231,7 +229,7 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 // the var maybe minus due to accuracy
                 //float var = sqsum / size - mean * mean;
 
-                float a = static_cast<float>(1.f / (sqrt(var + eps)));
+                float a = 1.f / (sqrtf(var + eps));
                 float b = -mean * a;
 
                 if (affine)

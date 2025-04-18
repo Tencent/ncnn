@@ -42,6 +42,13 @@ PACK(struct local_file_header {
     uint16_t extra_field_length;
 });
 
+PACK(struct zip64_extended_extra_field {
+    uint64_t uncompressed_size;
+    uint64_t compressed_size;
+    uint64_t lfh_offset;
+    uint32_t disk_number;
+});
+
 PACK(struct central_directory_file_header {
     uint16_t version_made;
     uint16_t version;
@@ -59,6 +66,24 @@ PACK(struct central_directory_file_header {
     uint16_t internal_file_attrs;
     uint32_t external_file_attrs;
     uint32_t lfh_offset;
+});
+
+PACK(struct zip64_end_of_central_directory_record {
+    uint64_t size_of_eocd64_m12;
+    uint16_t version_made_by;
+    uint16_t version_min_required;
+    uint32_t disk_number;
+    uint32_t start_disk;
+    uint64_t cd_records;
+    uint64_t total_cd_records;
+    uint64_t cd_size;
+    uint64_t cd_offset;
+});
+
+PACK(struct zip64_end_of_central_directory_locator {
+    uint32_t eocdr64_disk_number;
+    uint64_t eocdr64_offset;
+    uint32_t disk_count;
 });
 
 PACK(struct end_of_central_directory_record {
@@ -94,11 +119,11 @@ static uint32_t CRC32(uint32_t x, unsigned char ch)
     return (x >> 8) ^ CRC32_TABLE[(x ^ ch) & 0xff];
 }
 
-static uint32_t CRC32_buffer(const unsigned char* data, int len)
+static uint32_t CRC32_buffer(const unsigned char* data, uint64_t len)
 {
     uint32_t x = 0xffffffff;
 
-    for (int i = 0; i < len; i++)
+    for (uint64_t i = 0; i < len; i++)
         x = CRC32(x, data[i]);
 
     return x ^ 0xffffffff;
@@ -133,6 +158,8 @@ int StoreZipReader::open(const std::string& path)
         if (nread != 1)
             break;
 
+        // fprintf(stderr, "signature = %x\n", signature);
+
         if (signature == 0x04034b50)
         {
             local_file_header lfh;
@@ -155,18 +182,52 @@ int StoreZipReader::open(const std::string& path)
             name.resize(lfh.file_name_length);
             fread((char*)name.data(), name.size(), 1, fp);
 
-            // skip extra field
-            fseek(fp, lfh.extra_field_length, SEEK_CUR);
+            uint64_t compressed_size = lfh.compressed_size;
+            uint64_t uncompressed_size = lfh.uncompressed_size;
+            if (compressed_size == 0xffffffff && uncompressed_size == 0xffffffff)
+            {
+                uint16_t extra_offset = 0;
+                while (extra_offset < lfh.extra_field_length)
+                {
+                    uint16_t extra_id;
+                    uint16_t extra_size;
+                    fread((char*)&extra_id, sizeof(extra_id), 1, fp);
+                    fread((char*)&extra_size, sizeof(extra_size), 1, fp);
+                    if (extra_id != 0x0001)
+                    {
+                        // skip this extra field block
+                        fseek(fp, extra_size - 4, SEEK_CUR);
+                        extra_offset += extra_size;
+                        continue;
+                    }
+
+                    // zip64 extra field
+                    zip64_extended_extra_field zip64_eef;
+                    fread((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
+
+                    compressed_size = zip64_eef.compressed_size;
+                    uncompressed_size = zip64_eef.uncompressed_size;
+
+                    // skip remaining extra field blocks
+                    fseek(fp, lfh.extra_field_length - extra_offset - 4 - sizeof(zip64_eef), SEEK_CUR);
+                    break;
+                }
+            }
+            else
+            {
+                // skip extra field
+                fseek(fp, lfh.extra_field_length, SEEK_CUR);
+            }
 
             StoreZipMeta fm;
             fm.offset = ftell(fp);
-            fm.size = lfh.compressed_size;
+            fm.size = compressed_size;
 
             filemetas[name] = fm;
 
-            //             fprintf(stderr, "%s = %d  %d\n", name.c_str(), fm.offset, fm.size);
+            // fprintf(stderr, "%s = %d  %d\n", name.c_str(), fm.offset, fm.size);
 
-            fseek(fp, lfh.compressed_size, SEEK_CUR);
+            fseek(fp, compressed_size, SEEK_CUR);
         }
         else if (signature == 0x02014b50)
         {
@@ -190,6 +251,19 @@ int StoreZipReader::open(const std::string& path)
             // skip comment
             fseek(fp, eocdr.comment_length, SEEK_CUR);
         }
+        else if (signature == 0x06064b50)
+        {
+            zip64_end_of_central_directory_record eocdr64;
+            fread((char*)&eocdr64, sizeof(eocdr64), 1, fp);
+
+            // skip comment
+            fseek(fp, eocdr64.size_of_eocd64_m12 - 44, SEEK_CUR);
+        }
+        else if (signature == 0x07064b50)
+        {
+            zip64_end_of_central_directory_locator eocdl64;
+            fread((char*)&eocdl64, sizeof(eocdl64), 1, fp);
+        }
         else
         {
             fprintf(stderr, "unsupported signature %x\n", signature);
@@ -200,7 +274,18 @@ int StoreZipReader::open(const std::string& path)
     return 0;
 }
 
-size_t StoreZipReader::get_file_size(const std::string& name)
+std::vector<std::string> StoreZipReader::get_names() const
+{
+    std::vector<std::string> names;
+    for (std::map<std::string, StoreZipMeta>::const_iterator it = filemetas.begin(); it != filemetas.end(); ++it)
+    {
+        names.push_back(it->first);
+    }
+
+    return names;
+}
+
+uint64_t StoreZipReader::get_file_size(const std::string& name) const
 {
     if (filemetas.find(name) == filemetas.end())
     {
@@ -208,7 +293,7 @@ size_t StoreZipReader::get_file_size(const std::string& name)
         return 0;
     }
 
-    return filemetas[name].size;
+    return filemetas.at(name).size;
 }
 
 int StoreZipReader::read_file(const std::string& name, char* data)
@@ -219,8 +304,8 @@ int StoreZipReader::read_file(const std::string& name, char* data)
         return -1;
     }
 
-    size_t offset = filemetas[name].offset;
-    size_t size = filemetas[name].size;
+    uint64_t offset = filemetas[name].offset;
+    uint64_t size = filemetas[name].size;
 
     fseek(fp, offset, SEEK_SET);
     fread(data, size, 1, fp);
@@ -265,9 +350,9 @@ int StoreZipWriter::open(const std::string& path)
     return 0;
 }
 
-int StoreZipWriter::write_file(const std::string& name, const char* data, size_t size)
+int StoreZipWriter::write_file(const std::string& name, const char* data, uint64_t size)
 {
-    int offset = ftell(fp);
+    long offset = ftell(fp);
 
     uint32_t signature = 0x04034b50;
     fwrite((char*)&signature, sizeof(signature), 1, fp);
@@ -281,14 +366,29 @@ int StoreZipWriter::write_file(const std::string& name, const char* data, size_t
     lfh.last_modify_time = 0;
     lfh.last_modify_date = 0;
     lfh.crc32 = crc32;
-    lfh.compressed_size = size;
-    lfh.uncompressed_size = size;
+    lfh.compressed_size = 0xffffffff;
+    lfh.uncompressed_size = 0xffffffff;
     lfh.file_name_length = name.size();
-    lfh.extra_field_length = 0;
+
+    // zip64 extra field
+    zip64_extended_extra_field zip64_eef;
+    zip64_eef.uncompressed_size = size;
+    zip64_eef.compressed_size = size;
+    zip64_eef.lfh_offset = 0;
+    zip64_eef.disk_number = 0;
+
+    uint16_t extra_id = 0x0001;
+    uint16_t extra_size = sizeof(zip64_eef);
+
+    lfh.extra_field_length = sizeof(extra_id) + sizeof(extra_size) + sizeof(zip64_eef);
 
     fwrite((char*)&lfh, sizeof(lfh), 1, fp);
 
     fwrite((char*)name.c_str(), name.size(), 1, fp);
+
+    fwrite((char*)&extra_id, sizeof(extra_id), 1, fp);
+    fwrite((char*)&extra_size, sizeof(extra_size), 1, fp);
+    fwrite((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
 
     fwrite(data, size, 1, fp);
 
@@ -308,7 +408,7 @@ int StoreZipWriter::close()
     if (!fp)
         return 0;
 
-    int offset = ftell(fp);
+    long offset = ftell(fp);
 
     for (const StoreZipMeta& szm : filemetas)
     {
@@ -323,34 +423,79 @@ int StoreZipWriter::close()
         cdfh.last_modify_time = 0;
         cdfh.last_modify_date = 0;
         cdfh.crc32 = szm.crc32;
-        cdfh.compressed_size = szm.size;
-        cdfh.uncompressed_size = szm.size;
+        cdfh.compressed_size = 0xffffffff;
+        cdfh.uncompressed_size = 0xffffffff;
         cdfh.file_name_length = szm.name.size();
-        cdfh.extra_field_length = 0;
         cdfh.file_comment_length = 0;
-        cdfh.start_disk = 0;
+        cdfh.start_disk = 0xffff;
         cdfh.internal_file_attrs = 0;
         cdfh.external_file_attrs = 0;
-        cdfh.lfh_offset = szm.lfh_offset;
+        cdfh.lfh_offset = 0xffffffff;
+
+        // zip64 extra field
+        zip64_extended_extra_field zip64_eef;
+        zip64_eef.uncompressed_size = szm.size;
+        zip64_eef.compressed_size = szm.size;
+        zip64_eef.lfh_offset = szm.lfh_offset;
+        zip64_eef.disk_number = 0;
+
+        uint16_t extra_id = 0x0001;
+        uint16_t extra_size = sizeof(zip64_eef);
+
+        cdfh.extra_field_length = sizeof(extra_id) + sizeof(extra_size) + sizeof(zip64_eef);
 
         fwrite((char*)&cdfh, sizeof(cdfh), 1, fp);
 
         fwrite((char*)szm.name.c_str(), szm.name.size(), 1, fp);
+
+        fwrite((char*)&extra_id, sizeof(extra_id), 1, fp);
+        fwrite((char*)&extra_size, sizeof(extra_size), 1, fp);
+        fwrite((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
     }
 
-    int offset2 = ftell(fp);
+    long offset2 = ftell(fp);
+
+    {
+        uint32_t signature = 0x06064b50;
+        fwrite((char*)&signature, sizeof(signature), 1, fp);
+
+        zip64_end_of_central_directory_record eocdr64;
+        eocdr64.size_of_eocd64_m12 = sizeof(eocdr64) - 8;
+        eocdr64.version_made_by = 0;
+        eocdr64.version_min_required = 0;
+        eocdr64.disk_number = 0;
+        eocdr64.start_disk = 0;
+        eocdr64.cd_records = filemetas.size();
+        eocdr64.total_cd_records = filemetas.size();
+        eocdr64.cd_size = offset2 - offset;
+        eocdr64.cd_offset = offset;
+
+        fwrite((char*)&eocdr64, sizeof(eocdr64), 1, fp);
+    }
+
+    {
+        uint32_t signature = 0x07064b50;
+        fwrite((char*)&signature, sizeof(signature), 1, fp);
+
+        zip64_end_of_central_directory_locator eocdl64;
+        eocdl64.eocdr64_disk_number = 0;
+        eocdl64.eocdr64_offset = offset2;
+        eocdl64.disk_count = 1;
+
+        fwrite((char*)&eocdl64, sizeof(eocdl64), 1, fp);
+    }
 
     {
         uint32_t signature = 0x06054b50;
         fwrite((char*)&signature, sizeof(signature), 1, fp);
 
         end_of_central_directory_record eocdr;
-        eocdr.disk_number = 0;
-        eocdr.start_disk = 0;
-        eocdr.cd_records = filemetas.size();
-        eocdr.total_cd_records = filemetas.size();
-        eocdr.cd_size = offset2 - offset;
-        eocdr.cd_offset = offset;
+        eocdr.disk_number = 0xffff;
+        eocdr.start_disk = 0xffff;
+        eocdr.cd_records = 0xffff;
+        eocdr.total_cd_records = 0xffff;
+        eocdr.cd_size = 0xffffffff;
+        eocdr.cd_offset = 0xffffffff;
         eocdr.comment_length = 0;
 
         fwrite((char*)&eocdr, sizeof(eocdr), 1, fp);
@@ -367,28 +512,45 @@ int StoreZipWriter::close()
 #if 0
 int main()
 {
-    StoreZipReader sz;
+    using namespace pnnx;
 
-    sz.open("test.zip");
+    {
+        uint64_t len = 1*1024*1024*1024;
+        // uint64_t len = 1*1024*1024;
+        char* data1g = new char[len];
 
-    std::vector<float> data1;
-    sz.read_file("pnnx2.py", data1);
+        StoreZipWriter szw;
 
-    std::vector<float> data2;
-    sz.read_file("pnnx2.param", data2);
+        szw.open("szw.zip");
 
-    sz.close();
+        szw.write_file("a.py", data1g, len);
+        szw.write_file("b.param", data1g, 44);
+        szw.write_file("c.bin", data1g, len);
+        szw.write_file("d.txt", data1g, len);
+        szw.write_file("e.jpg", data1g, len);
+        szw.write_file("f.png", data1g, len);
 
+        szw.close();
 
-    StoreZipWriter szw;
+        delete[] data1g;
+    }
 
-    szw.open("szw.zip");
+    {
+        StoreZipReader sz;
 
-    szw.write_file("a.py", data1);
-    szw.write_file("zzzz.param", data2);
+        sz.open("szw.zip");
 
-    szw.close();
+        std::vector<std::string> names = sz.get_names();
 
+        for (size_t i = 0; i < names.size(); i++)
+        {
+            uint64_t size = sz.get_file_size(names[i]);
+
+            fprintf(stderr, "%s  %lu\n", names[i].c_str(), size);
+        }
+
+        sz.close();
+    }
 
     return 0;
 }

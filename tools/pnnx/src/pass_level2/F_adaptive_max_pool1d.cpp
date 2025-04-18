@@ -41,6 +41,6 @@ pnnx.Output             output      2 0 out indices
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_adaptive_max_pool1d, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_adaptive_max_pool1d, 120)
 
 } // namespace pnnx

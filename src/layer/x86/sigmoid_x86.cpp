@@ -26,8 +26,6 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-#include <math.h>
-
 namespace ncnn {
 
 Sigmoid_x86::Sigmoid_x86()
@@ -87,7 +85,7 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            *ptr = 1.f / (1.f + exp(-*ptr));
+            *ptr = 1.f / (1.f + expf(-*ptr));
             ptr++;
         }
     }

@@ -42,12 +42,12 @@ public:
 #if NCNN_STRING
     int scan(const char* format, void* p) const override
     {
-        PYBIND11_OVERLOAD(int, Base, scan, format, p);
+        PYBIND11_OVERRIDE(int, Base, scan, format, p);
     }
 #endif // NCNN_STRING
     size_t read(void* buf, size_t size) const override
     {
-        PYBIND11_OVERLOAD(size_t, Base, read, buf, size);
+        PYBIND11_OVERRIDE(size_t, Base, read, buf, size);
     }
 };
 
@@ -59,12 +59,12 @@ public:
 #if NCNN_STRING
     int scan(const char* format, void* p) const override
     {
-        PYBIND11_OVERLOAD(int, Other, scan, format, p);
+        PYBIND11_OVERRIDE(int, Other, scan, format, p);
     }
 #endif // NCNN_STRING
     size_t read(void* buf, size_t size) const override
     {
-        PYBIND11_OVERLOAD(size_t, Other, read, buf, size);
+        PYBIND11_OVERRIDE(size_t, Other, read, buf, size);
     }
 };
 

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Clip_vulkan : virtual public Clip
+class Clip_vulkan : public Clip
 {
 public:
     Clip_vulkan();

@@ -1,7 +1,7 @@
 
 macro(ncnn_add_shader NCNN_SHADER_SRC)
     get_filename_component(NCNN_SHADER_SRC_NAME_WE ${NCNN_SHADER_SRC} NAME_WE)
-    set(NCNN_SHADER_COMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${NCNN_SHADER_SRC_NAME_WE}.comp.hex.h)
+    set(NCNN_SHADER_COMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/layer/vulkan/shader/${NCNN_SHADER_SRC_NAME_WE}.comp.hex.h)
 
     add_custom_command(
         OUTPUT ${NCNN_SHADER_COMP_HEADER}
@@ -13,7 +13,7 @@ macro(ncnn_add_shader NCNN_SHADER_SRC)
     set_source_files_properties(${NCNN_SHADER_COMP_HEADER} PROPERTIES GENERATED TRUE)
 
     get_filename_component(NCNN_SHADER_COMP_HEADER_NAME ${NCNN_SHADER_COMP_HEADER} NAME)
-    string(APPEND layer_shader_spv_data "#include \"${NCNN_SHADER_COMP_HEADER_NAME}\"\n")
+    string(APPEND layer_shader_spv_data "#include \"layer/vulkan/shader/${NCNN_SHADER_COMP_HEADER_NAME}\"\n")
 
     get_filename_component(NCNN_SHADER_SRC_NAME_WE ${NCNN_SHADER_SRC} NAME_WE)
     string(APPEND layer_shader_registry "{${NCNN_SHADER_SRC_NAME_WE}_comp_data,sizeof(${NCNN_SHADER_SRC_NAME_WE}_comp_data)},\n")

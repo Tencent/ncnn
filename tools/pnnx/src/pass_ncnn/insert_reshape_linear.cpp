@@ -94,19 +94,26 @@ void insert_reshape_linear(Graph& graph)
                 reshape_h *= linear_in->shape[j];
             }
 
-            std::vector<int> reshape0_shape;
+            std::vector<int> reshape0_out_shape;
+            std::vector<int> reshape1_in_shape;
             if (batch_index == 0 && batch_index != 233)
             {
-                reshape0_shape = {1, reshape_h, linear_in->shape[input_rank - 1]};
+                reshape0_out_shape = {1, reshape_h, linear_in->shape[input_rank - 1]};
+                reshape1_in_shape = {1, reshape_h, linear_out->shape[input_rank - 1]};
             }
             else
             {
-                reshape0_shape = {reshape_h, linear_in->shape[input_rank - 1]};
+                reshape0_out_shape = {reshape_h, linear_in->shape[input_rank - 1]};
+                reshape1_in_shape = {reshape_h, linear_out->shape[input_rank - 1]};
             }
-            std::vector<int> reshape1_shape = linear_out->shape;
+            std::vector<int> reshape1_out_shape = linear_out->shape;
 
-            reshape0->params["shape"] = reshape0_shape;
-            reshape1->params["shape"] = reshape1_shape;
+            reshape0->params["shape"] = reshape0_out_shape;
+            reshape1->params["shape"] = reshape1_out_shape;
+            reshape0_out->type = linear_in->type;
+            reshape0_out->shape = reshape0_out_shape;
+            reshape1_in->type = linear_out->type;
+            reshape1_in->shape = reshape1_in_shape;
 
             break;
         }

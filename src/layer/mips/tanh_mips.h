@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class TanH_mips : virtual public TanH
+class TanH_mips : public TanH
 {
 public:
     TanH_mips();

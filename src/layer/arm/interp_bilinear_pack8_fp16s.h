@@ -106,9 +106,9 @@ static void resize_bilinear_image_pack8_fp16sa(const Mat& src, Mat& dst, __fp16*
         {
             float16x8_t _rows0 = vld1q_f16(rows0p);
             float16x8_t _rows1 = vld1q_f16(rows1p);
-            float16x8_t _D = vmulq_lane_f16(_rows0, _b01, 0);
-            _D = vfmaq_lane_f16(_D, _rows1, _b01, 1);
-            vst1q_f16(Dp, _D);
+            float16x8_t _Dp = vmulq_lane_f16(_rows0, _b01, 0);
+            _Dp = vfmaq_lane_f16(_Dp, _rows1, _b01, 1);
+            vst1q_f16(Dp, _Dp);
 
             Dp += 8;
             rows0p += 8;

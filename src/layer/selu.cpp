@@ -14,8 +14,6 @@
 
 #include "selu.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 SELU::SELU()
@@ -36,8 +34,9 @@ int SELU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     float alphaxlambda = alpha * lambda;
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -48,7 +47,7 @@ int SELU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i = 0; i < size; i++)
         {
             if (ptr[i] < 0.f)
-                ptr[i] = static_cast<float>((exp(ptr[i]) - 1.f) * alphaxlambda);
+                ptr[i] = (expf(ptr[i]) - 1.f) * alphaxlambda;
             else
                 ptr[i] *= lambda;
         }

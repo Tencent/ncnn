@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Cast_arm : virtual public Cast
+class Cast_arm : public Cast
 {
 public:
     Cast_arm();

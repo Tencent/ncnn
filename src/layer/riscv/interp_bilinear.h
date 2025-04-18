@@ -86,20 +86,21 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             int n = w;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m4(n);
+                size_t vl = __riscv_vsetvl_e32m4(n);
 
-                vuint32m4_t _sx = vmul_vx_u32m4(vle32_v_u32m4(pxofs, vl), sizeof(float), vl);
-                vfloat32m4x2_t _S1p = vloxseg2ei32_v_f32m4x2(S1, _sx, vl);
-                vfloat32m4_t _S1p0 = vget_f32m4x2_f32m4(_S1p, 0);
-                vfloat32m4_t _S1p1 = vget_f32m4x2_f32m4(_S1p, 1);
+                vuint32m4_t _sx = __riscv_vmul_vx_u32m4(__riscv_vle32_v_u32m4(pxofs, vl), sizeof(float), vl);
 
-                vfloat32m4x2_t _a0a1 = vlseg2e32_v_f32m4x2(alphap, vl);
-                vfloat32m4_t _a0 = vget_f32m4x2_f32m4(_a0a1, 0);
-                vfloat32m4_t _a1 = vget_f32m4x2_f32m4(_a0a1, 1);
+                vfloat32m4x2_t _S1 = __riscv_vloxseg2ei32_v_f32m4x2(S1, _sx, vl);
+                vfloat32m4_t _S1p0 = __riscv_vget_v_f32m4x2_f32m4(_S1, 0);
+                vfloat32m4_t _S1p1 = __riscv_vget_v_f32m4x2_f32m4(_S1, 1);
 
-                vfloat32m4_t _rows1 = vfmacc_vv_f32m4(vfmul_vv_f32m4(_S1p0, _a0, vl), _S1p1, _a1, vl);
+                vfloat32m4x2_t _a = __riscv_vlseg2e32_v_f32m4x2(alphap, vl);
+                vfloat32m4_t _a0 = __riscv_vget_v_f32m4x2_f32m4(_a, 0);
+                vfloat32m4_t _a1 = __riscv_vget_v_f32m4x2_f32m4(_a, 1);
 
-                vse32_v_f32m4(rows1p, _rows1, vl);
+                vfloat32m4_t _rows1 = __riscv_vfmacc_vv_f32m4(__riscv_vfmul_vv_f32m4(_S1p0, _a0, vl), _S1p1, _a1, vl);
+
+                __riscv_vse32_v_f32m4(rows1p, _rows1, vl);
 
                 pxofs += vl;
                 alphap += vl * 2;
@@ -135,25 +136,26 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             int n = w;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m4(n);
+                size_t vl = __riscv_vsetvl_e32m4(n);
 
-                vuint32m4_t _sx = vmul_vx_u32m4(vle32_v_u32m4(pxofs, vl), sizeof(float), vl);
-                vfloat32m4x2_t _S0p = vloxseg2ei32_v_f32m4x2(S0, _sx, vl);
-                vfloat32m4x2_t _S1p = vloxseg2ei32_v_f32m4x2(S1, _sx, vl);
-                vfloat32m4_t _S0p0 = vget_f32m4x2_f32m4(_S0p, 0);
-                vfloat32m4_t _S0p1 = vget_f32m4x2_f32m4(_S0p, 1);
-                vfloat32m4_t _S1p0 = vget_f32m4x2_f32m4(_S1p, 0);
-                vfloat32m4_t _S1p1 = vget_f32m4x2_f32m4(_S1p, 1);
+                vuint32m4_t _sx = __riscv_vmul_vx_u32m4(__riscv_vle32_v_u32m4(pxofs, vl), sizeof(float), vl);
 
-                vfloat32m4x2_t _a0a1 = vlseg2e32_v_f32m4x2(alphap, vl);
-                vfloat32m4_t _a0 = vget_f32m4x2_f32m4(_a0a1, 0);
-                vfloat32m4_t _a1 = vget_f32m4x2_f32m4(_a0a1, 1);
+                vfloat32m4x2_t _S0 = __riscv_vloxseg2ei32_v_f32m4x2(S0, _sx, vl);
+                vfloat32m4x2_t _S1 = __riscv_vloxseg2ei32_v_f32m4x2(S1, _sx, vl);
+                vfloat32m4_t _S0p0 = __riscv_vget_v_f32m4x2_f32m4(_S0, 0);
+                vfloat32m4_t _S0p1 = __riscv_vget_v_f32m4x2_f32m4(_S0, 1);
+                vfloat32m4_t _S1p0 = __riscv_vget_v_f32m4x2_f32m4(_S1, 0);
+                vfloat32m4_t _S1p1 = __riscv_vget_v_f32m4x2_f32m4(_S1, 1);
 
-                vfloat32m4_t _rows0 = vfmacc_vv_f32m4(vfmul_vv_f32m4(_S0p0, _a0, vl), _S0p1, _a1, vl);
-                vfloat32m4_t _rows1 = vfmacc_vv_f32m4(vfmul_vv_f32m4(_S1p0, _a0, vl), _S1p1, _a1, vl);
+                vfloat32m4x2_t _a = __riscv_vlseg2e32_v_f32m4x2(alphap, vl);
+                vfloat32m4_t _a0 = __riscv_vget_v_f32m4x2_f32m4(_a, 0);
+                vfloat32m4_t _a1 = __riscv_vget_v_f32m4x2_f32m4(_a, 1);
 
-                vse32_v_f32m4(rows0p, _rows0, vl);
-                vse32_v_f32m4(rows1p, _rows1, vl);
+                vfloat32m4_t _rows0 = __riscv_vfmacc_vv_f32m4(__riscv_vfmul_vv_f32m4(_S0p0, _a0, vl), _S0p1, _a1, vl);
+                vfloat32m4_t _rows1 = __riscv_vfmacc_vv_f32m4(__riscv_vfmul_vv_f32m4(_S1p0, _a0, vl), _S1p1, _a1, vl);
+
+                __riscv_vse32_v_f32m4(rows0p, _rows0, vl);
+                __riscv_vse32_v_f32m4(rows1p, _rows1, vl);
 
                 pxofs += vl;
                 alphap += vl * 2;
@@ -192,14 +194,14 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         int n = w;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(n);
 
-            vfloat32m8_t _rows0 = vle32_v_f32m8(rows0p, vl);
-            vfloat32m8_t _rows1 = vle32_v_f32m8(rows1p, vl);
+            vfloat32m8_t _rows0 = __riscv_vle32_v_f32m8(rows0p, vl);
+            vfloat32m8_t _rows1 = __riscv_vle32_v_f32m8(rows1p, vl);
 
-            vfloat32m8_t _D = vfmacc_vf_f32m8(vfmul_vf_f32m8(_rows0, b0, vl), b1, _rows1, vl);
+            vfloat32m8_t _Dp = __riscv_vfmacc_vf_f32m8(__riscv_vfmul_vf_f32m8(_rows0, b0, vl), b1, _rows1, vl);
 
-            vse32_v_f32m8(Dp, _D, vl);
+            __riscv_vse32_v_f32m8(Dp, _Dp, vl);
 
             Dp += vl;
             rows0p += vl;

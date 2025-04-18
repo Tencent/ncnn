@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Eltwise_arm : virtual public Eltwise
+class Eltwise_arm : public Eltwise
 {
 public:
     Eltwise_arm();

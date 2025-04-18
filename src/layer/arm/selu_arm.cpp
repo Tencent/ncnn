@@ -26,8 +26,9 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     float alphaxlambda = alpha * lambda;
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -66,7 +67,7 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (; remain > 0; remain--)
         {
             if (*ptr < 0.f)
-                *ptr = (exp(*ptr) - 1.f) * alphaxlambda;
+                *ptr = (expf(*ptr) - 1.f) * alphaxlambda;
             else
                 *ptr *= lambda;
 

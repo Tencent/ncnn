@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Crop_riscv : virtual public Crop
+class Crop_riscv : public Crop
 {
 public:
     Crop_riscv();

@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/pooling1d.h"
 #include "testutil.h"
 
 static int test_pooling1d(int w, int h, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_w)
@@ -32,7 +31,7 @@ static int test_pooling1d(int w, int h, int pooling_type, int kernel, int stride
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Pooling1D>("Pooling1D", pd, weights, a);
+    int ret = test_layer("Pooling1D", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_pooling1d failed w=%d h=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d adaptive_pooling=%d out_w=%d\n", w, h, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad, adaptive_pooling, out_w);

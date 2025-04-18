@@ -15,7 +15,7 @@
 static void convolution_packn_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_packn, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -56,11 +56,11 @@ static void convolution_packn_rvv(const Mat& bottom_blob, Mat& top_blob, const M
         {
             for (int j = 0; j < outw; j++)
             {
-                vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+                vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
                 if (bias_data_ptr)
                 {
-                    _sum = vle32_v_f32m1(bias_data_ptr + p * packn, vl);
+                    _sum = __riscv_vle32_v_f32m1(bias_data_ptr + p * packn, vl);
                 }
 
                 const float* kptr = (const float*)weight_data_packn.channel(p);
@@ -78,8 +78,8 @@ static void convolution_packn_rvv(const Mat& bottom_blob, Mat& top_blob, const M
                         for (int l = 0; l < packn; l++)
                         {
                             float val = *slptr++;
-                            vfloat32m1_t _w0 = vle32_v_f32m1(kptr, vl);
-                            _sum = vfmacc_vf_f32m1(_sum, val, _w0, vl);
+                            vfloat32m1_t _w0 = __riscv_vle32_v_f32m1(kptr, vl);
+                            _sum = __riscv_vfmacc_vf_f32m1(_sum, val, _w0, vl);
 
                             kptr += packn;
                         }
@@ -88,7 +88,7 @@ static void convolution_packn_rvv(const Mat& bottom_blob, Mat& top_blob, const M
 
                 _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                vse32_v_f32m1(outptr + j * packn, _sum, vl);
+                __riscv_vse32_v_f32m1(outptr + j * packn, _sum, vl);
             }
 
             outptr += outw * packn;

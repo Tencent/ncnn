@@ -21,7 +21,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
         self.in_0 = nn.InstanceNorm2d(num_features=12, affine=True)
-        self.in_1 = nn.InstanceNorm2d(num_features=12, eps=1e-2, affine=True)
+        self.in_0.weight = nn.Parameter(torch.rand(12))
+        self.in_0.bias = nn.Parameter(torch.rand(12))
+        self.in_1 = nn.InstanceNorm2d(num_features=12, eps=1e-2, affine=False)
 
     def forward(self, x):
         x = self.in_0(x)

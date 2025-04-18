@@ -23,6 +23,7 @@ static void padding_constant_pack8_int8_neon(const Mat& src, Mat& dst, int top, 
     int top_size = top * dst.w;
     int bottom_size = bottom * dst.w;
 
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
     asm volatile(
         "mov    v0.8b, %10.8b           \n"
@@ -334,6 +335,64 @@ static void padding_constant_pack8_int8_neon(const Mat& src, Mat& dst, int top, 
         "w"(v)            // %10
         : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+
+    // fill top
+    {
+        int x = 0;
+        for (; x + 3 < top_size; x += 4)
+        {
+            vst1_s8(outptr, v);
+            vst1_s8(outptr + 8, v);
+            vst1_s8(outptr + 16, v);
+            vst1_s8(outptr + 24, v);
+            outptr += 32;
+        }
+        for (; x < top_size; x++)
+        {
+            vst1_s8(outptr, v);
+            outptr += 8;
+        }
+    }
+    // fill center
+    for (int y = 0; y < src.h; y++)
+    {
+        for (int x = 0; x < left; x++)
+        {
+            vst1_s8(outptr, v);
+            outptr += 8;
+        }
+        for (int x = 0; x < src.w; x++)
+        {
+            int8x8_t _p = vld1_s8(ptr);
+            vst1_s8(outptr, _p);
+            ptr += 8;
+            outptr += 8;
+        }
+        for (int x = 0; x < right; x++)
+        {
+            vst1_s8(outptr, v);
+            outptr += 8;
+        }
+    }
+    // fill bottom
+    {
+        int x = 0;
+        for (; x + 3 < bottom_size; x += 4)
+        {
+            vst1_s8(outptr, v);
+            vst1_s8(outptr + 8, v);
+            vst1_s8(outptr + 16, v);
+            vst1_s8(outptr + 24, v);
+            outptr += 32;
+        }
+        for (; x < bottom_size; x++)
+        {
+            vst1_s8(outptr, v);
+            outptr += 8;
+        }
+    }
+#endif // NCNN_GNU_INLINE_ASM
 }
 
 static void padding_replicate_pack8_int8_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)

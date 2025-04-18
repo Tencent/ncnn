@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Swish_mips : virtual public Swish
+class Swish_mips : public Swish
 {
 public:
     Swish_mips();

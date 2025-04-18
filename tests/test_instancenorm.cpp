@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/instancenorm.h"
 #include "testutil.h"
 
 static int test_instancenorm(const ncnn::Mat& a, float eps, int affine)
@@ -28,7 +27,7 @@ static int test_instancenorm(const ncnn::Mat& a, float eps, int affine)
     weights[0] = RandomMat(channels);
     weights[1] = RandomMat(channels);
 
-    int ret = test_layer<ncnn::InstanceNorm>("InstanceNorm", pd, weights, a);
+    int ret = test_layer("InstanceNorm", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_instancenorm failed a.dims=%d a=(%d %d %d) eps=%f affine=%d\n", a.dims, a.w, a.h, a.c, eps, affine);

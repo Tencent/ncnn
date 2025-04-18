@@ -21,9 +21,11 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x):
-        x = F.adaptive_avg_pool3d(x, output_size=(7,6,5))
-        x = F.adaptive_avg_pool3d(x, output_size=1)
-        return x
+        out0 = F.adaptive_avg_pool3d(x, output_size=(7,6,5))
+        out1 = F.adaptive_avg_pool3d(x, output_size=1)
+        out2 = F.adaptive_avg_pool3d(x, output_size=(None,4,3))
+        out3 = F.adaptive_avg_pool3d(x, output_size=(5,None,None))
+        return out0, out1, out2, out3
 
 def test():
     net = Model()
@@ -46,7 +48,10 @@ def test():
     import test_F_adaptive_avg_pool3d_pnnx
     b = test_F_adaptive_avg_pool3d_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    for a0, b0 in zip(a, b):
+        if not torch.equal(a0, b0):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

@@ -24,6 +24,10 @@ class Model(nn.Module):
         self.prelu_1 = nn.PReLU(num_parameters=1, init=0.12)
 
     def forward(self, x, y, z):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+
         x = self.prelu_0(x)
         x = self.prelu_1(x)
 
@@ -32,6 +36,7 @@ class Model(nn.Module):
 
         z = self.prelu_0(z)
         z = self.prelu_1(z)
+
         return x, y, z
 
 def test():
@@ -42,6 +47,7 @@ def test():
     x = torch.rand(1, 12)
     y = torch.rand(1, 12, 64)
     z = torch.rand(1, 12, 24, 64)
+    # w = torch.rand(1, 12, 24, 32, 64)
 
     a = net(x, y, z)
 

@@ -94,6 +94,65 @@ public:
         {
             op->params["align_corners"] = upsample->namedInput("align_corners");
         }
+
+        bool recompute_scale_factor = true;
+        if (op->params.find("size") != op->params.end())
+        {
+            if (op->params.at("size").type == 2)
+            {
+                int s = op->params.at("size").i;
+                if (s != 0)
+                {
+                    recompute_scale_factor = false;
+                }
+            }
+            if (op->params.at("size").type == 5)
+            {
+                const std::vector<int>& size = op->params.at("size").ai;
+                for (auto s : size)
+                {
+                    if (s != 0)
+                    {
+                        recompute_scale_factor = false;
+                        break;
+                    }
+                }
+            }
+        }
+        if (op->params.find("scale_factor") != op->params.end())
+        {
+            if (op->params.at("scale_factor").type != 0)
+                recompute_scale_factor = false;
+        }
+
+        if (recompute_scale_factor)
+        {
+            op->params["size"] = Parameter();
+
+            // FIXME does this param really counts ?
+            // op->params["recompute_scale_factor"] = true;
+
+            // resolve scale_factor in recompute scale graph
+            std::vector<float> scale_factor;
+            try
+            {
+                const torch::jit::Node* size_list = find_node_by_kind(graph, "prim::ListConstruct");
+                for (auto x : size_list->inputs())
+                {
+                    auto scale_tensor = x->node()->inputs()[0]->node()->inputs()[0]->node()->inputs()[0]->node()->inputs()[1]->node()->inputs()[0]->node()->inputs()[0]->node();
+                    auto t = scale_tensor->t(torch::jit::attr::value);
+                    float s = (float)t.item<double>();
+                    scale_factor.push_back(s);
+                }
+
+                op->params["scale_factor"] = scale_factor;
+            }
+            catch (...)
+            {
+                fprintf(stderr, "unhandled upsample recompute_scale_factor graph");
+                graph->dump();
+            }
+        }
     }
 };
 

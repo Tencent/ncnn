@@ -45,26 +45,45 @@ pnnx.Output             output      1 0 out
     {
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
-        int dim = captured_params.at("dim").i;
-        if (dim == batch_index)
-        {
-            fprintf(stderr, "squeeze batch dim %d is not supported yet!\n", batch_index);
-            return;
-        }
-
         int input_rank = op->inputs[0]->shape.size();
 
-        if (input_rank > 4)
+        if (input_rank > 5)
         {
             fprintf(stderr, "squeeze %d-rank tensor is not supported yet!\n", input_rank);
             return;
         }
 
-        if (dim > batch_index)
-            dim -= 1;
+        if (captured_params.at("dim").type == 2)
+        {
+            int dim = captured_params.at("dim").i;
+            if (dim == batch_index)
+            {
+                fprintf(stderr, "squeeze batch dim %d is not supported yet!\n", batch_index);
+                return;
+            }
 
-        std::vector<int> axes = {dim};
-        op->params["3"] = axes;
+            if (dim > batch_index)
+                dim -= 1;
+
+            std::vector<int> axes = {dim};
+            op->params["3"] = axes;
+        }
+        else // if (captured_params.at("dim").type == 5)
+        {
+            std::vector<int> axes = captured_params.at("dim").ai;
+            for (size_t i = 0; i < axes.size(); i++)
+            {
+                if (axes[i] == batch_index)
+                {
+                    fprintf(stderr, "squeeze batch dim %d is not supported yet!\n", batch_index);
+                    return;
+                }
+
+                if (axes[i] > batch_index)
+                    axes[i] -= 1;
+            }
+            op->params["3"] = axes;
+        }
     }
 };
 
@@ -97,6 +116,7 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = 1;
         op->params["1"] = 1;
+        op->params["11"] = 1;
         op->params["2"] = 1;
     }
 };

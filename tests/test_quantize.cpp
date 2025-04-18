@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/quantize.h"
 #include "testutil.h"
 
 static int test_quantize(const ncnn::Mat& a, float scale_low, float scale_high)
@@ -37,7 +36,7 @@ static int test_quantize(const ncnn::Mat& a, float scale_low, float scale_high)
     std::vector<ncnn::Mat> weights(1);
     weights[0] = scale_data;
 
-    int ret = test_layer<ncnn::Quantize>("Quantize", pd, weights, a);
+    int ret = test_layer("Quantize", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_quantize failed a.dims=%d a=(%d %d %d) scale_low=%f scale_high=%f\n", a.dims, a.w, a.h, a.c, scale_low, scale_high);

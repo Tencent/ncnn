@@ -16,12 +16,10 @@
 #define LAYER_INNERPRODUCT_ARM_H
 
 #include "innerproduct.h"
-#include <cmath>
-#include <cstdlib>
 
 namespace ncnn {
 
-class InnerProduct_arm : virtual public InnerProduct
+class InnerProduct_arm : public InnerProduct
 {
 public:
     InnerProduct_arm();
@@ -32,7 +30,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
+#if NCNN_VFPV4
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif

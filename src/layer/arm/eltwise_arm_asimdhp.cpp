@@ -16,6 +16,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -26,9 +27,10 @@ int Eltwise_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
-    int size = w * h * elempack;
+    int size = w * h * d * elempack;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create_like(bottom_blob, opt.blob_allocator);
@@ -287,7 +289,7 @@ int Eltwise_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector
         return 0;
     }
 
-    Mat top_blob_fp32(w, h, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
+    Mat top_blob_fp32(w, h, d, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
     if (top_blob_fp32.empty())
         return -100;
 
@@ -1097,9 +1099,10 @@ int Eltwise_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vecto
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
-    int size = w * h * elempack;
+    int size = w * h * d * elempack;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create_like(bottom_blob, opt.blob_allocator);

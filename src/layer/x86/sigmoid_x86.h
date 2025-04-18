@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Sigmoid_x86 : virtual public Sigmoid
+class Sigmoid_x86 : public Sigmoid
 {
 public:
     Sigmoid_x86();

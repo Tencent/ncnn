@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Slice_mips : virtual public Slice
+class Slice_mips : public Slice
 {
 public:
     Slice_mips();

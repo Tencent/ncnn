@@ -46,6 +46,7 @@ build*/
 .idea
 cmake-build-debug
 cmake-build-release
+CMakeSettings.json
 
 # Compiled python
 __pycache__
@@ -56,3 +57,6 @@ python/setup.py
 
 # Clangd
 .cache/
+
+# Xmake
+.xmake/

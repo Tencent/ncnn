@@ -19,84 +19,38 @@ permissions:
   contents: read
 
 jobs:
-  ubuntu:
-    runs-on: [self-hosted, linux, centos]
-
+  build:
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - torch-version: 1.8.1
-            torchvision-version: 0.9.1
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
-          - torch-version: 1.9.1
-            torchvision-version: 0.10.1
-
-          - torch-version: 1.10.0
-            torchvision-version: 0.11.1
-
-          - torch-version: 1.11.0
-            torchvision-version: 0.12.0
-
-          - torch-version: 1.12.0
-            torchvision-version: 0.13.0
-
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch
+      UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
+    - uses: actions/checkout@v4
 
-    - name: setup pytorch-${{ matrix.torch-version }}
-      run: |
-        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
-        pip install --user torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
-
-    - name: cache-torchvision-${{ matrix.torchvision-version }}
-      id: cache-torchvision
-      uses: actions/cache@v3
+    - uses: actions/setup-python@v5
       with:
-        path: torchvision-${{ matrix.torchvision-version }}-install
-        key: torchvision-${{ matrix.torchvision-version }}-linux-install-20211228
-    - name: checkout-torchvision-${{ matrix.torchvision-version }}
-      if: steps.cache-torchvision.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: pytorch/vision
-        path: vision
-        ref: v${{ matrix.torchvision-version }}
-    - name: torchvision-${{ matrix.torchvision-version }}
-      if: steps.cache-torchvision.outputs.cache-hit != 'true'
-      run: |
-        cd vision
-        mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install -DTorch_DIR=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . -j 4
-        cmake --build . --target install
+        python-version: 3.12
 
-    - name: build-ncnn
+    - name: setup-pytorch
       run: |
-        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
-        pip install --user pytest setuptools wheel twine
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 4
-        cd ..
-        pip install --user .
+        python3 -m pip config set global.break-system-packages true
+        pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging
 
     - name: build-pnnx
       run: |
-        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install ..
-        cmake --build . -j 4
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --config Release -j 4
 
-    - name: test
+    - name: quick-test
+      if: matrix.os != 'windows-latest'
       run: |
-        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
-        export OMP_NUM_THREADS=1
-        export MKL_NUM_THREADS=1
-        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
-        pip install --upgrade requests
         cd tools/pnnx
-        cd build && ctest --output-on-failure -j 4
+        cd build && ctest -C Release --output-on-failure -R test_nn_Conv

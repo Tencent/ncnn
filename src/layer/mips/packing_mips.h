@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Packing_mips : virtual public Packing
+class Packing_mips : public Packing
 {
 public:
     Packing_mips();

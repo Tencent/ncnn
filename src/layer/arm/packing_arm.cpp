@@ -481,6 +481,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 for (; j + 7 < w; j += 8)
                 {
                     // transpose 8x8
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                     asm volatile(
                         "ld1    {v0.8h}, [%0], #16      \n"
@@ -570,6 +571,42 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         "8"(outptr)
                         : "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
+#else  // NCNN_GNU_INLINE_ASM
+                    uint16x8_t _r0 = vld1q_u16(r0);
+                    uint16x8_t _r1 = vld1q_u16(r1);
+                    uint16x8_t _r2 = vld1q_u16(r2);
+                    uint16x8_t _r3 = vld1q_u16(r3);
+                    uint16x8_t _r4 = vld1q_u16(r4);
+                    uint16x8_t _r5 = vld1q_u16(r5);
+                    uint16x8_t _r6 = vld1q_u16(r6);
+                    uint16x8_t _r7 = vld1q_u16(r7);
+                    uint16x8x2_t _r04 = vzipq_u16(_r0, _r4);
+                    uint16x8x2_t _r15 = vzipq_u16(_r1, _r5);
+                    uint16x8x2_t _r26 = vzipq_u16(_r2, _r6);
+                    uint16x8x2_t _r37 = vzipq_u16(_r3, _r7);
+                    uint16x8x4_t _r0123;
+                    _r0123.val[0] = _r04.val[0];
+                    _r0123.val[1] = _r15.val[0];
+                    _r0123.val[2] = _r26.val[0];
+                    _r0123.val[3] = _r37.val[0];
+                    uint16x8x4_t _r4567;
+                    _r4567.val[0] = _r04.val[1];
+                    _r4567.val[1] = _r15.val[1];
+                    _r4567.val[2] = _r26.val[1];
+                    _r4567.val[3] = _r37.val[1];
+                    vst4q_u16(outptr, _r0123);
+                    vst4q_u16(outptr + 32, _r4567);
+
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    r4 += 8;
+                    r5 += 8;
+                    r6 += 8;
+                    r7 += 8;
+                    outptr += 64;
+#endif // NCNN_GNU_INLINE_ASM
                 }
 #endif
                 for (; j < w; j++)
@@ -608,6 +645,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 for (; j + 7 < w; j += 8)
                 {
                     // transpose 8x8
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                     asm volatile(
                         "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
@@ -697,6 +735,32 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         "8"(outptr7)
                         : "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
+#else  // NCNN_GNU_INLINE_ASM
+                    uint16x8x4_t _r0246 = vld4q_u16(r0);
+                    uint16x8x4_t _r1357 = vld4q_u16(r0 + 32);
+                    uint16x8x2_t _r04 = vuzpq_u16(_r0246.val[0], _r1357.val[0]);
+                    uint16x8x2_t _r15 = vuzpq_u16(_r0246.val[1], _r1357.val[1]);
+                    uint16x8x2_t _r26 = vuzpq_u16(_r0246.val[2], _r1357.val[2]);
+                    uint16x8x2_t _r37 = vuzpq_u16(_r0246.val[3], _r1357.val[3]);
+                    vst1q_u16(outptr0, _r04.val[0]);
+                    vst1q_u16(outptr1, _r15.val[0]);
+                    vst1q_u16(outptr2, _r26.val[0]);
+                    vst1q_u16(outptr3, _r37.val[0]);
+                    vst1q_u16(outptr4, _r04.val[1]);
+                    vst1q_u16(outptr5, _r15.val[1]);
+                    vst1q_u16(outptr6, _r26.val[1]);
+                    vst1q_u16(outptr7, _r37.val[1]);
+
+                    r0 += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+#endif // NCNN_GNU_INLINE_ASM
                 }
 #endif
                 for (; j < w; j++)
@@ -725,6 +789,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr = top_blob.row<unsigned short>(i);
 
                 int j = 0;
+#if NCNN_GNU_INLINE_ASM
 #if __ARM_NEON
                 for (; j + 1 < w; j += 2)
                 {
@@ -762,6 +827,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
                 }
 #endif
+#endif // NCNN_GNU_INLINE_ASM
                 for (; j < w; j++)
                 {
                     outptr[0] = r0[0];
@@ -790,6 +856,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr1 = top_blob.row<unsigned short>(i * 2 + 1);
 
                 int j = 0;
+#if NCNN_GNU_INLINE_ASM
 #if __ARM_NEON
                 for (; j + 1 < w; j += 2)
                 {
@@ -827,6 +894,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
                 }
 #endif
+#endif // NCNN_GNU_INLINE_ASM
                 for (; j < w; j++)
                 {
                     outptr0[0] = r0[0];
@@ -963,6 +1031,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 for (; i + 7 < size; i += 8)
                 {
                     // transpose 8x8
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                     asm volatile(
                         "ld1    {v0.8h}, [%0], #16      \n"
@@ -1052,6 +1121,42 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         "8"(outptr)
                         : "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
+#else  // NCNN_GNU_INLINE_ASM
+                    uint16x8_t _r0 = vld1q_u16(r0);
+                    uint16x8_t _r1 = vld1q_u16(r1);
+                    uint16x8_t _r2 = vld1q_u16(r2);
+                    uint16x8_t _r3 = vld1q_u16(r3);
+                    uint16x8_t _r4 = vld1q_u16(r4);
+                    uint16x8_t _r5 = vld1q_u16(r5);
+                    uint16x8_t _r6 = vld1q_u16(r6);
+                    uint16x8_t _r7 = vld1q_u16(r7);
+                    uint16x8x2_t _r04 = vzipq_u16(_r0, _r4);
+                    uint16x8x2_t _r15 = vzipq_u16(_r1, _r5);
+                    uint16x8x2_t _r26 = vzipq_u16(_r2, _r6);
+                    uint16x8x2_t _r37 = vzipq_u16(_r3, _r7);
+                    uint16x8x4_t _r0123;
+                    _r0123.val[0] = _r04.val[0];
+                    _r0123.val[1] = _r15.val[0];
+                    _r0123.val[2] = _r26.val[0];
+                    _r0123.val[3] = _r37.val[0];
+                    uint16x8x4_t _r4567;
+                    _r4567.val[0] = _r04.val[1];
+                    _r4567.val[1] = _r15.val[1];
+                    _r4567.val[2] = _r26.val[1];
+                    _r4567.val[3] = _r37.val[1];
+                    vst4q_u16(outptr, _r0123);
+                    vst4q_u16(outptr + 32, _r4567);
+
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    r4 += 8;
+                    r5 += 8;
+                    r6 += 8;
+                    r7 += 8;
+                    outptr += 64;
+#endif // NCNN_GNU_INLINE_ASM
                 }
 #endif
                 for (; i < size; i++)
@@ -1090,6 +1195,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 for (; i + 7 < size; i += 8)
                 {
                     // transpose 8x8
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                     asm volatile(
                         "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
@@ -1179,6 +1285,32 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         "8"(outptr7)
                         : "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
+#else  // NCNN_GNU_INLINE_ASM
+                    uint16x8x4_t _r0246 = vld4q_u16(r0);
+                    uint16x8x4_t _r1357 = vld4q_u16(r0 + 32);
+                    uint16x8x2_t _r04 = vuzpq_u16(_r0246.val[0], _r1357.val[0]);
+                    uint16x8x2_t _r15 = vuzpq_u16(_r0246.val[1], _r1357.val[1]);
+                    uint16x8x2_t _r26 = vuzpq_u16(_r0246.val[2], _r1357.val[2]);
+                    uint16x8x2_t _r37 = vuzpq_u16(_r0246.val[3], _r1357.val[3]);
+                    vst1q_u16(outptr0, _r04.val[0]);
+                    vst1q_u16(outptr1, _r15.val[0]);
+                    vst1q_u16(outptr2, _r26.val[0]);
+                    vst1q_u16(outptr3, _r37.val[0]);
+                    vst1q_u16(outptr4, _r04.val[1]);
+                    vst1q_u16(outptr5, _r15.val[1]);
+                    vst1q_u16(outptr6, _r26.val[1]);
+                    vst1q_u16(outptr7, _r37.val[1]);
+
+                    r0 += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+#endif // NCNN_GNU_INLINE_ASM
                 }
 #endif
                 for (; i < size; i++)
@@ -1207,6 +1339,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr = top_blob.channel(q);
 
                 int i = 0;
+#if NCNN_GNU_INLINE_ASM
 #if __ARM_NEON
                 for (; i + 1 < size; i += 2)
                 {
@@ -1244,6 +1377,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
                 }
 #endif
+#endif // NCNN_GNU_INLINE_ASM
                 for (; i < size; i++)
                 {
                     outptr[0] = r0[0];
@@ -1272,6 +1406,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr1 = top_blob.channel(q * 2 + 1);
 
                 int i = 0;
+#if NCNN_GNU_INLINE_ASM
 #if __ARM_NEON
                 for (; i + 1 < size; i += 2)
                 {
@@ -1309,6 +1444,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
                 }
 #endif
+#endif // NCNN_GNU_INLINE_ASM
                 for (; i < size; i++)
                 {
                     outptr0[0] = r0[0];

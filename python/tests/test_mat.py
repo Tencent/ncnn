@@ -211,10 +211,11 @@ def test_mat_dims4():
 
 def test_numpy():
     mat = ncnn.Mat(1)
-    array = np.array(mat)
+    array = mat.numpy()
     assert mat.dims == array.ndim and mat.w == array.shape[0]
     mat = ncnn.Mat(2, 3)
-    array = np.array(mat)
+    array = mat.numpy()
+    assert array.dtype == np.float32
     assert (
         mat.dims == array.ndim and mat.w == array.shape[1] and mat.h == array.shape[0]
     )
@@ -237,10 +238,10 @@ def test_numpy():
     )
 
     mat = ncnn.Mat(1, elemsize=1)
-    array = np.array(mat)
+    array = mat.numpy()
     assert array.dtype == np.int8
     mat = ncnn.Mat(1, elemsize=2)
-    array = np.array(mat)
+    array = mat.numpy()
     assert array.dtype == np.float16
     # pybind11 def_buffer throw bug
     # with pytest.raises(RuntimeError) as execinfo:
@@ -251,7 +252,7 @@ def test_numpy():
     #     )
     assert array.dtype == np.float16
     mat = ncnn.Mat(1, elemsize=4)
-    array = np.array(mat)
+    array = mat.numpy()
     assert array.dtype == np.float32
 
     mat = np.random.randint(0, 128, size=(12,)).astype(np.uint8)
@@ -279,12 +280,25 @@ def test_numpy():
     array = np.array(mat)
     assert (mat == array).all()
 
+    array = np.array([1, 2, 3], dtype=np.int32)
+    mat = ncnn.Mat(array)
+    array2 = mat.numpy(format='i')
+    assert array2.dtype == np.int32
+    array[0] = 10
+    assert array2[0] == 10
+
+    array = np.array([1, 2, 3], dtype=np.float32)
+    mat = ncnn.Mat(array)
+    array2 = mat.numpy(format='f')
+    assert array2.dtype == np.float32
+    array2[0] = 100
+    assert array[0] == 100
 
 def test_fill():
     mat = ncnn.Mat(1)
     mat.fill(1.0)
     array = np.array(mat)
-    assert np.abs(array[0] - 1.0) < sys.float_info.min
+    assert np.abs(array[0] - 1.0) < np.finfo(np.float32).eps
 
 
 def test_clone():

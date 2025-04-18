@@ -45,7 +45,7 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& shape = captured_params.at("shape").ai;
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int batch_index = op->outputs[0]->params["__batch_index"].i;
 
         if (batch_index != 0 && batch_index != 233)
         {

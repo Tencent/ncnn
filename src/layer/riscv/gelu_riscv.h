@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class GELU_riscv : virtual public GELU
+class GELU_riscv : public GELU
 {
 public:
     GELU_riscv();

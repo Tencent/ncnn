@@ -41,26 +41,81 @@ int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
         out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     }
 
-    Mat weight_data_transposed(weight_data.w);
+    if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
     {
-        float* pt = weight_data_transposed;
-        const float* p = weight_data;
+        const int maxk = kernel_w * kernel_h;
 
-        for (int i = 0; i < num_input * num_output; i++)
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+
+        ncnn::ParamDict pd;
+        pd.set(2, 1);                 // transA
+        pd.set(3, 0);                 // transB
+        pd.set(4, 1);                 // constantA
+        pd.set(5, 0);                 // constantB
+        pd.set(6, 1);                 // constantC
+        pd.set(7, maxk * num_output); // M = maxk*num_output
+        pd.set(8, 0);                 // N = size
+        pd.set(9, num_input);         // K = inch
+        pd.set(10, -1);               // constant_broadcast_type_C = null
+        pd.set(11, 0);                // output_N1M
+        pd.set(12, out_elempack);
+
+        gemm->load_param(pd);
+
+        // maxk-inch-outch to pa-maxk-outch/pa-inch
+        Mat tmp;
         {
-            for (int k = 0; k < maxk; k++)
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            tmp.create(maxk * num_output, num_input);
+
+            for (int p = 0; p < num_input; p += 1)
             {
-                pt[maxk - 1 - k] = p[k];
+                float* g00 = tmp.row(p);
+
+                for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < out_elempack; i++)
+                        {
+                            const float* k00 = weight_data_r2.channel(q + i).row(p);
+                            g00[0] = k00[k];
+                            g00++;
+                        }
+                    }
+                }
             }
-
-            p += maxk;
-            pt += maxk;
         }
-    }
 
-    // src = kw-kh-inch-outch
-    // dst = pb-pa-kw-kh-inch/pa-outch/pb
+        ncnn::Mat weights[1];
+        weights[0] = tmp;
+
+        gemm->load_model(ModelBinFromMatArray(weights));
+
+        gemm->create_pipeline(opt);
+    }
+    else
     {
+        Mat weight_data_transposed(weight_data.w);
+        {
+            float* pt = weight_data_transposed;
+            const float* p = weight_data;
+
+            for (int i = 0; i < num_input * num_output; i++)
+            {
+                for (int k = 0; k < maxk; k++)
+                {
+                    pt[maxk - 1 - k] = p[k];
+                }
+
+                p += maxk;
+                pt += maxk;
+            }
+        }
+
+        // src = kw-kh-inch-outch
+        // dst = pb-pa-kw-kh-inch/pa-outch/pb
         Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
         weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
@@ -100,9 +155,7 @@ int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
     ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -475,27 +528,175 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
+    int out_channels = num_output / out_elempack;
+
     Mat top_blob_bordered;
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+        top_blob_bordered.create(outw, outh, out_channels, out_elemsize, out_elempack, opt.workspace_allocator);
     }
     else
     {
         top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob_bordered.create(outw, outh, out_channels, out_elemsize, out_elempack, opt.blob_allocator);
     }
     if (top_blob_bordered.empty())
         return -100;
 
     const int maxk = kernel_w * kernel_h;
 
-    if (elempack == 8 && out_elempack == 8)
+    if (opt.use_sgemm_convolution)
     {
+        // sgemm
+        Mat bottom_blob_2 = bottom_blob;
+        {
+            bottom_blob_2.w = bottom_blob.w * bottom_blob.h;
+            bottom_blob_2.h = 1;
+        }
+        Mat top_col2im;
+        Option opt_b = opt;
+        opt_b.blob_allocator = top_blob_bordered.allocator;
+        int ret = gemm->forward(bottom_blob_2, top_col2im, opt_b);
+        if (ret != 0)
+            return ret;
+
+        {
+            // col2im
+            const int gap = (outw * stride_h - w * stride_w) * out_elempack;
+
+            if (out_elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < out_channels; p++)
+                {
+                    const __fp16* sptr = top_col2im.row<const __fp16>(p * maxk);
+                    Mat outm = top_blob_bordered.channel(p);
+
+                    if (bias_data.empty())
+                    {
+                        outm.fill(vdupq_n_f16(0.f));
+                    }
+                    else
+                    {
+                        outm.fill(vld1q_f16((const __fp16*)bias_data_fp16 + p * 8));
+                    }
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            __fp16* ptr = outm.row<__fp16>(dilation_h * u) + dilation_w * v * 8;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    float16x8_t _val = vld1q_f16(ptr);
+                                    float16x8_t _s = vld1q_f16(sptr);
+                                    _val = vaddq_f16(_val, _s);
+                                    vst1q_f16(ptr, _val);
+
+                                    ptr += stride_w * 8;
+                                    sptr += 8;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (out_elempack == 4)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < out_channels; p++)
+                {
+                    const __fp16* sptr = top_col2im.row<const __fp16>(p * maxk);
+                    Mat outm = top_blob_bordered.channel(p);
+
+                    if (bias_data.empty())
+                    {
+                        outm.fill(vdup_n_f16(0.f));
+                    }
+                    else
+                    {
+                        outm.fill(vld1_f16((const __fp16*)bias_data_fp16 + p * 4));
+                    }
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            __fp16* ptr = outm.row<__fp16>(dilation_h * u) + dilation_w * v * 4;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    float16x4_t _val = vld1_f16(ptr);
+                                    float16x4_t _s = vld1_f16(sptr);
+                                    _val = vadd_f16(_val, _s);
+                                    vst1_f16(ptr, _val);
+
+                                    ptr += stride_w * 4;
+                                    sptr += 4;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (out_elempack == 1)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < out_channels; p++)
+                {
+                    const __fp16* sptr = top_col2im.row<const __fp16>(p * maxk);
+                    Mat outm = top_blob_bordered.channel(p);
+
+                    const __fp16 bias = bias_data_fp16.empty() ? 0.f : ((const __fp16*)bias_data_fp16)[p];
+                    outm.fill(bias);
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            __fp16* ptr = outm.row<__fp16>(dilation_h * u) + dilation_w * v;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    ptr[0] += sptr[0];
+
+                                    ptr += stride_w;
+                                    sptr += 1;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob_bordered, opt);
+        }
+    }
+    else
+    {
+        if (elempack == 8 && out_elempack == 8)
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < out_channels; p++)
             {
                 __fp16* outptr = top_blob_bordered.channel(p);
 
@@ -566,7 +767,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             kptr += maxk * 64;
                         }
 
-                        _sum = activation_ps(_sum, activation_type, activation_params);
+                        _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                         vst1q_f16(outptr + j * 8, _sum);
                     }
@@ -575,14 +776,12 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-    }
 
-    if (elempack == 1 && out_elempack == 8)
-    {
+        if (elempack == 1 && out_elempack == 8)
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < out_channels; p++)
             {
                 __fp16* outptr = top_blob_bordered.channel(p);
 
@@ -639,7 +838,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             kptr += maxk * 8;
                         }
 
-                        _sum = activation_ps(_sum, activation_type, activation_params);
+                        _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                         vst1q_f16(outptr + j * 8, _sum);
                     }
@@ -648,14 +847,12 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-    }
 
-    if (elempack == 4 && out_elempack == 8)
-    {
+        if (elempack == 4 && out_elempack == 8)
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < out_channels; p++)
             {
                 __fp16* outptr = top_blob_bordered.channel(p);
 
@@ -718,7 +915,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             kptr += maxk * 32;
                         }
 
-                        _sum = activation_ps(_sum, activation_type, activation_params);
+                        _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                         vst1q_f16(outptr + j * 8, _sum);
                     }
@@ -727,14 +924,12 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-    }
 
-    if (elempack == 8 && out_elempack == 1)
-    {
+        if (elempack == 8 && out_elempack == 1)
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < out_channels; p++)
             {
                 __fp16* outptr = top_blob_bordered.channel(p);
 
@@ -794,7 +989,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             kptr += maxk * 8;
                         }
 
-                        sum = activation_ss(sum, activation_type, activation_params);
+                        sum = activation_ss_f16(sum, activation_type, activation_params);
 
                         outptr[j] = (__fp16)sum;
                     }
@@ -803,14 +998,12 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-    }
 
-    if (elempack == 8 && out_elempack == 4)
-    {
+        if (elempack == 8 && out_elempack == 4)
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < out_channels; p++)
             {
                 __fp16* outptr = top_blob_bordered.channel(p);
 
@@ -881,7 +1074,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             kptr += maxk * 32;
                         }
 
-                        _sum = activation_ps(_sum, activation_type, activation_params);
+                        _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                         vst1_f16(outptr + j * 4, _sum);
                     }
@@ -890,14 +1083,12 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-    }
 
-    if (elempack == 4 && out_elempack == 4)
-    {
+        if (elempack == 4 && out_elempack == 4)
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < out_channels; p++)
             {
                 __fp16* outptr = top_blob_bordered.channel(p);
 
@@ -960,7 +1151,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             kptr += maxk * 16;
                         }
 
-                        _sum = activation_ps(_sum, activation_type, activation_params);
+                        _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                         vst1_f16(outptr + j * 4, _sum);
                     }
@@ -969,14 +1160,12 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-    }
 
-    if (elempack == 1 && out_elempack == 4)
-    {
+        if (elempack == 1 && out_elempack == 4)
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < out_channels; p++)
             {
                 __fp16* outptr = top_blob_bordered.channel(p);
 
@@ -1033,7 +1222,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             kptr += maxk * 4;
                         }
 
-                        _sum = activation_ps(_sum, activation_type, activation_params);
+                        _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                         vst1_f16(outptr + j * 4, _sum);
                     }
@@ -1042,14 +1231,12 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-    }
 
-    if (elempack == 4 && out_elempack == 1)
-    {
+        if (elempack == 4 && out_elempack == 1)
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < out_channels; p++)
             {
                 __fp16* outptr = top_blob_bordered.channel(p);
 
@@ -1108,7 +1295,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             kptr += maxk * 4;
                         }
 
-                        sum = activation_ss(sum, activation_type, activation_params);
+                        sum = activation_ss_f16(sum, activation_type, activation_params);
 
                         outptr[j] = (__fp16)sum;
                     }
@@ -1117,86 +1304,86 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-    }
 
-    if (elempack == 1 && out_elempack == 1)
-    {
-        if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        if (elempack == 1 && out_elempack == 1)
         {
-            deconv4x4s2_fp16sa_neon(bottom_blob, top_blob_bordered, weight_data_tm, bias_data_fp16, opt);
-
-            if (activation)
+            if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
             {
-                activation->forward_inplace(top_blob_bordered, opt);
-            }
-        }
-        else
-        {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                __fp16* outptr = top_blob_bordered.channel(p);
+                deconv4x4s2_fp16sa_neon(bottom_blob, top_blob_bordered, weight_data_tm, bias_data_fp16, opt);
 
-                for (int i = 0; i < outh; i++)
+                if (activation)
                 {
-                    for (int j = 0; j < outw; j++)
+                    activation->forward_inplace(top_blob_bordered, opt);
+                }
+            }
+            else
+            {
+                // num_output
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < num_output; p++)
+                {
+                    __fp16* outptr = top_blob_bordered.channel(p);
+
+                    for (int i = 0; i < outh; i++)
                     {
-                        float sum = 0.f;
-
-                        if (bias_term)
+                        for (int j = 0; j < outw; j++)
                         {
-                            sum = bias_data[p];
-                        }
+                            float sum = 0.f;
 
-                        const __fp16* kptr = weight_data_tm.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob.channel(q);
-
-                            for (int y = 0; y < kernel_h; y++)
+                            if (bias_term)
                             {
-                                int sys = (i + y * dilation_h - (kernel_extent_h - 1));
-                                if (sys < 0 || sys % stride_h != 0)
-                                    continue;
-
-                                int sy = sys / stride_h;
-                                if (sy >= h)
-                                    continue;
-
-                                const __fp16* sptr = m.row<const __fp16>(sy);
-
-                                for (int x = 0; x < kernel_w; x++)
-                                {
-                                    int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
-                                    if (sxs < 0 || sxs % stride_w != 0)
-                                        continue;
-
-                                    int sx = sxs / stride_w;
-                                    if (sx >= w)
-                                        continue;
-
-                                    __fp16 val = sptr[sx];
-
-                                    int k = y * kernel_w + x;
-
-                                    __fp16 w = kptr[k];
-
-                                    sum += val * w;
-                                }
+                                sum = bias_data[p];
                             }
 
-                            kptr += maxk;
+                            const __fp16* kptr = weight_data_tm.channel(p);
+
+                            // channels
+                            for (int q = 0; q < channels; q++)
+                            {
+                                const Mat m = bottom_blob.channel(q);
+
+                                for (int y = 0; y < kernel_h; y++)
+                                {
+                                    int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                                    if (sys < 0 || sys % stride_h != 0)
+                                        continue;
+
+                                    int sy = sys / stride_h;
+                                    if (sy >= h)
+                                        continue;
+
+                                    const __fp16* sptr = m.row<const __fp16>(sy);
+
+                                    for (int x = 0; x < kernel_w; x++)
+                                    {
+                                        int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                                        if (sxs < 0 || sxs % stride_w != 0)
+                                            continue;
+
+                                        int sx = sxs / stride_w;
+                                        if (sx >= w)
+                                            continue;
+
+                                        __fp16 val = sptr[sx];
+
+                                        int k = y * kernel_w + x;
+
+                                        __fp16 w = kptr[k];
+
+                                        sum += val * w;
+                                    }
+                                }
+
+                                kptr += maxk;
+                            }
+
+                            sum = activation_ss_f16(sum, activation_type, activation_params);
+
+                            outptr[j] = (__fp16)sum;
                         }
 
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = (__fp16)sum;
+                        outptr += outw;
                     }
-
-                    outptr += outw;
                 }
             }
         }

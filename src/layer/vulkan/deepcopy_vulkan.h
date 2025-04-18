@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class DeepCopy_vulkan : virtual public DeepCopy
+class DeepCopy_vulkan : public DeepCopy
 {
 public:
     DeepCopy_vulkan();

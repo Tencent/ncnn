@@ -215,12 +215,13 @@ static void conv3x3s1_winograd43_transform_kernel_rvv(const Mat& kernel, Mat& ke
     Mat kernel_tm(6 * 6, inch, outch);
 
     // G
+    const float sq2 = 1.41421356237f;
     const float ktm[6][3] = {
-        {1.0f / 4, 0.0f, 0.0f},
-        {-1.0f / 6, -1.0f / 6, -1.0f / 6},
-        {-1.0f / 6, 1.0f / 6, -1.0f / 6},
-        {1.0f / 24, 1.0f / 12, 1.0f / 6},
-        {1.0f / 24, -1.0f / 12, 1.0f / 6},
+        {1.0f, 0.0f, 0.0f},
+        {-2.0f / 3, -sq2 / 3, -1.0f / 3},
+        {-2.0f / 3, sq2 / 3, -1.0f / 3},
+        {1.0f / 6, sq2 / 6, 1.0f / 3},
+        {1.0f / 6, -sq2 / 6, 1.0f / 3},
         {0.0f, 0.0f, 1.0f}
     };
 

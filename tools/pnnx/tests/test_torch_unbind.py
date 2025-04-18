@@ -24,7 +24,7 @@ class Model(nn.Module):
         x0, x1, x2 = torch.unbind(x, dim=1)
         y0, y1, y2, y3, y4, y5, y6, y7, y8 = torch.unbind(y, dim=2)
         z0, z1, z2, z3 = torch.unbind(z, dim=0)
-        return x0, x1, y0, y1, y2, y3, y4, y5, y6, y7, y8, z0, z1, z2, z3
+        return x0, x1, x2, y0, y1, y2, y3, y4, y5, y6, y7, y8, z0, z1, z2, z3
 
 def test():
     net = Model()

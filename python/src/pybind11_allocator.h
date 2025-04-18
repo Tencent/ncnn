@@ -25,11 +25,11 @@ public:
     using Base::Base; // Inherit constructors
     void* fastMalloc(size_t size) override
     {
-        PYBIND11_OVERLOAD_PURE(void*, Base, fastMalloc, size);
+        PYBIND11_OVERRIDE_PURE(void*, Base, fastMalloc, size);
     }
     void fastFree(void* ptr) override
     {
-        PYBIND11_OVERLOAD_PURE(void, Base, fastFree, ptr);
+        PYBIND11_OVERRIDE_PURE(void, Base, fastFree, ptr);
     }
 };
 
@@ -40,11 +40,11 @@ public:
     using PyAllocator<Other>::PyAllocator;
     void* fastMalloc(size_t size) override
     {
-        PYBIND11_OVERLOAD(void*, Other, fastMalloc, size);
+        PYBIND11_OVERRIDE(void*, Other, fastMalloc, size);
     }
     void fastFree(void* ptr) override
     {
-        PYBIND11_OVERLOAD(void, Other, fastFree, ptr);
+        PYBIND11_OVERRIDE(void, Other, fastFree, ptr);
     }
 };
 
@@ -56,23 +56,23 @@ public:
     using Base::Base; // Inherit constructors
     void clear() override
     {
-        PYBIND11_OVERLOAD(void, Base, clear, );
+        PYBIND11_OVERRIDE(void, Base, clear, );
     }
     ncnn::VkBufferMemory* fastMalloc(size_t size) override
     {
-        PYBIND11_OVERLOAD_PURE(ncnn::VkBufferMemory*, Base, fastMalloc, size);
+        PYBIND11_OVERRIDE_PURE(ncnn::VkBufferMemory*, Base, fastMalloc, size);
     }
     void fastFree(ncnn::VkBufferMemory* ptr) override
     {
-        PYBIND11_OVERLOAD_PURE(void, Base, fastFree, ptr);
+        PYBIND11_OVERRIDE_PURE(void, Base, fastFree, ptr);
     }
     int flush(ncnn::VkBufferMemory* ptr) override
     {
-        PYBIND11_OVERLOAD(int, Base, flush, ptr);
+        PYBIND11_OVERRIDE(int, Base, flush, ptr);
     }
     int invalidate(ncnn::VkBufferMemory* ptr) override
     {
-        PYBIND11_OVERLOAD(int, Base, invalidate, ptr);
+        PYBIND11_OVERRIDE(int, Base, invalidate, ptr);
     }
 };
 
@@ -83,15 +83,15 @@ public:
     using PyVkAllocator<Other>::PyVkAllocator;
     void clear() override
     {
-        PYBIND11_OVERLOAD(void, Other, clear, );
+        PYBIND11_OVERRIDE(void, Other, clear, );
     }
     ncnn::VkBufferMemory* fastMalloc(size_t size) override
     {
-        PYBIND11_OVERLOAD(ncnn::VkBufferMemory*, Other, fastMalloc, size);
+        PYBIND11_OVERRIDE(ncnn::VkBufferMemory*, Other, fastMalloc, size);
     }
     void fastFree(ncnn::VkBufferMemory* ptr) override
     {
-        PYBIND11_OVERLOAD(void, Other, fastFree, ptr);
+        PYBIND11_OVERRIDE(void, Other, fastFree, ptr);
     }
 };
 
@@ -102,17 +102,15 @@ public:
     using Base::Base; // Inherit constructors
     void clear() override
     {
-        PYBIND11_OVERLOAD(void, Base, clear, );
+        PYBIND11_OVERRIDE(void, Base, clear, );
     }
-    ncnn::VkImageMemory* fastMalloc(int width, int height,
-                                    VkFormat format) override
+    ncnn::VkImageMemory* fastMalloc(int width, int height, VkFormat format) override
     {
-        PYBIND11_OVERLOAD_PURE(ncnn::VkImageMemory*, Base, fastMalloc, width,
-                               height, format);
+        PYBIND11_OVERRIDE_PURE(ncnn::VkImageMemory*, Base, fastMalloc, width, height, format);
     }
     void fastFree(ncnn::VkImageMemory* ptr) override
     {
-        PYBIND11_OVERLOAD_PURE(void, Base, fastFree, ptr);
+        PYBIND11_OVERRIDE_PURE(void, Base, fastFree, ptr);
     }
 };
 
@@ -124,12 +122,11 @@ public:
 //    ncnn::VkImageMemory* fastMalloc(int width, int height,
 //                                    VkFormat format) override
 //    {
-//        PYBIND11_OVERLOAD(ncnn::VkImageMemory*, Other, fastMalloc, width, height,
-//                          format);
+//        PYBIND11_OVERRIDE(ncnn::VkImageMemory*, Other, fastMalloc, width, height, format);
 //    }
 //    void fastFree(ncnn::VkImageMemory* ptr) override
 //    {
-//        PYBIND11_OVERLOAD(void, Other, fastFree, ptr);
+//        PYBIND11_OVERRIDE(void, Other, fastFree, ptr);
 //    }
 //};
 #endif // NCNN_VULKAN

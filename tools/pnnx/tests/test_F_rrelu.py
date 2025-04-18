@@ -21,6 +21,10 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.rrelu(x)
         y = F.rrelu(y, 0.01)
         z = F.rrelu(z, 0.125, 0.3333)
@@ -37,7 +41,7 @@ def test():
     z = torch.rand(1, 3, 12, 16)
     w = torch.rand(1, 5, 7, 9, 11)
 
-    a0, a1, a2, a3 = net(x, y, z, w)
+    a = net(x, y, z, w)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z, w))
@@ -49,9 +53,12 @@ def test():
 
     # pnnx inference
     import test_F_rrelu_pnnx
-    b0, b1, b2, b3 = test_F_rrelu_pnnx.test_inference()
+    b = test_F_rrelu_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

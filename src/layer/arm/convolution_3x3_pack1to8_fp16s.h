@@ -68,8 +68,8 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "sub    %0, %0, #64                 \n"
 
                         "prfm   pldl1keep, [%1, #128]       \n"
-                        "ld1    {v0.8h}, [%1], #16          \n" // r0
-                        "ld1    {v1.4h}, [%1]               \n"
+                        "ldr    q0, [%1], #16               \n" // r0
+                        "ldr    s1, [%1]                    \n"
 
                         "fmla   v24.8h, %8.8h, v0.h[0]      \n"
                         "fmla   v25.8h, %8.8h, v0.h[1]      \n"
@@ -99,8 +99,8 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %10.8h, v1.h[1]     \n"
 
                         "prfm   pldl1keep, [%2, #128]       \n"
-                        "ld1    {v2.8h}, [%2], #16          \n" // r1
-                        "ld1    {v3.4h}, [%2]               \n"
+                        "ldr    q2, [%2], #16               \n" // r1
+                        "ldr    s3, [%2]                    \n"
 
                         "fmla   v24.8h, %11.8h, v2.h[0]     \n"
                         "fmla   v25.8h, %11.8h, v2.h[1]     \n"
@@ -130,8 +130,8 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %13.8h, v3.h[1]     \n"
 
                         "prfm   pldl1keep, [%3, #128]       \n"
-                        "ld1    {v4.8h}, [%3], #16          \n" // r2
-                        "ld1    {v5.4h}, [%3]               \n"
+                        "ldr    q4, [%3], #16               \n" // r2
+                        "ldr    s5, [%3]                    \n"
 
                         "fmla   v24.8h, %14.8h, v4.h[0]     \n"
                         "fmla   v25.8h, %14.8h, v4.h[1]     \n"
@@ -189,7 +189,7 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0] \n" // sum0 sum1 sum2 sum3
 
                         "prfm   pldl1keep, [%1, #128]       \n"
-                        "ld1    {v0.8h}, [%1]               \n" // r0
+                        "ldr    q0, [%1]                    \n" // r0
 
                         "fmla   v28.8h, %8.8h, v0.h[0]      \n"
                         "fmla   v29.8h, %8.8h, v0.h[1]      \n"
@@ -207,7 +207,7 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %10.8h, v0.h[5]     \n"
 
                         "prfm   pldl1keep, [%2, #128]       \n"
-                        "ld1    {v1.8h}, [%2]               \n" // r1
+                        "ldr    q1, [%2]                    \n" // r1
 
                         "fmla   v28.8h, %11.8h, v1.h[0]     \n"
                         "fmla   v29.8h, %11.8h, v1.h[1]     \n"
@@ -225,7 +225,7 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %13.8h, v1.h[5]     \n"
 
                         "prfm   pldl1keep, [%3, #128]       \n"
-                        "ld1    {v2.8h}, [%3]               \n" // r2
+                        "ldr    q2, [%3]                    \n" // r2
 
                         "fmla   v28.8h, %14.8h, v2.h[0]     \n"
                         "fmla   v29.8h, %14.8h, v2.h[1]     \n"
@@ -274,7 +274,7 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "ld1    {v30.8h, v31.8h}, [%0]      \n" // sum0 sum1
 
                         "prfm   pldl1keep, [%1, #64]        \n"
-                        "ld1    {v0.4h}, [%1]               \n" // r0
+                        "ldr    d0, [%1]                    \n" // r0
 
                         "fmla   v30.8h, %8.8h, v0.h[0]      \n"
                         "fmla   v31.8h, %8.8h, v0.h[1]      \n"
@@ -284,7 +284,7 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %10.8h, v0.h[3]     \n"
 
                         "prfm   pldl1keep, [%2, #64]        \n"
-                        "ld1    {v1.4h}, [%2]               \n" // r1
+                        "ldr    d1, [%2]                    \n" // r1
 
                         "fmla   v30.8h, %11.8h, v1.h[0]     \n"
                         "fmla   v31.8h, %11.8h, v1.h[1]     \n"
@@ -294,7 +294,7 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %13.8h, v1.h[3]     \n"
 
                         "prfm   pldl1keep, [%3, #64]        \n"
-                        "ld1    {v2.4h}, [%3]               \n" // r2
+                        "ldr    d2, [%3]                    \n" // r2
 
                         "fmla   v30.8h, %14.8h, v2.h[0]     \n"
                         "fmla   v31.8h, %14.8h, v2.h[1]     \n"
@@ -332,24 +332,24 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]       \n"
-                        "ld1    {v30.8h}, [%0]              \n" // sum0
+                        "ldr    q30, [%0]                   \n" // sum0
 
                         "prfm   pldl1keep, [%1, #64]        \n"
-                        "ld1    {v0.4h}, [%1]               \n" // r0
+                        "ldr    d0, [%1]                    \n" // r0
 
                         "fmla   v30.8h, %8.8h, v0.h[0]      \n"
                         "fmla   v30.8h, %9.8h, v0.h[1]      \n"
                         "fmla   v30.8h, %10.8h, v0.h[2]     \n"
 
                         "prfm   pldl1keep, [%2, #64]        \n"
-                        "ld1    {v1.4h}, [%2]               \n" // r1
+                        "ldr    d1, [%2]                    \n" // r1
 
                         "fmla   v30.8h, %11.8h, v1.h[0]     \n"
                         "fmla   v30.8h, %12.8h, v1.h[1]     \n"
                         "fmla   v30.8h, %13.8h, v1.h[2]     \n"
 
                         "prfm   pldl1keep, [%3, #64]        \n"
-                        "ld1    {v2.4h}, [%3]               \n" // r2
+                        "ldr    d2, [%3]                    \n" // r2
 
                         "fmla   v30.8h, %14.8h, v2.h[0]     \n"
                         "fmla   v30.8h, %15.8h, v2.h[1]     \n"
@@ -359,7 +359,7 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "add    %2, %2, #2                  \n"
                         "add    %3, %3, #2                  \n"
 
-                        "st1    {v30.8h}, [%0], #16         \n"
+                        "str    q30, [%0], #16              \n"
 
                         : "=r"(outptr0), // %0
                         "=r"(r0),      // %1
@@ -445,8 +445,8 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0] \n" // sum0 sum1 sum2 sum3
 
                         "prfm   pldl1keep, [%1, #128]       \n"
-                        "ld1    {v0.8h}, [%1], #16          \n" // r0
-                        "ld1    {v1.h}[0], [%1]             \n"
+                        "ldr    q0, [%1], #16               \n" // r0
+                        "ldr    h1, [%1]                    \n"
 
                         "fmla   v28.8h, %8.8h, v0.h[0]      \n"
                         "fmla   v29.8h, %8.8h, v0.h[2]      \n"
@@ -464,8 +464,8 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %10.8h, v1.h[0]     \n"
 
                         "prfm   pldl1keep, [%2, #128]       \n"
-                        "ld1    {v2.8h}, [%2], #16          \n" // r1
-                        "ld1    {v3.h}[0], [%2]             \n"
+                        "ldr    q2, [%2], #16               \n" // r1
+                        "ldr    h3, [%2]                    \n"
 
                         "fmla   v28.8h, %11.8h, v2.h[0]     \n"
                         "fmla   v29.8h, %11.8h, v2.h[2]     \n"
@@ -483,8 +483,8 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %13.8h, v3.h[0]     \n"
 
                         "prfm   pldl1keep, [%3, #128]       \n"
-                        "ld1    {v4.8h}, [%3], #16          \n" // r2
-                        "ld1    {v5.h}[0], [%3]             \n"
+                        "ldr    q4, [%3], #16               \n" // r2
+                        "ldr    h5, [%3]                    \n"
 
                         "fmla   v28.8h, %14.8h, v4.h[0]     \n"
                         "fmla   v29.8h, %14.8h, v4.h[2]     \n"
@@ -529,8 +529,8 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "ld1    {v30.8h, v31.8h}, [%0]      \n" // sum0 sum1
 
                         "prfm   pldl1keep, [%1, #64]        \n"
-                        "ld1    {v0.4h}, [%1], #8           \n" // r0
-                        "ld1    {v1.h}[0], [%1]             \n"
+                        "ldr    d0, [%1], #8                \n" // r0
+                        "ldr    h1, [%1]                    \n"
 
                         "fmla   v30.8h, %8.8h, v0.h[0]      \n"
                         "fmla   v31.8h, %8.8h, v0.h[2]      \n"
@@ -540,8 +540,8 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %10.8h, v1.h[0]     \n"
 
                         "prfm   pldl1keep, [%2, #64]        \n"
-                        "ld1    {v2.4h}, [%2], #8           \n" // r1
-                        "ld1    {v3.h}[0], [%2]             \n"
+                        "ldr    d2, [%2], #8                \n" // r1
+                        "ldr    h3, [%2]                    \n"
 
                         "fmla   v30.8h, %11.8h, v2.h[0]     \n"
                         "fmla   v31.8h, %11.8h, v2.h[2]     \n"
@@ -551,8 +551,8 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "fmla   v31.8h, %13.8h, v3.h[0]     \n"
 
                         "prfm   pldl1keep, [%3, #64]        \n"
-                        "ld1    {v4.4h}, [%3], #8           \n" // r2
-                        "ld1    {v5.h}[0], [%3]             \n"
+                        "ldr    d4, [%3], #8                \n" // r2
+                        "ldr    h5, [%3]                    \n"
 
                         "fmla   v30.8h, %14.8h, v4.h[0]     \n"
                         "fmla   v31.8h, %14.8h, v4.h[2]     \n"
@@ -586,24 +586,24 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]       \n"
-                        "ld1    {v30.8h}, [%0]              \n" // sum0
+                        "ldr    q30, [%0]                   \n" // sum0
 
                         "prfm   pldl1keep, [%1, #64]        \n"
-                        "ld1    {v0.4h}, [%1]               \n" // r0
+                        "ldr    d0, [%1]                    \n" // r0
 
                         "fmla   v30.8h, %8.8h, v0.h[0]      \n"
                         "fmla   v30.8h, %9.8h, v0.h[1]      \n"
                         "fmla   v30.8h, %10.8h, v0.h[2]     \n"
 
                         "prfm   pldl1keep, [%2, #64]        \n"
-                        "ld1    {v1.4h}, [%2]               \n" // r1
+                        "ldr    d1, [%2]                    \n" // r1
 
                         "fmla   v30.8h, %11.8h, v1.h[0]     \n"
                         "fmla   v30.8h, %12.8h, v1.h[1]     \n"
                         "fmla   v30.8h, %13.8h, v1.h[2]     \n"
 
                         "prfm   pldl1keep, [%3, #64]        \n"
-                        "ld1    {v2.4h}, [%3]               \n" // r2
+                        "ldr    d2, [%3]                    \n" // r2
 
                         "fmla   v30.8h, %14.8h, v2.h[0]     \n"
                         "fmla   v30.8h, %15.8h, v2.h[1]     \n"
@@ -613,7 +613,7 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "add    %2, %2, #4                  \n"
                         "add    %3, %3, #4                  \n"
 
-                        "st1    {v30.8h}, [%0], #16         \n"
+                        "str    q30, [%0], #16              \n"
 
                         : "=r"(outptr0), // %0
                         "=r"(r0),      // %1

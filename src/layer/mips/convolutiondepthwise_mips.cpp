@@ -84,9 +84,7 @@ int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
         }
 
         if (opt.lightmode)
-        {
             weight_data.release();
-        }
 
         return 0;
     }
@@ -95,9 +93,7 @@ int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
     create_group_ops(opt);
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -125,7 +121,7 @@ int ConvolutionDepthWise_mips::create_group_ops(const Option& opt)
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+        ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -537,7 +533,7 @@ int ConvolutionDepthWise_mips::forward(const std::vector<Mat>& bottom_blobs, std
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::ConvolutionDepthWise);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::ConvolutionDepthWise);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -606,6 +602,9 @@ int ConvolutionDepthWise_mips::create_pipeline_int8_mips(const Option& opt)
             weight_data_tm = weight_data;
         }
 
+        if (opt.lightmode)
+            weight_data.release();
+
         return 0;
     }
 
@@ -613,9 +612,7 @@ int ConvolutionDepthWise_mips::create_pipeline_int8_mips(const Option& opt)
     create_group_ops(opt);
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -943,7 +940,7 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
         const ncnn::Layer* op = group_ops[g];
 
         Option opt_g = opt;
-        opt_g.blob_allocator = top_blob.allocator;
+        opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
         op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);

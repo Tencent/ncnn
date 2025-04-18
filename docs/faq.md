@@ -45,29 +45,15 @@
 
    set(ncnn_DIR {ncnnConfig.cmake所在目录})
 
-- ## 找不到 Vulkan, 
-
-   cmake版本 3.10，否则没有带 FindVulkan.cmake
-
-   android-api >= 24
-
-   macos 要先执行安装脚本
-
-- ## 如何安装 vulkan sdk
-
 - ## 找不到库（需要根据系统/编译器指定）
 
    undefined reference to __kmpc_for_static_init_4 __kmpc_for_static_fini __kmpc_fork_call ...
 
    需要链接openmp库 
 
-   undefined reference to vkEnumerateInstanceExtensionProperties vkGetInstanceProcAddr vkQueueSubmit ...
-
-   需要 vulkan-1.lib
-
    undefined reference to glslang::InitializeProcess() glslang::TShader::TShader(EShLanguage) ...
 
-   需要 glslang.lib OGLCompiler.lib SPIRV.lib OSDependent.lib
+   需要 glslang.lib glslang-default-resource-limits.lib
 
    undefined reference to AAssetManager_fromJava AAssetManager_open AAsset_seek ...
 
@@ -108,10 +94,17 @@
    可能的情况：
    - 尝试升级 Android Studio 的 NDK 版本
 
+- ## CMake 3.14.0 or higher is required.  You are running version 2.8.12.2
+```shell
+wget https://github.com/Kitware/CMake/releases/download/v3.18.2/cmake-3.18.2-Linux-x86_64.tar.gz
+tar zxvf cmake-3.18.2-Linux-x86_64.tar.gz
+mv cmake-3.18.2-Linux-x86_64 /opt/cmake-3.18.2
+ln -sf /opt/cmake-3.18.2/bin/* /usr/bin/
+```
 
 # 怎样添加ncnn库到项目中？cmake方式怎么用？
 
-编译ncnn，make install。linux/windows set/export ncnn_DIR 指向 isntall目录下下包含ncnnConfig.cmake 的目录
+编译ncnn，make install。linux/windows set/export ncnn_DIR 指向 install目录下包含ncnnConfig.cmake 的目录
 
 - ## android
 
@@ -223,6 +216,33 @@
    这里提供了一些品牌的GPU驱动下载网址.We have provided some drivers' download pages here.
    [Intel](https://downloadcenter.intel.com/product/80939/Graphics-Drivers)，[AMD](https://www.amd.com/en/support)，[Nvidia](https://www.nvidia.com/Download/index.aspx)
 
+- ## docker 环境里面 nvidia-smi 能看到显卡也能跑 cuda 却不能跑 vulkan
+
+   因为这个docker环境的nvidia驱动没有安装opengl/vulkan支持
+
+  首先运行 nvidia-smi 查看当前驱动版本
+
+```
+NVIDIA-SMI 535.161.07
+Driver Version: 535.161.07
+CUDA Version: 12.2
+```
+
+然后去下载对应版本的NVIDIA驱动，安装用户态驱动文件，跳过内核部分
+
+```
+wget https://us.download.nvidia.com/tesla/535.161.07/NVIDIA-Linux-x86_64-535.161.07.run
+chmod +x NVIDIA-Linux-x86_64-535.161.07.run
+./NVIDIA-Linux-x86_64-535.161.07.run --silent --no-kernel-module
+```
+
+安装时会报一些文件权限错误，不用管，安装完成后 vulkan 支持就可用了。最后安装 vulkaninfo 查看gpu信息
+
+```
+dnf install vulkan-tools
+vulkaninfo
+```
+
 - ## ModuleNotFoundError: No module named 'ncnn.ncnn'
 
    python setup.py develop
@@ -283,10 +303,10 @@ ex.extract("output2", out_2);
 
    首先，自己申请的内存需要自己管理，此时ncnn::Mat不会自动给你释放你传过来的float数据
    ``` c++
-   std::vector<float> testData(60, 1.0);                                // 利用std::vector<float>自己管理内存的申请和释放
-   ncnn::Mat in1(60, (void*)testData.data()).reshape(4, 5, 3);          // 把float数据的指针转成void*传过去即可，甚至还可以指定维度(up说最好使用reshape用来解决channel gap)
-   float* a = new float[60];                                            // 自己new一块内存，后续需要自己释放
-   ncnn::Mat in2 = ncnn::Mat(60, (void*)a).reshape(4, 5, 3).clone();    // 使用方法和上面相同，clone() to transfer data owner
+   std::vector<float> testData(60, 1.0);                                      // 利用std::vector<float>自己管理内存的申请和释放
+   ncnn::Mat in1 = ncnn::Mat(60, (void*)testData.data()).reshape(4, 5, 3);    // 把float数据的指针转成void*传过去即可，甚至还可以指定维度(up说最好使用reshape用来解决channel gap)
+   float* a = new float[60];                                                  // 自己new一块内存，后续需要自己释放
+   ncnn::Mat in2 = ncnn::Mat(60, (void*)a).reshape(4, 5, 3).clone();          // 使用方法和上面相同，clone() to transfer data owner
    ```
 
 - ## 如何初始化 ncnn::Mat 为全 0
@@ -657,6 +677,38 @@ net.opt.use_bf16_storage = true;
 - ## net.opt sgemm winograd fp16_storage 各是有什么作用？
 
    对内存消耗的影响
+
+- ## 如何解决显卡进入节能模式造成的一系列问题？
+
+   nVidia显卡（Intel和AMD估计也有）会在它认为的所谓空闲模式下，自动进入 `节能模式`，显存和核心频率就都会降低。
+   
+   简单来说就是如果你的计算任务是 `非连续的`，那么可能会让耗时看起来非常 `不均匀`，当期间有运算空闲间隔发生，显卡进入节能模式，则会在下一次冷启动时发生计算耗时远超正常耗时几倍的情况，如下日志所示：
+
+   ```cpp
+   //开始播放
+   Total: 162ms, Diff: 0ms, GLTex2Mat: 7ms, calc: 152ms, Mat2GLTex: 3ms
+   Total: 43ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 35ms, Mat2GLTex: 2ms
+   Total: 45ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 37ms, Mat2GLTex: 3ms
+   Total: 40ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 32ms, Mat2GLTex: 4ms
+   //暂停3秒
+   //继续播放
+   Total: 190ms, Diff: 0ms, GLTex2Mat: 9ms, calc: 177ms, Mat2GLTex: 3ms
+   Total: 134ms, Diff: 0ms, GLTex2Mat: 5ms, calc: 110ms, Mat2GLTex: 18ms
+   Total: 40ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 34ms, Mat2GLTex: 2ms
+   Total: 42ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 36ms, Mat2GLTex: 2ms
+   Total: 47ms, Diff: 0ms, GLTex2Mat: 5ms, calc: 38ms, Mat2GLTex: 3ms
+   ...
+   ```
+
+   在对时间不敏感的项目上，这个问题没什么大不了的，完全可以忽略，但是有些业务场景上必须精准推估下一帧及其未来几帧的从上传、计算到渲染的耗时情况，则这种现象将会给开发者打开些许困扰。
+
+   ### 3种解决方法
+   * 联系显卡厂商，让其更新驱动将你的应用加入到免节能模式的白名单。
+     * 优点：你什么都不用改。缺点：沟通困难，很可能显卡厂商根本不理你。
+   * [显卡控制面板] - [管理3D设置] - [电源管理模式]，改成：[最高性能优先]。
+     * 优点：不用改代码。缺点：如果是部署端是小白用户，需要编写手册手把手教他。
+   * 可以空闲（暂停）时定期灌一些心跳计算包的任务进去（放1x1小图）让GPU维持在高性能状态。
+     * 优点：需要改代码。缺点：不低碳不环保。
 
 # 白嫖项目
 
