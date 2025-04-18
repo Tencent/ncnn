@@ -1955,6 +1955,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%d", output_width)
             fprintf_param_value(" 5=%d", dynamic_target_size)
             fprintf_param_value(" 6=%d", align_corner)
+            {
+                if (op->size_expr != op_default->size_expr) fprintf(pp, " 9=\"%s\"", op->size_expr.c_str());
+            }
         }
         else if (layer->type == "LayerNorm")
         {

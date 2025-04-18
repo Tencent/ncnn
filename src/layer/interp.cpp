@@ -14,6 +14,8 @@
 
 #include "interp.h"
 
+#include "expression.h"
+
 namespace ncnn {
 
 Interp::Interp()
@@ -41,6 +43,16 @@ int Interp::load_param(const ParamDict& pd)
     if (dynamic_target_size == 1)
     {
         one_blob_only = false;
+    }
+
+    size_expr = pd.get(9, "");
+
+    // count reference blobs
+    if (!size_expr.empty())
+    {
+        const int blob_count = count_expression_blobs(size_expr);
+        if (blob_count > 1)
+            one_blob_only = false;
     }
 
     return 0;
@@ -473,6 +485,13 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     int outw = reference_blob.w;
     int outh = reference_blob.h;
 
+    if (!size_expr.empty())
+    {
+        int r = eval_size_expr(bottom_blobs, outw, outh);
+        if (r != 0)
+            return -1;
+    }
+
     if (dims == 1)
     {
         // special case for 2d resize on flattened blob
@@ -505,7 +524,7 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         if (resize_type == 1) // nearest
         {
-            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -597,8 +616,8 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     if (resize_type == 1) // nearest
     {
-        const float hs = output_height ? h / (float)outh : 1.f / height_scale;
-        const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+        const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+        const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -665,6 +684,31 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         }
 
         delete[] buf;
+    }
+
+    return 0;
+}
+
+int Interp::eval_size_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh) const
+{
+    // [size(@0,0),size(@0,1)]
+    std::vector<int> sizes;
+    int er = eval_list_expression(size_expr, bottom_blobs, sizes);
+    if (er != 0)
+        return -1;
+
+    if (sizes.empty() || sizes.size() > 2)
+        return -1;
+
+    if (sizes.size() == 1)
+    {
+        outw = sizes[0];
+        outh = bottom_blobs[0].h;
+    }
+    else
+    {
+        outw = sizes[0];
+        outh = sizes[1];
     }
 
     return 0;

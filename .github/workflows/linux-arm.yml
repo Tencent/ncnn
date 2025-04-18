@@ -31,41 +31,15 @@ permissions:
   contents: read
 
 jobs:
-  gcc-arm:
+  arm:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v4
-      with:
-        path: qemu-install
-        key: qemu-arm-install-20220502-2
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=arm-linux-user --disable-system
-        make -j$(nproc)
-        make install
-
     - name: arm-gnu-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install g++-arm-linux-gnueabi
+        sudo apt-get install g++-arm-linux-gnueabi qemu-user-static
 
     - name: build
       run: |
@@ -74,56 +48,28 @@ jobs:
         cmake --build . -j $(nproc)
     - name: test
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-arm-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j $(nproc)
 
     - name: build-noint8
       run: |
         mkdir build-noint8 && cd build-noint8
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_INT8=OFF ..
         cmake --build . -j $(nproc)
     - name: test-noint8
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build-noint8
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-arm-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j $(nproc)
 
-  gcc-armhf:
+  armhf:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v4
-      with:
-        path: qemu-install
-        key: qemu-arm-install-20220502-2
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=arm-linux-user --disable-system
-        make -j$(nproc)
-        make install
-
     - name: arm-gnu-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install g++-arm-linux-gnueabihf
+        sudo apt-get install g++-arm-linux-gnueabihf qemu-user-static
 
     - name: build
       run: |
@@ -132,9 +78,8 @@ jobs:
         cmake --build . -j $(nproc)
     - name: test
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-arm-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
 
     - name: build-noint8
       run: |
@@ -143,45 +88,18 @@ jobs:
         cmake --build . -j $(nproc)
     - name: test-noint8
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build-noint8
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-arm-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
 
-  gcc-armhf-vfpv3-d16:
+  armhf-vfpv3-d16:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v4
-      with:
-        path: qemu-install
-        key: qemu-arm-install-20220502-2
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=arm-linux-user --disable-system
-        make -j$(nproc)
-        make install
-
     - name: arm-gnu-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install g++-arm-linux-gnueabihf
+        sudo apt-get install g++-arm-linux-gnueabihf qemu-user-static
 
     - name: build
       run: |
@@ -190,9 +108,8 @@ jobs:
         cmake --build . -j $(nproc)
     - name: test
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-arm-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
 
     - name: build-noint8
       run: |
@@ -201,6 +118,5 @@ jobs:
         cmake --build . -j $(nproc)
     - name: test-noint8
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build-noint8
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-arm-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
