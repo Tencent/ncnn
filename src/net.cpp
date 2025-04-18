@@ -2531,10 +2531,12 @@ void Extractor::clear()
         if (d->local_blob_vkallocator)
         {
             d->net->vulkan_device()->reclaim_blob_allocator(d->local_blob_vkallocator);
+            d->local_blob_vkallocator = 0;
         }
         if (d->local_staging_vkallocator)
         {
             d->net->vulkan_device()->reclaim_staging_allocator(d->local_staging_vkallocator);
+            d->local_staging_vkallocator = 0;
         }
     }
 #endif // NCNN_VULKAN
