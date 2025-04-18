@@ -14,7 +14,6 @@
 
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 
 namespace ncnn {
 

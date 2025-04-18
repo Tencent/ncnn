@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Cast_loongarch : virtual public Cast
+class Cast_loongarch : public Cast
 {
 public:
     Cast_loongarch();

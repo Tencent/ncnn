@@ -14,8 +14,6 @@
 
 #include "detectionoutput.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 DetectionOutput::DetectionOutput()

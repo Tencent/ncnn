@@ -165,7 +165,10 @@ void eliminate_reshape_shape_expression(Graph& graph)
             if (op_expr->outputs[0]->consumers.size() == 0)
             {
                 // remove expression operator
-                op_expr->inputs[0]->remove_consumer(op_expr);
+                for (auto x : op_expr->inputs)
+                {
+                    x->remove_consumer(op_expr);
+                }
 
                 Operand* op_expr_out = op_expr->outputs[0];
 

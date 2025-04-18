@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class TanH_loongarch : virtual public TanH
+class TanH_loongarch : public TanH
 {
 public:
     TanH_loongarch();

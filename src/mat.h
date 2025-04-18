@@ -41,10 +41,6 @@
 #include "option.h"
 #include "platform.h"
 
-#if NCNN_VULKAN
-#include <vulkan/vulkan.h>
-#endif // NCNN_VULKAN
-
 #if NCNN_PIXEL
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
@@ -111,11 +107,15 @@ public:
 #if __ARM_NEON
     void fill(float32x4_t _v);
     void fill(uint16x4_t _v);
+#if !defined(_MSC_VER)
     void fill(int32x4_t _v);
+#endif
     void fill(int32x4_t _v0, int32x4_t _v1);
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if !defined(_MSC_VER)
     void fill(float16x4_t _v);
     void fill(float16x8_t _v);
+#endif
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 #if __SSE2__
@@ -138,9 +138,9 @@ public:
     void fill(vfloat32m1_t _v);
     void fill(vuint16m1_t _v);
     void fill(vint8m1_t _v);
-#if __riscv_zfh
+#if __riscv_zvfh
     void fill(vfloat16m1_t _v);
-#endif // __riscv_zfh
+#endif // __riscv_zvfh
 #endif // __riscv_vector
     template<typename T>
     void fill(T v);
@@ -963,6 +963,7 @@ NCNN_FORCEINLINE void Mat::fill(uint16x4_t _v)
     }
 }
 
+#if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
 {
     int size = (int)total();
@@ -973,6 +974,7 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
         ptr += 4;
     }
 }
+#endif
 
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
 {
@@ -986,6 +988,7 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
     }
 }
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 {
     int size = (int)total();
@@ -1007,6 +1010,7 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
         ptr += 8;
     }
 }
+#endif
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 
@@ -1085,17 +1089,18 @@ NCNN_FORCEINLINE void Mat::fill(__m128 _v)
     }
 }
 #endif // __loongarch_sx
+
 #if __riscv_vector
 NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 4;
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 
     int size = (int)total();
     float* ptr = (float*)data;
     for (int i = 0; i < size; i++)
     {
-        vse32_v_f32m1(ptr, _v, vl);
+        __riscv_vse32_v_f32m1(ptr, _v, vl);
         ptr += packn;
     }
 }
@@ -1103,13 +1108,13 @@ NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
 NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
     for (int i = 0; i < size; i++)
     {
-        vse16_v_u16m1(ptr, _v, vl);
+        __riscv_vse16_v_u16m1(ptr, _v, vl);
         ptr += packn;
     }
 }
@@ -1117,31 +1122,31 @@ NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
 NCNN_FORCEINLINE void Mat::fill(vint8m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 1;
-    const size_t vl = vsetvl_e8m1(packn);
+    const size_t vl = __riscv_vsetvl_e8m1(packn);
 
     int size = (int)total();
     signed char* ptr = (signed char*)data;
     for (int i = 0; i < size; i++)
     {
-        vse8_v_i8m1(ptr, _v, vl);
+        __riscv_vse8_v_i8m1(ptr, _v, vl);
         ptr += packn;
     }
 }
-#if __riscv_zfh
+#if __riscv_zvfh
 NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int size = (int)total();
     __fp16* ptr = (__fp16*)data;
     for (int i = 0; i < size; i++)
     {
-        vse16_v_f16m1(ptr, _v, vl);
+        __riscv_vse16_v_f16m1(ptr, _v, vl);
         ptr += packn;
     }
 }
-#endif // __riscv_zfh
+#endif // __riscv_zvfh
 #endif // __riscv_vector
 
 template<typename T>

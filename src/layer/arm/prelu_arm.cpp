@@ -243,56 +243,63 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float* ptr = bottom_top_blob.channel(q);
             float slope = num_slope > 1 ? slope_data_ptr[q] : slope_data_ptr[0];
 
+            int j = 0;
 #if __ARM_NEON
-            int nn = size >> 2;
-            int remain = size - (nn << 2);
-#else
-            int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-#if __aarch64__
             float32x4_t _zero = vdupq_n_f32(0.f);
             float32x4_t _slope = vdupq_n_f32(slope);
-            for (; nn > 0; nn--)
+
+            for (; j + 15 < size; j += 16)
+            {
+                float32x4_t _p0 = vld1q_f32(ptr);
+                float32x4_t _p1 = vld1q_f32(ptr + 4);
+                float32x4_t _p2 = vld1q_f32(ptr + 8);
+                float32x4_t _p3 = vld1q_f32(ptr + 12);
+                uint32x4_t _lemask0 = vcleq_f32(_p0, _zero);
+                uint32x4_t _lemask1 = vcleq_f32(_p1, _zero);
+                uint32x4_t _lemask2 = vcleq_f32(_p2, _zero);
+                uint32x4_t _lemask3 = vcleq_f32(_p3, _zero);
+                float32x4_t _ps0 = vmulq_f32(_p0, _slope);
+                float32x4_t _ps1 = vmulq_f32(_p1, _slope);
+                float32x4_t _ps2 = vmulq_f32(_p2, _slope);
+                float32x4_t _ps3 = vmulq_f32(_p3, _slope);
+                _p0 = vbslq_f32(_lemask0, _ps0, _p0);
+                _p1 = vbslq_f32(_lemask1, _ps1, _p1);
+                _p2 = vbslq_f32(_lemask2, _ps2, _p2);
+                _p3 = vbslq_f32(_lemask3, _ps3, _p3);
+                vst1q_f32(ptr, _p0);
+                vst1q_f32(ptr + 4, _p1);
+                vst1q_f32(ptr + 8, _p2);
+                vst1q_f32(ptr + 12, _p3);
+                ptr += 16;
+            }
+            for (; j + 7 < size; j += 8)
+            {
+                float32x4_t _p0 = vld1q_f32(ptr);
+                float32x4_t _p1 = vld1q_f32(ptr + 4);
+                uint32x4_t _lemask0 = vcleq_f32(_p0, _zero);
+                uint32x4_t _lemask1 = vcleq_f32(_p1, _zero);
+                float32x4_t _ps0 = vmulq_f32(_p0, _slope);
+                float32x4_t _ps1 = vmulq_f32(_p1, _slope);
+                _p0 = vbslq_f32(_lemask0, _ps0, _p0);
+                _p1 = vbslq_f32(_lemask1, _ps1, _p1);
+                vst1q_f32(ptr, _p0);
+                vst1q_f32(ptr + 4, _p1);
+                ptr += 8;
+            }
+            for (; j + 3 < size; j += 4)
             {
                 float32x4_t _p = vld1q_f32(ptr);
                 uint32x4_t _lemask = vcleq_f32(_p, _zero);
                 float32x4_t _ps = vmulq_f32(_p, _slope);
                 _p = vbslq_f32(_lemask, _ps, _p);
                 vst1q_f32(ptr, _p);
-
                 ptr += 4;
             }
-#else
-            if (nn > 0)
-            {
-                asm volatile(
-                    "veor       q1, q0, q0          \n"
-                    "vdup.f32   q2, %4              \n"
-                    "0:                             \n"
-                    "pld        [%1, #128]          \n"
-                    "vld1.f32   {d0-d1}, [%1 :128]  \n"
-                    "vcle.f32   q3, q0, q1          \n"
-                    "vmul.f32   q4, q0, q2          \n"
-                    "vbit.32    q0, q4, q3          \n"
-                    "subs       %0, #1              \n"
-                    "vst1.f32   {d0-d1}, [%1 :128]! \n"
-                    "bne        0b                  \n"
-                    : "=r"(nn), // %0
-                    "=r"(ptr) // %1
-                    : "0"(nn),
-                    "1"(ptr),
-                    "r"(slope) // %4
-                    : "cc", "memory", "q0", "q1", "q2", "q3", "q4");
-            }
-#endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--)
+            for (; j < size; j++)
             {
                 if (*ptr < 0)
                     *ptr *= slope;
-
                 ptr++;
             }
         }

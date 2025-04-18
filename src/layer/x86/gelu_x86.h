@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class GELU_x86 : virtual public GELU
+class GELU_x86 : public GELU
 {
 public:
     GELU_x86();

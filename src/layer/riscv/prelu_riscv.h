@@ -19,15 +19,15 @@
 
 namespace ncnn {
 
-class PReLU_riscv : virtual public PReLU
+class PReLU_riscv : public PReLU
 {
 public:
     PReLU_riscv();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-#if __riscv_vector && __riscv_zfh
 protected:
+#if NCNN_ZFH
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
     int forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const;
 #endif

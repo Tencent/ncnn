@@ -36,6 +36,9 @@ int Convolution1D_arm::create_pipeline_fp16s(const Option& opt)
 
     ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
+    if (opt.lightmode)
+        weight_data.release();
+
     return 0;
 }
 

@@ -2956,6 +2956,15 @@ static std::string trunc_name(std::string name)
 
 int main(int argc, char** argv)
 {
+    fprintf(stderr, "onnx2ncnn may not fully meet your needs. For more accurate and elegant\n\
+conversion results, please use PNNX. PyTorch Neural Network eXchange (PNNX) is\n\
+an open standard for PyTorch model interoperability. PNNX provides an open model\n\
+format for PyTorch. It defines computation graph as well as high level operators\n\
+strictly matches PyTorch. You can obtain pnnx through the following ways:\n\
+1. Install via python\n\
+   pip3 install pnnx\n\
+2. Get the executable from https://github.com/pnnx/pnnx\n\
+For more information, please refer to https://github.com/pnnx/pnnx\n");
     if (!(argc == 2 || argc == 4))
     {
         fprintf(stderr, "Usage: %s [onnxpb] [ncnnparam] [ncnnbin]\n", argv[0]);
@@ -3641,6 +3650,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Celu")
+        {
+            fprintf(pp, "%-16s", "CELU");
+        }
         else if (op == "Clip")
         {
             fprintf(pp, "%-16s", "Clip");
@@ -3713,6 +3726,10 @@ int main(int argc, char** argv)
         else if (op == "EmbedLayerNormalization")
         {
             fprintf(pp, "%-16s", "EmbedLayerNormalization");
+        }
+        else if (op == "Erf")
+        {
+            fprintf(pp, "%-16s", "Erf");
         }
         else if (op == "Exp")
         {
@@ -3885,6 +3902,10 @@ int main(int argc, char** argv)
         else if (op == "RSub")
         {
             fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "Shrink")
+        {
+            fprintf(pp, "%-16s", "Shrink");
         }
         else if (op == "ShuffleChannel")
         {
@@ -4149,6 +4170,12 @@ int main(int argc, char** argv)
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "CeLU")
+        {
+            float alpha = get_node_attr_f(node, "alpha", 1.0f);
+
+            fprintf(pp, " 0=%e", alpha);
         }
         else if (op == "Clip")
         {
@@ -4509,6 +4536,10 @@ int main(int argc, char** argv)
             fwrite(&quantize_tag, sizeof(int), 1, bp);
 
             fwrite_tensor_proto_data(B, bp);
+        }
+        else if (op == "Erf")
+        {
+            // no-op
         }
         else if (op == "Exp")
         {
@@ -5727,6 +5758,13 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
             }
+        }
+        else if (op == "Shrink")
+        {
+            float bias = get_node_attr_f(node, "bias", 0.0f);
+            float lambd = get_node_attr_f(node, "lambd", 0.5f);
+            fprintf(pp, " 0=%e", bias);
+            fprintf(pp, " 1=%e", lambd);
         }
         else if (op == "ShuffleChannel")
         {

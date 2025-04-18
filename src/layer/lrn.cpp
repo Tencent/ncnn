@@ -14,8 +14,6 @@
 
 #include "lrn.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 LRN::LRN()

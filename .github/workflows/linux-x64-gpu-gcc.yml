@@ -38,22 +38,22 @@ jobs:
   linux-gcc-gpu:
     runs-on: [self-hosted, linux, cvm]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20230420
+        key: swiftshader-linux-install-20240622
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: dd55e592406dc0bae219df11adec6363840aff4a
+        ref: de870ac7518fe2b6bb651ecc22fc36647cf7b986
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
@@ -85,30 +85,30 @@ jobs:
         cmake --build . -j 4
 
   linux-gcc-gpu-system-glslang:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: install-deps
       run: |
         sudo apt-get update
-        sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev libvulkan-dev glslang-dev spirv-tools
+        sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev libvulkan-dev glslang-dev glslang-tools spirv-tools
 
     - name: build
       run: |
         mkdir build && cd build
         cmake -DNCNN_VULKAN=ON -DNCNN_SYSTEM_GLSLANG=ON -DGLSLANG_TARGET_DIR=/usr/lib/x86_64-linux-gnu/cmake ..
-        cmake --build . -j 4
+        cmake --build . -j $(nproc)
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
         cmake -DNCNN_VULKAN=ON -DNCNN_SYSTEM_GLSLANG=ON -DGLSLANG_TARGET_DIR=/usr/lib/x86_64-linux-gnu/cmake -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 4
+        cmake --build . -j $(nproc)
 
   linux-gcc-gpu-t4:
     runs-on: [self-hosted, linux, t4]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: build
@@ -117,7 +117,6 @@ jobs:
         CXX: g++
         LD_LIBRARY_PATH: /data/action/install/lib64
       run: |
-        export VULKAN_SDK=/data/action/osd/1.2.189.0/x86_64
         mkdir build && cd build
         cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j 4

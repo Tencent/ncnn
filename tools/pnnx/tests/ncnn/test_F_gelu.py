@@ -15,16 +15,24 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.gelu(x)
         y = F.gelu(y)
         z = F.gelu(z)
-        w = F.gelu(w)
+        if version.parse(torch.__version__) < version.parse('1.12'):
+            w = F.gelu(w)
+        else:
+            w = F.gelu(w, approximate='tanh')
         return x, y, z, w
 
 def test():

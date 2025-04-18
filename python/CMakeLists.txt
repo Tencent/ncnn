@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.4...3.10)
 
 project(pyncnn)
 
@@ -29,6 +29,15 @@ if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
         set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/ncnn/)
     endif(MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
 endif("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
+
+# enable global link time optimization
+cmake_policy(SET CMP0069 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_supported_output)
+if(ipo_supported)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
 include_directories(${pybind11_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS})
 pybind11_add_module(pyncnn src/main.cpp)

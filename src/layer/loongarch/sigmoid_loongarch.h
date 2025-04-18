@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Sigmoid_loongarch : virtual public Sigmoid
+class Sigmoid_loongarch : public Sigmoid
 {
 public:
     Sigmoid_loongarch();

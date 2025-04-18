@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BatchNorm_arm : virtual public BatchNorm
+class BatchNorm_arm : public BatchNorm
 {
 public:
     BatchNorm_arm();

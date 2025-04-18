@@ -14,8 +14,6 @@
 
 #include "swish.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Swish::Swish()

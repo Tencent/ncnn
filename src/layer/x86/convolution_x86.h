@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Convolution_x86 : virtual public Convolution
+class Convolution_x86 : public Convolution
 {
 public:
     Convolution_x86();
@@ -50,8 +50,6 @@ public:
 
     // forwardDilation
     Layer* convolution_dilation1;
-
-    Layer* gemm;
 
 #if NCNN_INT8
     Mat scale_in_data;

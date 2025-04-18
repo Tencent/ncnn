@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BinaryOp_vulkan : virtual public BinaryOp
+class BinaryOp_vulkan : public BinaryOp
 {
 public:
     BinaryOp_vulkan();

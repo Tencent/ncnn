@@ -14,9 +14,8 @@
 
 #include "unaryop.h"
 
-#include <fenv.h>
+// #include <fenv.h>
 #include <float.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -197,12 +196,7 @@ struct unary_op_round
 {
     float operator()(const float& x) const
     {
-        // round to nearest even
-        int old_rm = fegetround();
-        fesetround(FE_TONEAREST);
-        float y = nearbyintf(x);
-        fesetround(old_rm);
-        return y;
+        return nearbyintf(x);
     }
 };
 
@@ -271,7 +265,18 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
 
     if (op_type == Operation_ROUND)
-        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+    {
+        // round to nearest even
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        int ret = unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return ret;
+    }
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);

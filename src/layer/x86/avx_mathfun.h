@@ -311,7 +311,7 @@ _PS256_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
 _PS256_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
 
 // an approximation of tanh
-static inline __m256 tanh256_ps(const __m256 x)
+static NCNN_FORCEINLINE __m256 tanh256_ps(__m256 x)
 {
     __m256 value = x;
     value = _mm256_max_ps(*(__m256*)_ps256_tanh_lo, value);
@@ -1080,11 +1080,8 @@ static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
 
 static NCNN_FORCEINLINE __m256 abs256_ps(__m256 x)
 {
-    // Use negative zero as the sign bit mask.
-    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
-
-    // return (!magic_negative_zero && x);
-    return _mm256_andnot_ps(magic_negative_zero, x);
+    const __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7fffffff));
+    return _mm256_and_ps(abs_mask, x);
 }
 
 #endif // AVX_MATHFUN_H

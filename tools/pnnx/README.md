@@ -471,7 +471,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.BatchNorm2d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.BatchNorm3d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Bilinear                |   |
-|nn.CELU                    | :heavy_check_mark: |
+|nn.CELU                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ChannelShuffle          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad1d           | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad2d           | :heavy_check_mark: | :heavy_check_mark: |
@@ -502,7 +502,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Hardsigmoid             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardswish               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardtanh                | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Identity                |   |
+|nn.Identity                | :heavy_check_mark: | :heavy_check_mark: |
 |nn.InstanceNorm1d          | :heavy_check_mark: |
 |nn.InstanceNorm2d          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.InstanceNorm3d          | :heavy_check_mark: |
@@ -520,8 +520,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.LeakyReLU               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Linear                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LocalResponseNorm       | :heavy_check_mark: | :heavy_check_mark: |
-|nn.LogSigmoid              | :heavy_check_mark: |
-|nn.LogSoftmax              | :heavy_check_mark: |
+|nn.LogSigmoid              | :heavy_check_mark: | :heavy_check_mark: |
+|nn.LogSoftmax              | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LPPool1d                | :heavy_check_mark: |
 |nn.LPPool2d                | :heavy_check_mark: |
 |nn.LSTM                    | :heavy_check_mark: | :heavy_check_mark: |
@@ -626,8 +626,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.leaky_relu_              | :heavy_check_mark: | :heavy_check_mark: |
 |F.linear                   | :heavy_check_mark: | :heavy_check_mark:* |
 |F.local_response_norm      | :heavy_check_mark: | :heavy_check_mark: |
-|F.logsigmoid               | :heavy_check_mark: |
-|F.log_softmax              | :heavy_check_mark: |
+|F.logsigmoid               | :heavy_check_mark: | :heavy_check_mark: |
+|F.log_softmax              | :heavy_check_mark: | :heavy_check_mark: |
 |F.lp_pool1d                | :heavy_check_mark: |
 |F.lp_pool2d                | :heavy_check_mark: |
 |F.max_pool1d               | :heavy_check_mark: | :heavy_check_mark: |

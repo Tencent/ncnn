@@ -19,10 +19,12 @@
 
 namespace ncnn {
 
-class Convolution_vulkan : virtual public Convolution
+class Convolution_vulkan : public Convolution
 {
 public:
     Convolution_vulkan();
+
+    virtual int load_param(const ParamDict& pd);
 
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);

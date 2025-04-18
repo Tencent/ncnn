@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/convolutiondepthwise3d.h"
 #include "testutil.h"
 
 static int test_convolutiondepthwise3d(int w, int h, int d, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group)
@@ -40,7 +39,7 @@ static int test_convolutiondepthwise3d(int w, int h, int d, int c, int outch, in
     weights[0] = RandomMat(outch / group * c / group * kernel * kernel * kernel * group);
     weights[1] = RandomMat(outch);
 
-    int ret = test_layer<ncnn::ConvolutionDepthWise3D>("ConvolutionDepthWise3D", pd, weights, a);
+    int ret = test_layer("ConvolutionDepthWise3D", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolutiondepthwise3d failed w=%d h=%d d=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f]\n", w, h, d, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1]);

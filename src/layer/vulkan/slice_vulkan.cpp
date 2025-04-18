@@ -238,6 +238,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     const int* slices_ptr = slices;
+    const int* indices_ptr = indices;
     int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
@@ -247,10 +248,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
@@ -350,10 +368,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = h - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? h + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((h - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
@@ -453,10 +488,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             VkMat& top_blob = top_blobs[i];
@@ -513,10 +565,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (channels - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = channels - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? channels + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
@@ -617,10 +686,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = h - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? h + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((h - q) / (top_blobs.size() - i));
+                }
             }
 
             VkMat& top_blob = top_blobs[i];
@@ -677,10 +763,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             VkMat& top_blob = top_blobs[i];
@@ -737,10 +840,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (channels - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = channels - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? channels + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
@@ -841,10 +961,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (d - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = d - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? d + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((d - q) / (top_blobs.size() - i));
+                }
             }
 
             VkMat& top_blob = top_blobs[i];
@@ -901,10 +1038,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = h - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? h + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((h - q) / (top_blobs.size() - i));
+                }
             }
 
             VkMat& top_blob = top_blobs[i];
@@ -961,10 +1115,27 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             VkMat& top_blob = top_blobs[i];
@@ -1021,6 +1192,7 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     const int* slices_ptr = slices;
+    const int* indices_ptr = indices;
     int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
@@ -1030,10 +1202,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
@@ -1133,10 +1322,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = h - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? h + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((h - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
@@ -1236,10 +1442,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             VkImageMat& top_blob = top_blobs[i];
@@ -1296,10 +1519,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (channels - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = channels - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? channels + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
@@ -1400,10 +1640,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = h - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? h + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((h - q) / (top_blobs.size() - i));
+                }
             }
 
             VkImageMat& top_blob = top_blobs[i];
@@ -1460,10 +1717,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             VkImageMat& top_blob = top_blobs[i];
@@ -1520,10 +1794,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (channels - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = channels - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? channels + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
@@ -1624,10 +1915,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (d - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = d - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? d + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((d - q) / (top_blobs.size() - i));
+                }
             }
 
             VkImageMat& top_blob = top_blobs[i];
@@ -1684,10 +1992,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = h - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? h + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((h - q) / (top_blobs.size() - i));
+                }
             }
 
             VkImageMat& top_blob = top_blobs[i];
@@ -1744,10 +2069,27 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             VkImageMat& top_blob = top_blobs[i];

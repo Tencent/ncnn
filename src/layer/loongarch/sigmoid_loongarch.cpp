@@ -21,8 +21,6 @@
 
 #include "loongarch_usability.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Sigmoid_loongarch::Sigmoid_loongarch()

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Clip_loongarch : virtual public Clip
+class Clip_loongarch : public Clip
 {
 public:
     Clip_loongarch();

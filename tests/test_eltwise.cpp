@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/eltwise.h"
 #include "testutil.h"
 
 static void print_float_array(const ncnn::Mat& a)
@@ -33,7 +32,7 @@ static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Eltwise>("Eltwise", pd, weights, a);
+    int ret = test_layer("Eltwise", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_eltwise failed a[0].dims=%d a[0]=(%d %d %d %d) op_type=%d", a[0].dims, a[0].w, a[0].h, a[0].d, a[0].c, op_type);

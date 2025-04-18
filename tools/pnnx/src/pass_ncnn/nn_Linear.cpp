@@ -43,12 +43,16 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
+        int m = captured_params.at("m").i;
+        if (m == -1)
+            m = 0;
+
         op->params["2"] = 0;
         op->params["3"] = 1;
         op->params["4"] = 0;
         op->params["5"] = 1;
         op->params["6"] = 1;
-        op->params["7"] = captured_params.at("m");
+        op->params["7"] = m;
         op->params["8"] = captured_params.at("out_features");
         op->params["9"] = captured_params.at("in_features");
         op->params["10"] = captured_params.at("bias").b ? 4 : -1;
@@ -119,12 +123,16 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
+        int m = captured_params.at("m").i;
+        if (m == -1)
+            m = 0;
+
         op->params["2"] = 0;
         op->params["3"] = 1;
         op->params["4"] = 0;
         op->params["5"] = 1;
         op->params["6"] = 0;
-        op->params["7"] = captured_params.at("m");
+        op->params["7"] = m;
         op->params["8"] = captured_params.at("out_features");
         op->params["9"] = captured_params.at("in_features");
         op->params["10"] = 4;

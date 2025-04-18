@@ -22,7 +22,7 @@
 
 namespace ncnn {
 
-class Dropout_riscv : virtual public Dropout
+class Dropout_riscv : public Dropout
 {
 public:
     Dropout_riscv();

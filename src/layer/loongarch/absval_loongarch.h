@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class AbsVal_loongarch : virtual public AbsVal
+class AbsVal_loongarch : public AbsVal
 {
 public:
     AbsVal_loongarch();

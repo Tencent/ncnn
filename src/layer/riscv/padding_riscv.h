@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Padding_riscv : virtual public Padding
+class Padding_riscv : public Padding
 {
 public:
     Padding_riscv();
@@ -41,6 +41,7 @@ public:
 #endif
 
     // fp16
+    unsigned short value_fp16;
     Mat per_channel_pad_data_fp16;
 };
 

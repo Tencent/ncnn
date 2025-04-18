@@ -82,6 +82,11 @@ int MemoryData_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         cmd.record_upload(data_packed, data_gpu, opt, /*bool flatten*/ false);
     }
 
+    if (opt.lightmode)
+    {
+        data.release();
+    }
+
     return 0;
 }
 

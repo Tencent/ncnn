@@ -26,8 +26,6 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-#include <math.h>
-
 namespace ncnn {
 
 Sigmoid_x86::Sigmoid_x86()

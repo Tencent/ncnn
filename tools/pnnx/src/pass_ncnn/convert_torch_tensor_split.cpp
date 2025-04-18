@@ -67,22 +67,40 @@ void convert_torch_tensor_split(Graph& graph)
         {
             const std::vector<int>& indices = op->params.at("indices").ai;
 
-            op->params["0"].type = 5;
-            op->params["0"].ai.resize(indices.size() + 1);
-
-            for (size_t i = 0; i < indices.size() + 1; i++)
+            bool has_negative_indice = false;
+            for (auto x : indices)
             {
-                if (i == 0)
+                if (x < 0)
                 {
-                    op->params["0"].ai[i] = indices[i];
+                    // negative indice
+                    has_negative_indice = true;
+                    break;
                 }
-                else if (i == indices.size())
+            }
+
+            if (has_negative_indice)
+            {
+                op->params["2"] = indices;
+            }
+            else
+            {
+                op->params["0"].type = 5;
+                op->params["0"].ai.resize(indices.size() + 1);
+
+                for (size_t i = 0; i < indices.size() + 1; i++)
                 {
-                    op->params["0"].ai[i] = -233;
-                }
-                else
-                {
-                    op->params["0"].ai[i] = indices[i] - indices[i - 1];
+                    if (i == 0)
+                    {
+                        op->params["0"].ai[i] = indices[i];
+                    }
+                    else if (i == indices.size())
+                    {
+                        op->params["0"].ai[i] = -233;
+                    }
+                    else
+                    {
+                        op->params["0"].ai[i] = indices[i] - indices[i - 1];
+                    }
                 }
             }
 

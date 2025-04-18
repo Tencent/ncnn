@@ -18,8 +18,6 @@
 #include "avx_mathfun.h"
 #endif // __AVX__
 
-#include <math.h>
-
 namespace ncnn {
 
 int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const

@@ -161,17 +161,12 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const std::string& padding_mode = captured_params.at("padding_mode").s;
         if (padding_mode == "zeros")
             return false;
 
-        return true;
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
-    {
         const Operator* conv = matched_operators.at("op_0");
         if (conv->params.at("padding").type == 4 && conv->params.at("padding").s == "same")
         {

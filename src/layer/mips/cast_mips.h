@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Cast_mips : virtual public Cast
+class Cast_mips : public Cast
 {
 public:
     Cast_mips();

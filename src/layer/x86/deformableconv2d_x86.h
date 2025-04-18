@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class DeformableConv2D_x86 : virtual public DeformableConv2D
+class DeformableConv2D_x86 : public DeformableConv2D
 {
 public:
     DeformableConv2D_x86();

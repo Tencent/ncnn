@@ -29,7 +29,7 @@ void eliminate_identity_operator(Graph& graph)
         {
             Operator* op0 = graph.ops[i];
 
-            if (op0->type == "pnnx.Input" || op0->type == "pnnx.Output" || op0->type == "pnnx.Attribute")
+            if (op0->type == "pnnx.Input" || op0->type == "pnnx.Output" || op0->type == "pnnx.Attribute" || op0->type == "torch.clone")
                 continue;
 
             Operator* op1 = 0;
@@ -38,7 +38,7 @@ void eliminate_identity_operator(Graph& graph)
             {
                 op1 = graph.ops[j];
 
-                if (op1->type == "pnnx.Input" || op1->type == "pnnx.Output" || op0->type == "pnnx.Attribute")
+                if (op1->type == "pnnx.Input" || op1->type == "pnnx.Output" || op0->type == "pnnx.Attribute" || op1->type == "torch.clone")
                     continue;
 
                 if (op0->type != op1->type)
@@ -71,7 +71,7 @@ void eliminate_identity_operator(Graph& graph)
             {
                 Operand* in0 = op0->inputs[j];
 
-                in0->consumers.erase(std::find(in0->consumers.begin(), in0->consumers.end(), op1));
+                in0->remove_consumer(op1);
             }
 
             int output_count = (int)op0->outputs.size();

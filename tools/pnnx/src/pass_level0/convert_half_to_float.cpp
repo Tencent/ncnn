@@ -38,6 +38,12 @@ void convert_half_to_float(torch::jit::Module& mod)
 
                 mod.setattr(name, t_fp32);
             }
+            if (t.scalar_type() == c10::ScalarType::BFloat16)
+            {
+                at::Tensor t_fp32 = t.toType(c10::ScalarType::Float);
+
+                mod.setattr(name, t_fp32);
+            }
         }
     }
 }

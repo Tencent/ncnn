@@ -18,7 +18,6 @@
 #include "yolov3detectionoutput_x86.h"
 
 #include <float.h>
-#include <math.h>
 
 namespace ncnn {
 

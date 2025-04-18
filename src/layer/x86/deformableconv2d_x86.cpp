@@ -134,7 +134,7 @@ int DeformableConv2D_x86::create_pipeline(const Option& opt)
     {
         const int maxk = kernel_w * kernel_h;
 
-        gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
 
         ncnn::ParamDict pd;
         pd.set(2, 0);                   // transA
@@ -204,9 +204,7 @@ int DeformableConv2D_x86::create_pipeline(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -266,8 +264,6 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-
-    const int num_input = channels * elempack;
 
     if (opt.use_sgemm_convolution)
     {

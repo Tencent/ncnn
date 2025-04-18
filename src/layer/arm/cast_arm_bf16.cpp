@@ -14,7 +14,7 @@
 
 #include "cpu.h"
 #include "mat.h"
-#include <math.h>
+
 namespace ncnn {
 
 #include "cast_bf16.h"

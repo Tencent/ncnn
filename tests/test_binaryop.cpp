@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/binaryop.h"
 #include "testutil.h"
 
 #define OP_TYPE_MAX 12
@@ -67,7 +66,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
     ab[0] = a;
     ab[1] = b;
 
-    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, ab, 1, 0.001, 0, flag);
+    int ret = test_layer("BinaryOp", pd, weights, ab, 1, 0.001, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b.dims=%d b=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, op_type);
@@ -109,7 +108,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, a, 0.001, 0, flag);
+    int ret = test_layer("BinaryOp", pd, weights, a, 0.001, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b=%f op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b, op_type);
@@ -329,6 +328,55 @@ static int test_binaryop_5()
     return 0;
 }
 
+static int test_binaryop_6()
+{
+    const int ws[] = {16, 12, 16, 15};
+    const int hs[] = {15, 16, 15, 12};
+    const int ds[] = {12, 14, 12, 16};
+    const int cs[] = {31, 28, 24, 32};
+
+    for (int i = 0; i < 4; i++)
+    {
+        const int w = ws[i];
+        const int h = hs[i];
+        const int d = ds[i];
+        const int c = cs[i];
+        const int flag = c == 32 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
+
+        ncnn::Mat a[3] = {
+            RandomMat(d, c),
+            RandomMat(h, d, c),
+            RandomMat(w, h, d, c),
+        };
+
+        for (int j = 0; j < 3; j++)
+        {
+            ncnn::Mat b = RandomMat(a[j].w);
+
+            int ret = test_binaryop(a[j], b, flag) || test_binaryop(b, a[j], flag);
+            if (ret != 0)
+                return ret;
+        }
+
+        ncnn::Mat aa[3] = {
+            RandomMat(c, c),
+            RandomMat(c, d, c),
+            RandomMat(c, h, d, c),
+        };
+
+        for (int j = 0; j < 3; j++)
+        {
+            ncnn::Mat b = RandomMat(aa[j].w);
+
+            int ret = test_binaryop(aa[j], b, flag) || test_binaryop(b, aa[j], flag);
+            if (ret != 0)
+                return ret;
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -340,7 +388,8 @@ int main()
                   || test_binaryop_2()
                   || test_binaryop_3()
                   || test_binaryop_4()
-                  || test_binaryop_5();
+                  || test_binaryop_5()
+                  || test_binaryop_6();
 
         if (ret != 0)
             return ret;

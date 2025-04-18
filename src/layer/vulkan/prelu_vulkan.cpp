@@ -144,6 +144,11 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         {
             cmd.record_upload(slope_data_packed, slope_data_gpu, opt);
         }
+
+        if (opt.lightmode)
+        {
+            slope_data.release();
+        }
     }
 
     return 0;

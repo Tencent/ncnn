@@ -41,14 +41,17 @@ void eliminate_noop_slice(Graph& graph)
                 matched = true;
             }
 
-            int start = op->params.at("start").i;
-            int end = op->params.at("end").i;
-            int step = op->params.at("step").i;
-
-            if (start == 0 && end == INT_MAX && step == 1)
+            if (op->has_param("start") && op->has_param("end") && op->has_param("step"))
             {
-                // delete noop-like slice
-                matched = true;
+                int start = op->params.at("start").i;
+                int end = op->params.at("end").i;
+                int step = op->params.at("step").i;
+
+                if (start == 0 && end == INT_MAX && step == 1)
+                {
+                    // delete noop-like slice
+                    matched = true;
+                }
             }
 
             if (matched)

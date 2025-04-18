@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class MatMul_x86 : virtual public MatMul
+class MatMul_x86 : public MatMul
 {
 public:
     MatMul_x86();

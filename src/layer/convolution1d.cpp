@@ -67,14 +67,6 @@ int Convolution1D::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Convolution1D::create_pipeline(const Option&)
-{
-    if (dynamic_weight)
-        return 0;
-
-    return 0;
-}
-
 static int convolution1d(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int stride_w, int dilation_w, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int h = bottom_blob.h;

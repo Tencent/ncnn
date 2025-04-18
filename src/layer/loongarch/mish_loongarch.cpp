@@ -19,8 +19,6 @@
 #include "lsx_mathfun.h"
 #endif // __loongarch_sx
 
-#include <math.h>
-
 namespace ncnn {
 
 Mish_loongarch::Mish_loongarch()

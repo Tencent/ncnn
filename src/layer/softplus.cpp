@@ -14,8 +14,6 @@
 
 #include "softplus.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Softplus::Softplus()

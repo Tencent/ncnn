@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Flatten_loongarch : virtual public Flatten
+class Flatten_loongarch : public Flatten
 {
 public:
     Flatten_loongarch();

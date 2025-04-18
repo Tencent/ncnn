@@ -49,6 +49,7 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 #if __ARM_NEON
         for (; i + 15 < size; i += 16)
         {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
 #if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             asm volatile(
@@ -87,13 +88,40 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 "vshrn.u32  d1, q1, #16     \n"
                 "vshrn.u32  d2, q2, #16     \n"
                 "vshrn.u32  d3, q3, #16     \n"
-                "vst1.u16   {d0-d3}, [%1 :128]! \n"
+                "vst1.u16   {d0-d3}, [%1]!  \n"
                 : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),
                 "1"(outptr)
                 : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            float32x4_t _p0_fp32 = vld1q_f32(ptr);
+            float32x4_t _p1_fp32 = vld1q_f32(ptr + 4);
+            float32x4_t _p2_fp32 = vld1q_f32(ptr + 8);
+            float32x4_t _p3_fp32 = vld1q_f32(ptr + 12);
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            bfloat16x4_t _p0_bf16 = vcvt_bf16_f32(_p0_fp32);
+            bfloat16x4_t _p1_bf16 = vcvt_bf16_f32(_p1_fp32);
+            bfloat16x4_t _p2_bf16 = vcvt_bf16_f32(_p2_fp32);
+            bfloat16x4_t _p3_bf16 = vcvt_bf16_f32(_p3_fp32);
+            bfloat16x8_t _p_bf16 = vcombine_bf16(_p0_bf16, _p1_bf16);
+            bfloat16x8_t _q_bf16 = vcombine_bf16(_p2_bf16, _p3_bf16);
+            vst1q_bf16(outptr, _p_bf16);
+            vst1q_bf16(outptr + 8, _q_bf16);
+#else
+            uint16x4_t _p0_bf16 = float2bfloat(_p0_fp32);
+            uint16x4_t _p1_bf16 = float2bfloat(_p1_fp32);
+            uint16x4_t _p2_bf16 = float2bfloat(_p2_fp32);
+            uint16x4_t _p3_bf16 = float2bfloat(_p3_fp32);
+            uint16x8_t _p_bf16 = vcombine_u16(_p0_bf16, _p1_bf16);
+            uint16x8_t _q_bf16 = vcombine_u16(_p2_bf16, _p3_bf16);
+            vst1q_u16(outptr, _p_bf16);
+            vst1q_u16(outptr + 8, _q_bf16);
+#endif
+            ptr += 16;
+            outptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; i + 7 < size; i += 8)
         {
@@ -129,7 +157,7 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 #endif
         for (; i < size; i++)
         {
-#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if NCNN_GNU_INLINE_ASM && __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             asm volatile(
                 "ldr    s0, [%0], #4    \n"
                 "bfcvt  h0, s0          \n"
@@ -142,7 +170,12 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             // because intrinsic cause ndk clang crash
             // *outptr++ = vcvth_bf16_f32(*ptr++);
 #else
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            *(unsigned short*)outptr = float32_to_bfloat16(*ptr++);
+            outptr++;
+#else
             *outptr++ = float32_to_bfloat16(*ptr++);
+#endif
 #endif
         }
     }
@@ -180,6 +213,7 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
 #if __ARM_NEON
         for (; i + 15 < size; i += 16)
         {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
             asm volatile(
                 "prfm   pldl1keep, [%0, #256]   \n"
@@ -197,7 +231,7 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
 #else  // __aarch64__
             asm volatile(
                 "pld        [%0, #256]      \n"
-                "vld1.u16   {d4-d7}, [%0 :128]! \n"
+                "vld1.u16   {d4-d7}, [%0]!  \n"
                 "vshll.u16  q0, d4, #16     \n"
                 "vshll.u16  q1, d5, #16     \n"
                 "vshll.u16  q2, d6, #16     \n"
@@ -209,6 +243,29 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 "1"(outptr)
                 : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            bfloat16x8_t _p_bf16 = vld1q_bf16(ptr);
+            bfloat16x8_t _q_bf16 = vld1q_bf16(ptr + 8);
+            float32x4_t _p0_fp32 = vcvt_f32_bf16(vget_low_bf16(_p_bf16));
+            float32x4_t _p1_fp32 = vcvt_f32_bf16(vget_high_bf16(_p_bf16));
+            float32x4_t _p2_fp32 = vcvt_f32_bf16(vget_low_bf16(_q_bf16));
+            float32x4_t _p3_fp32 = vcvt_f32_bf16(vget_high_bf16(_q_bf16));
+#else
+            uint16x8_t _p_bf16 = vld1q_u16(ptr);
+            uint16x8_t _q_bf16 = vld1q_u16(ptr + 8);
+            float32x4_t _p0_fp32 = bfloat2float(vget_low_u16(_p_bf16));
+            float32x4_t _p1_fp32 = bfloat2float(vget_high_u16(_p_bf16));
+            float32x4_t _p2_fp32 = bfloat2float(vget_low_u16(_q_bf16));
+            float32x4_t _p3_fp32 = bfloat2float(vget_high_u16(_q_bf16));
+#endif
+            vst1q_f32(outptr, _p0_fp32);
+            vst1q_f32(outptr + 4, _p1_fp32);
+            vst1q_f32(outptr + 8, _p2_fp32);
+            vst1q_f32(outptr + 12, _p3_fp32);
+            ptr += 16;
+            outptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; i + 7 < size; i += 8)
         {

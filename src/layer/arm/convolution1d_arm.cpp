@@ -18,8 +18,8 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
-#include "arm_activation.h"
 #include "arm_usability.h"
+#include "arm_activation.h"
 
 #include "cpu.h"
 #include "layer_type.h"
@@ -67,6 +67,9 @@ int Convolution1D_arm::create_pipeline(const Option& opt)
     const int num_input = weight_data_size / kernel_w / num_output;
 
     convolution1d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w);
+
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -196,7 +199,7 @@ int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution1D);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution1D);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -231,11 +234,14 @@ int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
 }
 
 #if NCNN_BF16
-int Convolution1D_arm::create_pipeline_bf16s(const Option& /*opt*/)
+int Convolution1D_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / kernel_w / num_output;
 
     convolution1d_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w);
+
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

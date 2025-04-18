@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Padding_loongarch : virtual public Padding
+class Padding_loongarch : public Padding
 {
 public:
     Padding_loongarch();

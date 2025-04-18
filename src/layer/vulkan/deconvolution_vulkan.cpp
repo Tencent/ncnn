@@ -33,6 +33,19 @@ Deconvolution_vulkan::Deconvolution_vulkan()
     pipeline_deconvolution_col2im = 0;
 }
 
+int Deconvolution_vulkan::load_param(const ParamDict& pd)
+{
+    int ret = Deconvolution::load_param(pd);
+
+    if (dynamic_weight)
+    {
+        support_vulkan = false;
+        support_image_storage = false;
+    }
+
+    return ret;
+}
+
 int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
@@ -102,7 +115,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        crop = ncnn::create_layer_vulkan(ncnn::LayerType::Crop);
         crop->vkdev = vkdev;
 
         crop->bottom_shapes.resize(1);
@@ -121,7 +134,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        output_crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        output_crop = ncnn::create_layer_vulkan(ncnn::LayerType::Crop);
         output_crop->vkdev = vkdev;
 
         output_crop->bottom_shapes.resize(1);
@@ -353,6 +366,12 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             pipeline_deconvolution_col2im->create(shader_type_index, opt, specializations);
         }
 
+        if (opt.lightmode)
+        {
+            weight_data.release();
+            bias_data.release();
+        }
+
         return 0;
     }
 
@@ -448,6 +467,12 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     pipeline_deconvolution = new Pipeline(vkdev);
     pipeline_deconvolution->set_optimal_local_size_xyz(local_size_xyz);
     pipeline_deconvolution->create(shader_type_index, opt, specializations);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+        bias_data.release();
+    }
 
     return 0;
 }

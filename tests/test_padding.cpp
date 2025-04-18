@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/padding.h"
 #include "testutil.h"
 
 static int test_padding(const ncnn::Mat& a, int top, int bottom, int left, int right, int front, int behind, int type, float value, int per_channel_pad_data_size)
@@ -32,7 +31,7 @@ static int test_padding(const ncnn::Mat& a, int top, int bottom, int left, int r
     if (per_channel_pad_data_size)
         weights[0] = RandomMat(per_channel_pad_data_size);
 
-    int ret = test_layer<ncnn::Padding>("Padding", pd, weights, a);
+    int ret = test_layer("Padding", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_padding failed a.dims=%d a=(%d %d %d %d) top=%d bottom=%d left=%d right=%d front=%d behind=%d type=%d value=%f per_channel_pad_data_size=%d\n", a.dims, a.w, a.h, a.d, a.c, top, bottom, left, right, front, behind, type, value, per_channel_pad_data_size);
@@ -242,7 +241,7 @@ static int test_padding_int8(const ncnn::Mat& a, int top, int bottom, int left, 
         weights[0] = RandomMat(per_channel_pad_data_size);
 
     int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer<ncnn::Padding>("Padding", pd, weights, a, 0.001, 0, flag);
+    int ret = test_layer("Padding", pd, weights, a, 0.001, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_padding_int8 failed a.dims=%d a=(%d %d %d %d) top=%d bottom=%d left=%d right=%d front=%d behind=%d type=%d value=%f per_channel_pad_data_size=%d\n", a.dims, a.w, a.h, a.d, a.c, top, bottom, left, right, front, behind, type, value, per_channel_pad_data_size);

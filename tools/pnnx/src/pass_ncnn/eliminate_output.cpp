@@ -20,11 +20,13 @@ namespace ncnn {
 
 void eliminate_output(Graph& graph)
 {
+    int output_index = 0;
+
     for (;;)
     {
         bool need_eliminate = false;
 
-        for (int i = (int)graph.ops.size() - 1; i >= 0; i--)
+        for (size_t i = 0; i < graph.ops.size(); i++)
         {
             Operator* op = graph.ops[i];
 
@@ -36,7 +38,8 @@ void eliminate_output(Graph& graph)
             // canonicalize output name
             for (int j = 0; j < (int)op->inputs.size(); j++)
             {
-                op->inputs[j]->name = std::string("out") + std::to_string(j);
+                op->inputs[j]->name = std::string("out") + std::to_string(output_index);
+                output_index++;
             }
 
             for (Operand* r : op->inputs)

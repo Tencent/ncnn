@@ -42,9 +42,7 @@ int InnerProduct_arm::create_pipeline_fp16s(const Option& opt)
 #endif
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -77,6 +75,8 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;

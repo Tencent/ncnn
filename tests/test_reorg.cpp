@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/reorg.h"
 #include "testutil.h"
 
 static int test_reorg(const ncnn::Mat& a, int stride, int mode)
@@ -23,7 +22,7 @@ static int test_reorg(const ncnn::Mat& a, int stride, int mode)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Reorg>("Reorg", pd, weights, a);
+    int ret = test_layer("Reorg", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_reorg failed a.dims=%d a=(%d %d %d) stride=%d mode=%d\n", a.dims, a.w, a.h, a.c, stride, mode);

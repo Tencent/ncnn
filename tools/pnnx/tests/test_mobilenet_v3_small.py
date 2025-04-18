@@ -14,6 +14,7 @@
 
 import torch
 import torchvision.models as models
+from packaging import version
 
 def test():
     net = models.mobilenet_v3_small()
@@ -30,7 +31,10 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_mobilenet_v3_small.pt inputshape=[1,3,224,224]")
+    if version.parse(torch.__version__) >= version.parse('2.0'):
+        os.system("../src/pnnx test_mobilenet_v3_small.pt")
+    else:
+        os.system("../src/pnnx test_mobilenet_v3_small.pt inputshape=[1,3,224,224]")
 
     # pnnx inference
     import test_mobilenet_v3_small_pnnx

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class TanH_x86 : virtual public TanH
+class TanH_x86 : public TanH
 {
 public:
     TanH_x86();

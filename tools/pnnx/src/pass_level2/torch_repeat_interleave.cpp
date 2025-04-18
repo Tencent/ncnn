@@ -14,8 +14,6 @@
 
 #include "pass_level2.h"
 
-#include <torch/csrc/api/include/torch/torch.h>
-
 namespace pnnx {
 
 class torch_repeat_interleave : public GraphRewriterPass
@@ -40,7 +38,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_repeat_interleave, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_repeat_interleave, 60)
 
 class torch_repeat_interleave_1 : public GraphRewriterPass
 {
@@ -63,6 +61,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_repeat_interleave_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_repeat_interleave_1, 60)
 
 } // namespace pnnx

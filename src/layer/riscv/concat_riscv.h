@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Concat_riscv : virtual public Concat
+class Concat_riscv : public Concat
 {
 public:
     Concat_riscv();

@@ -14,9 +14,8 @@
 
 #include "unaryop_arm.h"
 
-#include <fenv.h>
+// #include <fenv.h>
 #include <float.h>
-#include <math.h>
 
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -402,10 +401,14 @@ struct unary_op_round
 #endif
         return y;
 #else
+#ifdef FE_TONEAREST
         int old_rm = fegetround();
         fesetround(FE_TONEAREST);
+#endif
         float y = nearbyintf(x);
+#ifdef FE_TONEAREST
         fesetround(old_rm);
+#endif
         return y;
 #endif
     }
@@ -431,13 +434,17 @@ struct unary_op_round
 #else
         float tmp[4];
         vst1q_f32(tmp, x);
+#ifdef FE_TONEAREST
         int old_rm = fegetround();
         fesetround(FE_TONEAREST);
+#endif
         tmp[0] = nearbyintf(tmp[0]);
         tmp[1] = nearbyintf(tmp[1]);
         tmp[2] = nearbyintf(tmp[2]);
         tmp[3] = nearbyintf(tmp[3]);
+#ifdef FE_TONEAREST
         fesetround(old_rm);
+#endif
         float32x4_t y = vld1q_f32(tmp);
         return y;
 #endif

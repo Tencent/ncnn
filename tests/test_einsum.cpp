@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/einsum.h"
 #include "testutil.h"
 
 static int test_einsum(const std::vector<ncnn::Mat>& a, const std::string& equation)
@@ -28,7 +27,7 @@ static int test_einsum(const std::vector<ncnn::Mat>& a, const std::string& equat
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Einsum>("Einsum", pd, weights, a);
+    int ret = test_layer("Einsum", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_einsum failed a[0].dims=%d a[0]=(%d %d %d) equation=%s\n", a[0].dims, a[0].w, a[0].h, a[0].c, equation.c_str());

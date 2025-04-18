@@ -15,12 +15,21 @@
 #ifndef PNNX_UTILS_H
 #define PNNX_UTILS_H
 
-#include <torch/script.h>
-#include <torch/csrc/jit/api/module.h>
+#if BUILD_TORCH2PNNX
+#include <memory>
+namespace torch {
+namespace jit {
+struct Graph;
+struct Node;
+} // namespace jit
+} // namespace torch
+#endif
 
 namespace pnnx {
 
+#if BUILD_TORCH2PNNX
 const torch::jit::Node* find_node_by_kind(const std::shared_ptr<torch::jit::Graph>& graph, const std::string& kind);
+#endif
 
 unsigned short float32_to_float16(float value);
 

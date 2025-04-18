@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.LayerNorm            layer_norm  1 1 input out normalized_shape=%normalized_shape eps=%eps elementwise_affine=True @weight=%op_weight.data @bias=%op_bias.data
+nn.LayerNorm            ln          1 1 input out normalized_shape=%normalized_shape eps=%eps elementwise_affine=True @weight=%op_weight.data @bias=%op_bias.data
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

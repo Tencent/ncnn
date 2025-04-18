@@ -849,11 +849,8 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 y, __m512 x)
 
 static NCNN_FORCEINLINE __m512 abs512_ps(__m512 x)
 {
-    // Use negative zero as the sign bit mask.
-    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
-
-    // return (!magic_negative_zero && x);
-    return _mm512_andnot_ps(magic_negative_zero, x);
+    const __m512 abs_mask = _mm512_castsi512_ps(_mm512_set1_epi32(0x7fffffff));
+    return _mm512_and_ps(abs_mask, x);
 }
 
 #endif // AVX512_MATHFUN_H

@@ -1,0 +1,57 @@
+name: windows-mingw
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-mingw.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-mingw.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+concurrency:
+  group: windows-mingw-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: MinGW-w64
+    runs-on: windows-2022
+
+    env:
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: x64
+      run: |
+        mkdir build-x64; cd build-x64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_BUILD_TESTS=ON -DNCNN_VULKAN=OFF -G "MinGW Makefiles" ..
+        cmake --build . --config Release -j 4
+    - name: x64-test
+      run: cd build-x64; ctest -C Release --output-on-failure -j 4
+
+    - name: x64-vulkan
+      run: |
+        mkdir build-x64-vulkan; cd build-x64-vulkan
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON -G "MinGW Makefiles" ..
+        cmake --build . --config Release -j 4

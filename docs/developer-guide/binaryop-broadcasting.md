@@ -65,3 +65,15 @@ pnnx will insert reshape operator at the appropriate position to convert it to e
 |[2,3,4,5]|[5]|[2,3,4,5]|
 |[2,3,4,5]|[4,5]|[2,3,4,5]|
 |[2,3,4,5]|[3,4,5]|[2,3,4,5]|
+
+* implicit broadcast B with 1 dimension rank for outer axis
+
+This exists only for compatibility.
+
+When the size is the same, eg. [2,2] and [2], broadcast B for inner axis will be prioritized.
+
+|A|B|C|
+|---|---|---|
+|[2,3]|[2]|[2,3]|
+|[2,3,4]|[2]|[2,3,4]|
+|[2,3,4,5]|[2]|[2,3,4,5]|

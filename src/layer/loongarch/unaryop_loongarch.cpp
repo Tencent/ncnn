@@ -14,9 +14,8 @@
 
 #include "unaryop_loongarch.h"
 
-#include <fenv.h>
+// #include <fenv.h>
 #include <float.h>
-#include <math.h>
 
 #if __loongarch_sx
 #include <lsxintrin.h>
@@ -383,10 +382,14 @@ struct unary_op_round
             :);
         return y;
 #else
+#ifdef FE_TONEAREST
         int old_rm = fegetround();
         fesetround(FE_TONEAREST);
+#endif
         float y = nearbyintf(x);
+#ifdef FE_TONEAREST
         fesetround(old_rm);
+#endif
         return y;
 #endif
     }

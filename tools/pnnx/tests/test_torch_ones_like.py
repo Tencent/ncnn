@@ -23,7 +23,7 @@ class Model(nn.Module):
     def forward(self, x, y, z):
         x = torch.ones_like(x)
         y = torch.ones_like(y)
-        z = torch.ones_like(z)
+        z = torch.ones_like(z, dtype=torch.long)
         return x, y, z
 
 def test():

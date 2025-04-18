@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BinaryOp_loongarch : virtual public BinaryOp
+class BinaryOp_loongarch : public BinaryOp
 {
 public:
     BinaryOp_loongarch();

@@ -45,6 +45,11 @@ void fuse_select_to_unbind(Graph& graph)
 
             int dim = op->params.at("dim").i;
             const int select_dimsize = op_in->shape[dim];
+            if (select_dimsize == -1)
+            {
+                // skip dynamic
+                continue;
+            }
 
             // select 0..n
             std::vector<int> select_n(select_dimsize, 0);

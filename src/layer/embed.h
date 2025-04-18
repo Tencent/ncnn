@@ -38,9 +38,15 @@ public:
 
     int weight_data_size;
 
+    int int8_scale_term;
+
     // model
     Mat weight_data;
     Mat bias_data;
+
+#if NCNN_INT8
+    float weight_data_int8_scale;
+#endif
 };
 
 } // namespace ncnn

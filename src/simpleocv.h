@@ -398,13 +398,13 @@ struct NCNN_EXPORT Mat
     template<typename _Tp>
     const _Tp* ptr(int y) const
     {
-        return (const _Tp*)data + y * cols * c;
+        return (const _Tp*)(data + y * cols * c);
     }
 
     template<typename _Tp>
     _Tp* ptr(int y)
     {
-        return (_Tp*)data + y * cols * c;
+        return (_Tp*)(data + y * cols * c);
     }
 
     // roi

@@ -200,64 +200,48 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float a = a_data[q];
             float b = b_data[q];
 
+            int j = 0;
 #if __ARM_NEON
-            int nn = size >> 2;
-            int remain = size - (nn << 2);
-#else
-            int remain = size;
-#endif // __ARM_NEON
+            float32x4_t _a = vdupq_n_f32(a);
+            float32x4_t _b = vdupq_n_f32(b);
 
-#if __ARM_NEON
-#if __aarch64__
-            if (nn > 0)
+            for (; j + 15 < size; j += 16)
             {
-                asm volatile(
-                    "dup        v1.4s, %w4             \n"
-                    "dup        v2.4s, %w5             \n"
-                    "0:                                \n"
-                    "prfm       pldl1keep, [%1, #128]  \n"
-                    "ld1        {v0.4s}, [%1]          \n"
-                    "orr        v3.16b, v1.16b, v1.16b \n"
-                    "fmla       v3.4s, v0.4s, v2.4s    \n"
-                    "subs       %w0, %w0, #1           \n"
-                    "st1        {v3.4s}, [%1], #16     \n"
-                    "bne        0b                     \n"
-                    : "=r"(nn), // %0
-                    "=r"(ptr) // %1
-                    : "0"(nn),
-                    "1"(ptr),
-                    "r"(a), // %4
-                    "r"(b)  // %5
-                    : "cc", "memory", "v0", "v1", "v2", "v3");
+                float32x4_t _p0 = vld1q_f32(ptr);
+                float32x4_t _p1 = vld1q_f32(ptr + 4);
+                float32x4_t _p2 = vld1q_f32(ptr + 8);
+                float32x4_t _p3 = vld1q_f32(ptr + 12);
+                _p0 = vmlaq_f32(_a, _p0, _b);
+                _p1 = vmlaq_f32(_a, _p1, _b);
+                _p2 = vmlaq_f32(_a, _p2, _b);
+                _p3 = vmlaq_f32(_a, _p3, _b);
+                vst1q_f32(ptr, _p0);
+                vst1q_f32(ptr + 4, _p1);
+                vst1q_f32(ptr + 8, _p2);
+                vst1q_f32(ptr + 12, _p3);
+                ptr += 16;
             }
-#else
-            if (nn > 0)
+            for (; j + 7 < size; j += 8)
             {
-                asm volatile(
-                    "vdup.f32   q1, %4              \n"
-                    "vdup.f32   q2, %5              \n"
-                    "0:                             \n"
-                    "pld        [%1, #128]          \n"
-                    "vld1.f32   {d0-d1}, [%1 :128]  \n"
-                    "vorr.32    q3, q1, q1          \n"
-                    "vmla.f32   q3, q0, q2          \n"
-                    "subs       %0, #1              \n"
-                    "vst1.f32   {d6-d7}, [%1 :128]! \n"
-                    "bne        0b                  \n"
-                    : "=r"(nn), // %0
-                    "=r"(ptr) // %1
-                    : "0"(nn),
-                    "1"(ptr),
-                    "r"(a), // %4
-                    "r"(b)  // %5
-                    : "cc", "memory", "q0", "q1", "q2", "q3");
+                float32x4_t _p0 = vld1q_f32(ptr);
+                float32x4_t _p1 = vld1q_f32(ptr + 4);
+                _p0 = vmlaq_f32(_a, _p0, _b);
+                _p1 = vmlaq_f32(_a, _p1, _b);
+                vst1q_f32(ptr, _p0);
+                vst1q_f32(ptr + 4, _p1);
+                ptr += 8;
             }
-#endif // __aarch64__
+            for (; j + 3 < size; j += 4)
+            {
+                float32x4_t _p = vld1q_f32(ptr);
+                _p = vmlaq_f32(_a, _p, _b);
+                vst1q_f32(ptr, _p);
+                ptr += 4;
+            }
 #endif // __ARM_NEON
-            for (; remain > 0; remain--)
+            for (; j < size; j++)
             {
                 *ptr = b * *ptr + a;
-
                 ptr++;
             }
         }

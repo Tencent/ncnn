@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BatchNorm_x86 : virtual public BatchNorm
+class BatchNorm_x86 : public BatchNorm
 {
 public:
     BatchNorm_x86();

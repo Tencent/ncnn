@@ -14,8 +14,6 @@
 
 #include "instancenorm.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 InstanceNorm::InstanceNorm()

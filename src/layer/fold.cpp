@@ -41,7 +41,6 @@ int Fold::load_param(const ParamDict& pd)
 
 int Fold::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    const int size = bottom_blob.w;
     const int max_channels = bottom_blob.h;
     size_t elemsize = bottom_blob.elemsize;
 

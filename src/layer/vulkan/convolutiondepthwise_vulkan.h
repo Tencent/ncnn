@@ -19,10 +19,12 @@
 
 namespace ncnn {
 
-class ConvolutionDepthWise_vulkan : virtual public ConvolutionDepthWise
+class ConvolutionDepthWise_vulkan : public ConvolutionDepthWise
 {
 public:
     ConvolutionDepthWise_vulkan();
+
+    virtual int load_param(const ParamDict& pd);
 
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);

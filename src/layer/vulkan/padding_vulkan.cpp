@@ -348,6 +348,11 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu, opt);
     }
 
+    if (opt.lightmode)
+    {
+        per_channel_pad_data.release();
+    }
+
     return 0;
 }
 

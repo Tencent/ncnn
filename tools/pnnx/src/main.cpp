@@ -13,30 +13,28 @@
 // specific language governing permissions and limitations under the License.
 
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
 
-#if _WIN32
-#include <windows.h>
-#else
-#include <dlfcn.h>
-#endif
-
+#include <algorithm>
 #include <string>
 #include <vector>
 
-#include <torch/script.h>
-
-#ifdef PNNX_TORCHVISION
-// register torchvision ops via including headers
-#include <torchvision/vision.h>
-#endif
-
 #include "ir.h"
-#include "pass_level0.h"
-#include "pass_level1.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
 #include "pass_level4.h"
 #include "pass_level5.h"
+
+#if BUILD_TORCH2PNNX
+#include "load_torchscript.h"
+#endif
+#if BUILD_ONNX2PNNX
+#include "load_onnx.h"
+#endif
+#if BUILD_TNN2PNNX
+#include "load_tnn.h"
+#endif
 
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
@@ -47,10 +45,24 @@
 
 static std::string get_basename(const std::string& path)
 {
-    std::string base = path.substr(0, path.find_last_of('.'));
+    std::string dirpath;
+    std::string filename;
+
+    size_t dirpos = path.find_last_of("/\\");
+    if (dirpos != std::string::npos)
+    {
+        dirpath = path.substr(0, dirpos + 1);
+        filename = path.substr(dirpos + 1);
+    }
+    else
+    {
+        filename = path;
+    }
+
+    std::string base = filename.substr(0, filename.find_last_of('.'));
     // sanitize -
     std::replace(base.begin(), base.end(), '-', '_');
-    return base;
+    return dirpath + base;
 }
 
 static void parse_string_list(char* s, std::vector<std::string>& list)
@@ -85,7 +97,7 @@ static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes
     while (pch != NULL)
     {
         // assign user data type
-        if (!types.empty() && (pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u' || pch[0] == 'c'))
+        if (!types.empty() && (pch[0] == 'b' || pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u' || pch[0] == 'c'))
         {
             char type[32];
             int nscan = sscanf(pch, "%31[^,]", type);
@@ -146,22 +158,50 @@ static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, c
     }
 }
 
-static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
+static bool model_file_maybe_torchscript(const std::string& path)
 {
-    if (t == "c64") return torch::kComplexFloat;
-    if (t == "c32") return torch::kComplexHalf;
-    if (t == "c128") return torch::kComplexDouble;
-    if (t == "f32") return torch::kFloat32;
-    if (t == "f16") return torch::kFloat16;
-    if (t == "f64") return torch::kFloat64;
-    if (t == "i32") return torch::kInt32;
-    if (t == "i16") return torch::kInt16;
-    if (t == "i64") return torch::kInt64;
-    if (t == "i8") return torch::kInt8;
-    if (t == "u8") return torch::kUInt8;
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "open failed %s\n", path.c_str());
+        return false;
+    }
 
-    fprintf(stderr, "unsupported type %s fallback to f32\n", t.c_str());
-    return torch::kFloat32;
+    uint32_t signature = 0;
+    fread((char*)&signature, sizeof(signature), 1, fp);
+
+    fclose(fp);
+
+    // torchscript is a zip
+    return signature == 0x04034b50;
+}
+
+static bool model_file_maybe_tnnproto(const std::string& path)
+{
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "open failed %s\n", path.c_str());
+        return false;
+    }
+
+    char line[256];
+    char* s = fgets(line, 256, fp);
+    if (!s)
+    {
+        fclose(fp);
+        return false;
+    }
+
+    uint32_t signature = 0;
+    if (line[0] == '\"')
+    {
+        sscanf(line + 1, "%*d %*d %*d %d", &signature);
+    }
+
+    fclose(fp);
+
+    return signature == 4206624772;
 }
 
 static void show_usage()
@@ -300,117 +340,46 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
     }
 
-    for (auto m : customop_modules)
-    {
-        fprintf(stderr, "load custom module %s\n", m.c_str());
-#if _WIN32
-        HMODULE handle = LoadLibraryExA(m.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-        if (!handle)
-        {
-            fprintf(stderr, "LoadLibraryExA %s failed %d\n", m.c_str(), GetLastError());
-        }
-#else
-        void* handle = dlopen(m.c_str(), RTLD_LAZY);
-        if (!handle)
-        {
-            fprintf(stderr, "dlopen %s failed %s\n", m.c_str(), dlerror());
-        }
-#endif
-    }
-
-    std::vector<at::Tensor> input_tensors;
-    for (size_t i = 0; i < input_shapes.size(); i++)
-    {
-        const std::vector<int64_t>& shape = input_shapes[i];
-        const std::string& type = input_types[i];
-
-        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
-        if (device == "gpu")
-            t = t.cuda();
-
-        input_tensors.push_back(t);
-    }
-
-    std::vector<at::Tensor> input_tensors2;
-    for (size_t i = 0; i < input_shapes2.size(); i++)
-    {
-        const std::vector<int64_t>& shape = input_shapes2[i];
-        const std::string& type = input_types2[i];
-
-        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
-        if (device == "gpu")
-            t = t.cuda();
-
-        input_tensors2.push_back(t);
-    }
-
-    torch::jit::Module mod;
-
-    try
-    {
-        mod = torch::jit::load(ptpath, (device == "gpu") ? c10::kCUDA : c10::kCPU);
-    }
-    catch (const c10::Error& e)
-    {
-        fprintf(stderr, "Load torchscript failed: %s\n", e.what());
-
-        fprintf(stderr, "Please export model to torchscript as follows\n");
-        fprintf(stderr, "------------------------------------------\n");
-        fprintf(stderr, "import torch\n");
-        fprintf(stderr, "import torchvision.models as models\n\n");
-        fprintf(stderr, "net = models.resnet18(pretrained=True)\n");
-        fprintf(stderr, "net = net.eval()\n\n");
-        fprintf(stderr, "x = torch.rand(1, 3, 224, 224)\n");
-        fprintf(stderr, "mod = torch.jit.trace(net, x)\n");
-        fprintf(stderr, "mod.save(\"resnet18.pt\")\n");
-        fprintf(stderr, "------------------------------------------\n");
-
-        return -1;
-    }
-
-    mod.eval();
-
-    //     mod.dump(true, false, false);
-    //     mod.dump(true, true, true);
-
-    auto method = mod.find_method("forward");
-    if (!method)
-    {
-        auto methods = mod.get_methods();
-        if (methods.empty())
-        {
-            fprintf(stderr, "No method in torchscript\n");
-            return -1;
-        }
-
-        method = methods[0];
-        fprintf(stderr, "Use method %s as the entrypoint instead of forward\n", method->name().c_str());
-    }
-
-    auto g = method->graph();
-
-    //     g->dump();
-
-    fprintf(stderr, "############# pass_level0\n");
-
     std::set<std::string> foldable_constants;
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
-    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
-
-    //     g->dump();
-
-    fprintf(stderr, "############# pass_level1\n");
 
     pnnx::Graph pnnx_graph;
-    pnnx::pass_level1(mod, g, module_operators, pnnx_graph);
 
-    //     g->dump();
+    // clang-format off
+    // *INDENT-OFF*
+
+#if BUILD_TNN2PNNX
+    if (model_file_maybe_tnnproto(ptpath))
+    {
+        load_tnn(ptpath, pnnx_graph);
+    }
+    else
+#endif
+#if BUILD_ONNX2PNNX
+    if (!model_file_maybe_torchscript(ptpath))
+    {
+        load_onnx(ptpath.c_str(), pnnx_graph,
+                  input_shapes, input_types,
+                  input_shapes2, input_types2);
+    }
+    else
+#endif
+    {
+        load_torchscript(ptpath, pnnx_graph,
+                         device, input_shapes, input_types,
+                         input_shapes2, input_types2,
+                         customop_modules, module_operators,
+                         foldable_constants_zippath, foldable_constants);
+    }
+
+    // *INDENT-ON*
+    // clang-format on
 
     fprintf(stderr, "############# pass_level2\n");
 
     pnnx::pass_level2(pnnx_graph);
 
-    pnnx_graph.save("debug.param", "debug.bin");
+    // pnnx_graph.save("debug.param", "debug.bin");
 
     if (optlevel >= 1)
     {
@@ -423,7 +392,7 @@ int main(int argc, char** argv)
         pnnx::pass_level4(pnnx_graph);
     }
 
-    pnnx_graph.save("debug2.param", "debug2.bin");
+    // pnnx_graph.save("debug2.param", "debug2.bin");
 
     if (optlevel >= 2)
     {
@@ -449,7 +418,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
-        pnnx::pass_ncnn(pnnx_graph);
+        pnnx::pass_ncnn(pnnx_graph, module_operators);
 
         pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
     }

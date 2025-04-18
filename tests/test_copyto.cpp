@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/copyto.h"
 #include "testutil.h"
 
 static int test_copyto(const ncnn::Mat& self, const ncnn::Mat& src, int woffset, int hoffset, int doffset, int coffset)
@@ -29,7 +28,7 @@ static int test_copyto(const ncnn::Mat& self, const ncnn::Mat& src, int woffset,
     as[0] = self;
     as[1] = src;
 
-    int ret = test_layer<ncnn::CopyTo>("CopyTo", pd, weights, as, 1);
+    int ret = test_layer("CopyTo", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_copyto failed self.dims=%d self=(%d %d %d %d) src.dims=%d src=(%d %d %d %d) woffset=%d hoffset=%d doffset=%d coffset=%d\n", self.dims, self.w, self.h, self.d, self.c, src.dims, src.w, src.h, src.d, src.c, woffset, hoffset, doffset, coffset);

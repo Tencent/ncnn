@@ -25,7 +25,7 @@ MatMul_x86::MatMul_x86()
 
 int MatMul_x86::create_pipeline(const Option& opt)
 {
-    gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+    gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
 
     ncnn::ParamDict pd;
     pd.set(2, 0);      // transA

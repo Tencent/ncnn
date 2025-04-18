@@ -46,7 +46,7 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_cpu(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
 
@@ -123,9 +123,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -417,6 +415,8 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -451,6 +451,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             const float* sptr = bottom_blob_flattened;
 
             int i = 0;
+#if NCNN_GNU_INLINE_ASM
             for (; i + 7 < num_input; i += 8)
             {
 #if __aarch64__
@@ -513,6 +514,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9");
 #endif
             }
+#endif // NCNN_GNU_INLINE_ASM
             for (; i + 3 < num_input; i += 4)
             {
                 float32x4_t _val = vld1q_f32(sptr);
@@ -591,129 +593,117 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
             const float* m = bottom_blob_flattened;
 
-#if __ARM_NEON
-            int nn = num_input >> 3;
-            int remain = num_input & 7;
-#else
-            int remain = num_input;
-#endif // __ARM_NEON
-
+            int i = 0;
 #if __ARM_NEON
             float32x4_t _sum0 = vdupq_n_f32(0.f);
             float32x4_t _sum1 = vdupq_n_f32(0.f);
             float32x4_t _sum2 = vdupq_n_f32(0.f);
             float32x4_t _sum3 = vdupq_n_f32(0.f);
+#if NCNN_GNU_INLINE_ASM
+            for (; i + 7 < num_input; i += 8)
+            {
 #if __aarch64__
-            if (nn > 0)
-            {
                 asm volatile(
-                    "0:                                   \n"
+                    "prfm       pldl1keep, [%0, #256]     \n"
+                    "ld1        {v0.4s, v1.4s}, [%0], #32 \n"
                     "prfm       pldl1keep, [%1, #256]     \n"
-                    "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
+                    "ld1        {v2.4s, v3.4s}, [%1], #32 \n"
                     "prfm       pldl1keep, [%2, #256]     \n"
-                    "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
+                    "ld1        {v4.4s, v5.4s}, [%2], #32 \n"
                     "prfm       pldl1keep, [%3, #256]     \n"
-                    "ld1        {v4.4s, v5.4s}, [%3], #32 \n"
+                    "ld1        {v6.4s, v7.4s}, [%3], #32 \n"
                     "prfm       pldl1keep, [%4, #256]     \n"
-                    "ld1        {v6.4s, v7.4s}, [%4], #32 \n"
-                    "prfm       pldl1keep, [%5, #256]     \n"
-                    "ld1        {v8.4s, v9.4s}, [%5], #32 \n"
-                    "fmla       %6.4s, v0.4s, v2.4s       \n"
-                    "fmla       %7.4s, v0.4s, v4.4s       \n"
-                    "fmla       %8.4s, v0.4s, v6.4s       \n"
-                    "fmla       %9.4s, v0.4s, v8.4s       \n"
-                    "subs       %w0, %w0, #1              \n"
-                    "fmla       %6.4s, v1.4s, v3.4s       \n"
-                    "fmla       %7.4s, v1.4s, v5.4s       \n"
-                    "fmla       %8.4s, v1.4s, v7.4s       \n"
-                    "fmla       %9.4s, v1.4s, v9.4s       \n"
-                    "bne        0b                        \n"
-                    : "=r"(nn),    // %0
-                    "=r"(m),     // %1
-                    "=r"(w0),    // %2
-                    "=r"(w1),    // %3
-                    "=r"(w2),    // %4
-                    "=r"(w3),    // %5
-                    "=w"(_sum0), // %6
-                    "=w"(_sum1), // %7
-                    "=w"(_sum2), // %8
-                    "=w"(_sum3)  // %9
-                    : "0"(nn),
-                    "1"(m),
-                    "2"(w0),
-                    "3"(w1),
-                    "4"(w2),
-                    "5"(w3),
-                    "6"(_sum0),
-                    "7"(_sum1),
-                    "8"(_sum2),
-                    "9"(_sum3)
+                    "ld1        {v8.4s, v9.4s}, [%4], #32 \n"
+                    "fmla       %5.4s, v0.4s, v2.4s       \n"
+                    "fmla       %6.4s, v0.4s, v4.4s       \n"
+                    "fmla       %7.4s, v0.4s, v6.4s       \n"
+                    "fmla       %8.4s, v0.4s, v8.4s       \n"
+                    "fmla       %5.4s, v1.4s, v3.4s       \n"
+                    "fmla       %6.4s, v1.4s, v5.4s       \n"
+                    "fmla       %7.4s, v1.4s, v7.4s       \n"
+                    "fmla       %8.4s, v1.4s, v9.4s       \n"
+                    : "=r"(m),     // %0
+                    "=r"(w0),    // %1
+                    "=r"(w1),    // %2
+                    "=r"(w2),    // %3
+                    "=r"(w3),    // %4
+                    "=w"(_sum0), // %5
+                    "=w"(_sum1), // %6
+                    "=w"(_sum2), // %7
+                    "=w"(_sum3)  // %8
+                    : "0"(m),
+                    "1"(w0),
+                    "2"(w1),
+                    "3"(w2),
+                    "4"(w3),
+                    "5"(_sum0),
+                    "6"(_sum1),
+                    "7"(_sum2),
+                    "8"(_sum3)
                     : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
-            }
 #else
-            if (nn > 0)
-            {
                 asm volatile(
-                    "0:                             \n"
+                    "pld        [%0, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%0 :128]! \n"
                     "pld        [%1, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%1 :128]! \n"
+                    "vld1.f32   {d4-d7}, [%1]!      \n"
                     "pld        [%2, #256]          \n"
-                    "vld1.f32   {d4-d7}, [%2]!      \n"
+                    "vld1.f32   {d8-d11}, [%2]!     \n"
                     "pld        [%3, #256]          \n"
-                    "vld1.f32   {d8-d11}, [%3]!     \n"
+                    "vld1.f32   {d12-d15}, [%3]!    \n"
                     "pld        [%4, #256]          \n"
-                    "vld1.f32   {d12-d15}, [%4]!    \n"
-                    "pld        [%5, #256]          \n"
-                    "vld1.f32   {d16-d19}, [%5]!    \n"
-                    "vmla.f32   %q6, q0, q2         \n"
-                    "vmla.f32   %q7, q0, q4         \n"
-                    "vmla.f32   %q8, q0, q6         \n"
-                    "vmla.f32   %q9, q0, q8         \n"
-                    "subs       %0, #1              \n"
-                    "vmla.f32   %q6, q1, q3         \n"
-                    "vmla.f32   %q7, q1, q5         \n"
-                    "vmla.f32   %q8, q1, q7         \n"
-                    "vmla.f32   %q9, q1, q9         \n"
-                    "bne        0b                  \n"
-                    : "=r"(nn),    // %0
-                    "=r"(m),     // %1
-                    "=r"(w0),    // %2
-                    "=r"(w1),    // %3
-                    "=r"(w2),    // %4
-                    "=r"(w3),    // %5
-                    "=w"(_sum0), // %6
-                    "=w"(_sum1), // %7
-                    "=w"(_sum2), // %8
-                    "=w"(_sum3)  // %9
-                    : "0"(nn),
-                    "1"(m),
-                    "2"(w0),
-                    "3"(w1),
-                    "4"(w2),
-                    "5"(w3),
-                    "6"(_sum0),
-                    "7"(_sum1),
-                    "8"(_sum2),
-                    "9"(_sum3)
+                    "vld1.f32   {d16-d19}, [%4]!    \n"
+                    "vmla.f32   %q5, q0, q2         \n"
+                    "vmla.f32   %q6, q0, q4         \n"
+                    "vmla.f32   %q7, q0, q6         \n"
+                    "vmla.f32   %q8, q0, q8         \n"
+                    "vmla.f32   %q5, q1, q3         \n"
+                    "vmla.f32   %q6, q1, q5         \n"
+                    "vmla.f32   %q7, q1, q7         \n"
+                    "vmla.f32   %q8, q1, q9         \n"
+                    : "=r"(m),     // %0
+                    "=r"(w0),    // %1
+                    "=r"(w1),    // %2
+                    "=r"(w2),    // %3
+                    "=r"(w3),    // %4
+                    "=w"(_sum0), // %5
+                    "=w"(_sum1), // %6
+                    "=w"(_sum2), // %7
+                    "=w"(_sum3)  // %8
+                    : "0"(m),
+                    "1"(w0),
+                    "2"(w1),
+                    "3"(w2),
+                    "4"(w3),
+                    "5"(_sum0),
+                    "6"(_sum1),
+                    "7"(_sum2),
+                    "8"(_sum3)
                     : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9");
-            }
 #endif // __aarch64__
-#endif // __ARM_NEON
-            for (; remain > 0; remain--)
+            }
+#endif // NCNN_GNU_INLINE_ASM
+            for (; i + 3 < num_input; i += 4)
             {
-                sum0 += *m * *w0;
-                sum1 += *m * *w1;
-                sum2 += *m * *w2;
-                sum3 += *m * *w3;
+                float32x4_t _val = vld1q_f32(m);
 
-                m++;
-                w0++;
-                w1++;
-                w2++;
-                w3++;
+                float32x4_t _w0 = vld1q_f32(w0);
+                float32x4_t _w1 = vld1q_f32(w1);
+                float32x4_t _w2 = vld1q_f32(w2);
+                float32x4_t _w3 = vld1q_f32(w3);
+
+                _sum0 = vmlaq_f32(_sum0, _val, _w0);
+                _sum1 = vmlaq_f32(_sum1, _val, _w1);
+                _sum2 = vmlaq_f32(_sum2, _val, _w2);
+                _sum3 = vmlaq_f32(_sum3, _val, _w3);
+
+                m += 4;
+                w0 += 4;
+                w1 += 4;
+                w2 += 4;
+                w3 += 4;
             }
 
-#if __ARM_NEON
             float32x2_t _sum0ss = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
             float32x2_t _sum1ss = vadd_f32(vget_low_f32(_sum1), vget_high_f32(_sum1));
             float32x2_t _sum2ss = vadd_f32(vget_low_f32(_sum2), vget_high_f32(_sum2));
@@ -726,8 +716,20 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             sum1 += vget_lane_f32(_sum01ss, 1);
             sum2 += vget_lane_f32(_sum23ss, 0);
             sum3 += vget_lane_f32(_sum23ss, 1);
-
 #endif // __ARM_NEON
+            for (; i < num_input; i++)
+            {
+                sum0 += *m * *w0;
+                sum1 += *m * *w1;
+                sum2 += *m * *w2;
+                sum3 += *m * *w3;
+
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+            }
 
             sum0 = activation_ss(sum0, activation_type, activation_params);
             sum1 = activation_ss(sum1, activation_type, activation_params);
@@ -753,77 +755,59 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
             const float* m = bottom_blob_flattened;
 
-#if __ARM_NEON
-            int nn = num_input >> 3;
-            int remain = num_input & 7;
-#else
-            int remain = num_input;
-#endif // __ARM_NEON
-
+            int i = 0;
 #if __ARM_NEON
             float32x4_t _sum = vdupq_n_f32(0.f);
             float32x4_t _sum2 = vdupq_n_f32(0.f);
+#if NCNN_GNU_INLINE_ASM
+            for (; i + 7 < num_input; i += 8)
+            {
 #if __aarch64__
-            if (nn > 0)
-            {
                 asm volatile(
-                    "0:                                   \n"
+                    "prfm       pldl1keep, [%0, #256]     \n"
+                    "ld1        {v0.4s, v1.4s}, [%0], #32 \n"
                     "prfm       pldl1keep, [%1, #256]     \n"
-                    "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
-                    "prfm       pldl1keep, [%2, #256]     \n"
-                    "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
-                    "fmla       %3.4s, v0.4s, v2.4s       \n"
-                    "subs       %w0, %w0, #1              \n"
-                    "fmla       %4.4s, v1.4s, v3.4s       \n"
-                    "bne        0b                        \n"
-                    : "=r"(nn),   // %0
-                    "=r"(m),    // %1
-                    "=r"(w),    // %2
-                    "=w"(_sum), // %3
-                    "=w"(_sum2) // %4
-                    : "0"(nn),
-                    "1"(m),
-                    "2"(w),
-                    "3"(_sum),
-                    "4"(_sum2)
+                    "ld1        {v2.4s, v3.4s}, [%1], #32 \n"
+                    "fmla       %2.4s, v0.4s, v2.4s       \n"
+                    "fmla       %3.4s, v1.4s, v3.4s       \n"
+                    : "=r"(m),    // %0
+                    "=r"(w),    // %1
+                    "=w"(_sum), // %2
+                    "=w"(_sum2) // %3
+                    : "0"(m),
+                    "1"(w),
+                    "2"(_sum),
+                    "3"(_sum2)
                     : "cc", "memory", "v0", "v1", "v2", "v3");
-            }
 #else
-            if (nn > 0)
-            {
                 asm volatile(
-                    "0:                             \n"
+                    "pld        [%0, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%0 :128]! \n"
                     "pld        [%1, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%1 :128]! \n"
-                    "pld        [%2, #256]          \n"
-                    "vld1.f32   {d4-d7}, [%2]!      \n"
-                    "vmla.f32   %q3, q0, q2         \n"
-                    "subs       %0, #1              \n"
-                    "vmla.f32   %q4, q1, q3         \n"
-                    "bne        0b                  \n"
-                    : "=r"(nn),   // %0
-                    "=r"(m),    // %1
-                    "=r"(w),    // %2
-                    "=w"(_sum), // %3
-                    "=w"(_sum2) // %4
-                    : "0"(nn),
-                    "1"(m),
-                    "2"(w),
-                    "3"(_sum),
-                    "4"(_sum2)
+                    "vld1.f32   {d4-d7}, [%1]!      \n"
+                    "vmla.f32   %q2, q0, q2         \n"
+                    "vmla.f32   %q3, q1, q3         \n"
+                    : "=r"(m),    // %0
+                    "=r"(w),    // %1
+                    "=w"(_sum), // %2
+                    "=w"(_sum2) // %3
+                    : "0"(m),
+                    "1"(w),
+                    "2"(_sum),
+                    "3"(_sum2)
                     : "cc", "memory", "q0", "q1", "q2", "q3");
-            }
 #endif // __aarch64__
-#endif // __ARM_NEON
-            for (; remain > 0; remain--)
+            }
+#endif // NCNN_GNU_INLINE_ASM
+            for (; i + 3 < num_input; i += 4)
             {
-                sum += *m * *w;
-
-                m++;
-                w++;
+                float32x4_t _val = vld1q_f32(m);
+                float32x4_t _w = vld1q_f32(w);
+                _sum = vmlaq_f32(_sum, _val, _w);
+                m += 4;
+                w += 4;
             }
 
-#if __ARM_NEON
             _sum = vaddq_f32(_sum, _sum2);
 #if __aarch64__
             sum += vaddvq_f32(_sum);
@@ -833,6 +817,13 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             sum += vget_lane_f32(_sumss, 0);
 #endif // __aarch64__
 #endif // __ARM_NEON
+            for (; i < num_input; i++)
+            {
+                sum += *m * *w;
+
+                m++;
+                w++;
+            }
 
             sum = activation_ss(sum, activation_type, activation_params);
 
@@ -878,9 +869,7 @@ int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -1077,6 +1066,8 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -1274,9 +1265,7 @@ int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -1293,6 +1282,8 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input)
@@ -1302,6 +1293,8 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_unpack = opt;
         opt_unpack.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_int8, bottom_blob_int8_unpacked, 1, opt_unpack);
+        if (bottom_blob_int8_unpacked.empty())
+            return -100;
 
         int h = bottom_blob_int8_unpacked.h;
 
@@ -1699,6 +1692,8 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_flatten = opt;
         opt_flatten.blob_allocator = opt.workspace_allocator;
         flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+        if (bottom_blob_int8_flattened.empty())
+            return -100;
     }
 
     //     int elempack = bottom_blob_int8_flattened.elempack;

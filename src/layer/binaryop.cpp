@@ -14,8 +14,6 @@
 
 #include "binaryop.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 BinaryOp::BinaryOp()
@@ -287,13 +285,28 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     {
         // expand inner axes
         if (outdims == 2)
-            A2 = A.reshape(1, A.w);
+        {
+            if (A.w == B.h)
+                A2 = A.reshape(1, A.w);
+            else // if (A.w == B.w)
+                A2 = A.reshape(A.w, 1);
+        }
         if (outdims == 3 && A.dims == 1)
-            A2 = A.reshape(1, 1, A.w);
+        {
+            if (A.w == B.c)
+                A2 = A.reshape(1, 1, A.w);
+            else // if (A.w == B.w)
+                A2 = A.reshape(A.w, 1, 1);
+        }
         if (outdims == 3 && A.dims == 2)
             A2 = A.reshape(1, A.w, A.h);
         if (outdims == 4 && A.dims == 1)
-            A2 = A.reshape(1, 1, 1, A.w);
+        {
+            if (A.w == B.c)
+                A2 = A.reshape(1, 1, 1, A.w);
+            else // if (A.w == B.w)
+                A2 = A.reshape(A.w, 1, 1, 1);
+        }
         if (outdims == 4 && A.dims == 2)
             A2 = A.reshape(1, 1, A.w, A.h);
         if (outdims == 4 && A.dims == 3)
@@ -303,13 +316,28 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     {
         // expand inner axes
         if (outdims == 2)
-            B2 = B.reshape(1, B.w);
+        {
+            if (B.w == A.h)
+                B2 = B.reshape(1, B.w);
+            else // if (B.w == A.w)
+                B2 = B.reshape(B.w, 1);
+        }
         if (outdims == 3 && B.dims == 1)
-            B2 = B.reshape(1, 1, B.w);
+        {
+            if (B.w == A.c)
+                B2 = B.reshape(1, 1, B.w);
+            else // if (B.w == A.w)
+                B2 = B.reshape(B.w, 1, 1);
+        }
         if (outdims == 3 && B.dims == 2)
             B2 = B.reshape(1, B.w, B.h);
         if (outdims == 4 && B.dims == 1)
-            B2 = B.reshape(1, 1, 1, B.w);
+        {
+            if (B.w == A.c)
+                B2 = B.reshape(1, 1, 1, B.w);
+            else // if (B.w == A.w)
+                B2 = B.reshape(B.w, 1, 1, 1);
+        }
         if (outdims == 4 && B.dims == 2)
             B2 = B.reshape(1, 1, B.w, B.h);
         if (outdims == 4 && B.dims == 3)

@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "save_ncnn.h"
+#include <cstdint>
 
 namespace pnnx {
 
@@ -39,7 +40,11 @@ static const char* type_to_dtype_string(int type)
     if (type == 2) return "torch.double";
     if (type == 3) return "torch.half";
     if (type == 4) return "torch.int";
-    if (type == 5) return "torch.long";
+    if (type == 5)
+    {
+        fprintf(stderr, "replace ncnn input torch.long type with torch.int\n");
+        return "torch.int";
+    }
     if (type == 6) return "torch.short";
     if (type == 7) return "torch.int8";
     if (type == 8) return "torch.uint8";
@@ -118,6 +123,16 @@ static unsigned short float32_to_float16(float value)
 static size_t alignSize(size_t sz, int n)
 {
     return (sz + n - 1) & -n;
+}
+
+static int32_t safe_int64_to_int32(int64_t value)
+{
+    if (value > INT32_MAX || value < INT32_MIN)
+    {
+        fprintf(stderr, "Warning: int64 value %lld exceeds int32 range\n", value);
+        return (value > INT32_MAX) ? INT32_MAX : INT32_MIN;
+    }
+    return static_cast<int32_t>(value);
 }
 
 int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, int fp16)
@@ -235,6 +250,22 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             {
                 fprintf(paramfp, " %d=%e", idkey, param.f);
             }
+            if (param.type == 4)
+            {
+                bool is_identifier = isalpha(param.s[0]);
+                for (auto x : param.s)
+                {
+                    if (isalpha(x) || isdigit(x) || x == '_')
+                        continue;
+
+                    is_identifier = false;
+                    break;
+                }
+                if (is_identifier)
+                    fprintf(paramfp, " %d=%s", idkey, param.s.c_str());
+                else
+                    fprintf(paramfp, " %d=\"%s\"", idkey, param.s.c_str());
+            }
             if (param.type == 5)
             {
                 const int array_size = (int)param.ai.size();
@@ -294,6 +325,22 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 fwrite((const char*)&fp16_flag, sizeof(fp16_flag), 1, binfp);
 
                 is_type_flag_fp32 = true;
+                continue;
+            }
+
+            if (attr.type == 5) // i64 --> i32
+            {
+                const int64_t* p = (const int64_t*)attr.data.data();
+                int len = attr.data.size() / sizeof(int64_t);
+
+                std::vector<int32_t> data_int32(len);
+
+                for (int i = 0; i < len; i++)
+                {
+                    data_int32[i] = safe_int64_to_int32(p[i]);
+                }
+
+                fwrite(data_int32.data(), data_int32.size() * sizeof(int32_t), 1, binfp);
                 continue;
             }
 
@@ -395,10 +442,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         fprintf(pyfp, "\n");
 
         fprintf(pyfp, "    with ncnn.Net() as net:\n");
-        fprintf(pyfp, "         net.load_param(\"%s\")\n", parampath.c_str());
-        fprintf(pyfp, "         net.load_model(\"%s\")\n", binpath.c_str());
+        fprintf(pyfp, "        net.load_param(\"%s\")\n", parampath.c_str());
+        fprintf(pyfp, "        net.load_model(\"%s\")\n", binpath.c_str());
         fprintf(pyfp, "\n");
-        fprintf(pyfp, "         with net.create_extractor() as ex:\n");
+        fprintf(pyfp, "        with net.create_extractor() as ex:\n");
 
         for (int input_index = 0;; input_index++)
         {
@@ -446,6 +493,14 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         fprintf(pyfp, "        return out[0]\n");
         fprintf(pyfp, "    else:\n");
         fprintf(pyfp, "        return tuple(out)\n");
+    }
+
+    fprintf(pyfp, "\n");
+
+    // main
+    {
+        fprintf(pyfp, "if __name__ == \"__main__\":\n");
+        fprintf(pyfp, "    print(test_inference())\n");
     }
 
     fclose(pyfp);

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Swish_x86 : virtual public Swish
+class Swish_x86 : public Swish
 {
 public:
     Swish_x86();

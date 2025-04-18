@@ -12,28 +12,27 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/crop.h"
 #include "testutil.h"
 
 static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, int coffset, int outw, int outh, int outd, int outc, int woffset2, int hoffset2, int doffset2, int coffset2)
 {
     ncnn::ParamDict pd;
-    pd.set(0, woffset);   // woffset
-    pd.set(1, hoffset);   // hoffset
-    pd.set(13, doffset);  // doffset
-    pd.set(2, coffset);   // coffset
-    pd.set(3, outw);      // outw
-    pd.set(4, outh);      // outh
-    pd.set(14, outd);     // outd
-    pd.set(5, outc);      // outc
-    pd.set(6, woffset2);  // woffset2
-    pd.set(7, hoffset2);  // hoffset2
-    pd.set(15, doffset2); // doffset2
-    pd.set(8, coffset2);  // coffset2
+    pd.set(0, woffset);
+    pd.set(1, hoffset);
+    pd.set(13, doffset);
+    pd.set(2, coffset);
+    pd.set(3, outw);
+    pd.set(4, outh);
+    pd.set(14, outd);
+    pd.set(5, outc);
+    pd.set(6, woffset2);
+    pd.set(7, hoffset2);
+    pd.set(15, doffset2);
+    pd.set(8, coffset2);
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Crop>("Crop", pd, weights, a);
+    int ret = test_layer("Crop", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d %d) woffset=%d hoffset=%d doffset=%d coffset=%d outw=%d outh=%d outd=%d outc=%d woffset2=%d hoffset2=%d doffset2=%d coffset2=%d\n", a.dims, a.w, a.h, a.d, a.c, woffset, hoffset, doffset, coffset, outw, outh, outd, outc, woffset2, hoffset2, doffset2, coffset2);
