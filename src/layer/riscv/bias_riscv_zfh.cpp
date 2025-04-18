@@ -19,7 +19,7 @@
 namespace ncnn {
 
 #if __riscv_zvfh
-static inline vfloat16m8_t __riscv_vfadd_vf_f16m8_bias(vfloat16m8_t op1, float bias, size_t vl)
+static inline vfloat16m8_t __riscv_vfadd_vf_f16m8_bias(vfloat16m8_t op1, __fp16 bias, size_t vl)
 {
     return __riscv_vfadd_vf_f16m8(op1, bias, vl);
 }
