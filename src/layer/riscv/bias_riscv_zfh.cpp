@@ -18,13 +18,6 @@
 
 namespace ncnn {
 
-#if __riscv_zvfh
-static inline vfloat16m8_t __riscv_vfadd_vf_f16m8_bias(vfloat16m8_t op1, __fp16 bias, size_t vl)
-{
-    return __riscv_vfadd_vf_f16m8(op1, bias, vl);
-}
-#endif // __riscv_zvfh
-
 #if NCNN_ZFH
 int Bias_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
@@ -48,7 +41,7 @@ int Bias_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
             size_t vl = __riscv_vsetvl_e16m8(n);
 
             vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-            _p = __riscv_vfadd_vf_f16m8_bias(_p, bias, vl);
+            _p = __riscv_vfadd_vf_f16m8(_p, bias, vl);
             __riscv_vse16_v_f16m8(ptr, _p, vl);
 
             ptr += vl;

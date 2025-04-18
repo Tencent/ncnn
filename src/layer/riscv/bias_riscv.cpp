@@ -34,13 +34,6 @@ Bias_riscv::Bias_riscv()
 #endif
 }
 
-#if __riscv_vector
-static inline vfloat32m8_t __riscv_vfadd_vf_f32m8_bias(vfloat32m8_t op1, float bias, size_t vl)
-{
-    return __riscv_vfadd_vf_f32m8(op1, bias, vl);
-}
-#endif // __riscv_vector
-
 int Bias_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
 #if NCNN_ZFH
@@ -72,7 +65,7 @@ int Bias_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             size_t vl = __riscv_vsetvl_e32m8(n);
 
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-            _p = __riscv_vfadd_vf_f32m8_bias(_p, bias, vl);
+            _p = __riscv_vfadd_vf_f32m8(op1, bias, vl);
             __riscv_vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
