@@ -64,6 +64,6 @@ pnnx.Output             output              1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_new_ones, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_new_ones, 20)
 
 } // namespace pnnx

@@ -23,10 +23,10 @@ public:
     {
         return R"PNNXIR(7767517
 5 4
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 dtype value=*
-aten::softmax           op_1        3 1 input dim dtype out
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 dtype value=*
+aten::softmax           op_2        3 1 input dim dtype out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -37,7 +37,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax, 100)
 
 class F_softmax_1 : public GraphRewriterPass
 {
@@ -46,7 +46,7 @@ public:
     {
         return R"PNNXIR(7767517
 3 2
-pnnx.Input              input_0     0 1 input
+pnnx.Input              input       0 1 input
 aten::softmax_no_dtype  op_0        1 1 input out dim=%dim
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -58,7 +58,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_1, 100)
 
 class F_softmax_onnx : public GraphRewriterPass
 {
@@ -79,7 +79,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_onnx, 101)
 
 class F_softmax_onnx_1 : public GraphRewriterPass
 {
@@ -89,9 +89,9 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 input
-Transpose               op_0        1 1 input a perm=%perm
+Tensor.permute          op_0        1 1 input a dims=%dims
 Softmax                 op_1        1 1 a b axis=%axis
-Transpose               op_2        1 1 b out perm=%perm
+Tensor.permute          op_2        1 1 b out dims=%dims
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -103,16 +103,16 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        const std::vector<int>& perm = captured_params.at("perm").ai;
+        const std::vector<int>& dims = captured_params.at("dims").ai;
         const int axis = captured_params.at("axis").i;
 
-        if (axis >= (int)perm.size())
+        if (axis >= (int)dims.size())
             return false;
 
         int excount = 0;
-        for (int i = 0; i < (int)perm.size(); i++)
+        for (int i = 0; i < (int)dims.size(); i++)
         {
-            if (perm[i] != i)
+            if (dims[i] != i)
                 excount++;
         }
 
@@ -124,13 +124,34 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const std::vector<int>& perm = captured_params.at("perm").ai;
+        const std::vector<int>& dims = captured_params.at("dims").ai;
         const int axis = captured_params.at("axis").i;
 
-        op->params["dim"] = perm[axis];
+        op->params["dim"] = dims[axis];
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_onnx_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_onnx_1, 100)
+
+class F_softmax_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.SoftmaxCaffe        op_0        1 1 input out arg0=%dim
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.softmax";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_tnn, 100)
 
 } // namespace pnnx

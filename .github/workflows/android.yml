@@ -9,6 +9,7 @@ on:
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
+    - 'src/layer/riscv/**'
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
   pull_request:
@@ -20,6 +21,7 @@ on:
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
+    - 'src/layer/riscv/**'
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
 concurrency:
@@ -35,6 +37,7 @@ jobs:
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake \
         -DANDROID_PLATFORM=android-21 \
+        -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
         -DNCNN_VULKAN=ON \
@@ -64,6 +67,11 @@ jobs:
         mkdir build-x86_64 && cd build-x86_64
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="x86_64" ..
         cmake --build . -j $(nproc)
+    - name: riscv64
+      run: |
+        mkdir build-riscv64 && cd build-riscv64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="riscv64" ..
+        cmake --build . -j $(nproc)
 
     - name: armeabi-v7a-shared
       run: |
@@ -85,6 +93,11 @@ jobs:
         mkdir build-x86_64-shared && cd build-x86_64-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="x86_64" -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
+    - name: riscv64-shared
+      run: |
+        mkdir build-riscv64-shared && cd build-riscv64-shared
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="riscv64" -DNCNN_SHARED_LIB=ON ..
+        cmake --build . -j $(nproc)
 
   ndk-r16b:
     runs-on: ubuntu-latest
@@ -105,8 +118,10 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libncurses5
+        pushd /usr/lib/x86_64-linux-gnu/
+        sudo ln -s libncurses.so.6 libncurses.so.5
+        sudo ln -s libtinfo.so.6 libtinfo.so.5
+        popd
         wget -q https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip -O $GITHUB_WORKSPACE/android-ndk-r16b-linux-x86_64.zip
         cd $GITHUB_WORKSPACE && unzip -q android-ndk-r16b-linux-x86_64.zip
 

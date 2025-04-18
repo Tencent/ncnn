@@ -20,16 +20,22 @@
 
 #include "riscv_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Crop_riscv::Crop_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
-    support_fp16_storage = true;
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -43,7 +49,7 @@ static void crop_packn_rvv(const Mat& src, Mat& dst, int top, int left, int pack
     int h = dst.h;
     int right = src.w - dst.w - left;
 
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 
     const float* ptr = src.row(top) + left * packn;
     float* outptr = dst;
@@ -52,8 +58,8 @@ static void crop_packn_rvv(const Mat& src, Mat& dst, int top, int left, int pack
     {
         for (int x = 0; x < w; x++)
         {
-            vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
-            vse32_v_f32m1(outptr, _p, vl);
+            vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr, vl);
+            __riscv_vse32_v_f32m1(outptr, _p, vl);
 
             ptr += packn;
             outptr += packn;
@@ -69,7 +75,7 @@ static void crop_packn_bf16_fp16s_rvv(const Mat& src, Mat& dst, int top, int lef
     int h = dst.h;
     int right = src.w - dst.w - left;
 
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     const unsigned short* ptr = src.row<unsigned short>(top) + left * packn;
     unsigned short* outptr = dst;
@@ -78,8 +84,8 @@ static void crop_packn_bf16_fp16s_rvv(const Mat& src, Mat& dst, int top, int lef
     {
         for (int x = 0; x < w; x++)
         {
-            vuint16m1_t _p = vle16_v_u16m1(ptr, vl);
-            vse16_v_u16m1(outptr, _p, vl);
+            vuint16m1_t _p = __riscv_vle16_v_u16m1(ptr, vl);
+            __riscv_vse16_v_u16m1(outptr, _p, vl);
 
             ptr += packn;
             outptr += packn;
@@ -107,12 +113,21 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     int elempack = bottom_blob.elempack;
 
 #if __riscv_vector
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    if (!starts_expr.empty() && !ends_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(1);
+        bottom_blob_shapes[0] = bottom_blob.shape();
+        eval_crop_expr(bottom_blob_shapes, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else
+    {
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+
     if (elempack == packn)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-
         if (dims == 1)
         {
             int out_elempack = _outw % packn == 0 ? packn : 1;
@@ -182,7 +197,7 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -224,7 +239,7 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -261,6 +276,8 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     return Crop::forward(bottom_blob_unpacked, top_blob, opt);
@@ -290,19 +307,28 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     Mat& top_blob = top_blobs[0];
 
 #if __riscv_vector
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    if (!starts_expr.empty() && !ends_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_crop_expr(bottom_blob_shapes, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else if (woffset == -233)
+    {
+        resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else
+    {
+        resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+
     if (elempack == packn)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        if (woffset == -233)
-        {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-        else
-        {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-
         if (dims == 1)
         {
             int out_elempack = _outw % packn == 0 ? packn : 1;
@@ -372,7 +398,7 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -414,7 +440,7 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -444,27 +470,22 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
 #endif // __riscv_vector
 
-    Mat bottom_blob_unpacked = bottom_blob;
-    if (elempack != 1)
+    std::vector<Mat> bottom_blobs_unpacked(bottom_blobs.size());
+    for (size_t i = 0; i < bottom_blobs.size(); i++)
     {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
+        Mat bottom_blob_unpacked = bottom_blobs[i];
+        if (elempack != 1)
+        {
+            Option opt_pack1 = opt;
+            opt_pack1.blob_allocator = opt.workspace_allocator;
 
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+            convert_packing(bottom_blobs[i], bottom_blob_unpacked, 1, opt_pack1);
+            if (bottom_blob_unpacked.empty())
+                return -100;
+        }
+
+        bottom_blobs_unpacked[i] = bottom_blob_unpacked;
     }
-
-    Mat reference_blob_unpacked = reference_blob;
-    if (ref_elempack != 1)
-    {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(reference_blob, reference_blob_unpacked, 1, opt_pack1);
-    }
-
-    std::vector<Mat> bottom_blobs_unpacked(2);
-    bottom_blobs_unpacked[0] = bottom_blob_unpacked;
-    bottom_blobs_unpacked[1] = reference_blob_unpacked;
 
     return Crop::forward(bottom_blobs_unpacked, top_blobs, opt);
 }

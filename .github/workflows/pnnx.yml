@@ -1,0 +1,56 @@
+name: pnnx
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+concurrency:
+  group: pnnx-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch
+      UseMultiToolTask: true
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+
+    - name: setup-pytorch
+      run: |
+        python3 -m pip config set global.break-system-packages true
+        pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging
+
+    - name: build-pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --config Release -j 4
+
+    - name: quick-test
+      if: matrix.os != 'windows-latest'
+      run: |
+        cd tools/pnnx
+        cd build && ctest -C Release --output-on-failure -R test_nn_Conv

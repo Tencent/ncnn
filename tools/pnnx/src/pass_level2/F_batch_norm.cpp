@@ -43,7 +43,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm, 130)
 
 class F_batch_norm_1 : public GraphRewriterPass
 {
@@ -77,7 +77,7 @@ pnnx.Output             output      3 0 out save_mean save_invstd
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_1, 130)
 
 class F_batch_norm_onnx : public GraphRewriterPass
 {
@@ -119,6 +119,53 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_onnx, 130)
+
+class F_batch_norm_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Attribute          op_0        0 1 weight @data=(%num_features)f32
+pnnx.Attribute          op_1        0 1 bias @data=(%num_features)f32
+tnn.BatchNormCxx        op_2        3 1 input weight bias out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+pnnx.Attribute          mean        0 1 running_mean
+pnnx.Attribute          var         0 1 running_var
+pnnx.Attribute          weight      0 1 weight @data=%op_0.data
+pnnx.Attribute          bias        0 1 bias @data=%op_1.data
+F.batch_norm            bn          5 1 input running_mean running_var weight bias out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int num_features = captured_params.at("num_features").i;
+
+        Operator* op_mean = ops.at("mean");
+        op_mean->attrs["data"] = Attribute({num_features}, std::vector<float>(num_features, 0.f));
+
+        Operator* op_var = ops.at("var");
+        op_var->attrs["data"] = Attribute({num_features}, std::vector<float>(num_features, 1.f));
+
+        Operator* op_bn = ops.at("bn");
+        op_bn->params["eps"] = 0.f;
+        op_bn->inputnames = {"input", "running_mean", "running_var", "weight", "bias"};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_tnn, 130)
 
 } // namespace pnnx

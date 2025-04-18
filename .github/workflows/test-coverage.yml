@@ -38,7 +38,7 @@ jobs:
         LD_LIBRARY_PATH: /data/action/install/lib64
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 4
     - name: test
       env:
@@ -54,94 +54,211 @@ jobs:
         lcov --list lcov.info
 
     - name: codecov
-      id: codecov
-      continue-on-error: true
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-1
-      continue-on-error: true
-      id: codecov-vlen256-retry-1
-      if: steps.codecov.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-2
-      continue-on-error: true
-      id: codecov-vlen256-retry-2
-      if: steps.codecov-vlen256-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-3
-      continue-on-error: true
-      id: codecov-vlen256-retry-3
-      if: steps.codecov-vlen256-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-4
-      continue-on-error: true
-      id: codecov-vlen256-retry-4
-      if: steps.codecov-vlen256-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-5
-      continue-on-error: true
-      id: codecov-vlen256-retry-5
-      if: steps.codecov-vlen256-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: set the status
-      if: always()
-      run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
-           echo fine
-        else
-           exit 1
-        fi
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
 
-  linux-gcc-x64-avx512-spr:
-    runs-on: ubuntu-22.04
+  linux-gcc-x64-sde:
+    name: linux-gcc-sde-${{ matrix.cpu }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cpu: hsw, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: adl, AVX2: ON, AVXVNNI: ON,  AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: arl, AVX2: ON, AVXVNNI: ON,  AVXVNNIINT8: ON,  AVXNECONVERT: ON,  AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: spr, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: ON,  AVX512VNNI: ON,  AVX512BF16: ON,  AVX512FP16: ON  }
     steps:
     - uses: actions/checkout@v4
     - name: update
       run: sudo apt-get update
-    - name: gcc12
-      run: sudo apt-get install gcc-12 g++-12
+    - name: gcc14
+      run: sudo apt-get install gcc-14 g++-14
     - name: lcov
       run: sudo apt-get install lcov
     - name: Setup SDE binaries
       uses: petarpetrovt/setup-sde@v2.4
-    - name: build-avx512-spr
+    - name: build
       env:
-        CC: gcc-12
-        CXX: g++-12
+        CC: gcc-14
+        CXX: g++-14
       run: |
-        mkdir build-avx512-spr && cd build-avx512-spr
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=ON -DNCNN_AVX512FP16=ON -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test-avx512-spr
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_AVX=ON \
+            -DNCNN_F16C=ON \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVXVNNI=${{ matrix.AVXVNNI }} \
+            -DNCNN_AVXVNNIINT8=${{ matrix.AVXVNNIINT8 }} \
+            -DNCNN_AVXNECONVERT=${{ matrix.AVXNECONVERT }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_AVX512BF16=${{ matrix.AVX512BF16 }} \
+            -DNCNN_AVX512FP16=${{ matrix.AVX512FP16 }} \
+            -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
       run: |
-        cd build-avx512-spr
-        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-${{ matrix.cpu }};--" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
       run: |
-        cd build-avx512-spr
-        lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
+        cd build
+        lcov --gcov-tool gcov-14 -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-avx512-spr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov-avx512-spr
-      uses: codecov/codecov-action@v4
+    - name: codecov
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-avx512-spr/lcov.info
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gcc-x64-sde-combined:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: update
+      run: sudo apt-get update
+    - name: gcc14
+      run: sudo apt-get install gcc-14 g++-14
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: Setup SDE binaries
+      uses: petarpetrovt/setup-sde@v2.4
+    - name: build
+      env:
+        CC: gcc-14
+        CXX: g++-14
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-p4p
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-p4p;--" ctest --output-on-failure -j $(nproc)
+    - name: test-snb
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-snb;--" ctest --output-on-failure -j $(nproc)
+    - name: test-hsw
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-hsw;--" ctest --output-on-failure -j $(nproc)
+    - name: test-adl
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-adl;--" ctest --output-on-failure -j $(nproc)
+    - name: test-arl
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-arl;--" ctest --output-on-failure -j $(nproc)
+    - name: test-skx
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-skx;--" ctest --output-on-failure -j $(nproc)
+    - name: test-spr
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j $(nproc)
+    - name: test-gnr
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-gnr;--" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov --gcov-tool gcov-14 -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gcc-riscv64-rvv:
+    strategy:
+      matrix:
+        openmp: [ON, OFF]
+    runs-on: [self-hosted, linux, ubuntu]
+    steps:
+    - uses: actions/checkout@v4
+    - name: build
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/riscv
+        mkdir build
+        cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_ZFH=ON -DNCNN_ZVFH=ON -DNCNN_OPENMP=${{ matrix.openmp }} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test-vlen256
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+    - name: test-vlen128
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov --gcov-tool /data/action/osd/riscv/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/install/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gcc-gpu-llvmpipe:
+    runs-on: [self-hosted, linux, ubuntu24]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        export LP_NUM_THREADS=4
+        cd build && ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info

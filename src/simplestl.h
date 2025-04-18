@@ -498,6 +498,20 @@ struct vector
         return pos;
     }
 
+    void pop_back()
+    {
+        if (size_ > 0)
+        {
+            data_[size_ - 1].~T();
+            size_--;
+        }
+    }
+
+    T& back() const
+    {
+        return data_[size_ - 1];
+    }
+
 protected:
     T* data_;
     size_t size_;
@@ -519,6 +533,40 @@ protected:
     }
 };
 
+template<typename T>
+struct stack : protected vector<T>
+{
+    void push(const T& t)
+    {
+        vector<T>::push_back(t);
+    }
+
+    void pop()
+    {
+        vector<T>::pop_back();
+    }
+
+    T& top()
+    {
+        return vector<T>::back();
+    }
+
+    bool empty() const
+    {
+        return vector<T>::empty();
+    }
+
+    size_t size() const
+    {
+        return vector<T>::size();
+    }
+
+    void clear()
+    {
+        vector<T>::clear();
+    }
+};
+
 struct NCNN_EXPORT string : public vector<char>
 {
     string()
@@ -536,15 +584,11 @@ struct NCNN_EXPORT string : public vector<char>
     }
     bool operator==(const string& str2) const
     {
-        return strcmp(data_, str2.data_) == 0;
+        return size_ == str2.size_ && strncmp(data_, str2.data_, size_) == 0;
     }
-    bool operator==(const char* str2) const
+    bool operator!=(const string& str2) const
     {
-        return strcmp(data_, str2) == 0;
-    }
-    bool operator!=(const char* str2) const
-    {
-        return strcmp(data_, str2) != 0;
+        return size_ != str2.size_ || strncmp(data_, str2.data_, size_) != 0;
     }
     string& operator+=(const string& str1)
     {

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1) # for CMAKE_CXX_STANDARD
+cmake_minimum_required(VERSION 3.1...3.10) # for CMAKE_CXX_STANDARD
 set(CMAKE_CXX_STANDARD 11)
 
 include(GNUInstallDirs)

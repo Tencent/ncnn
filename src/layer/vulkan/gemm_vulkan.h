@@ -24,6 +24,8 @@ class Gemm_vulkan : public Gemm
 public:
     Gemm_vulkan();
 
+    virtual int load_param(const ParamDict& pd);
+
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 

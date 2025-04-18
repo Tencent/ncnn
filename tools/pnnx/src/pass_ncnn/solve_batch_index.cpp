@@ -225,6 +225,21 @@ static void solve_batch_index_forward(Operand* operand)
                 // give up reshape across batch index
             }
         }
+        else if (op->type == "Tensor.slice" || op->type == "Tensor.select")
+        {
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
+        else if (op->type == "pnnx.SliceIndexes")
+        {
+            // pass
+        }
         else
         {
             for (Operand* r : op->outputs)
@@ -324,6 +339,21 @@ static void solve_batch_index_backward(Operand* operand)
         {
             // give up reshape across batch index
         }
+    }
+    else if (op->type == "Tensor.slice" || op->type == "Tensor.select")
+    {
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+    else if (op->type == "pnnx.SliceIndexes")
+    {
+        // pass
     }
     else
     {
