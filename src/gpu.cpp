@@ -4589,6 +4589,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("NCNN_moltenvk", 1);
 #endif
 
+    custom_defines.append("ncnn_glsl_version", 1);
+
     bool support_shader_int64 = false;
 
     // fill device macros
