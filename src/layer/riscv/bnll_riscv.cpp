@@ -67,12 +67,22 @@ int BNLL_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
             vbool4_t _mask = __riscv_vmfgt_vf_f32m8_b4(_p, 0.f, vl);
 
+#if __riscv_xtheadvector
+            vfloat32m8_t _comm = __riscv_vfsgnjx_vv_f32m8(_p, _p, vl);
+            _comm = __riscv_vfsgnjn_vv_f32m8(_comm, _comm, vl);
+#else
             vfloat32m8_t _comm = __riscv_vfsgnjn_vv_f32m8_mu(_mask, _p, _p, _p, vl);
+#endif
             _comm = exp_ps(_comm, vl);
             _comm = __riscv_vfadd_vf_f32m8(_comm, 1.f, vl);
             _comm = log_ps(_comm, vl);
-            vfloat32m8_t _res = __riscv_vfadd_vv_f32m8_mu(_mask, _comm, _comm, _p, vl);
 
+#if __riscv_xtheadvector
+            vfloat32m8_t _res = __riscv_vfadd_vv_f32m8(_comm, _p, vl);
+            _res = __riscv_vmerge_vvm_f32m8(_comm, _res, _mask, vl);
+#else
+            vfloat32m8_t _res = __riscv_vfadd_vv_f32m8_mu(_mask, _comm, _comm, _p, vl);
+#endif
             __riscv_vse32_v_f32m8(ptr, _res, vl);
 
             ptr += vl;

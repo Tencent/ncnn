@@ -45,11 +45,22 @@ int BNLL_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
             vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
             vbool2_t _mask = __riscv_vmfgt_vf_f16m8_b2(_p, (__fp16)0.f, vl);
 
+#if __riscv_xtheadvector
+            vfloat16m8_t _comm = __riscv_vfsgnjx_vv_f16m8(_p, _p, vl);
+            _comm = __riscv_vfsgnjn_vv_f16m8(_comm, _comm, vl);
+#else
             vfloat16m8_t _comm = __riscv_vfsgnjn_vv_f16m8_mu(_mask, _p, _p, _p, vl);
+#endif
             _comm = exp_ps(_comm, vl);
             _comm = __riscv_vfadd_vf_f16m8(_comm, (__fp16)1.f, vl);
             _comm = log_ps(_comm, vl);
+
+#if __riscv_xtheadvector
+            vfloat16m8_t _res = __riscv_vfadd_vv_f16m8(_comm, _p, vl);
+            _res = __riscv_vmerge_vvm_f16m8(_comm, _res, _mask, vl);
+#else
             vfloat16m8_t _res = __riscv_vfadd_vv_f16m8_mu(_mask, _comm, _comm, _p, vl);
+#endif
 
             __riscv_vse16_v_f16m8(ptr, _res, vl);
 
