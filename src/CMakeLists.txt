@@ -22,6 +22,7 @@ set(ncnn_SRCS
     command.cpp
     cpu.cpp
     datareader.cpp
+    expression.cpp
     gpu.cpp
     layer.cpp
     mat.cpp
@@ -731,6 +732,7 @@ if(NCNN_INSTALL_SDK)
         command.h
         cpu.h
         datareader.h
+        expression.h
         gpu.h
         layer.h
         layer_shader_type.h

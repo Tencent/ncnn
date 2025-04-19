@@ -67,4 +67,33 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_full_like, 20)
 
+class torch_full_like_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+tnn.Shape               op_0        1 1 input shape
+pnnx.Attribute          value       0 1 value @data=(1)f32
+tnn.ConstantOfShape     op_2        2 1 shape value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.full_like";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        op->params["fill_value"] = ((const float*)captured_attrs.at("value.data").data.data())[0];
+        op->params["dtype"] = "torch.float";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_full_like_tnn, 20)
+
 } // namespace pnnx

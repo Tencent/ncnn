@@ -40,33 +40,20 @@ Install required build dependencies:
 * g++
 * cmake
 * protocol buffer (protobuf) headers files and protobuf compiler
-* glslang
 * (optional) LLVM OpenMP header files # If building with Clang, and multithreaded CPU inference is desired
-* (optional) vulkan header files and loader library # If building with Vulkan, without simplevk
 * (optional) opencv  # For building examples
 
 Generally if you have Intel, AMD or Nvidia GPU from last 10 years, Vulkan can be easily used.
 
 On some systems there are no Vulkan drivers easily available at the moment (October 2020), so you might need to disable use of Vulkan on them. This applies to Raspberry Pi 3 (but there is experimental open source Vulkan driver in the works, which is not ready yet). Nvidia Tegra series devices (like Nvidia Jetson) should support Vulkan. Ensure you have most recent software installed for best experience.
 
-On Debian 10+, Ubuntu 20.04+, or Raspberry Pi OS, you can install all required dependencies using:
+On Debian, Ubuntu, or Raspberry Pi OS, you can install all required dependencies using:
 ```shell
-sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-tools libopencv-dev
-```
-On earlier Debian or Ubuntu, you can install all required dependencies using:
-```shell
-sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-utils libopencv-dev
+sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libopencv-dev
 ```
 On Redhat or Centos, you can install all required dependencies using:
 ```shell
-sudo yum install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev
-```
-To use Vulkan backend install Vulkan header files, a vulkan driver loader, GLSL to SPIR-V compiler and vulkaninfo tool. Preferably from your distribution repositories. Alternatively download and install full Vulkan SDK (about 200MB in size; it contains all header files, documentation and prebuilt loader, as well some extra tools and source code of everything) from https://vulkan.lunarg.com/sdk/home
-
-```shell
-wget https://sdk.lunarg.com/sdk/download/1.2.189.0/linux/vulkansdk-linux-x86_64-1.2.189.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.189.0.tar.gz
-tar -xf vulkansdk-linux-x86_64-1.2.189.0.tar.gz
-export VULKAN_SDK=$(pwd)/1.2.189.0/x86_64
+sudo yum install build-essential git cmake libprotobuf-dev protobuf-compiler libopencv-dev
 ```
 
 To use Vulkan after building ncnn later, you will also need to have Vulkan driver for your GPU. For AMD and Intel GPUs these can be found in Mesa graphics driver, which usually is installed by default on all distros (i.e. `sudo apt install mesa-vulkan-drivers` on Debian/Ubuntu). For Nvidia GPUs the proprietary Nvidia driver must be downloaded and installed (some distros will allow easier installation in some way). After installing Vulkan driver, confirm Vulkan libraries and driver are working, by using `vulkaninfo` or `vulkaninfo | grep deviceType`, it should list GPU device type. If there are more than one GPU installed (including the case of integrated GPU and discrete GPU, commonly found in laptops), you might need to note the order of devices to use later on.
@@ -205,7 +192,6 @@ cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_BUILD_TESTS=OFF -Dpr
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
 ```
-(optional) Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
 
 Build ncnn library (replace `<protobuf-root-dir>` with a proper path):
 
@@ -780,21 +766,27 @@ cd ../examples
 
 ### Build for QNX
 
-Set QNX environment variables
+Request license and download SDP from QNX Software Center: https://www.qnx.com/products/everywhere/ .
 
-```shell
-export QNX_HOST=/opt/qnx710/host/linux/x86_64
-export QNX_TARGET=/opt/qnx710/target/qnx7
+Setup QNX environment by invoking SDP's bundled script:
+
+on Windows, open cmd and run
+```batch
+call C:\Users\zz\qnx800\qnxsdp-env.bat
 ```
 
-Create ld link to solve 'cannot find ld' issue
+on Linux, use /bin/bash and run
+```shell
+source /home/zz/qnx800/qnxsdp-env.sh
+```
 
+If it gives error `cannot find ld` on Linux, solve it by creaing link file:
 ```shell
 cd ${QNX_HOST}/usr/bin/
 ln -s aarch64-unknown-nto-qnx7.1.0-ld ld
 ```
 
-Build ncnn with cmake
+Build ncnn with cmake in same shell:
 
 ```shell
 git clone https://github.com/Tencent/ncnn.git
@@ -802,7 +794,7 @@ cd ncnn
 git submodule update --init
 mkdir -p build-qnx
 cd build-qnx
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/qnx710.toolchain.cmake ..
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-qnx.toolchain.cmake ..
 make -j$(nproc)
 make install
 ```

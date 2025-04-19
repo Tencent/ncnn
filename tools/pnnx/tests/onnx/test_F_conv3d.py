@@ -27,8 +27,10 @@ class Model(nn.Module):
 
     def forward(self, x, w0, w1, b1, y):
         x = F.conv3d(x, w0, None, stride=(2,2,2), padding=(1,0,1))
-        x = F.conv3d(x, w1, b1, stride=(1,1,1), padding=(1,1,1), dilation=(2,2,1), groups=2)
-        # x = F.conv3d(x, w1, b1, stride=(1,1,1), padding='same', dilation=(2,2,1), groups=2)
+        if version.parse(torch.__version__) < version.parse('2.1'):
+            x = F.conv3d(x, w1, b1, stride=(1,1,1), padding=(1,1,1), dilation=(2,2,1), groups=2)
+        else:
+            x = F.conv3d(x, w1, b1, stride=(1,1,1), padding='same', dilation=(1,1,1), groups=2)
         y = F.conv3d(y, self.w2, self.b2, stride=(2,2,2), padding=(2,2,2))
         y = F.conv3d(y, self.w3, None, stride=(2,2,2), padding=(1,1,1), groups=3)
         return x, y

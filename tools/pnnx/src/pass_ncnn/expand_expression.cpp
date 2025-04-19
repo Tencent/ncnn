@@ -123,6 +123,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "atan"
                  || t == "ceil"
                  || t == "cos"
+                 || t == "erf"
                  || t == "exp"
                  || t == "floor"
                  || t == "log"
@@ -154,6 +155,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "ceil") op_unary->params["0"] = 3;
             if (t == "cos") op_unary->params["0"] = 10;
             if (t == "exp") op_unary->params["0"] = 7;
+            if (t == "erf") fprintf(stderr, "UnaryOp erf not supported yet\n"); // TODO
             if (t == "floor") op_unary->params["0"] = 2;
             if (t == "log") op_unary->params["0"] = 8;
             if (t == "log10") op_unary->params["0"] = 17;

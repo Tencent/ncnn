@@ -30,6 +30,9 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
+protected:
+    int eval_size_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh) const;
+
 public:
     // param
     int resize_type; //1=nearest  2=bilinear  3=bicubic
@@ -39,6 +42,9 @@ public:
     int output_height;
     int dynamic_target_size;
     int align_corner;
+
+    // see docs/developer-guide/expression.md
+    std::string size_expr;
 };
 
 } // namespace ncnn
