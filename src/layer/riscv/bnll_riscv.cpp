@@ -35,18 +35,6 @@ BNLL_riscv::BNLL_riscv()
 #endif
 }
 
-#if __riscv_vector
-static inline vfloat32m8_t __riscv_vfabs_v_f32m8_bnll(vfloat32m8_t op1, size_t vl)
-{
-    return __riscv_vfsgnjx_vv_f32m8(op1, op1, vl);
-
-}
-static inline vfloat32m8_t __riscv_vfneg_v_f32m8_bnll(vfloat32m8_t op1, size_t vl)
-{
-    return __riscv_vfsgnjn_vv_f32m8(op1, op1, vl);
-}
-#endif // __riscv_vector
-
 int BNLL_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
 #if NCNN_ZFH
@@ -79,8 +67,7 @@ int BNLL_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
             vbool4_t _mask = __riscv_vmfgt_vf_f32m8_b4(_p, 0.f, vl);
 
-            vfloat32m8_t _comm = __riscv_vfabs_v_f32m8_bnll(_p, vl);
-            _comm = __riscv_vfneg_v_f32m8_bnll(_comm, vl);
+            vfloat32m8_t _comm = __riscv_vfsgnjn_vv_f32m8_mu(_mask, _p, _p, _p, vl);
             _comm = exp_ps(_comm, vl);
             _comm = __riscv_vfadd_vf_f32m8(_comm, 1.f, vl);
             _comm = log_ps(_comm, vl);
