@@ -21,18 +21,6 @@
 
 namespace ncnn {
 
-#if __riscv_zvfh
-static inline vfloat16m8_t __riscv_vfabs_v_f16m8_bnll(vfloat16m8_t op1, size_t vl)
-{
-    return __riscv_vfsgnjx_vv_f16m8(op1, op1, vl);
-
-}
-static inline vfloat16m8_t __riscv_vfneg_v_f16m8_bnll(vfloat16m8_t op1, size_t vl)
-{
-    return __riscv_vfsgnjn_vv_f16m8(op1, op1, vl);
-}
-#endif // __riscv_zvfh
-
 #if NCNN_ZFH
 int BNLL_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
