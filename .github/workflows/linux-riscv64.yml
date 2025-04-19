@@ -108,7 +108,7 @@ jobs:
 
     - name: build
       run: |
-        export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1
+        export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.2
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.cpu }}-v301.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
             -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
@@ -122,7 +122,7 @@ jobs:
 
     - name: test
       run: |
-        export PATH=/data/action/osd/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.0.4-B20241127-1130/bin:$PATH
+        export PATH=/data/action/osd/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.0.5-B20250108-0335/bin:$PATH
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }}" ctest --output-on-failure -j 8
 
