@@ -22,6 +22,7 @@
 #include <signal.h>
 #endif // __wasi__
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef _OPENMP
@@ -134,6 +135,28 @@
 #if (defined _WIN32 && (__aarch64__ || __arm__))
 #define RUAPU_IMPLEMENTATION
 #include "ruapu.h"
+#endif
+
+
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
+__attribute__((constructor))
+void ncnn_kmp_env_initializer()
+{
+    // this function should be called before touching all openmp stuff
+    // the env setting here helps prevent abort from happening inside openmp
+
+    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
+    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
+    // and cpu core goes offline in powersave mode on android, which triggers abort
+    // disable affinity capability, we handle thread affinity for openmp threads
+    setenv("KMP_AFFINITY", "disabled", 1);
+
+    // openmp initialization triggers abort when another openmp runtime detected
+    // ref __kmp_register_library_startup in openmp/runtime/src/kmp_runtime.cpp
+    // this happens when loading multiple libraries that are static linked openmp
+    // just let it continue to work, it works well in most cases, at least it won't crash unexpectedly
+    setenv("KMP_DUPLICATE_LIB_OK", "1", 1);
+}
 #endif
 
 // topology info
@@ -2093,6 +2116,10 @@ static int detect_cpu_is_arm_a53_a55()
 // the initialization
 static void initialize_global_cpu_info()
 {
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
+    ncnn_kmp_env_initializer();
+#endif
+
     g_cpucount = get_cpucount();
     g_physical_cpucount = get_physical_cpucount();
     g_powersave = 0;
@@ -3231,21 +3258,3 @@ int set_flush_denormals(int flush_denormals)
 }
 
 } // namespace ncnn
-
-#if defined __ANDROID__ && defined(_OPENMP) && __clang__
-#ifdef __cplusplus
-extern "C" {
-#endif
-void __wrap___kmp_affinity_determine_capable(const char* /*env_var*/)
-{
-    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
-    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
-    // and cpu core goes offline in powersave mode on android, which triggers abort
-    // ATM there is no known api for controlling the abort behavior
-    // override __kmp_affinity_determine_capable with empty body to disable affinity regardless of KMP_AFFINITY env_var
-    // ugly hack works >.<    --- nihui
-}
-#ifdef __cplusplus
-} // extern "C"
-#endif
-#endif
