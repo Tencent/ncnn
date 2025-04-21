@@ -19,7 +19,7 @@
 #include "pass_ncnn/convert_module_op.h"
 #include "pass_ncnn/convert_half_to_float.h"
 #include "pass_ncnn/convert_input.h"
-#include "pass_ncnn/convert_reshape_expression.h"
+#include "pass_ncnn/convert_reshape_interp_expression.h"
 #include "pass_ncnn/convert_slice_expression.h"
 #include "pass_ncnn/convert_torch_cat.h"
 #include "pass_ncnn/convert_torch_chunk.h"
@@ -110,7 +110,7 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::convert_torch_tensor_split(g);
     ncnn::convert_torch_einsum(g);
 
-    ncnn::convert_reshape_expression(g);
+    ncnn::convert_reshape_interp_expression(g);
     ncnn::convert_slice_expression(g);
 
     ncnn::convert_Tensor_select(g);
