@@ -137,10 +137,8 @@
 #include "ruapu.h"
 #endif
 
-
 #if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
-__attribute__((constructor))
-void ncnn_kmp_env_initializer()
+__attribute__((constructor)) void ncnn_kmp_env_initializer()
 {
     // this function should be called before touching all openmp stuff
     // the env setting here helps prevent abort from happening inside openmp
