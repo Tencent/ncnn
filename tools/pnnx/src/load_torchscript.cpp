@@ -372,6 +372,10 @@ Attribute::Attribute(const at::Tensor& t)
     }
 }
 
+Attribute::Attribute(const TorchTensorProxy& t) : Attribute(t.t())
+{
+}
+
 Operand* Graph::new_operand(const torch::jit::Value* v)
 {
     // Operand* r = new Operand;
@@ -508,7 +512,7 @@ static void get_traced_input_shape(const std::string& ptpath, std::vector<std::v
     {
         // read traced_inputs.pkl
         caffe2::serialize::PyTorchStreamReader reader(ptpath);
-        auto v = torch::jit::readArchiveAndTensors("traced_inputs", "", "traced_inputs/", std::nullopt, std::nullopt, std::nullopt, reader);
+        auto v = torch::jit::readArchiveAndTensors("traced_inputs", "", "traced_inputs/", c10::nullopt, c10::nullopt, c10::nullopt, reader);
 
         if (!v.isGenericDict())
             return;

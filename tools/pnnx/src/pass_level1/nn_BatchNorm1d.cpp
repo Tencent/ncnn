@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,12 +29,12 @@ public:
         return "nn.BatchNorm1d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
     {
-        const torch::jit::Node* bn = find_node_by_kind(graph, "aten::batch_norm");
+        const TorchNodeProxy* bn = graph.find_node_by_kind("aten::batch_norm");
 
-        const auto& running_mean = mod.attr("running_mean").toTensor();
-        const auto& running_var = mod.attr("running_var").toTensor();
+        const TorchTensorProxy& running_mean = mod.attr("running_mean");
+        const TorchTensorProxy& running_var = mod.attr("running_var");
 
         op->params["num_features"] = running_mean.size(0);
         op->params["eps"] = bn->namedInput("eps");
@@ -46,8 +44,8 @@ public:
         op->attrs["running_var"] = running_var;
         if (mod.hasattr("weight") && mod.hasattr("bias"))
         {
-            op->attrs["weight"] = mod.attr("weight").toTensor();
-            op->attrs["bias"] = mod.attr("bias").toTensor();
+            op->attrs["weight"] = mod.attr("weight");
+            op->attrs["bias"] = mod.attr("bias");
         }
     }
 };

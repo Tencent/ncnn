@@ -12,12 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef PNNX_PASS_LEVEL1_H
-#define PNNX_PASS_LEVEL1_H
+#ifndef PNNX_FUSE_MODULE_PASS_H
+#define PNNX_FUSE_MODULE_PASS_H
 
-#include <torch/script.h>
-#include <torch/csrc/jit/api/module.h>
 #include "ir.h"
+
+#include <memory>
+#include <unordered_map>
+namespace torch {
+namespace jit {
+struct Graph;
+struct Module;
+struct Node;
+struct Value;
+} // namespace jit
+} // namespace torch
 
 namespace pnnx {
 
@@ -108,8 +117,6 @@ const std::vector<const FuseModulePass*>& get_global_pnnx_fuse_module_passes();
 #define REGISTER_GLOBAL_PNNX_FUSE_MODULE_PASS(CLASS) \
     static FuseModulePassRegister g_global_pnnx_fusemodulepass_##CLASS##_register(new CLASS);
 
-void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& g, const std::vector<std::string>& module_operators, Graph& pg);
-
 } // namespace pnnx
 
-#endif // PNNX_PASS_LEVEL1_H
+#endif // PNNX_FUSE_MODULE_PASS_H

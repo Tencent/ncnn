@@ -19,8 +19,87 @@
 
 namespace pnnx {
 
+const torch::jit::Value* TorchNodeProxy::namedInput(const std::string& unqualName) const
+{
+    return node->namedInput(unqualName);
+}
+
+TorchGraphProxy::TorchGraphProxy(const std::shared_ptr<torch::jit::Graph>& _graph) : graph(_graph)
+{
+    for (const auto& n : graph->nodes())
+    {
+        nodes.push_back(n);
+    }
+}
+
+const TorchNodeProxy* TorchGraphProxy::find_node_by_kind(const std::string& kind) const
+{
+    for (const auto& n : nodes)
+    {
+        if (n.node->kind().toDisplayString() == kind)
+            return &n;
+    }
+
+    return 0;
+}
+
+class TorchTensorProxyPrivate
+{
+public:
+    at::Tensor t;
+};
+
+TorchTensorProxy::TorchTensorProxy(const at::Tensor& _t) : d(std::make_unique<TorchTensorProxyPrivate>())
+{
+    d->t = _t;
+}
+
+const at::Tensor& TorchTensorProxy::t() const
+{
+    return d->t;
+}
+
+int TorchTensorProxy::size(size_t i) const
+{
+    return d->t.size(i);
+}
+
+
+TorchModuleProxy::TorchModuleProxy(const torch::jit::Module& _mod) : mod(_mod)
+{
+    const std::vector<c10::ClassAttribute>& attributes = mod._ivalue()->type()->getAttributes();
+    for (size_t i = 0; i < attributes.size(); i++)
+    {
+        const std::string& name = attributes[i].getName();
+        const c10::IValue& ivalue = mod._ivalue()->getSlot(i);
+
+        if (!name.empty() && ivalue.isTensor())
+            attrs.insert(std::make_pair(name, TorchTensorProxy(ivalue.toTensor())));
+    }
+}
+
+bool TorchModuleProxy::hasattr(const std::string& name) const
+{
+    return attrs.find(name) != attrs.end();
+}
+
+const TorchTensorProxy& TorchModuleProxy::attr(const std::string& name) const
+{
+    return attrs.at(name);
+}
+
+
 FuseModulePass::~FuseModulePass()
 {
+}
+
+void FuseModulePass::write(Operator* /*op*/, const TorchGraphProxy& /*graph*/) const
+{
+}
+
+void FuseModulePass::write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& /*mod*/) const
+{
+    write(op, graph);
 }
 
 void FuseModulePass::write(Operator* /*op*/, const std::shared_ptr<torch::jit::Graph>& /*graph*/) const
@@ -397,6 +476,14 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                     }
 
                     op->name = wrapped_name;
+
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
+                    TorchGraphProxy graph_proxy(toGraphFunction(function).graph());
+#else
+                    TorchGraphProxy graph_proxy(function.graph());
+#endif
+                    TorchModuleProxy sub_mod_proxy(sub_mod);
+                    ow->write(op, graph_proxy, sub_mod_proxy);
 
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
                     ow->write(op, toGraphFunction(function).graph(), sub_mod);
