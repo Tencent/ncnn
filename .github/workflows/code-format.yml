@@ -10,18 +10,10 @@ permissions:
   contents: write
 
 jobs:
-  code-format:
+  clang-format:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
-    - name: apt
-      run: |
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y
-        apt-get install -y build-essential wget curl cmake unzip zip python3-pip astyle git
-
-    - uses: actions/checkout@v4
-
     - name: cache-clang-format
       id: cache-clang-format
       uses: actions/cache@v4
@@ -31,6 +23,9 @@ jobs:
     - name: clang-format
       if: steps.cache-clang-format.outputs.cache-hit != 'true'
       run: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get install -y build-essential wget curl cmake unzip zip python3-pip
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-project-10.0.1.tar.xz
         tar -xf llvm-project-10.0.1.tar.xz
         cd llvm-project-10.0.1
@@ -44,6 +39,24 @@ jobs:
         rm -rf llvm-project-10.0.1
         rm llvm-project-10.0.1.tar.xz
 
+  code-format:
+    needs: [clang-format]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: cache-clang-format
+      id: cache-clang-format
+      uses: actions/cache@v4
+      with:
+        path: clang-format-install
+        key: clang-format-install-5
+
+    - name: astyle
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y astyle
+
     - name: code-format
       run: |
         mkdir -p ~/bin
@@ -51,6 +64,7 @@ jobs:
         rm -rf $GITHUB_WORKSPACE/clang-format-install
         export PATH=~/bin:$PATH
         sh codeformat.sh
+
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: apply code-format changes
