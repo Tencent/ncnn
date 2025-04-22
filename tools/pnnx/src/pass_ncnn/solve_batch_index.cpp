@@ -138,6 +138,8 @@ static void solve_batch_index_forward(Operand* operand)
         return;
 
     int batch_index = operand->params["__batch_index"].i;
+    if (batch_index == 233)
+        return;
 
     for (Operator* op : operand->consumers)
     {
@@ -147,6 +149,8 @@ static void solve_batch_index_forward(Operand* operand)
         if (is_known_operator_with_batch_first_param(op))
             continue;
 
+        const int input_rank0 = op->inputs.empty() ? 0 : (int)op->inputs[0]->shape.size();
+
         if (op->type == "Tensor.permute")
         {
             const std::vector<int>& dims = op->params.at("dims").ai;
@@ -154,7 +158,11 @@ static void solve_batch_index_forward(Operand* operand)
             int batch_index_permuted = -1;
             for (int i = 0; i < (int)dims.size(); i++)
             {
-                if (dims[i] == batch_index)
+                int dim = dims[i];
+                if (dim < 0)
+                    dim += input_rank0;
+
+                if (dim >= 0 && dim == batch_index)
                 {
                     batch_index_permuted = i;
                     break;
@@ -174,15 +182,19 @@ static void solve_batch_index_forward(Operand* operand)
         }
         else if (op->type == "torch.transpose")
         {
-            const int dim0 = op->params.at("dim0").i;
-            const int dim1 = op->params.at("dim1").i;
+            int dim0 = op->params.at("dim0").i;
+            int dim1 = op->params.at("dim1").i;
+            if (dim0 < 0)
+                dim0 += input_rank0;
+            if (dim1 < 0)
+                dim1 += input_rank0;
 
             int batch_index_transposed = batch_index;
-            if (dim0 == batch_index)
+            if (dim0 >= 0 && dim0 == batch_index)
             {
                 batch_index_transposed = dim1;
             }
-            else if (dim1 == batch_index)
+            else if (dim1 >= 0 && dim1 == batch_index)
             {
                 batch_index_transposed = dim0;
             }
@@ -240,6 +252,52 @@ static void solve_batch_index_forward(Operand* operand)
         {
             // pass
         }
+        else if (op->type == "torch.squeeze")
+        {
+            int dim = op->params.at("dim").i;
+            if (dim < 0)
+                dim += input_rank0;
+
+            int batch_index_squeezed = batch_index;
+            if (dim >= 0 && dim < batch_index)
+            {
+                batch_index_squeezed = batch_index - 1;
+            }
+            if (dim >= 0 && dim == batch_index)
+            {
+                batch_index_squeezed = 233;
+            }
+
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index_squeezed;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
+        else if (op->type == "torch.unsqueeze")
+        {
+            int dim = op->params.at("dim").i;
+            if (dim < 0)
+                dim += input_rank0;
+
+            int batch_index_unsqueezed = batch_index;
+            if (dim >= 0 && dim <= batch_index)
+            {
+                batch_index_unsqueezed = batch_index + 1;
+            }
+
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index_unsqueezed;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
         else
         {
             for (Operand* r : op->outputs)
@@ -262,6 +320,8 @@ static void solve_batch_index_backward(Operand* operand)
         return;
 
     int batch_index = operand->params["__batch_index"].i;
+    if (batch_index == 233)
+        return;
 
     Operator* op = operand->producer;
     if (is_known_operator_with_batch_index_0(op))
@@ -270,11 +330,15 @@ static void solve_batch_index_backward(Operand* operand)
     if (is_known_operator_with_batch_first_param(op))
         return;
 
+    const int input_rank0 = op->inputs.empty() ? 0 : (int)op->inputs[0]->shape.size();
+
     if (op->type == "Tensor.permute")
     {
         const std::vector<int>& dims = op->params.at("dims").ai;
 
         int batch_index_permuted = dims[batch_index];
+        if (batch_index_permuted < 0)
+            batch_index_permuted += input_rank0;
 
         for (Operand* r : op->inputs)
         {
@@ -289,15 +353,19 @@ static void solve_batch_index_backward(Operand* operand)
     }
     else if (op->type == "torch.transpose")
     {
-        const int dim0 = op->params.at("dim0").i;
-        const int dim1 = op->params.at("dim1").i;
+        int dim0 = op->params.at("dim0").i;
+        int dim1 = op->params.at("dim1").i;
+        if (dim0 < 0)
+            dim0 += input_rank0;
+        if (dim1 < 0)
+            dim1 += input_rank0;
 
         int batch_index_transposed = batch_index;
-        if (dim0 == batch_index)
+        if (dim0 >= 0 && dim0 == batch_index)
         {
             batch_index_transposed = dim1;
         }
-        else if (dim1 == batch_index)
+        else if (dim1 >= 0 && dim1 == batch_index)
         {
             batch_index_transposed = dim0;
         }
@@ -354,6 +422,48 @@ static void solve_batch_index_backward(Operand* operand)
     else if (op->type == "pnnx.SliceIndexes")
     {
         // pass
+    }
+    else if (op->type == "torch.squeeze")
+    {
+        int dim = op->params.at("dim").i;
+        if (dim < 0)
+            dim += input_rank0;
+
+        int batch_index_unsqueezed = batch_index;
+        if (dim >= 0 && dim <= batch_index)
+        {
+            batch_index_unsqueezed = batch_index + 1;
+        }
+
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index_unsqueezed;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+    else if (op->type == "torch.unsqueeze")
+    {
+        int dim = op->params.at("dim").i;
+        if (dim < 0)
+            dim += input_rank0;
+
+        int batch_index_squeezed = batch_index;
+        if (dim >= 0 && dim <= batch_index)
+        {
+            batch_index_squeezed = batch_index - 1;
+        }
+
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index_squeezed;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
     }
     else
     {
