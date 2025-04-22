@@ -83,6 +83,7 @@ int CELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             if (*ptr < 0)
                 *ptr = alpha * (expf(*ptr / alpha) - 1.f);
+            ++ptr;
         }
 #endif // __riscv_vector
     }

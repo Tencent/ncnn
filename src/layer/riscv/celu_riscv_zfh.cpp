@@ -60,6 +60,7 @@ int CELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         {
             if (*ptr < 0)
                 *ptr = alpha * (expf((float)(*ptr / alpha)) - __fp16(1.f));
+            ++ptr;
         }
 #endif // __riscv_vector
     }
