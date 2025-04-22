@@ -14,6 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
+    - name: apt
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get install -y build-essential wget curl cmake unzip zip python3-pip astyle git
+
     - uses: actions/checkout@v4
 
     - name: cache-clang-format
@@ -25,9 +31,6 @@ jobs:
     - name: clang-format
       if: steps.cache-clang-format.outputs.cache-hit != 'true'
       run: |
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y
-        apt-get install -y build-essential wget curl cmake unzip zip python3-pip
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-project-10.0.1.tar.xz
         tar -xf llvm-project-10.0.1.tar.xz
         cd llvm-project-10.0.1
@@ -40,12 +43,6 @@ jobs:
         cd ../../
         rm -rf llvm-project-10.0.1
         rm llvm-project-10.0.1.tar.xz
-
-    - name: astyle
-      run: |
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y
-        apt-get install -y astyle
 
     - name: code-format
       run: |
