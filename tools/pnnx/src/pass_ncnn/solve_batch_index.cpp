@@ -240,6 +240,44 @@ static void solve_batch_index_forward(Operand* operand)
         {
             // pass
         }
+        else if (op->type == "torch.squeeze")
+        {
+            const int dim = op->params.at("dim").i;
+
+            int batch_index_squeezed = batch_index;
+            if (dim >= 0 && dim < batch_index)
+            {
+                batch_index_squeezed = batch_index - 1;
+            }
+
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index_squeezed;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
+        else if (op->type == "torch.unsqueeze")
+        {
+            const int dim = op->params.at("dim").i;
+
+            int batch_index_unsqueezed = batch_index;
+            if (dim >= 0 && dim < batch_index)
+            {
+                batch_index_unsqueezed = batch_index + 1;
+            }
+
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index_unsqueezed;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
         else
         {
             for (Operand* r : op->outputs)
@@ -354,6 +392,44 @@ static void solve_batch_index_backward(Operand* operand)
     else if (op->type == "pnnx.SliceIndexes")
     {
         // pass
+    }
+    else if (op->type == "torch.squeeze")
+    {
+        const int dim = op->params.at("dim").i;
+
+        int batch_index_unsqueezed = batch_index;
+        if (dim >= 0 && dim <= batch_index)
+        {
+            batch_index_unsqueezed = batch_index + 1;
+        }
+
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index_unsqueezed;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+    else if (op->type == "torch.unsqueeze")
+    {
+        const int dim = op->params.at("dim").i;
+
+        int batch_index_squeezed = batch_index;
+        if (dim >= 0 && dim <= batch_index)
+        {
+            batch_index_squeezed = batch_index - 1;
+        }
+
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index_squeezed;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
     }
     else
     {
