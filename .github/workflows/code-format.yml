@@ -12,6 +12,7 @@ permissions:
 jobs:
   code-format:
     runs-on: ubuntu-latest
+    container: ubuntu:20.04
     steps:
     - uses: actions/checkout@v4
 
@@ -24,6 +25,8 @@ jobs:
     - name: clang-format
       if: steps.cache-clang-format.outputs.cache-hit != 'true'
       run: |
+        sudo apt-get update -y
+        sudo apt-get install -y build-essential wget curl cmake unzip zip
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-project-10.0.1.tar.xz
         tar -xf llvm-project-10.0.1.tar.xz
         cd llvm-project-10.0.1
@@ -39,7 +42,7 @@ jobs:
 
     - name: astyle
       run: |
-        sudo apt-get update
+        sudo apt-get update -y
         sudo apt-get install -y astyle
 
     - name: code-format
