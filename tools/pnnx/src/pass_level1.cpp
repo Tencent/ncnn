@@ -19,9 +19,24 @@
 
 namespace pnnx {
 
-const torch::jit::Value* TorchNodeProxy::namedInput(const std::string& unqualName) const
+bool TorchNodeProxy::hasNamedInput(const std::string& name) const
 {
-    return node->namedInput(unqualName);
+    return node->hasNamedInput(name);
+}
+
+const torch::jit::Value* TorchNodeProxy::namedInput(const std::string& name) const
+{
+    return node->namedInput(name);
+}
+
+std::vector<const torch::jit::Value*> TorchNodeProxy::inputs() const
+{
+    return node->inputs().vec();
+}
+
+std::vector<const torch::jit::Value*> TorchNodeProxy::outputs() const
+{
+    return node->outputs().vec();
 }
 
 TorchGraphProxy::TorchGraphProxy(const std::shared_ptr<torch::jit::Graph>& _graph) : graph(_graph)
@@ -37,6 +52,17 @@ const TorchNodeProxy* TorchGraphProxy::find_node_by_kind(const std::string& kind
     for (const auto& n : nodes)
     {
         if (n.node->kind().toDisplayString() == kind)
+            return &n;
+    }
+
+    return 0;
+}
+
+const TorchNodeProxy* TorchGraphProxy::find_producer_node_by_value(const torch::jit::Value* value) const
+{
+    for (const auto& n : nodes)
+    {
+        if (n.node == value->node())
             return &n;
     }
 

@@ -13,9 +13,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -32,9 +30,9 @@ public:
         return "nn.GLU";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* glu = find_node_by_kind(graph, "aten::glu");
+        const TorchNodeProxy* glu = graph.find_node_by_kind("aten::glu");
 
         op->params["dim"] = glu->namedInput("dim");
     }

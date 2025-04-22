@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,10 +29,10 @@ public:
         return "nn.LeakyReLU";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* leaky_relu = find_node_by_kind(graph, "aten::leaky_relu");
-        const torch::jit::Node* leaky_relu_ = find_node_by_kind(graph, "aten::leaky_relu_");
+        const TorchNodeProxy* leaky_relu = graph.find_node_by_kind("aten::leaky_relu");
+        const TorchNodeProxy* leaky_relu_ = graph.find_node_by_kind("aten::leaky_relu_");
 
         if (leaky_relu_)
         {
