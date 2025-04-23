@@ -20,7 +20,6 @@ jobs:
       with:
         path: clang-format-install
         key: clang-format-install-5
-        enableCrossOsArchive: true
     - name: clang-format
       if: steps.cache-clang-format.outputs.cache-hit != 'true'
       run: |
@@ -54,6 +53,15 @@ jobs:
       with:
         name: clang-format
         path: clang-format-install
+        merge-multiple: true
+
+    - name: code-format-0
+      run: |
+        ls $GITHUB_WORKSPACE
+        ls $GITHUB_WORKSPACE/clang-format-install
+        mkdir -p ~/bin
+        mv $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
+        rm -rf $GITHUB_WORKSPACE/clang-format-install
 
     - uses: actions/checkout@v4
 
