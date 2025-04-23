@@ -155,7 +155,7 @@ TorchModuleProxy::TorchModuleProxy(const torch::jit::Module& _mod) : mod(_mod)
             continue;
 
         if (ivalue.isTensor())
-            attrs.insert(std::make_pair(name, TorchTensorProxy(ivalue.toTensor())));
+            attrs.emplace(name, ivalue.toTensor());
 
         if (ivalue.isModule())
         {
@@ -171,7 +171,7 @@ TorchModuleProxy::TorchModuleProxy(const torch::jit::Module& _mod) : mod(_mod)
                     continue;
 
                 if (sub_ivalue.isTensor())
-                    attrs.insert(std::make_pair(name + "." + sub_name, TorchTensorProxy(sub_ivalue.toTensor())));
+                    attrs.emplace(name + "." + sub_name, sub_ivalue.toTensor());
             }
         }
     }

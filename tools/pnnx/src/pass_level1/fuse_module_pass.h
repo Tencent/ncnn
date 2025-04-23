@@ -90,6 +90,9 @@ public:
     TorchTensorProxy(const at::Tensor& _t);
     ~TorchTensorProxy();
 
+    TorchTensorProxy(const TorchTensorProxy&) = delete;
+    TorchTensorProxy& operator=(const TorchTensorProxy&) = delete;
+
     const at::Tensor& t() const;
 
     int size(size_t i) const;
