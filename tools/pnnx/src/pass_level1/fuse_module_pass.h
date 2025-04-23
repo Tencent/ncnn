@@ -35,11 +35,16 @@ class TorchNodeProxy
 public:
     TorchNodeProxy(const torch::jit::Node* _node) : node(_node) {}
 
+    std::string kind() const;
+
     bool hasNamedInput(const std::string& name) const;
     const torch::jit::Value* namedInput(const std::string& name) const;
 
     std::vector<const torch::jit::Value*> inputs() const;
     std::vector<const torch::jit::Value*> outputs() const;
+
+    const torch::jit::Value* input(int i) const;
+    const torch::jit::Value* output(int i) const;
 
 public:
     const torch::jit::Node* node;
@@ -48,15 +53,23 @@ public:
 class TorchGraphProxy
 {
 public:
-    TorchGraphProxy(const std::shared_ptr<torch::jit::Graph>& _graph);
+    TorchGraphProxy(const std::shared_ptr<torch::jit::Graph> _graph);
 
     // bool has_node(const std::string& name) const;
     const TorchNodeProxy* find_node_by_kind(const std::string& kind) const;
 
     const TorchNodeProxy* find_producer_node_by_value(const torch::jit::Value* value) const;
 
+    std::vector<const torch::jit::Value*> inputs() const;
+    std::vector<const torch::jit::Value*> outputs() const;
+
+    const torch::jit::Value* input(int i) const;
+    const torch::jit::Value* output(int i) const;
+
+    void dump() const;
+
 public:
-    const std::shared_ptr<torch::jit::Graph>& graph;
+    const std::shared_ptr<torch::jit::Graph> graph;
 
 public:
     std::vector<TorchNodeProxy> nodes;

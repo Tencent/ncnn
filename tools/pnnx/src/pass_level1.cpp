@@ -19,6 +19,11 @@
 
 namespace pnnx {
 
+std::string TorchNodeProxy::kind() const
+{
+    return node->kind().toDisplayString();
+}
+
 bool TorchNodeProxy::hasNamedInput(const std::string& name) const
 {
     return node->hasNamedInput(name);
@@ -39,7 +44,17 @@ std::vector<const torch::jit::Value*> TorchNodeProxy::outputs() const
     return node->outputs().vec();
 }
 
-TorchGraphProxy::TorchGraphProxy(const std::shared_ptr<torch::jit::Graph>& _graph) : graph(_graph)
+const torch::jit::Value* TorchNodeProxy::input(int i) const
+{
+    return node->input(i);
+}
+
+const torch::jit::Value* TorchNodeProxy::output(int i) const
+{
+    return node->output(i);
+}
+
+TorchGraphProxy::TorchGraphProxy(const std::shared_ptr<torch::jit::Graph> _graph) : graph(_graph)
 {
     for (const auto& n : graph->nodes())
     {
@@ -66,7 +81,33 @@ const TorchNodeProxy* TorchGraphProxy::find_producer_node_by_value(const torch::
             return &n;
     }
 
+    fprintf(stderr, "TorchGraphProxy find_producer_node_by_value failed\n");
     return 0;
+}
+
+std::vector<const torch::jit::Value*> TorchGraphProxy::inputs() const
+{
+    return std::as_const(*graph).inputs().vec();
+}
+
+std::vector<const torch::jit::Value*> TorchGraphProxy::outputs() const
+{
+    return std::as_const(*graph).outputs().vec();
+}
+
+const torch::jit::Value* TorchGraphProxy::input(int i) const
+{
+    return std::as_const(*graph).inputs()[i];
+}
+
+const torch::jit::Value* TorchGraphProxy::output(int i) const
+{
+    return std::as_const(*graph).outputs()[i];
+}
+
+void TorchGraphProxy::dump() const
+{
+    graph->dump();
 }
 
 class TorchTensorProxyPrivate
