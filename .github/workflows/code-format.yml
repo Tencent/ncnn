@@ -51,12 +51,6 @@ jobs:
       run: |
         mv $GITHUB_WORKSPACE/clang-format-install/clang-format /usr/local/bin/clang-format
         rm -rf $GITHUB_WORKSPACE/clang-format-install
-
-        echo $PATH
-
-        ls -l /usr/local/bin
-        which clang-format
-
         sh codeformat.sh
 
     - name: configure-git-safe-directory
