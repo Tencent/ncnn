@@ -40,19 +40,22 @@ jobs:
         rm -rf llvm-project-10.0.1
         rm llvm-project-10.0.1.tar.xz
 
+    - name: upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: clang-format
+        path: clang-format-install/clang-format
+
   code-format:
     needs: [clang-format]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-
-    - name: cache-clang-format
-      id: cache-clang-format
-      uses: actions/cache@v4
+    - uses: actions/download-artifact@v4
       with:
+        name: clang-format
         path: clang-format-install
-        key: clang-format-install-5
-        enableCrossOsArchive: true
+
+    - uses: actions/checkout@v4
 
     - name: astyle
       run: |
@@ -70,8 +73,3 @@ jobs:
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: apply code-format changes
-
-    - name: restore-clang-format-cache
-      run: |
-        mkdir $GITHUB_WORKSPACE/clang-format-install
-        cp -r ~/bin/clang-format $GITHUB_WORKSPACE/clang-format-install
