@@ -20,6 +20,7 @@ jobs:
       with:
         path: clang-format-install
         key: clang-format-install-5
+        enableCrossOsArchive: true
     - name: clang-format
       if: steps.cache-clang-format.outputs.cache-hit != 'true'
       run: |
@@ -51,6 +52,7 @@ jobs:
       with:
         path: clang-format-install
         key: clang-format-install-5
+        enableCrossOsArchive: true
 
     - name: astyle
       run: |
