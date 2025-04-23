@@ -115,7 +115,8 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             signed char* ptr = top_blob.row<signed char>(i);
 
             const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[i];
-            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0] : bias_data[i];
+            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0]
+                               : bias_data[i];
             const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[i];
 
             requantize(intptr, ptr, scale_in, bias, scale_out, activation_type, activation_params, w);
@@ -135,7 +136,8 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             signed char* ptr = top_blob.channel(q);
 
             const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[q];
-            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0] : bias_data[q];
+            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0]
+                               : bias_data[q];
             const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[q];
 
             requantize(intptr, ptr, scale_in, bias, scale_out, activation_type, activation_params, w * h);

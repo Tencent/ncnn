@@ -33,10 +33,14 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 0) elempack = opt.use_shader_pack8 && num_slope % 8 == 0 ? 8 : num_slope % 4 == 0 ? 4 : 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 0) elempack = opt.use_shader_pack8 && num_slope % 8 == 0 ? 8 : num_slope % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
+                                        : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -131,7 +135,8 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (num_slope > 1)
     {
-        int elempack = opt.use_shader_pack8 && num_slope % 8 == 0 ? 8 : num_slope % 4 == 0 ? 4 : 1;
+        int elempack = opt.use_shader_pack8 && num_slope % 8 == 0 ? 8 : num_slope % 4 == 0 ? 4
+                       : 1;
 
         Mat slope_data_packed;
         convert_packing(slope_data, slope_data_packed, elempack, opt);
@@ -169,7 +174,7 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_prelu_pack8
+    const Pipeline* pipeline = elempack == 8   ? pipeline_prelu_pack8
                                : elempack == 4 ? pipeline_prelu_pack4
                                : pipeline_prelu;
 
@@ -194,7 +199,7 @@ int PReLU_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, c
     constants[3].i = bottom_top_blob.c;
     constants[4].i = 0; //bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_prelu_pack8
+    const Pipeline* pipeline = elempack == 8   ? pipeline_prelu_pack8
                                : elempack == 4 ? pipeline_prelu_pack4
                                : pipeline_prelu;
 

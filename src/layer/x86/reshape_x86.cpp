@@ -83,9 +83,12 @@ int Reshape_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         if (opt.use_packing_layout)
         {
 #if __AVX512F__
-            out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+            out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8
+                           : outh % 4 == 0   ? 4
+                           : 1;
 #elif __AVX__
-            out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+            out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4
+                           : 1;
 #else
             out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif
@@ -396,9 +399,12 @@ int Reshape_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         if (opt.use_packing_layout)
         {
 #if __AVX512F__
-            out_elempack = outc % 16 == 0 ? 16 : outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+            out_elempack = outc % 16 == 0 ? 16 : outc % 8 == 0 ? 8
+                           : outc % 4 == 0   ? 4
+                           : 1;
 #elif __AVX__
-            out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+            out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4
+                           : 1;
 #else
             out_elempack = outc % 4 == 0 ? 4 : 1;
 #endif

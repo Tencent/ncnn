@@ -118,11 +118,17 @@ int DeformableConv2D_x86::create_pipeline(const Option& opt)
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        elempack = num_input % 16 == 0 ? 16 : num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        elempack = num_input % 16 == 0 ? 16 : num_input % 8 == 0 ? 8
+                   : num_input % 4 == 0   ? 4
+                   : 1;
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8
+                       : num_output % 4 == 0   ? 4
+                       : 1;
 #elif __AVX__
-        elempack = num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        elempack = num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4
+                   : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
 #else
         elempack = num_input % 4 == 0 ? 4 : 1;
         out_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -251,9 +257,12 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8
+                       : num_output % 4 == 0   ? 4
+                       : 1;
 #elif __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif

@@ -2618,8 +2618,9 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
     uop->vkdev = vkdev;
 
     ncnn::ParamDict pd;
-    pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4 : 8); // out_elempack
-    pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16p 3=fp16s
+    pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4
+           : 8); // out_elempack
+    pd.set(2, cast_type_from_index + 1);                                        // 0=auto 1=fp32 2=fp16p 3=fp16s
     pd.set(3, cast_type_to_index + 1);
     pd.set(4, storage_type_from); // 0=buffer 1=image
     pd.set(5, storage_type_to);
@@ -3440,17 +3441,17 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
         return 0;
     }
 
-    Mutex& queue_lock = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_lock
+    Mutex& queue_lock = queue_family_index == info.compute_queue_family_index()    ? d->compute_queue_lock
                         : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_lock
                         : d->transfer_queue_lock;
 
     queue_lock.lock();
 
-    ConditionVariable& queue_condition = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_condition
+    ConditionVariable& queue_condition = queue_family_index == info.compute_queue_family_index()    ? d->compute_queue_condition
                                          : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_condition
                                          : d->transfer_queue_condition;
 
-    int& free_queue_count = queue_family_index == info.compute_queue_family_index() ? d->free_compute_queue_count
+    int& free_queue_count = queue_family_index == info.compute_queue_family_index()    ? d->free_compute_queue_count
                             : queue_family_index == info.graphics_queue_family_index() ? d->free_graphics_queue_count
                             : d->free_transfer_queue_count;
 
@@ -3460,7 +3461,7 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
         queue_condition.wait(queue_lock);
     }
 
-    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index()    ? d->compute_queues
                                    : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues
                                    : d->transfer_queues;
 
@@ -3499,21 +3500,21 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
         return;
     }
 
-    Mutex& queue_lock = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_lock
+    Mutex& queue_lock = queue_family_index == info.compute_queue_family_index()    ? d->compute_queue_lock
                         : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_lock
                         : d->transfer_queue_lock;
 
     queue_lock.lock();
 
-    ConditionVariable& queue_condition = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_condition
+    ConditionVariable& queue_condition = queue_family_index == info.compute_queue_family_index()    ? d->compute_queue_condition
                                          : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_condition
                                          : d->transfer_queue_condition;
 
-    int& free_queue_count = queue_family_index == info.compute_queue_family_index() ? d->free_compute_queue_count
+    int& free_queue_count = queue_family_index == info.compute_queue_family_index()    ? d->free_compute_queue_count
                             : queue_family_index == info.graphics_queue_family_index() ? d->free_graphics_queue_count
                             : d->free_transfer_queue_count;
 
-    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index()    ? d->compute_queues
                                    : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues
                                    : d->transfer_queues;
 
@@ -3718,8 +3719,10 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     Option opt = _opt;
     opt.use_image_storage = false;
 
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1
+                             : 0;
+    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1
+                                : 2;
 
     int cast_type_from_index;
     if (src.elembits() == 32)
@@ -3750,8 +3753,10 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1
+                             : 0;
+    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1
+                                : 2;
 
     int cast_type_from_index;
     if (src.elembits() == 32)
@@ -3782,8 +3787,10 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
 
 void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1
+                             : 0;
+    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1
+                                : 2;
 
     int cast_type_from_index;
     if (src.elembits() == 32)
@@ -3814,8 +3821,10 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1
+                             : 0;
+    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1
+                                : 2;
 
     int cast_type_from_index;
     if (src.elembits() == 32)

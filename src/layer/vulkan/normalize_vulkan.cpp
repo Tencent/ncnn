@@ -47,9 +47,12 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
+                                        : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -251,7 +254,8 @@ int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (!channel_shared && !(scale_data_size == 1 && scale_data[0] == 1.f))
     {
-        int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
+        int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4
+                       : 1;
 
         Mat scale_data_packed;
         convert_packing(scale_data, scale_data_packed, elempack, opt);
@@ -323,7 +327,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
                 constants[6].i = sqsum_workspace.c;
                 constants[7].i = sqsum_workspace.cstep;
 
-                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
+                const Pipeline* pipeline = elempack == 8   ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
                                            : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
                                            : pipeline_normalize_reduce_sum4_fp16_to_fp32;
 
@@ -375,7 +379,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
                 constants[6].i = sqsum_workspace_reduced.c;
                 constants[7].i = sqsum_workspace_reduced.cstep;
 
-                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
+                const Pipeline* pipeline = elempack == 8   ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
                                            : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
                                            : pipeline_normalize_reduce_sum4_fp32[pb % 2];
 
@@ -402,7 +406,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         constants[2].i = sqsum_workspace.c;
         constants[3].i = sqsum_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_coeffs_pack8
+        const Pipeline* pipeline = elempack == 8   ? pipeline_normalize_coeffs_pack8
                                    : elempack == 4 ? pipeline_normalize_coeffs_pack4
                                    : pipeline_normalize_coeffs;
 
@@ -423,7 +427,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         constants[3].i = bottom_top_blob.c;
         constants[4].i = bottom_top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_norm_pack8
+        const Pipeline* pipeline = elempack == 8   ? pipeline_normalize_norm_pack8
                                    : elempack == 4 ? pipeline_normalize_norm_pack4
                                    : pipeline_normalize_norm;
 
@@ -484,7 +488,7 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
                 constants[6].i = sqsum_workspace.c;
                 constants[7].i = 0; //sqsum_workspace.cstep;
 
-                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
+                const Pipeline* pipeline = elempack == 8   ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
                                            : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
                                            : pipeline_normalize_reduce_sum4_fp16_to_fp32;
 
@@ -536,7 +540,7 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
                 constants[6].i = sqsum_workspace_reduced.c;
                 constants[7].i = 0; //sqsum_workspace_reduced.cstep;
 
-                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
+                const Pipeline* pipeline = elempack == 8   ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
                                            : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
                                            : pipeline_normalize_reduce_sum4_fp32[pb % 2];
 
@@ -563,7 +567,7 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
         constants[2].i = sqsum_workspace.c;
         constants[3].i = 0; //sqsum_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_coeffs_pack8
+        const Pipeline* pipeline = elempack == 8   ? pipeline_normalize_coeffs_pack8
                                    : elempack == 4 ? pipeline_normalize_coeffs_pack4
                                    : pipeline_normalize_coeffs;
 
@@ -585,7 +589,7 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
         constants[3].i = bottom_top_blob.c;
         constants[4].i = 0; //bottom_top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_norm_pack8
+        const Pipeline* pipeline = elempack == 8   ? pipeline_normalize_norm_pack8
                                    : elempack == 4 ? pipeline_normalize_norm_pack4
                                    : pipeline_normalize_norm;
 

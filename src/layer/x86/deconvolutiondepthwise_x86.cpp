@@ -51,9 +51,12 @@ int DeconvolutionDepthWise_x86::create_pipeline(const Option& opt)
         if (opt.use_packing_layout)
         {
 #if __AVX512F__
-            elempack = channels % 16 == 0 ? 16 : channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+            elempack = channels % 16 == 0 ? 16 : channels % 8 == 0 ? 8
+                       : channels % 4 == 0   ? 4
+                       : 1;
 #elif __AVX__
-            elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+            elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
+                       : 1;
 #else
             elempack = channels % 4 == 0 ? 4 : 1;
 #endif
@@ -227,9 +230,12 @@ int DeconvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, c
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8
+                       : num_output % 4 == 0   ? 4
+                       : 1;
 #elif __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
@@ -517,11 +523,17 @@ int DeconvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, c
         if (opt.use_packing_layout)
         {
 #if __AVX512F__
-            g_elempack = channels_g % 16 == 0 ? 16 : channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-            out_g_elempack = num_output_g % 16 == 0 ? 16 : num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+            g_elempack = channels_g % 16 == 0 ? 16 : channels_g % 8 == 0 ? 8
+                         : channels_g % 4 == 0   ? 4
+                         : 1;
+            out_g_elempack = num_output_g % 16 == 0 ? 16 : num_output_g % 8 == 0 ? 8
+                             : num_output_g % 4 == 0   ? 4
+                             : 1;
 #elif __AVX__
-            g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-            out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+            g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
+                         : 1;
+            out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
+                             : 1;
 #else
             g_elempack = channels_g % 4 == 0 ? 4 : 1;
             out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;

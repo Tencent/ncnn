@@ -530,7 +530,8 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
     if (opt.use_packing_layout)
     {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif

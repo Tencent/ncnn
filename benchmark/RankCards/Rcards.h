@@ -38,9 +38,10 @@
 // Global hardcoded parameters
 //---------------------------------------------------------------------------
 // LERP(a,b,c) = linear interpolation macro, is 'a' when c == 0.0 and 'b' when c == 1.0 */
-#define MIN(a, b)                 ((a) > (b) ? (b) : (a))
-#define MAX(a, b)                 ((a) < (b) ? (b) : (a))
-#define LIM(a, b, c)              (((a) > (c)) ? (c) : ((a) < (b)) ? (b) : (a))
+#define MIN(a, b)    ((a) > (b) ? (b) : (a))
+#define MAX(a, b)    ((a) < (b) ? (b) : (a))
+#define LIM(a, b, c) (((a) > (c)) ? (c) : ((a) < (b)) ? (b) \
+                                                      : (a))
 #define LERP(a, b, c)             (((b) - (a)) * (c) + (a))
 #define ROUND(a)                  (static_cast<int>((a) + 0.5))
 #define EUCLIDEAN(x1, y1, x2, y2) sqrt(((x1) - (x2)) * ((x1) - (x2)) + ((y1) - (y2)) * ((y1) - (y2)))

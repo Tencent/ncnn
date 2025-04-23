@@ -427,7 +427,7 @@ struct vector
         {
             data_[i].~T();
         }
-        delete[](char*) data_;
+        delete[] (char*)data_;
         data_ = 0;
         size_ = 0;
         capacity_ = 0;
@@ -526,7 +526,7 @@ protected:
             if (data_)
             {
                 memmove(new_data, data_, sizeof(T) * size_);
-                delete[](char*) data_;
+                delete[] (char*)data_;
             }
             data_ = new_data;
         }

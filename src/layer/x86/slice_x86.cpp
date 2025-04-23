@@ -75,9 +75,12 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             if (opt.use_packing_layout)
             {
 #if __AVX512F__
-                out_elempack = slice % 16 == 0 ? 16 : slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+                out_elempack = slice % 16 == 0 ? 16 : slice % 8 == 0 ? 8
+                               : slice % 4 == 0   ? 4
+                               : 1;
 #elif __AVX__
-                out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+                out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4
+                               : 1;
 #else
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
@@ -135,9 +138,12 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             if (opt.use_packing_layout)
             {
 #if __AVX512F__
-                out_elempack = slice % 16 == 0 ? 16 : slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+                out_elempack = slice % 16 == 0 ? 16 : slice % 8 == 0 ? 8
+                               : slice % 4 == 0   ? 4
+                               : 1;
 #elif __AVX__
-                out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+                out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4
+                               : 1;
 #else
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
@@ -496,9 +502,12 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             if (opt.use_packing_layout)
             {
 #if __AVX512F__
-                out_elempack = slice % 16 == 0 ? 16 : slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+                out_elempack = slice % 16 == 0 ? 16 : slice % 8 == 0 ? 8
+                               : slice % 4 == 0   ? 4
+                               : 1;
 #elif __AVX__
-                out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+                out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4
+                               : 1;
 #else
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif

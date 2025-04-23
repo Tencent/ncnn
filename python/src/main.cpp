@@ -178,12 +178,12 @@ PYBIND11_MODULE(ncnn, m)
     py::class_<ParamDict>(m, "ParamDict")
     .def(py::init<>())
     .def("type", &ParamDict::type, py::arg("id"))
-    .def("get", (int (ParamDict::*)(int, int) const) & ParamDict::get, py::arg("id"), py::arg("def"))
-    .def("get", (float (ParamDict::*)(int, float) const) & ParamDict::get, py::arg("id"), py::arg("def"))
+    .def("get", (int(ParamDict::*)(int, int) const) & ParamDict::get, py::arg("id"), py::arg("def"))
+    .def("get", (float(ParamDict::*)(int, float) const) & ParamDict::get, py::arg("id"), py::arg("def"))
     .def("get", (Mat(ParamDict::*)(int, const Mat&) const) & ParamDict::get, py::arg("id"), py::arg("def"))
-    .def("set", (void (ParamDict::*)(int, int)) & ParamDict::set, py::arg("id"), py::arg("i"))
-    .def("set", (void (ParamDict::*)(int, float)) & ParamDict::set, py::arg("id"), py::arg("f"))
-    .def("set", (void (ParamDict::*)(int, const Mat&)) & ParamDict::set, py::arg("id"), py::arg("v"));
+    .def("set", (void(ParamDict::*)(int, int)) & ParamDict::set, py::arg("id"), py::arg("i"))
+    .def("set", (void(ParamDict::*)(int, float)) & ParamDict::set, py::arg("id"), py::arg("f"))
+    .def("set", (void(ParamDict::*)(int, const Mat&)) & ParamDict::set, py::arg("id"), py::arg("v"));
 
     py::class_<Option>(m, "Option")
     .def(py::init<>())
@@ -312,11 +312,10 @@ PYBIND11_MODULE(ncnn, m)
     },
     py::arg("format") = "", "i for int32, f for float32, d for double")
     //.def("fill", (void (Mat::*)(int))(&Mat::fill), py::arg("v"))
-    .def("fill", (void (Mat::*)(float))(&Mat::fill), py::arg("v"))
+    .def("fill", (void(Mat::*)(float))(&Mat::fill), py::arg("v"))
     .def("clone", &Mat::clone, py::arg("allocator") = nullptr)
     .def("clone_from", &Mat::clone_from, py::arg("mat"), py::arg("allocator") = nullptr)
-    .def(
-    "reshape", [](Mat& mat, py::tuple shape, Allocator* allocator) {
+    .def("reshape", [](Mat& mat, py::tuple shape, Allocator* allocator) {
         switch (shape.size())
         {
         case 1:
@@ -333,15 +332,13 @@ PYBIND11_MODULE(ncnn, m)
             pybind11::pybind11_fail(ss.str());
         }
         return Mat();
-    },
-    py::arg("shape") = py::tuple(1), py::arg("allocator") = nullptr)
+    }, py::arg("shape") = py::tuple(1), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, Allocator*) const) & Mat::reshape, py::arg("w"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
 
-    .def(
-    "create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
+    .def("create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
         switch (shape.size())
         {
         case 1:
@@ -358,13 +355,12 @@ PYBIND11_MODULE(ncnn, m)
             pybind11::pybind11_fail(ss.str());
         }
         return;
-    },
-    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("allocator") = nullptr)
+    }, py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void(Mat::*)(int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void(Mat::*)(int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void(Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void(Mat::*)(int, int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create_like", (void(Mat::*)(const Mat&, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
     .def("release", &Mat::release)
     .def("empty", &Mat::empty)
@@ -375,8 +371,7 @@ PYBIND11_MODULE(ncnn, m)
     //.def("channel", (const Mat (Mat::*)(int) const) & Mat::channel, py::arg("c"))
     .def("depth", (Mat(Mat::*)(int)) & Mat::depth, py::arg("z"))
     //.def("depth", (const Mat (Mat::*)(int) const) & Mat::depth, py::arg("z"))
-    .def(
-    "row", [](Mat& m, int y) {
+    .def("row", [](Mat& m, int y) {
         if (m.elempack != 1)
         {
             std::stringstream ss;
@@ -398,8 +393,7 @@ PYBIND11_MODULE(ncnn, m)
             pybind11::pybind11_fail(ss.str());
         }
         return py::memoryview::from_buffer(m.row<float>(y), {m.w}, {sizeof(float)});
-    },
-    py::arg("y"))
+    }, py::arg("y"))
     .def("channel_range", (Mat(Mat::*)(int, int)) & Mat::channel_range, py::arg("c"), py::arg("channels"))
     //.def("channel_range", (const Mat (Mat::*)(int, int) const) & Mat::channel_range, py::arg("c"), py::arg("channels"))
     .def("depth_range", (Mat(Mat::*)(int, int)) & Mat::depth_range, py::arg("z"), py::arg("depths"))
@@ -408,72 +402,50 @@ PYBIND11_MODULE(ncnn, m)
     //.def("row_range", (const Mat (Mat::*)(int, int) const) & Mat::row_range, py::arg("y"), py::arg("rows"))
     .def("range", (Mat(Mat::*)(int, int)) & Mat::range, py::arg("x"), py::arg("n"))
     //.def("range", (const Mat (Mat::*)(int, int) const) & Mat::range, py::arg("x"), py::arg("n"))
-    .def(
-    "__getitem__", [](const Mat& m, size_t i) {
+    .def("__getitem__", [](const Mat& m, size_t i) {
         return m[i];
-    },
-    py::arg("i"))
-    .def(
-    "__setitem__", [](Mat& m, size_t i, float v) {
+    }, py::arg("i"))
+    .def("__setitem__", [](Mat& m, size_t i, float v) {
         m[i] = v;
-    },
-    py::arg("i"), py::arg("v"))
+    }, py::arg("i"), py::arg("v"))
     .def("__len__", [](Mat& m) {
         return m.w;
     })
 
     //convenient construct from pixel data
-    .def_static(
-    "from_pixels", [](py::buffer const b, int type, int w, int h, Allocator* allocator) {
+    .def_static("from_pixels", [](py::buffer const b, int type, int w, int h, Allocator* allocator) {
         return Mat::from_pixels((const unsigned char*)b.request().ptr, type, w, h, allocator);
-    },
-    py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("allocator") = nullptr)
-    .def_static(
-    "from_pixels", [](py::buffer const b, int type, int w, int h, int stride, Allocator* allocator) {
+    }, py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("allocator") = nullptr)
+    .def_static("from_pixels", [](py::buffer const b, int type, int w, int h, int stride, Allocator* allocator) {
         return Mat::from_pixels((const unsigned char*)b.request().ptr, type, w, h, stride, allocator);
-    },
-    py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("allocator") = nullptr)
-    .def_static(
-    "from_pixels_resize", [](py::buffer const b, int type, int w, int h, int target_width, int target_height, Allocator* allocator) {
+    }, py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("allocator") = nullptr)
+    .def_static("from_pixels_resize", [](py::buffer const b, int type, int w, int h, int target_width, int target_height, Allocator* allocator) {
         return Mat::from_pixels_resize((const unsigned char*)b.request().ptr,
                                        type, w, h, target_width, target_height, allocator);
-    },
-    py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
-    .def_static(
-    "from_pixels_resize", [](py::buffer const b, int type, int w, int h, int stride, int target_width, int target_height, Allocator* allocator) {
+    }, py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
+    .def_static("from_pixels_resize", [](py::buffer const b, int type, int w, int h, int stride, int target_width, int target_height, Allocator* allocator) {
         return Mat::from_pixels_resize((const unsigned char*)b.request().ptr,
                                        type, w, h, stride, target_width, target_height, allocator);
-    },
-    py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
-    .def_static(
-    "from_pixels_roi", [](py::buffer const b, int type, int w, int h, int roix, int roiy, int roiw, int roih, Allocator* allocator) {
+    }, py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
+    .def_static("from_pixels_roi", [](py::buffer const b, int type, int w, int h, int roix, int roiy, int roiw, int roih, Allocator* allocator) {
         return Mat::from_pixels_roi((const unsigned char*)b.request().ptr,
                                     type, w, h, roix, roiy, roiw, roih, allocator);
-    },
-    py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("allocator") = nullptr)
-    .def_static(
-    "from_pixels_roi", [](py::buffer const b, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, Allocator* allocator) {
+    }, py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("allocator") = nullptr)
+    .def_static("from_pixels_roi", [](py::buffer const b, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, Allocator* allocator) {
         return Mat::from_pixels_roi((const unsigned char*)b.request().ptr,
                                     type, w, h, stride, roix, roiy, roiw, roih, allocator);
-    },
-    py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("allocator") = nullptr)
-    .def_static(
-    "from_pixels_roi_resize", [](py::buffer const b, int type, int w, int h, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator) {
+    }, py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("allocator") = nullptr)
+    .def_static("from_pixels_roi_resize", [](py::buffer const b, int type, int w, int h, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator) {
         return Mat::from_pixels_roi_resize((const unsigned char*)b.request().ptr,
                                            type, w, h, roix, roiy, roiw, roih, target_width, target_height, allocator);
-    },
-    py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
-    .def_static(
-    "from_pixels_roi_resize", [](py::buffer const b, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator) {
+    }, py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
+    .def_static("from_pixels_roi_resize", [](py::buffer const b, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator) {
         return Mat::from_pixels_roi_resize((const unsigned char*)b.request().ptr,
                                            type, w, h, stride, roix, roiy, roiw, roih, target_width, target_height, allocator);
-    },
-    py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
-    .def(
-    "substract_mean_normalize", [](Mat& mat, std::vector<float>& mean, std::vector<float>& norm) {
+    }, py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
+    .def("substract_mean_normalize", [](Mat& mat, std::vector<float>& mean, std::vector<float>& norm) {
         return mat.substract_mean_normalize(mean.size() > 0 ? &mean[0] : 0, norm.size() > 0 ? &norm[0] : 0);
-    },
-    py::arg("mean"), py::arg("norm"))
+    }, py::arg("mean"), py::arg("norm"))
     .def_readwrite("refcount", &Mat::refcount)
     .def_readwrite("elemsize", &Mat::elemsize)
     .def_readwrite("elempack", &Mat::elempack)
@@ -857,25 +829,21 @@ PYBIND11_MODULE(ncnn, m)
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
 #if NCNN_STRING
-    .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
-    .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
-    .def(
-    "extract", [](Extractor& ex, const char* blob_name, int type) {
+    .def("input", (int(Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
+    .def("extract", (int(Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", [](Extractor& ex, const char* blob_name, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_name, feat, type);
         return py::make_tuple(ret, feat.clone());
-    },
-    py::arg("blob_name"), py::arg("type") = 0)
+    }, py::arg("blob_name"), py::arg("type") = 0)
 #endif
-    .def("input", (int (Extractor::*)(int, const Mat&)) & Extractor::input)
-    .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract, py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0)
-    .def(
-    "extract", [](Extractor& ex, int blob_index, int type) {
+    .def("input", (int(Extractor::*)(int, const Mat&)) & Extractor::input)
+    .def("extract", (int(Extractor::*)(int, Mat&, int)) & Extractor::extract, py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", [](Extractor& ex, int blob_index, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_index, feat, type);
         return py::make_tuple(ret, feat.clone());
-    },
-    py::arg("blob_index"), py::arg("type") = 0);
+    }, py::arg("blob_index"), py::arg("type") = 0);
 
     py::class_<Layer, PyLayer>(m, "Layer")
     .def(py::init<>())
@@ -890,13 +858,13 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("support_bf16_storage", &Layer::support_bf16_storage)
     .def_readwrite("support_fp16_storage", &Layer::support_fp16_storage)
     .def_readwrite("support_image_storage", &Layer::support_image_storage)
-    .def("forward", (int (Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
+    .def("forward", (int(Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
          py::arg("bottom_blobs"), py::arg("top_blobs"), py::arg("opt"))
-    .def("forward", (int (Layer::*)(const Mat&, Mat&, const Option&) const) & Layer::forward,
+    .def("forward", (int(Layer::*)(const Mat&, Mat&, const Option&) const) & Layer::forward,
          py::arg("bottom_blob"), py::arg("top_blob"), py::arg("opt"))
-    .def("forward_inplace", (int (Layer::*)(std::vector<Mat>&, const Option&) const) & Layer::forward_inplace,
+    .def("forward_inplace", (int(Layer::*)(std::vector<Mat>&, const Option&) const) & Layer::forward_inplace,
          py::arg("bottom_top_blobs"), py::arg("opt"))
-    .def("forward_inplace", (int (Layer::*)(Mat&, const Option&) const) & Layer::forward_inplace,
+    .def("forward_inplace", (int(Layer::*)(Mat&, const Option&) const) & Layer::forward_inplace,
          py::arg("bottom_top_blob"), py::arg("opt"))
     .def_readwrite("typeindex", &Layer::typeindex)
 #if NCNN_STRING
@@ -917,14 +885,13 @@ PYBIND11_MODULE(ncnn, m)
     })
 
 #if NCNN_VULKAN
-    .def("set_vulkan_device", (void (Net::*)(int)) & Net::set_vulkan_device, py::arg("device_index"))
-    .def("set_vulkan_device", (void (Net::*)(const VulkanDevice*)) & Net::set_vulkan_device, py::arg("vkdev"))
+    .def("set_vulkan_device", (void(Net::*)(int)) & Net::set_vulkan_device, py::arg("device_index"))
+    .def("set_vulkan_device", (void(Net::*)(const VulkanDevice*)) & Net::set_vulkan_device, py::arg("vkdev"))
     .def("vulkan_device", &Net::vulkan_device, py::return_value_policy::reference_internal)
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
-    .def(
-    "register_custom_layer", [](Net& net, const char* type, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
+    .def("register_custom_layer", [](Net& net, const char* type, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
         if (g_layer_factroy_index == g_layer_factroys.size())
         {
             std::stringstream ss;
@@ -936,11 +903,9 @@ PYBIND11_MODULE(ncnn, m)
         lf.creator = creator;
         lf.destroyer = destroyer;
         return net.register_custom_layer(lf.name.c_str(), lf.creator_func, lf.destroyer_func);
-    },
-    py::arg("type"), py::arg("creator"), py::arg("destroyer"))
+    }, py::arg("type"), py::arg("creator"), py::arg("destroyer"))
 #endif //NCNN_STRING
-    .def(
-    "register_custom_layer", [](Net& net, int index, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
+    .def("register_custom_layer", [](Net& net, int index, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
         if (g_layer_factroy_index == g_layer_factroys.size())
         {
             std::stringstream ss;
@@ -952,28 +917,25 @@ PYBIND11_MODULE(ncnn, m)
         lf.creator = creator;
         lf.destroyer = destroyer;
         return net.register_custom_layer(index, lf.creator_func, lf.destroyer_func);
-    },
-    py::arg("index"), py::arg("creator"), py::arg("destroyer"))
+    }, py::arg("index"), py::arg("creator"), py::arg("destroyer"))
 #if NCNN_STRING
-    .def("load_param", (int (Net::*)(const DataReader&)) & Net::load_param, py::arg("dr"))
+    .def("load_param", (int(Net::*)(const DataReader&)) & Net::load_param, py::arg("dr"))
 #endif // NCNN_STRING
-    .def("load_param_bin", (int (Net::*)(const DataReader&)) & Net::load_param_bin, py::arg("dr"))
-    .def("load_model", (int (Net::*)(const DataReader&)) & Net::load_model, py::arg("dr"))
+    .def("load_param_bin", (int(Net::*)(const DataReader&)) & Net::load_param_bin, py::arg("dr"))
+    .def("load_model", (int(Net::*)(const DataReader&)) & Net::load_model, py::arg("dr"))
 
 #if NCNN_STDIO
 #if NCNN_STRING
-    .def("load_param", (int (Net::*)(const char*)) & Net::load_param, py::arg("protopath"))
-    .def("load_param_mem", (int (Net::*)(const char*)) & Net::load_param_mem, py::arg("mem"))
+    .def("load_param", (int(Net::*)(const char*)) & Net::load_param, py::arg("protopath"))
+    .def("load_param_mem", (int(Net::*)(const char*)) & Net::load_param_mem, py::arg("mem"))
 #endif // NCNN_STRING
-    .def("load_param_bin", (int (Net::*)(const char*)) & Net::load_param_bin, py::arg("protopath"))
-    .def("load_model", (int (Net::*)(const char*)) & Net::load_model, py::arg("modelpath"))
-    .def(
-    "load_model_mem", [](Net& net, const char* mem) {
+    .def("load_param_bin", (int(Net::*)(const char*)) & Net::load_param_bin, py::arg("protopath"))
+    .def("load_model", (int(Net::*)(const char*)) & Net::load_model, py::arg("modelpath"))
+    .def("load_model_mem", [](Net& net, const char* mem) {
         const unsigned char* _mem = (const unsigned char*)mem;
         DataReaderFromMemoryCopy dr(_mem);
         net.load_model(dr);
-    },
-    py::arg("mem"))
+    }, py::arg("mem"))
 #endif // NCNN_STDIO
 
     .def("clear", &Net::clear)
@@ -1258,33 +1220,33 @@ PYBIND11_MODULE(ncnn, m)
     .def(py::init<const VulkanDevice*>())
     .def("clear", &VkBlobAllocator::clear)
     .def("fastMalloc", (VkBufferMemory * (VkBlobAllocator::*)(size_t size)) & VkBlobAllocator::fastMalloc, py::return_value_policy::reference_internal)
-    .def("fastFree", (void (VkBlobAllocator::*)(VkBufferMemory * ptr)) & VkBlobAllocator::fastFree)
+    .def("fastFree", (void(VkBlobAllocator::*)(VkBufferMemory * ptr)) & VkBlobAllocator::fastFree)
     .def("fastMalloc", (VkImageMemory * (VkBlobAllocator::*)(int, int, int, size_t, int)) & VkBlobAllocator::fastMalloc, py::return_value_policy::reference_internal)
-    .def("fastFree", (void (VkBlobAllocator::*)(VkImageMemory * ptr)) & VkBlobAllocator::fastFree);
+    .def("fastFree", (void(VkBlobAllocator::*)(VkImageMemory * ptr)) & VkBlobAllocator::fastFree);
 
     py::class_<VkWeightAllocator, VkAllocator, PyVkAllocatorOther<VkWeightAllocator> >(m, "VkWeightAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("clear", &VkWeightAllocator::clear)
     .def("fastMalloc", (VkBufferMemory * (VkWeightAllocator::*)(size_t size)) & VkWeightAllocator::fastMalloc, py::return_value_policy::reference_internal)
-    .def("fastFree", (void (VkWeightAllocator::*)(VkBufferMemory * ptr)) & VkWeightAllocator::fastFree)
+    .def("fastFree", (void(VkWeightAllocator::*)(VkBufferMemory * ptr)) & VkWeightAllocator::fastFree)
     .def("fastMalloc", (VkImageMemory * (VkWeightAllocator::*)(int, int, int, size_t, int)) & VkWeightAllocator::fastMalloc, py::return_value_policy::reference_internal)
-    .def("fastFree", (void (VkWeightAllocator::*)(VkImageMemory * ptr)) & VkWeightAllocator::fastFree);
+    .def("fastFree", (void(VkWeightAllocator::*)(VkImageMemory * ptr)) & VkWeightAllocator::fastFree);
 
     py::class_<VkStagingAllocator, VkAllocator, PyVkAllocatorOther<VkStagingAllocator> >(m, "VkStagingAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("set_size_compare_ratio", &VkStagingAllocator::set_size_compare_ratio)
     .def("clear", &VkStagingAllocator::clear)
     .def("fastMalloc", (VkBufferMemory * (VkStagingAllocator::*)(size_t size)) & VkStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
-    .def("fastFree", (void (VkStagingAllocator::*)(VkBufferMemory * ptr)) & VkStagingAllocator::fastFree)
+    .def("fastFree", (void(VkStagingAllocator::*)(VkBufferMemory * ptr)) & VkStagingAllocator::fastFree)
     .def("fastMalloc", (VkImageMemory * (VkStagingAllocator::*)(int, int, int, size_t, int)) & VkStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
-    .def("fastFree", (void (VkStagingAllocator::*)(VkImageMemory * ptr)) & VkStagingAllocator::fastFree);
+    .def("fastFree", (void(VkStagingAllocator::*)(VkImageMemory * ptr)) & VkStagingAllocator::fastFree);
 
     py::class_<VkWeightStagingAllocator, VkAllocator, PyVkAllocatorOther<VkWeightStagingAllocator> >(m, "VkWeightStagingAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("fastMalloc", (VkBufferMemory * (VkWeightStagingAllocator::*)(size_t size)) & VkWeightStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
-    .def("fastFree", (void (VkWeightStagingAllocator::*)(VkBufferMemory * ptr)) & VkWeightStagingAllocator::fastFree)
+    .def("fastFree", (void(VkWeightStagingAllocator::*)(VkBufferMemory * ptr)) & VkWeightStagingAllocator::fastFree)
     .def("fastMalloc", (VkImageMemory * (VkWeightStagingAllocator::*)(int, int, int, size_t, int)) & VkWeightStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
-    .def("fastFree", (void (VkWeightStagingAllocator::*)(VkImageMemory * ptr)) & VkWeightStagingAllocator::fastFree);
+    .def("fastFree", (void(VkWeightStagingAllocator::*)(VkImageMemory * ptr)) & VkWeightStagingAllocator::fastFree);
 
     py::class_<GpuInfo>(m, "GpuInfo")
     .def(py::init<>())

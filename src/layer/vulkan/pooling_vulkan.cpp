@@ -89,8 +89,10 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
-    int elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    int elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
+                   : 1;
+    int out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4
+                       : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -499,7 +501,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             constants[4].i = reduced_blob.w;
             constants[5].i = reduced_blob.cstep;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_first_pack8
+            const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_global_reduce_first_pack8
                                        : elempack == 4 ? pipeline_pooling_global_reduce_first_pack4
                                        : pipeline_pooling_global_reduce_first;
 
@@ -532,7 +534,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             constants[3].i = reduced_blob2.w;
             constants[4].i = reduced_blob2.cstep;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_pack8
+            const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_global_reduce_pack8
                                        : elempack == 4 ? pipeline_pooling_global_reduce_pack4
                                        : pipeline_pooling_global_reduce;
 
@@ -562,7 +564,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             constants[2].i = reduced_blob.cstep;
             constants[3].i = w * h;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_last_pack8
+            const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_global_reduce_last_pack8
                                        : elempack == 4 ? pipeline_pooling_global_reduce_last_pack4
                                        : pipeline_pooling_global_reduce_last;
 
@@ -608,7 +610,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_adaptive_pack8
+        const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_adaptive_pack8
                                    : elempack == 4 ? pipeline_pooling_adaptive_pack4
                                    : pipeline_pooling_adaptive;
 
@@ -745,7 +747,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[10].i = wtailpad;
     constants[11].i = htailpad;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_pack8
+    const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_pack8
                                : elempack == 4 ? pipeline_pooling_pack4
                                : pipeline_pooling;
 
@@ -785,7 +787,7 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             constants[4].i = reduced_blob.w;
             constants[5].i = 0; //reduced_blob.cstep;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_first_pack8
+            const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_global_reduce_first_pack8
                                        : elempack == 4 ? pipeline_pooling_global_reduce_first_pack4
                                        : pipeline_pooling_global_reduce_first;
 
@@ -818,7 +820,7 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             constants[3].i = reduced_blob2.w;
             constants[4].i = 0; //reduced_blob2.cstep;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_pack8
+            const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_global_reduce_pack8
                                        : elempack == 4 ? pipeline_pooling_global_reduce_pack4
                                        : pipeline_pooling_global_reduce;
 
@@ -848,7 +850,7 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             constants[2].i = 0; //reduced_blob.cstep;
             constants[3].i = w * h;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_last_pack8
+            const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_global_reduce_last_pack8
                                        : elempack == 4 ? pipeline_pooling_global_reduce_last_pack4
                                        : pipeline_pooling_global_reduce_last;
 
@@ -894,7 +896,7 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         constants[8].i = top_blob.c;
         constants[9].i = 0; //top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_adaptive_pack8
+        const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_adaptive_pack8
                                    : elempack == 4 ? pipeline_pooling_adaptive_pack4
                                    : pipeline_pooling_adaptive;
 
@@ -1031,7 +1033,7 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     constants[10].i = wtailpad;
     constants[11].i = htailpad;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_pack8
+    const Pipeline* pipeline = elempack == 8   ? pipeline_pooling_pack8
                                : elempack == 4 ? pipeline_pooling_pack4
                                : pipeline_pooling;
 

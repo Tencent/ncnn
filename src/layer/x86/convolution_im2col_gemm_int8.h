@@ -2667,7 +2667,10 @@ static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat
     }
     if (has_w_shift)
     {
-        int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
+        int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8
+                            : TILE_M >= 4   ? 4
+                            : TILE_M >= 2   ? 2
+                            : 1;
         AT.create((TILE_K + w_shift_count * 4) * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, (size_t)1u, 1);
     }
     else

@@ -4546,9 +4546,12 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        elempack = inch % 16 == 0 ? 16 : inch % 8 == 0 ? 8 : inch % 4 == 0 ? 4 : 1;
+        elempack = inch % 16 == 0 ? 16 : inch % 8 == 0 ? 8
+                   : inch % 4 == 0   ? 4
+                   : 1;
 #elif __AVX__
-        elempack = inch % 8 == 0 ? 8 : inch % 4 == 0 ? 4 : 1;
+        elempack = inch % 8 == 0 ? 8 : inch % 4 == 0 ? 4
+                   : 1;
 #else
         elempack = inch % 4 == 0 ? 4 : 1;
 #endif

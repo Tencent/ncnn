@@ -62,7 +62,8 @@ static inline _Tp saturate_cast(int v)
 template<>
 inline uchar saturate_cast<uchar>(int v)
 {
-    return (uchar)((unsigned)v <= UCHAR_MAX ? v : v > 0 ? UCHAR_MAX : 0);
+    return (uchar)((unsigned)v <= UCHAR_MAX ? v : v > 0 ? UCHAR_MAX
+                   : 0);
 }
 
 template<typename _Tp>

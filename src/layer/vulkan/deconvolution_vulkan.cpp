@@ -68,8 +68,10 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4
+                   : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -558,7 +560,8 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
@@ -764,7 +767,8 @@ int Deconvolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)

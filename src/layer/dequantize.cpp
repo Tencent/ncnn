@@ -90,7 +90,8 @@ int Dequantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             float* ptr = top_blob.row(i);
 
             const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[i];
-            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0] : bias_data[i];
+            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0]
+                               : bias_data[i];
 
             dequantize(intptr, ptr, scale, bias, w);
         }
@@ -105,7 +106,8 @@ int Dequantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             float* ptr = top_blob.channel(q);
 
             const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[q];
-            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0] : bias_data[q];
+            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0]
+                               : bias_data[q];
 
             dequantize(intptr, ptr, scale, bias, w * h);
         }

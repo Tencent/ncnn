@@ -42,9 +42,12 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        num_output_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        num_output_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8
+                              : num_output % 4 == 0   ? 4
+                              : 1;
 #elif __AVX__
-        num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                              : 1;
 #else
         num_output_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif

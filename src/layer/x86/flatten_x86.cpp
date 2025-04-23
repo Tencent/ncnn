@@ -62,9 +62,12 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        out_elempack = total % 16 == 0 ? 16 : total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+        out_elempack = total % 16 == 0 ? 16 : total % 8 == 0 ? 8
+                       : total % 4 == 0   ? 4
+                       : 1;
 #elif __AVX__
-        out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+        out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4
+                       : 1;
 #else
         out_elempack = total % 4 == 0 ? 4 : 1;
 #endif

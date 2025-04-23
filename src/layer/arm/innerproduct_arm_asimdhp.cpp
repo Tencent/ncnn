@@ -67,7 +67,8 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
         int num_output_elempack = 1;
         if (opt.use_packing_layout)
         {
-            num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+            num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                                  : 1;
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -490,7 +491,8 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
-        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 

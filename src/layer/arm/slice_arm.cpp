@@ -622,7 +622,8 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
             if (opt.use_packing_layout)
             {
 #if NCNN_ARM82
-                out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+                out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4
+                               : 1;
 #else
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
@@ -680,7 +681,8 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
             if (opt.use_packing_layout)
             {
 #if NCNN_ARM82
-                out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+                out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4
+                               : 1;
 #else
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
@@ -910,7 +912,8 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
             if (opt.use_packing_layout)
             {
 #if NCNN_ARM82
-                out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+                out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4
+                               : 1;
 #else
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif

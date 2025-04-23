@@ -33,9 +33,12 @@ int CELU_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
+                : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -146,7 +149,7 @@ int CELU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_celu_pack8
+    const Pipeline* pipeline = elempack == 8   ? pipeline_celu_pack8
                                : elempack == 4 ? pipeline_celu_pack4
                                : pipeline_celu;
 
@@ -170,7 +173,7 @@ int CELU_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, co
     constants[3].i = bottom_top_blob.c;
     constants[4].i = 0; //bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_celu_pack8
+    const Pipeline* pipeline = elempack == 8   ? pipeline_celu_pack8
                                : elempack == 4 ? pipeline_celu_pack4
                                : pipeline_celu;
 

@@ -7332,9 +7332,12 @@ int Gemm_x86::create_pipeline(const Option& opt)
         if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
 #if __AVX512F__
-            int C_elempack = constantM % 16 == 0 ? 16 : constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 16 == 0 ? 16 : constantM % 8 == 0 ? 8
+                             : constantM % 4 == 0   ? 4
+                             : 1;
 #elif __AVX__
-            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4
+                             : 1;
 #else
             int C_elempack = constantM % 4 == 0 ? 4 : 1;
 #endif
@@ -7489,9 +7492,12 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     {
         int outh = output_transpose ? N : M;
 #if __AVX512F__
-        out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8
+                       : outh % 4 == 0   ? 4
+                       : 1;
 #elif __AVX__
-        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4
+                       : 1;
 #else
         out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif
@@ -7651,7 +7657,10 @@ static int gemm_x86_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob
     }
     if (has_w_shift)
     {
-        int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
+        int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8
+                            : TILE_M >= 4   ? 4
+                            : TILE_M >= 2   ? 2
+                            : 1;
         ATX.create((TILE_K + w_shift_count * 4) * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
     }
     else
@@ -7924,7 +7933,10 @@ static int gemm_BT_x86_int8(const Mat& A, const Mat& BT, float B_int8_scale, con
     }
     if (has_w_shift)
     {
-        int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
+        int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8
+                            : TILE_M >= 4   ? 4
+                            : TILE_M >= 2   ? 2
+                            : 1;
         ATX.create((TILE_K + w_shift_count * 4) * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 1u, opt.workspace_allocator);
     }
     else
@@ -8105,7 +8117,10 @@ int Gemm_x86::create_pipeline_int8(const Option& opt)
         }
         if (has_w_shift)
         {
-            int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8 : TILE_M >= 4 ? 4 : TILE_M >= 2 ? 2 : 1;
+            int w_shift_count = TILE_M >= 16 ? 16 : TILE_M >= 8 ? 8
+                                : TILE_M >= 4   ? 4
+                                : TILE_M >= 2   ? 2
+                                : 1;
             AT_data.create((TILE_K + w_shift_count * 4) * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 1u, (Allocator*)0);
         }
         else
@@ -8297,9 +8312,12 @@ int Gemm_x86::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     {
         int outh = output_transpose ? N : M;
 #if __AVX512F__
-        out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8
+                       : outh % 4 == 0   ? 4
+                       : 1;
 #elif __AVX__
-        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4
+                       : 1;
 #else
         out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif

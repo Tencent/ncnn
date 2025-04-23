@@ -841,9 +841,12 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8
+                       : num_output % 4 == 0   ? 4
+                       : 1;
 #elif __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif

@@ -48,7 +48,8 @@ int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
 
         if (opt.use_packing_layout)
         {
-            elempack = opt.use_fp16_arithmetic && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+            elempack = opt.use_fp16_arithmetic && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
+                       : 1;
         }
 
         if (elempack == 8)
@@ -332,7 +333,8 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
-        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -598,8 +600,10 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
     int out_g_elempack = 1;
     if (opt.use_packing_layout)
     {
-        g_elempack = opt.use_fp16_arithmetic && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-        out_g_elempack = opt.use_fp16_arithmetic && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+        g_elempack = opt.use_fp16_arithmetic && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
+                     : 1;
+        out_g_elempack = opt.use_fp16_arithmetic && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
+                         : 1;
     }
 
     // unpacking

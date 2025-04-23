@@ -446,7 +446,8 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (opt.use_packing_layout)
         {
 #if NCNN_ARM82
-            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4
+                           : 1;
 #else
             out_elempack = top_w % 4 == 0 ? 4 : 1;
 #endif
@@ -491,7 +492,8 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (opt.use_packing_layout)
         {
 #if NCNN_ARM82
-            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4
+                           : 1;
 #else
             out_elempack = top_h % 4 == 0 ? 4 : 1;
 #endif
@@ -679,7 +681,8 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (opt.use_packing_layout)
         {
 #if NCNN_ARM82
-            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4
+                           : 1;
 #else
             out_elempack = top_channels % 4 == 0 ? 4 : 1;
 #endif

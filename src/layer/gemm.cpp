@@ -303,7 +303,8 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 #endif // NCNN_INT8
 
     const Mat& A0 = constantA ? A_data : bottom_blobs[0];
-    const Mat& B0 = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
+    const Mat& B0 = constantB ? B_data : constantA ? bottom_blobs[0]
+                    : bottom_blobs[1];
 
     size_t elemsize = A0.elemsize;
 
@@ -439,7 +440,8 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& A0 = constantA ? A_data : bottom_blobs[0];
-    const Mat& B0 = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
+    const Mat& B0 = constantB ? B_data : constantA ? bottom_blobs[0]
+                    : bottom_blobs[1];
 
     Mat A;
     if (transA == 0)

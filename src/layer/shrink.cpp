@@ -44,7 +44,8 @@ int Shrink::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i = 0; i < size; i++)
         {
-            ptr[i] = ptr[i] < -lambd ? ptr[i] + bias : ptr[i] > lambd ? ptr[i] - bias : ptr[i];
+            ptr[i] = ptr[i] < -lambd ? ptr[i] + bias : ptr[i] > lambd ? ptr[i] - bias
+                     : ptr[i];
         }
     }
 
