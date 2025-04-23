@@ -346,8 +346,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
 {
     const VkMat& q_blob = bottom_blobs[0];
     const VkMat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    const VkMat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob
-                          : bottom_blobs[2];
+    const VkMat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
     VkMat attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : VkMat();
 
     const int embed_dim_per_head = embed_dim / num_heads;
@@ -569,8 +568,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
 {
     const VkImageMat& q_blob = bottom_blobs[0];
     const VkImageMat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    const VkImageMat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob
-                               : bottom_blobs[2];
+    const VkImageMat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
     VkImageMat attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : VkImageMat();
 
     const int embed_dim_per_head = embed_dim / num_heads;

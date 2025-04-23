@@ -240,8 +240,7 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     if (opt.use_packing_layout)
     {
 #if NCNN_ARM82
-        out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && total % 8 == 0 ? 8 : total % 4 == 0 ? 4
-                       : 1;
+        out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
 #else
         out_elempack = total % 4 == 0 ? 4 : 1;
 #endif

@@ -376,8 +376,7 @@ int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
         if (opt.use_packing_layout)
         {
 #if NCNN_ARM82
-            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4
-                           : 1;
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #else
             out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif
@@ -572,8 +571,7 @@ int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
         if (opt.use_packing_layout)
         {
 #if NCNN_ARM82
-            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4
-                           : 1;
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 #else
             out_elempack = outc % 4 == 0 ? 4 : 1;
 #endif

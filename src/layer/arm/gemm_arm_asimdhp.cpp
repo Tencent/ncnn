@@ -2815,8 +2815,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
 
         if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
-            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4
-                             : 1;
+            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
             Mat tmp;
             convert_packing(CT_data, tmp, C_elempack, opt);
             CT_data = tmp;
@@ -2959,8 +2958,7 @@ int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (opt.use_packing_layout)
     {
         int outh = output_transpose ? N : M;
-        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4
-                       : 1;
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
     }
     if (output_elempack)
         out_elempack = output_elempack;

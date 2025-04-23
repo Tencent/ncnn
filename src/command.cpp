@@ -405,8 +405,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
-        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4
-                       : 1;
+        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
@@ -462,8 +461,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
-        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4
-                       : 1;
+        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
@@ -778,8 +776,7 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
-        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4
-                       : 1;
+        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
@@ -816,8 +813,7 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
-        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4
-                       : 1;
+        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
@@ -2351,7 +2347,7 @@ int VkCompute::submit_and_wait()
             case VkComputePrivate::record::TYPE_push_constants:
             {
                 vkCmdPushConstants(r.command_buffer, r.push_constants.pipeline_layout, r.push_constants.stage_flags, 0, r.push_constants.size, r.push_constants.values);
-                delete[] (unsigned char*)r.push_constants.values;
+                delete[](unsigned char*) r.push_constants.values;
                 break;
             }
             case VkComputePrivate::record::TYPE_dispatch:

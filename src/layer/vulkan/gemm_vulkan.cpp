@@ -181,20 +181,16 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& A0 = constantA ? A_data_gpu : bottom_blobs[0];
-    const VkMat& B0 = constantB ? B_data_gpu : constantA ? bottom_blobs[0]
-                      : bottom_blobs[1];
+    const VkMat& B0 = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
 
     VkMat A;
     VkMat B;
     vkdev->convert_packing(A0, A, 1, cmd, opt);
     vkdev->convert_packing(B0, B, 1, cmd, opt);
 
-    const int M = constantM ? constantM : transA ? A.w
-                  : (A.dims == 3 ? A.c : A.h);
-    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h)
-                  : A.w;
-    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h)
-                  : B.w;
+    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
+    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
+    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) : B.w;
 
     VkMat C;
     int broadcast_type_C = -1;
@@ -294,11 +290,9 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     constants[2].i = K;
     constants[3].i = broadcast_type_C;
     constants[4].i = A.dims;
-    constants[5].i = A.dims == 3 ? A.cstep : transA ? M
-                     : K;
+    constants[5].i = A.dims == 3 ? A.cstep : transA ? M : K;
     constants[6].i = B.dims;
-    constants[7].i = B.dims == 3 ? B.cstep : transB ? K
-                     : N;
+    constants[7].i = B.dims == 3 ? B.cstep : transB ? K : N;
     constants[8].i = top_blob.dims;
     constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
 
@@ -313,8 +307,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     int out_elempack = 1;
     {
         int outh = output_transpose ? N : M;
-        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4
-                       : 1;
+        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
     }
     if (output_elempack)
         out_elempack = output_elempack;
@@ -342,20 +335,16 @@ int Gemm_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkImageMat& A0 = constantA ? A_data_gpu_image : bottom_blobs[0];
-    const VkImageMat& B0 = constantB ? B_data_gpu_image : constantA ? bottom_blobs[0]
-                           : bottom_blobs[1];
+    const VkImageMat& B0 = constantB ? B_data_gpu_image : constantA ? bottom_blobs[0] : bottom_blobs[1];
 
     VkImageMat A;
     VkImageMat B;
     vkdev->convert_packing(A0, A, 1, cmd, opt);
     vkdev->convert_packing(B0, B, 1, cmd, opt);
 
-    const int M = constantM ? constantM : transA ? A.w
-                  : (A.dims == 3 ? A.c : A.h);
-    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h)
-                  : A.w;
-    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h)
-                  : B.w;
+    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
+    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
+    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) : B.w;
 
     VkImageMat C;
     int broadcast_type_C = -1;
@@ -472,8 +461,7 @@ int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     int out_elempack = 1;
     {
         int outh = output_transpose ? N : M;
-        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4
-                       : 1;
+        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
     }
     if (output_elempack)
         out_elempack = output_elempack;

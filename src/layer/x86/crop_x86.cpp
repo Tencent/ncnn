@@ -135,9 +135,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     {
         if (dims == 1)
         {
-            int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8
-                               : _outw % 4 == 0   ? 4
-                               : 1;
+            int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw / out_elempack == w && out_elempack == 16)
@@ -160,9 +158,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 2)
         {
-            int out_elempack = _outh % 16 == 0 ? 16 : _outh % 8 == 0 ? 8
-                               : _outh % 4 == 0   ? 4
-                               : 1;
+            int out_elempack = _outh % 16 == 0 ? 16 : _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh / out_elempack == h && out_elempack == 16)
@@ -185,9 +181,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 3)
         {
-            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8
-                               : _outc % 4 == 0   ? 4
-                               : 1;
+            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 16)
@@ -225,9 +219,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 4)
         {
-            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8
-                               : _outc % 4 == 0   ? 4
-                               : 1;
+            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 16)
@@ -272,8 +264,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     {
         if (dims == 1)
         {
-            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw / out_elempack == w && out_elempack == 8)
@@ -296,8 +287,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 2)
         {
-            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh / out_elempack == h && out_elempack == 8)
@@ -320,8 +310,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 3)
         {
-            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 8)
@@ -359,8 +348,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 4)
         {
-            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 8)
@@ -588,9 +576,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     {
         if (dims == 1)
         {
-            int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8
-                               : _outw % 4 == 0   ? 4
-                               : 1;
+            int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw / out_elempack == w && out_elempack == 16)
@@ -613,9 +599,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 2)
         {
-            int out_elempack = _outh % 16 == 0 ? 16 : _outh % 8 == 0 ? 8
-                               : _outh % 4 == 0   ? 4
-                               : 1;
+            int out_elempack = _outh % 16 == 0 ? 16 : _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh / out_elempack == h && out_elempack == 16)
@@ -638,9 +622,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 3)
         {
-            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8
-                               : _outc % 4 == 0   ? 4
-                               : 1;
+            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 16)
@@ -678,9 +660,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 4)
         {
-            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8
-                               : _outc % 4 == 0   ? 4
-                               : 1;
+            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 16)
@@ -725,8 +705,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     {
         if (dims == 1)
         {
-            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw / out_elempack == w && out_elempack == 8)
@@ -749,8 +728,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 2)
         {
-            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh / out_elempack == h && out_elempack == 8)
@@ -773,8 +751,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 3)
         {
-            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 8)
@@ -812,8 +789,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 4)
         {
-            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 8)

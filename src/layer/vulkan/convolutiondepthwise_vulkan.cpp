@@ -90,10 +90,8 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
-                   : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -123,10 +121,8 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
 
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
-                     : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
-                         : 1;
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
 
     size_t elemsize_g;
     size_t out_elemsize_g;
@@ -627,8 +623,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
@@ -663,7 +658,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_convolutiondepthwise_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_convolutiondepthwise_pack8
                                    : elempack == 4 ? pipeline_convolutiondepthwise_pack4
                                    : pipeline_convolutiondepthwise;
 
@@ -675,10 +670,8 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
-                     : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
-                         : 1;
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
     size_t out_elemsize_g = elemsize / elempack * out_elempack_g;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
@@ -858,8 +851,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
@@ -894,7 +886,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
         constants[8].i = top_blob.c;
         constants[9].i = 0; //top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_convolutiondepthwise_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_convolutiondepthwise_pack8
                                    : elempack == 4 ? pipeline_convolutiondepthwise_pack4
                                    : pipeline_convolutiondepthwise;
 
@@ -906,10 +898,8 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
-                     : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
-                         : 1;
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
     size_t out_elemsize_g = elemsize / elempack * out_elempack_g;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)

@@ -263,8 +263,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         {
             int outw = w * elempack + left + right;
 
-            int out_elempack = outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (left % 8 == 0 && out_elempack == 8 && type == 0)
@@ -285,8 +284,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outw = w + left + right;
             int outh = h * elempack + top + bottom;
 
-            int out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (top % 8 == 0 && out_elempack == 8 && type == 0)
@@ -308,8 +306,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outh = h + top + bottom;
             int outc = channels * elempack + front + behind;
 
-            int out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (front % 8 == 0 && out_elempack == 8 && !(outc != channels * elempack && type != 0))
@@ -394,8 +391,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outw = w * elempack + left + right;
 
 #if NCNN_ARM82
-            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = outw % 4 == 0 ? 4 : 1;
 #endif
@@ -442,8 +438,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outh = h * elempack + top + bottom;
 
 #if NCNN_ARM82
-            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif
@@ -491,8 +486,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outc = channels * elempack + front + behind;
 
 #if NCNN_ARM82
-            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4
-                               : 1;
+            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = outc % 4 == 0 ? 4 : 1;
 #endif

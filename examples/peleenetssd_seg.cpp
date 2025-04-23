@@ -152,7 +152,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
             }
             if (index > -1)
             {
-                int color_index = (index) * 3;
+                int color_index = (index)*3;
                 if (color_index < color_count)
                 {
                     int b = color[color_index];

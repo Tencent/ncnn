@@ -3090,8 +3090,7 @@ static void convolution_im2col_gemm_transform_kernel_fp16sa(const Mat& kernel, M
     int elempack = 1;
     if (opt.use_packing_layout)
     {
-        elempack = inch % 8 == 0 ? 8 : inch % 4 == 0 ? 4
-                   : 1;
+        elempack = inch % 8 == 0 ? 8 : inch % 4 == 0 ? 4 : 1;
     }
 
     // maxk-inch-outch to pa-maxk-inch/pa-outch

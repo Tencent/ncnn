@@ -56,8 +56,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) _channels = shape.c;
 
     int elempack = 1;
-    if (_channels != 0) elempack = opt.use_shader_pack8 && _channels % 8 == 0 ? 8 : _channels % 4 == 0 ? 4
-                                       : 1;
+    if (_channels != 0) elempack = opt.use_shader_pack8 && _channels % 8 == 0 ? 8 : _channels % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -379,8 +378,7 @@ int InstanceNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (affine == 0)
         return 0;
 
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
-                   : 1;
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
     Mat gamma_data_packed;
     convert_packing(gamma_data, gamma_data_packed, elempack, opt);
@@ -444,7 +442,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
                 constants[6].i = sum_workspace.c;
                 constants[7].i = sum_workspace.cstep;
 
-                const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8
+                const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8
                                            : elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4
                                            : pipeline_instancenorm_reduce_sum4_fp16_to_fp32;
 
@@ -477,7 +475,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
                 constants[6].i = sum_workspace_reduced.c;
                 constants[7].i = sum_workspace_reduced.cstep;
 
-                const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_sum4_fp32_pack8[pb % 2]
+                const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_sum4_fp32_pack8[pb % 2]
                                            : elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb % 2]
                                            : pipeline_instancenorm_reduce_sum4_fp32[pb % 2];
 
@@ -501,7 +499,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
             constants[3].i = sum_workspace.cstep;
             constants[4].f = size;
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_mean_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_mean_pack8
                                        : elempack == 4 ? pipeline_instancenorm_reduce_mean_pack4
                                        : pipeline_instancenorm_reduce_mean;
 
@@ -533,7 +531,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
             constants[8].i = square_workspace.c;
             constants[9].i = square_workspace.cstep;
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_sub_mean_square_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_sub_mean_square_pack8
                                        : elempack == 4 ? pipeline_instancenorm_sub_mean_square_pack4
                                        : pipeline_instancenorm_sub_mean_square;
 
@@ -570,7 +568,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
                 constants[6].i = sqsum_workspace_reduced.c;
                 constants[7].i = sqsum_workspace_reduced.cstep;
 
-                const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_sum4_fp32_pack8[pb % 2]
+                const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_sum4_fp32_pack8[pb % 2]
                                            : elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb % 2]
                                            : pipeline_instancenorm_reduce_sum4_fp32[pb % 2];
 
@@ -594,7 +592,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
             constants[3].i = sqsum_workspace.cstep;
             constants[4].f = size;
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_mean_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_mean_pack8
                                        : elempack == 4 ? pipeline_instancenorm_reduce_mean_pack4
                                        : pipeline_instancenorm_reduce_mean;
 
@@ -616,7 +614,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         std::vector<vk_constant_type> constants(1);
         constants[0].i = c;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_coeffs_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_coeffs_pack8
                                    : elempack == 4 ? pipeline_instancenorm_coeffs_pack4
                                    : pipeline_instancenorm_coeffs;
 
@@ -636,7 +634,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         constants[3].i = bottom_top_blob.c;
         constants[4].i = bottom_top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_norm_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_norm_pack8
                                    : elempack == 4 ? pipeline_instancenorm_norm_pack4
                                    : pipeline_instancenorm_norm;
 
@@ -681,7 +679,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
                 constants[6].i = sum_workspace.c;
                 constants[7].i = 0; //sum_workspace.cstep;
 
-                const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8
+                const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8
                                            : elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4
                                            : pipeline_instancenorm_reduce_sum4_fp16_to_fp32;
 
@@ -714,7 +712,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
                 constants[6].i = sum_workspace_reduced.c;
                 constants[7].i = 0; //sum_workspace_reduced.cstep;
 
-                const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_sum4_fp32_pack8[pb % 2]
+                const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_sum4_fp32_pack8[pb % 2]
                                            : elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb % 2]
                                            : pipeline_instancenorm_reduce_sum4_fp32[pb % 2];
 
@@ -738,7 +736,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
             constants[3].i = 0; //sum_workspace.cstep;
             constants[4].f = size;
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_mean_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_mean_pack8
                                        : elempack == 4 ? pipeline_instancenorm_reduce_mean_pack4
                                        : pipeline_instancenorm_reduce_mean;
 
@@ -770,7 +768,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
             constants[8].i = square_workspace.c;
             constants[9].i = 0; //square_workspace.cstep;
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_sub_mean_square_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_sub_mean_square_pack8
                                        : elempack == 4 ? pipeline_instancenorm_sub_mean_square_pack4
                                        : pipeline_instancenorm_sub_mean_square;
 
@@ -805,7 +803,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
                 constants[6].i = sqsum_workspace_reduced.c;
                 constants[7].i = 0; //sqsum_workspace_reduced.cstep;
 
-                const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_sum4_fp32_pack8[pb % 2]
+                const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_sum4_fp32_pack8[pb % 2]
                                            : elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb % 2]
                                            : pipeline_instancenorm_reduce_sum4_fp32[pb % 2];
 
@@ -829,7 +827,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
             constants[3].i = 0; //sqsum_workspace.cstep;
             constants[4].f = size;
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_reduce_mean_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_reduce_mean_pack8
                                        : elempack == 4 ? pipeline_instancenorm_reduce_mean_pack4
                                        : pipeline_instancenorm_reduce_mean;
 
@@ -851,7 +849,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
         std::vector<vk_constant_type> constants(1);
         constants[0].i = c;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_coeffs_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_coeffs_pack8
                                    : elempack == 4 ? pipeline_instancenorm_coeffs_pack4
                                    : pipeline_instancenorm_coeffs;
 
@@ -876,7 +874,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
         constants[3].i = bottom_top_blob.c;
         constants[4].i = 0; //bottom_top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_instancenorm_norm_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_norm_pack8
                                    : elempack == 4 ? pipeline_instancenorm_norm_pack4
                                    : pipeline_instancenorm_norm;
 

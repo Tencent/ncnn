@@ -33,12 +33,9 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
-                                        : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -116,8 +113,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
         return 0;
     }
 
-    if (shape.dims == 0) elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4
-                                        : 1;
+    if (shape.dims == 0) elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
 
     std::vector<vk_specialization_type> specializations(1 + 5);
     specializations[0].i = bias_term;
@@ -193,8 +189,7 @@ int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (scale_data_size == -233)
         return 0;
 
-    int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4
-                   : 1;
+    int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
 
     Mat scale_data_packed;
     convert_packing(scale_data, scale_data_packed, elempack, opt);
@@ -251,7 +246,7 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_scale_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_scale_pack8
                                : elempack == 4 ? pipeline_scale_pack4
                                : pipeline_scale;
 
@@ -289,7 +284,7 @@ int Scale_vulkan::forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkC
     constants[3].i = bottom_top_blob.c;
     constants[4].i = 0; //bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_scale_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_scale_pack8
                                : elempack == 4 ? pipeline_scale_pack4
                                : pipeline_scale;
 

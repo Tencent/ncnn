@@ -96,7 +96,7 @@ typedef unsigned __int64 uint64_t;
 
 #define VK_VERSION_MAJOR(version) ((uint32_t)(version) >> 22)
 #define VK_VERSION_MINOR(version) (((uint32_t)(version) >> 12) & 0x3ff)
-#define VK_VERSION_PATCH(version) ((uint32_t)(version) & 0xfff)
+#define VK_VERSION_PATCH(version) ((uint32_t)(version)&0xfff)
 // Version of this file
 #define VK_HEADER_VERSION 0
 

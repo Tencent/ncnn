@@ -41,20 +41,14 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
-                                        : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4
-                                                : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4
-                                                : 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4
-                                                : 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -388,7 +382,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
         constants[11].f = (resize_type == 2 || output_height) ? h / (float)outh : 1.f / height_scale;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_interp_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                    : elempack == 4 ? pipeline_interp_pack4
                                    : pipeline_interp;
 
@@ -434,7 +428,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 constants[10].f = (w - 1) / (float)(outw - 1);
             }
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_interp_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                        : elempack == 4 ? pipeline_interp_pack4
                                        : pipeline_interp;
 
@@ -490,7 +484,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[8].i = top_blob.c;
             constants[9].i = top_blob.cstep;
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_interp_bicubic_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
                                        : elempack == 4 ? pipeline_interp_bicubic_pack4
                                        : pipeline_interp_bicubic;
 
@@ -536,7 +530,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[11].f = (h - 1) / (float)(outh - 1);
         }
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_interp_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                    : elempack == 4 ? pipeline_interp_pack4
                                    : pipeline_interp;
 
@@ -618,7 +612,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_interp_bicubic_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
                                    : elempack == 4 ? pipeline_interp_bicubic_pack4
                                    : pipeline_interp_bicubic;
 
@@ -678,7 +672,7 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
         constants[11].f = (resize_type == 2 || output_height) ? h / (float)outh : 1.f / height_scale;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_interp_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                    : elempack == 4 ? pipeline_interp_pack4
                                    : pipeline_interp;
 
@@ -724,7 +718,7 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
                 constants[10].f = (w - 1) / (float)(outw - 1);
             }
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_interp_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                        : elempack == 4 ? pipeline_interp_pack4
                                        : pipeline_interp;
 
@@ -780,7 +774,7 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
             constants[8].i = top_blob.c;
             constants[9].i = 0; //top_blob.cstep;
 
-            const Pipeline* pipeline = elempack == 8   ? pipeline_interp_bicubic_pack8
+            const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
                                        : elempack == 4 ? pipeline_interp_bicubic_pack4
                                        : pipeline_interp_bicubic;
 
@@ -826,7 +820,7 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
             constants[11].f = (h - 1) / (float)(outh - 1);
         }
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_interp_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                    : elempack == 4 ? pipeline_interp_pack4
                                    : pipeline_interp;
 
@@ -910,7 +904,7 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         constants[8].i = top_blob.c;
         constants[9].i = 0; //top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_interp_bicubic_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
                                    : elempack == 4 ? pipeline_interp_bicubic_pack4
                                    : pipeline_interp_bicubic;
 

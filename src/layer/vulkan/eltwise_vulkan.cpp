@@ -36,12 +36,9 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
-                : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -179,7 +176,7 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_eltwise_pack8[1]
+    const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[1]
                                : elempack == 4 ? pipeline_eltwise_pack4[1]
                                : pipeline_eltwise[1];
 
@@ -201,7 +198,7 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         constants[5].f = 1.f;
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_eltwise_pack8[b % 2]
+        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b % 2]
                                    : elempack == 4 ? pipeline_eltwise_pack4[b % 2]
                                    : pipeline_eltwise[b % 2];
 
@@ -237,7 +234,7 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_eltwise_pack8[1]
+    const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[1]
                                : elempack == 4 ? pipeline_eltwise_pack4[1]
                                : pipeline_eltwise[1];
 
@@ -259,7 +256,7 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         constants[5].f = 1.f;
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_eltwise_pack8[b % 2]
+        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b % 2]
                                    : elempack == 4 ? pipeline_eltwise_pack4[b % 2]
                                    : pipeline_eltwise[b % 2];
 

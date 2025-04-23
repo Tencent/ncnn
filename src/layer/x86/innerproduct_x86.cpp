@@ -152,12 +152,9 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8
-                       : num_output % 4 == 0   ? 4
-                       : 1;
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #elif __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
@@ -226,12 +223,9 @@ int InnerProduct_x86::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8
-                       : num_output % 4 == 0   ? 4
-                       : 1;
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #endif
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;

@@ -49,10 +49,8 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     const int maxk = kernel_w;
     int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4
-                   : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     {
         padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
@@ -266,8 +264,7 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     int outw = (bottom_blob_bordered.w - kernel_extent_w) / stride_w + 1;
 
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -376,8 +373,7 @@ int Convolution1D_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
 
     int outw = (bottom_blob_bordered.w - kernel_extent_w) / stride_w + 1;
 
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 

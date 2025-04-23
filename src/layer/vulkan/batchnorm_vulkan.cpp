@@ -32,8 +32,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
-                   : 1;
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -131,8 +130,7 @@ int BatchNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
-                   : 1;
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
     Mat a_data_packed;
     convert_packing(a_data, a_data_packed, elempack, opt);
@@ -183,7 +181,7 @@ int BatchNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_batchnorm_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_batchnorm_pack8
                                : elempack == 4 ? pipeline_batchnorm_pack4
                                : pipeline_batchnorm;
 
@@ -209,7 +207,7 @@ int BatchNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
     constants[3].i = bottom_top_blob.c;
     constants[4].i = 0; //bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_batchnorm_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_batchnorm_pack8
                                : elempack == 4 ? pipeline_batchnorm_pack4
                                : pipeline_batchnorm;
 
