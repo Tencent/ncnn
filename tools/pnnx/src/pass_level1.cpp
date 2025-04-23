@@ -12,189 +12,16 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <torch/csrc/jit/passes/quantization/helper.h>
+#include <torch/script.h>
+#include <torch/csrc/jit/api/module.h>
 #include <torch/csrc/api/include/torch/version.h>
+#include <torch/csrc/jit/passes/quantization/helper.h>
 
 #include "pass_level1.h"
 
+#include "pass_level1/fuse_module_pass.h"
+
 namespace pnnx {
-
-std::string TorchNodeProxy::kind() const
-{
-    return node->kind().toDisplayString();
-}
-
-bool TorchNodeProxy::hasNamedInput(const std::string& name) const
-{
-    return node->hasNamedInput(name);
-}
-
-const torch::jit::Value* TorchNodeProxy::namedInput(const std::string& name) const
-{
-    return node->namedInput(name);
-}
-
-std::vector<const torch::jit::Value*> TorchNodeProxy::inputs() const
-{
-    return node->inputs().vec();
-}
-
-std::vector<const torch::jit::Value*> TorchNodeProxy::outputs() const
-{
-    return node->outputs().vec();
-}
-
-const torch::jit::Value* TorchNodeProxy::input(int i) const
-{
-    return node->input(i);
-}
-
-const torch::jit::Value* TorchNodeProxy::output(int i) const
-{
-    return node->output(i);
-}
-
-TorchGraphProxy::TorchGraphProxy(const std::shared_ptr<torch::jit::Graph> _graph) : graph(_graph)
-{
-    for (const auto& n : graph->nodes())
-    {
-        nodes.push_back(n);
-    }
-}
-
-const TorchNodeProxy* TorchGraphProxy::find_node_by_kind(const std::string& kind) const
-{
-    for (const auto& n : nodes)
-    {
-        if (n.node->kind().toDisplayString() == kind)
-            return &n;
-    }
-
-    return 0;
-}
-
-const TorchNodeProxy* TorchGraphProxy::find_producer_node_by_value(const torch::jit::Value* value) const
-{
-    for (const auto& n : nodes)
-    {
-        if (n.node == value->node())
-            return &n;
-    }
-
-    fprintf(stderr, "TorchGraphProxy find_producer_node_by_value failed\n");
-    return 0;
-}
-
-std::vector<const torch::jit::Value*> TorchGraphProxy::inputs() const
-{
-    return std::as_const(*graph).inputs().vec();
-}
-
-std::vector<const torch::jit::Value*> TorchGraphProxy::outputs() const
-{
-    return std::as_const(*graph).outputs().vec();
-}
-
-const torch::jit::Value* TorchGraphProxy::input(int i) const
-{
-    return std::as_const(*graph).inputs()[i];
-}
-
-const torch::jit::Value* TorchGraphProxy::output(int i) const
-{
-    return std::as_const(*graph).outputs()[i];
-}
-
-void TorchGraphProxy::dump() const
-{
-    graph->dump();
-}
-
-class TorchTensorProxyPrivate
-{
-public:
-    at::Tensor t;
-};
-
-TorchTensorProxy::TorchTensorProxy(const at::Tensor& _t) : d(std::make_unique<TorchTensorProxyPrivate>())
-{
-    d->t = _t;
-}
-
-const at::Tensor& TorchTensorProxy::t() const
-{
-    return d->t;
-}
-
-int TorchTensorProxy::size(size_t i) const
-{
-    return d->t.size(i);
-}
-
-
-TorchModuleProxy::TorchModuleProxy(const torch::jit::Module& _mod) : mod(_mod)
-{
-    const std::vector<c10::ClassAttribute>& attributes = mod._ivalue()->type()->getAttributes();
-    for (size_t i = 0; i < attributes.size(); i++)
-    {
-        const std::string& name = attributes[i].getName();
-        const c10::IValue& ivalue = mod._ivalue()->getSlot(i);
-
-        if (!name.empty() && ivalue.isTensor())
-            attrs.insert(std::make_pair(name, TorchTensorProxy(ivalue.toTensor())));
-    }
-}
-
-bool TorchModuleProxy::hasattr(const std::string& name) const
-{
-    return attrs.find(name) != attrs.end();
-}
-
-const TorchTensorProxy& TorchModuleProxy::attr(const std::string& name) const
-{
-    return attrs.at(name);
-}
-
-
-FuseModulePass::~FuseModulePass()
-{
-}
-
-void FuseModulePass::write(Operator* /*op*/, const TorchGraphProxy& /*graph*/) const
-{
-}
-
-void FuseModulePass::write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& /*mod*/) const
-{
-    write(op, graph);
-}
-
-void FuseModulePass::write(Operator* /*op*/, const std::shared_ptr<torch::jit::Graph>& /*graph*/) const
-{
-}
-
-void FuseModulePass::write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& /*mod*/) const
-{
-    write(op, graph);
-}
-
-static std::vector<const FuseModulePass*> g_global_pnnx_fuse_module_passes;
-
-const std::vector<const FuseModulePass*>& get_global_pnnx_fuse_module_passes()
-{
-    return g_global_pnnx_fuse_module_passes;
-}
-
-FuseModulePassRegister::FuseModulePassRegister(const FuseModulePass* _pass)
-    : pass(_pass)
-{
-    g_global_pnnx_fuse_module_passes.push_back(pass);
-}
-
-FuseModulePassRegister::~FuseModulePassRegister()
-{
-    delete pass;
-}
 
 static void fuse_moduleop_unpack(Graph& graph, const std::vector<std::string>& module_operators)
 {
@@ -551,12 +378,6 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 #endif
                     TorchModuleProxy sub_mod_proxy(sub_mod);
                     ow->write(op, graph_proxy, sub_mod_proxy);
-
-#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
-                    ow->write(op, toGraphFunction(function).graph(), sub_mod);
-#else
-                    ow->write(op, function.graph(), sub_mod);
-#endif
 
                     break;
                 }

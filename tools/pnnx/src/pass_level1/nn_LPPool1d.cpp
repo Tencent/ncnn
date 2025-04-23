@@ -40,7 +40,7 @@ public:
         const TorchNodeProxy* stride = graph.find_producer_node_by_value(avg_pool1d->namedInput("stride"));
 
         op->params["kernel_size"] = kernel_size->input(0);
-        if (stride->inputs().size() == 0)
+        if (stride->input_count() == 0)
         {
             op->params["stride"] = op->params["kernel_size"];
         }

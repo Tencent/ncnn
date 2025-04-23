@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2025 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -15,10 +15,13 @@
 #ifndef PNNX_FUSE_MODULE_PASS_H
 #define PNNX_FUSE_MODULE_PASS_H
 
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "ir.h"
 
-#include <memory>
-#include <unordered_map>
 namespace torch {
 namespace jit {
 struct Graph;
@@ -27,6 +30,9 @@ struct Node;
 struct Value;
 } // namespace jit
 } // namespace torch
+namespace at {
+struct Tensor;
+} // namespace at
 
 namespace pnnx {
 
@@ -40,11 +46,13 @@ public:
     bool hasNamedInput(const std::string& name) const;
     const torch::jit::Value* namedInput(const std::string& name) const;
 
-    std::vector<const torch::jit::Value*> inputs() const;
-    std::vector<const torch::jit::Value*> outputs() const;
-
+    int input_count() const;
     const torch::jit::Value* input(int i) const;
+
+    int output_count() const;
     const torch::jit::Value* output(int i) const;
+
+    bool is_input_none(int i) const;
 
 public:
     const torch::jit::Node* node;
@@ -60,10 +68,10 @@ public:
 
     const TorchNodeProxy* find_producer_node_by_value(const torch::jit::Value* value) const;
 
-    std::vector<const torch::jit::Value*> inputs() const;
-    std::vector<const torch::jit::Value*> outputs() const;
-
+    int input_count() const;
     const torch::jit::Value* input(int i) const;
+
+    int output_count() const;
     const torch::jit::Value* output(int i) const;
 
     void dump() const;
@@ -80,13 +88,14 @@ class TorchTensorProxy
 {
 public:
     TorchTensorProxy(const at::Tensor& _t);
+    ~TorchTensorProxy();
 
     const at::Tensor& t() const;
 
     int size(size_t i) const;
 
 private:
-    std::unique_ptr<TorchTensorProxyPrivate> d;
+    TorchTensorProxyPrivate* const d;
 };
 
 class TorchModuleProxy
@@ -104,7 +113,6 @@ private:
     std::unordered_map<std::string, TorchTensorProxy> attrs;
 };
 
-
 class FuseModulePass
 {
 public:
@@ -117,10 +125,6 @@ public:
     virtual void write(Operator* op, const TorchGraphProxy& graph) const;
 
     virtual void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const;
-
-    virtual void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const;
-
-    virtual void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const;
 };
 
 class FuseModulePassRegister

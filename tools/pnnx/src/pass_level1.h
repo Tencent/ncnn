@@ -15,11 +15,7 @@
 #ifndef PNNX_PASS_LEVEL1_H
 #define PNNX_PASS_LEVEL1_H
 
-#include <torch/script.h>
-#include <torch/csrc/jit/api/module.h>
 #include "ir.h"
-
-#include "pass_level1/fuse_module_pass.h"
 
 namespace pnnx {
 

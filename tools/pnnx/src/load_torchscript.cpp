@@ -31,6 +31,7 @@ int64_t cuda_version();
 
 #include "pass_level0.h"
 #include "pass_level1.h"
+#include "pass_level1/fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -444,17 +445,6 @@ static const char* get_at_tensor_type_str(const at::ScalarType& st)
     // unknown
     fprintf(stderr, "unsupported tensor elem data type %d\n", (int)st);
     return "";
-}
-
-const torch::jit::Node* find_node_by_kind(const std::shared_ptr<torch::jit::Graph>& graph, const std::string& kind)
-{
-    for (const auto& n : graph->nodes())
-    {
-        if (n->kind().toDisplayString() == kind)
-            return n;
-    }
-
-    return 0;
 }
 
 static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, const std::vector<std::string>& types)

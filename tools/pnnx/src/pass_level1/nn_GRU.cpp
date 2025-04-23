@@ -38,7 +38,7 @@ public:
         const TorchNodeProxy* gru = graph.find_node_by_kind("aten::gru");
 
         const TorchNodeProxy* return_tuple = graph.find_node_by_kind("prim::TupleConstruct");
-        if (return_tuple && return_tuple->inputs().size() == 2 && gru->outputs().size() == 2
+        if (return_tuple && return_tuple->input_count() == 2 && gru->output_count() == 2
                 && return_tuple->input(0) == gru->output(1) && return_tuple->input(1) == gru->output(0))
         {
             // mark the swapped output tuple
