@@ -57,11 +57,8 @@ jobs:
 
     - name: code-format-0
       run: |
-        ls $GITHUB_WORKSPACE
-        ls $GITHUB_WORKSPACE/clang-format-install
         mkdir -p ~/bin
-        mv $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
-        rm -rf $GITHUB_WORKSPACE/clang-format-install
+        mv clang-format-install/clang-format ~/bin/clang-format
 
     - uses: actions/checkout@v4
 
@@ -72,9 +69,6 @@ jobs:
 
     - name: code-format
       run: |
-        mkdir -p ~/bin
-        mv $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
-        rm -rf $GITHUB_WORKSPACE/clang-format-install
         export PATH=~/bin:$PATH
         sh codeformat.sh
 
