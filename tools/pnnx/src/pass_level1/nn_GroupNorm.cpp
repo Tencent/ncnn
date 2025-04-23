@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,11 +29,11 @@ public:
         return "nn.GroupNorm";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
     {
         //         graph->dump();
 
-        const torch::jit::Node* gn = find_node_by_kind(graph, "aten::group_norm");
+        const TorchNodeProxy* gn = graph.find_node_by_kind("aten::group_norm");
 
         //         for (auto aa : gn->schema().arguments())
         //         {
@@ -48,12 +46,12 @@ public:
 
         if (mod.hasattr("weight") && mod.hasattr("bias"))
         {
-            const auto& weight = mod.attr("weight").toTensor();
+            const auto& weight = mod.attr("weight");
 
             op->params["num_channels"] = weight.size(0);
 
             op->attrs["weight"] = weight;
-            op->attrs["bias"] = mod.attr("bias").toTensor();
+            op->attrs["bias"] = mod.attr("bias");
         }
         else
         {

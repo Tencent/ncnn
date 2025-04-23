@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,9 +29,9 @@ public:
         return "nn.Hardshrink";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* hardshrink = find_node_by_kind(graph, "aten::hardshrink");
+        const TorchNodeProxy* hardshrink = graph.find_node_by_kind("aten::hardshrink");
 
         op->params["lambd"] = hardshrink->namedInput("lambd");
     }

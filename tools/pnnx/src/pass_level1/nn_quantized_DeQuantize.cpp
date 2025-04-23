@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,19 +29,19 @@ public:
         return "nn.quantized.DeQuantize";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
-    {
-        //         mod.dump(true, false, false);
-
-        //         graph->dump();
-
-        const torch::jit::Node* dequantize = find_node_by_kind(graph, "aten::dequantize");
-
-        //         for (auto aa : dequantize->schema().arguments())
-        //         {
-        //             fprintf(stderr, "arg %s\n", aa.name().c_str());
-        //         }
-    }
+    // void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
+    // {
+    //     //         mod.dump(true, false, false);
+    //
+    //     //         graph->dump();
+    //
+    //     const torch::jit::Node* dequantize = find_node_by_kind(graph, "aten::dequantize");
+    //
+    //     //         for (auto aa : dequantize->schema().arguments())
+    //     //         {
+    //     //             fprintf(stderr, "arg %s\n", aa.name().c_str());
+    //     //         }
+    // }
 };
 
 REGISTER_GLOBAL_PNNX_FUSE_MODULE_PASS(DeQuantize)

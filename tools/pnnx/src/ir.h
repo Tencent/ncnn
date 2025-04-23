@@ -34,6 +34,9 @@ struct Node;
 namespace at {
 class Tensor;
 }
+namespace pnnx {
+class TorchTensorProxy;
+} // namespace pnnx
 #endif // BUILD_TORCH2PNNX
 
 #if BUILD_ONNX2PNNX
@@ -230,6 +233,7 @@ public:
 
 #if BUILD_TORCH2PNNX
     Attribute(const at::Tensor& t);
+    Attribute(const TorchTensorProxy& t);
 #endif
 #if BUILD_ONNX2PNNX
     Attribute(const onnx::TensorProto& t);

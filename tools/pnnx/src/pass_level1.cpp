@@ -12,43 +12,16 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <torch/csrc/jit/passes/quantization/helper.h>
+#include <torch/script.h>
+#include <torch/csrc/jit/api/module.h>
 #include <torch/csrc/api/include/torch/version.h>
+#include <torch/csrc/jit/passes/quantization/helper.h>
 
 #include "pass_level1.h"
 
+#include "pass_level1/fuse_module_pass.h"
+
 namespace pnnx {
-
-FuseModulePass::~FuseModulePass()
-{
-}
-
-void FuseModulePass::write(Operator* /*op*/, const std::shared_ptr<torch::jit::Graph>& /*graph*/) const
-{
-}
-
-void FuseModulePass::write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& /*mod*/) const
-{
-    write(op, graph);
-}
-
-static std::vector<const FuseModulePass*> g_global_pnnx_fuse_module_passes;
-
-const std::vector<const FuseModulePass*>& get_global_pnnx_fuse_module_passes()
-{
-    return g_global_pnnx_fuse_module_passes;
-}
-
-FuseModulePassRegister::FuseModulePassRegister(const FuseModulePass* _pass)
-    : pass(_pass)
-{
-    g_global_pnnx_fuse_module_passes.push_back(pass);
-}
-
-FuseModulePassRegister::~FuseModulePassRegister()
-{
-    delete pass;
-}
 
 static void fuse_moduleop_unpack(Graph& graph, const std::vector<std::string>& module_operators)
 {
@@ -399,10 +372,12 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                     op->name = wrapped_name;
 
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
-                    ow->write(op, toGraphFunction(function).graph(), sub_mod);
+                    TorchGraphProxy graph_proxy(toGraphFunction(function).graph());
 #else
-                    ow->write(op, function.graph(), sub_mod);
+                    TorchGraphProxy graph_proxy(function.graph());
 #endif
+                    TorchModuleProxy sub_mod_proxy(sub_mod);
+                    ow->write(op, graph_proxy, sub_mod_proxy);
 
                     break;
                 }

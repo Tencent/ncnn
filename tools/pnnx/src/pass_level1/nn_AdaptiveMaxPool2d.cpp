@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,12 +29,14 @@ public:
         return "nn.AdaptiveMaxPool2d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* adaptive_max_pool2d = find_node_by_kind(graph, "aten::adaptive_max_pool2d");
+        const TorchNodeProxy* adaptive_max_pool2d = graph.find_node_by_kind("aten::adaptive_max_pool2d");
+
+        const TorchNodeProxy* graph_out = graph.find_producer_node_by_value(graph.output(0));
 
         op->params["output_size"] = adaptive_max_pool2d->namedInput("output_size");
-        op->params["return_indices"] = graph->outputs()[0]->node()->kind() == c10::prim::TupleConstruct ? true : false;
+        op->params["return_indices"] = graph_out->kind() == "prim::TupleConstruct" ? true : false;
     }
 };
 

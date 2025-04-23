@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,17 +29,17 @@ public:
         return "nn.LSTM";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
     {
         // mod.dump(true, true, true);
         //
         // graph->dump();
 
-        const torch::jit::Node* lstm = find_node_by_kind(graph, "aten::lstm");
+        const TorchNodeProxy* lstm = graph.find_node_by_kind("aten::lstm");
 
-        const torch::jit::Node* return_tuple = find_node_by_kind(graph, "prim::TupleConstruct");
-        if (return_tuple && return_tuple->inputs().size() == 3 && lstm->outputs().size() == 3
-                && return_tuple->inputs()[0] == lstm->outputs()[1] && return_tuple->inputs()[1] == lstm->outputs()[2] && return_tuple->inputs()[2] == lstm->outputs()[0])
+        const TorchNodeProxy* return_tuple = graph.find_node_by_kind("prim::TupleConstruct");
+        if (return_tuple && return_tuple->input_count() == 3 && lstm->output_count() == 3
+                && return_tuple->input(0) == lstm->output(1) && return_tuple->input(1) == lstm->output(2) && return_tuple->input(2) == lstm->output(0))
         {
             // mark the swapped output tuple
             // we would restore the fine order in pass_level3/fuse_rnn_unpack
@@ -54,8 +52,8 @@ public:
         //     fprintf(stderr, "arg %s\n", aa.name().c_str());
         // }
 
-        const auto& weight_ih_l0 = mod.attr("weight_ih_l0").toTensor();
-        const auto& weight_hh_l0 = mod.attr("weight_hh_l0").toTensor();
+        const TorchTensorProxy& weight_ih_l0 = mod.attr("weight_ih_l0");
+        const TorchTensorProxy& weight_hh_l0 = mod.attr("weight_hh_l0");
 
         op->params["input_size"] = weight_ih_l0.size(1);
         op->params["hidden_size"] = weight_ih_l0.size(0) / 4;
@@ -75,23 +73,23 @@ public:
             std::string weight_ih_lk_key = std::string("weight_ih_l") + std::to_string(k);
             std::string weight_hh_lk_key = std::string("weight_hh_l") + std::to_string(k);
 
-            op->attrs[weight_ih_lk_key] = mod.attr(weight_ih_lk_key).toTensor();
-            op->attrs[weight_hh_lk_key] = mod.attr(weight_hh_lk_key).toTensor();
+            op->attrs[weight_ih_lk_key] = mod.attr(weight_ih_lk_key);
+            op->attrs[weight_hh_lk_key] = mod.attr(weight_hh_lk_key);
 
             if (bias)
             {
                 std::string bias_ih_lk_key = std::string("bias_ih_l") + std::to_string(k);
                 std::string bias_hh_lk_key = std::string("bias_hh_l") + std::to_string(k);
 
-                op->attrs[bias_ih_lk_key] = mod.attr(bias_ih_lk_key).toTensor();
-                op->attrs[bias_hh_lk_key] = mod.attr(bias_hh_lk_key).toTensor();
+                op->attrs[bias_ih_lk_key] = mod.attr(bias_ih_lk_key);
+                op->attrs[bias_hh_lk_key] = mod.attr(bias_hh_lk_key);
             }
 
             if (proj_size > 0)
             {
                 std::string weight_hr_lk_key = std::string("weight_hr_l") + std::to_string(k);
 
-                op->attrs[weight_hr_lk_key] = mod.attr(weight_hr_lk_key).toTensor();
+                op->attrs[weight_hr_lk_key] = mod.attr(weight_hr_lk_key);
             }
 
             if (bidirectional)
@@ -99,23 +97,23 @@ public:
                 std::string weight_ih_lk_reverse_key = std::string("weight_ih_l") + std::to_string(k) + "_reverse";
                 std::string weight_hh_lk_reverse_key = std::string("weight_hh_l") + std::to_string(k) + "_reverse";
 
-                op->attrs[weight_ih_lk_reverse_key] = mod.attr(weight_ih_lk_reverse_key).toTensor();
-                op->attrs[weight_hh_lk_reverse_key] = mod.attr(weight_hh_lk_reverse_key).toTensor();
+                op->attrs[weight_ih_lk_reverse_key] = mod.attr(weight_ih_lk_reverse_key);
+                op->attrs[weight_hh_lk_reverse_key] = mod.attr(weight_hh_lk_reverse_key);
 
                 if (bias)
                 {
                     std::string bias_ih_lk_reverse_key = std::string("bias_ih_l") + std::to_string(k) + "_reverse";
                     std::string bias_hh_lk_reverse_key = std::string("bias_hh_l") + std::to_string(k) + "_reverse";
 
-                    op->attrs[bias_ih_lk_reverse_key] = mod.attr(bias_ih_lk_reverse_key).toTensor();
-                    op->attrs[bias_hh_lk_reverse_key] = mod.attr(bias_hh_lk_reverse_key).toTensor();
+                    op->attrs[bias_ih_lk_reverse_key] = mod.attr(bias_ih_lk_reverse_key);
+                    op->attrs[bias_hh_lk_reverse_key] = mod.attr(bias_hh_lk_reverse_key);
                 }
 
                 if (proj_size > 0)
                 {
                     std::string weight_hr_lk_reverse_key = std::string("weight_hr_l") + std::to_string(k) + "_reverse";
 
-                    op->attrs[weight_hr_lk_reverse_key] = mod.attr(weight_hr_lk_reverse_key).toTensor();
+                    op->attrs[weight_hr_lk_reverse_key] = mod.attr(weight_hr_lk_reverse_key);
                 }
             }
         }
