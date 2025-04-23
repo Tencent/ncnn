@@ -54,6 +54,8 @@ jobs:
         rm -rf $GITHUB_WORKSPACE/clang-format-install
         export PATH=~/bin:$PATH
 
+        echo $PATH
+
         ls -l ~/bin
         which clang-format
 
