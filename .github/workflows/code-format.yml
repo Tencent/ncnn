@@ -49,14 +49,12 @@ jobs:
 
     - name: code-format
       run: |
-        mkdir -p ~/bin
-        mv $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
+        mv $GITHUB_WORKSPACE/clang-format-install/clang-format /usr/local/bin/clang-format
         rm -rf $GITHUB_WORKSPACE/clang-format-install
-        export PATH=~/bin:$PATH
 
         echo $PATH
 
-        ls -l ~/bin
+        ls -l /usr/local/bin
         which clang-format
 
         sh codeformat.sh
@@ -71,4 +69,4 @@ jobs:
     - name: restore-clang-format-cache
       run: |
         mkdir $GITHUB_WORKSPACE/clang-format-install
-        cp -r ~/bin/clang-format $GITHUB_WORKSPACE/clang-format-install
+        cp -r /usr/local/bin/clang-format $GITHUB_WORKSPACE/clang-format-install
