@@ -57,6 +57,9 @@ jobs:
         export PATH=~/bin:$PATH
         sh codeformat.sh
 
+    - name: configure-git-safe-directory
+      run: git config --global --add safe.directory /__w/ncnn/ncnn
+
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: apply code-format changes
