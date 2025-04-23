@@ -60,7 +60,8 @@ bool TorchNodeProxy::is_input_none(int i) const
     return node->input(i)->type()->kind() == c10::TypeKind::NoneType;
 }
 
-TorchGraphProxy::TorchGraphProxy(const std::shared_ptr<torch::jit::Graph> _graph) : graph(_graph)
+TorchGraphProxy::TorchGraphProxy(const std::shared_ptr<torch::jit::Graph> _graph)
+    : graph(_graph)
 {
     for (const auto& n : graph->nodes())
     {
@@ -122,7 +123,8 @@ public:
     at::Tensor t;
 };
 
-TorchTensorProxy::TorchTensorProxy(const at::Tensor& _t) : d(new TorchTensorProxyPrivate)
+TorchTensorProxy::TorchTensorProxy(const at::Tensor& _t)
+    : d(new TorchTensorProxyPrivate)
 {
     d->t = _t;
 }
@@ -142,8 +144,8 @@ int TorchTensorProxy::size(size_t i) const
     return d->t.size(i);
 }
 
-
-TorchModuleProxy::TorchModuleProxy(const torch::jit::Module& _mod) : mod(_mod)
+TorchModuleProxy::TorchModuleProxy(const torch::jit::Module& _mod)
+    : mod(_mod)
 {
     const std::vector<c10::ClassAttribute>& attributes = mod._ivalue()->type()->getAttributes();
     for (size_t i = 0; i < attributes.size(); i++)
@@ -186,7 +188,6 @@ const TorchTensorProxy& TorchModuleProxy::attr(const std::string& name) const
 {
     return attrs.at(name);
 }
-
 
 FuseModulePass::~FuseModulePass()
 {

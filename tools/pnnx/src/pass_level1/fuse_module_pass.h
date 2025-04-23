@@ -39,7 +39,10 @@ namespace pnnx {
 class TorchNodeProxy
 {
 public:
-    TorchNodeProxy(const torch::jit::Node* _node) : node(_node) {}
+    TorchNodeProxy(const torch::jit::Node* _node)
+        : node(_node)
+    {
+    }
 
     std::string kind() const;
 

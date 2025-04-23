@@ -373,7 +373,8 @@ Attribute::Attribute(const at::Tensor& t)
     }
 }
 
-Attribute::Attribute(const TorchTensorProxy& t) : Attribute(t.t())
+Attribute::Attribute(const TorchTensorProxy& t)
+    : Attribute(t.t())
 {
 }
 
