@@ -18,8 +18,7 @@
 #endif // __riscv_vector
 
 #include "cpu.h"
-namespace ncnn
-{
+namespace ncnn {
 #if NCNN_ZFH
 int CELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
