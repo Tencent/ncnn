@@ -39,7 +39,7 @@ public:
 
         const TorchNodeProxy* return_tuple = graph.find_node_by_kind("prim::TupleConstruct");
         if (return_tuple && return_tuple->inputs().size() == 2 && gru->outputs().size() == 2
-                && return_tuple->inputs()[0] == gru->outputs()[1] && return_tuple->inputs()[1] == gru->outputs()[0])
+                && return_tuple->input(0) == gru->output(1) && return_tuple->input(1) == gru->output(0))
         {
             // mark the swapped output tuple
             // we would restore the fine order in pass_level3/fuse_rnn_unpack

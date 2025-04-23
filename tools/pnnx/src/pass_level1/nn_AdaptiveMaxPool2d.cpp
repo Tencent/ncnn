@@ -33,7 +33,7 @@ public:
     {
         const TorchNodeProxy* adaptive_max_pool2d = graph.find_node_by_kind("aten::adaptive_max_pool2d");
 
-        const TorchNodeProxy* graph_out = graph.find_producer_node_by_value(graph.outputs()[0]);
+        const TorchNodeProxy* graph_out = graph.find_producer_node_by_value(graph.output(0));
 
         op->params["output_size"] = adaptive_max_pool2d->namedInput("output_size");
         op->params["return_indices"] = graph_out->kind() == "prim::TupleConstruct" ? true : false;
