@@ -10,10 +10,18 @@ permissions:
   contents: write
 
 jobs:
-  clang-format:
+  code-format:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
+    - name: astyle
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get install -y astyle git
+
+    - uses: actions/checkout@v4
+
     - name: cache-clang-format
       id: cache-clang-format
       uses: actions/cache@v4
@@ -39,31 +47,14 @@ jobs:
         rm -rf llvm-project-10.0.1
         rm llvm-project-10.0.1.tar.xz
 
-  code-format:
-    needs: [clang-format]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: cache-clang-format
-      id: cache-clang-format
-      uses: actions/cache@v4
-      with:
-        path: clang-format-install
-        key: clang-format-install-5
-
-    - name: astyle
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y astyle
-
     - name: code-format
       run: |
-        mkdir -p ~/bin
-        mv $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
+        mv $GITHUB_WORKSPACE/clang-format-install/clang-format /usr/local/bin/clang-format
         rm -rf $GITHUB_WORKSPACE/clang-format-install
-        export PATH=~/bin:$PATH
         sh codeformat.sh
+
+    - name: configure-git-safe-directory
+      run: git config --global --add safe.directory /__w/ncnn/ncnn
 
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
@@ -72,4 +63,4 @@ jobs:
     - name: restore-clang-format-cache
       run: |
         mkdir $GITHUB_WORKSPACE/clang-format-install
-        cp -r ~/bin/clang-format $GITHUB_WORKSPACE/clang-format-install
+        cp -r /usr/local/bin/clang-format $GITHUB_WORKSPACE/clang-format-install
