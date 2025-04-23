@@ -14,6 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
+    - name: astyle
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get install -y astyle git
+
     - uses: actions/checkout@v4
 
     - name: cache-clang-format
@@ -41,15 +47,11 @@ jobs:
         rm -rf llvm-project-10.0.1
         rm llvm-project-10.0.1.tar.xz
 
-    - name: astyle
-      run: |
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y
-        apt-get install -y astyle git
-
     - name: code-format
       run: |
-        export PATH=$GITHUB_WORKSPACE/clang-format-install/bin:$PATH
+        mkdir -p ~/bin
+        cp -r $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
+        export PATH=~/bin:$PATH
         sh codeformat.sh
 
     - name: configure-git-safe-directory
