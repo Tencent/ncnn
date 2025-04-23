@@ -32,7 +32,7 @@ public:
     void write(Operator* op, const TorchGraphProxy& graph) const
     {
         const TorchNodeProxy* pow = graph.find_node_by_kind("aten::pow");
-        op->params["norm_type"] = pow->inputs()[1];
+        op->params["norm_type"] = pow->input(1);
 
         const TorchNodeProxy* avg_pool2d = graph.find_node_by_kind("aten::avg_pool2d");
 

@@ -33,7 +33,7 @@ public:
     {
         const TorchNodeProxy* roi_align = graph.find_node_by_kind("torchvision::roi_align");
 
-        if (roi_align->inputs()[0] == graph.inputs()[2] && roi_align->inputs()[1] == graph.inputs()[1])
+        if (roi_align->input(0) == graph.input(2) && roi_align->input(1) == graph.input(1))
         {
             fprintf(stderr, "roi_align inputs swapped detected !\n");
             std::swap(op->inputs[0], op->inputs[1]);

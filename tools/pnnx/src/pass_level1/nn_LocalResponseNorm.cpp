@@ -40,16 +40,16 @@ public:
         }
 
         const TorchNodeProxy* kernel_size = graph.find_producer_node_by_value(avg_pool->namedInput("kernel_size"));
-        op->params["size"] = kernel_size->inputs()[0];
+        op->params["size"] = kernel_size->input(0);
 
         const TorchNodeProxy* pow = graph.find_node_by_kind("aten::pow");
-        op->params["beta"] = pow->inputs()[1];
+        op->params["beta"] = pow->input(1);
 
-        const TorchNodeProxy* add = graph.find_producer_node_by_value(pow->inputs()[0]);
-        op->params["k"] = add->inputs()[1];
+        const TorchNodeProxy* add = graph.find_producer_node_by_value(pow->input(0));
+        op->params["k"] = add->input(1);
 
-        const TorchNodeProxy* mul = graph.find_producer_node_by_value(add->inputs()[0]);
-        op->params["alpha"] = mul->inputs()[1];
+        const TorchNodeProxy* mul = graph.find_producer_node_by_value(add->input(0));
+        op->params["alpha"] = mul->input(1);
     }
 };
 
