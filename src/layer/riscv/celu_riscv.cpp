@@ -11,7 +11,6 @@
 // specific language governing permissions and limitations under the License.
 
 #include "celu_riscv.h"
-
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
@@ -57,8 +56,9 @@ int CELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
-
-#if __riscv_vector
+        // FIXME Suspected upstream bug
+        // Incorrect answer on Xuantie c910
+#if __riscv_vector && !__riscv_xtheadvector
         int n = size;
         while (n > 0)
         {

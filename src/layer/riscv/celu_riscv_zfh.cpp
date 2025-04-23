@@ -35,7 +35,7 @@ int CELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
-#if __riscv_vector
+#if __riscv_vector && !__riscv_xtheadvector
         int n = size;
         while (n > 0)
         {
