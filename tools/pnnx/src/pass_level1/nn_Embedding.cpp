@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,11 +29,11 @@ public:
         return "nn.Embedding";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
     {
-        const torch::jit::Node* embedding = find_node_by_kind(graph, "aten::embedding");
+        const TorchNodeProxy* embedding = graph.find_node_by_kind("aten::embedding");
 
-        const auto& weight = mod.attr("weight").toTensor();
+        const TorchTensorProxy& weight = mod.attr("weight");
 
         op->params["num_embeddings"] = weight.size(0);
         op->params["embedding_dim"] = weight.size(1);

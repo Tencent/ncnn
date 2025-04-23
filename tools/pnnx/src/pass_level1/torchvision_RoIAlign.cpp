@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,11 +29,11 @@ public:
         return "torchvision.ops.RoIAlign";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& /*mod*/) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* roi_align = find_node_by_kind(graph, "torchvision::roi_align");
+        const TorchNodeProxy* roi_align = graph.find_node_by_kind("torchvision::roi_align");
 
-        if (roi_align->inputs()[0] == graph->inputs()[2] && roi_align->inputs()[1] == graph->inputs()[1])
+        if (roi_align->input(0) == graph.input(2) && roi_align->input(1) == graph.input(1))
         {
             fprintf(stderr, "roi_align inputs swapped detected !\n");
             std::swap(op->inputs[0], op->inputs[1]);

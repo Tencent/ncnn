@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,10 +29,10 @@ public:
         return "nn.MaxPool2d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* max_pool2d = find_node_by_kind(graph, "aten::max_pool2d");
-        const torch::jit::Node* max_pool2d_with_indices = find_node_by_kind(graph, "aten::max_pool2d_with_indices");
+        const TorchNodeProxy* max_pool2d = graph.find_node_by_kind("aten::max_pool2d");
+        const TorchNodeProxy* max_pool2d_with_indices = graph.find_node_by_kind("aten::max_pool2d_with_indices");
 
         if (max_pool2d_with_indices)
         {

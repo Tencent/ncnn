@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,19 +29,19 @@ public:
         return "nn.Upsample";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* upsample_nearest1d = find_node_by_kind(graph, "aten::upsample_nearest1d");
-        const torch::jit::Node* upsample_linear1d = find_node_by_kind(graph, "aten::upsample_linear1d");
+        const TorchNodeProxy* upsample_nearest1d = graph.find_node_by_kind("aten::upsample_nearest1d");
+        const TorchNodeProxy* upsample_linear1d = graph.find_node_by_kind("aten::upsample_linear1d");
 
-        const torch::jit::Node* upsample_nearest2d = find_node_by_kind(graph, "aten::upsample_nearest2d");
-        const torch::jit::Node* upsample_bilinear2d = find_node_by_kind(graph, "aten::upsample_bilinear2d");
-        const torch::jit::Node* upsample_bicubic2d = find_node_by_kind(graph, "aten::upsample_bicubic2d");
+        const TorchNodeProxy* upsample_nearest2d = graph.find_node_by_kind("aten::upsample_nearest2d");
+        const TorchNodeProxy* upsample_bilinear2d = graph.find_node_by_kind("aten::upsample_bilinear2d");
+        const TorchNodeProxy* upsample_bicubic2d = graph.find_node_by_kind("aten::upsample_bicubic2d");
 
-        const torch::jit::Node* upsample_nearest3d = find_node_by_kind(graph, "aten::upsample_nearest3d");
-        const torch::jit::Node* upsample_trilinear3d = find_node_by_kind(graph, "aten::upsample_trilinear3d");
+        const TorchNodeProxy* upsample_nearest3d = graph.find_node_by_kind("aten::upsample_nearest3d");
+        const TorchNodeProxy* upsample_trilinear3d = graph.find_node_by_kind("aten::upsample_trilinear3d");
 
-        const torch::jit::Node* upsample = 0;
+        const TorchNodeProxy* upsample = 0;
         if (upsample_nearest1d)
         {
             upsample = upsample_nearest1d;
@@ -136,12 +134,17 @@ public:
             std::vector<float> scale_factor;
             try
             {
-                const torch::jit::Node* size_list = find_node_by_kind(graph, "prim::ListConstruct");
-                for (auto x : size_list->inputs())
+                const TorchNodeProxy* size_list = graph.find_node_by_kind("prim::ListConstruct");
+                const int size_list_input_count = size_list->input_count();
+                for (int i = 0; i < size_list_input_count; i++)
                 {
-                    auto scale_tensor = x->node()->inputs()[0]->node()->inputs()[0]->node()->inputs()[0]->node()->inputs()[1]->node()->inputs()[0]->node()->inputs()[0]->node();
-                    auto t = scale_tensor->t(torch::jit::attr::value);
-                    float s = (float)t.item<double>();
+                    const TorchNodeProxy* scale_tensor = graph.find_producer_node_by_value(graph.find_producer_node_by_value(graph.find_producer_node_by_value(graph.find_producer_node_by_value(graph.find_producer_node_by_value(graph.find_producer_node_by_value(graph.find_producer_node_by_value(size_list->input(i))->input(0))->input(0))->input(0))->input(1))->input(0))->input(0));
+
+                    // auto t = scale_tensor->t(torch::jit::attr::value);
+                    // float s = (float)t.item<double>();
+                    Parameter ps = scale_tensor->node;
+                    float s = ps.f;
+
                     scale_factor.push_back(s);
                 }
 
@@ -150,7 +153,7 @@ public:
             catch (...)
             {
                 fprintf(stderr, "unhandled upsample recompute_scale_factor graph");
-                graph->dump();
+                graph.dump();
             }
         }
     }
