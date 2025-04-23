@@ -50,7 +50,8 @@ jobs:
     - name: code-format
       run: |
         mkdir -p ~/bin
-        cp -r $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
+        mv $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
+        rm -rf $GITHUB_WORKSPACE/clang-format-install
         export PATH=~/bin:$PATH
         sh codeformat.sh
 
@@ -60,3 +61,8 @@ jobs:
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: apply code-format changes
+
+    - name: restore-clang-format-cache
+      run: |
+        mkdir $GITHUB_WORKSPACE/clang-format-install
+        cp -r ~/bin/clang-format $GITHUB_WORKSPACE/clang-format-install
