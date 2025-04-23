@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,9 +29,9 @@ public:
         return "nn.PReLU";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& /*graph*/, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& /*graph*/, const TorchModuleProxy& mod) const
     {
-        const auto& weight = mod.attr("weight").toTensor();
+        const TorchTensorProxy& weight = mod.attr("weight");
 
         op->params["num_parameters"] = weight.size(0);
 
