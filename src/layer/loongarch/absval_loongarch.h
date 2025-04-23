@@ -17,9 +17,6 @@
 
 #include "absval.h"
 
-
-
-
 namespace ncnn {
 
 class AbsVal_loongarch : public AbsVal
