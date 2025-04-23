@@ -48,7 +48,7 @@ jobs:
     - name: code-format-0
       run: |
         mkdir -p ~/bin
-        mv clang-format-install/clang-format ~/bin/clang-format
+        cp clang-format-install/clang-format ~/bin/clang-format
 
     - uses: actions/checkout@v4
 
