@@ -10,10 +10,16 @@ permissions:
   contents: write
 
 jobs:
-  clang-format:
+  code-format:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
+    - name: astyle
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get install -y astyle git
+
     - name: cache-clang-format
       id: cache-clang-format
       uses: actions/cache@v4
@@ -39,33 +45,12 @@ jobs:
         rm -rf llvm-project-10.0.1
         rm llvm-project-10.0.1.tar.xz
 
-    - name: upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: clang-format
-        path: clang-format-install/clang-format
-
-  code-format:
-    needs: [clang-format]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/download-artifact@v4
-      with:
-        name: clang-format
-        path: clang-format-install
-        merge-multiple: true
-
     - name: code-format-0
       run: |
         mkdir -p ~/bin
         mv clang-format-install/clang-format ~/bin/clang-format
 
     - uses: actions/checkout@v4
-
-    - name: astyle
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y astyle
 
     - name: code-format
       run: |
