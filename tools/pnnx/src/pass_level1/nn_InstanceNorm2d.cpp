@@ -67,7 +67,7 @@ public:
         // take num_features from input shape
         if (!op->has_param("num_features") && !op->inputs[0]->shape.empty())
         {
-            op->params["num_features"] = op->inputs[0]->shape[op->inputs[0]->shape.size() - 2];
+            op->params["num_features"] = op->inputs[0]->shape[op->inputs[0]->shape.size() - 3];
         }
     }
 };
