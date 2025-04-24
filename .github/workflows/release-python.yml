@@ -101,9 +101,22 @@ jobs:
       with:
         output-dir: wheelhouse
 
-    # build wheels for ubuntu-24.04-arm
-    - name: Build wheels for ubuntu-arm
-      if: matrix.os == 'ubuntu-24.04-arm'
+    # build wheels for ubuntu-24.04 armv7l
+    - name: Build wheels for ubuntu armv7l
+      if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'armv7l')
+      uses: pypa/cibuildwheel@v2.23.2
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
+          CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/arm-linux-gnueabi.toolchain.cmake
+      with:
+        output-dir: wheelhouse
+
+    # build wheels for ubuntu-24.04 aarch64
+    - name: Build wheels for ubuntu aarch64
+      if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'aarch64')
       uses: pypa/cibuildwheel@v2.23.2
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
