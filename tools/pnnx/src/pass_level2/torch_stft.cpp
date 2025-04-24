@@ -65,10 +65,21 @@ prim::Constant          op_2        0 1 win_length value=%win_length
 prim::Constant          op_3        0 1 normalized value=%normalized
 prim::Constant          op_4        0 1 onesided value=%onesided
 prim::Constant          op_5        0 1 return_complex value=%return_complex
-prim::Constant          op_6        0 1 align_to_window value=*
+prim::Constant          op_6        0 1 align_to_window value=%align_to_window
 aten::stft              op_7        9 1 input n_fft hop_length win_length window normalized onesided return_complex align_to_window out
 pnnx.Output             output      1 0 out
 )PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        torch_stft::write(op, captured_params);
+
+        // keep align_to_window param only when enabled
+        if (captured_params.at("align_to_window").type != 1 || captured_params.at("align_to_window").b == false)
+        {
+            op->params.erase("align_to_window");
+        }
     }
 };
 
