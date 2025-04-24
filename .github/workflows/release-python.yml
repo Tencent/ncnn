@@ -110,7 +110,7 @@ jobs:
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
-          CFLAGS="-march=armv7-a -mfloat-abi=softfp -mfpu=neon" CXXFLAGS="-march=armv7-a -mfloat-abi=softfp -mfpu=neon"
+          CFLAGS="-mfpu=neon" CXXFLAGS="-mfpu=neon"
       with:
         output-dir: wheelhouse
 
