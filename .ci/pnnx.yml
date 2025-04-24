@@ -19,10 +19,10 @@ concurrency:
 
 variables:
   protobuf_version: 21.12
-  libtorch_version: 2.6.0
-  libtorchvision_version: 0.21.0
-  onnxruntime_version: 1.21.0
-  cache_date: 20250402
+  libtorch_version: 2.7.0
+  libtorchvision_version: 0.22.0
+  onnxruntime_version: 1.21.1
+  cache_date: 20250423
 
 jobs:
   ubuntu:
@@ -80,6 +80,10 @@ jobs:
           - torch-version: 2.6.0
             torchvision-version: 0.21.0
             torchaudio-version: '2.6.0+cpu'
+
+          - torch-version: 2.7.0
+            torchvision-version: 0.22.0
+            torchaudio-version: '2.7.0+cpu'
 
     runs-on:
       pool-name: docker
