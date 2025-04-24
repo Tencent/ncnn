@@ -110,7 +110,7 @@ jobs:
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
-          CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/arm-linux-gnueabi.toolchain.cmake
+          CMAKE_TOOLCHAIN_FILE=/project/toolchains/arm-linux-gnueabi.toolchain.cmake
       with:
         output-dir: wheelhouse
 
