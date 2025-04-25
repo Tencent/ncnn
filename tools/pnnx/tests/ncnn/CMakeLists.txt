@@ -220,6 +220,7 @@ pnnx_ncnn_add_test(ncnn_interp_expr)
 pnnx_ncnn_add_test(ncnn_numpy_binaryop_broadcast)
 pnnx_ncnn_add_test(ncnn_reshape_expr)
 pnnx_ncnn_add_test(ncnn_slice_expr)
+pnnx_ncnn_add_test(ncnn_solve_batch_index)
 
 if(TorchVision_FOUND)
     pnnx_ncnn_add_test(torchvision_DeformConv2d)

@@ -213,12 +213,60 @@ static void solve_batch_index_forward(Operand* operand)
         }
         else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
         {
+            std::vector<int> shape;
             if (op->params.find("shape") == op->params.end())
             {
-                continue;
-            }
+                // dynamic reshape
+                const Operator* op_expr = op->inputs[1]->producer;
+                std::string expr = op_expr->params.at("expr").s;
+                {
+                    int expr_stack = 0;
+                    std::string t;
+                    for (size_t i = 0; i < expr.size(); i++)
+                    {
+                        char ch = expr[i];
 
-            const std::vector<int>& shape = op->params.at("shape").ai;
+                        if (ch == '[') // list
+                        {
+                            t.clear();
+                        }
+                        else if (ch == '(')
+                        {
+                            expr_stack += 1;
+                        }
+                        else if (ch == ')')
+                        {
+                            expr_stack -= 1;
+                            t.clear();
+                        }
+                        else if (ch == ',' || ch == ']')
+                        {
+                            if (expr_stack > 0)
+                            {
+                                shape.push_back(-1);
+                            }
+                            else if (!t.empty())
+                            {
+                                shape.push_back(std::stoi(t));
+                            }
+                            t.clear();
+                        }
+                        else
+                        {
+                            t += ch;
+                        }
+                    }
+
+                    if (!t.empty())
+                    {
+                        shape.push_back(std::stoi(t));
+                    }
+                }
+            }
+            else
+            {
+                shape = op->params.at("shape").ai;
+            }
 
             bool keep_batch_index = false;
             int batch_index_reshaped = batch_index;
@@ -477,12 +525,60 @@ static void solve_batch_index_backward(Operand* operand)
     }
     else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
     {
+        std::vector<int> shape;
         if (op->params.find("shape") == op->params.end())
         {
-            return;
-        }
+            // dynamic reshape
+            const Operator* op_expr = op->inputs[1]->producer;
+            std::string expr = op_expr->params.at("expr").s;
+            {
+                int expr_stack = 0;
+                std::string t;
+                for (size_t i = 0; i < expr.size(); i++)
+                {
+                    char ch = expr[i];
 
-        const std::vector<int>& shape = op->params.at("shape").ai;
+                    if (ch == '[') // list
+                    {
+                        t.clear();
+                    }
+                    else if (ch == '(')
+                    {
+                        expr_stack += 1;
+                    }
+                    else if (ch == ')')
+                    {
+                        expr_stack -= 1;
+                        t.clear();
+                    }
+                    else if (ch == ',' || ch == ']')
+                    {
+                        if (expr_stack > 0)
+                        {
+                            shape.push_back(-1);
+                        }
+                        else if (!t.empty())
+                        {
+                            shape.push_back(std::stoi(t));
+                        }
+                        t.clear();
+                    }
+                    else
+                    {
+                        t += ch;
+                    }
+                }
+
+                if (!t.empty())
+                {
+                    shape.push_back(std::stoi(t));
+                }
+            }
+        }
+        else
+        {
+            shape = op->params.at("shape").ai;
+        }
 
         bool keep_batch_index = false;
         int batch_index_unreshaped = batch_index;
