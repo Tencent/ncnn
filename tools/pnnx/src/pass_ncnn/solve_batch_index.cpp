@@ -150,6 +150,7 @@ static void solve_batch_index_forward(Operand* operand)
             continue;
 
         const int input_rank0 = op->inputs.empty() ? 0 : (int)op->inputs[0]->shape.size();
+        const int output_rank0 = op->outputs.empty() ? 0 : (int)op->outputs[0]->shape.size();
 
         if (op->type == "Tensor.permute")
         {
@@ -219,14 +220,106 @@ static void solve_batch_index_forward(Operand* operand)
 
             const std::vector<int>& shape = op->params.at("shape").ai;
 
-            if (shape[batch_index] == 1)
+            bool keep_batch_index = false;
+            int batch_index_reshaped = batch_index;
+            if (batch_index == 0 && shape[0] == 1)
+            {
+                keep_batch_index = true;
+            }
+            else if (output_rank0 > 0)
+            {
+                if (batch_index == input_rank0 - 1 && shape[shape.size() - 1] == 1)
+                {
+                    keep_batch_index = true;
+                    batch_index_reshaped = output_rank0 - 1;
+                }
+                else
+                {
+                    batch_index_reshaped = -1;
+
+                    // batch index is in the middle, let's consider the left and right parts
+                    int left = 1;
+                    int right = 1;
+                    for (int i = 0; i < batch_index; i++)
+                    {
+                        if (op->inputs[0]->shape[i] == -1)
+                        {
+                            left = -1;
+                            break;
+                        }
+                        left *= op->inputs[0]->shape[i];
+                    }
+                    for (int i = batch_index + 1; i < (int)op->inputs[0]->shape.size(); i++)
+                    {
+                        if (op->inputs[0]->shape[i] == -1)
+                        {
+                            right = -1;
+                            break;
+                        }
+                        right *= op->inputs[0]->shape[i];
+                    }
+
+                    // try to find batch index in the output shape
+                    if (left > 0)
+                    {
+                        int left2 = 1;
+                        for (int i = 0; i < output_rank0 - 1; i++)
+                        {
+                            if (op->outputs[0]->shape[i] == -1)
+                            {
+                                left2 = -1;
+                                break;
+                            }
+                            left2 *= op->outputs[0]->shape[i];
+                            if (left2 == left && op->outputs[0]->shape[i + 1] == 1)
+                            {
+                                batch_index_reshaped = i + 1;
+                                if (batch_index_reshaped + 1 < output_rank0 && op->outputs[0]->shape[batch_index_reshaped + 1] == 1)
+                                {
+                                    // multiple axes can be batch index, give up
+                                    batch_index_reshaped = -1;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    if (right > 0)
+                    {
+                        int right2 = 1;
+                        for (int i = output_rank0 - 1; i >= 1; i--)
+                        {
+                            if (op->outputs[0]->shape[i] == -1)
+                            {
+                                right2 = -1;
+                                break;
+                            }
+                            right2 *= op->outputs[0]->shape[i];
+                            if (right2 == right && op->outputs[0]->shape[i - 1] == 1)
+                            {
+                                batch_index_reshaped = i - 1;
+                                if (batch_index_reshaped - 1 >= 0 && op->outputs[0]->shape[batch_index_reshaped - 1] == 1)
+                                {
+                                    // multiple axes can be batch index, give up
+                                    batch_index_reshaped = -1;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if (batch_index_reshaped >= 0)
+                        keep_batch_index = true;
+                }
+            }
+
+            if (keep_batch_index)
             {
                 for (Operand* r : op->outputs)
                 {
                     if (r->params.find("__batch_index") != r->params.end())
                         continue;
 
-                    r->params["__batch_index"] = batch_index;
+                    r->params["__batch_index"] = batch_index_reshaped;
 
                     solve_batch_index_forward(r);
                     solve_batch_index_backward(r);
@@ -331,6 +424,7 @@ static void solve_batch_index_backward(Operand* operand)
         return;
 
     const int input_rank0 = op->inputs.empty() ? 0 : (int)op->inputs[0]->shape.size();
+    const int output_rank0 = op->outputs.empty() ? 0 : (int)op->outputs[0]->shape.size();
 
     if (op->type == "Tensor.permute")
     {
@@ -390,14 +484,109 @@ static void solve_batch_index_backward(Operand* operand)
 
         const std::vector<int>& shape = op->params.at("shape").ai;
 
-        if (shape[batch_index] == 1)
+        bool keep_batch_index = false;
+        int batch_index_unreshaped = batch_index;
+        if (input_rank0 > 0)
+        {
+            if (batch_index == 0 && shape[0] == 1 && op->inputs[0]->shape[0] == 1)
+            {
+                keep_batch_index = true;
+            }
+            else if (output_rank0 > 0)
+            {
+                if (batch_index == output_rank0 - 1 && shape[shape.size() - 1] == 1 && op->inputs[0]->shape[input_rank0 - 1] == 1)
+                {
+                    keep_batch_index = true;
+                    batch_index_unreshaped = input_rank0 - 1;
+                }
+                else
+                {
+                    batch_index_unreshaped = -1;
+
+                    // batch index is in the middle, let's consider the left and right parts
+                    int left = 1;
+                    int right = 1;
+                    for (int i = 0; i < batch_index; i++)
+                    {
+                        if (op->outputs[0]->shape[i] == -1)
+                        {
+                            left = -1;
+                            break;
+                        }
+                        left *= op->outputs[0]->shape[i];
+                    }
+                    for (int i = batch_index + 1; i < (int)op->outputs[0]->shape.size(); i++)
+                    {
+                        if (op->outputs[0]->shape[i] == -1)
+                        {
+                            right = -1;
+                            break;
+                        }
+                        right *= op->outputs[0]->shape[i];
+                    }
+
+                    // try to find batch index in the output shape
+                    if (left > 0)
+                    {
+                        int left2 = 1;
+                        for (int i = 0; i < input_rank0 - 1; i++)
+                        {
+                            if (op->inputs[0]->shape[i] == -1)
+                            {
+                                left2 = -1;
+                                break;
+                            }
+                            left2 *= op->inputs[0]->shape[i];
+                            if (left2 == left && op->inputs[0]->shape[i + 1] == 1)
+                            {
+                                batch_index_unreshaped = i + 1;
+                                if (batch_index_unreshaped + 1 < input_rank0 && op->inputs[0]->shape[batch_index_unreshaped + 1] == 1)
+                                {
+                                    // multiple axes can be batch index, give up
+                                    batch_index_unreshaped = -1;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    if (right > 0)
+                    {
+                        int right2 = 1;
+                        for (int i = input_rank0 - 1; i >= 1; i--)
+                        {
+                            if (op->inputs[0]->shape[i] == -1)
+                            {
+                                right2 = -1;
+                                break;
+                            }
+                            right2 *= op->inputs[0]->shape[i];
+                            if (right2 == right && op->inputs[0]->shape[i - 1] == 1)
+                            {
+                                batch_index_unreshaped = i - 1;
+                                if (batch_index_unreshaped - 1 >= 0 && op->inputs[0]->shape[batch_index_unreshaped - 1] == 1)
+                                {
+                                    // multiple axes can be batch index, give up
+                                    batch_index_unreshaped = -1;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if (batch_index_unreshaped >= 0)
+                        keep_batch_index = true;
+                }
+            }
+        }
+
+        if (keep_batch_index)
         {
             for (Operand* r : op->inputs)
             {
                 if (r->params.find("__batch_index") != r->params.end())
                     continue;
 
-                r->params["__batch_index"] = batch_index;
+                r->params["__batch_index"] = batch_index_unreshaped;
 
                 solve_batch_index_backward(r);
                 solve_batch_index_forward(r);
