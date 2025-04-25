@@ -160,7 +160,9 @@ class CMakeBuild(build_ext):
                 # CMake 3.12+ only.
                 build_args += ["-j{}".format(self.parallel)]
             else:
-                build_args += ["-j4"]
+                # Automatically set parallel jobs based on CPU core count
+                cpu_count = os.cpu_count() or 1
+                build_args += ["-j{}".format(cpu_count)]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
