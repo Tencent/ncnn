@@ -186,17 +186,27 @@ if shutil.which("ninja") is None:
 with io.open("README.md", encoding="utf-8") as h:
     long_description = h.read()
 
-def find_all_files(directories, additional_files=[]):
-    file_list = additional_files[:]
-    for directory in directories:
-        for root, _, files in os.walk(directory):
+def find_all_files(directories, additional_files, exclude):
+    all_files = []
+    for d in directories:
+        for root, _, files in os.walk(d):
+            skip = False
+            for e in exclude:
+                if root.startswith(e):
+                    skip = True
+                    break
+            if skip:
+                continue
             for file in files:
-                file_list.append(os.path.join(root, file))
-    return file_list
+                all_files.append(os.path.join(root, file))
+    for file in additional_files:
+        all_files.append(file)
+    return all_files
 
 directories_to_include = ["cmake", "src", "python", "glslang"]
 files_to_include = ["CMakeLists.txt"]
-all_files = find_all_files(directories_to_include, additional_files=files_to_include)
+exclude_paths = ["glslang/Test", "python/pybind11/tests"]
+all_files = find_all_files(directories_to_include, additional_files=files_to_include, exclude=exclude_paths)
 
 setup(
     name="ncnn",
