@@ -55,7 +55,7 @@ int TanH_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
 #else  // __riscv_zvfh
         for (int i = 0; i < size; i++)
         {
-            *ptr = (__fp16)tanh((float)*ptr);
+            *ptr = (__fp16)tanhf((float)*ptr);
             ptr++;
         }
 #endif // __riscv_zvfh
@@ -94,7 +94,7 @@ int TanH_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) 
 #else  // __riscv_zvfh
         for (int i = 0; i < size; i++)
         {
-            *ptr = (__fp16)tanh((float)*ptr);
+            *ptr = (__fp16)tanhf((float)*ptr);
             ptr++;
         }
 #endif // __riscv_zvfh

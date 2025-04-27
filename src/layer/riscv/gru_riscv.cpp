@@ -121,8 +121,8 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
             // sigmoid(R)
             // sigmoid(U)
-            R = 1.f / (1.f + exp(-R));
-            U = 1.f / (1.f + exp(-U));
+            R = 1.f / (1.f + expf(-R));
+            U = 1.f / (1.f + expf(-U));
 
             // gate new
             const float* bias_c_WN = bias_c.row(2);
@@ -180,7 +180,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             ptr_xcn = NULL;
 
             // tanh(N)
-            N = tanh(N);
+            N = tanhf(N);
 
             gates_data[0] = U;
             gates_data[1] = N;
