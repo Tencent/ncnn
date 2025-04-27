@@ -74,6 +74,7 @@ int Bias_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i = 0; i < size; i++)
         {
             *ptr = *ptr + bias;
+            ++ptr;
         }
 #endif // __riscv_vector
     }

@@ -53,6 +53,7 @@ int Bias_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         for (int i = 0; i < size; i++)
         {
             *ptr = *ptr + bias;
+            ++ptr;
         }
 #endif // __riscv_zvfh
     }
