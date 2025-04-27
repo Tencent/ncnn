@@ -291,12 +291,12 @@ MAKE_FUNCTION(binary_op_mul, x * y, __riscv_vfmul_vv_f32m8(x, y, vl), __riscv_vf
 MAKE_FUNCTION(binary_op_div, x / y, __riscv_vfdiv_vv_f32m8(x, y, vl), __riscv_vfdiv_vf_f32m8(x, y, vl), __riscv_vfrdiv_vf_f32m8(y, x, vl))
 MAKE_FUNCTION(binary_op_max, std::max(x, y), __riscv_vfmax_vv_f32m8(x, y, vl), __riscv_vfmax_vf_f32m8(x, y, vl), __riscv_vfmax_vf_f32m8(y, x, vl))
 MAKE_FUNCTION(binary_op_min, std::min(x, y), __riscv_vfmin_vv_f32m8(x, y, vl), __riscv_vfmin_vf_f32m8(x, y, vl), __riscv_vfmin_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_pow, (float)pow(x, y), pow_ps(x, y, vl), pow_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), pow_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_pow, (float)powf(x, y), pow_ps(x, y, vl), pow_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), pow_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
 MAKE_FUNCTION(binary_op_rsub, y - x, __riscv_vfsub_vv_f32m8(y, x, vl), __riscv_vfrsub_vf_f32m8(x, y, vl), __riscv_vfsub_vf_f32m8(y, x, vl))
 MAKE_FUNCTION(binary_op_rdiv, y / x, __riscv_vfdiv_vv_f32m8(y, x, vl), __riscv_vfrdiv_vf_f32m8(x, y, vl), __riscv_vfdiv_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_rpow, (float)pow(y, x), pow_ps(y, x, vl), pow_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), pow_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
-MAKE_FUNCTION(binary_op_atan2, (float)atan2(x, y), atan2_ps(x, y, vl), atan2_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), atan2_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
-MAKE_FUNCTION(binary_op_ratan2, (float)atan2(y, x), atan2_ps(y, x, vl), atan2_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), atan2_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_rpow, (float)powf(y, x), pow_ps(y, x, vl), pow_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), pow_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_atan2, (float)atan2f(x, y), atan2_ps(x, y, vl), atan2_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), atan2_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_ratan2, (float)atan2f(y, x), atan2_ps(y, x, vl), atan2_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), atan2_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
 // *INDENT-ON*
 // clang-format on
 

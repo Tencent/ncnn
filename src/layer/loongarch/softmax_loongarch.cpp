@@ -87,7 +87,7 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
         for (; remain > 0; remain--)
         {
-            *ptr = exp(*ptr - *maxptr);
+            *ptr = expf(*ptr - *maxptr);
 
             ptr++;
             maxptr++;
