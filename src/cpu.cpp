@@ -114,6 +114,14 @@
 #ifndef CPUFAMILY_ARM_COLL
 #define CPUFAMILY_ARM_COLL 0x2876f5b5
 #endif
+// A18
+#ifndef CPUFAMILY_ARM_TUPAI
+#define CPUFAMILY_ARM_TUPAI 0x204526d0
+#endif
+// A18 Pro
+#ifndef CPUFAMILY_ARM_TAHITI
+#define CPUFAMILY_ARM_TAHITI 0x75d4acb9
+#endif
 // M3
 #ifndef CPUFAMILY_ARM_IBIZA
 #define CPUFAMILY_ARM_IBIZA 0xfa33415e
@@ -125,6 +133,14 @@
 // M3 Max
 #ifndef CPUFAMILY_ARM_PALMA
 #define CPUFAMILY_ARM_PALMA 0x72015832
+#endif
+// M4
+#ifndef CPUFAMILY_ARM_DONAN
+#define CPUFAMILY_ARM_DONAN 0x6f5129ac
+#endif
+// M4 Pro / M4 Max
+#ifndef CPUFAMILY_ARM_BRAVA
+#define CPUFAMILY_ARM_BRAVA 0x17d5b93a
 #endif
 #endif // __APPLE__
 
@@ -2161,6 +2177,32 @@ static void initialize_global_cpu_info()
     g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
     g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
     g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
+
+    switch (g_hw_cpufamily)
+    {
+    case CPUFAMILY_ARM_TUPAI:
+    case CPUFAMILY_ARM_TAHITI:
+    case CPUFAMILY_ARM_DONAN:
+    case CPUFAMILY_ARM_BRAVA:
+    // TODO check sve sme
+    case CPUFAMILY_ARM_AVALANCHE_BLIZZARD:
+    case CPUFAMILY_ARM_EVEREST_SAWTOOTH:
+    case CPUFAMILY_ARM_COLL:
+    case CPUFAMILY_ARM_IBIZA:
+    case CPUFAMILY_ARM_LOBOS:
+    case CPUFAMILY_ARM_PALMA:
+        g_hw_optional_arm_FEAT_BF16 = 1;
+        g_hw_optional_arm_FEAT_I8MM = 1;
+    case CPUFAMILY_ARM_LIGHTNING_THUNDER:
+    case CPUFAMILY_ARM_FIRESTORM_ICESTORM:
+        g_hw_optional_arm_FEAT_DotProd = 1;
+        g_hw_optional_arm_FEAT_FHM = 1;
+    case CPUFAMILY_ARM_MONSOON_MISTRAL:
+    case CPUFAMILY_ARM_VORTEX_TEMPEST:
+        g_hw_optional_arm_FEAT_FP16 = 1;
+    default:
+        break;
+    }
 #endif // __aarch64__
 #endif
 
@@ -2409,17 +2451,7 @@ int cpu_support_arm_asimdhp()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDHP;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_FP16
-           || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL
-           || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_FP16;
 #else
     return 0;
 #endif
@@ -2455,15 +2487,7 @@ int cpu_support_arm_asimddp()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDDP;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_DotProd
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_DotProd;
 #else
     return 0;
 #endif
@@ -2481,15 +2505,7 @@ int cpu_support_arm_asimdfhm()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDFHM;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_FHM
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_FHM;
 #else
     return 0;
 #endif
@@ -2507,13 +2523,7 @@ int cpu_support_arm_bf16()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_BF16;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_BF16
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_BF16;
 #else
     return 0;
 #endif
@@ -2531,13 +2541,7 @@ int cpu_support_arm_i8mm()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_I8MM;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_I8MM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_I8MM;
 #else
     return 0;
 #endif
