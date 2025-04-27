@@ -260,10 +260,10 @@ static inline v4f32 atan2_ps(v4f32 a, v4f32 b)
     float tmpy[4];
     __msa_st_w((v4i32)a, tmpx, 0);
     __msa_st_w((v4i32)b, tmpy, 0);
-    tmpx[0] = atan2(tmpx[0], tmpy[0]);
-    tmpx[1] = atan2(tmpx[1], tmpy[1]);
-    tmpx[2] = atan2(tmpx[2], tmpy[2]);
-    tmpx[3] = atan2(tmpx[3], tmpy[3]);
+    tmpx[0] = atan2f(tmpx[0], tmpy[0]);
+    tmpx[1] = atan2f(tmpx[1], tmpy[1]);
+    tmpx[2] = atan2f(tmpx[2], tmpy[2]);
+    tmpx[3] = atan2f(tmpx[3], tmpy[3]);
     return (v4f32)__msa_ld_w(tmpx, 0);
 }
 

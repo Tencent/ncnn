@@ -62,7 +62,7 @@ int Sigmoid_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            *ptr = 1.f / (1.f + exp(-*ptr));
+            *ptr = 1.f / (1.f + expf(-*ptr));
 
             ptr++;
         }

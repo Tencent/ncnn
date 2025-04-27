@@ -57,7 +57,7 @@ int Swish_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            *ptr = *ptr / (1.f + exp(-*ptr));
+            *ptr = *ptr / (1.f + expf(-*ptr));
             ptr++;
         }
     }
