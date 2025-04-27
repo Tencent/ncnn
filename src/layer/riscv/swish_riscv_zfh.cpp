@@ -56,7 +56,7 @@ int Swish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         for (int i = 0; i < size; i++)
         {
             float v = (float)*ptr;
-            *ptr = (__fp16)(v / (1.f + exp(-v)));
+            *ptr = (__fp16)(v / (1.f + expf(-v)));
             ptr++;
         }
 #endif // __riscv_zvfh
@@ -95,7 +95,7 @@ int Swish_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
 #else  // __riscv_zvfh
         for (int i = 0; i < size; i++)
         {
-            *ptr = *ptr / ((__fp16)1.f + (__fp16)exp((float)-*ptr));
+            *ptr = *ptr / ((__fp16)1.f + (__fp16)expf((float)-*ptr));
             ptr++;
         }
 #endif // __riscv_zvfh

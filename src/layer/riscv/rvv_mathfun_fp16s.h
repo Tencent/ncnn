@@ -404,7 +404,7 @@ _RVV_FLOAT16_SIGMOID_OP(8, 2)
         __riscv_vse16_v_f16m##LMUL(tmpy.data(), b, vl);                                                 \
         for (size_t i = 0; i < vl; i++)                                                                 \
         {                                                                                               \
-            tmpx[i] = (__fp16)atan2((float)tmpx[i], (float)tmpy[i]);                                    \
+            tmpx[i] = (__fp16)atan2f((float)tmpx[i], (float)tmpy[i]);                                   \
         }                                                                                               \
         return __riscv_vle16_v_f16m##LMUL(tmpx.data(), vl);                                             \
     }

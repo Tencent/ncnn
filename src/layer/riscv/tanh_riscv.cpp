@@ -79,7 +79,7 @@ int TanH_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #else  // __riscv_vector
         for (int i = 0; i < size; i++)
         {
-            *ptr = tanh(*ptr);
+            *ptr = tanhf(*ptr);
             ptr++;
         }
 #endif // __riscv_vector
