@@ -2184,7 +2184,7 @@ static void initialize_global_cpu_info()
     case CPUFAMILY_ARM_TAHITI:
     case CPUFAMILY_ARM_DONAN:
     case CPUFAMILY_ARM_BRAVA:
-        // TODO check sve sme
+    // TODO check sve sme
     case CPUFAMILY_ARM_AVALANCHE_BLIZZARD:
     case CPUFAMILY_ARM_EVEREST_SAWTOOTH:
     case CPUFAMILY_ARM_COLL:
