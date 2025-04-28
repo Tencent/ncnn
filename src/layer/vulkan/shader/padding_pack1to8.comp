@@ -211,14 +211,14 @@ void main()
             afpvec8 v;
 #if ncnn_vendorID == 4318
             // out of index load cause stall on nvidia
-            v[0].r = mask.r ? buffer_ld1(bottom_blob_data, v_offset.r) : value;
-            v[0].g = mask.g ? buffer_ld1(bottom_blob_data, v_offset.g) : value;
-            v[0].b = mask.b ? buffer_ld1(bottom_blob_data, v_offset.b) : value;
-            v[0].a = mask.a ? buffer_ld1(bottom_blob_data, v_offset.a) : value;
-            v[1].r = mask2.r ? buffer_ld1(bottom_blob_data, v_offset2.r) : value;
-            v[1].g = mask2.g ? buffer_ld1(bottom_blob_data, v_offset2.g) : value;
-            v[1].b = mask2.b ? buffer_ld1(bottom_blob_data, v_offset2.b) : value;
-            v[1].a = mask2.a ? buffer_ld1(bottom_blob_data, v_offset2.a) : value;
+            v[0].r = mask.r ? buffer_ld1(bottom_blob_data, v_offset.r) : afp(value);
+            v[0].g = mask.g ? buffer_ld1(bottom_blob_data, v_offset.g) : afp(value);
+            v[0].b = mask.b ? buffer_ld1(bottom_blob_data, v_offset.b) : afp(value);
+            v[0].a = mask.a ? buffer_ld1(bottom_blob_data, v_offset.a) : afp(value);
+            v[1].r = mask2.r ? buffer_ld1(bottom_blob_data, v_offset2.r) : afp(value);
+            v[1].g = mask2.g ? buffer_ld1(bottom_blob_data, v_offset2.g) : afp(value);
+            v[1].b = mask2.b ? buffer_ld1(bottom_blob_data, v_offset2.b) : afp(value);
+            v[1].a = mask2.a ? buffer_ld1(bottom_blob_data, v_offset2.a) : afp(value);
 #else
             v[0].r = buffer_ld1(bottom_blob_data, v_offset.r);
             v[0].g = buffer_ld1(bottom_blob_data, v_offset.g);

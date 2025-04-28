@@ -175,10 +175,10 @@ void main()
             afpvec4 v;
 #if ncnn_vendorID == 4318
             // out of index load cause stall on nvidia
-            v.r = mask.r ? buffer_ld1(bottom_blob_data, v_offset.r) : value;
-            v.g = mask.g ? buffer_ld1(bottom_blob_data, v_offset.g) : value;
-            v.b = mask.b ? buffer_ld1(bottom_blob_data, v_offset.b) : value;
-            v.a = mask.a ? buffer_ld1(bottom_blob_data, v_offset.a) : value;
+            v.r = mask.r ? buffer_ld1(bottom_blob_data, v_offset.r) : afp(value);
+            v.g = mask.g ? buffer_ld1(bottom_blob_data, v_offset.g) : afp(value);
+            v.b = mask.b ? buffer_ld1(bottom_blob_data, v_offset.b) : afp(value);
+            v.a = mask.a ? buffer_ld1(bottom_blob_data, v_offset.a) : afp(value);
 #else
             v.r = buffer_ld1(bottom_blob_data, v_offset.r);
             v.g = buffer_ld1(bottom_blob_data, v_offset.g);
