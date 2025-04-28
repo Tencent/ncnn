@@ -38,7 +38,13 @@ def test():
 
     # pnnx inference
     import test_swin_t_pnnx
-    b = test_swin_t_pnnx.test_inference()
+    if (version.parse(torch.__version__) >= version.parse('1.12') and version.parse(torch.__version__) < version.parse('1.13') or
+        version.parse(torch.__version__) >= version.parse('2.0') and version.parse(torch.__version__) < version.parse('2.1')):
+        # torch-1.12 / 2.0 breaks 3d attention mask
+        net_pnnx = test_swin_t_pnnx.Model().float().eval()
+        b = net_pnnx(x)
+    else:
+        b = test_swin_t_pnnx.test_inference()
 
     if not torch.allclose(a, b, 1e-4, 1e-4):
         return False
