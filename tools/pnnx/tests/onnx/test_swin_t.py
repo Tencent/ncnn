@@ -40,7 +40,7 @@ def test():
     import test_swin_t_pnnx
     if (version.parse(torch.__version__) >= version.parse('1.12') and version.parse(torch.__version__) < version.parse('1.13') or
         version.parse(torch.__version__) >= version.parse('2.0') and version.parse(torch.__version__) < version.parse('2.1')):
-        # torch-1.12 / 2.0 breaks 3d attention mask
+        # torch-1.12 / 2.0 breaks 3d attention mask in no grad mode
         net_pnnx = test_swin_t_pnnx.Model().float().eval()
         b = net_pnnx(x)
     else:

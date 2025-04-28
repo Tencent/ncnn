@@ -503,9 +503,9 @@ def test():
     import test_pnnx_fuse_multiheadattention_pnnx
     if (version.parse(torch.__version__) >= version.parse('1.12') and version.parse(torch.__version__) < version.parse('1.13') or
         version.parse(torch.__version__) >= version.parse('2.0') and version.parse(torch.__version__) < version.parse('2.1')):
-        # torch-1.12 / 2.0 breaks 3d attention mask
+        # torch-1.12 / 2.0 breaks 3d attention mask in no grad mode
         net_pnnx = test_pnnx_fuse_multiheadattention_pnnx.Model().float().eval()
-        b = net_pnnx(x)
+        b = net_pnnx(x, y, z)
     else:
         b = test_pnnx_fuse_multiheadattention_pnnx.test_inference()
 
