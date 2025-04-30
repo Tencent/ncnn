@@ -12,6 +12,70 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+// ncnn model exported from https://github.com/PeterL1n/RobustVideoMatting
+//
+// import torch
+// from torch import nn
+// from model import MattingNetwork
+// from model.fast_guided_filter import FastGuidedFilterRefiner
+// from model.deep_guided_filter import DeepGuidedFilterRefiner
+//
+// class Model(nn.Module):
+//     def __init__(self):
+//         super().__init__()
+//
+//         self.rvm = MattingNetwork('mobilenetv3').eval()
+//         self.rvm.load_state_dict(torch.load('rvm_mobilenetv3.pth'))
+//
+//         self.refiner_deep = DeepGuidedFilterRefiner()
+//         self.refiner_fast = FastGuidedFilterRefiner()
+//
+//     def forward_first_frame(self, src):
+//         return self.rvm(src)
+//
+//     def forward(self, src, src_sm, r1, r2, r3, r4):
+//
+//         f1, f2, f3, f4 = self.rvm.backbone(src_sm)
+//         f4 = self.rvm.aspp(f4)
+//         hid, *rec = self.rvm.decoder(src_sm, f1, f2, f3, f4, r1, r2, r3, r4)
+//
+//         # downsample
+//         fgr_residual, pha = self.rvm.project_mat(hid).split([3, 1], dim=-3)
+//         fgr = fgr_residual + src_sm
+//
+//         # downsample + refiner_deep
+//         fgr_residual_deep, pha_deep = self.refiner_deep(src, src_sm, fgr_residual, pha, hid)
+//         fgr_deep = fgr_residual_deep + src
+//
+//         # downsample + refiner_fast
+//         fgr_residual_fast, pha_fast = self.refiner_fast(src, src_sm, fgr_residual, pha, hid)
+//         fgr_fast = fgr_residual_fast + src
+//
+//         # downsample + segmentation
+//         seg = self.rvm.project_seg(hid)
+//
+//         return fgr, pha, fgr_deep, pha_deep, fgr_fast, pha_fast, seg, *rec
+//
+// import pnnx
+//
+// model = Model().eval()
+//
+// x = torch.rand(1, 3, 512, 512)
+// x2 = torch.rand(1, 3, 256, 256)
+// x2_hr = torch.rand(1, 3, 1024, 1024)
+//
+// # generate feats via forward_first_frame, with different shapes
+// fgr, pha, r1, r2, r3, r4 = model.forward_first_frame(x)
+// fgr2, pha2, r12, r22, r32, r42 = model.forward_first_frame(x2)
+//
+// # export with dynamic shape
+// pnnx.export(model, "rvm_mobilenetv3.pt", (x, x, r1, r2, r3, r4), (x2_hr, x2, r12, r22, r32, r42))
+//
+// and then fix refiner_fast fp16 overflow issue in ncnn.param via appending 31=1 layer feat mask
+//
+// BinaryOp   div_58    2 1 401 399 402 0=3 31=1
+//
+
 #include "net.h"
 
 #if defined(USE_NCNN_SIMPLEOCV)
