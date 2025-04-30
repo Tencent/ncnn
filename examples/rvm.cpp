@@ -107,8 +107,7 @@ static int detect_rvm(const cv::Mat& bgr, cv::Mat& fgr, cv::Mat& pha, cv::Mat& s
     const int h = bgr.rows;
 
     const int target_size = 512;
-    // const int max_stride = 16;
-    const int max_stride = 32;
+    const int max_stride = 16;
 
     bool refine_deep = true;
     // bool refine_fast = true;
