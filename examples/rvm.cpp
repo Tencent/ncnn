@@ -113,18 +113,13 @@ static int detect_rvm(const cv::Mat& bgr, cv::Mat& fgr, cv::Mat& pha, cv::Mat& s
     bool refine_deep = true;
     // bool refine_fast = true;
 
-    ncnn::Mat in = ncnn::Mat::from_pixels(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, w, h);
-
-    // letterbox pad to target_size rectangle
-    int wpad = (w + max_stride - 1) / max_stride * max_stride - w;
-    int hpad = (h + max_stride - 1) / max_stride * max_stride - h;
-    ncnn::Mat in_pad;
-    ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
-
     const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
-    in_pad.substract_mean_normalize(0, norm_vals);
 
-    ncnn::Mat in_small_pad = in_pad;
+    ncnn::Mat in_pad;
+    ncnn::Mat in_small_pad;
+
+    int wpad = 0;
+    int hpad = 0;
 
     bool downsample = std::max(w, h) > target_size;
     if (downsample)
@@ -133,15 +128,15 @@ static int detect_rvm(const cv::Mat& bgr, cv::Mat& fgr, cv::Mat& pha, cv::Mat& s
         int w2 = w;
         int h2 = h;
         float scale = 1.f;
-        if (w2 > h)
+        if (w > h)
         {
-            scale = (float)target_size / w2;
+            scale = (float)target_size / w;
             w2 = target_size;
             h2 = h2 * scale;
         }
         else
         {
-            scale = (float)target_size / h2;
+            scale = (float)target_size / h;
             h2 = target_size;
             w2 = w2 * scale;
         }
@@ -149,19 +144,54 @@ static int detect_rvm(const cv::Mat& bgr, cv::Mat& fgr, cv::Mat& pha, cv::Mat& s
         ncnn::Mat in_small = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, w, h, w2, h2);
 
         // letterbox pad to target_size rectangle
-        int wpad = (w2 + max_stride - 1) / max_stride * max_stride - w2;
-        int hpad = (h2 + max_stride - 1) / max_stride * max_stride - h2;
-        ncnn::copy_make_border(in_small, in_small_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
+        int w2pad = (w2 + max_stride - 1) / max_stride * max_stride - w2;
+        int h2pad = (h2 + max_stride - 1) / max_stride * max_stride - h2;
+        ncnn::copy_make_border(in_small, in_small_pad, h2pad / 2, h2pad - h2pad / 2, w2pad / 2, w2pad - w2pad / 2, ncnn::BORDER_CONSTANT, 114.f);
 
-        const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
         in_small_pad.substract_mean_normalize(0, norm_vals);
+
+        int w3 = w;
+        int h3 = h;
+        if (w > h)
+        {
+            w3 = w;
+            h3 = in_small_pad.h / scale;
+            wpad = 0;
+            hpad = h3 - h;
+        }
+        else
+        {
+            h3 = h;
+            w3 = in_small_pad.w / scale;
+            wpad = w3 - w;
+            hpad = 0;
+        }
+
+        ncnn::Mat in = ncnn::Mat::from_pixels(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, w, h);
+
+        ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
+
+        in_pad.substract_mean_normalize(0, norm_vals);
+    }
+    else
+    {
+        ncnn::Mat in = ncnn::Mat::from_pixels(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, w, h);
+
+        // letterbox pad to target_size rectangle
+        wpad = (w + max_stride - 1) / max_stride * max_stride - w;
+        hpad = (h + max_stride - 1) / max_stride * max_stride - h;
+        ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
+
+        in_pad.substract_mean_normalize(0, norm_vals);
+
+        in_small_pad = in_pad;
     }
 
     // rvm_mobilenetv3
-    ncnn::Mat r1(in_small_pad.w / 4, in_small_pad.h / 4, 16);
-    ncnn::Mat r2(in_small_pad.w / 8, in_small_pad.h / 8, 20);
-    ncnn::Mat r3(in_small_pad.w / 16, in_small_pad.h / 16, 40);
-    ncnn::Mat r4(in_small_pad.w / 32, in_small_pad.h / 32, 64);
+    ncnn::Mat r1(in_small_pad.w / 2, in_small_pad.h / 2, 16);
+    ncnn::Mat r2(in_small_pad.w / 4, in_small_pad.h / 4, 20);
+    ncnn::Mat r3(in_small_pad.w / 8, in_small_pad.h / 8, 40);
+    ncnn::Mat r4(in_small_pad.w / 16, in_small_pad.h / 16, 64);
 
     // rvm_resnet50
     // ncnn::Mat r1(in_small_pad.w / 2, in_small_pad.h / 2, 16);
