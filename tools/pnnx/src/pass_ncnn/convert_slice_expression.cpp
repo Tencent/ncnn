@@ -642,7 +642,7 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             op->params.clear();
             op->params["19"] = starts_expr;
             op->params["20"] = ends_expr;
-            op->params["21"] = std::to_string(dim);
+            op->params["21"] = std::to_string(dim > batch_index ? dim - 1 : dim);
 
             // link references to reshape
             {
@@ -788,7 +788,7 @@ void convert_slice_expression_single_axis_select(Graph& graph)
             op->params.clear();
             op->params["19"] = starts_expr;
             op->params["20"] = std::string("+(") + starts_expr + ",1)";
-            op->params["21"] = std::to_string(dim);
+            op->params["21"] = std::to_string(dim > batch_index ? dim - 1 : dim);
 
             // link references to reshape
             {
@@ -1330,7 +1330,7 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 new_starts_expr += new_start_expr;
                 new_ends_expr += new_end_expr;
                 new_steps_expr += new_step_expr;
-                new_dims_expr += std::to_string(dims[i]);
+                new_dims_expr += std::to_string(dims[i] > batch_index ? dims[i] - 1 : dims[i]);
 
                 if (i + 1 != dims_count)
                 {
