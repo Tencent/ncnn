@@ -2584,6 +2584,13 @@ void Extractor::set_staging_vkallocator(VkAllocator* allocator)
 {
     d->opt.staging_vkallocator = allocator;
 }
+
+#else
+
+void Extractor::set_vulkan_compute(bool enable)
+{
+}
+
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
