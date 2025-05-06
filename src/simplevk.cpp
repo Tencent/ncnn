@@ -549,6 +549,7 @@ int load_vulkan_driver(const char* driver_path)
 #else
         const char* well_known_path[] = {
             "libGLX_nvidia.so.0",
+            "libEGL_nvidia.so.0",
             "libvulkan_radeon.so",
             "libvulkan_intel.so",
             "libMaliVulkan.so.1",
