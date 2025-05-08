@@ -233,7 +233,7 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-gpu-llvmpipe:
-    runs-on: [self-hosted, linux, ubuntu24]
+    runs-on: [self-hosted, linux, ubuntu25]
     steps:
     - uses: actions/checkout@v4
       with:
