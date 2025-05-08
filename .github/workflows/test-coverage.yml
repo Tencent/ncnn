@@ -310,11 +310,11 @@ jobs:
       matrix:
         openmp: ['OFF', 'ON']
         include:
-          - { arch: mipsisa32r6el,  extra-cmake-args: mipsisa32r6el-linux-gnu.toolchain.cmake,  qemu: qemu-mipsel-static,   qemu-args: "-L;/usr/mipsisa32r6el-linux-gnu"    }
-          - { arch: mipsisa64r6el,  extra-cmake-args: mipsisa64r6el-linux-gnu.toolchain.cmake,  qemu: qemu-mips64el-static, qemu-args: "-L;/usr/mipsisa64r6el-linux-gnu"    }
-          - { arch: powerpc,        extra-cmake-args: powerpc-linux-gnu.toolchain.cmake,        qemu: qemu-ppc-static,      qemu-args: "-L;/usr/powerpc-linux-gnu"          }
-          - { arch: powerpc64le,    extra-cmake-args: powerpc64le-linux-gnu.toolchain.cmake,    qemu: qemu-ppc64le-static,  qemu-args: "-L;/usr/powerpc64le-linux-gnu"      }
-          - { arch: riscv64,        extra-cmake-args: riscv64-linux-gnu.toolchain.cmake,        qemu: qemu-riscv64-static,  qemu-args: "-L;/usr/riscv64-linux-gnu"          }
+          - { arch: mipsisa32r6el,  toolchain: mipsisa32r6el-linux-gnu.toolchain.cmake,  qemu: qemu-mipsel-static,   qemu-args: "-L;/usr/mipsisa32r6el-linux-gnu"    }
+          - { arch: mipsisa64r6el,  toolchain: mipsisa64r6el-linux-gnu.toolchain.cmake,  qemu: qemu-mips64el-static, qemu-args: "-L;/usr/mipsisa64r6el-linux-gnu"    }
+          - { arch: powerpc,        toolchain: powerpc-linux-gnu.toolchain.cmake,        qemu: qemu-ppc-static,      qemu-args: "-L;/usr/powerpc-linux-gnu"          }
+          - { arch: powerpc64le,    toolchain: powerpc64le-linux-gnu.toolchain.cmake,    qemu: qemu-ppc64le-static,  qemu-args: "-L;/usr/powerpc64le-linux-gnu"      }
+          - { arch: riscv64,        toolchain: riscv64-linux-gnu.toolchain.cmake,        qemu: qemu-riscv64-static,  qemu-args: "-L;/usr/riscv64-linux-gnu"          }
     steps:
     - uses: actions/checkout@v4
 
