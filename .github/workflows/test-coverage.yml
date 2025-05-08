@@ -62,7 +62,7 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-x64-sde:
-    name: linux-gcc-sde-${{ matrix.cpu }}
+    name: sde-${{ matrix.cpu }}
     runs-on: [self-hosted, linux, ubuntu25]
     env:
       SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
@@ -113,6 +113,7 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-x64-sde-combined:
+    name: sde-combined
     runs-on: [self-hosted, linux, ubuntu25]
     env:
       SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
@@ -419,8 +420,9 @@ jobs:
 
     - name: test-openmp
       run: |
+        export OMP_NUM_THREADS=4
         cd build
-        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 2
 
     - name: lcov-collect
       run: |
