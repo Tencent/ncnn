@@ -63,7 +63,9 @@ jobs:
 
   linux-gcc-x64-sde:
     name: linux-gcc-sde-${{ matrix.cpu }}
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, ubuntu25]
+    env:
+      SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
     strategy:
       fail-fast: false
       matrix:
@@ -74,18 +76,7 @@ jobs:
           - { cpu: spr, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: ON,  AVX512VNNI: ON,  AVX512BF16: ON,  AVX512FP16: ON  }
     steps:
     - uses: actions/checkout@v4
-    - name: update
-      run: sudo apt-get update
-    - name: gcc14
-      run: sudo apt-get install gcc-14 g++-14
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: Setup SDE binaries
-      uses: petarpetrovt/setup-sde@v2.4
     - name: build
-      env:
-        CC: gcc-14
-        CXX: g++-14
       run: |
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
@@ -123,10 +114,10 @@ jobs:
 
   linux-gcc-x64-sde-combined:
     runs-on: [self-hosted, linux, ubuntu25]
+    env:
+      SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
     steps:
     - uses: actions/checkout@v4
-    - name: Setup SDE binaries
-      uses: petarpetrovt/setup-sde@v2.4
     - name: build
       run: |
         mkdir build && cd build
