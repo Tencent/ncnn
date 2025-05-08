@@ -92,15 +92,15 @@ jobs:
             -DNCNN_AVX512BF16=${{ matrix.AVX512BF16 }} \
             -DNCNN_AVX512FP16=${{ matrix.AVX512FP16 }} \
             -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 8
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-${{ matrix.cpu }};--" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-${{ matrix.cpu }};--" ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
         cd build
-        lcov --gcov-tool gcov-14 -d ./src -c -o lcov.info
+        lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
@@ -158,7 +158,7 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov --gcov-tool gcov-14 -d ./src -c -o lcov.info
+        lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
