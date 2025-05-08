@@ -301,3 +301,47 @@ jobs:
         disable_search: true
         plugins: noop
         files: build/lcov.info
+
+  linux-gcc-cross:
+    name: ${{ matrix.arch }}-openmp-${{ matrix.openmp }}
+    runs-on: [self-hosted, linux, ubuntu25]
+    strategy:
+      fail-fast: false
+      matrix:
+        openmp: ['OFF', 'ON']
+        include:
+          - { arch: mipsisa32r6el,  extra-cmake-args: mipsisa32r6el-linux-gnu.toolchain.cmake,  qemu: qemu-mipsel-static,   qemu-args: "-L;/usr/mipsisa32r6el-linux-gnu"    }
+          - { arch: mipsisa64r6el,  extra-cmake-args: mipsisa64r6el-linux-gnu.toolchain.cmake,  qemu: qemu-mips64el-static, qemu-args: "-L;/usr/mipsisa64r6el-linux-gnu"    }
+          - { arch: powerpc,        extra-cmake-args: powerpc-linux-gnu.toolchain.cmake,        qemu: qemu-ppc-static,      qemu-args: "-L;/usr/powerpc-linux-gnu"          }
+          - { arch: powerpc64le,    extra-cmake-args: powerpc64le-linux-gnu.toolchain.cmake,    qemu: qemu-ppc64le-static,  qemu-args: "-L;/usr/powerpc64le-linux-gnu"      }
+          - { arch: riscv64,        extra-cmake-args: riscv64-linux-gnu.toolchain.cmake,        qemu: qemu-riscv64-static,  qemu-args: "-L;/usr/riscv64-linux-gnu"          }
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_OPENMP=${{ matrix.openmp }} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS=${{ matrix.qemu-args }} ctest --output-on-failure -j 8
+
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
