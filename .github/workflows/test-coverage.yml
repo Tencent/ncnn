@@ -394,6 +394,12 @@ jobs:
             qemu: qemu-riscv64-static
             qemu-args: "-L;/usr/riscv64-linux-gnu"
 
+          - arch: loongarch64
+            toolchain: loongarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-loongarch64-static
+            qemu-args: "-L;/usr/loongarch64-linux-gnu"
+
     steps:
     - uses: actions/checkout@v4
 
