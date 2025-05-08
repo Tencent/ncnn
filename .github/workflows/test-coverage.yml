@@ -303,12 +303,11 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-cross:
-    name: ${{ matrix.arch }}-openmp-${{ matrix.openmp }}
+    name: ${{ matrix.arch }}
     runs-on: [self-hosted, linux, ubuntu25]
     strategy:
       fail-fast: false
       matrix:
-        openmp: ['OFF', 'ON']
         include:
           - { arch: mipsisa32r6el,  toolchain: mipsisa32r6el-linux-gnu.toolchain.cmake,  qemu: qemu-mipsel-static,   qemu-args: "-L;/usr/mipsisa32r6el-linux-gnu"    }
           - { arch: mipsisa64r6el,  toolchain: mipsisa64r6el-linux-gnu.toolchain.cmake,  qemu: qemu-mips64el-static, qemu-args: "-L;/usr/mipsisa64r6el-linux-gnu"    }
@@ -321,15 +320,28 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} -DNCNN_OPENMP=OFF \
             -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
-            -DNCNN_OPENMP=${{ matrix.openmp }} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 8
 
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS=${{ matrix.qemu-args }} ctest --output-on-failure -j 8
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
+
+    - name: build-openmp
+      run: |
+        cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} -DNCNN_OPENMP=ON \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test-openmp
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
 
     - name: lcov-collect
       run: |
