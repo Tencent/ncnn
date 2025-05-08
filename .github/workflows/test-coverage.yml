@@ -420,9 +420,10 @@ jobs:
 
     - name: test-openmp
       run: |
-        export OMP_NUM_THREADS=4
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
         cd build
-        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
 
     - name: lcov-collect
       run: |
