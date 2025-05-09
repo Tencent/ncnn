@@ -162,9 +162,9 @@ jobs:
       run: |
         cd build
         lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
     - name: codecov
       uses: codecov/codecov-action@v5
       with:
