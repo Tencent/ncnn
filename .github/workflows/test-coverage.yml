@@ -422,9 +422,17 @@ jobs:
         cd build
         TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
 
-    - name: build-openmp
+    - name: lcov-collect
       run: |
         cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-openmp
+      run: |
+        cd build-openmp
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} ${{ matrix.extra-cmake-args }} -DNCNN_OPENMP=ON \
             -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
@@ -434,20 +442,21 @@ jobs:
       run: |
         export OMP_THREAD_LIMIT=1
         export OMP_NUM_THREADS=1
-        cd build
+        cd build-openmp
         TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
 
-    - name: lcov-collect
+    - name: lcov-collect-openmp
       run: |
-        cd build
+        cd build-openmp
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/build-openmp/*' -o lcov.info
         lcov --list lcov.info
+
     - name: codecov
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
-        files: build/lcov.info
+        files: build/lcov.info,build-openmp/lcov.info
