@@ -61,6 +61,87 @@ jobs:
         plugins: noop
         files: build/lcov.info
 
+  linux-gcc-x64:
+    name: x64-${{ matrix.name }}
+    runs-on: [self-hosted, linux, ubuntu25]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'none',       SSE2: OFF, AVX: OFF, F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'sse2',       SSE2: ON,  AVX: OFF, F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'avx',        SSE2: ON,  AVX: ON,  F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'avx2',       SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'avx512',     SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: OFF }
+          - { name: 'avx512vnni', SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: ON  }
+    steps:
+    - uses: actions/checkout@v4
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_SSE2=${{ matrix.SSE2 }} \
+            -DNCNN_AVX=${{ matrix.AVX }} \
+            -DNCNN_F16C=${{ matrix.F16C }} \
+            -DNCNN_FMA=${{ matrix.FMA }} \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVXVNNI=OFF \
+            -DNCNN_AVX512BF16=OFF \
+            -DNCNN_AVX512FP16=OFF \
+            -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        cd build
+        ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: build-openmp
+      run: |
+        mkdir build-openmp && cd build-openmp
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_SSE2=${{ matrix.SSE2 }} \
+            -DNCNN_AVX=${{ matrix.AVX }} \
+            -DNCNN_F16C=${{ matrix.F16C }} \
+            -DNCNN_FMA=${{ matrix.FMA }} \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVXVNNI=OFF \
+            -DNCNN_AVX512BF16=OFF \
+            -DNCNN_AVX512FP16=OFF \
+            -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        cd build-openmp
+        ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build-openmp
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-openmp/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info,build-openmp/lcov.info
+
   linux-gcc-x64-sde:
     name: sde-${{ matrix.cpu }}
     runs-on: [self-hosted, linux, ubuntu25]
