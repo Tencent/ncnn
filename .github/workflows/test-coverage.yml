@@ -62,7 +62,7 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-x64-sde:
-    name: linux-gcc-sde-${{ matrix.cpu }}
+    name: sde-${{ matrix.cpu }}
     runs-on: [self-hosted, linux, ubuntu25]
     env:
       SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
@@ -113,6 +113,7 @@ jobs:
         files: build/lcov.info
 
   linux-gcc-x64-sde-combined:
+    name: sde-combined
     runs-on: [self-hosted, linux, ubuntu25]
     env:
       SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
@@ -301,3 +302,161 @@ jobs:
         disable_search: true
         plugins: noop
         files: build/lcov.info
+
+  linux-gcc-cross:
+    name: ${{ matrix.arch }}
+    runs-on: [self-hosted, linux, ubuntu25]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm
+            toolchain: arm-linux-gnueabi.toolchain.cmake
+            extra-cmake-args: -DNCNN_VFPV4=ON
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabi"
+
+          - arch: arm-noinlineasm
+            toolchain: arm-linux-gnueabi.toolchain.cmake
+            extra-cmake-args: -DNCNN_GNU_INLINE_ASM=OFF -DNCNN_VFPV4=ON
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabi"
+
+          - arch: armhf-vfpv3-d16
+            toolchain: arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake
+            extra-cmake-args: -DNCNN_VFPV4=OFF
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabihf"
+
+          - arch: armhf-vfpv3-d16-noinlineasm
+            toolchain: arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake
+            extra-cmake-args: -DNCNN_GNU_INLINE_ASM=OFF -DNCNN_VFPV4=OFF
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabihf"
+
+          - arch: aarch64-armv8.0
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM82=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.2
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM82DOT=OFF -DNCNN_ARM82FP16FML=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.4
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.6
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM86SVE=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.6-noinlineasm
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_GNU_INLINE_ASM=OFF -DNCNN_ARM86SVE=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: mipsisa32r6el
+            toolchain: mipsisa32r6el-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_MSA=OFF -DNCNN_MMI=OFF
+            qemu: qemu-mipsel-static
+            qemu-args: "-L;/usr/mipsisa32r6el-linux-gnu"
+
+          - arch: mipsisa64r6el
+            toolchain: mipsisa64r6el-linux-gnuabi64.toolchain.cmake
+            extra-cmake-args: -DNCNN_MSA=ON -DNCNN_MMI=OFF
+            qemu: qemu-mips64el-static
+            qemu-args: "-L;/usr/mipsisa64r6el-linux-gnuabi64"
+
+          - arch: powerpc
+            toolchain: powerpc-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-ppc-static
+            qemu-args: "-L;/usr/powerpc-linux-gnu"
+
+          - arch: powerpc64le
+            toolchain: powerpc64le-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-ppc64le-static
+            qemu-args: "-L;/usr/powerpc64le-linux-gnu"
+
+          - arch: riscv64
+            toolchain: riscv64-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-riscv64-static
+            qemu-args: "-L;/usr/riscv64-linux-gnu"
+
+          - arch: loongarch64-la264
+            toolchain: loongarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_LSX=ON -DNCNN_LASX=OFF
+            qemu: qemu-loongarch64-static
+            qemu-args: "-L;/usr/loongarch64-linux-gnu"
+
+          - arch: loongarch64-la664
+            toolchain: loongarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_LSX=ON -DNCNN_LASX=ON
+            qemu: qemu-loongarch64-static
+            qemu-args: "-L;/usr/loongarch64-linux-gnu"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} ${{ matrix.extra-cmake-args }} -DNCNN_OPENMP=OFF \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
+
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-openmp
+      run: |
+        mkdir build-openmp && cd build-openmp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} ${{ matrix.extra-cmake-args }} -DNCNN_OPENMP=ON \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test-openmp
+      run: |
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        cd build-openmp
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
+
+    - name: lcov-collect-openmp
+      run: |
+        cd build-openmp
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-openmp/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info,build-openmp/lcov.info
