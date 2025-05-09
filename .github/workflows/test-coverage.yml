@@ -394,9 +394,15 @@ jobs:
             qemu: qemu-riscv64-static
             qemu-args: "-L;/usr/riscv64-linux-gnu"
 
-          - arch: loongarch64
+          - arch: loongarch64-la264
             toolchain: loongarch64-linux-gnu.toolchain.cmake
-            extra-cmake-args:
+            extra-cmake-args: -DNCNN_LSX=ON -DNCNN_LASX=OFF
+            qemu: qemu-loongarch64-static
+            qemu-args: "-L;/usr/loongarch64-linux-gnu"
+
+          - arch: loongarch64-la664
+            toolchain: loongarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_LSX=ON -DNCNN_LASX=ON
             qemu: qemu-loongarch64-static
             qemu-args: "-L;/usr/loongarch64-linux-gnu"
 
