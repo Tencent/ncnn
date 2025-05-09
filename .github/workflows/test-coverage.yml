@@ -432,7 +432,7 @@ jobs:
 
     - name: build-openmp
       run: |
-        cd build-openmp
+        mkdir build-openmp && cd build-openmp
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} ${{ matrix.extra-cmake-args }} -DNCNN_OPENMP=ON \
             -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
