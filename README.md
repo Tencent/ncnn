@@ -298,26 +298,12 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 
 <tr>
-<td rowspan=4>
+<td rowspan=3>
   <img src="https://user-images.githubusercontent.com/25181517/186884153-99edc188-e4aa-4c84-91b0-e2df260ebc33.png" width="120" height="auto">
 </td>
-<td colspan=4>
+<td colspan=3>
 
 - [Build for Linux / NVIDIA Jetson / Raspberry Pi3, Pi4 / POWER](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-linux)
-
-</td>
-</tr>
-<tr>
-<td>Ubuntu 20.04</td>
-<td>
-
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ubuntu-2004.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ubuntu-2004-shared.zip)
-
-</td>
-<td rowspan=3>
-
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-gcc)
 
 </td>
 </tr>
@@ -327,6 +313,11 @@ https://github.com/Tencent/ncnn/releases/latest
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ubuntu-2204.zip)
   [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ubuntu-2204-shared.zip)
+
+</td>
+<td rowspan=2>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-gcc)
 
 </td>
 </tr>
