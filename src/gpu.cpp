@@ -976,12 +976,6 @@ void GpuInfoPrivate::query_extension_properties()
         querySubgroupSizeControlProperties.pNext = queryDeviceProperties;
         queryDeviceProperties = &querySubgroupSizeControlProperties;
     }
-    else
-    {
-        querySubgroupSizeControlProperties.minSubgroupSize = querySubgroupProperties.subgroupSize;
-        querySubgroupSizeControlProperties.maxSubgroupSize = querySubgroupProperties.subgroupSize;
-        querySubgroupSizeControlProperties.maxComputeWorkgroupSubgroups = std::max(physicalDeviceProperties.limits.maxComputeWorkGroupInvocations / querySubgroupProperties.subgroupSize, 1u);
-    }
 
     if (support_VK_KHR_get_physical_device_properties2)
     {
@@ -999,6 +993,13 @@ void GpuInfoPrivate::query_extension_properties()
             if (queryShaderSubgroupRotateFeatures.shaderSubgroupRotateClustered)
                 querySubgroupProperties.supportedOperations |= VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR;
         }
+    }
+
+    if (!support_VK_EXT_subgroup_size_control)
+    {
+        querySubgroupSizeControlProperties.minSubgroupSize = querySubgroupProperties.subgroupSize;
+        querySubgroupSizeControlProperties.maxSubgroupSize = querySubgroupProperties.subgroupSize;
+        querySubgroupSizeControlProperties.maxComputeWorkgroupSubgroups = std::max(physicalDeviceProperties.limits.maxComputeWorkGroupInvocations / querySubgroupProperties.subgroupSize, 1u);
     }
 
     // query supported cooperative matrix types and operations
