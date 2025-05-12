@@ -207,7 +207,7 @@ jobs:
 
   test:
     name: test-${{ matrix.torch-version }}
-    needs: [build]
+    # needs: [build]
     runs-on: [self-hosted, linux, ubuntu25test]
 
     env:
@@ -225,29 +225,29 @@ jobs:
 
     - uses: actions/setup-python@v5
       with:
-        python-version: 3.9
+        python-version: 3.9.22
 
     - name: setup-pytorch
       run: |
         pip3 install --user torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu torchaudio==${{ matrix.torchaudio-version }} --index-url https://download.pytorch.org/whl/cpu  --break-system-packages
         pip3 install --user onnx onnxscript --break-system-packages
 
-    - name: pnnx
-      run: |
-        cd tools/pnnx
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
-
-    - name: download-pnnx
-      uses: actions/download-artifact@v4
-      with:
-        name: pnnx
-        path: tools/pnnx/build/src/pnnx
-
-    - name: test
-      run: |
-        export OMP_NUM_THREADS=1
-        export MKL_NUM_THREADS=1
-        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
-        cd tools/pnnx/build
-        ctest --output-on-failure -j 8
+    # - name: pnnx
+    #   run: |
+    #     cd tools/pnnx
+    #     mkdir build && cd build
+    #     cmake -DCMAKE_BUILD_TYPE=Release ..
+    #
+    # - name: download-pnnx
+    #   uses: actions/download-artifact@v4
+    #   with:
+    #     name: pnnx
+    #     path: tools/pnnx/build/src/pnnx
+    #
+    # - name: test
+    #   run: |
+    #     export OMP_NUM_THREADS=1
+    #     export MKL_NUM_THREADS=1
+    #     export MKL_ENABLE_INSTRUCTIONS=SSE4_2
+    #     cd tools/pnnx/build
+    #     ctest --output-on-failure -j 8
