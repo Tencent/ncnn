@@ -187,12 +187,9 @@ jobs:
 
     - name: pnnx
       run: |
-        pwd
-        echo $GITHUB_WORKSPACE
-        ls $GITHUB_WORKSPACE -l
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release \
+        cmake -DCMAKE_BUILD_TYPE=MinSizeRel \
             -DTorch_INSTALL_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
             -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
@@ -292,6 +289,7 @@ jobs:
     - name: test
       run: |
         chmod +x tools/pnnx/build/src/pnnx
+        export OMP_THREAD_LIMIT=1
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
