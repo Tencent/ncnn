@@ -25,7 +25,7 @@ env:
   TORCHVISION_VERSION: 0.22.0
   PROTOBUF_VERSION: 21.12
   ONNXRUNTIME_VERSION: 1.21.1
-  CACHE_DATE: 20250423
+  CACHE_DATE: 20250512
 
 jobs:
   quick-test:
@@ -224,7 +224,7 @@ jobs:
           - { python: '3.12', numpy: '2.2.5',  torch: '2.6.0',  torchvision: '0.21.0', torchaudio: '2.6.0+cpu'  }
           - { python: '3.12', numpy: '2.2.5',  torch: '2.7.0',  torchvision: '0.22.0', torchaudio: '2.7.0+cpu'  }
 
-    name: test-${{ matrix.torch }}-on-${{ matrix.python }}
+    name: test-${{ matrix.torch }}-py${{ matrix.python }}
 
     env:
       PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
