@@ -187,6 +187,7 @@ jobs:
 
     - name: pnnx
       run: |
+        ls $GITHUB_WORKSPACE -l
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release \
