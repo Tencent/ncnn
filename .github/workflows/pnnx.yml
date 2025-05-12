@@ -21,11 +21,11 @@ permissions:
   contents: read
 
 env:
-  libtorch_version: 2.7.0
-  libtorchvision_version: 0.22.0
-  protobuf_version: 21.12
-  onnxruntime_version: 1.21.1
-  cache_date: 20250423
+  LIBTORCH_VERSION: 2.7.0
+  TORCHVISION_VERSION: 0.22.0
+  PROTOBUF_VERSION: 21.12
+  ONNXRUNTIME_VERSION: 1.21.1
+  CACHE_DATE: 20250423
 
 jobs:
   quick-test:
@@ -65,7 +65,6 @@ jobs:
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
 
   build-deps:
-    name: torch-${{ env.libtorch_version }}
     runs-on: [self-hosted, linux, ubuntu25]
 
     steps:
@@ -75,25 +74,25 @@ jobs:
         repository: pnnx/pnnx
         path: pnnx-patches
 
-    - name: cache-libtorch-${{ env.libtorch_version }}
+    - name: cache-libtorch-${{ env.LIBTORCH_VERSION }}
       id: cache-libtorch
       uses: actions/cache@v4
       with:
-        path: libtorch-${{ env.libtorch_version }}-install
-        key: libtorch-${{ env.libtorch_version }}-linux-install-${{ env.cache_date }}
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
-    - name: libtorch-${{ env.libtorch_version }}
+    - name: libtorch-${{ env.LIBTORCH_VERSION }}
       if: steps.cache-libtorch.outputs.cache-hit != 'true'
       run: |
-        wget -q https://github.com/pytorch/pytorch/releases/download/v${{ env.libtorch_version }}/pytorch-v${{ env.libtorch_version }}.tar.gz
-        tar -xf pytorch-v${{ env.libtorch_version }}.tar.gz
-        cd pytorch-v${{ env.libtorch_version }}
+        wget -q https://github.com/pytorch/pytorch/releases/download/v${{ env.LIBTORCH_VERSION }}/pytorch-v${{ env.LIBTORCH_VERSION }}.tar.gz
+        tar -xf pytorch-v${{ env.LIBTORCH_VERSION }}.tar.gz
+        cd pytorch-v${{ env.LIBTORCH_VERSION }}
         pip3 install -r requirements.txt
-        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.libtorch_version }}-fix-mobile-build.patch
-        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.libtorch_version }}-no-link-system-lib.patch
-        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.libtorch_version }}-fix-pocketfft-build.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-mobile-build.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-no-link-system-lib.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-pocketfft-build.patch
         mkdir -p build && cd build
-        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/libtorch-${{ env.libtorch_version }}-install \
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
             -DCMAKE_BUILD_TYPE=MinSizeRel \
             -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
@@ -117,58 +116,58 @@ jobs:
         cmake --build . -j 8
         cmake --build . -j 8 --target install/strip
 
-    # - name: cache-torchvision-${{ env.libtorchvision_version }}
+    # - name: cache-torchvision-${{ env.TORCHVISION_VERSION }}
     #   id: cache-torchvision
     #   uses: actions/cache@v4
     #   with:
-    #     path: torchvision-${{ env.libtorchvision_version }}-install
-    #     key: torchvision-${{ env.libtorchvision_version }}-linux-install-${{ env.cache_date }}
+    #     path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+    #     key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
     #
-    # - name: checkout-torchvision-${{ env.libtorchvision_version }}
+    # - name: checkout-torchvision-${{ env.TORCHVISION_VERSION }}
     #   if: steps.cache-torchvision.outputs.cache-hit != 'true'
     #   run: |
-    #     wget -q https://github.com/pytorch/vision/archive/v${{ env.libtorchvision_version }}.zip -O vision-${{ env.libtorchvision_version }}.zip
-    #     unzip -q vision-${{ env.libtorchvision_version }}.zip
-    #     cd vision-${{ env.libtorchvision_version }}
-    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.libtorchvision_version }}-ops-only.patch
-    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.libtorchvision_version }}-no-cuda-version.patch
+    #     wget -q https://github.com/pytorch/vision/archive/v${{ env.TORCHVISION_VERSION }}.zip -O vision-${{ env.TORCHVISION_VERSION }}.zip
+    #     unzip -q vision-${{ env.TORCHVISION_VERSION }}.zip
+    #     cd vision-${{ env.TORCHVISION_VERSION }}
+    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.TORCHVISION_VERSION }}-ops-only.patch
+    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.TORCHVISION_VERSION }}-no-cuda-version.patch
     #     mkdir -p build && cd build
-    #     cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ env.libtorchvision_version }}-install \
-    #         -DTorch_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.libtorch_version }}-install/share/cmake/Torch \
+    #     cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
+    #         -DTorch_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install/share/cmake/Torch \
     #         -DCMAKE_BUILD_TYPE=MinSizeRel \
     #         -DWITH_PNG=OFF \
     #         -DWITH_JPEG=OFF ..
     #     cmake --build . -j 8
     #     cmake --build . -j 8 --target install/strip
 
-    # - name: cache-onnxruntime-${{ env.onnxruntime_version }}
+    # - name: cache-onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
     #   id: cache-onnxruntime
     #   uses: actions/cache@v4
     #   with:
-    #     path: onnxruntime-${{ env.onnxruntime_version }}-install
-    #     key: onnxruntime-${{ env.onnxruntime_version }}-linux-install-${{ env.cache_date }}
+    #     path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+    #     key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
     #
-    # - name: checkout-onnxruntime-${{ env.onnxruntime_version }}
+    # - name: checkout-onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
     #   if: steps.cache-onnxruntime.outputs.cache-hit != 'true'
     #   run: |
-    #     wget -q https://github.com/protocolbuffers/protobuf/archive/v${{ env.protobuf_version }}.zip -O protobuf-${{ env.protobuf_version }}.zip
-    #     unzip -q protobuf-${{ env.protobuf_version }}.zip
-    #     cd protobuf-${{ env.protobuf_version }}
+    #     wget -q https://github.com/protocolbuffers/protobuf/archive/v${{ env.PROTOBUF_VERSION }}.zip -O protobuf-${{ env.PROTOBUF_VERSION }}.zip
+    #     unzip -q protobuf-${{ env.PROTOBUF_VERSION }}.zip
+    #     cd protobuf-${{ env.PROTOBUF_VERSION }}
     #     mkdir -p build2 && cd build2
-    #     cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/onnxruntime-${{ env.onnxruntime_version }}-install \
+    #     cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
     #         -Dprotobuf_BUILD_TESTS=OFF \
     #         -DCMAKE_BUILD_TYPE=MinSizeRel \
     #         -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
     #     cmake --build . -j 8
     #     cmake --build . -j 8 --target install/strip
     #
-    #     wget -q https://github.com/microsoft/onnxruntime/archive/v${{ env.onnxruntime_version }}.zip -O onnxruntime-${{ env.onnxruntime_version }}.zip
-    #     unzip -q onnxruntime-${{ env.onnxruntime_version }}.zip
-    #     cd onnxruntime-${{ env.onnxruntime_version }}
-    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.onnxruntime_version }}-less-mlas-features.patch
-    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.onnxruntime_version }}-monolithic-static-library.patch
+    #     wget -q https://github.com/microsoft/onnxruntime/archive/v${{ env.ONNXRUNTIME_VERSION }}.zip -O onnxruntime-${{ env.ONNXRUNTIME_VERSION }}.zip
+    #     unzip -q onnxruntime-${{ env.ONNXRUNTIME_VERSION }}.zip
+    #     cd onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
+    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-less-mlas-features.patch
+    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-monolithic-static-library.patch
     #     mkdir -p build && cd build
-    #     cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/onnxruntime-${{ env.onnxruntime_version }}-install \
+    #     cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
     #         -DCMAKE_BUILD_TYPE=MinSizeRel \
     #         -Donnxruntime_USE_FULL_PROTOBUF=ON \
     #         -Donnxruntime_BUILD_SHARED_LIB=ON \
