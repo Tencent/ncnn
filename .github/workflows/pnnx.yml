@@ -234,6 +234,29 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: cache-libtorch
+      id: cache-libtorch
+      uses: actions/cache@v4
+      with:
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: cache-torchvision
+      id: cache-torchvision
+      uses: actions/cache@v4
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: cache-onnxruntime
+      id: cache-onnxruntime
+      uses: actions/cache@v4
+      with:
+        path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+        key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - uses: actions/setup-python@v5
       with:
@@ -257,7 +280,11 @@ jobs:
       run: |
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release \
+            -DTorch_INSTALL_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
+            -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
+            -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
+            -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
 
     - name: download-pnnx
       uses: actions/download-artifact@v4
