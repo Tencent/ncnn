@@ -210,6 +210,8 @@ jobs:
     needs: [build]
     runs-on: [self-hosted, linux, ubuntu25]
 
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch-${{ matrix.torch-version }}
     strategy:
       fail-fast: false
       matrix:
@@ -221,9 +223,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.9
+
     - name: setup-pytorch
       run: |
-        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         pip3 install --user torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu torchaudio==${{ matrix.torchaudio-version }} --index-url https://download.pytorch.org/whl/cpu  --break-system-packages
         pip3 install --user onnx onnxscript --break-system-packages
 
@@ -241,7 +246,6 @@ jobs:
 
     - name: test
       run: |
-        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
