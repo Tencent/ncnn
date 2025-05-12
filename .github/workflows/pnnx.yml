@@ -230,7 +230,7 @@ jobs:
     name: test-${{ matrix.torch }}-on-${{ matrix.python }}
 
     env:
-      PYTHONUSERBASE: ${{ github.workspace }}/torch-${{ matrix.python }}
+      PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
 
     steps:
     - uses: actions/checkout@v4
@@ -264,17 +264,14 @@ jobs:
 
     - name: setup-pytorch
       run: |
-        pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu  --break-system-packages
-        pip3 install --user onnx onnxscript --break-system-packages
+        pip3 install --user pytest wheel twine requests einops numpy==1.26.4
+        pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user onnx onnxscript
 
-    - name: ncnn
+    - name: python-ncnn
       run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 8
-        cd ..
         export CMAKE_BUILD_PARALLEL_LEVEL=8
-        pip3 install --user .
+        pip3 install --user . --verbose
 
     - name: pnnx
       run: |
