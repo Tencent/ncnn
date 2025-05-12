@@ -204,7 +204,7 @@ jobs:
 
   test:
     needs: [build]
-    runs-on: [self-hosted, linux, ubuntu25test]
+    runs-on: [self-hosted, linux, ubuntu25]
     strategy:
       fail-fast: false
       matrix:
