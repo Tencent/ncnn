@@ -206,30 +206,42 @@ jobs:
         path: tools/pnnx/build/src/pnnx
 
   test:
-    name: test-${{ matrix.torch-version }}
     needs: [build]
     runs-on: [self-hosted, linux, ubuntu25test]
-
-    env:
-      PYTHONUSERBASE: ${{ github.workspace }}/torch-${{ matrix.torch-version }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - torch-version: 2.7.0
-            torchvision-version: 0.22.0
-            torchaudio-version: '2.7.0+cpu'
+          - { python: 3.8,  torch: 1.8.1,  torchvision: 0.9.1,  torchaudio: 0.8.1        }
+          - { python: 3.8,  torch: 1.9.1,  torchvision: 0.10.1, torchaudio: 0.9.1        }
+          - { python: 3.8,  torch: 1.10.0, torchvision: 0.11.1, torchaudio: '0.10.0+cpu' }
+          - { python: 3.9,  torch: 1.11.0, torchvision: 0.12.0, torchaudio: '0.11.0+cpu' }
+          - { python: 3.9,  torch: 1.12.0, torchvision: 0.13.0, torchaudio: '0.12.0+cpu' }
+          - { python: 3.10, torch: 1.13.0, torchvision: 0.14.0, torchaudio: '0.13.0+cpu' }
+          - { python: 3.10, torch: 2.0.0,  torchvision: 0.15.1, torchaudio: '2.0.0+cpu'  }
+          - { python: 3.10, torch: 2.1.0,  torchvision: 0.16.0, torchaudio: '2.1.0+cpu'  }
+          - { python: 3.11, torch: 2.2.1,  torchvision: 0.17.1, torchaudio: '2.2.1+cpu'  }
+          - { python: 3.11, torch: 2.3.0,  torchvision: 0.18.0, torchaudio: '2.3.0+cpu'  }
+          - { python: 3.11, torch: 2.4.0,  torchvision: 0.19.0, torchaudio: '2.4.0+cpu'  }
+          - { python: 3.12, torch: 2.5.0,  torchvision: 0.20.0, torchaudio: '2.5.0+cpu'  }
+          - { python: 3.12, torch: 2.6.0,  torchvision: 0.21.0, torchaudio: '2.6.0+cpu'  }
+          - { python: 3.12, torch: 2.7.0,  torchvision: 0.22.0, torchaudio: '2.7.0+cpu'  }
+
+    name: test-${{ matrix.torch }}-on-${{ matrix.python }}
+
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch-${{ matrix.python }}
 
     steps:
     - uses: actions/checkout@v4
 
     - uses: actions/setup-python@v5
       with:
-        python-version: 3.9
+        python-version: ${{ matrix.python }}
 
     - name: setup-pytorch
       run: |
-        pip3 install --user torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu torchaudio==${{ matrix.torchaudio-version }} --index-url https://download.pytorch.org/whl/cpu  --break-system-packages
+        pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu  --break-system-packages
         pip3 install --user onnx onnxscript --break-system-packages
 
     - name: pnnx
@@ -246,8 +258,7 @@ jobs:
 
     - name: test
       run: |
-        ls -la tools/pnnx/build
-        ls -la tools/pnnx/build/src
+        chmod +x tools/pnnx/build/src/pnnx
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
