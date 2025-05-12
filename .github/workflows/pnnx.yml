@@ -68,6 +68,8 @@ jobs:
     runs-on: [self-hosted, linux, ubuntu25]
 
     steps:
+    - uses: actions/checkout@v4
+
     - name: cache-libtorch
       id: cache-libtorch
       uses: actions/cache@v4
@@ -182,14 +184,6 @@ jobs:
             --compile-no-warning-as-error ../cmake
         cmake --build . -j 8
         cmake --build . -j 8 --target install/strip
-
-    - name: pnnx-0
-      run: |
-        pwd
-        echo $GITHUB_WORKSPACE
-        ls $GITHUB_WORKSPACE -l
-
-    - uses: actions/checkout@v4
 
     - name: pnnx
       run: |
