@@ -261,14 +261,16 @@ jobs:
 
     - name: setup-pytorch
       run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         pip3 install --user pytest wheel twine requests einops numpy==${{ matrix.numpy }}
         pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user onnx onnxscript
 
-    - name: setup-pytorch-execstack
+    - name: setup-pytorch-execstack-or-patchelf
       if: ${{ matrix.python }} == '3.8' || ${{ matrix.python }} == '3.9'
       run: |
-        execstack -c ${{ env.PYTHONUSERBASE }}/lib/python${{ matrix.python }}/site-packages/torch/lib/libtorch_cpu.so
+        execstack -c ${{ env.PYTHONUSERBASE }}/lib/python${{ matrix.python }}/site-packages/torch/lib/libtorch_cpu.so || true
+        patchelf --clear-execstack ${{ env.PYTHONUSERBASE }}/lib/python${{ matrix.python }}/site-packages/torch/lib/libtorch_cpu.so || true
 
     - name: python-ncnn
       run: |
@@ -293,6 +295,7 @@ jobs:
 
     - name: test
       run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         chmod +x tools/pnnx/build/src/pnnx
         export OMP_THREAD_LIMIT=1
         export OMP_NUM_THREADS=1
@@ -303,6 +306,7 @@ jobs:
 
     - name: python-pnnx
       run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         export PNNX_WHEEL_WITHOUT_BUILD=ON
         cd tools/pnnx/python
         cp ../build/src/pnnx pnnx/
