@@ -183,10 +183,18 @@ jobs:
         cmake --build . -j 8
         cmake --build . -j 8 --target install/strip
 
+    - name: pnnx-0
+      run: |
+        pwd
+        echo $GITHUB_WORKSPACE
+        ls $GITHUB_WORKSPACE -l
+
     - uses: actions/checkout@v4
 
     - name: pnnx
       run: |
+        pwd
+        echo $GITHUB_WORKSPACE
         ls $GITHUB_WORKSPACE -l
         cd tools/pnnx
         mkdir build && cd build
