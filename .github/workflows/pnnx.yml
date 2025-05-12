@@ -116,29 +116,29 @@ jobs:
         cmake --build . -j 8
         cmake --build . -j 8 --target install/strip
 
-    # - name: cache-torchvision
-    #   id: cache-torchvision
-    #   uses: actions/cache@v4
-    #   with:
-    #     path: torchvision-${{ env.TORCHVISION_VERSION }}-install
-    #     key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
-    #
-    # - name: checkout-torchvision
-    #   if: steps.cache-torchvision.outputs.cache-hit != 'true'
-    #   run: |
-    #     wget -q https://github.com/pytorch/vision/archive/v${{ env.TORCHVISION_VERSION }}.zip -O vision-${{ env.TORCHVISION_VERSION }}.zip
-    #     unzip -q vision-${{ env.TORCHVISION_VERSION }}.zip
-    #     cd vision-${{ env.TORCHVISION_VERSION }}
-    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.TORCHVISION_VERSION }}-ops-only.patch
-    #     patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.TORCHVISION_VERSION }}-no-cuda-version.patch
-    #     mkdir -p build && cd build
-    #     cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
-    #         -DTorch_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install/share/cmake/Torch \
-    #         -DCMAKE_BUILD_TYPE=MinSizeRel \
-    #         -DWITH_PNG=OFF \
-    #         -DWITH_JPEG=OFF ..
-    #     cmake --build . -j 8
-    #     cmake --build . -j 8 --target install/strip
+    - name: cache-torchvision
+      id: cache-torchvision
+      uses: actions/cache@v4
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: checkout-torchvision
+      if: steps.cache-torchvision.outputs.cache-hit != 'true'
+      run: |
+        wget -q https://github.com/pytorch/vision/archive/v${{ env.TORCHVISION_VERSION }}.zip -O vision-${{ env.TORCHVISION_VERSION }}.zip
+        unzip -q vision-${{ env.TORCHVISION_VERSION }}.zip
+        cd vision-${{ env.TORCHVISION_VERSION }}
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.TORCHVISION_VERSION }}-ops-only.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.TORCHVISION_VERSION }}-no-cuda-version.patch
+        mkdir -p build && cd build
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
+            -DTorch_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install/share/cmake/Torch \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DWITH_PNG=OFF \
+            -DWITH_JPEG=OFF ..
+        cmake --build . -j 8
+        cmake --build . -j 8 --target install/strip
 
     # - name: cache-onnxruntime
     #   id: cache-onnxruntime
