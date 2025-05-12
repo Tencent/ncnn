@@ -208,7 +208,7 @@ jobs:
   test:
     name: test-${{ matrix.torch-version }}
     needs: [build]
-    runs-on: [self-hosted, linux, ubuntu25]
+    runs-on: [self-hosted, linux, ubuntu25test]
 
     env:
       PYTHONUSERBASE: ${{ github.workspace }}/torch-${{ matrix.torch-version }}
