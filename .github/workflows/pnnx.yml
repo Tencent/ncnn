@@ -64,34 +64,11 @@ jobs:
         cd tools/pnnx
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
 
-  test:
+  build:
     runs-on: [self-hosted, linux, ubuntu25]
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { python: '3.8',  numpy: '1.24.4', torch: '1.8.1',  torchvision: '0.9.1',  torchaudio: '0.8.1'      }
-          - { python: '3.8',  numpy: '1.24.4', torch: '1.9.1',  torchvision: '0.10.1', torchaudio: '0.9.1'      }
-          - { python: '3.8',  numpy: '1.24.4', torch: '1.10.0', torchvision: '0.11.1', torchaudio: '0.10.0+cpu' }
-          - { python: '3.9',  numpy: '1.26.4', torch: '1.11.0', torchvision: '0.12.0', torchaudio: '0.11.0+cpu' }
-          - { python: '3.9',  numpy: '1.26.4', torch: '1.12.0', torchvision: '0.13.0', torchaudio: '0.12.0+cpu' }
-          - { python: '3.10', numpy: '1.26.4', torch: '1.13.0', torchvision: '0.14.0', torchaudio: '0.13.0+cpu' }
-          - { python: '3.10', numpy: '1.26.4', torch: '2.0.0',  torchvision: '0.15.1', torchaudio: '2.0.0+cpu'  }
-          - { python: '3.10', numpy: '1.26.4', torch: '2.1.0',  torchvision: '0.16.0', torchaudio: '2.1.0+cpu'  }
-          - { python: '3.11', numpy: '1.26.4', torch: '2.2.1',  torchvision: '0.17.1', torchaudio: '2.2.1+cpu'  }
-          - { python: '3.11', numpy: '1.26.4', torch: '2.3.0',  torchvision: '0.18.0', torchaudio: '2.3.0+cpu'  }
-          - { python: '3.11', numpy: '2.2.5',  torch: '2.4.0',  torchvision: '0.19.0', torchaudio: '2.4.0+cpu'  }
-          - { python: '3.12', numpy: '2.2.5',  torch: '2.5.0',  torchvision: '0.20.0', torchaudio: '2.5.0+cpu'  }
-          - { python: '3.12', numpy: '2.2.5',  torch: '2.6.0',  torchvision: '0.21.0', torchaudio: '2.6.0+cpu'  }
-          - { python: '3.12', numpy: '2.2.5',  torch: '2.7.0',  torchvision: '0.22.0', torchaudio: '2.7.0+cpu'  }
-
-    name: test-${{ matrix.torch }}-py${{ matrix.python }}
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        submodules: true
 
     - name: cache-libtorch
       id: cache-libtorch
@@ -219,13 +196,70 @@ jobs:
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
         cmake --build . -j 8
 
+    - name: upload-pnnx
+      uses: actions/upload-artifact@v4
+      with:
+        name: pnnx
+        path: tools/pnnx/build/src/pnnx
+
+  test:
+    needs: [build]
+    runs-on: [self-hosted, linux, ubuntu25]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python: '3.8',  numpy: '1.24.4', torch: '1.8.1',  torchvision: '0.9.1',  torchaudio: '0.8.1'      }
+          - { python: '3.8',  numpy: '1.24.4', torch: '1.9.1',  torchvision: '0.10.1', torchaudio: '0.9.1'      }
+          - { python: '3.8',  numpy: '1.24.4', torch: '1.10.0', torchvision: '0.11.1', torchaudio: '0.10.0+cpu' }
+          - { python: '3.9',  numpy: '1.26.4', torch: '1.11.0', torchvision: '0.12.0', torchaudio: '0.11.0+cpu' }
+          - { python: '3.9',  numpy: '1.26.4', torch: '1.12.0', torchvision: '0.13.0', torchaudio: '0.12.0+cpu' }
+          - { python: '3.10', numpy: '1.26.4', torch: '1.13.0', torchvision: '0.14.0', torchaudio: '0.13.0+cpu' }
+          - { python: '3.10', numpy: '1.26.4', torch: '2.0.0',  torchvision: '0.15.1', torchaudio: '2.0.0+cpu'  }
+          - { python: '3.10', numpy: '1.26.4', torch: '2.1.0',  torchvision: '0.16.0', torchaudio: '2.1.0+cpu'  }
+          - { python: '3.11', numpy: '1.26.4', torch: '2.2.1',  torchvision: '0.17.1', torchaudio: '2.2.1+cpu'  }
+          - { python: '3.11', numpy: '1.26.4', torch: '2.3.0',  torchvision: '0.18.0', torchaudio: '2.3.0+cpu'  }
+          - { python: '3.11', numpy: '2.2.5',  torch: '2.4.0',  torchvision: '0.19.0', torchaudio: '2.4.0+cpu'  }
+          - { python: '3.12', numpy: '2.2.5',  torch: '2.5.0',  torchvision: '0.20.0', torchaudio: '2.5.0+cpu'  }
+          - { python: '3.12', numpy: '2.2.5',  torch: '2.6.0',  torchvision: '0.21.0', torchaudio: '2.6.0+cpu'  }
+          - { python: '3.12', numpy: '2.2.5',  torch: '2.7.0',  torchvision: '0.22.0', torchaudio: '2.7.0+cpu'  }
+
+    name: test-${{ matrix.torch }}-py${{ matrix.python }}
+
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: cache-libtorch
+      id: cache-libtorch
+      uses: maxnowack/local-cache@v2
+      with:
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: cache-torchvision
+      id: cache-torchvision
+      uses: maxnowack/local-cache@v2
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: cache-onnxruntime
+      id: cache-onnxruntime
+      uses: maxnowack/local-cache@v2
+      with:
+        path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+        key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python }}
 
     - name: setup-pytorch
-      env:
-        PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         pip3 install --user pytest wheel twine requests einops numpy==${{ matrix.numpy }}
@@ -234,22 +268,32 @@ jobs:
 
     - name: setup-pytorch-execstack-or-patchelf
       if: ${{ matrix.python }} == '3.8' || ${{ matrix.python }} == '3.9'
-      env:
-        PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
       run: |
         execstack -c ${{ env.PYTHONUSERBASE }}/lib/python${{ matrix.python }}/site-packages/torch/lib/libtorch_cpu.so || true
         patchelf --clear-execstack ${{ env.PYTHONUSERBASE }}/lib/python${{ matrix.python }}/site-packages/torch/lib/libtorch_cpu.so || true
 
     - name: python-ncnn
-      env:
-        PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
       run: |
         export CMAKE_BUILD_PARALLEL_LEVEL=8
         pip3 install --user . --verbose
 
+    - name: pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release \
+            -DTorch_INSTALL_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
+            -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
+            -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
+            -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
+
+    - name: download-pnnx
+      uses: actions/download-artifact@v4
+      with:
+        name: pnnx
+        path: tools/pnnx/build/src
+
     - name: test
-      env:
-        PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         chmod +x tools/pnnx/build/src/pnnx
@@ -261,8 +305,6 @@ jobs:
         ctest --output-on-failure -j 8
 
     - name: python-pnnx
-      env:
-        PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         export PNNX_WHEEL_WITHOUT_BUILD=ON
