@@ -20,22 +20,22 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers import DebertaConfig
-from transformers.models.deberta.modeling_deberta import DebertaAttention
+from transformers import DistilBertConfig
+from transformers.models.distilbert.modeling_distilbert import MultiHeadSelfAttention, DistilBertSdpaAttention
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config0 = DebertaConfig(hidden_size=192, num_attention_heads=12, intermediate_size=123)
-        self.attn0 = DebertaAttention(config0)
+        config0 = DistilBertConfig(dim=192, n_heads=12)
+        self.attn0 = MultiHeadSelfAttention(config0)
 
-        config1 = DebertaConfig(hidden_size=66, num_attention_heads=11, intermediate_size=46)
-        self.attn1 = DebertaAttention(config1)
+        config1 = DistilBertConfig(dim=66, n_heads=11)
+        self.attn1 = DistilBertSdpaAttention(config1)
 
     def forward(self, x, y, mask0, mask1):
-        out0 = self.attn0(x, mask0, output_attentions=True, query_states=None, relative_pos=None, rel_embeddings=None)
-        out1 = self.attn1(y, mask1, output_attentions=True, query_states=None, relative_pos=None, rel_embeddings=None)
+        out0 = self.attn0(x, x, x, mask=mask0, head_mask=None, output_attentions=True)
+        out1 = self.attn1(y, y, y, mask=mask1, head_mask=None, output_attentions=False)
         return out0[0], out1[0]
 
 def test():
@@ -46,25 +46,27 @@ def test():
     x = torch.rand(3, 16, 192)
     y = torch.rand(1, 5, 66)
 
-    mask0 = torch.rand(16, 16)
-    mask1 = torch.rand(5, 5)
+    mask0 = torch.rand(3, 16)
+    mask1 = torch.rand(1, 5)
 
     a = net(x, y, mask0, mask1)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, mask0, mask1))
-    mod.save("test_transformers_deberta_attention.pt")
+    mod.save("test_transformers_distilbert_attention.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_deberta_attention.pt inputshape=[3,16,192],[1,5,66],[16,16],[5,5]")
+    os.system("../src/pnnx test_transformers_distilbert_attention.pt inputshape=[3,16,192],[1,5,66],[3,16],[1,5]")
 
     # pnnx inference
-    import test_transformers_deberta_attention_pnnx
-    b = test_transformers_deberta_attention_pnnx.test_inference()
+    import test_transformers_distilbert_attention_pnnx
+    b = test_transformers_distilbert_attention_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            print(a0)
+            print(b0)
             return False
     return True
 

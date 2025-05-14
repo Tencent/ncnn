@@ -90,13 +90,55 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_distilbert_sdpa : public fuse_transformers_sdpa
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+13 12
+pnnx.Input              input_0     0 1 query #query=(%batch,%num_heads,%qsize,%feat_per_head)f32
+pnnx.Input              input_1     0 1 key #key=(%batch,%num_heads,%kvsize,%feat_per_head)f32
+pnnx.Input              input_2     0 1 value #value=(%batch,%num_heads,%kvsize,%feat_per_head)f32
+pnnx.Input              input_3     0 1 input #input=(%batch,%kvsize)bool
+pnnx.Expression         op_0        1 1 query 13 expr=div(@0,%sqrt_embed_dim_per_head)
+torch.transpose         op_1        1 1 key 14 dim0=2 dim1=3
+torch.matmul            op_2        2 1 13 14 15
+Tensor.view             op_3        1 1 input 17 shape=(%batch,1,1,%kvsize)
+Tensor.expand_as        op_4        2 1 17 15 18
+Tensor.masked_fill      op_5        2 1 15 18 19 value=-3.402823e+38
+F.softmax               op_6        1 1 19 20 dim=-1
+torch.matmul            op_7        2 1 20 value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 input
+torch.bitwise_not       sdpa_0      1 1 input 16
+Tensor.view             sdpa_1      1 1 16 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
+Tensor.expand           sdpa_2      1 1 17 attn_mask shape=(%batch,%num_heads,%qsize,%kvsize) #attn_mask=(%batch,%num_heads,%qsize,%kvsize)bool
+F.scaled_dot_product_attention sdpa 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 void fuse_scaled_dot_product_attention(Graph& graph)
 {
 #if TORCH_VERSION_MAJOR >= 2
     fuse_transformers_deberta_sdpa a;
+    fuse_transformers_distilbert_sdpa b;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
+    pnnx_graph_rewrite(graph, &b, opindex);
 #endif
 }
 
