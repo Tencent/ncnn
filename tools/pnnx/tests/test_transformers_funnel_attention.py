@@ -20,41 +20,46 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers.models.fsmt.modeling_fsmt import Attention
+from transformers import FunnelConfig
+from transformers.models.funnel.modeling_funnel import FunnelRelMultiheadAttention, FunnelAttentionStructure
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.attn0 = Attention(embed_dim=192, num_heads=16)
-        self.attn1 = Attention(embed_dim=66, num_heads=11)
+        config = FunnelConfig(d_model=192, n_head=16, d_head=6, attention_type="relative_shift", separate_cls=False)
+        self.attn0_structure = FunnelAttentionStructure(config)
+        self.attn0 = FunnelRelMultiheadAttention(config, block_index=0)
 
-    def forward(self, x, y):
-        out0 = self.attn0(x, x, attn_mask=None)
-        out1 = self.attn1(y, y, attn_mask=None)
-        return out0[0], out1[0]
+    def forward(self, x, mask0):
+
+        attn_inputs = self.attn0_structure.init_attention_inputs(x, attention_mask=mask0, token_type_ids=None)
+
+        out0 = self.attn0(x, x, x, attention_inputs=attn_inputs, output_attentions=True)
+        return out0[0],
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(16, 3, 192)
-    y = torch.rand(5, 1, 66)
+    x = torch.rand(3, 16, 192)
 
-    a = net(x, y)
+    mask0 = torch.rand(3, 16)
+
+    a = net(x, mask0)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_transformers_fsmt_attention.pt")
+    mod = torch.jit.trace(net, (x, mask0))
+    mod.save("test_transformers_funnel_attention.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_fsmt_attention.pt inputshape=[16,3,192],[5,1,66]")
+    os.system("../src/pnnx test_transformers_funnel_attention.pt inputshape=[3,16,192],[3,16]")
 
     # pnnx inference
-    import test_transformers_fsmt_attention_pnnx
-    b = test_transformers_fsmt_attention_pnnx.test_inference()
+    import test_transformers_funnel_attention_pnnx
+    b = test_transformers_funnel_attention_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
