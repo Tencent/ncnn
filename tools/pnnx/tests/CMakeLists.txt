@@ -378,6 +378,7 @@ pnnx_add_test(transformers_deberta_attention)
 pnnx_add_test(transformers_distilbert_attention)
 pnnx_add_test(transformers_electra_attention)
 pnnx_add_test(transformers_flaubert_attention)
+pnnx_add_test(transformers_fsmt_attention)
 # pnnx_add_test(transformers_t5_attention)
 
 add_subdirectory(ncnn)

@@ -44,7 +44,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.MultiheadAttention   attention   1 1 input out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False
+nn.MultiheadAttention   attention   1 1 input out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim batch_first=True add_zero_attn=False add_bias_kv=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -52,10 +52,23 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const int embed_dim = captured_params.at("embed_dim").i;
-        const int num_heads = captured_params.at("num_heads").i;
-        const int feat_per_head = captured_params.at("feat_per_head").i;
-        if (embed_dim != num_heads * feat_per_head)
-            return false;
+
+        int num_heads;
+        if (captured_params.find("num_heads") != captured_params.end())
+        {
+            num_heads = captured_params.at("num_heads").i;
+            if (captured_params.find("feat_per_head") != captured_params.end())
+            {
+                const int feat_per_head = captured_params.at("feat_per_head").i;
+                if (embed_dim != num_heads * feat_per_head)
+                    return false;
+            }
+        }
+        else // if (captured_params.find("feat_per_head") != captured_params.end())
+        {
+            const int feat_per_head = captured_params.at("feat_per_head").i;
+            num_heads = embed_dim / feat_per_head;
+        }
 
         if (captured_params.find("batch") != captured_params.end() && captured_params.find("batch_mul_num_heads") != captured_params.end())
         {
@@ -65,15 +78,17 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (captured_params.find("sqrt_feat_per_head") != captured_params.end())
+        if (captured_params.find("sqrt_feat_per_head") != captured_params.end() && captured_params.find("feat_per_head") != captured_params.end())
         {
+            const int feat_per_head = captured_params.at("feat_per_head").i;
             const float sqrt_feat_per_head = captured_params.at("sqrt_feat_per_head").f;
             if (!NearlyEqual(sqrt_feat_per_head, sqrt(feat_per_head), 0.001))
                 return false;
         }
 
-        if (captured_params.find("inv_sqrt_embed_dim_per_head") != captured_params.end())
+        if (captured_params.find("inv_sqrt_embed_dim_per_head") != captured_params.end() && captured_params.find("feat_per_head") != captured_params.end())
         {
+            const int feat_per_head = captured_params.at("feat_per_head").i;
             const float inv_sqrt_embed_dim_per_head = captured_params.at("inv_sqrt_embed_dim_per_head").f;
             if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(feat_per_head), 0.001))
                 return false;
@@ -97,6 +112,19 @@ pnnx.Output             output      1 0 out
         Operator* op = ops.at("attention");
 
         const int embed_dim = captured_params.at("embed_dim").i;
+
+        int num_heads;
+        if (captured_params.find("num_heads") != captured_params.end())
+        {
+            num_heads = captured_params.at("num_heads").i;
+        }
+        else // if (captured_params.find("feat_per_head") != captured_params.end())
+        {
+            const int feat_per_head = captured_params.at("feat_per_head").i;
+            num_heads = embed_dim / feat_per_head;
+        }
+        op->params["num_heads"] = num_heads;
+
         const bool qbias = captured_params.at("qbias").b;
         const bool kbias = captured_params.at("kbias").b;
         const bool vbias = captured_params.at("vbias").b;
@@ -175,7 +203,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 attn_mask
-nn.MultiheadAttention   attention   2 1 input attn_mask out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+nn.MultiheadAttention   attention   2 1 input attn_mask out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -370,7 +398,45 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_transformers_flaubert_attention : public fuse_transformers_mask_attention
+class fuse_transformers_fsmt_attention : public fuse_transformers_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+19 18
+pnnx.Input              input       0 1 input
+nn.Linear               op_0        1 1 input 2 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 input 4 bias=%kbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 input 5 bias=%vbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Expression         op_3        1 1 2 3 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
+Tensor.reshape          op_4        1 1 3 6 shape=(%size,%batch_mul_num_heads,%feat_per_head)
+Tensor.reshape          op_5        1 1 4 8 shape=(%size,%batch_mul_num_heads,%feat_per_head)
+Tensor.reshape          op_6        1 1 5 10 shape=(%size,%batch_mul_num_heads,%feat_per_head)
+torch.transpose         op_7        1 1 6 7 dim0=0 dim1=1
+torch.transpose         op_8        1 1 8 9 dim0=0 dim1=1
+torch.transpose         op_9        1 1 10 11 dim0=0 dim1=1
+torch.transpose         op_10       1 1 9 12 dim0=1 dim1=2
+torch.bmm               op_11       2 1 7 12 13
+F.softmax               softmax     1 1 13 14 dim=%softmax_dim
+torch.bmm               op_13       2 1 14 11 15
+torch.transpose         op_14       1 1 15 16 dim0=0 dim1=1
+Tensor.reshape          op_15       1 1 16 17 shape=(%size,%batch,%embed_dim)
+nn.Linear               out_proj    1 1 17 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fuse_transformers_attention::write(ops, captured_params, captured_attrs);
+
+        Operator* op = ops.at("attention");
+        op->params["batch_first"] = false;
+    }
+};
+
+class fuse_transformers_flaubert_mask_attention : public fuse_transformers_mask_attention
 {
 public:
     const char* match_pattern_graph() const
@@ -440,7 +506,9 @@ void fuse_multiheadattention(Graph& graph)
     fuse_transformers_clip_attention y;
     fuse_transformers_chinese_clip_attention z;
     fuse_transformers_ctrl_attention c;
-    fuse_transformers_flaubert_attention d;
+    fuse_transformers_fsmt_attention d;
+
+    fuse_transformers_flaubert_mask_attention ma;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
@@ -450,6 +518,8 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &d, opindex);
     pnnx_graph_rewrite(graph, &y, opindex);
     pnnx_graph_rewrite(graph, &z, opindex);
+
+    pnnx_graph_rewrite(graph, &ma, opindex);
 #endif
 }
 
