@@ -74,7 +74,7 @@ static const char* type_to_numpy_string(int type)
     if (type == 6) return "int16";
     if (type == 7) return "int8";
     if (type == 8) return "uint8";
-    if (type == 9) return "bool8";
+    if (type == 9) return "bool";
     if (type == 10) return "csingle";
     if (type == 11) return "cdouble";
     if (type == 12) return "chalf";
