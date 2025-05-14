@@ -196,12 +196,13 @@ jobs:
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
         cmake --build . -j 8
+        zip -9 tools/pnnx/build/src/pnnx.zip tools/pnnx/build/src/pnnx
 
     - name: upload-pnnx
       uses: actions/upload-artifact@v4
       with:
         name: pnnx
-        path: tools/pnnx/build/src/pnnx
+        path: tools/pnnx/build/src/pnnx.zip
 
   test:
     needs: [build]
@@ -263,6 +264,7 @@ jobs:
       with:
         path: libtorch-${{ env.LIBTORCH_VERSION }}-install
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+        fail-on-cache-miss: true
 
     - name: cache-torchvision
       if: steps.local-cache-torchvision.outputs.cache-hit != 'true'
@@ -271,6 +273,7 @@ jobs:
       with:
         path: torchvision-${{ env.TORCHVISION_VERSION }}-install
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+        fail-on-cache-miss: true
 
     - name: cache-onnxruntime
       if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true'
@@ -279,6 +282,7 @@ jobs:
       with:
         path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+        fail-on-cache-miss: true
 
     - uses: actions/setup-python@v5
       with:
@@ -322,6 +326,7 @@ jobs:
     - name: test
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
+        unzip tools/pnnx/build/src/pnnx.zip -d tools/pnnx/build/src
         chmod +x tools/pnnx/build/src/pnnx
         export OMP_THREAD_LIMIT=1
         export OMP_NUM_THREADS=1
