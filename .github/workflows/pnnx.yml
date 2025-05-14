@@ -71,7 +71,29 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: local-cache-libtorch
+      id: local-cache-libtorch
+      uses: maxnowack/local-cache@v2
+      with:
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-torchvision
+      id: local-cache-torchvision
+      uses: maxnowack/local-cache@v2
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-onnxruntime
+      id: local-cache-onnxruntime
+      uses: maxnowack/local-cache@v2
+      with:
+        path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+        key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
     - name: cache-libtorch
+      if: steps.local-cache-libtorch.outputs.cache-hit != 'true'
       id: cache-libtorch
       uses: actions/cache@v4
       with:
@@ -79,6 +101,7 @@ jobs:
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-torchvision
+      if: steps.local-cache-torchvision.outputs.cache-hit != 'true'
       id: cache-torchvision
       uses: actions/cache@v4
       with:
@@ -86,6 +109,7 @@ jobs:
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-onnxruntime
+      if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true'
       id: cache-onnxruntime
       uses: actions/cache@v4
       with:
@@ -196,13 +220,13 @@ jobs:
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
         cmake --build . -j 8
-        zip -9 tools/pnnx/build/src/pnnx.zip tools/pnnx/build/src/pnnx
 
     - name: upload-pnnx
       uses: actions/upload-artifact@v4
       with:
         name: pnnx
-        path: tools/pnnx/build/src/pnnx.zip
+        path: tools/pnnx/build/src/pnnx
+        compression-level: 9
 
   test:
     needs: [build]
@@ -326,7 +350,6 @@ jobs:
     - name: test
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
-        unzip tools/pnnx/build/src/pnnx.zip -d tools/pnnx/build/src
         chmod +x tools/pnnx/build/src/pnnx
         export OMP_THREAD_LIMIT=1
         export OMP_NUM_THREADS=1
