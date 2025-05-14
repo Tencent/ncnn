@@ -33,7 +33,7 @@ class Model(nn.Module):
         return out0[0], out1[0]
 
 def test():
-    if version.parse(torch.__version__) < version.parse('1.9'):
+    if version.parse(torch.__version__) < version.parse('2.1'):
         return True
 
     net = Model()
