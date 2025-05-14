@@ -17,6 +17,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+if version.parse(torch.__version__) < version.parse('2.1'):
+    exit(0)
+
 from transformers import BertGenerationConfig
 from transformers.models.bert_generation.modeling_bert_generation import BertGenerationAttention
 
@@ -36,9 +39,6 @@ class Model(nn.Module):
         return out0[0], out1[0]
 
 def test():
-    if version.parse(torch.__version__) < version.parse('2.1'):
-        return True
-
     net = Model()
     net.eval()
 

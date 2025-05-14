@@ -17,6 +17,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+if version.parse(torch.__version__) < version.parse('2.1'):
+    exit(0)
+
 from transformers import CLIPTextConfig, CLIPVisionConfig
 from transformers.models.clip.modeling_clip import CLIPAttention
 
@@ -40,9 +43,6 @@ class Model(nn.Module):
         return out0, out1, out2
 
 def test():
-    if version.parse(torch.__version__) < version.parse('2.1'):
-        return True
-
     net = Model()
     net.eval()
 
