@@ -220,7 +220,7 @@ jobs:
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
         cmake --build . -j 8
-        strip tools/pnnx/build/src/pnnx
+        strip src/pnnx
 
     - name: upload-pnnx
       uses: actions/upload-artifact@v4
