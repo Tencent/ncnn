@@ -117,14 +117,14 @@ jobs:
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: pnnx-patches
-      if: steps.cache-libtorch.outputs.cache-hit != 'true' || steps.cache-torchvision.outputs.cache-hit != 'true' || steps.cache-onnxruntime.outputs.cache-hit != 'true'
+      if: (steps.local-cache-libtorch.outputs.cache-hit != 'true' && steps.cache-libtorch.outputs.cache-hit != 'true') || (steps.local-cache-torchvision.outputs.cache-hit != 'true' && steps.cache-torchvision.outputs.cache-hit != 'true') || (steps.local-cache-onnxruntime.outputs.cache-hit != 'true' && steps.cache-onnxruntime.outputs.cache-hit != 'true')
       uses: actions/checkout@v4
       with:
         repository: pnnx/pnnx
         path: pnnx-patches
 
     - name: libtorch
-      if: steps.cache-libtorch.outputs.cache-hit != 'true'
+      if: steps.local-cache-libtorch.outputs.cache-hit != 'true' && steps.cache-libtorch.outputs.cache-hit != 'true'
       run: |
         wget -q https://github.com/pytorch/pytorch/releases/download/v${{ env.LIBTORCH_VERSION }}/pytorch-v${{ env.LIBTORCH_VERSION }}.tar.gz
         tar -xf pytorch-v${{ env.LIBTORCH_VERSION }}.tar.gz
@@ -159,7 +159,7 @@ jobs:
         cmake --build . -j 8 --target install/strip
 
     - name: torchvision
-      if: steps.cache-torchvision.outputs.cache-hit != 'true'
+      if: steps.local-cache-torchvision.outputs.cache-hit != 'true' && steps.cache-torchvision.outputs.cache-hit != 'true'
       run: |
         wget -q https://github.com/pytorch/vision/archive/v${{ env.TORCHVISION_VERSION }}.zip -O vision-${{ env.TORCHVISION_VERSION }}.zip
         unzip -q vision-${{ env.TORCHVISION_VERSION }}.zip
@@ -176,7 +176,7 @@ jobs:
         cmake --build . -j 8 --target install/strip
 
     - name: onnxruntime
-      if: steps.cache-onnxruntime.outputs.cache-hit != 'true'
+      if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
       run: |
         wget -q https://github.com/protocolbuffers/protobuf/archive/v${{ env.PROTOBUF_VERSION }}.zip -O protobuf-${{ env.PROTOBUF_VERSION }}.zip
         unzip -q protobuf-${{ env.PROTOBUF_VERSION }}.zip
