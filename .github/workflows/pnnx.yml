@@ -266,6 +266,7 @@ jobs:
         pip3 install --user pytest wheel twine requests einops numpy==${{ matrix.numpy }}
         pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user onnx onnxscript
+        pip3 install --user transformers diffusers
 
     - name: setup-pytorch-execstack-or-patchelf
       if: ${{ matrix.python }} == '3.8' || ${{ matrix.python }} == '3.9'

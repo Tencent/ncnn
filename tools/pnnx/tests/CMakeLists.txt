@@ -365,6 +365,16 @@ pnnx_add_test(torchaudio_F_spectrogram)
 pnnx_add_test(torchaudio_InverseSpectrogram)
 pnnx_add_test(torchaudio_Spectrogram)
 
+pnnx_add_test(transformers_albert_attention)
+pnnx_add_test(transformers_bart_attention)
+pnnx_add_test(transformers_bert_attention)
+pnnx_add_test(transformers_bert_generation_attention)
+pnnx_add_test(transformers_blenderbot_attention)
+pnnx_add_test(transformers_camembert_attention)
+pnnx_add_test(transformers_clip_attention)
+pnnx_add_test(transformers_chinese_clip_attention)
+# pnnx_add_test(transformers_t5_attention)
+
 add_subdirectory(ncnn)
 
 if(onnxruntime_FOUND)
