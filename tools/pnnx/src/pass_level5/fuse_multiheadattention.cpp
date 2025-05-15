@@ -326,6 +326,23 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_cross_mask_attention : public fuse_transformers_cross_attention
+{
+public:
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+pnnx.Input              input_m     0 1 attn_mask
+nn.MultiheadAttention   attention   4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 class fuse_transformers_albert_attention : public fuse_transformers_attention
 {
 public:
@@ -765,6 +782,72 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_xlm_cross_mask_attention : public fuse_transformers_cross_mask_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+25 24
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 mask
+nn.Linear               op_0        1 1 query 5 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 key 8 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 value 11 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
+Tensor.view             op_3        1 1 5 6 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.view             op_4        1 1 8 9 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 11 12 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+torch.transpose         op_6        1 1 6 7 dim0=1 dim1=2
+torch.transpose         op_7        1 1 9 10 dim0=1 dim1=2
+torch.transpose         op_8        1 1 12 13 dim0=1 dim1=2
+pnnx.Expression         op_9        1 1 7 14 expr=div(@0,%sqrt_feat_per_head)
+torch.transpose         op_10       1 1 10 15 dim0=2 dim1=3
+torch.matmul            op_11       2 1 14 15 16
+Tensor.view             op_12       1 1 mask 18 shape=(%batch,1,1,%qsize)
+Tensor.expand_as        op_13       2 1 18 16 19
+Tensor.masked_fill      op_14       2 1 16 19 20 value=-3.402823e+38
+F.softmax               softmax     1 1 20 21 dim=%softmax_dim
+torch.matmul            op_16       2 1 21 13 22
+torch.transpose         op_17       1 1 22 23 dim0=1 dim1=2
+Tensor.reshape          op_18       1 1 23 24 shape=(%batch,%qsize,%embed_dim)
+nn.Linear               out_proj    1 1 24 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 mask
+Tensor.view             attention_0 1 1 mask 17 shape=(%batch,1,1,%qsize) #17=(%batch,1,1,%qsize)bool
+Tensor.expand           attention_1 1 1 17 18 shape=(%batch,%num_heads,%kvsize,%qsize) #18=(%batch,%num_heads,%kvsize,%qsize)bool
+Tensor.reshape          attention_2 1 1 18 attn_mask
+nn.MultiheadAttention   attention   4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fuse_transformers_cross_mask_attention::write(ops, captured_params, captured_attrs);
+
+        const int batch = captured_params.at("batch").i;
+        const int num_heads = captured_params.at("num_heads").i;
+        const int kvsize = captured_params.at("kvsize").i;
+        const int qsize = captured_params.at("qsize").i;
+
+        // set attn_mask shape
+        Operator* reshape = ops.at("attention_2");
+        reshape->params["shape"] = std::vector<int>{batch * num_heads, kvsize, qsize};
+    }
+};
+
 void fuse_multiheadattention(Graph& graph)
 {
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
@@ -782,6 +865,9 @@ void fuse_multiheadattention(Graph& graph)
 
     fuse_transformers_flaubert_mask_attention ma;
     fuse_transformers_prophet_mask_attention me;
+
+    fuse_transformers_xlm_cross_mask_attention cma;
+
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
@@ -799,6 +885,8 @@ void fuse_multiheadattention(Graph& graph)
 
     pnnx_graph_rewrite(graph, &ma, opindex);
     pnnx_graph_rewrite(graph, &me, opindex);
+
+    pnnx_graph_rewrite(graph, &cma, opindex);
 #endif
 }
 
