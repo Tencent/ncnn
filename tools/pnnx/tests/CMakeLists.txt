@@ -382,6 +382,7 @@ pnnx_add_test(transformers_fsmt_attention)
 pnnx_add_test(transformers_funnel_attention)
 pnnx_add_test(transformers_gpt2_attention)
 pnnx_add_test(transformers_layoutlm_attention)
+pnnx_add_test(transformers_longformer_attention)
 # pnnx_add_test(transformers_t5_attention)
 
 add_subdirectory(ncnn)

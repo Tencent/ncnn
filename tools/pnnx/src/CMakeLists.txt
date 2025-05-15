@@ -213,6 +213,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_arange.cpp
     pass_level2/torch_argmax.cpp
     pass_level2/torch_argmin.cpp
+    pass_level2/torch_as_strided.cpp
     pass_level2/torch_baddbmm.cpp
     pass_level2/torch_bmm.cpp
     pass_level2/torch_bitwise_not.cpp
