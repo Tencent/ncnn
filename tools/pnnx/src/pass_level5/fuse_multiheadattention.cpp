@@ -194,6 +194,123 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_cross_attention : public fuse_transformers_attention
+{
+public:
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+nn.MultiheadAttention   attention   3 1 query key value out embed_dim=%embed_dim kdim=%kdim vdim=%vdim batch_first=True add_zero_attn=False add_bias_kv=False
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
+
+        Operator* op = ops.at("attention");
+
+        const int embed_dim = captured_params.at("embed_dim").i;
+
+        int num_heads;
+        if (captured_params.find("num_heads") != captured_params.end())
+        {
+            num_heads = captured_params.at("num_heads").i;
+        }
+        else // if (captured_params.find("feat_per_head") != captured_params.end())
+        {
+            const int feat_per_head = captured_params.at("feat_per_head").i;
+            num_heads = embed_dim / feat_per_head;
+        }
+        op->params["num_heads"] = num_heads;
+
+        const int kdim = captured_params.at("kdim").i;
+        const int vdim = captured_params.at("vdim").i;
+        const bool qbias = captured_params.at("qbias").b;
+        const bool kbias = captured_params.at("kbias").b;
+        const bool vbias = captured_params.at("vbias").b;
+        const bool outbias = captured_params.at("outbias").b;
+        const bool bias = qbias || kbias || vbias || outbias;
+        const bool same_qkv_dim = (embed_dim == kdim && embed_dim == vdim);
+
+        op->params["bias"] = bias;
+
+        if (same_qkv_dim)
+        {
+            // same qkv dim, merge into in_proj_weight
+            op->attrs["in_proj_weight"] = captured_attrs.at("op_0.weight") + captured_attrs.at("op_1.weight") + captured_attrs.at("op_2.weight");
+        }
+        else
+        {
+            op->attrs["q_proj_weight"] = captured_attrs.at("op_0.weight");
+            op->attrs["k_proj_weight"] = captured_attrs.at("op_1.weight");
+            op->attrs["v_proj_weight"] = captured_attrs.at("op_2.weight");
+        }
+
+        op->attrs["out_proj.weight"] = captured_attrs.at("out_proj.weight");
+
+        if (bias)
+        {
+            op->attrs["in_proj_bias"] = Attribute();
+            op->attrs["in_proj_bias"].type = same_qkv_dim ? op->attrs["in_proj_weight"].type : op->attrs["q_proj_weight"].type;
+            op->attrs["in_proj_bias"].shape = {embed_dim * 3};
+            // combine qkv bias
+            std::vector<float> in_proj_bias(embed_dim * 3);
+            {
+                float* in_proj_bias_ptr = (float*)in_proj_bias.data();
+                if (qbias)
+                {
+                    auto qb = captured_attrs.at("op_0.bias").get_float32_data();
+                    memcpy(in_proj_bias_ptr, (const void*)qb.data(), embed_dim * sizeof(float));
+                }
+                else
+                {
+                    memset(in_proj_bias_ptr, 0, embed_dim * sizeof(float));
+                }
+                in_proj_bias_ptr += embed_dim;
+                if (kbias)
+                {
+                    auto kb = captured_attrs.at("op_1.bias").get_float32_data();
+                    memcpy(in_proj_bias_ptr, (const void*)kb.data(), embed_dim * sizeof(float));
+                }
+                else
+                {
+                    memset(in_proj_bias_ptr, 0, embed_dim * sizeof(float));
+                }
+                in_proj_bias_ptr += embed_dim;
+                if (vbias)
+                {
+                    auto vb = captured_attrs.at("op_2.bias").get_float32_data();
+                    memcpy(in_proj_bias_ptr, (const void*)vb.data(), embed_dim * sizeof(float));
+                }
+                else
+                {
+                    memset(in_proj_bias_ptr, 0, embed_dim * sizeof(float));
+                }
+            }
+            op->attrs["in_proj_bias"].set_float32_data(in_proj_bias);
+
+            if (outbias)
+            {
+                op->attrs["out_proj.bias"] = captured_attrs.at("out_proj.bias");
+            }
+            else
+            {
+                // init bias as zero
+                op->attrs["out_proj.bias"] = Attribute();
+                op->attrs["out_proj.bias"].type = op->attrs["out_proj.weight"].type;
+                op->attrs["out_proj.bias"].shape = {embed_dim};
+                op->attrs["out_proj.bias"].set_float32_data(std::vector<float>(embed_dim, 0.f));
+            }
+        }
+    }
+};
+
 class fuse_transformers_mask_attention : public fuse_transformers_attention
 {
 public:
@@ -436,6 +553,38 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_lxmert_cross_attention : public fuse_transformers_cross_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+21 20
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+nn.Linear               op_0        1 1 query 6 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 key 7 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 value 8 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
+Tensor.view             op_3        1 1 6 9 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.view             op_4        1 1 7 11 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 8 13 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.permute          op_6        1 1 9 10 dims=(0,2,1,3)
+Tensor.permute          op_7        1 1 11 12 dims=(0,2,1,3)
+Tensor.permute          op_8        1 1 13 14 dims=(0,2,1,3)
+torch.transpose         op_9        1 1 12 15 dim0=-1 dim1=-2
+torch.matmul            op_10       2 1 10 15 16
+pnnx.Expression         op_11       1 1 16 17 expr=div(@0,%sqrt_feat_per_head)
+F.softmax               softmax     1 1 17 18 dim=%softmax_dim
+torch.matmul            op_13       2 1 18 14 19
+Tensor.permute          op_14       1 1 19 20 dims=(0,2,1,3)
+Tensor.reshape          op_15       1 1 20 21 shape=(%batch,%qsize,%embed_dim)
+nn.Linear               out_proj    1 1 21 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 class fuse_transformers_flaubert_mask_attention : public fuse_transformers_mask_attention
 {
 public:
@@ -508,6 +657,8 @@ void fuse_multiheadattention(Graph& graph)
     fuse_transformers_ctrl_attention c;
     fuse_transformers_fsmt_attention d;
 
+    fuse_transformers_lxmert_cross_attention ca;
+
     fuse_transformers_flaubert_mask_attention ma;
     int opindex = 0;
 
@@ -518,6 +669,8 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &d, opindex);
     pnnx_graph_rewrite(graph, &y, opindex);
     pnnx_graph_rewrite(graph, &z, opindex);
+
+    pnnx_graph_rewrite(graph, &ca, opindex);
 
     pnnx_graph_rewrite(graph, &ma, opindex);
 #endif
