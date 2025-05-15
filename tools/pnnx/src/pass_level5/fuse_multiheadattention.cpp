@@ -553,6 +553,36 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_prophet_attention : public fuse_transformers_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+19 18
+pnnx.Input              input       0 1 input
+nn.Linear               op_0        1 1 input 3 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 input 5 bias=%kbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 input 8 bias=%vbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Expression         op_3        1 1 3 4 expr=div(@0,%sqrt_feat_per_head)
+Tensor.view             op_4        1 1 5 6 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 8 9 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_6        1 1 4 11 shape=(%batch,%size,%num_heads,%feat_per_head)
+torch.transpose         op_7        1 1 6 7 dim0=1 dim1=2
+torch.transpose         op_8        1 1 9 10 dim0=1 dim1=2
+torch.transpose         op_9        1 1 11 12 dim0=1 dim1=2
+torch.transpose         op_10       1 1 7 13 dim0=2 dim1=3
+torch.einsum            op_11       2 1 12 13 14 equation=ijkm,ijml->ijkl
+F.softmax               softmax     1 1 14 15 dim=%softmax_dim
+torch.einsum            op_13       2 1 15 10 16 equation=ijkm,ijml->ijkl
+torch.transpose         op_14       1 1 16 17 dim0=1 dim1=2
+Tensor.reshape          op_15       1 1 17 18 shape=(%batch,%size,%embed_dim)
+nn.Linear               out_proj    1 1 18 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 class fuse_transformers_lxmert_cross_attention : public fuse_transformers_cross_attention
 {
 public:
@@ -646,6 +676,64 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_prophet_mask_attention : public fuse_transformers_mask_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+23 22
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 mask #mask=(%batch,%num_heads,1,%size)f32
+nn.Linear               op_0        1 1 input 4 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 input 6 bias=%kbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 input 9 bias=%vbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Expression         op_3        1 1 4 5 expr=div(@0,%sqrt_feat_per_head)
+Tensor.view             op_4        1 1 6 7 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 9 10 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_6        1 1 5 12 shape=(%batch,%size,%num_heads,%feat_per_head)
+torch.transpose         op_7        1 1 7 8 dim0=1 dim1=2
+torch.transpose         op_8        1 1 10 11 dim0=1 dim1=2
+torch.transpose         op_9        1 1 12 13 dim0=1 dim1=2
+torch.transpose         op_10       1 1 8 14 dim0=2 dim1=3
+torch.einsum            op_11       2 1 13 14 15 equation=ijkm,ijml->ijkl
+pnnx.Expression         op_12       2 1 15 mask 16 expr=add(@0,@1)
+F.softmax               softmax     1 1 16 17 dim=%softmax_dim
+torch.einsum            op_14       2 1 17 11 18 equation=ijkm,ijml->ijkl
+torch.transpose         op_15       1 1 18 19 dim0=1 dim1=2
+Tensor.reshape          op_16       1 1 19 20 shape=(%batch,%size,%embed_dim)
+nn.Linear               out_proj    1 1 20 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 mask
+Tensor.expand           attention_0 1 1 mask 18 shape=(%batch,%num_heads,%size,%size) #18=(%batch,%num_heads,%size,%size)f32
+Tensor.reshape          attention_1 1 1 18 attn_mask
+nn.MultiheadAttention   attention   2 1 input attn_mask out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fuse_transformers_mask_attention::write(ops, captured_params, captured_attrs);
+
+        const int batch = captured_params.at("batch").i;
+        const int num_heads = captured_params.at("num_heads").i;
+        const int size = captured_params.at("size").i;
+
+        // set attn_mask shape
+        Operator* reshape = ops.at("attention_1");
+        reshape->params["shape"] = std::vector<int>{batch * num_heads, size, size};
+    }
+};
+
 void fuse_multiheadattention(Graph& graph)
 {
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
@@ -656,10 +744,12 @@ void fuse_multiheadattention(Graph& graph)
     fuse_transformers_chinese_clip_attention z;
     fuse_transformers_ctrl_attention c;
     fuse_transformers_fsmt_attention d;
+    fuse_transformers_prophet_attention e;
 
     fuse_transformers_lxmert_cross_attention ca;
 
     fuse_transformers_flaubert_mask_attention ma;
+    fuse_transformers_prophet_mask_attention me;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
@@ -667,12 +757,15 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &b2, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &d, opindex);
+    pnnx_graph_rewrite(graph, &e, opindex);
+
     pnnx_graph_rewrite(graph, &y, opindex);
     pnnx_graph_rewrite(graph, &z, opindex);
 
     pnnx_graph_rewrite(graph, &ca, opindex);
 
     pnnx_graph_rewrite(graph, &ma, opindex);
+    pnnx_graph_rewrite(graph, &me, opindex);
 #endif
 }
 

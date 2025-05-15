@@ -390,6 +390,7 @@ pnnx_add_test(transformers_mobilebert_attention)
 pnnx_add_test(transformers_mt5_attention)
 pnnx_add_test(transformers_openai_attention)
 pnnx_add_test(transformers_pegasus_attention)
+pnnx_add_test(transformers_prophetnet_attention)
 pnnx_add_test(transformers_t5_attention)
 
 add_subdirectory(ncnn)
