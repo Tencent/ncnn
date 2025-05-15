@@ -583,6 +583,37 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_reformer_attention : public fuse_transformers_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+20 19
+pnnx.Input              input       0 1 input
+nn.Linear               op_0        1 1 input 4 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 input 5 bias=%kbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 input 6 bias=%vbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+Tensor.view             op_3        1 1 4 7 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_4        1 1 5 9 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 6 11 shape=(%batch,%size,%num_heads,%feat_per_head)
+torch.transpose         op_6        1 1 7 8 dim0=2 dim1=1
+torch.transpose         op_7        1 1 9 10 dim0=2 dim1=1
+torch.transpose         op_8        1 1 11 12 dim0=2 dim1=1
+pnnx.Expression         op_9        1 1 10 13 expr=div(@0,%sqrt_feat_per_head)
+torch.transpose         op_10       1 1 13 14 dim0=-1 dim1=-2
+torch.matmul            op_11       2 1 8 14 15
+torch.logsumexp         softmax     1 1 15 16 dim=(%softmax_dim) keepdim=True
+pnnx.Expression         op_13       2 1 15 16 17 expr=exp(sub(@0,@1))
+torch.matmul            op_14       2 1 17 12 18
+Tensor.permute          op_15       1 1 18 19 dims=(0,2,1,3)
+Tensor.reshape          op_16       1 1 19 20 shape=(%batch,%size,%embed_dim)
+nn.Linear               out_proj    1 1 20 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 class fuse_transformers_lxmert_cross_attention : public fuse_transformers_cross_attention
 {
 public:
@@ -745,6 +776,7 @@ void fuse_multiheadattention(Graph& graph)
     fuse_transformers_ctrl_attention c;
     fuse_transformers_fsmt_attention d;
     fuse_transformers_prophet_attention e;
+    fuse_transformers_reformer_attention f;
 
     fuse_transformers_lxmert_cross_attention ca;
 
@@ -758,6 +790,7 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &d, opindex);
     pnnx_graph_rewrite(graph, &e, opindex);
+    pnnx_graph_rewrite(graph, &f, opindex);
 
     pnnx_graph_rewrite(graph, &y, opindex);
     pnnx_graph_rewrite(graph, &z, opindex);
