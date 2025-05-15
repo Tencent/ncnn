@@ -396,6 +396,7 @@ pnnx_add_test(transformers_roberta_attention)
 pnnx_add_test(transformers_squeezebert_attention)
 pnnx_add_test(transformers_t5_attention)
 pnnx_add_test(transformers_xlm_attention)
+pnnx_add_test(transformers_xlm_roberta_attention)
 
 add_subdirectory(ncnn)
 
