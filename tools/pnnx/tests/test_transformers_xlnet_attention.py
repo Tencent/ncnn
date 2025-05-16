@@ -30,6 +30,17 @@ class Model(nn.Module):
         config0 = XLNetConfig(d_model=192, n_head=12, d_head=16)
         self.attn0 = XLNetRelativeAttention(config0)
 
+        torch.nn.init.xavier_uniform_(self.attn0.q)
+        torch.nn.init.xavier_uniform_(self.attn0.k)
+        torch.nn.init.xavier_uniform_(self.attn0.v)
+        torch.nn.init.xavier_uniform_(self.attn0.o)
+        torch.nn.init.xavier_uniform_(self.attn0.r)
+
+        torch.nn.init.xavier_uniform_(self.attn0.r_r_bias)
+        torch.nn.init.xavier_uniform_(self.attn0.r_s_bias)
+        torch.nn.init.xavier_uniform_(self.attn0.r_w_bias)
+        torch.nn.init.xavier_uniform_(self.attn0.seg_embed)
+
     def forward(self, x, r, mask0):
 
         mask0 = torch.zeros_like(mask0)
