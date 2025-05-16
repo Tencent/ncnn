@@ -47,7 +47,7 @@ pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 attn_mask
-F.scaled_dot_product_attention sdpa 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False
+F.scaled_dot_product_attention sdpa_ht 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -124,7 +124,7 @@ pnnx.Input              input_3     0 1 input
 torch.bitwise_not       sdpa_0      1 1 input 16
 Tensor.view             sdpa_1      1 1 16 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
 Tensor.expand           sdpa_2      1 1 17 attn_mask shape=(%batch,%num_heads,%qsize,%kvsize) #attn_mask=(%batch,%num_heads,%qsize,%kvsize)bool
-F.scaled_dot_product_attention sdpa 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask
+F.scaled_dot_product_attention sdpa_ht 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

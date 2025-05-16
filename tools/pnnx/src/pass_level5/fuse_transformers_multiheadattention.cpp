@@ -44,7 +44,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.MultiheadAttention   attention   1 1 input out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim batch_first=True add_zero_attn=False add_bias_kv=False
+nn.MultiheadAttention   attn_ht     1 1 input out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim batch_first=True add_zero_attn=False add_bias_kv=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -109,7 +109,7 @@ pnnx.Output             output      1 0 out
     {
         GraphRewriterPass::write(ops, captured_params, captured_attrs);
 
-        Operator* op = ops.at("attention");
+        Operator* op = ops.at("attn_ht");
 
         const int embed_dim = captured_params.at("embed_dim").i;
 
@@ -204,7 +204,7 @@ public:
 pnnx.Input              input_q     0 1 query
 pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
-nn.MultiheadAttention   attention   3 1 query key value out embed_dim=%embed_dim kdim=%kdim vdim=%vdim batch_first=True add_zero_attn=False add_bias_kv=False
+nn.MultiheadAttention   attn_ht     3 1 query key value out embed_dim=%embed_dim kdim=%kdim vdim=%vdim batch_first=True add_zero_attn=False add_bias_kv=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -213,7 +213,7 @@ pnnx.Output             output      1 0 out
     {
         GraphRewriterPass::write(ops, captured_params, captured_attrs);
 
-        Operator* op = ops.at("attention");
+        Operator* op = ops.at("attn_ht");
 
         const int embed_dim = captured_params.at("embed_dim").i;
 
@@ -320,7 +320,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 attn_mask
-nn.MultiheadAttention   attention   2 1 input attn_mask out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+nn.MultiheadAttention   attn_ht     2 1 input attn_mask out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -337,7 +337,7 @@ pnnx.Input              input_q     0 1 query
 pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 attn_mask
-nn.MultiheadAttention   attention   4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -579,7 +579,7 @@ pnnx.Output             output      1 0 out
     {
         fuse_transformers_cross_attention::write(ops, captured_params, captured_attrs);
 
-        Operator* op = ops.at("attention");
+        Operator* op = ops.at("attn_ht");
         op->params["batch_first"] = false;
     }
 };
@@ -692,10 +692,10 @@ pnnx.Input              input_q     0 1 query
 pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask
-Tensor.view             attention_0 1 1 mask 17 shape=(%batch,1,%kvsize,%qsize) #17=(%batch,1,%kvsize,%qsize)bool
-Tensor.expand           attention_1 1 1 17 18 shape=(%batch,%num_heads,%kvsize,%qsize) #18=(%batch,%num_heads,%kvsize,%qsize)bool
-Tensor.reshape          attention_2 1 1 18 attn_mask
-nn.MultiheadAttention   attention   4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+Tensor.view             attn_ht_0   1 1 mask 17 shape=(%batch,1,%kvsize,%qsize) #17=(%batch,1,%kvsize,%qsize)bool
+Tensor.expand           attn_ht_1   1 1 17 18 shape=(%batch,%num_heads,%kvsize,%qsize) #18=(%batch,%num_heads,%kvsize,%qsize)bool
+Tensor.reshape          attn_ht_2   1 1 18 attn_mask
+nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -710,7 +710,7 @@ pnnx.Output             output      1 0 out
         const int kvsize = captured_params.at("kvsize").i;
 
         // set attn_mask shape
-        Operator* reshape = ops.at("attention_2");
+        Operator* reshape = ops.at("attn_ht_2");
         reshape->params["shape"] = std::vector<int>{batch * num_heads, kvsize, qsize};
     }
 };
@@ -756,9 +756,9 @@ pnnx.Input              input_q     0 1 query
 pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask
-Tensor.expand           attention_0 1 1 mask 18 shape=(%batch,%num_heads,%kvsize,%qsize) #18=(%batch,%num_heads,%kvsize,%qsize)f32
-Tensor.reshape          attention_1 1 1 18 attn_mask
-nn.MultiheadAttention   attention   4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+Tensor.expand           attn_ht_0   1 1 mask 18 shape=(%batch,%num_heads,%kvsize,%qsize) #18=(%batch,%num_heads,%kvsize,%qsize)f32
+Tensor.reshape          attn_ht_1   1 1 18 attn_mask
+nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -773,7 +773,7 @@ pnnx.Output             output      1 0 out
         const int kvsize = captured_params.at("kvsize").i;
 
         // set attn_mask shape
-        Operator* reshape = ops.at("attention_1");
+        Operator* reshape = ops.at("attn_ht_1");
         reshape->params["shape"] = std::vector<int>{batch * num_heads, kvsize, qsize};
     }
 };
@@ -821,10 +821,10 @@ pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 mask
-Tensor.view             attention_0 1 1 mask 17 shape=(%batch,1,1,%qsize) #17=(%batch,1,1,%qsize)bool
-Tensor.expand           attention_1 1 1 17 18 shape=(%batch,%num_heads,%kvsize,%qsize) #18=(%batch,%num_heads,%kvsize,%qsize)bool
-Tensor.reshape          attention_2 1 1 18 attn_mask
-nn.MultiheadAttention   attention   4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+Tensor.view             attn_ht_0   1 1 mask 17 shape=(%batch,1,1,%qsize) #17=(%batch,1,1,%qsize)bool
+Tensor.expand           attn_ht_1   1 1 17 18 shape=(%batch,%num_heads,%kvsize,%qsize) #18=(%batch,%num_heads,%kvsize,%qsize)bool
+Tensor.reshape          attn_ht_2   1 1 18 attn_mask
+nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -839,7 +839,7 @@ pnnx.Output             output      1 0 out
         const int qsize = captured_params.at("qsize").i;
 
         // set attn_mask shape
-        Operator* reshape = ops.at("attention_2");
+        Operator* reshape = ops.at("attn_ht_2");
         reshape->params["shape"] = std::vector<int>{batch * num_heads, kvsize, qsize};
     }
 };
