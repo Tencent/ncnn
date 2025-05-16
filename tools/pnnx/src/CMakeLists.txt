@@ -395,6 +395,8 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_static_linear.cpp
     pass_level5/fuse_static_prelu.cpp
     pass_level5/fuse_static_rmsnorm.cpp
+    pass_level5/fuse_transformers_multiheadattention.cpp
+    pass_level5/fuse_transformers_scaled_dot_product_attention.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
 )
