@@ -2223,7 +2223,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
                     bool scalar_as_tensor = false;
                     if ((op->type == "Tensor.index_put" && it.first == "values")
-                            || (op->type == "torch.where" && it.first == "input"))
+                            || (op->type == "torch.where" && it.first == "input")
+                            || (op->type == "torch.where" && it.first == "other"))
                     {
                         scalar_as_tensor = true;
                     }

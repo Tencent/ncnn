@@ -693,6 +693,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::size";
             }
 
+            if (op_type == "Einsum")
+            {
+                sim_op_type = "aten::einsum";
+            }
+
             // unaryop
             if (op_type == "Abs") sim_op_type = "aten::abs";
             if (op_type == "Acos") sim_op_type = "aten::acos";
@@ -1092,6 +1097,24 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 }
                 op->outputs.clear();
                 op->outputs.push_back(op1_in);
+            }
+
+            if (op_type == "Einsum")
+            {
+                // insert for einsum prim::ListConstruct
+                Operator* opm1 = pnnx_graph.new_operator_before("prim::ListConstruct", op->name + "_listconstruct", op);
+                Operand* opm1_out = pnnx_graph.new_operand(op->name + "_in");
+                opm1_out->producer = opm1;
+                opm1->outputs.push_back(opm1_out);
+                for (auto& x : op->inputs)
+                {
+                    opm1->inputs.push_back(x);
+                    x->remove_consumer(op);
+                    x->consumers.push_back(opm1);
+                }
+                opm1_out->consumers.push_back(op);
+                op->inputs.clear();
+                op->inputs.push_back(opm1_out);
             }
         }
         else if (is_prim_op)
