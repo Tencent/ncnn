@@ -2221,10 +2221,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
                     i++;
 
+                    bool scalar_as_tensor = false;
+                    if ((op->type == "Tensor.index_put" && it.first == "values")
+                        || (op->type == "torch.where" && it.first == "input"))
+                    {
+                        scalar_as_tensor = true;
+                    }
+
                     const Parameter& param = it.second;
                     if (param.type == 0)
                     {
-                        if (op->type == "Tensor.index_put" && it.first == "values")
+                        if (scalar_as_tensor)
                         {
                             fprintf(pyfp, "torch.tensor(False)");
                         }
@@ -2242,7 +2249,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     }
                     if (param.type == 2)
                     {
-                        if (op->type == "Tensor.index_put" && it.first == "values")
+                        if (scalar_as_tensor)
                         {
                             fprintf(pyfp, "torch.tensor(%d)", param.i);
                         }
@@ -2253,7 +2260,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     }
                     if (param.type == 3)
                     {
-                        if (op->type == "Tensor.index_put" && it.first == "values")
+                        if (scalar_as_tensor)
                         {
                             if (param.f == (int)param.f)
                                 fprintf(pyfp, "torch.tensor(%.1f)", param.f);
@@ -2274,7 +2281,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         {
                             fprintf(pyfp, "%s", param.s.c_str());
                         }
-                        else if (op->type == "Tensor.index_put" && it.first == "values")
+                        else if (scalar_as_tensor)
                         {
                             if (param.s == "inf" || param.s == "-inf")
                             {
