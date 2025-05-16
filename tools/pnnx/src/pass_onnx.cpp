@@ -718,6 +718,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Sqrt") sim_op_type = "aten::sqrt";
             if (op_type == "Tan") sim_op_type = "aten::tan";
             if (op_type == "Tanh") sim_op_type = "aten::tanh";
+            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
+            if (op_type == "Not") sim_op_type = "aten::logical_not";
 
             // binaryop
             if (op_type == "Add") sim_op_type = "aten::add";
@@ -733,12 +735,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Greater") sim_op_type = "aten::gt";
             if (op_type == "GreaterOrEqual") sim_op_type = "aten::ge";
             if (op_type == "BitwiseAnd") sim_op_type = "aten::bitwise_and";
-            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
             if (op_type == "BitwiseOr") sim_op_type = "aten::bitwise_or";
             if (op_type == "BitwiseXor") sim_op_type = "aten::bitwise_xor";
-            if (op_type == "And") sim_op_type = "aten::__and__";
-            if (op_type == "Or") sim_op_type = "aten::__or__";
-            if (op_type == "Xor") sim_op_type = "aten::__xor__";
+            if (op_type == "And") sim_op_type = "aten::logical_and";
+            if (op_type == "Or") sim_op_type = "aten::logical_or";
+            if (op_type == "Xor") sim_op_type = "aten::logical_xor";
             if (op_type == "Mod" && onnx2pnnx::OnnxNodeProxy(node).attribute("fmod").value_i() == 1) sim_op_type = "aten::fmod";
 
             // trinaryop
