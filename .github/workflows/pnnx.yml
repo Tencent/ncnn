@@ -71,7 +71,29 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: local-cache-libtorch
+      id: local-cache-libtorch
+      uses: maxnowack/local-cache@v2
+      with:
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-torchvision
+      id: local-cache-torchvision
+      uses: maxnowack/local-cache@v2
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-onnxruntime
+      id: local-cache-onnxruntime
+      uses: maxnowack/local-cache@v2
+      with:
+        path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+        key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
     - name: cache-libtorch
+      if: steps.local-cache-libtorch.outputs.cache-hit != 'true'
       id: cache-libtorch
       uses: actions/cache@v4
       with:
@@ -79,6 +101,7 @@ jobs:
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-torchvision
+      if: steps.local-cache-torchvision.outputs.cache-hit != 'true'
       id: cache-torchvision
       uses: actions/cache@v4
       with:
@@ -86,6 +109,7 @@ jobs:
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-onnxruntime
+      if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true'
       id: cache-onnxruntime
       uses: actions/cache@v4
       with:
@@ -93,14 +117,14 @@ jobs:
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: pnnx-patches
-      if: steps.cache-libtorch.outputs.cache-hit != 'true' || steps.cache-torchvision.outputs.cache-hit != 'true' || steps.cache-onnxruntime.outputs.cache-hit != 'true'
+      if: (steps.local-cache-libtorch.outputs.cache-hit != 'true' && steps.cache-libtorch.outputs.cache-hit != 'true') || (steps.local-cache-torchvision.outputs.cache-hit != 'true' && steps.cache-torchvision.outputs.cache-hit != 'true') || (steps.local-cache-onnxruntime.outputs.cache-hit != 'true' && steps.cache-onnxruntime.outputs.cache-hit != 'true')
       uses: actions/checkout@v4
       with:
         repository: pnnx/pnnx
         path: pnnx-patches
 
     - name: libtorch
-      if: steps.cache-libtorch.outputs.cache-hit != 'true'
+      if: steps.local-cache-libtorch.outputs.cache-hit != 'true' && steps.cache-libtorch.outputs.cache-hit != 'true'
       run: |
         wget -q https://github.com/pytorch/pytorch/releases/download/v${{ env.LIBTORCH_VERSION }}/pytorch-v${{ env.LIBTORCH_VERSION }}.tar.gz
         tar -xf pytorch-v${{ env.LIBTORCH_VERSION }}.tar.gz
@@ -135,7 +159,7 @@ jobs:
         cmake --build . -j 8 --target install/strip
 
     - name: torchvision
-      if: steps.cache-torchvision.outputs.cache-hit != 'true'
+      if: steps.local-cache-torchvision.outputs.cache-hit != 'true' && steps.cache-torchvision.outputs.cache-hit != 'true'
       run: |
         wget -q https://github.com/pytorch/vision/archive/v${{ env.TORCHVISION_VERSION }}.zip -O vision-${{ env.TORCHVISION_VERSION }}.zip
         unzip -q vision-${{ env.TORCHVISION_VERSION }}.zip
@@ -152,7 +176,7 @@ jobs:
         cmake --build . -j 8 --target install/strip
 
     - name: onnxruntime
-      if: steps.cache-onnxruntime.outputs.cache-hit != 'true'
+      if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
       run: |
         wget -q https://github.com/protocolbuffers/protobuf/archive/v${{ env.PROTOBUF_VERSION }}.zip -O protobuf-${{ env.PROTOBUF_VERSION }}.zip
         unzip -q protobuf-${{ env.PROTOBUF_VERSION }}.zip
@@ -196,12 +220,14 @@ jobs:
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
         cmake --build . -j 8
+        strip src/pnnx
 
     - name: upload-pnnx
       uses: actions/upload-artifact@v4
       with:
         name: pnnx
         path: tools/pnnx/build/src/pnnx
+        compression-level: 9
 
   test:
     needs: [build]
@@ -235,26 +261,53 @@ jobs:
       with:
         submodules: true
 
+    - name: local-cache-libtorch
+      id: local-cache-libtorch
+      uses: maxnowack/local-cache@v2
+      with:
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-torchvision
+      id: local-cache-torchvision
+      uses: maxnowack/local-cache@v2
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-onnxruntime
+      id: local-cache-onnxruntime
+      uses: maxnowack/local-cache@v2
+      with:
+        path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+        key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
     - name: cache-libtorch
+      if: steps.local-cache-libtorch.outputs.cache-hit != 'true'
       id: cache-libtorch
       uses: actions/cache/restore@v4
       with:
         path: libtorch-${{ env.LIBTORCH_VERSION }}-install
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+        fail-on-cache-miss: true
 
     - name: cache-torchvision
+      if: steps.local-cache-torchvision.outputs.cache-hit != 'true'
       id: cache-torchvision
       uses: actions/cache/restore@v4
       with:
         path: torchvision-${{ env.TORCHVISION_VERSION }}-install
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+        fail-on-cache-miss: true
 
     - name: cache-onnxruntime
+      if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true'
       id: cache-onnxruntime
       uses: actions/cache/restore@v4
       with:
         path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+        fail-on-cache-miss: true
 
     - uses: actions/setup-python@v5
       with:
@@ -266,6 +319,7 @@ jobs:
         pip3 install --user pytest wheel twine requests einops numpy==${{ matrix.numpy }}
         pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user onnx onnxscript
+        pip3 install --user transformers diffusers
 
     - name: setup-pytorch-execstack-or-patchelf
       if: ${{ matrix.python }} == '3.8' || ${{ matrix.python }} == '3.9'

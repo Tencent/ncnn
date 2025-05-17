@@ -693,6 +693,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::size";
             }
 
+            if (op_type == "Einsum")
+            {
+                sim_op_type = "aten::einsum";
+            }
+
             // unaryop
             if (op_type == "Abs") sim_op_type = "aten::abs";
             if (op_type == "Acos") sim_op_type = "aten::acos";
@@ -718,6 +723,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Sqrt") sim_op_type = "aten::sqrt";
             if (op_type == "Tan") sim_op_type = "aten::tan";
             if (op_type == "Tanh") sim_op_type = "aten::tanh";
+            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
+            if (op_type == "Not") sim_op_type = "aten::logical_not";
 
             // binaryop
             if (op_type == "Add") sim_op_type = "aten::add";
@@ -733,12 +740,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Greater") sim_op_type = "aten::gt";
             if (op_type == "GreaterOrEqual") sim_op_type = "aten::ge";
             if (op_type == "BitwiseAnd") sim_op_type = "aten::bitwise_and";
-            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
             if (op_type == "BitwiseOr") sim_op_type = "aten::bitwise_or";
             if (op_type == "BitwiseXor") sim_op_type = "aten::bitwise_xor";
-            if (op_type == "And") sim_op_type = "aten::__and__";
-            if (op_type == "Or") sim_op_type = "aten::__or__";
-            if (op_type == "Xor") sim_op_type = "aten::__xor__";
+            if (op_type == "And") sim_op_type = "aten::logical_and";
+            if (op_type == "Or") sim_op_type = "aten::logical_or";
+            if (op_type == "Xor") sim_op_type = "aten::logical_xor";
             if (op_type == "Mod" && onnx2pnnx::OnnxNodeProxy(node).attribute("fmod").value_i() == 1) sim_op_type = "aten::fmod";
 
             // trinaryop
@@ -1091,6 +1097,24 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 }
                 op->outputs.clear();
                 op->outputs.push_back(op1_in);
+            }
+
+            if (op_type == "Einsum")
+            {
+                // insert for einsum prim::ListConstruct
+                Operator* opm1 = pnnx_graph.new_operator_before("prim::ListConstruct", op->name + "_listconstruct", op);
+                Operand* opm1_out = pnnx_graph.new_operand(op->name + "_in");
+                opm1_out->producer = opm1;
+                opm1->outputs.push_back(opm1_out);
+                for (auto& x : op->inputs)
+                {
+                    opm1->inputs.push_back(x);
+                    x->remove_consumer(op);
+                    x->consumers.push_back(opm1);
+                }
+                opm1_out->consumers.push_back(op);
+                op->inputs.clear();
+                op->inputs.push_back(opm1_out);
             }
         }
         else if (is_prim_op)

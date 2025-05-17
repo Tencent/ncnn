@@ -34,21 +34,24 @@ void fuse_einsum_operands(Graph& graph)
             if (op->inputs.size() < 1)
                 continue;
 
-            if (op->inputs[1]->consumers.size() != 1)
+            Operand* operands = op->inputs.size() == 1 ? op->inputs[0] : op->inputs[1];
+
+            if (operands->consumers.size() != 1)
                 continue;
 
-            Operator* op2 = op->inputs[1]->producer;
+            Operator* op2 = operands->producer;
             if (op2->type != "prim::ListConstruct")
                 continue;
 
             matched = true;
 
-            op->inputs[1]->producer = 0;
-            op->inputs[1]->remove_consumer(op);
+            operands->producer = 0;
+            operands->remove_consumer(op);
 
             std::vector<Operand*> new_inputs;
             std::vector<std::string> new_inputnames;
 
+            if (op->inputs.size() > 1)
             {
                 new_inputs.push_back(op->inputs[0]);
                 new_inputnames.push_back(op->inputnames[0]);

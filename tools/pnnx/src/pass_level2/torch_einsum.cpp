@@ -48,7 +48,7 @@ public:
 pnnx.Input              input_0     0 1 equation
 pnnx.Input              input_1     0 1 operands
 pnnx.Input              input_2     0 1 path
-aten::einsum            op_1        3 1 equation operands path out
+aten::einsum            op_0        3 1 equation operands path out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -67,5 +67,26 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_einsum_1, 90)
+
+class torch_einsum_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 operands
+aten::einsum            op_0        1 1 operands out equation=%equation
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.einsum";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_einsum_onnx, 90)
 
 } // namespace pnnx
