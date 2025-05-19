@@ -20,22 +20,18 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers import LxmertConfig
-from transformers.models.lxmert.modeling_lxmert import LxmertSelfAttentionLayer, LxmertCrossAttentionLayer
+from transformers.models.pegasus.modeling_pegasus import PegasusAttention
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config0 = LxmertConfig(hidden_size=192, num_attention_heads=16)
-        self.attn0 = LxmertSelfAttentionLayer(config0)
+        self.attn0 = PegasusAttention(embed_dim=192, num_heads=12)
+        self.attn1 = PegasusAttention(embed_dim=66, num_heads=6)
 
-        config1 = LxmertConfig(hidden_size=66, num_attention_heads=6)
-        self.attn1 = LxmertCrossAttentionLayer(config1)
-
-    def forward(self, x, y, ctx):
-        out0 = self.attn0(x, attention_mask=None)
-        out1 = self.attn1(y, ctx_tensor=ctx, ctx_att_mask=None)
+    def forward(self, x, y):
+        out0 = self.attn0(x, attention_mask=None, key_value_states=None, past_key_value=None)
+        out1 = self.attn1(y, attention_mask=None, key_value_states=None, past_key_value=None)
         return out0[0], out1[0]
 
 def test():
@@ -45,21 +41,19 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(3, 16, 192)
     y = torch.rand(1, 5, 66)
-    ctx = torch.rand(1, 20, 66)
 
-    a = net(x, y, ctx)
+    a = net(x, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, ctx))
-    mod.save("test_transformers_lxmert_attention.pt")
+    # export onnx
+    torch.onnx.export(net, (x, y), "test_transformers_pegasus_attention.onnx")
 
-    # torchscript to pnnx
+    # onnx to pnnx
     import os
-    os.system("../src/pnnx test_transformers_lxmert_attention.pt inputshape=[3,16,192],[1,5,66],[1,20,66]")
+    os.system("../../src/pnnx test_transformers_pegasus_attention.onnx inputshape=[3,16,192],[1,5,66]")
 
     # pnnx inference
-    import test_transformers_lxmert_attention_pnnx
-    b = test_transformers_lxmert_attention_pnnx.test_inference()
+    import test_transformers_pegasus_attention_pnnx
+    b = test_transformers_pegasus_attention_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

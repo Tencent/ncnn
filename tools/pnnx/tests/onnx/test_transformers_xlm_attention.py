@@ -20,22 +20,22 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers import LxmertConfig
-from transformers.models.lxmert.modeling_lxmert import LxmertSelfAttentionLayer, LxmertCrossAttentionLayer
+from transformers import XLMConfig
+from transformers.models.xlm.modeling_xlm import MultiHeadAttention
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config0 = LxmertConfig(hidden_size=192, num_attention_heads=16)
-        self.attn0 = LxmertSelfAttentionLayer(config0)
+        config0 = XLMConfig(emb_dim=192, n_heads=12)
+        self.attn0 = MultiHeadAttention(n_heads=config0.n_heads, dim=config0.emb_dim, config=config0)
 
-        config1 = LxmertConfig(hidden_size=66, num_attention_heads=6)
-        self.attn1 = LxmertCrossAttentionLayer(config1)
+        config1 = XLMConfig(emb_dim=66, n_heads=6)
+        self.attn1 = MultiHeadAttention(n_heads=config1.n_heads, dim=config1.emb_dim, config=config1)
 
-    def forward(self, x, y, ctx):
-        out0 = self.attn0(x, attention_mask=None)
-        out1 = self.attn1(y, ctx_tensor=ctx, ctx_att_mask=None)
+    def forward(self, x, kv, y, mask0, mask1):
+        out0 = self.attn0(x, mask=mask0, kv=kv, cache=None, head_mask=None, output_attentions=True)
+        out1 = self.attn1(y, mask=mask1, kv=None, cache=None, head_mask=None, output_attentions=True)
         return out0[0], out1[0]
 
 def test():
@@ -44,22 +44,23 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(3, 16, 192)
-    y = torch.rand(1, 5, 66)
-    ctx = torch.rand(1, 20, 66)
+    kv = torch.rand(3, 16, 192)
+    y = torch.rand(2, 5, 66)
+    mask0 = torch.rand(3, 16)
+    mask1 = torch.rand(2, 5)
 
-    a = net(x, y, ctx)
+    a = net(x, kv, y, mask0, mask1)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, ctx))
-    mod.save("test_transformers_lxmert_attention.pt")
+    # export onnx
+    torch.onnx.export(net, (x, kv, y, mask0, mask1), "test_transformers_xlm_attention.onnx")
 
-    # torchscript to pnnx
+    # onnx to pnnx
     import os
-    os.system("../src/pnnx test_transformers_lxmert_attention.pt inputshape=[3,16,192],[1,5,66],[1,20,66]")
+    os.system("../../src/pnnx test_transformers_xlm_attention.onnx inputshape=[3,16,192],[3,16,192],[2,5,66],[3,16],[2,5]")
 
     # pnnx inference
-    import test_transformers_lxmert_attention_pnnx
-    b = test_transformers_lxmert_attention_pnnx.test_inference()
+    import test_transformers_xlm_attention_pnnx
+    b = test_transformers_xlm_attention_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

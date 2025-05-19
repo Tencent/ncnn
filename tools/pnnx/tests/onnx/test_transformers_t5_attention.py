@@ -20,23 +20,25 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers import LxmertConfig
-from transformers.models.lxmert.modeling_lxmert import LxmertSelfAttentionLayer, LxmertCrossAttentionLayer
+from transformers import T5Config
+from transformers.models.t5.modeling_t5 import T5Attention
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config0 = LxmertConfig(hidden_size=192, num_attention_heads=16)
-        self.attn0 = LxmertSelfAttentionLayer(config0)
+        config = T5Config(d_model=192, d_kv=64, num_heads=8)
+        self.attn = T5Attention(config, has_relative_attention_bias=True, layer_idx=0)
 
-        config1 = LxmertConfig(hidden_size=66, num_attention_heads=6)
-        self.attn1 = LxmertCrossAttentionLayer(config1)
+    def forward(self, x, mask):
 
-    def forward(self, x, y, ctx):
-        out0 = self.attn0(x, attention_mask=None)
-        out1 = self.attn1(y, ctx_tensor=ctx, ctx_att_mask=None)
-        return out0[0], out1[0]
+        batch_size = x.size(0)
+        seq_len = x.size(1)
+
+        cache_position = torch.arange(seq_len)
+
+        out0 = self.attn(x, mask=mask, position_bias=None, use_cache=False, query_length=seq_len, cache_position=cache_position)
+        return out0[0]
 
 def test():
     net = Model()
@@ -44,22 +46,20 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(3, 16, 192)
-    y = torch.rand(1, 5, 66)
-    ctx = torch.rand(1, 20, 66)
+    mask = torch.rand(3, 1, 16, 16)
 
-    a = net(x, y, ctx)
+    a = net(x, mask)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, ctx))
-    mod.save("test_transformers_lxmert_attention.pt")
+    # export onnx
+    torch.onnx.export(net, (x, mask), "test_transformers_t5_attention.onnx")
 
-    # torchscript to pnnx
+    # onnx to pnnx
     import os
-    os.system("../src/pnnx test_transformers_lxmert_attention.pt inputshape=[3,16,192],[1,5,66],[1,20,66]")
+    os.system("../../src/pnnx test_transformers_t5_attention.onnx inputshape=[3,16,192],[3,1,16,16]")
 
     # pnnx inference
-    import test_transformers_lxmert_attention_pnnx
-    b = test_transformers_lxmert_attention_pnnx.test_inference()
+    import test_transformers_t5_attention_pnnx
+    b = test_transformers_t5_attention_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
