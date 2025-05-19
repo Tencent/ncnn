@@ -31,6 +31,12 @@ class Model(nn.Module):
         self.attn0_structure = FunnelAttentionStructure(config)
         self.attn0 = FunnelRelMultiheadAttention(config, block_index=0)
 
+        torch.nn.init.xavier_uniform_(self.attn0.r_w_bias)
+        torch.nn.init.xavier_uniform_(self.attn0.r_kernel)
+        torch.nn.init.xavier_uniform_(self.attn0.r_r_bias)
+        torch.nn.init.xavier_uniform_(self.attn0.r_s_bias)
+        torch.nn.init.xavier_uniform_(self.attn0.seg_embed)
+
     def forward(self, x, mask0):
 
         attn_inputs = self.attn0_structure.init_attention_inputs(x, attention_mask=mask0, token_type_ids=None)
