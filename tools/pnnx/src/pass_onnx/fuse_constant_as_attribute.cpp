@@ -286,6 +286,11 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
                     continue;
                 }
             }
+            else
+            {
+                // tensor type, cannot fuse it as scalar attribute
+                continue;
+            }
 
             fused_input_indexes.push_back(j);
         }
