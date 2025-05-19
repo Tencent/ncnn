@@ -42,7 +42,7 @@ class Model(nn.Module):
         attn_inputs = self.attn0_structure.init_attention_inputs(x, attention_mask=mask0, token_type_ids=None)
 
         out0 = self.attn0(x, x, x, attention_inputs=attn_inputs, output_attentions=True)
-        return out0[0],
+        return out0[0]
 
 def test():
     net = Model()
@@ -66,10 +66,7 @@ def test():
     import test_transformers_funnel_attention_pnnx
     b = test_transformers_funnel_attention_pnnx.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():
