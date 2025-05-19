@@ -32,7 +32,7 @@ class Model(nn.Module):
 
     def forward(self, x, mask0):
         out0 = self.attn0(x, attention_mask=mask0, head_mask=None, encoder_hidden_states=None, encoder_attention_mask=None, output_attentions=True)
-        return out0[0],
+        return out0[0]
 
 def test():
     net = Model()
@@ -57,10 +57,7 @@ def test():
     import test_transformers_gpt2_attention_pnnx
     b = test_transformers_gpt2_attention_pnnx.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():
