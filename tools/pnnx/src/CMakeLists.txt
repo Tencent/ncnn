@@ -213,6 +213,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_arange.cpp
     pass_level2/torch_argmax.cpp
     pass_level2/torch_argmin.cpp
+    pass_level2/torch_as_strided.cpp
     pass_level2/torch_baddbmm.cpp
     pass_level2/torch_bmm.cpp
     pass_level2/torch_bitwise_not.cpp
@@ -246,6 +247,10 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
     pass_level2/torch_lgamma.cpp
+    pass_level2/torch_logical_not.cpp
+    pass_level2/torch_logical_and.cpp
+    pass_level2/torch_logical_or.cpp
+    pass_level2/torch_logical_xor.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_lt.cpp
     pass_level2/torch_masked_select.cpp
@@ -394,6 +399,8 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_static_linear.cpp
     pass_level5/fuse_static_prelu.cpp
     pass_level5/fuse_static_rmsnorm.cpp
+    pass_level5/fuse_transformers_multiheadattention.cpp
+    pass_level5/fuse_transformers_scaled_dot_product_attention.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
 )
