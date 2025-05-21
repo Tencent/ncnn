@@ -365,6 +365,8 @@ public:
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
     const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
     const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
+    const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixProperties() const;
+    const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixPropertiesNV() const;
 
 private:
     GpuInfo(const GpuInfo&);
