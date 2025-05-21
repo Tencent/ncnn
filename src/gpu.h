@@ -291,6 +291,9 @@ public:
     bool support_fp16_image() const;
     bool support_int8_image() const;
 
+    // shader float controls2
+    bool support_fp_fast_math() const;
+
     // ycbcr conversion feature
     bool support_ycbcr_conversion() const;
 
