@@ -1439,6 +1439,7 @@ typedef VkPhysicalDeviceShaderIntegerDotProductProperties VkPhysicalDeviceShader
 #define VK_KHR_shader_bfloat16                                         1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES     (VkStructureType)1000141000
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES
+#define VK_COMPONENT_TYPE_BFLOAT16_KHR                                 (VkComponentTypeKHR)1000141000
 typedef struct VkPhysicalDeviceShaderBfloat16Features
 {
     VkStructureType sType;
