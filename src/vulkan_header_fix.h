@@ -1437,18 +1437,16 @@ typedef VkPhysicalDeviceShaderIntegerDotProductProperties VkPhysicalDeviceShader
 
 #ifndef VK_KHR_shader_bfloat16
 #define VK_KHR_shader_bfloat16                                         1
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES     (VkStructureType)1000141000
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR (VkStructureType)1000141000
 #define VK_COMPONENT_TYPE_BFLOAT16_KHR                                 (VkComponentTypeKHR)1000141000
-typedef struct VkPhysicalDeviceShaderBfloat16Features
+typedef struct VkPhysicalDeviceShaderBfloat16FeaturesKHR
 {
     VkStructureType sType;
     void* pNext;
     VkBool32 shaderBFloat16Type;
     VkBool32 shaderBFloat16DotProduct;
     VkBool32 shaderBFloat16CooperativeMatrix;
-} VkPhysicalDeviceShaderBfloat16Features;
-typedef VkPhysicalDeviceShaderBfloat16Features VkPhysicalDeviceShaderBfloat16FeaturesKHR;
+} VkPhysicalDeviceShaderBfloat16FeaturesKHR;
 #endif // VK_KHR_shader_bfloat16
 
 #endif // NCNN_VULKAN_HEADER_FIX_H
