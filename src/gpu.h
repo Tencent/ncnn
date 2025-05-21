@@ -287,8 +287,9 @@ public:
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
 
-    // r16f format in storage image
+    // r16f and r8s format in storage image
     bool support_fp16_image() const;
+    bool support_int8_image() const;
 
     // ycbcr conversion feature
     bool support_ycbcr_conversion() const;
@@ -319,8 +320,10 @@ public:
     int support_VK_KHR_portability_subset() const;
     int support_VK_KHR_push_descriptor() const;
     int support_VK_KHR_sampler_ycbcr_conversion() const;
+    int support_VK_KHR_shader_bfloat16() const;
     int support_VK_KHR_shader_float16_int8() const;
     int support_VK_KHR_shader_float_controls() const;
+    int support_VK_KHR_shader_integer_dot_product() const;
     int support_VK_KHR_shader_non_semantic_info() const;
     int support_VK_KHR_shader_subgroup_extended_types() const;
     int support_VK_KHR_shader_subgroup_rotate() const;
@@ -350,12 +353,15 @@ public:
     const VkPhysicalDeviceCooperativeMatrixFeaturesKHR& queryCooperativeMatrixFeatures() const;
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
+    const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
+    const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& queryShaderIntegerDotProductFeatures() const;
     const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& queryShaderAtomicFloatFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
 
     // extension properties
     const void* queryDeviceProperties() const;
+    const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
     const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
     const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
