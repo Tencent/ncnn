@@ -379,6 +379,8 @@ public:
     VkPhysicalDeviceSubgroupProperties querySubgroupProperties;
     VkPhysicalDeviceDriverPropertiesKHR queryDriverProperties;
     VkPhysicalDeviceSubgroupSizeControlPropertiesEXT querySubgroupSizeControlProperties;
+    std::vector<VkCooperativeMatrixPropertiesKHR> queryCooperativeMatrixProperties;
+    std::vector<VkCooperativeMatrixPropertiesNV> queryCooperativeMatrixPropertiesNV;
 };
 
 void GpuInfoPrivate::query_features()
@@ -1044,6 +1046,8 @@ void GpuInfoPrivate::query_extension_properties()
     }
 
     // query supported cooperative matrix types and operations
+    queryCooperativeMatrixProperties.clear();
+    queryCooperativeMatrixPropertiesNV.clear();
     support_cooperative_matrix_8_8_16 = false;
     support_cooperative_matrix_16_8_8 = false;
     support_cooperative_matrix_16_8_16 = false;
@@ -1057,16 +1061,16 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR failed %d", ret);
         }
 
-        std::vector<VkCooperativeMatrixPropertiesKHR> properties(propertyCount);
-        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice, &propertyCount, properties.data());
+        queryCooperativeMatrixProperties.resize(propertyCount);
+        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice, &propertyCount, queryCooperativeMatrixProperties.data());
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR failed %d", ret);
         }
 
-        for (uint32_t j = 0; j < properties.size(); j++)
+        for (uint32_t j = 0; j < propertyCount; j++)
         {
-            const VkCooperativeMatrixPropertiesKHR& cmp = properties[j];
+            const VkCooperativeMatrixPropertiesKHR& cmp = queryCooperativeMatrixProperties[j];
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.ResultType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
@@ -1108,21 +1112,21 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesNV failed %d", ret);
         }
 
-        std::vector<VkCooperativeMatrixPropertiesNV> properties(propertyCount);
-        for (uint32_t j = 0; j < properties.size(); j++)
+        queryCooperativeMatrixPropertiesNV.resize(propertyCount);
+        for (uint32_t j = 0; j < propertyCount; j++)
         {
-            properties[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
-            properties[j].pNext = 0;
+            queryCooperativeMatrixPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
+            queryCooperativeMatrixPropertiesNV[j].pNext = 0;
         }
-        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, &propertyCount, properties.data());
+        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, &propertyCount, queryCooperativeMatrixPropertiesNV.data());
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesNV failed %d", ret);
         }
 
-        for (uint32_t j = 0; j < properties.size(); j++)
+        for (uint32_t j = 0; j < propertyCount; j++)
         {
-            const VkCooperativeMatrixPropertiesNV& cmp = properties[j];
+            const VkCooperativeMatrixPropertiesNV& cmp = queryCooperativeMatrixPropertiesNV[j];
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
@@ -1768,6 +1772,16 @@ const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& GpuInfo::querySubgroupSize
     return d->querySubgroupSizeControlFeatures;
 }
 
+const VkPhysicalDeviceShaderBfloat16FeaturesKHR& GpuInfo::queryShaderBfloat16Features() const
+{
+    return d->queryShaderBfloat16Features;
+}
+
+const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& GpuInfo::queryShaderIntegerDotProductFeatures() const
+{
+    return d->queryShaderIntegerDotProductFeatures;
+}
+
 const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& GpuInfo::queryShaderSubgroupRotateFeatures() const
 {
     return d->queryShaderSubgroupRotateFeatures;
@@ -1788,6 +1802,11 @@ const void* GpuInfo::queryDeviceProperties() const
     return d->queryDeviceProperties;
 }
 
+const VkPhysicalDeviceShaderIntegerDotProductProperties& GpuInfo::queryShaderIntegerDotProductProperties() const
+{
+    return d->queryShaderIntegerDotProductProperties;
+}
+
 const VkPhysicalDeviceSubgroupProperties& GpuInfo::querySubgroupProperties() const
 {
     return d->querySubgroupProperties;
@@ -1801,6 +1820,16 @@ const VkPhysicalDeviceDriverPropertiesKHR& GpuInfo::queryDriverProperties() cons
 const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& GpuInfo::querySubgroupSizeControlProperties() const
 {
     return d->querySubgroupSizeControlProperties;
+}
+
+const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMatrixProperties() const
+{
+    return d->queryCooperativeMatrixProperties;
+}
+
+const std::vector<VkCooperativeMatrixPropertiesNV>& GpuInfo::queryCooperativeMatrixPropertiesNV() const
+{
+    return d->queryCooperativeMatrixPropertiesNV;
 }
 
 static int init_instance_core()
