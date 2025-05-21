@@ -1390,12 +1390,14 @@ typedef struct VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES     (VkStructureType)1000280001
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES_KHR   VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES
-typedef struct VkPhysicalDeviceShaderIntegerDotProductFeatures {
+typedef struct VkPhysicalDeviceShaderIntegerDotProductFeatures
+{
     VkStructureType sType;
     void* pNext;
     VkBool32 shaderIntegerDotProduct;
 } VkPhysicalDeviceShaderIntegerDotProductFeatures;
-typedef struct VkPhysicalDeviceShaderIntegerDotProductProperties {
+typedef struct VkPhysicalDeviceShaderIntegerDotProductProperties
+{
     VkStructureType sType;
     void* pNext;
     VkBool32 integerDotProduct8BitUnsignedAccelerated;
@@ -1437,7 +1439,8 @@ typedef VkPhysicalDeviceShaderIntegerDotProductProperties VkPhysicalDeviceShader
 #define VK_KHR_shader_bfloat16                                         1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES     (VkStructureType)1000141000
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES
-typedef struct VkPhysicalDeviceShaderBfloat16Features {
+typedef struct VkPhysicalDeviceShaderBfloat16Features
+{
     VkStructureType sType;
     void* pNext;
     VkBool32 shaderBFloat16Type;
