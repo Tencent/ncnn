@@ -323,6 +323,7 @@ public:
     int support_VK_KHR_shader_bfloat16() const;
     int support_VK_KHR_shader_float16_int8() const;
     int support_VK_KHR_shader_float_controls() const;
+    int support_VK_KHR_shader_float_controls2() const;
     int support_VK_KHR_shader_integer_dot_product() const;
     int support_VK_KHR_shader_non_semantic_info() const;
     int support_VK_KHR_shader_subgroup_extended_types() const;
@@ -354,6 +355,7 @@ public:
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
     const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
+    const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& queryShaderFloatControls2Features() const;
     const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& queryShaderIntegerDotProductFeatures() const;
     const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& queryShaderAtomicFloatFeatures() const;
@@ -361,6 +363,7 @@ public:
 
     // extension properties
     const void* queryDeviceProperties() const;
+    const VkPhysicalDeviceFloatControlsPropertiesKHR& queryFloatControlsProperties() const;
     const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
     const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
