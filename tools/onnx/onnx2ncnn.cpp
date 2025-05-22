@@ -3247,7 +3247,7 @@ For more information, please refer to https://github.com/pnnx/pnnx\n");
             int transA = get_node_attr_i(node, "transA", 0);
             int transB = get_node_attr_i(node, "transB", 0);
 
-            if (alpha == 1.f && beta == 1.f && transA == 0 && transB == 1)
+            if (alpha == 1.f && beta == 1.f && transA == 0)
             {
                 // InnerProduct-like A * B + C
                 node_reference[node.input(1)] -= 1;
@@ -3754,7 +3754,7 @@ For more information, please refer to https://github.com/pnnx/pnnx\n");
             int transA = get_node_attr_i(node, "transA", 0);
             int transB = get_node_attr_i(node, "transB", 0);
 
-            if (alpha == 1.f && beta == 1.f && transA == 0 && transB == 1)
+            if (alpha == 1.f && beta == 1.f && transA == 0)
             {
                 // InnerProduct-like A * B + C
                 fprintf(pp, "%-16s", "InnerProduct");
@@ -4585,6 +4585,39 @@ For more information, please refer to https://github.com/pnnx/pnnx\n");
 
                 fwrite_tensor_proto_data(B, bp);
                 fwrite_tensor_proto_data(C, bp);
+            }
+            else if (alpha == 1.f && beta == 1.f && transA == 0 && transB == 0)
+            {
+                // InnerProduct-like A * B + C
+                const onnx::TensorProto& B = weights[node.input(1)];
+                const onnx::TensorProto& C = weights[node.input(2)];
+            
+                fprintf(pp, " 0=%d", get_tensor_proto_data_size(C));
+                fprintf(pp, " 1=1");
+                fprintf(pp, " 2=%d", get_tensor_proto_data_size(B));
+            
+                int weight_data_size = get_tensor_proto_data_size(B);
+                int num_output = B.dims(B.dims_size() - 1);
+                int num_input = weight_data_size / num_output;
+            
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+            
+                // reorder num_input-num_output to num_output-num_input
+                {
+                    const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+            
+                    for (int j = 0; j < num_output; j++)
+                    {
+                        for (int k = 0; k < num_input; k++)
+                        {
+                            float vb = bptr[k * num_output + j];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
+                    }
+                }
+                fwrite_tensor_proto_data(C, bp);
+            
             }
             else
             {
