@@ -1653,7 +1653,7 @@ torch.transpose         op_8        1 1 12 13 dim0=1 dim1=2
 pnnx.Expression         op_9        1 1 7 14 expr=div(@0,%sqrt_feat_per_head)
 torch.transpose         op_10       1 1 10 15 dim0=2 dim1=3
 torch.matmul            op_11       2 1 14 15 16
-Tensor.view             op_12       1 1 mask 18 shape=(%batch,1,1,%qsize)
+Tensor.view             op_12       1 1 mask 18 shape=(%batch,1,1,%kvsize)
 Tensor.expand_as        op_13       2 1 18 16 19
 Tensor.masked_fill      op_14       2 1 16 19 20 value=-3.402823e+38
 F.softmax               softmax     1 1 20 21 dim=%softmax_dim
@@ -1675,7 +1675,7 @@ pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 mask
-Tensor.view             attn_ht_0   1 1 mask 17 shape=(1,%qsize) #17=(1,%qsize)bool
+Tensor.view             attn_ht_0   1 1 mask 17 shape=(1,%kvsize) #17=(1,%kvsize)bool
 Tensor.expand           attn_ht_1   1 1 17 attn_mask shape=(%qsize,%kvsize) #18=(%qsize,%kvsize)bool
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -1688,7 +1688,7 @@ pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 mask
-Tensor.view             attn_ht_0   1 1 mask 17 shape=(%batch,1,1,%qsize) #17=(%batch,1,1,%qsize)bool
+Tensor.view             attn_ht_0   1 1 mask 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
 Tensor.expand           attn_ht_1   1 1 17 18 shape=(%batch,%num_heads,%qsize,%kvsize) #18=(%batch,%num_heads,%qsize,%kvsize)bool
 Tensor.reshape          attn_ht_2   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
