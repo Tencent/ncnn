@@ -37,13 +37,14 @@ Layer::Layer()
 
     support_reserved_00 = false;
 
-    typeindex = -1;
+    featmask = 0;
 
 #if NCNN_VULKAN
     vkdev = 0;
 #endif // NCNN_VULKAN
 
     userdata = 0;
+    typeindex = -1;
 }
 
 Layer::~Layer()
