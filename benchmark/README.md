@@ -9424,3 +9424,95 @@ cooling_down = 0
       yolo-fastestv2  min =   50.27  max =   50.62  avg =   50.43
           FastestDet  min =   53.34  max =   53.64  avg =   53.51
 ```
+
+### Spacemit MUSE Pi Pro Spacemit M1 (Spacemit X60 *8 + PowerVR B-Series BXE-2-32 MC1)
+```
+root@spacemit-k1-x-MUSE-Pi-Pro-board:/home/yingxi/ncnn/build/benchmark# ./benchncnn 4 8 2 -1 1
+loop_count = 4
+num_threads = 8
+powersave = 2
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =  192.55  max =  203.73  avg =  195.61
+     squeezenet_int8  min =  863.38  max =  875.44  avg =  867.96
+           mobilenet  min =  260.32  max =  274.70  avg =  266.42
+      mobilenet_int8  min = 1287.80  max = 1606.98  avg = 1461.52
+        mobilenet_v2  min =  168.08  max =  173.99  avg =  169.97
+        mobilenet_v3  min =  141.06  max =  166.83  avg =  147.74
+          shufflenet  min =   82.91  max =   92.83  avg =   85.57
+       shufflenet_v2  min =   83.11  max =   83.35  avg =   83.26
+             mnasnet  min =  168.99  max =  180.35  avg =  171.95
+     proxylessnasnet  min =  186.14  max =  194.56  avg =  188.91
+     efficientnet_b0  min =  257.93  max =  263.18  avg =  259.94
+   efficientnetv2_b0  min =  385.35  max =  394.09  avg =  388.57
+        regnety_400m  min =  228.02  max =  229.55  avg =  228.88
+           blazeface  min =   26.78  max =   27.43  avg =   26.97
+           googlenet  min =  781.12  max =  796.37  avg =  788.60
+      googlenet_int8  min = 2422.82  max = 2441.75  avg = 2432.78
+            resnet18  min =  864.67  max =  874.15  avg =  869.32
+       resnet18_int8  min = 2409.34  max = 2728.57  avg = 2530.44
+             alexnet  min =  389.93  max =  393.67  avg =  391.77
+               vgg16  min = 8213.96  max = 8957.49  avg = 8405.27
+          vgg16_int8  min = 34268.94  max = 36044.89  avg = 35244.72
+            resnet50  min = 1798.75  max = 1859.80  avg = 1825.00
+       resnet50_int8  min = 7364.21  max = 7500.24  avg = 7428.21
+      squeezenet_ssd  min =  693.59  max =  701.68  avg =  697.60
+ squeezenet_ssd_int8  min = 1447.64  max = 1461.21  avg = 1455.02
+       mobilenet_ssd  min =  530.90  max =  542.81  avg =  534.42
+  mobilenet_ssd_int8  min = 4347.45  max = 4391.44  avg = 4377.68
+      mobilenet_yolo  min = 1285.07  max = 1369.59  avg = 1312.64
+  mobilenetv2_yolov3  min =  605.19  max =  628.05  avg =  616.37
+         yolov4-tiny  min = 1743.00  max = 1751.39  avg = 1748.09
+           nanodet_m  min =  201.46  max =  202.80  avg =  202.03
+    yolo-fastest-1.1  min =   97.02  max =   98.29  avg =   97.71
+      yolo-fastestv2  min =   75.53  max =   76.62  avg =   76.20
+  vision_transformer  min = 11328.10  max = 11334.80  avg = 11332.34
+          FastestDet  min =   85.01  max =   86.04  avg =   85.45
+
+root@spacemit-k1-x-MUSE-Pi-Pro-board:/home/yingxi/ncnn/build/benchmark# ./benchncnn 4 8 2 0 1
+[0 PowerVR B-Series BXE-2-32 MC1]  queueC=0[2]  queueG=0[2]  queueT=0[2]
+[0 PowerVR B-Series BXE-2-32 MC1]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 PowerVR B-Series BXE-2-32 MC1]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/1/1/1
+[0 PowerVR B-Series BXE-2-32 MC1]  subgroup=1(1~1)  ops=1/1/1/1/1/1/0/0/1/1
+[0 PowerVR B-Series BXE-2-32 MC1]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=0/0/0/0
+loop_count = 4
+num_threads = 8
+powersave = 2
+gpu_device = 0
+cooling_down = 1
+          squeezenet  min =  381.51  max =  382.05  avg =  381.73
+     squeezenet_int8  min =  862.26  max =  890.38  avg =  879.94
+           mobilenet  min =  795.29  max =  796.41  avg =  795.80
+      mobilenet_int8  min = 1284.16  max = 1298.86  avg = 1290.31
+        mobilenet_v2  min =  512.00  max =  512.59  avg =  512.19
+        mobilenet_v3  min =  428.55  max =  428.95  avg =  428.76
+          shufflenet  min =  198.17  max =  198.83  avg =  198.39
+       shufflenet_v2  min =  272.36  max =  272.73  avg =  272.55
+             mnasnet  min =  526.92  max =  527.44  avg =  527.12
+     proxylessnasnet  min =  601.43  max =  602.65  avg =  602.05
+     efficientnet_b0  min =  704.94  max =  705.23  avg =  705.13
+   efficientnetv2_b0  min =  854.83  max =  866.51  avg =  859.85
+        regnety_400m  min =  526.46  max =  527.04  avg =  526.65
+           blazeface  min =   69.74  max =   69.84  avg =   69.80
+           googlenet  min = 1230.07  max = 1231.04  avg = 1230.53
+      googlenet_int8  min = 2409.25  max = 2423.38  avg = 2416.76
+            resnet18  min = 1134.72  max = 1136.35  avg = 1135.44
+       resnet18_int8  min = 2431.48  max = 2552.62  avg = 2473.90
+             alexnet  min =  692.35  max =  697.08  avg =  695.61
+               vgg16  min = 5790.33  max = 5805.37  avg = 5796.20
+          vgg16_int8  min = 34057.43  max = 35714.99  avg = 35080.62
+            resnet50  min = 3426.54  max = 3429.97  avg = 3427.94
+       resnet50_int8  min = 7370.03  max = 7409.63  avg = 7390.83
+      squeezenet_ssd  min = 1057.50  max = 1061.42  avg = 1059.26
+ squeezenet_ssd_int8  min = 1454.99  max = 1469.47  avg = 1462.61
+       mobilenet_ssd  min = 1670.02  max = 1673.22  avg = 1671.34
+  mobilenet_ssd_int8  min = 4372.23  max = 4424.18  avg = 4400.11
+      mobilenet_yolo  min = 3794.02  max = 3796.52  avg = 3795.21
+  mobilenetv2_yolov3  min = 1841.86  max = 1844.70  avg = 1843.49
+         yolov4-tiny  min = 2099.86  max = 2104.18  avg = 2102.34
+           nanodet_m  min =  646.19  max =  647.41  avg =  646.69
+    yolo-fastest-1.1  min =  322.08  max =  323.71  avg =  323.22
+      yolo-fastestv2  min =  209.42  max =  209.72  avg =  209.56
+  vision_transformer  min = 26499.86  max = 26548.73  avg = 26528.54
+          FastestDet  min =  251.68  max =  252.52  avg =  252.14
+```
