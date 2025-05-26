@@ -42,6 +42,7 @@
 #include "pass_level5/fuse_layernorm.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
 #include "pass_level5/fuse_multiheadattention.h"
+#include "pass_level5/fuse_multiheadattention_sameqkv.h"
 #include "pass_level5/fuse_pad_conv1d.h"
 #include "pass_level5/fuse_pad_conv2d.h"
 #include "pass_level5/fuse_rmsnorm.h"
@@ -152,6 +153,8 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
 
     fuse_transformers_multiheadattention(g);
     fuse_multiheadattention(g);
+
+    fuse_multiheadattention_sameqkv(g);
 
     fuse_transformers_scaled_dot_product_attention(g);
     fuse_scaled_dot_product_attention(g);

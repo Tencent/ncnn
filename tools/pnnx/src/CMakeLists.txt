@@ -381,6 +381,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_pixel_unshuffle.cpp
     pass_level5/fuse_layernorm.cpp
     pass_level5/fuse_multiheadattention.cpp
+    pass_level5/fuse_multiheadattention_sameqkv.cpp
     pass_level5/fuse_rmsnorm.cpp
     pass_level5/fuse_scaled_dot_product_attention.cpp
     pass_level5/fuse_select_to_unbind.cpp
