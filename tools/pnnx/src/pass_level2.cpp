@@ -371,6 +371,13 @@ static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std
         size_t i = 0;
         while (!lcss.eof())
         {
+            if (a.type == 5 && a.ai.size() <= i)
+                return false;
+            if (a.type == 6 && a.af.size() <= i)
+                return false;
+            if (a.type == 7 && a.as.size() <= i)
+                return false;
+
             std::string elem;
             std::getline(lcss, elem, ',');
 
