@@ -237,7 +237,7 @@ static void show_usage()
 int main(int argc, char** argv)
 {
 #if defined _WIN32
-    SetConsoleOutputCP(65001);
+    SetConsoleOutputCP(CP_UTF8);
 #endif
 
     if (argc < 2)
