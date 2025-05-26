@@ -20,6 +20,11 @@
 #include <string>
 #include <vector>
 
+#if defined _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "ir.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
@@ -231,6 +236,10 @@ static void show_usage()
 
 int main(int argc, char** argv)
 {
+#if defined _WIN32
+    SetConsoleOutputCP(65001);
+#endif
+
     if (argc < 2)
     {
         show_usage();
