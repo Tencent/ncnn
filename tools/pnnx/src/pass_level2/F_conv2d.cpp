@@ -75,6 +75,56 @@ pnnx.Output             output      1 0 out
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d, 140)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_mode, 140)
 
+class F_conv2d_bias : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+F.conv2d                op_0        2 1 input weight a bias=None stride=%stride padding=%padding dilation=%dilation groups=%groups
+pnnx.Attribute          op_1        0 1 bias @data=(1,%out_channels,1,1)f32
+aten::add               op_2        2 1 a bias out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Attribute          bias        0 1 bias @data=%op_1.data
+F.conv2d                conv        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation groups=%groups
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
+
+        Operator* op_conv = ops.at("conv");
+
+        op_conv->inputnames.resize(3);
+        op_conv->inputnames[0] = "input";
+        op_conv->inputnames[1] = "weight";
+        op_conv->inputnames[2] = "bias";
+
+        const int out_channels = captured_params.at("out_channels").i;
+
+        Operator* op_bias = ops.at("bias");
+        // fix bias shape
+        op_bias->attrs["data"].shape = std::vector<int>{out_channels};
+        op_bias->outputs[0]->shape = std::vector<int>{out_channels};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_bias, 141)
+
 class F_conv2d_cudnn_relu : public GraphRewriterPass
 {
 public:
@@ -326,58 +376,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx_1, 141)
-
-class F_conv2d_onnx_2 : public F_conv2d_onnx
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-6 5
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-pnnx.Attribute          op_bias     0 1 bias @data=(1,%out_channels,1,1)f32
-Conv                    op_0        2 1 input weight a %*=%*
-aten::add               op_1        2 1 a bias out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* replace_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-pnnx.Attribute          bias        0 1 bias @data=%op_bias.data
-F.conv2d                conv        3 1 input weight bias out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        const int out_channels = captured_params.at("out_channels").i;
-
-        Operator* op_conv = ops.at("conv");
-
-        F_conv2d_onnx::write(op_conv, captured_params);
-
-        op_conv->inputnames.resize(3);
-        op_conv->inputnames[0] = "input";
-        op_conv->inputnames[1] = "weight";
-        op_conv->inputnames[2] = "bias";
-
-        Operator* op_bias = ops.at("bias");
-        op_bias->attrs["data"] = captured_attrs.at("op_bias.data");
-        // fix bias shape
-        op_bias->attrs["data"].shape = std::vector<int>{out_channels};
-        op_bias->outputs[0]->shape = std::vector<int>{out_channels};
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx_2, 140)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_onnx_1, 140)
 
 class F_conv2d_onnx_pad : public GraphRewriterPass
 {
