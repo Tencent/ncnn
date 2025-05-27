@@ -91,8 +91,8 @@ static __ncnn_vulkan_instance_holder g_instance;
 static int g_gpu_count = 0;
 static int g_default_gpu_index = -1;
 
-// NOTE 8 is large enough i think ...
-#define NCNN_MAX_GPU_COUNT 8
+// NOTE 32 is large enough i think ...
+#define NCNN_MAX_GPU_COUNT 32
 static GpuInfo* g_gpu_infos[NCNN_MAX_GPU_COUNT] = {0};
 
 // default vulkan device
