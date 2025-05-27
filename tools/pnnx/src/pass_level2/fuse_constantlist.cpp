@@ -108,7 +108,9 @@ void fuse_constantlist(Graph& graph)
             for (auto x : op->inputs)
             {
                 graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), x->producer));
+                delete x->producer;
                 graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), x));
+                delete x;
             }
 
             op->inputs.clear();
