@@ -12,17 +12,18 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_SPECTROGRAM_H
-#define LAYER_SPECTROGRAM_H
+#ifndef LAYER_SPECTROGRAM_X86_H
+#define LAYER_SPECTROGRAM_X86_H
 
-#include "layer.h"
+#include "spectrogram.h"
 
 namespace ncnn {
 
-class Spectrogram : public Layer
+class Spectrogram_x86 : public Spectrogram
 {
 public:
-    Spectrogram();
+    Spectrogram_x86();
+    ~Spectrogram_x86();
 
     virtual int load_param(const ParamDict& pd);
 
@@ -39,9 +40,14 @@ public:
     int normalized; // 0=disabled 1=sqrt(n_fft) 2=window-l2-energy
     int onesided;
 
+    int n_freq;
+
     Mat window_data;
+    Mat conv_data;
+
+    Layer* conv_transpose;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_SPECTROGRAM_H
+#endif // LAYER_SPECTROGRAM_X86_H
