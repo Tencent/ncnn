@@ -201,6 +201,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_permute.cpp
     pass_level2/Tensor_repeat.cpp
     pass_level2/Tensor_reshape.cpp
+    pass_level2/Tensor_reshape_as.cpp
     pass_level2/Tensor_select.cpp
     pass_level2/Tensor_size.cpp
     pass_level2/Tensor_slice.cpp
@@ -579,6 +580,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_contiguous.cpp
     pass_ncnn/Tensor_permute.cpp
     pass_ncnn/Tensor_reshape.cpp
+    pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_addmm.cpp
