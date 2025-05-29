@@ -14,6 +14,8 @@
 
 #include "pass_level2.h"
 
+#include <float.h>
+
 namespace pnnx {
 
 class F_max_pool2d : public GraphRewriterPass
@@ -218,6 +220,16 @@ pnnx.Output             output      1 0 out
             }
         }
 
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            if (captured_params.at("op_0.auto_pad").type != 4)
+                return false;
+
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+            if (auto_pad == "SAME_UPPER" || auto_pad == "SAME_LOWER")
+                return false;
+        }
+
         return true;
     }
 
@@ -298,6 +310,167 @@ pnnx.Output             output      2 0 out indices
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_1, 120)
 
+class F_max_pool2d_onnx_pad : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+MaxPool                 op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+F.pad                   pad         1 1 input pad
+F.max_pool2d            maxpool     1 1 pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.kernel_shape") == captured_params.end())
+            return false;
+
+        if (captured_params.at("op_0.kernel_shape").type != 5 || captured_params.at("op_0.kernel_shape").ai.size() != 2)
+            return false;
+
+        if (captured_params.find("op_0.dilations") != captured_params.end())
+        {
+            if (captured_params.at("op_0.dilations").type != 5 || captured_params.at("op_0.dilations").ai.size() != 2)
+                return false;
+        }
+
+        if (captured_params.find("op_0.strides") != captured_params.end())
+        {
+            if (captured_params.at("op_0.strides").type != 5 || captured_params.at("op_0.strides").ai.size() != 2)
+                return false;
+        }
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            if (captured_params.at("op_0.pads").type != 5 || captured_params.at("op_0.pads").ai.size() != 4)
+                return false;
+
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            if (pads[0] == pads[2] && pads[1] == pads[3])
+                return false;
+        }
+
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            if (captured_params.at("op_0.auto_pad").type != 4)
+                return false;
+
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+            if (auto_pad == "VALID")
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params) const
+    {
+        Operator* op_pad = ops.at("pad");
+        Operator* op_maxpool = ops.at("maxpool");
+
+        op_pad->params["mode"] = "constant";
+        op_pad->params["value"] = -FLT_MAX;
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            op_pad->params["pad"] = std::vector<int>{pads[1], pads[3], pads[0], pads[2]};
+        }
+
+        op_maxpool->params["kernel_size"] = captured_params.at("op_0.kernel_shape");
+
+        if (captured_params.find("op_0.dilations") != captured_params.end())
+        {
+            op_maxpool->params["dilation"] = captured_params.at("op_0.dilations");
+        }
+
+        if (captured_params.find("op_0.strides") != captured_params.end())
+        {
+            op_maxpool->params["stride"] = captured_params.at("op_0.strides");
+        }
+        else
+        {
+            op_maxpool->params["stride"] = {1, 1};
+        }
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            op_maxpool->params["padding"] = {pads[0], pads[1]};
+        }
+        else
+        {
+            op_maxpool->params["padding"] = {0, 0};
+        }
+
+        if (captured_params.find("op_0.ceil_mode") != captured_params.end())
+        {
+            int ceil_mode = captured_params.at("op_0.ceil_mode").i;
+            op_maxpool->params["ceil_mode"] = (ceil_mode != 0);
+        }
+        else
+        {
+            op_maxpool->params["ceil_mode"] = false;
+        }
+
+        // ceil_mode for opset9
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            if (pads[0] != pads[2] || pads[1] != pads[3])
+            {
+                op_maxpool->params["ceil_mode"] = true;
+            }
+        }
+
+        // resolve auto_pad
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+
+            const int kernel_h = op_maxpool->params.at("kernel_size").ai[0];
+            const int kernel_w = op_maxpool->params.at("kernel_size").ai[1];
+            const int stride_h = op_maxpool->params.at("stride").ai[0];
+            const int stride_w = op_maxpool->params.at("stride").ai[1];
+
+            const int wpad = kernel_w - 1;
+            const int hpad = kernel_h - 1;
+
+            if (auto_pad == "SAME_UPPER")
+            {
+                op_pad->params["pad"] = std::vector<int>{wpad / 2, wpad - wpad / 2, hpad / 2, hpad - hpad / 2};
+            }
+            if (auto_pad == "SAME_LOWER")
+            {
+                op_pad->params["pad"] = std::vector<int>{wpad - wpad / 2, wpad / 2, hpad - hpad / 2, hpad / 2};
+            }
+
+            if (stride_w != 1 || stride_h != 1)
+            {
+                fprintf(stderr, "auto_pad %s with stride %d %d may lead to incorrect output shape\n", auto_pad.c_str(), stride_w, stride_h);
+            }
+        }
+
+        op_maxpool->params["return_indices"] = false;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_onnx_pad, 120)
+
 class F_max_pool2d_tnn : public GraphRewriterPass
 {
 public:
@@ -348,13 +521,13 @@ pnnx.Output             output      1 0 out
         const int kernel_index_w = captured_params.at("op_0.arg8").i;
         if (kernel_index_h != -1 || kernel_index_w != -1)
         {
-            fprintf(stderr, "unsupported F.avg_pool2d kernel_index %d %d\n", kernel_index_h, kernel_index_w);
+            fprintf(stderr, "unsupported F.max_pool2d kernel_index %d %d\n", kernel_index_h, kernel_index_w);
         }
 
         const int pad_type = captured_params.at("op_0.arg9").i;
         if (pad_type > 0)
         {
-            fprintf(stderr, "unsupported F.avg_pool2d pad_type %d\n", pad_type);
+            fprintf(stderr, "unsupported F.max_pool2d pad_type %d\n", pad_type);
         }
 
         op->params["ceil_mode"] = captured_params.at("op_0.arg10").i ? true : false;
