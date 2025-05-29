@@ -18856,6 +18856,9 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         fprintf(stderr, "%s\n", text.c_str());
     }
 
+    fprintf(stderr, "opencv putText can not draw non-latin characters, you may see question marks instead\n");
+    fprintf(stderr, "see opencv-mobile for drawing non-latin characters\n");
+
     for (size_t i = 0; i < objects.size(); i++)
     {
         const Object& obj = objects[i];
