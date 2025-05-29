@@ -93,6 +93,9 @@ static cv::Mat get_rotate_crop_image(const cv::Mat& bgr, const Object& object)
 
     cv::Mat dst;
 
+    cv::Point2f corners[4];
+    object.rrect.points(corners);
+
     if (orientation == 0)
     {
         // horizontal text
@@ -101,9 +104,6 @@ static cv::Mat get_rotate_crop_image(const cv::Mat& bgr, const Object& object)
         //  |        |rw  -> as angle=90
         //  3--------2
         //      rh
-
-        std::vector<cv::Point2f> corners;
-        object.rrect.points(corners);
 
         std::vector<cv::Point2f> src_pts(3);
         src_pts[0] = corners[0];
@@ -131,9 +131,6 @@ static cv::Mat get_rotate_crop_image(const cv::Mat& bgr, const Object& object)
         //  |    |
         //  0----3
         //    rw
-
-        std::vector<cv::Point2f> corners;
-        object.rrect.points(corners);
 
         std::vector<cv::Point2f> src_pts(3);
         src_pts[0] = corners[2];
