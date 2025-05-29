@@ -230,8 +230,8 @@ void PPOCRv5::detect(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Mat in_pad;
     ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
 
-    const float mean_vals[3] = {0.485f*255.f, 0.456f*255.f, 0.406f*255.f};
-    const float norm_vals[3] = {1/0.229f/255.f, 1/0.224f/255.f, 1/0.225f/255.f};
+    const float mean_vals[3] = {0.485f * 255.f, 0.456f * 255.f, 0.406f * 255.f};
+    const float norm_vals[3] = {1 / 0.229f / 255.f, 1 / 0.224f / 255.f, 1 / 0.225f / 255.f};
     in_pad.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = ppocrv5_det.create_extractor();
@@ -344,8 +344,8 @@ void PPOCRv5::recognize(const cv::Mat& bgr, Object& object)
     ncnn::Mat in = ncnn::Mat::from_pixels(roi.data, ncnn::Mat::PIXEL_BGR, roi.cols, roi.rows);
 
     // ~/.paddlex/official_models/PP-OCRv5_mobile_rec/inference.yml
-    const float mean_vals[3] = { 127.5, 127.5, 127.5 };
-    const float norm_vals[3] = { 1.0 / 127.5, 1.0 / 127.5, 1.0 / 127.5 };
+    const float mean_vals[3] = {127.5, 127.5, 127.5};
+    const float norm_vals[3] = {1.0 / 127.5, 1.0 / 127.5, 1.0 / 127.5};
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = ppocrv5_rec.create_extractor();
