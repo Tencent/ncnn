@@ -99,27 +99,28 @@ int Spectrogram_x86::load_param(const ParamDict& pd)
     if (onesided)
     {
         n_freq = n_fft / 2 + 1;
-    } else
+    }
+    else
     {
         n_freq = n_fft;
     }
-    theta.create(n_fft,n_freq,size_t(8));
+    theta.create(n_fft, n_freq, size_t(8));
 
-    for (int i = 0; i<n_freq; i++)
+    for (int i = 0; i < n_freq; i++)
     {
-        for (int j = 0; j<n_fft; j++)
+        for (int j = 0; j < n_fft; j++)
         {
             theta.row<double>(i)[j] = 2 * 3.14159265358979323846 * i * j / n_fft;
         }
     }
 
     Mat real_basis, imag_basis;
-    real_basis.create(n_fft,n_freq,size_t(8));
-    imag_basis.create(n_fft,n_freq,size_t(8));
+    real_basis.create(n_fft, n_freq, size_t(8));
+    imag_basis.create(n_fft, n_freq, size_t(8));
 
-    for (int i = 0; i<n_freq; i++)
+    for (int i = 0; i < n_freq; i++)
     {
-        for (int j = 0; j<n_fft; j++)
+        for (int j = 0; j < n_fft; j++)
         {
             real_basis.row<double>(i)[j] = cos(theta.row<double>(i)[j]);
             imag_basis.row<double>(i)[j] = -sin(theta.row<double>(i)[j]);
@@ -127,9 +128,9 @@ int Spectrogram_x86::load_param(const ParamDict& pd)
     }
 
     // multiply window
-    for (int i = 0; i<n_freq; i++)
+    for (int i = 0; i < n_freq; i++)
     {
-        for (int j = 0; j<n_fft; j++)
+        for (int j = 0; j < n_fft; j++)
         {
             real_basis.row<double>(i)[j] *= window_data[j];
             imag_basis.row<double>(i)[j] *= window_data[j];
@@ -139,9 +140,9 @@ int Spectrogram_x86::load_param(const ParamDict& pd)
     if (normalized == 1)
     {
         double scale = 1.f / sqrt(n_fft);
-        for (int i = 0; i<n_freq; i++)
+        for (int i = 0; i < n_freq; i++)
         {
-            for (int j = 0; j<n_fft; j++)
+            for (int j = 0; j < n_fft; j++)
             {
                 real_basis.row<double>(i)[j] *= scale;
                 imag_basis.row<double>(i)[j] *= scale;
@@ -149,24 +150,24 @@ int Spectrogram_x86::load_param(const ParamDict& pd)
         }
     }
 
-    conv_data.create(n_fft,1,n_freq * 2);
+    conv_data.create(n_fft, 1, n_freq * 2);
 
-    for (int i = 0; i<n_freq; i++)
+    for (int i = 0; i < n_freq; i++)
     {
-        for (int j = 0; j<n_fft; j++)
+        for (int j = 0; j < n_fft; j++)
         {
-            conv_data.channel(i).row<float>(0)[j]= (float)real_basis.row<double>(i)[j];
-            conv_data.channel(i+n_freq).row<float>(0)[j] = (float)imag_basis.row<double>(i)[j];
+            conv_data.channel(i).row<float>(0)[j] = (float)real_basis.row<double>(i)[j];
+            conv_data.channel(i + n_freq).row<float>(0)[j] = (float)imag_basis.row<double>(i)[j];
         }
     }
 
     conv_transpose = ncnn::create_layer("Convolution1D");
     ncnn::ParamDict conv_transpose_pd;
 
-    conv_transpose_pd.set(0,2 * n_freq); // num_output
-    conv_transpose_pd.set(1,n_fft); // kernel_w
-    conv_transpose_pd.set(3,hoplen); // stride_w
-    conv_transpose_pd.set(19,1); // dynamic_weight
+    conv_transpose_pd.set(0, 2 * n_freq); // num_output
+    conv_transpose_pd.set(1, n_fft);      // kernel_w
+    conv_transpose_pd.set(3, hoplen);     // stride_w
+    conv_transpose_pd.set(19, 1);         // dynamic_weight
 
     conv_transpose->load_param(conv_transpose_pd);
 
@@ -226,7 +227,7 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     opt_conv.use_packing_layout = false;
 
     conv_transpose->create_pipeline(opt_conv);
-    conv_transpose->forward(inputs,outputs,opt_conv);
+    conv_transpose->forward(inputs, outputs, opt_conv);
     conv_transpose->destroy_pipeline(opt_conv);
 
     Mat conv_top_blob = outputs[0]; // (2 * n_freq, frames)
@@ -235,15 +236,16 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (power == 0) // as complex
     {
         // copy
-        for (int i = 0; i<frames; i++)
+        for (int i = 0; i < frames; i++)
         {
-            for (int j = 0; j<n_freq; j++)
+            for (int j = 0; j < n_freq; j++)
             {
                 top_blob.channel(j).row<float>(i)[0] = conv_top_data[j * frames + i];
                 top_blob.channel(j).row<float>(i)[1] = conv_top_data[(j + n_freq) * frames + i];
             }
         }
-    } else
+    }
+    else
     {
         if (power == 1) // magnitude sqrt(re * re + im * im);
         {
@@ -255,12 +257,13 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     top_blob.row<float>(j)[i] = sqrtf(conv_top_data[j * frames + i] * conv_top_data[j * frames + i] + conv_top_data[(j + n_freq) * frames + i] * conv_top_data[(j + n_freq) * frames + i]);
                 }
             }
-        } else if (power == 2) // power re * re + im * im;
+        }
+        else if (power == 2) // power re * re + im * im;
         {
             // copy
             for (int i = 0; i < frames; i++)
             {
-                for (int j = 0; j< n_freq; j++)
+                for (int j = 0; j < n_freq; j++)
                 {
                     top_blob.row<float>(j)[i] = conv_top_data[j * frames + i] * conv_top_data[j * frames + i] + conv_top_data[(j + n_freq) * frames + i] * conv_top_data[(j + n_freq) * frames + i];
                 }

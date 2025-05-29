@@ -50,9 +50,9 @@ static int test_spectrogram_0()
            || test_spectrogram(124, 55, 2, 12, 55, 1, 1, 2, 2, 0);
 }
 
-static int test_spectrogram_eval(int size, int n_fft, int power, int hoplen, int winlen, int window_type, int center, int pad_type, int normalized, int onesided,float * in,float * std)
+static int test_spectrogram_eval(int size, int n_fft, int power, int hoplen, int winlen, int window_type, int center, int pad_type, int normalized, int onesided, float* in, float* std)
 {
-    ncnn::Layer * layer = ncnn::create_layer("Spectrogram");
+    ncnn::Layer* layer = ncnn::create_layer("Spectrogram");
 
     ncnn::ParamDict pd;
     pd.set(0, n_fft);
@@ -82,7 +82,7 @@ static int test_spectrogram_eval(int size, int n_fft, int power, int hoplen, int
 
     for (int i = 0; i < output.c; i++)
     {
-        float * output_data = output.channel(i);
+        float* output_data = output.channel(i);
         for (int j = 0; j < output.h; j++)
         {
             for (int k = 0; k < output.w; k++)
@@ -113,11 +113,9 @@ static int test_spectrogram_1()
         0.28284273f, 0.49497476f, 0.70710677f, 0.24271232f, 0.42322639f, 0.60407096f, 0.14577380f, 0.25000000f, 0.35531676f, 0.04838108f, 0.07667736f, 0.10652842f, 0.00000000f, 0.00000002f, 0.00000000f, 0.04838108f, 0.07667736f, 0.10652842f, 0.14577380f, 0.25000000f, 0.35531676f, 0.24271232f, 0.42322639f, 0.60407096f
     };
 
-    return
-    test_spectrogram_eval(16, 4, 1, 2, 4, 1, 1, 0, 0, 1, input_0, std_0)
-    || test_spectrogram_eval(16, 8, 1, 2, 4, 1, 0, 0, 0, 1, input_0, std_1)
-    || test_spectrogram_eval(16, 8, 1, 3, 4, 1, 0, 0, 1, 0, input_0, std_2);
-
+    return test_spectrogram_eval(16, 4, 1, 2, 4, 1, 1, 0, 0, 1, input_0, std_0)
+           || test_spectrogram_eval(16, 8, 1, 2, 4, 1, 0, 0, 0, 1, input_0, std_1)
+           || test_spectrogram_eval(16, 8, 1, 3, 4, 1, 0, 0, 1, 0, input_0, std_2);
 }
 
 int main()
