@@ -91,8 +91,8 @@ static __ncnn_vulkan_instance_holder g_instance;
 static int g_gpu_count = 0;
 static int g_default_gpu_index = -1;
 
-// NOTE 8 is large enough i think ...
-#define NCNN_MAX_GPU_COUNT 8
+// NOTE 32 is large enough i think ...
+#define NCNN_MAX_GPU_COUNT 32
 static GpuInfo* g_gpu_infos[NCNN_MAX_GPU_COUNT] = {0};
 
 // default vulkan device
@@ -334,8 +334,11 @@ public:
     int support_VK_KHR_portability_subset;
     int support_VK_KHR_push_descriptor;
     int support_VK_KHR_sampler_ycbcr_conversion;
+    int support_VK_KHR_shader_bfloat16;
     int support_VK_KHR_shader_float16_int8;
     int support_VK_KHR_shader_float_controls;
+    int support_VK_KHR_shader_float_controls2;
+    int support_VK_KHR_shader_integer_dot_product;
     int support_VK_KHR_shader_non_semantic_info;
     int support_VK_KHR_shader_subgroup_extended_types;
     int support_VK_KHR_shader_subgroup_rotate;
@@ -364,6 +367,9 @@ public:
     VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR querySamplerYcbcrConversionFeatures;
     VkPhysicalDeviceCooperativeMatrixFeaturesKHR queryCooperativeMatrixFeatures;
     VkPhysicalDeviceCooperativeMatrixFeaturesNV queryCooperativeMatrixFeaturesNV;
+    VkPhysicalDeviceShaderBfloat16FeaturesKHR queryShaderBfloat16Features;
+    VkPhysicalDeviceShaderFloatControls2FeaturesKHR queryShaderFloatControls2Features;
+    VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR queryShaderIntegerDotProductFeatures;
     VkPhysicalDeviceSubgroupSizeControlFeaturesEXT querySubgroupSizeControlFeatures;
     VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR queryShaderSubgroupRotateFeatures;
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT queryShaderAtomicFloatFeatures;
@@ -371,9 +377,13 @@ public:
 
     // extension properties
     void* queryDeviceProperties;
+    VkPhysicalDeviceFloatControlsPropertiesKHR queryFloatControlsProperties;
+    VkPhysicalDeviceShaderIntegerDotProductProperties queryShaderIntegerDotProductProperties;
     VkPhysicalDeviceSubgroupProperties querySubgroupProperties;
     VkPhysicalDeviceDriverPropertiesKHR queryDriverProperties;
     VkPhysicalDeviceSubgroupSizeControlPropertiesEXT querySubgroupSizeControlProperties;
+    std::vector<VkCooperativeMatrixPropertiesKHR> queryCooperativeMatrixProperties;
+    std::vector<VkCooperativeMatrixPropertiesNV> queryCooperativeMatrixPropertiesNV;
 };
 
 void GpuInfoPrivate::query_features()
@@ -671,8 +681,11 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_portability_subset = 0;
     support_VK_KHR_push_descriptor = 0;
     support_VK_KHR_sampler_ycbcr_conversion = 0;
+    support_VK_KHR_shader_bfloat16 = 0;
     support_VK_KHR_shader_float16_int8 = 0;
     support_VK_KHR_shader_float_controls = 0;
+    support_VK_KHR_shader_float_controls2 = 0;
+    support_VK_KHR_shader_integer_dot_product = 0;
     support_VK_KHR_shader_non_semantic_info = 0;
     support_VK_KHR_shader_subgroup_extended_types = 0;
     support_VK_KHR_shader_subgroup_rotate = 0;
@@ -733,10 +746,16 @@ int GpuInfoPrivate::query_extensions()
             support_VK_KHR_push_descriptor = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_sampler_ycbcr_conversion") == 0)
             support_VK_KHR_sampler_ycbcr_conversion = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_bfloat16") == 0)
+            support_VK_KHR_shader_bfloat16 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
             support_VK_KHR_shader_float16_int8 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_float_controls") == 0)
             support_VK_KHR_shader_float_controls = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_float_controls2") == 0)
+            support_VK_KHR_shader_float_controls2 = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_integer_dot_product") == 0)
+            support_VK_KHR_shader_integer_dot_product = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_non_semantic_info") == 0)
             support_VK_KHR_shader_non_semantic_info = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_subgroup_extended_types") == 0)
@@ -852,6 +871,36 @@ void GpuInfoPrivate::query_extension_features()
         queryExtensionFeatures = &queryCooperativeMatrixFeaturesNV;
     }
 
+    // query bfloat16
+    memset(&queryShaderBfloat16Features, 0, sizeof(queryShaderBfloat16Features));
+    queryShaderBfloat16Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR;
+    queryShaderBfloat16Features.pNext = 0;
+    if (support_VK_KHR_shader_bfloat16)
+    {
+        queryShaderBfloat16Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderBfloat16Features;
+    }
+
+    // query float controls 2
+    memset(&queryShaderFloatControls2Features, 0, sizeof(queryShaderFloatControls2Features));
+    queryShaderFloatControls2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT_CONTROLS_2_FEATURES_KHR;
+    queryShaderFloatControls2Features.pNext = 0;
+    if (support_VK_KHR_shader_float_controls2)
+    {
+        queryShaderFloatControls2Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderFloatControls2Features;
+    }
+
+    // query integer dot product
+    memset(&queryShaderIntegerDotProductFeatures, 0, sizeof(queryShaderIntegerDotProductFeatures));
+    queryShaderIntegerDotProductFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES_KHR;
+    queryShaderIntegerDotProductFeatures.pNext = 0;
+    if (support_VK_KHR_shader_integer_dot_product)
+    {
+        queryShaderIntegerDotProductFeatures.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderIntegerDotProductFeatures;
+    }
+
     // query subgroup size control
     memset(&querySubgroupSizeControlFeatures, 0, sizeof(querySubgroupSizeControlFeatures));
     querySubgroupSizeControlFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT;
@@ -925,19 +974,31 @@ void GpuInfoPrivate::query_extension_features()
         // fp16 arithmetic yields wrong result on old adreno drivers :(
         queryFloat16Int8Features.shaderFloat16 = VK_FALSE;
     }
-
-    if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_RADV || queryDriverProperties.driverID == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA)
-    {
-        // cooperative matrix produces wrong result on mesa vulkan drivers :(
-        // https://gitlab.freedesktop.org/mesa/mesa/-/issues/10847
-        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
-        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
-    }
 }
 
 void GpuInfoPrivate::query_extension_properties()
 {
     queryDeviceProperties = 0;
+
+    // query float controls
+    memset(&queryFloatControlsProperties, 0, sizeof(queryFloatControlsProperties));
+    queryFloatControlsProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES;
+    queryFloatControlsProperties.pNext = 0;
+    if (support_VK_KHR_shader_float_controls)
+    {
+        queryFloatControlsProperties.pNext = queryDeviceProperties;
+        queryDeviceProperties = &queryFloatControlsProperties;
+    }
+
+    // query integer dot product
+    memset(&queryShaderIntegerDotProductProperties, 0, sizeof(queryShaderIntegerDotProductProperties));
+    queryShaderIntegerDotProductProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES_KHR;
+    queryShaderIntegerDotProductProperties.pNext = 0;
+    if (support_VK_KHR_driver_properties)
+    {
+        queryShaderIntegerDotProductProperties.pNext = queryDeviceProperties;
+        queryDeviceProperties = &queryShaderIntegerDotProductProperties;
+    }
 
     // query subgroup
     memset(&querySubgroupProperties, 0, sizeof(querySubgroupProperties));
@@ -984,12 +1045,6 @@ void GpuInfoPrivate::query_extension_properties()
         querySubgroupSizeControlProperties.pNext = queryDeviceProperties;
         queryDeviceProperties = &querySubgroupSizeControlProperties;
     }
-    else
-    {
-        querySubgroupSizeControlProperties.minSubgroupSize = querySubgroupProperties.subgroupSize;
-        querySubgroupSizeControlProperties.maxSubgroupSize = querySubgroupProperties.subgroupSize;
-        querySubgroupSizeControlProperties.maxComputeWorkgroupSubgroups = std::max(physicalDeviceProperties.limits.maxComputeWorkGroupInvocations / querySubgroupProperties.subgroupSize, 1u);
-    }
 
     if (support_VK_KHR_get_physical_device_properties2)
     {
@@ -1009,7 +1064,16 @@ void GpuInfoPrivate::query_extension_properties()
         }
     }
 
+    if (!support_VK_EXT_subgroup_size_control)
+    {
+        querySubgroupSizeControlProperties.minSubgroupSize = querySubgroupProperties.subgroupSize;
+        querySubgroupSizeControlProperties.maxSubgroupSize = querySubgroupProperties.subgroupSize;
+        querySubgroupSizeControlProperties.maxComputeWorkgroupSubgroups = std::max(physicalDeviceProperties.limits.maxComputeWorkGroupInvocations / querySubgroupProperties.subgroupSize, 1u);
+    }
+
     // query supported cooperative matrix types and operations
+    queryCooperativeMatrixProperties.clear();
+    queryCooperativeMatrixPropertiesNV.clear();
     support_cooperative_matrix_8_8_16 = false;
     support_cooperative_matrix_16_8_8 = false;
     support_cooperative_matrix_16_8_16 = false;
@@ -1023,16 +1087,16 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR failed %d", ret);
         }
 
-        std::vector<VkCooperativeMatrixPropertiesKHR> properties(propertyCount);
-        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice, &propertyCount, properties.data());
+        queryCooperativeMatrixProperties.resize(propertyCount);
+        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice, &propertyCount, queryCooperativeMatrixProperties.data());
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR failed %d", ret);
         }
 
-        for (uint32_t j = 0; j < properties.size(); j++)
+        for (uint32_t j = 0; j < propertyCount; j++)
         {
-            const VkCooperativeMatrixPropertiesKHR& cmp = properties[j];
+            const VkCooperativeMatrixPropertiesKHR& cmp = queryCooperativeMatrixProperties[j];
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.ResultType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
@@ -1074,21 +1138,21 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesNV failed %d", ret);
         }
 
-        std::vector<VkCooperativeMatrixPropertiesNV> properties(propertyCount);
-        for (uint32_t j = 0; j < properties.size(); j++)
+        queryCooperativeMatrixPropertiesNV.resize(propertyCount);
+        for (uint32_t j = 0; j < propertyCount; j++)
         {
-            properties[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
-            properties[j].pNext = 0;
+            queryCooperativeMatrixPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
+            queryCooperativeMatrixPropertiesNV[j].pNext = 0;
         }
-        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, &propertyCount, properties.data());
+        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, &propertyCount, queryCooperativeMatrixPropertiesNV.data());
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesNV failed %d", ret);
         }
 
-        for (uint32_t j = 0; j < properties.size(); j++)
+        for (uint32_t j = 0; j < propertyCount; j++)
         {
-            const VkCooperativeMatrixPropertiesNV& cmp = properties[j];
+            const VkCooperativeMatrixPropertiesNV& cmp = queryCooperativeMatrixPropertiesNV[j];
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
@@ -1120,6 +1184,25 @@ void GpuInfoPrivate::query_extension_properties()
                 support_cooperative_matrix_16_16_16 = true;
             }
         }
+    }
+
+    if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_RADV || queryDriverProperties.driverID == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA)
+    {
+        // cooperative matrix produces wrong result on mesa vulkan drivers :(
+        // https://gitlab.freedesktop.org/mesa/mesa/-/issues/10847
+        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
+        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
+
+        support_cooperative_matrix_8_8_16 = false;
+        support_cooperative_matrix_16_8_8 = false;
+        support_cooperative_matrix_16_8_16 = false;
+        support_cooperative_matrix_16_16_16 = false;
+    }
+
+    if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_TURNIP)
+    {
+        // turnip crash when compiling large shader with full subgroup
+        querySubgroupSizeControlFeatures.computeFullSubgroups = VK_FALSE;
     }
 }
 
@@ -1443,6 +1526,16 @@ bool GpuInfo::support_fp16_image() const
     return d->physicalDevicefeatures.shaderStorageImageExtendedFormats;
 }
 
+bool GpuInfo::support_int8_image() const
+{
+    return d->physicalDevicefeatures.shaderStorageImageExtendedFormats;
+}
+
+bool GpuInfo::support_fp_fast_math() const
+{
+    return d->queryShaderFloatControls2Features.shaderFloatControls2;
+}
+
 bool GpuInfo::support_ycbcr_conversion() const
 {
     return d->querySamplerYcbcrConversionFeatures.samplerYcbcrConversion;
@@ -1563,6 +1656,11 @@ int GpuInfo::support_VK_KHR_sampler_ycbcr_conversion() const
     return d->support_VK_KHR_sampler_ycbcr_conversion;
 }
 
+int GpuInfo::support_VK_KHR_shader_bfloat16() const
+{
+    return d->support_VK_KHR_shader_bfloat16;
+}
+
 int GpuInfo::support_VK_KHR_shader_float16_int8() const
 {
     return d->support_VK_KHR_shader_float16_int8;
@@ -1571,6 +1669,16 @@ int GpuInfo::support_VK_KHR_shader_float16_int8() const
 int GpuInfo::support_VK_KHR_shader_float_controls() const
 {
     return d->support_VK_KHR_shader_float_controls;
+}
+
+int GpuInfo::support_VK_KHR_shader_float_controls2() const
+{
+    return d->support_VK_KHR_shader_float_controls2;
+}
+
+int GpuInfo::support_VK_KHR_shader_integer_dot_product() const
+{
+    return d->support_VK_KHR_shader_integer_dot_product;
 }
 
 int GpuInfo::support_VK_KHR_shader_non_semantic_info() const
@@ -1680,6 +1788,11 @@ const VkPhysicalDeviceFloat16Int8FeaturesKHR& GpuInfo::queryFloat16Int8Features(
     return d->queryFloat16Int8Features;
 }
 
+const VkPhysicalDeviceFloatControlsPropertiesKHR& GpuInfo::queryFloatControlsProperties() const
+{
+    return d->queryFloatControlsProperties;
+}
+
 const VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR& GpuInfo::querySamplerYcbcrConversionFeatures() const
 {
     return d->querySamplerYcbcrConversionFeatures;
@@ -1698,6 +1811,21 @@ const VkPhysicalDeviceCooperativeMatrixFeaturesNV& GpuInfo::queryCooperativeMatr
 const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& GpuInfo::querySubgroupSizeControlFeatures() const
 {
     return d->querySubgroupSizeControlFeatures;
+}
+
+const VkPhysicalDeviceShaderBfloat16FeaturesKHR& GpuInfo::queryShaderBfloat16Features() const
+{
+    return d->queryShaderBfloat16Features;
+}
+
+const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& GpuInfo::queryShaderFloatControls2Features() const
+{
+    return d->queryShaderFloatControls2Features;
+}
+
+const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& GpuInfo::queryShaderIntegerDotProductFeatures() const
+{
+    return d->queryShaderIntegerDotProductFeatures;
 }
 
 const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& GpuInfo::queryShaderSubgroupRotateFeatures() const
@@ -1720,6 +1848,11 @@ const void* GpuInfo::queryDeviceProperties() const
     return d->queryDeviceProperties;
 }
 
+const VkPhysicalDeviceShaderIntegerDotProductProperties& GpuInfo::queryShaderIntegerDotProductProperties() const
+{
+    return d->queryShaderIntegerDotProductProperties;
+}
+
 const VkPhysicalDeviceSubgroupProperties& GpuInfo::querySubgroupProperties() const
 {
     return d->querySubgroupProperties;
@@ -1733,6 +1866,16 @@ const VkPhysicalDeviceDriverPropertiesKHR& GpuInfo::queryDriverProperties() cons
 const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& GpuInfo::querySubgroupSizeControlProperties() const
 {
     return d->querySubgroupSizeControlProperties;
+}
+
+const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMatrixProperties() const
+{
+    return d->queryCooperativeMatrixProperties;
+}
+
+const std::vector<VkCooperativeMatrixPropertiesNV>& GpuInfo::queryCooperativeMatrixPropertiesNV() const
+{
+    return d->queryCooperativeMatrixPropertiesNV;
 }
 
 static int init_instance_core()
@@ -2736,10 +2879,16 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_push_descriptor");
     if (info.support_VK_KHR_sampler_ycbcr_conversion())
         enabledExtensions.push_back("VK_KHR_sampler_ycbcr_conversion");
+    if (info.support_VK_KHR_shader_bfloat16())
+        enabledExtensions.push_back("VK_KHR_shader_bfloat16");
     if (info.support_VK_KHR_shader_float16_int8())
         enabledExtensions.push_back("VK_KHR_shader_float16_int8");
     if (info.support_VK_KHR_shader_float_controls())
         enabledExtensions.push_back("VK_KHR_shader_float_controls");
+    if (info.support_VK_KHR_shader_float_controls2())
+        enabledExtensions.push_back("VK_KHR_shader_float_controls2");
+    if (info.support_VK_KHR_shader_integer_dot_product())
+        enabledExtensions.push_back("VK_KHR_shader_integer_dot_product");
     if (info.support_VK_KHR_shader_non_semantic_info())
         enabledExtensions.push_back("VK_KHR_shader_non_semantic_info");
     if (info.support_VK_KHR_shader_subgroup_extended_types())
@@ -4588,6 +4737,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 #if __APPLE__
     custom_defines.append("NCNN_moltenvk", 1);
 #endif
+
+    custom_defines.append("ncnn_glsl_version", 1);
 
     bool support_shader_int64 = false;
 

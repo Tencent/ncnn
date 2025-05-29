@@ -74,7 +74,7 @@ static const char* type_to_numpy_string(int type)
     if (type == 6) return "int16";
     if (type == 7) return "int8";
     if (type == 8) return "uint8";
-    if (type == 9) return "bool8";
+    if (type == 9) return "bool";
     if (type == 10) return "csingle";
     if (type == 11) return "cdouble";
     if (type == 12) return "chalf";
@@ -2221,10 +2221,18 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
                     i++;
 
+                    bool scalar_as_tensor = false;
+                    if ((op->type == "Tensor.index_put" && it.first == "values")
+                            || (op->type == "torch.where" && it.first == "input")
+                            || (op->type == "torch.where" && it.first == "other"))
+                    {
+                        scalar_as_tensor = true;
+                    }
+
                     const Parameter& param = it.second;
                     if (param.type == 0)
                     {
-                        if (op->type == "Tensor.index_put" && it.first == "values")
+                        if (scalar_as_tensor)
                         {
                             fprintf(pyfp, "torch.tensor(False)");
                         }
@@ -2242,7 +2250,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     }
                     if (param.type == 2)
                     {
-                        if (op->type == "Tensor.index_put" && it.first == "values")
+                        if (scalar_as_tensor)
                         {
                             fprintf(pyfp, "torch.tensor(%d)", param.i);
                         }
@@ -2253,7 +2261,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     }
                     if (param.type == 3)
                     {
-                        if (op->type == "Tensor.index_put" && it.first == "values")
+                        if (scalar_as_tensor)
                         {
                             if (param.f == (int)param.f)
                                 fprintf(pyfp, "torch.tensor(%.1f)", param.f);
@@ -2274,7 +2282,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         {
                             fprintf(pyfp, "%s", param.s.c_str());
                         }
-                        else if (op->type == "Tensor.index_put" && it.first == "values")
+                        else if (scalar_as_tensor)
                         {
                             if (param.s == "inf" || param.s == "-inf")
                             {
@@ -2594,6 +2602,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
     // test inference
     {
+        fprintf(pyfp, "@torch.no_grad()\n");
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    net = Model()\n");
         fprintf(pyfp, "    net.float()\n");

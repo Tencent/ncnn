@@ -22,6 +22,7 @@
 #include <signal.h>
 #endif // __wasi__
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef _OPENMP
@@ -113,6 +114,14 @@
 #ifndef CPUFAMILY_ARM_COLL
 #define CPUFAMILY_ARM_COLL 0x2876f5b5
 #endif
+// A18
+#ifndef CPUFAMILY_ARM_TUPAI
+#define CPUFAMILY_ARM_TUPAI 0x204526d0
+#endif
+// A18 Pro
+#ifndef CPUFAMILY_ARM_TAHITI
+#define CPUFAMILY_ARM_TAHITI 0x75d4acb9
+#endif
 // M3
 #ifndef CPUFAMILY_ARM_IBIZA
 #define CPUFAMILY_ARM_IBIZA 0xfa33415e
@@ -125,6 +134,14 @@
 #ifndef CPUFAMILY_ARM_PALMA
 #define CPUFAMILY_ARM_PALMA 0x72015832
 #endif
+// M4
+#ifndef CPUFAMILY_ARM_DONAN
+#define CPUFAMILY_ARM_DONAN 0x6f5129ac
+#endif
+// M4 Pro / M4 Max
+#ifndef CPUFAMILY_ARM_BRAVA
+#define CPUFAMILY_ARM_BRAVA 0x17d5b93a
+#endif
 #endif // __APPLE__
 
 #if defined(__SSE3__)
@@ -134,6 +151,26 @@
 #if (defined _WIN32 && (__aarch64__ || __arm__))
 #define RUAPU_IMPLEMENTATION
 #include "ruapu.h"
+#endif
+
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
+__attribute__((constructor)) void ncnn_kmp_env_initializer()
+{
+    // this function should be called before touching all openmp stuff
+    // the env setting here helps prevent abort from happening inside openmp
+
+    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
+    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
+    // and cpu core goes offline in powersave mode on android, which triggers abort
+    // disable affinity capability, we handle thread affinity for openmp threads
+    setenv("KMP_AFFINITY", "disabled", 1);
+
+    // openmp initialization triggers abort when another openmp runtime detected
+    // ref __kmp_register_library_startup in openmp/runtime/src/kmp_runtime.cpp
+    // this happens when loading multiple libraries that are static linked openmp
+    // just let it continue to work, it works well in most cases, at least it won't crash unexpectedly
+    setenv("KMP_DUPLICATE_LIB_OK", "1", 1);
+}
 #endif
 
 // topology info
@@ -2093,6 +2130,10 @@ static int detect_cpu_is_arm_a53_a55()
 // the initialization
 static void initialize_global_cpu_info()
 {
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
+    ncnn_kmp_env_initializer();
+#endif
+
     g_cpucount = get_cpucount();
     g_physical_cpucount = get_physical_cpucount();
     g_powersave = 0;
@@ -2136,6 +2177,32 @@ static void initialize_global_cpu_info()
     g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
     g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
     g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
+
+    switch (g_hw_cpufamily)
+    {
+    case CPUFAMILY_ARM_TUPAI:
+    case CPUFAMILY_ARM_TAHITI:
+    case CPUFAMILY_ARM_DONAN:
+    case CPUFAMILY_ARM_BRAVA:
+    // TODO check sve sme
+    case CPUFAMILY_ARM_AVALANCHE_BLIZZARD:
+    case CPUFAMILY_ARM_EVEREST_SAWTOOTH:
+    case CPUFAMILY_ARM_COLL:
+    case CPUFAMILY_ARM_IBIZA:
+    case CPUFAMILY_ARM_LOBOS:
+    case CPUFAMILY_ARM_PALMA:
+        g_hw_optional_arm_FEAT_BF16 = 1;
+        g_hw_optional_arm_FEAT_I8MM = 1;
+    case CPUFAMILY_ARM_LIGHTNING_THUNDER:
+    case CPUFAMILY_ARM_FIRESTORM_ICESTORM:
+        g_hw_optional_arm_FEAT_DotProd = 1;
+        g_hw_optional_arm_FEAT_FHM = 1;
+    case CPUFAMILY_ARM_MONSOON_MISTRAL:
+    case CPUFAMILY_ARM_VORTEX_TEMPEST:
+        g_hw_optional_arm_FEAT_FP16 = 1;
+    default:
+        break;
+    }
 #endif // __aarch64__
 #endif
 
@@ -2384,17 +2451,7 @@ int cpu_support_arm_asimdhp()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDHP;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_FP16
-           || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL
-           || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_FP16;
 #else
     return 0;
 #endif
@@ -2430,15 +2487,7 @@ int cpu_support_arm_asimddp()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDDP;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_DotProd
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_DotProd;
 #else
     return 0;
 #endif
@@ -2456,15 +2505,7 @@ int cpu_support_arm_asimdfhm()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDFHM;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_FHM
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_FHM;
 #else
     return 0;
 #endif
@@ -2482,13 +2523,7 @@ int cpu_support_arm_bf16()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_BF16;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_BF16
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_BF16;
 #else
     return 0;
 #endif
@@ -2506,13 +2541,7 @@ int cpu_support_arm_i8mm()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_I8MM;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_I8MM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_I8MM;
 #else
     return 0;
 #endif
@@ -3231,21 +3260,3 @@ int set_flush_denormals(int flush_denormals)
 }
 
 } // namespace ncnn
-
-#if defined __ANDROID__ && defined(_OPENMP) && __clang__
-#ifdef __cplusplus
-extern "C" {
-#endif
-void __wrap___kmp_affinity_determine_capable(const char* /*env_var*/)
-{
-    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
-    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
-    // and cpu core goes offline in powersave mode on android, which triggers abort
-    // ATM there is no known api for controlling the abort behavior
-    // override __kmp_affinity_determine_capable with empty body to disable affinity regardless of KMP_AFFINITY env_var
-    // ugly hack works >.<    --- nihui
-}
-#ifdef __cplusplus
-} // extern "C"
-#endif
-#endif

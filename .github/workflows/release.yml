@@ -58,10 +58,8 @@ jobs:
     strategy:
       matrix:
         opt:
-          - { shared-lib: OFF, os: ubuntu-20.04, id: ubuntu-2004        }
           - { shared-lib: OFF, os: ubuntu-22.04, id: ubuntu-2204        }
           - { shared-lib: OFF, os: ubuntu-24.04, id: ubuntu-2404        }
-          - { shared-lib: ON,  os: ubuntu-20.04, id: ubuntu-2004-shared }
           - { shared-lib: ON,  os: ubuntu-22.04, id: ubuntu-2204-shared }
           - { shared-lib: ON,  os: ubuntu-24.04, id: ubuntu-2404-shared }
     runs-on: ${{ matrix.opt.os }}
@@ -242,19 +240,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create build-x86_64/install/lib/libglslang_combined.a build-arm64/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
@@ -416,11 +406,7 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
         cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
@@ -599,19 +585,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -796,19 +774,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -1291,19 +1261,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64e/install/lib/libglslang.a \
-            build-arm64e/install/lib/libMachineIndependent.a \
-            build-arm64e/install/lib/libGenericCodeGen.a \
             build-arm64e/install/lib/libSPIRV.a \
-            build-arm64e/install/lib/libOGLCompiler.a \
-            build-arm64e/install/lib/libOSDependent.a \
             -o build-arm64e/install/lib/libglslang_combined.a
         lipo -create \
             build-arm64/install/lib/libglslang_combined.a \
@@ -1488,19 +1450,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -1668,11 +1622,7 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
         cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
@@ -1851,19 +1801,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \

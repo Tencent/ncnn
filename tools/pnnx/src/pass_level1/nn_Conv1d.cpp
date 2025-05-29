@@ -12,11 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-// #include "../pass_level3/fuse_expression.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -33,7 +29,7 @@ public:
         return "nn.Conv1d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
     {
         //         {
         //             pnnx::Graph pnnx_graph;
@@ -45,18 +41,18 @@ public:
         //             pnnx_graph.save("tmp.param", "tmp.bin");
         //         }
 
-        const torch::jit::Node* convolution = find_node_by_kind(graph, "aten::_convolution");
-        const torch::jit::Node* convolution_mode = find_node_by_kind(graph, "aten::_convolution_mode");
-        const torch::jit::Node* pad = find_node_by_kind(graph, "aten::pad");
-        const torch::jit::Node* reflection_pad1d = find_node_by_kind(graph, "aten::reflection_pad1d");
-        const torch::jit::Node* replication_pad1d = find_node_by_kind(graph, "aten::replication_pad1d");
+        const TorchNodeProxy* convolution = graph.find_node_by_kind("aten::_convolution");
+        const TorchNodeProxy* convolution_mode = graph.find_node_by_kind("aten::_convolution_mode");
+        const TorchNodeProxy* pad = graph.find_node_by_kind("aten::pad");
+        const TorchNodeProxy* reflection_pad1d = graph.find_node_by_kind("aten::reflection_pad1d");
+        const TorchNodeProxy* replication_pad1d = graph.find_node_by_kind("aten::replication_pad1d");
 
         if (convolution_mode)
         {
             convolution = convolution_mode;
         }
 
-        const auto& weight = mod.attr("weight").toTensor();
+        const TorchTensorProxy& weight = mod.attr("weight");
 
         op->params["groups"] = convolution->namedInput("groups");
         op->params["in_channels"] = weight.size(1) * op->params["groups"].i;
@@ -131,7 +127,7 @@ public:
         op->attrs["weight"] = weight;
         if (mod.hasattr("bias"))
         {
-            op->attrs["bias"] = mod.attr("bias").toTensor();
+            op->attrs["bias"] = mod.attr("bias");
         }
     }
 };

@@ -79,7 +79,7 @@ int Mish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #else  // __riscv_vector
         for (int i = 0; i < size; i++)
         {
-            *ptr = *ptr * tanh(log(exp(*ptr) + 1.f));
+            *ptr = *ptr * tanhf(logf(expf(*ptr) + 1.f));
             ptr++;
         }
 #endif // __riscv_vector

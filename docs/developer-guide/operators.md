@@ -493,6 +493,9 @@ y = crop(x)
 | 9         | starts        | array | [ ]       |                   |
 | 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
+| 19        | starts_expr   | str   | ""        |                   |
+| 20        | ends_expr     | str   | ""        |                   |
+| 21        | axes_expr     | str   | ""        |                   |
 
 # CumulativeSum
 
@@ -1137,6 +1140,7 @@ else                            y = resize(x0, size(x1))
 | 4         | output_width  | int   | 0         |                   |
 | 5         | dynamic_target_size| int | 0      |                   |
 | 6         | align_corner  | int   | 0         |                   |
+| 9         | size_expr     | str   | ""        |                   |
 
 Resize type:
 - 1 = Nearest
@@ -1699,6 +1703,7 @@ y = reshape(x)
 | 1         | h             | int   | -233      |                   |
 | 11        | d             | int   | -233      |                   |
 | 2         | c             | int   | -233      |                   |
+| 6         | shape_expr    | str   | ""        |                   |
 
 Reshape flag:
 - 0 = copy from bottom

@@ -1235,6 +1235,15 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp);
             }
+            {
+                if (op->starts_expr != op_default->starts_expr) fprintf(pp, " 19=\"%s\"", op->starts_expr.c_str());
+            }
+            {
+                if (op->ends_expr != op_default->ends_expr) fprintf(pp, " 20=\"%s\"", op->ends_expr.c_str());
+            }
+            {
+                if (op->axes_expr != op_default->axes_expr) fprintf(pp, " 21=\"%s\"", op->axes_expr.c_str());
+            }
         }
         else if (layer->type == "CumulativeSum")
         {
@@ -1946,6 +1955,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%d", output_width)
             fprintf_param_value(" 5=%d", dynamic_target_size)
             fprintf_param_value(" 6=%d", align_corner)
+            {
+                if (op->size_expr != op_default->size_expr) fprintf(pp, " 9=\"%s\"", op->size_expr.c_str());
+            }
         }
         else if (layer->type == "LayerNorm")
         {
@@ -2345,7 +2357,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 11=%d", d)
             fprintf_param_value(" 2=%d", c)
             {
-                if (op->shape_expr != op_default->shape_expr) fprintf(pp, " 6=%s", op->shape_expr.c_str());
+                if (op->shape_expr != op_default->shape_expr) fprintf(pp, " 6=\"%s\"", op->shape_expr.c_str());
             }
         }
         else if (layer->type == "RMSNorm")

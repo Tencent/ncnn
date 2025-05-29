@@ -1,0 +1,11 @@
+recursive-include cmake *
+
+recursive-include glslang *
+prune glslang/Test
+
+recursive-include src *
+
+recursive-include python *
+prune python/pybind11/tests
+
+include CMakeLists.txt

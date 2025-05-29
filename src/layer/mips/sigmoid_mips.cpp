@@ -62,7 +62,7 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __mips_msa
         for (; i < size; i++)
         {
-            *ptr = 1.f / (1.f + exp(-*ptr));
+            *ptr = 1.f / (1.f + expf(-*ptr));
 
             ptr++;
         }

@@ -16,6 +16,7 @@
 
 #include "pass_level3/assign_unique_name.h"
 #include "pass_level3/eliminate_noop_math.h"
+#include "pass_level3/eliminate_squeeze_unsqueeze_pair.h"
 #include "pass_level3/eliminate_tuple_pair.h"
 #include "pass_level3/expand_quantization_modules.h"
 #include "pass_level3/fuse_opnto1_tensors.h"
@@ -56,6 +57,7 @@ void pass_level3(Graph& g, const std::set<std::string>& foldable_constants, cons
     expand_quantization_modules(g);
 
     eliminate_tuple_pair(g);
+    eliminate_squeeze_unsqueeze_pair(g);
 
     rename_F_dropoutnd(g);
 

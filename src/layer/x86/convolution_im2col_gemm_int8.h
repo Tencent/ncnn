@@ -102,7 +102,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
 #elif __AVX__
         TILE_K = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
-        TILE_K = std::max(4, tile_size / 4 * 4);
+        TILE_K = std::max(8, tile_size / 8 * 8);
 #else
         TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
@@ -113,7 +113,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
 #elif __AVX__
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #elif __SSE2__
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #else
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
 #endif
@@ -385,10 +385,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                __m128i _r01 = _mm_load_si128((const __m128i*)p0);
-                __m128i _r23 = _mm_load_si128((const __m128i*)(p0 + 16));
-                __m128i _r45 = _mm_load_si128((const __m128i*)(p0 + 32));
-                __m128i _r67 = _mm_load_si128((const __m128i*)(p0 + 48));
+                __m128i _r01 = _mm_loadu_si128((const __m128i*)p0);
+                __m128i _r23 = _mm_loadu_si128((const __m128i*)(p0 + 16));
+                __m128i _r45 = _mm_loadu_si128((const __m128i*)(p0 + 32));
+                __m128i _r67 = _mm_loadu_si128((const __m128i*)(p0 + 48));
 
 #if __AVX512VNNI__ || __AVXVNNI__
                 // 0011
@@ -506,8 +506,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                __m128i _r01 = _mm_load_si128((const __m128i*)p0);
-                __m128i _r23 = _mm_load_si128((const __m128i*)(p0 + 16));
+                __m128i _r01 = _mm_loadu_si128((const __m128i*)p0);
+                __m128i _r23 = _mm_loadu_si128((const __m128i*)(p0 + 16));
 
 #if __AVX512VNNI__ || __AVXVNNI__
                 __m128i _t0 = _mm_unpacklo_epi32(_r01, _r23);

@@ -55,7 +55,7 @@ int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 #else  // __riscv_zvfh
         for (int i = 0; i < size; i++)
         {
-            *ptr = (__fp16)(1.f / (1.f + exp(-(float)*ptr)));
+            *ptr = (__fp16)(1.f / (1.f + expf(-(float)*ptr)));
 
             ptr++;
         }
@@ -95,7 +95,7 @@ int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
 #else  // __riscv_zvfh
         for (int i = 0; i < size; i++)
         {
-            *ptr = (__fp16)1.f / ((__fp16)1.f + (__fp16)exp((float)-*ptr));
+            *ptr = (__fp16)1.f / ((__fp16)1.f + (__fp16)expf((float)-*ptr));
 
             ptr++;
         }

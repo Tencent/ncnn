@@ -124,8 +124,10 @@ pnnx.Output             output      1 0 out
 
         const int in_channels_per_group = captured_params.at("in_channels_per_group").i;
         const int groups = captured_params.at("groups").i;
+        const int out_channels = captured_params.at("out_channels").i;
 
         ops.at("conv1d")->params["in_channels"] = in_channels_per_group * groups;
+        ops.at("conv1d")->attrs["bias"].shape = {out_channels};
     }
 };
 
@@ -232,8 +234,10 @@ pnnx.Output             output      1 0 out
 
         const int in_channels_per_group = captured_params.at("in_channels_per_group").i;
         const int groups = captured_params.at("groups").i;
+        const int out_channels = captured_params.at("out_channels").i;
 
         ops.at("conv2d")->params["in_channels"] = in_channels_per_group * groups;
+        ops.at("conv2d")->attrs["bias"].shape = {out_channels};
     }
 };
 
@@ -340,8 +344,10 @@ pnnx.Output             output      1 0 out
 
         const int in_channels_per_group = captured_params.at("in_channels_per_group").i;
         const int groups = captured_params.at("groups").i;
+        const int out_channels = captured_params.at("out_channels").i;
 
         ops.at("conv3d")->params["in_channels"] = in_channels_per_group * groups;
+        ops.at("conv3d")->attrs["bias"].shape = {out_channels};
     }
 };
 

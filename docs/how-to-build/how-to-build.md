@@ -565,7 +565,7 @@ ln -s A glslang.framework/Versions/Current
 ln -s Versions/Current/Headers glslang.framework/Headers
 ln -s Versions/Current/Resources glslang.framework/Resources
 ln -s Versions/Current/glslang glslang.framework/glslang
-libtool -static build-ios/install/lib/libglslang.a build-ios/install/lib/libMachineIndependent.a build-ios/install/lib/libGenericCodeGen.a build-ios/install/lib/libSPIRV.a build-ios/install/lib/libOGLCompiler.a build-ios/install/lib/libOSDependent.a -o build-ios/install/lib/libglslang_combined.a
+libtool -static build-ios/install/lib/libglslang.a build-ios/install/lib/libSPIRV.a -o build-ios/install/lib/libglslang_combined.a
 lipo -create build-ios/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
 cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
 sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
