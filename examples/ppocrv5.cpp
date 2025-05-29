@@ -195,9 +195,6 @@ void PPOCRv5::init()
 void PPOCRv5::detect(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     const int target_size = 960;
-    // const int target_size = 640;
-    // const int target_size = 480;
-    // const int target_size = 320;
 
     int img_w = bgr.cols;
     int img_h = bgr.rows;
@@ -231,18 +228,6 @@ void PPOCRv5::detect(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Mat in_pad;
     ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
 
-    // - NormalizeImage:
-    //     mean:
-    //     - 0.485
-    //     - 0.456
-    //     - 0.406
-    //     order: hwc
-    //     scale: 1./255.
-    //     std:
-    //     - 0.229
-    //     - 0.224
-    //     - 0.225
-
     const float mean_vals[3] = {0.485f*255.f, 0.456f*255.f, 0.406f*255.f};
     const float norm_vals[3] = {1/0.229f/255.f, 1/0.224f/255.f, 1/0.225f/255.f};
     in_pad.substract_mean_normalize(mean_vals, norm_vals);
@@ -260,16 +245,10 @@ void PPOCRv5::detect(const cv::Mat& bgr, std::vector<Object>& objects)
     cv::Mat pred(out.h, out.w, CV_8UC1);
     out.to_pixels(pred.data, ncnn::Mat::PIXEL_GRAY);
 
-    // dilate
-    // cv::Mat e = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
-    // cv::dilate(pred, pred, e);
-
     // threshold binary
     cv::Mat bitmap;
     const float threshold = 0.3f;
     cv::threshold(pred, bitmap, threshold * 255, 255, cv::THRESH_BINARY);
-
-    // cv::imshow("bitmap", bitmap);
 
     // boxes from bitmap
     {
