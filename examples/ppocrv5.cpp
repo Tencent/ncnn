@@ -261,7 +261,7 @@ void PPOCRv5::detect(const cv::Mat& bgr, std::vector<Object>& objects)
         const float box_thresh = 0.6f;
         const float enlarge_ratio = 1.95f;
 
-        const int min_size = 3;
+        const float min_size = 3 * scale;
         const int max_candidates = 1000;
 
         std::vector<std::vector<cv::Point> > contours;
