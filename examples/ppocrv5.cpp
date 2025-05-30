@@ -167,6 +167,7 @@ protected:
 void PPOCRv5::init()
 {
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
+    // https://github.com/nihui/ncnn-android-ppocrv5/tree/master/app/src/main/assets
 
     ppocrv5_det.opt.use_vulkan_compute = true;
     // ppocrv5_det.opt.use_bf16_storage = true;
