@@ -77,9 +77,9 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 #if __AVX__
 #if __AVX512F__
         __m512 _sum_vec_16 = _mm512_setzero_ps();
-        for (;i <= size - 16;i += 16)
+        for (; i <= size - 16; i += 16)
         {
-            __m512 _p =  _mm512_loadu_ps(ptr + i);
+            __m512 _p = _mm512_loadu_ps(ptr + i);
             _sum_vec_16 = _mm512_add_ps(_sum_vec_16, _p);
         }
         sum = _mm512_reduce_add_ps(_sum_vec_16);
@@ -91,7 +91,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
             _sum_vec_8 = _mm256_add_ps(_sum_vec_8, _p);
         }
 
-        __m128 vlow  = _mm256_castps256_ps128(_sum_vec_8);
+        __m128 vlow = _mm256_castps256_ps128(_sum_vec_8);
         __m128 vhigh = _mm256_extractf128_ps(_sum_vec_8, 1);
         __m128 hsum_128 = _mm_add_ps(vlow, vhigh);
         hsum_128 = _mm_hadd_ps(hsum_128, hsum_128);
@@ -106,8 +106,8 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
             _sum_vec_4 = _mm_add_ps(_sum_vec_4, _p);
         }
 
-        _sum_vec_4 = _mm_add_ps(_sum_vec_4, _mm_movehl_ps(_sum_vec_4, _sum_vec_4)); // _sum_vec_4 = [s0+s2, s1+s3, s2+s2, s3+s3]
-        _sum_vec_4 = _mm_add_ss(_sum_vec_4, _mm_shuffle_ps(_sum_vec_4, _sum_vec_4, _MM_SHUFFLE(1,1,1,1))); // h_sum_tmp[0] = (s0+s2) + (s1+s3)
+        _sum_vec_4 = _mm_add_ps(_sum_vec_4, _mm_movehl_ps(_sum_vec_4, _sum_vec_4));                           // _sum_vec_4 = [s0+s2, s1+s3, s2+s2, s3+s3]
+        _sum_vec_4 = _mm_add_ss(_sum_vec_4, _mm_shuffle_ps(_sum_vec_4, _sum_vec_4, _MM_SHUFFLE(1, 1, 1, 1))); // h_sum_tmp[0] = (s0+s2) + (s1+s3)
         sum += _mm_cvtss_f32(_sum_vec_4);
 #endif //__SSE2__
         for (; i < size; i++)
@@ -144,7 +144,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
             _sqsum_vec_8 = _mm256_add_ps(_sqsum_vec_8, _mm256_mul_ps(_diff, _diff));
         }
 
-        __m128 vlow_sq  = _mm256_castps256_ps128(_sqsum_vec_8);
+        __m128 vlow_sq = _mm256_castps256_ps128(_sqsum_vec_8);
         __m128 vhigh_sq = _mm256_extractf128_ps(_sqsum_vec_8, 1);
         __m128 hsqsum_128 = _mm_add_ps(vlow_sq, vhigh_sq);
         hsqsum_128 = _mm_hadd_ps(hsqsum_128, hsqsum_128);
@@ -163,7 +163,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 
         __m128 h_sqsum_tmp = _sqsum_vec_4;
         h_sqsum_tmp = _mm_add_ps(h_sqsum_tmp, _mm_movehl_ps(h_sqsum_tmp, h_sqsum_tmp));
-        h_sqsum_tmp = _mm_add_ss(h_sqsum_tmp, _mm_shuffle_ps(h_sqsum_tmp, h_sqsum_tmp, _MM_SHUFFLE(1,1,1,1)));
+        h_sqsum_tmp = _mm_add_ss(h_sqsum_tmp, _mm_shuffle_ps(h_sqsum_tmp, h_sqsum_tmp, _MM_SHUFFLE(1, 1, 1, 1)));
         sqsum += _mm_cvtss_f32(h_sqsum_tmp);
 #endif // __SSE2__
 
