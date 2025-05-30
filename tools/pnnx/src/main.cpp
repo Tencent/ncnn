@@ -415,7 +415,7 @@ int main(int argc, char** argv)
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath);
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
@@ -429,7 +429,7 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
     }
 
     //     pnnx::Graph pnnx_graph2;

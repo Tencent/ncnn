@@ -1443,7 +1443,7 @@ static std::string make_index_expression(const Operator* op)
     return index_expr;
 }
 
-int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
+int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes)
 {
     FILE* pyfp = fopen(pypath.c_str(), "wb");
     if (!pyfp)
@@ -2610,11 +2610,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
 
+        int input_shapes_i = 0;
+
         std::vector<std::string> input_names;
         for (const Operator* op : ops)
         {
             if (op->type != "pnnx.Input")
                 continue;
+
+            const std::vector<int64_t>& shape0 = input_shapes[input_shapes_i++];
 
             const Operand* r = op->outputs[0];
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
@@ -2623,7 +2627,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", r->shape[i]);
+                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                    fprintf(pyfp, "%d", dimsize);
                     if (i + 1 != r->shape.size() || r->shape.size() == 1)
                         fprintf(pyfp, ", ");
                 }
@@ -2634,7 +2639,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
+                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                    fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
