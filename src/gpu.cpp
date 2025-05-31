@@ -1186,19 +1186,6 @@ void GpuInfoPrivate::query_extension_properties()
         }
     }
 
-    if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_RADV || queryDriverProperties.driverID == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA)
-    {
-        // cooperative matrix produces wrong result on mesa vulkan drivers :(
-        // https://gitlab.freedesktop.org/mesa/mesa/-/issues/10847
-        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
-        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
-
-        support_cooperative_matrix_8_8_16 = false;
-        support_cooperative_matrix_16_8_8 = false;
-        support_cooperative_matrix_16_8_16 = false;
-        support_cooperative_matrix_16_16_16 = false;
-    }
-
     if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_TURNIP)
     {
         // turnip crash when compiling large shader with full subgroup

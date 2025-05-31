@@ -161,6 +161,11 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     {
         bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
         bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
+        if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
+        {
+            use_cooperative_matrix_16_8_8 = false;
+            use_cooperative_matrix_16_16_16 = false;
+        }
 
         // src = kw-kh-inch-outch
         // dst = pa-pb-inch/pa-kw-kh-outch/pb (sgemm)
@@ -312,10 +317,12 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
             if (use_cooperative_matrix_16_8_8)
             {
+                pipeline_deconvolution_gemm->set_subgroup_size(32);
                 pipeline_deconvolution_gemm->set_local_size_xyz(32, 1, 1); // 16_8_8
             }
             else if (use_cooperative_matrix_16_16_16)
             {
+                pipeline_deconvolution_gemm->set_subgroup_size(32);
                 pipeline_deconvolution_gemm->set_local_size_xyz(32, 1, 1); // 16_16_16
             }
             else if (opt.use_shader_local_memory)
@@ -573,6 +580,11 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     {
         bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 8 == 0 && num_output % 8 == 0;
         bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 16 == 0 && num_output % 16 == 0;
+        if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
+        {
+            use_cooperative_matrix_16_8_8 = false;
+            use_cooperative_matrix_16_16_16 = false;
+        }
 
         const int maxk = kernel_w * kernel_h;
 
