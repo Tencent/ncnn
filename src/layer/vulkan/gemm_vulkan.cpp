@@ -188,9 +188,9 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     vkdev->convert_packing(A0, A, 1, cmd, opt);
     vkdev->convert_packing(B0, B, 1, cmd, opt);
 
-    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
-    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
-    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+    const int M = constantM ? constantM : transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack) : A.w * (A.dims == 1 ? A.elempack : 1);
+    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) * (B.dims == 1 ? 1 : B.elempack) : B.w * (B.dims == 1 ? B.elempack : 1);
 
     VkMat C;
     int broadcast_type_C = -1;
@@ -342,9 +342,9 @@ int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     vkdev->convert_packing(A0, A, 1, cmd, opt);
     vkdev->convert_packing(B0, B, 1, cmd, opt);
 
-    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
-    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
-    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+    const int M = constantM ? constantM : transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack) : A.w * (A.dims == 1 ? A.elempack : 1);
+    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) * (B.dims == 1 ? 1 : B.elempack) : B.w * (B.dims == 1 ? B.elempack : 1);
 
     VkImageMat C;
     int broadcast_type_C = -1;
