@@ -1200,6 +1200,8 @@ void GpuInfoPrivate::query_extension_properties()
         {
             // workaround for windows + nvidia gpu + driver > 566
             // ref https://github.com/Tencent/ncnn/issues/5920
+            // the default sbo alignment is 16, but the driver is unhappy for vkbuffer with offset 16 aligned
+            // 4096 seems to be a working value   --- nihui
             physicalDeviceProperties.limits.minStorageBufferOffsetAlignment = 4096;
         }
     }
