@@ -1198,7 +1198,7 @@ void GpuInfoPrivate::query_extension_properties()
         int driver_version_major = (int)atof(queryDriverProperties.driverInfo);
         if (driver_version_major > 565)
         {
-            // workaround for windows + nvidia gpu + driver > 566
+            // workaround for windows + nvidia gpu + driver > 565
             // ref https://github.com/Tencent/ncnn/issues/5920
             // the default sbo alignment is 16, but the driver is unhappy for vkbuffer with offset 16 aligned
             // 4096 seems to be a working value   --- nihui
