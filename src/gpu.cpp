@@ -1191,6 +1191,19 @@ void GpuInfoPrivate::query_extension_properties()
         // turnip crash when compiling large shader with full subgroup
         querySubgroupSizeControlFeatures.computeFullSubgroups = VK_FALSE;
     }
+
+#if defined _WIN32
+    if (physicalDeviceProperties.vendorID == 0x10de && queryDriverProperties.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY)
+    {
+        int driver_version_major = (int)atof(queryDriverProperties.driverInfo);
+        if (driver_version_major > 565)
+        {
+            // workaround for windows + nvidia gpu + driver > 566
+            // ref https://github.com/Tencent/ncnn/issues/5920
+            physicalDeviceProperties.limits.minStorageBufferOffsetAlignment = 4096;
+        }
+    }
+#endif
 }
 
 GpuInfo::GpuInfo()
