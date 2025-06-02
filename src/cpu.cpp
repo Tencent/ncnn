@@ -163,13 +163,13 @@ __attribute__((constructor)) void ncnn_kmp_env_initializer()
     // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
     // and cpu core goes offline in powersave mode on android, which triggers abort
     // disable affinity capability, we handle thread affinity for openmp threads
-    setenv("KMP_AFFINITY", "disabled", 1);
+    putenv("KMP_AFFINITY=disabled");
 
     // openmp initialization triggers abort when another openmp runtime detected
     // ref __kmp_register_library_startup in openmp/runtime/src/kmp_runtime.cpp
     // this happens when loading multiple libraries that are static linked openmp
     // just let it continue to work, it works well in most cases, at least it won't crash unexpectedly
-    setenv("KMP_DUPLICATE_LIB_OK", "1", 1);
+    putenv("KMP_DUPLICATE_LIB_OK=1");
 }
 #endif
 
