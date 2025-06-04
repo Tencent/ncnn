@@ -53,10 +53,10 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
     float sum = 0.f;
     for (int q = 0; q < channels; q++)
     {
-        const float* ptr1 = ptr + cstep * q;
+        const float* ptr0 = ptr + cstep * q;
         for (int i = 0; i < size; i++)
         {
-            sum += ptr1[i];
+            sum += ptr0[i];
         }
     }
 
@@ -65,10 +65,10 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
     float sqsum = 0.f;
     for (int q = 0; q < channels; q++)
     {
-        const float* ptr1 = ptr + cstep * q;
+        const float* ptr0 = ptr + cstep * q;
         for (int i = 0; i < size; i++)
         {
-            float v = ptr1[i] - mean;
+            float v = ptr0[i] - mean;
             sqsum += v * v;
         }
     }
@@ -82,12 +82,12 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
     {
         for (int q = 0; q < channels; q++)
         {
-            float* ptr1 = ptr + cstep * q;
+            float* ptr0 = ptr + cstep * q;
             const float gamma = gamma_ptr[q];
             const float beta = beta_ptr[q];
             for (int i = 0; i < size; i++)
             {
-                ptr1[i] = (ptr1[i] * a + b) * gamma + beta;
+                ptr0[i] = (ptr0[i] * a + b) * gamma + beta;
             }
         }
     }
@@ -95,10 +95,10 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
     {
         for (int q = 0; q < channels; q++)
         {
-            float* ptr1 = ptr + cstep * q;
+            float* ptr0 = ptr + cstep * q;
             for (int i = 0; i < size; i++)
             {
-                ptr1[i] = ptr1[i] * a + b;
+                ptr0[i] = ptr0[i] * a + b;
             }
         }
     }
@@ -107,17 +107,17 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
 int GroupNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     const int dims = bottom_top_blob.dims;
-    const int channels_per_group = channels / group;
+    const int channels_g = channels / group;
 
     if (dims == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
-            Mat bottom_top_blob_g = bottom_top_blob.range(g * channels_per_group, channels_per_group);
-            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_per_group : 0;
-            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_per_group : 0;
-            groupnorm(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_per_group, 1, 1);
+            Mat bottom_top_blob_g = bottom_top_blob.range(g * channels_g, channels_g);
+            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_g : 0;
+            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_g : 0;
+            groupnorm(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g, 1, 1);
         }
     }
 
@@ -128,10 +128,10 @@ int GroupNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
-            Mat bottom_top_blob_g = bottom_top_blob.row_range(g * channels_per_group, channels_per_group);
-            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_per_group : 0;
-            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_per_group : 0;
-            groupnorm(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_per_group, w, w);
+            Mat bottom_top_blob_g = bottom_top_blob.row_range(g * channels_g, channels_g);
+            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_g : 0;
+            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_g : 0;
+            groupnorm(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g, w, w);
         }
     }
 
@@ -143,10 +143,10 @@ int GroupNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
-            Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_per_group, channels_per_group);
-            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_per_group : 0;
-            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_per_group : 0;
-            groupnorm(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_per_group, size, cstep);
+            Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_g, channels_g);
+            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_g : 0;
+            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_g : 0;
+            groupnorm(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g, size, cstep);
         }
     }
 
