@@ -215,7 +215,7 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
                 __m512 _beta = _mm512_loadu_ps(beta_ptr + q * elempack);
 
                 _a_avx512 = _mm512_mul_ps(_var_avx512, _gamma);
-                _b_avx512 = _mm512_sub_ps(_mm512_mul_ps(_mean_avx512, _gamma), _beta);
+                _b_avx512 = _mm512_fmsub_ps(_mean_avx512, _gamma, _beta);
             }
 #endif // __AVX512F__
             if (elempack == 8)
@@ -224,7 +224,7 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
                 __m256 _beta = _mm256_loadu_ps(beta_ptr + q * elempack);
 
                 _a_avx = _mm256_mul_ps(_var_avx, _gamma);
-                _b_avx = _mm256_sub_ps(_mm256_mul_ps(_mean_avx, _gamma), _beta);
+                _b_avx = _mm256_comp_fmsub_ps(_mean_avx, _gamma, _beta);
 #if __AVX512F__
                 _a_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_a_avx), _a_avx, 1);
                 _b_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_b_avx), _b_avx, 1);
@@ -237,7 +237,7 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
                 __m128 _beta = _mm_loadu_ps(beta_ptr + q * elempack);
 
                 _a = _mm_mul_ps(_var, _gamma);
-                _b = _mm_sub_ps(_mm_mul_ps(_mean, _gamma), _beta);
+                _b = _mm_comp_fmsub_ps(_mean, _gamma, _beta);
 #if __AVX__
                 _a_avx = _mm256_insertf128_ps(_mm256_castps128_ps256(_a), _a, 1);
                 _b_avx = _mm256_insertf128_ps(_mm256_castps128_ps256(_b), _b, 1);
