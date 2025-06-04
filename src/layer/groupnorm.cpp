@@ -48,6 +48,62 @@ int GroupNorm::load_model(const ModelBin& mb)
     return 0;
 }
 
+static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, size_t cstep)
+{
+    float sum = 0.f;
+    for (int q = 0; q < channels; q++)
+    {
+        const float* ptr1 = ptr + cstep * q;
+        for (int i = 0; i < size; i++)
+        {
+            sum += ptr1[i];
+        }
+    }
+
+    float mean = sum / (channels * size);
+
+    float sqsum = 0.f;
+    for (int q = 0; q < channels; q++)
+    {
+        const float* ptr1 = ptr + cstep * q;
+        for (int i = 0; i < size; i++)
+        {
+            float v = ptr1[i] - mean;
+            sqsum += v * v;
+        }
+    }
+
+    float var = sqsum / (channels * size);
+
+    float a = 1.f / sqrtf(var + eps);
+    float b = -mean * a;
+
+    if (gamma_ptr && beta_ptr)
+    {
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr1 = ptr + cstep * q;
+            const float gamma = gamma_ptr[q];
+            const float beta = beta_ptr[q];
+            for (int i = 0; i < size; i++)
+            {
+                ptr1[i] = (ptr1[i] * a + b) * gamma + beta;
+            }
+        }
+    }
+    else
+    {
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr1 = ptr + cstep * q;
+            for (int i = 0; i < size; i++)
+            {
+                ptr1[i] = ptr1[i] * a + b;
+            }
+        }
+    }
+}
+
 int GroupNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     const int dims = bottom_top_blob.dims;
@@ -59,172 +115,38 @@ int GroupNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int g = 0; g < group; g++)
         {
             Mat bottom_top_blob_g = bottom_top_blob.range(g * channels_per_group, channels_per_group);
-            const Mat gamma_data_g = gamma_data.range(g * channels_per_group, channels_per_group);
-            const Mat beta_data_g = beta_data.range(g * channels_per_group, channels_per_group);
-
-            // mean and var
-            float sum = 0.f;
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                sum += bottom_top_blob_g[q];
-            }
-            float mean = sum / channels_per_group;
-
-            float sqsum = 0.f;
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                float tmp = bottom_top_blob_g[q] - mean;
-                sqsum += tmp * tmp;
-            }
-            float var = sqsum / channels_per_group;
-
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                float a;
-                float b;
-                if (affine)
-                {
-                    float gamma = gamma_data_g[q];
-                    float beta = beta_data_g[q];
-
-                    a = gamma / sqrtf(var + eps);
-                    b = -mean * a + beta;
-                }
-                else
-                {
-                    a = 1.f / (sqrtf(var + eps));
-                    b = -mean * a;
-                }
-
-                bottom_top_blob_g[q] = bottom_top_blob_g[q] * a + b;
-            }
+            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_per_group : 0;
+            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_per_group : 0;
+            groupnorm(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_per_group, 1, 1);
         }
     }
 
     if (dims == 2)
     {
-        int w = bottom_top_blob.w;
+        const int w = bottom_top_blob.w;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
             Mat bottom_top_blob_g = bottom_top_blob.row_range(g * channels_per_group, channels_per_group);
-            const Mat gamma_data_g = gamma_data.range(g * channels_per_group, channels_per_group);
-            const Mat beta_data_g = beta_data.range(g * channels_per_group, channels_per_group);
-
-            // mean and var
-            float sum = 0.f;
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                const float* ptr = bottom_top_blob_g.row(q);
-                for (int i = 0; i < w; i++)
-                {
-                    sum += ptr[i];
-                }
-            }
-            float mean = sum / (channels_per_group * w);
-
-            float sqsum = 0.f;
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                const float* ptr = bottom_top_blob_g.row(q);
-                for (int i = 0; i < w; i++)
-                {
-                    float tmp = ptr[i] - mean;
-                    sqsum += tmp * tmp;
-                }
-            }
-            float var = sqsum / (channels_per_group * w);
-
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                float a;
-                float b;
-                if (affine)
-                {
-                    float gamma = gamma_data_g[q];
-                    float beta = beta_data_g[q];
-
-                    a = gamma / sqrtf(var + eps);
-                    b = -mean * a + beta;
-                }
-                else
-                {
-                    a = 1.f / (sqrtf(var + eps));
-                    b = -mean * a;
-                }
-
-                float* ptr = bottom_top_blob_g.row(q);
-                for (int i = 0; i < w; i++)
-                {
-                    ptr[i] = ptr[i] * a + b;
-                }
-            }
+            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_per_group : 0;
+            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_per_group : 0;
+            groupnorm(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_per_group, w, w);
         }
     }
 
     if (dims == 3 || dims == 4)
     {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int d = bottom_top_blob.d;
-        int size = w * h * d;
+        const int size = bottom_top_blob.w * bottom_top_blob.h * bottom_top_blob.d;
+        const size_t cstep = bottom_top_blob.cstep;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
             Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_per_group, channels_per_group);
-            const Mat gamma_data_g = gamma_data.range(g * channels_per_group, channels_per_group);
-            const Mat beta_data_g = beta_data.range(g * channels_per_group, channels_per_group);
-
-            // mean and var
-            float sum = 0.f;
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                const float* ptr = bottom_top_blob_g.channel(q);
-                for (int i = 0; i < size; i++)
-                {
-                    sum += ptr[i];
-                }
-            }
-            float mean = sum / (channels_per_group * size);
-
-            float sqsum = 0.f;
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                const float* ptr = bottom_top_blob_g.channel(q);
-                for (int i = 0; i < size; i++)
-                {
-                    float tmp = ptr[i] - mean;
-                    sqsum += tmp * tmp;
-                }
-            }
-            float var = sqsum / (channels_per_group * size);
-
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                float a;
-                float b;
-                if (affine)
-                {
-                    float gamma = gamma_data_g[q];
-                    float beta = beta_data_g[q];
-
-                    a = gamma / sqrtf(var + eps);
-                    b = -mean * a + beta;
-                }
-                else
-                {
-                    a = 1.f / (sqrtf(var + eps));
-                    b = -mean * a;
-                }
-
-                float* ptr = bottom_top_blob_g.channel(q);
-                for (int i = 0; i < size; i++)
-                {
-                    ptr[i] = ptr[i] * a + b;
-                }
-            }
+            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_per_group : 0;
+            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_per_group : 0;
+            groupnorm(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_per_group, size, cstep);
         }
     }
 
