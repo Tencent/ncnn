@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Softmax_mips : virtual public Softmax
+class Softmax_mips : public Softmax
 {
 public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class UnaryOp_arm : virtual public UnaryOp
+class UnaryOp_arm : public UnaryOp
 {
 public:
     UnaryOp_arm();

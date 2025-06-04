@@ -15,7 +15,6 @@
 #include "softmax_mips.h"
 
 #include <float.h>
-#include <math.h>
 
 #if __mips_msa
 #include <msa.h>
@@ -88,7 +87,7 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (; remain > 0; remain--)
         {
-            *ptr = exp(*ptr - *maxptr);
+            *ptr = expf(*ptr - *maxptr);
 
             ptr++;
             maxptr++;

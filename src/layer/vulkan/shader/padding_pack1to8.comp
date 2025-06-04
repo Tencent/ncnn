@@ -14,14 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int type = 1;
 layout (constant_id = 1) const float value = 0;
 layout (constant_id = 2) const int per_channel_pad = 0;
@@ -217,6 +209,17 @@ void main()
             ivec4 v_offset2 = yy4 * psc(w) + x;
 
             afpvec8 v;
+#if ncnn_vendorID == 4318
+            // out of index load cause stall on nvidia
+            v[0].r = mask.r ? buffer_ld1(bottom_blob_data, v_offset.r) : afp(value);
+            v[0].g = mask.g ? buffer_ld1(bottom_blob_data, v_offset.g) : afp(value);
+            v[0].b = mask.b ? buffer_ld1(bottom_blob_data, v_offset.b) : afp(value);
+            v[0].a = mask.a ? buffer_ld1(bottom_blob_data, v_offset.a) : afp(value);
+            v[1].r = mask2.r ? buffer_ld1(bottom_blob_data, v_offset2.r) : afp(value);
+            v[1].g = mask2.g ? buffer_ld1(bottom_blob_data, v_offset2.g) : afp(value);
+            v[1].b = mask2.b ? buffer_ld1(bottom_blob_data, v_offset2.b) : afp(value);
+            v[1].a = mask2.a ? buffer_ld1(bottom_blob_data, v_offset2.a) : afp(value);
+#else
             v[0].r = buffer_ld1(bottom_blob_data, v_offset.r);
             v[0].g = buffer_ld1(bottom_blob_data, v_offset.g);
             v[0].b = buffer_ld1(bottom_blob_data, v_offset.b);
@@ -228,6 +231,7 @@ void main()
 
             v[0] = mix(afpvec4(value), v[0], mask);
             v[1] = mix(afpvec4(value), v[1], mask2);
+#endif
 
             buffer_st8(top_blob_data, gi, v);
 #endif

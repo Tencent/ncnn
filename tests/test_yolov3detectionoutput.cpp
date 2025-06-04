@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/yolov3detectionoutput.h"
 #include "testutil.h"
 
 static int test_yolov3detectionoutput(const std::vector<ncnn::Mat>& a, int num_class,
@@ -30,7 +29,7 @@ static int test_yolov3detectionoutput(const std::vector<ncnn::Mat>& a, int num_c
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Yolov3DetectionOutput>("Yolov3DetectionOutput", pd, weights, a);
+    int ret = test_layer("Yolov3DetectionOutput", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_yolov3detectionoutput failed a.dims=%d a=(%d %d %d) ", a[0].dims, a[0].w, a[0].h, a[0].c);

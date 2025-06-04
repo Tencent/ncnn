@@ -26,9 +26,10 @@
 #include <stdio.h>
 #include <vector>
 
-#define YOLOV5_V60 1 //YOLOv5 v6.0
+//#define YOLOV5_V60 1 //YOLOv5 v6.0
+#define YOLOV5_V62 1 //YOLOv5 v6.2 export  onnx model method https://github.com/shaoshengsong/yolov5_62_export_ncnn
 
-#if YOLOV5_V60
+#if YOLOV5_V60 || YOLOV5_V62
 #define MAX_STRIDE 64
 #else
 #define MAX_STRIDE 32
@@ -79,7 +80,7 @@ public:
 };
 
 DEFINE_LAYER_CREATOR(YoloV5Focus)
-#endif //YOLOV5_V60
+#endif //YOLOV5_V60    YOLOV5_V62
 
 struct Object
 {
@@ -278,7 +279,12 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // original pretrained model from https://github.com/ultralytics/yolov5
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-#if YOLOV5_V60
+#if YOLOV5_V62
+    if (yolov5.load_param("yolov5s_6.2.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s_6.2.bin"))
+        exit(-1);
+#elif YOLOV5_V60
     if (yolov5.load_param("yolov5s_6.0.param"))
         exit(-1);
     if (yolov5.load_model("yolov5s_6.0.bin"))
@@ -358,7 +364,10 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 16
     {
         ncnn::Mat out;
-#if YOLOV5_V60
+
+#if YOLOV5_V62
+        ex.extract("353", out);
+#elif YOLOV5_V60
         ex.extract("376", out);
 #else
         ex.extract("781", out);
@@ -381,7 +390,9 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 32
     {
         ncnn::Mat out;
-#if YOLOV5_V60
+#if YOLOV5_V62
+        ex.extract("367", out);
+#elif YOLOV5_V60
         ex.extract("401", out);
 #else
         ex.extract("801", out);

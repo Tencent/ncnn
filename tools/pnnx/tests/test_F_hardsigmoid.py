@@ -37,6 +37,10 @@ class Model(nn.Module):
         self.h_sigmoid = h_sigmoid();
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.hardsigmoid(x)
         y = F.hardsigmoid(y)
         z = self.h_sigmoid(z)

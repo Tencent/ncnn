@@ -24,6 +24,11 @@ class Model(nn.Module):
         self.prelu_1 = nn.PReLU(num_parameters=1, init=0.12)
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
+
         x = self.prelu_0(x)
         x = self.prelu_1(x)
 

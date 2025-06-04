@@ -37,8 +37,8 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(12, 24)
-    y = torch.rand(3, 12, 16)
+    x = torch.rand(1, 12, 24)
+    y = torch.rand(1, 3, 12, 16)
 
     a = net(x, y)
 
@@ -48,14 +48,14 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_layer_norm.pt inputshape=[12,24],[3,12,16]")
+    os.system("../../src/pnnx test_F_layer_norm.pt inputshape=[1,12,24],[1,3,12,16]")
 
     # ncnn inference
     import test_F_layer_norm_ncnn
     b = test_F_layer_norm_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
     return True
 

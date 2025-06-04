@@ -12,10 +12,6 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 
-import sys
-import cv2
-import numpy as np
-import ncnn
 from ncnn.model_zoo import get_model_list
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -111,6 +112,7 @@ int HardSwish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
         int i = 0;
         for (; i + 31 < size; i += 32)
         {
+#if NCNN_GNU_INLINE_ASM
             asm volatile(
                 "prfm   pldl1keep, [%0, #512]   \n"
                 "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
@@ -142,6 +144,33 @@ int HardSwish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
                 "w"(_alpha), // %4
                 "w"(_beta)   // %5
                 : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
+#else  // NCNN_GNU_INLINE_ASM
+            float16x8_t _p0 = vld1q_f16(ptr);
+            float16x8_t _p1 = vld1q_f16(ptr + 8);
+            float16x8_t _p2 = vld1q_f16(ptr + 16);
+            float16x8_t _p3 = vld1q_f16(ptr + 24);
+            float16x8_t _ans0 = vfmaq_f16(_beta, _p0, _alpha);
+            float16x8_t _ans1 = vfmaq_f16(_beta, _p1, _alpha);
+            float16x8_t _ans2 = vfmaq_f16(_beta, _p2, _alpha);
+            float16x8_t _ans3 = vfmaq_f16(_beta, _p3, _alpha);
+            _ans0 = vmaxq_f16(_ans0, _zero);
+            _ans1 = vmaxq_f16(_ans1, _zero);
+            _ans2 = vmaxq_f16(_ans2, _zero);
+            _ans3 = vmaxq_f16(_ans3, _zero);
+            _ans0 = vminq_f16(_ans0, _one);
+            _ans1 = vminq_f16(_ans1, _one);
+            _ans2 = vminq_f16(_ans2, _one);
+            _ans3 = vminq_f16(_ans3, _one);
+            _p0 = vmulq_f16(_ans0, _p0);
+            _p1 = vmulq_f16(_ans1, _p1);
+            _p2 = vmulq_f16(_ans2, _p2);
+            _p3 = vmulq_f16(_ans3, _p3);
+            vst1q_f16(ptr, _p0);
+            vst1q_f16(ptr + 8, _p1);
+            vst1q_f16(ptr + 16, _p2);
+            vst1q_f16(ptr + 24, _p3);
+            ptr += 32;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; i + 15 < size; i += 16)
         {

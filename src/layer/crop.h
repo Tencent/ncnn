@@ -34,6 +34,7 @@ protected:
     void resolve_crop_roi(const Mat& bottom_blob, int& woffset, int& hoffset, int& doffset, int& coffset, int& outw, int& outh, int& outd, int& outc) const;
     void resolve_crop_roi(const Mat& bottom_blob, const Mat& reference_blob, int& woffset, int& hoffset, int& doffset, int& coffset, int& outw, int& outh, int& outd, int& outc) const;
     void resolve_crop_roi(const Mat& bottom_blob, const int* param_data, int& woffset, int& hoffset, int& doffset, int& coffset, int& outw, int& outh, int& outd, int& outc) const;
+    int eval_crop_expr(const std::vector<Mat>& bottom_blobs, int& woffset, int& hoffset, int& doffset, int& coffset, int& outw, int& outh, int& outd, int& outc) const;
 
 public:
     // -233 = dynamic offset from reference blob
@@ -60,6 +61,11 @@ public:
     Mat starts;
     Mat ends;
     Mat axes;
+
+    // see docs/developer-guide/expression.md
+    std::string starts_expr;
+    std::string ends_expr;
+    std::string axes_expr;
 };
 
 } // namespace ncnn

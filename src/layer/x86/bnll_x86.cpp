@@ -25,7 +25,6 @@
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
-#include <math.h>
 
 namespace ncnn {
 
@@ -98,9 +97,9 @@ int BNLL_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (; i < size; i++)
         {
             if (*ptr > 0)
-                *ptr = static_cast<float>(*ptr + log(1.f + exp(-(*ptr))));
+                *ptr = *ptr + logf(1.f + expf(-(*ptr)));
             else
-                *ptr = static_cast<float>(log(1.f + exp(*ptr)));
+                *ptr = logf(1.f + expf(*ptr));
             ptr++;
         }
     }

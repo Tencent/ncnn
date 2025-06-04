@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,21 +29,24 @@ public:
         return "nn.LPPool1d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* pow = find_node_by_kind(graph, "aten::pow");
-        op->params["norm_type"] = pow->inputs()[1];
+        const TorchNodeProxy* pow = graph.find_node_by_kind("aten::pow");
+        op->params["norm_type"] = pow->input(1);
 
-        const torch::jit::Node* avg_pool1d = find_node_by_kind(graph, "aten::avg_pool1d");
+        const TorchNodeProxy* avg_pool1d = graph.find_node_by_kind("aten::avg_pool1d");
 
-        op->params["kernel_size"] = avg_pool1d->namedInput("kernel_size")->node()->inputs()[0];
-        if (avg_pool1d->namedInput("stride")->node()->inputs().size() == 0)
+        const TorchNodeProxy* kernel_size = graph.find_producer_node_by_value(avg_pool1d->namedInput("kernel_size"));
+        const TorchNodeProxy* stride = graph.find_producer_node_by_value(avg_pool1d->namedInput("stride"));
+
+        op->params["kernel_size"] = kernel_size->input(0);
+        if (stride->input_count() == 0)
         {
             op->params["stride"] = op->params["kernel_size"];
         }
         else
         {
-            op->params["stride"] = avg_pool1d->namedInput("stride")->node()->inputs()[0];
+            op->params["stride"] = stride->input(0);
         }
         op->params["ceil_mode"] = avg_pool1d->namedInput("ceil_mode");
     }

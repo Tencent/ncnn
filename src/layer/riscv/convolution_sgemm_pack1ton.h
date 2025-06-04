@@ -15,7 +15,7 @@
 static void im2col_sgemm_pack1ton_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 
     // Mat bottom_im2col(size, maxk, inch, 4u, 1, opt.workspace_allocator);
 
@@ -63,23 +63,23 @@ static void im2col_sgemm_pack1ton_rvv(const Mat& bottom_im2col, Mat& top_blob, c
 
             int nn = inch * maxk; // inch always > 0
 
-            vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+            vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
             if (bias)
             {
-                _sum = vle32_v_f32m1(bias + p * packn, vl);
+                _sum = __riscv_vle32_v_f32m1(bias + p * packn, vl);
             }
 
             for (int j = 0; j < nn; j++)
             {
                 float val = *tmpptr++;
-                vfloat32m1_t _w0 = vle32_v_f32m1(kptr0, vl);
-                _sum = vfmacc_vf_f32m1(_sum, val, _w0, vl);
+                vfloat32m1_t _w0 = __riscv_vle32_v_f32m1(kptr0, vl);
+                _sum = __riscv_vfmacc_vf_f32m1(_sum, val, _w0, vl);
 
                 kptr0 += packn;
             }
 
-            vse32_v_f32m1(outptr0, _sum, vl);
+            __riscv_vse32_v_f32m1(outptr0, _sum, vl);
 
             outptr0 += packn;
         }

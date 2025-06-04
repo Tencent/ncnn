@@ -109,9 +109,9 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
         {
             __m128 _rows0 = _mm_load_ps(rows0p);
             __m128 _rows1 = _mm_load_ps(rows1p);
-            __m128 _D = _mm_mul_ps(_rows0, _b0);
-            _D = _mm_comp_fmadd_ps(_rows1, _b1, _D);
-            _mm_store_ps(Dp, _D);
+            __m128 _Dp = _mm_mul_ps(_rows0, _b0);
+            _Dp = _mm_comp_fmadd_ps(_rows1, _b1, _Dp);
+            _mm_store_ps(Dp, _Dp);
 
             Dp += 4;
             rows0p += 4;

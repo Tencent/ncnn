@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class HardSigmoid_riscv : virtual public HardSigmoid
+class HardSigmoid_riscv : public HardSigmoid
 {
 public:
     HardSigmoid_riscv();
@@ -27,7 +27,7 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 protected:
-#if __riscv_vector && __riscv_zfh
+#if NCNN_ZFH
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif
 };

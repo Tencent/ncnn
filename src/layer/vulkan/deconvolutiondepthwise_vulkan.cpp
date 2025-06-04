@@ -42,6 +42,19 @@ DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()
     pipeline_deconvolutiondepthwise_group_pack8to1 = 0;
 }
 
+int DeconvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
+{
+    int ret = DeconvolutionDepthWise::load_param(pd);
+
+    if (dynamic_weight)
+    {
+        support_vulkan = false;
+        support_image_storage = false;
+    }
+
+    return ret;
+}
+
 int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
@@ -161,7 +174,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        crop = ncnn::create_layer_vulkan(ncnn::LayerType::Crop);
         crop->vkdev = vkdev;
 
         crop->bottom_shapes.resize(1);
@@ -180,7 +193,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        output_crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        output_crop = ncnn::create_layer_vulkan(ncnn::LayerType::Crop);
         output_crop->vkdev = vkdev;
 
         output_crop->bottom_shapes.resize(1);
@@ -280,6 +293,12 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
             pipeline_deconvolutiondepthwise_pack8 = new Pipeline(vkdev);
             pipeline_deconvolutiondepthwise_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_deconvolutiondepthwise_pack8->create(LayerShaderType::deconvolutiondepthwise_pack8, opt, specializations);
+        }
+
+        if (opt.lightmode)
+        {
+            weight_data.release();
+            bias_data.release();
         }
 
         return 0;
@@ -419,6 +438,12 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         pipeline_deconvolutiondepthwise_group_pack8to1 = new Pipeline(vkdev);
         pipeline_deconvolutiondepthwise_group_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group_pack8to1->create(LayerShaderType::deconvolutiondepthwise_group_pack8to1, opt, specializations);
+    }
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+        bias_data.release();
     }
 
     return 0;

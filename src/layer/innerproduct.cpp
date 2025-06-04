@@ -69,21 +69,17 @@ int InnerProduct::load_model(const ModelBin& mb)
     }
 #endif // NCNN_INT8
 
-    return 0;
-}
-
-int InnerProduct::create_pipeline(const Option& opt)
-{
 #if NCNN_INT8
     // runtime quantize the weight data
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
+    if (weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
         const int num_input = weight_data_size / num_output;
 
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
         Mat weight_data_int8;
-        Option opt_q = opt;
+        Option opt_q;
+        opt_q.num_threads = 1;
         opt_q.use_packing_layout = false;
         quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
         if (weight_data_int8.empty())
@@ -91,8 +87,6 @@ int InnerProduct::create_pipeline(const Option& opt)
 
         weight_data = weight_data_int8.reshape(weight_data_size);
     }
-#else
-    (void)(opt);
 #endif // NCNN_INT8
 
     return 0;
@@ -115,7 +109,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
 
-    if (bottom_blob.dims == 2 && w == num_input && h > 1)
+    if (bottom_blob.dims == 2 && w == num_input)
     {
         // gemm
         top_blob.create(num_output, h, elemsize, opt.blob_allocator);
@@ -201,7 +195,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_g);
     }
 
-    if (bottom_blob.dims == 2 && w == num_input && h > 1)
+    if (bottom_blob.dims == 2 && w == num_input)
     {
         // gemm
         top_blob.create(num_output, h, 4u, opt.blob_allocator);

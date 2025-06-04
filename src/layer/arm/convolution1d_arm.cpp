@@ -18,13 +18,18 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
-#include "arm_activation.h"
 #include "arm_usability.h"
+#include "arm_activation.h"
 
 #include "cpu.h"
 #include "layer_type.h"
 
 namespace ncnn {
+
+#include "convolution1d_packed.h"
+#if NCNN_BF16
+#include "convolution1d_packed_bf16s.h"
+#endif // NCNN_BF16
 
 Convolution1D_arm::Convolution1D_arm()
 {
@@ -61,47 +66,10 @@ int Convolution1D_arm::create_pipeline(const Option& opt)
 
     const int num_input = weight_data_size / kernel_w / num_output;
 
-    int elempack = 1;
-    int out_elempack = 1;
+    convolution1d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
-#if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-        elempack = num_input % 4 == 0 ? 4 : 1;
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
-    }
-#endif
-
-    // src = kw-inch-outch
-    // dst = pb-pa-kw-inch/pa-outch/pb
-    {
-        Mat weight_data_r2 = weight_data.reshape(kernel_w, num_input, num_output);
-
-        weight_data_packed.create(kernel_w, num_input / elempack, num_output / out_elempack, (size_t)4u * elempack * out_elempack, elempack * out_elempack);
-
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
-        {
-            float* g00 = weight_data_packed.channel(q / out_elempack);
-
-            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
-            {
-                for (int k = 0; k < kernel_w; k++)
-                {
-                    for (int i = 0; i < elempack; i++)
-                    {
-                        for (int j = 0; j < out_elempack; j++)
-                        {
-                            const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-
-                            g00[0] = k00[k];
-
-                            g00++;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -131,7 +99,6 @@ int Convolution1D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #endif
 
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -143,7 +110,6 @@ int Convolution1D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         return -100;
 
     w = bottom_blob_bordered.w;
-    h = bottom_blob_bordered.h;
 
     int out_elempack = 1;
 #if __ARM_NEON
@@ -161,199 +127,7 @@ int Convolution1D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (top_blob.empty())
         return -100;
 
-#if __ARM_NEON
-    if (elempack == 4 && out_elempack == 4)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                float* outptr = top_blob.row(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float32x4_t _sum = vdupq_n_f32(0.f);
-
-                    if (bias_term)
-                    {
-                        _sum = vld1q_f32((const float*)bias_data + p * 4);
-                    }
-
-                    const float* kptr = weight_data_packed.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * 4;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            float32x4_t _val = vld1q_f32(sptr);
-
-                            float32x4_t _w0 = vld1q_f32(kptr);
-                            float32x4_t _w1 = vld1q_f32(kptr + 4);
-                            float32x4_t _w2 = vld1q_f32(kptr + 8);
-                            float32x4_t _w3 = vld1q_f32(kptr + 12);
-
-#if __aarch64__
-                            _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
-                            _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
-                            _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
-                            _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
-#else
-                            _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
-                            _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
-                            _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
-                            _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
-#endif
-
-                            sptr += dilation_w * 4;
-                            kptr += 16;
-                        }
-                    }
-
-                    _sum = activation_ps(_sum, activation_type, activation_params);
-
-                    vst1q_f32(outptr, _sum);
-                    outptr += 4;
-                }
-            }
-        }
-    }
-
-    if (elempack == 1 && out_elempack == 4)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                float* outptr = top_blob.row(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float32x4_t _sum = vdupq_n_f32(0.f);
-
-                    if (bias_term)
-                    {
-                        _sum = vld1q_f32((const float*)bias_data + p * 4);
-                    }
-
-                    const float* kptr = weight_data_packed.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            float32x4_t _val = vdupq_n_f32(sptr[0]);
-                            float32x4_t _w = vld1q_f32(kptr);
-                            _sum = vmlaq_f32(_sum, _val, _w);
-
-                            sptr += dilation_w;
-                            kptr += 4;
-                        }
-                    }
-
-                    _sum = activation_ps(_sum, activation_type, activation_params);
-
-                    vst1q_f32(outptr, _sum);
-                    outptr += 4;
-                }
-            }
-        }
-    }
-
-    if (elempack == 4 && out_elempack == 1)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                float* outptr = top_blob.row(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float sum = 0.f;
-
-                    if (bias_term)
-                    {
-                        sum = bias_data[p];
-                    }
-
-                    const float* kptr = weight_data_packed.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * 4;
-
-                        for (int k = 0; k < kernel_w; k++) // 29.23
-                        {
-                            float32x4_t _val = vld1q_f32(sptr);
-                            float32x4_t _w = vld1q_f32(kptr);
-                            float32x4_t _s4 = vmulq_f32(_val, _w);
-#if __aarch64__
-                            sum += vaddvq_f32(_s4); // dot
-#else
-                            float32x2_t _ss = vadd_f32(vget_low_f32(_s4), vget_high_f32(_s4));
-                            _ss = vpadd_f32(_ss, _ss);
-                            sum += vget_lane_f32(_ss, 0);
-#endif
-
-                            sptr += dilation_w * 4;
-                            kptr += 4;
-                        }
-                    }
-
-                    sum = activation_ss(sum, activation_type, activation_params);
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-    }
-#endif // __ARM_NEON
-
-    if (elempack == 1 && out_elempack == 1)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                float* outptr = top_blob.row(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float sum = 0.f;
-
-                    if (bias_term)
-                    {
-                        sum = bias_data[p];
-                    }
-
-                    const float* kptr = (const float*)weight_data + kernel_w * h * p;
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            float val = sptr[0];
-                            float wt = kptr[0];
-                            sum += val * wt;
-
-                            sptr += dilation_w;
-                            kptr += 1;
-                        }
-                    }
-
-                    sum = activation_ss(sum, activation_type, activation_params);
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-    }
+    convolution1d_packed(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
 
     return 0;
 }
@@ -425,7 +199,7 @@ int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution1D);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution1D);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -464,46 +238,10 @@ int Convolution1D_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / kernel_w / num_output;
 
-    int elempack = 1;
-    int out_elempack = 1;
-#if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-        elempack = num_input % 4 == 0 ? 4 : 1;
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
-    }
-#endif
+    convolution1d_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
-    // src = kw-inch-outch
-    // dst = pb-pa-kw-inch/pa-outch/pb
-    {
-        Mat weight_data_r2 = weight_data.reshape(kernel_w, num_input, num_output);
-
-        weight_data_bf16.create(kernel_w, num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
-
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
-        {
-            unsigned short* g00 = weight_data_bf16.channel(q / out_elempack);
-
-            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
-            {
-                for (int k = 0; k < kernel_w; k++)
-                {
-                    for (int i = 0; i < elempack; i++)
-                    {
-                        for (int j = 0; j < out_elempack; j++)
-                        {
-                            const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-
-                            g00[0] = float32_to_bfloat16(k00[k]);
-
-                            g00++;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -511,7 +249,6 @@ int Convolution1D_arm::create_pipeline_bf16s(const Option& opt)
 int Convolution1D_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -523,7 +260,6 @@ int Convolution1D_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
         return -100;
 
     w = bottom_blob_bordered.w;
-    h = bottom_blob_bordered.h;
 
     int out_elempack = 1;
 #if __ARM_NEON
@@ -541,199 +277,7 @@ int Convolution1D_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     if (top_blob.empty())
         return -100;
 
-#if __ARM_NEON
-    if (elempack == 4 && out_elempack == 4)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                unsigned short* outptr = top_blob.row<unsigned short>(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float32x4_t _sum = vdupq_n_f32(0.f);
-
-                    if (bias_term)
-                    {
-                        _sum = vld1q_f32((const float*)bias_data + p * 4);
-                    }
-
-                    const unsigned short* kptr = weight_data_bf16.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const unsigned short* sptr = bottom_blob_bordered.row<const unsigned short>(q) + j * stride_w * 4;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            float32x4_t _val = float2bfloat(vld1_u16(sptr));
-
-                            float32x4_t _w0 = float2bfloat(vld1_u16(kptr));
-                            float32x4_t _w1 = float2bfloat(vld1_u16(kptr + 4));
-                            float32x4_t _w2 = float2bfloat(vld1_u16(kptr + 8));
-                            float32x4_t _w3 = float2bfloat(vld1_u16(kptr + 12));
-
-#if __aarch64__
-                            _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
-                            _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
-                            _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
-                            _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
-#else
-                            _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
-                            _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
-                            _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
-                            _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
-#endif
-
-                            sptr += dilation_w * 4;
-                            kptr += 16;
-                        }
-                    }
-
-                    _sum = activation_ps(_sum, activation_type, activation_params);
-
-                    vst1_u16(outptr, bfloat2float(_sum));
-                    outptr += 4;
-                }
-            }
-        }
-    }
-
-    if (elempack == 1 && out_elempack == 4)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                unsigned short* outptr = top_blob.row<unsigned short>(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float32x4_t _sum = vdupq_n_f32(0.f);
-
-                    if (bias_term)
-                    {
-                        _sum = vld1q_f32((const float*)bias_data + p * 4);
-                    }
-
-                    const unsigned short* kptr = weight_data_bf16.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const unsigned short* sptr = bottom_blob_bordered.row<const unsigned short>(q) + j * stride_w;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(sptr[0]));
-                            float32x4_t _w = float2bfloat(vld1_u16(kptr));
-                            _sum = vmlaq_f32(_sum, _val, _w);
-
-                            sptr += dilation_w;
-                            kptr += 4;
-                        }
-                    }
-
-                    _sum = activation_ps(_sum, activation_type, activation_params);
-
-                    vst1_u16(outptr, bfloat2float(_sum));
-                    outptr += 4;
-                }
-            }
-        }
-    }
-
-    if (elempack == 4 && out_elempack == 1)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                unsigned short* outptr = top_blob.row<unsigned short>(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float sum = 0.f;
-
-                    if (bias_term)
-                    {
-                        sum = bias_data[p];
-                    }
-
-                    const unsigned short* kptr = weight_data_bf16.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const unsigned short* sptr = bottom_blob_bordered.row<const unsigned short>(q) + j * stride_w * 4;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            float32x4_t _val = float2bfloat(vld1_u16(sptr));
-                            float32x4_t _w = float2bfloat(vld1_u16(kptr));
-                            float32x4_t _s4 = vmulq_f32(_val, _w);
-#if __aarch64__
-                            sum += vaddvq_f32(_s4); // dot
-#else
-                            float32x2_t _ss = vadd_f32(vget_low_f32(_s4), vget_high_f32(_s4));
-                            _ss = vpadd_f32(_ss, _ss);
-                            sum += vget_lane_f32(_ss, 0);
-#endif
-
-                            sptr += dilation_w * 4;
-                            kptr += 4;
-                        }
-                    }
-
-                    sum = activation_ss(sum, activation_type, activation_params);
-
-                    outptr[j] = float32_to_bfloat16(sum);
-                }
-            }
-        }
-    }
-#endif // __ARM_NEON
-
-    if (elempack == 1 && out_elempack == 1)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                unsigned short* outptr = top_blob.row<unsigned short>(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float sum = 0.f;
-
-                    if (bias_term)
-                    {
-                        sum = bias_data[p];
-                    }
-
-                    const unsigned short* kptr = weight_data_bf16.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const unsigned short* sptr = bottom_blob_bordered.row<unsigned short>(q) + j * stride_w;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            float val = bfloat16_to_float32(sptr[0]);
-                            float wt = bfloat16_to_float32(kptr[0]);
-                            sum += val * wt;
-
-                            sptr += dilation_w;
-                            kptr += 1;
-                        }
-                    }
-
-                    sum = activation_ss(sum, activation_type, activation_params);
-
-                    outptr[j] = float32_to_bfloat16(sum);
-                }
-            }
-        }
-    }
+    convolution1d_packed_bf16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
 
     return 0;
 }

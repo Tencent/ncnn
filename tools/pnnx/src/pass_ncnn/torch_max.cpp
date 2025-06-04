@@ -65,6 +65,22 @@ pnnx.Output             output      2 0 out indices
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_max, 20)
 
+class torch_max_0 : public torch_max
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+torch.max               op_0        1 1 input out dim=%dim keepdim=%keepdim
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_max_0, 20)
+
 class torch_max_1 : public GraphRewriterPass
 {
 public:

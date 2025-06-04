@@ -14,14 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int op_type = 0;
 
 #define shape_constant_id_offset 1
@@ -155,6 +147,21 @@ void main()
         res[0] = tanh(v[0]);
         res[1] = tanh(v[1]);
 #endif
+    }
+    if (op_type == 17)
+    {
+        res[0] = log(v[0]) * afp(0.434294481903);
+        res[1] = log(v[1]) * afp(0.434294481903);
+    }
+    if (op_type == 18)
+    {
+        res[0] = round(v[0]);
+        res[1] = round(v[1]);
+    }
+    if (op_type == 19)
+    {
+        res[0] = trunc(v[0]);
+        res[1] = trunc(v[1]);
     }
 
 #if NCNN_image_shader

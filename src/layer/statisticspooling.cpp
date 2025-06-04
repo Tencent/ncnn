@@ -14,7 +14,6 @@
 
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -68,9 +67,9 @@ int StatisticsPooling::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         float std = 0.f;
         for (int i = 0; i < size; i++)
         {
-            std += pow((ptr[i] - top_blob[q - channels]), 2);
+            std += powf((ptr[i] - top_blob[q - channels]), 2);
         }
-        top_blob[q] = sqrt(std / w / h);
+        top_blob[q] = sqrtf(std / w / h);
     }
 
     return 0;

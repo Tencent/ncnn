@@ -24,7 +24,7 @@ class Model(nn.Module):
         x0 = x[:3]
         x1 = x[3:]
 
-        z3 = z[:,:,7:]
+        z3 = z[:,:,7:z.size(2)]
         z2 = z[:,:,4:7]
 
         y0 = y[:2,:]

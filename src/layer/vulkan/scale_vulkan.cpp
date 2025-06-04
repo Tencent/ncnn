@@ -218,6 +218,12 @@ int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         }
     }
 
+    if (opt.lightmode)
+    {
+        scale_data.release();
+        bias_data.release();
+    }
+
     return 0;
 }
 

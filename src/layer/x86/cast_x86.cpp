@@ -20,6 +20,7 @@
 #include <immintrin.h>
 #endif // __AVX__
 #endif // __SSE2__
+#include "x86_usability.h"
 
 #include "cpu.h"
 

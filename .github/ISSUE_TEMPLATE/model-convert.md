@@ -1,6 +1,6 @@
 ---
 name: "\U0001F6B8 model convert issue"
-about: "Life is Short, Use convertmodel.com"
+about: "Life is Short, Use pnnx and convertmodel.com"
 ---
 
 ## error log | 日志或报错信息 | ログ

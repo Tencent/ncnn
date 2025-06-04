@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ReLU_x86 : virtual public ReLU
+class ReLU_x86 : public ReLU
 {
 public:
     ReLU_x86();

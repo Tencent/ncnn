@@ -38,7 +38,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum, 50)
 
 class torch_sum_1 : public GraphRewriterPass
 {
@@ -60,6 +60,91 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum_1, 50)
+
+class torch_sum_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+ReduceSum               op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.sum";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.axes") != captured_params.end())
+        {
+            op->params["dim"] = captured_params.at("op_0.axes");
+        }
+        else
+        {
+            // reduce all
+            const int input_rank = (int)op->inputs[0]->shape.size();
+            std::vector<int> dim(input_rank);
+            for (int i = 0; i < input_rank; i++)
+            {
+                dim[i] = i;
+            }
+            op->params["dim"] = dim;
+        }
+
+        if (captured_params.find("op_0.keepdims") != captured_params.end())
+        {
+            op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
+        }
+        else
+        {
+            op->params["keepdim"] = true;
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum_onnx, 50)
+
+class torch_sum_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.ReduceSum           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.sum";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        std::vector<int> dim;
+        for (int i = 1;; i++)
+        {
+            if (captured_params.find("op_0.arg" + std::to_string(i)) == captured_params.end())
+                break;
+
+            dim.push_back(captured_params.at("op_0.arg" + std::to_string(i)).i);
+        }
+
+        op->params["dim"] = dim;
+        op->params["keepdim"] = captured_params.at("op_0.arg0").i ? true : false;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_sum_tnn, 50)
 
 } // namespace pnnx

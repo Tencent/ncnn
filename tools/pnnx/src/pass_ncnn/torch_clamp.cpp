@@ -50,7 +50,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("min").type == 2)
         {
-            min = captured_params.at("min").i;
+            min = (float)captured_params.at("min").i;
         }
         if (captured_params.at("min").type == 3)
         {
@@ -59,7 +59,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("max").type == 2)
         {
-            max = captured_params.at("max").i;
+            max = (float)captured_params.at("max").i;
         }
         if (captured_params.at("max").type == 3)
         {

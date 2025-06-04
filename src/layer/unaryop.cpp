@@ -14,7 +14,8 @@
 
 #include "unaryop.h"
 
-#include <math.h>
+// #include <fenv.h>
+#include <float.h>
 
 namespace ncnn {
 
@@ -51,7 +52,7 @@ struct unary_op_abs
 {
     float operator()(const float& x) const
     {
-        return (float)fabs(x);
+        return (float)fabsf(x);
     }
 };
 
@@ -67,7 +68,7 @@ struct unary_op_floor
 {
     float operator()(const float& x) const
     {
-        return (float)floor(x);
+        return (float)floorf(x);
     }
 };
 
@@ -75,7 +76,7 @@ struct unary_op_ceil
 {
     float operator()(const float& x) const
     {
-        return (float)ceil(x);
+        return (float)ceilf(x);
     }
 };
 
@@ -91,7 +92,7 @@ struct unary_op_sqrt
 {
     float operator()(const float& x) const
     {
-        return (float)sqrt(x);
+        return (float)sqrtf(x);
     }
 };
 
@@ -99,7 +100,7 @@ struct unary_op_rsqrt
 {
     float operator()(const float& x) const
     {
-        return (float)(1.f / sqrt(x));
+        return 1.f / sqrtf(x);
     }
 };
 
@@ -107,7 +108,7 @@ struct unary_op_exp
 {
     float operator()(const float& x) const
     {
-        return (float)exp(x);
+        return (float)expf(x);
     }
 };
 
@@ -115,7 +116,7 @@ struct unary_op_log
 {
     float operator()(const float& x) const
     {
-        return (float)log(x);
+        return (float)logf(x);
     }
 };
 
@@ -123,7 +124,7 @@ struct unary_op_sin
 {
     float operator()(const float& x) const
     {
-        return (float)sin(x);
+        return (float)sinf(x);
     }
 };
 
@@ -131,7 +132,7 @@ struct unary_op_cos
 {
     float operator()(const float& x) const
     {
-        return (float)cos(x);
+        return (float)cosf(x);
     }
 };
 
@@ -139,7 +140,7 @@ struct unary_op_tan
 {
     float operator()(const float& x) const
     {
-        return (float)tan(x);
+        return (float)tanf(x);
     }
 };
 
@@ -147,7 +148,7 @@ struct unary_op_asin
 {
     float operator()(const float& x) const
     {
-        return (float)asin(x);
+        return (float)asinf(x);
     }
 };
 
@@ -155,7 +156,7 @@ struct unary_op_acos
 {
     float operator()(const float& x) const
     {
-        return (float)acos(x);
+        return (float)acosf(x);
     }
 };
 
@@ -163,7 +164,7 @@ struct unary_op_atan
 {
     float operator()(const float& x) const
     {
-        return (float)atan(x);
+        return (float)atanf(x);
     }
 };
 
@@ -179,7 +180,31 @@ struct unary_op_tanh
 {
     float operator()(const float& x) const
     {
-        return (float)tanh(x);
+        return (float)tanhf(x);
+    }
+};
+
+struct unary_op_log10
+{
+    float operator()(const float& x) const
+    {
+        return (float)log10f(x);
+    }
+};
+
+struct unary_op_round
+{
+    float operator()(const float& x) const
+    {
+        return nearbyintf(x);
+    }
+};
+
+struct unary_op_trunc
+{
+    float operator()(const float& x) const
+    {
+        return (float)truncf(x);
     }
 };
 
@@ -235,6 +260,26 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TANH)
         return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+    {
+        // round to nearest even
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        int ret = unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return ret;
+    }
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }

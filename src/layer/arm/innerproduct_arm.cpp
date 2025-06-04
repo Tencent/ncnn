@@ -27,11 +27,6 @@
 
 namespace ncnn {
 
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
-#include "innerproduct_fp16s.h"
-#include "innerproduct_gemm_fp16s.h"
-#endif
-
 InnerProduct_arm::InnerProduct_arm()
 {
 #if __ARM_NEON
@@ -51,7 +46,7 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_cpu(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
 
@@ -81,7 +76,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
+#if NCNN_VFPV4
     if (cpu_support_arm_vfpv4() && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -128,9 +123,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -173,7 +166,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return forward_bf16s(bottom_blob, top_blob, opt);
 #endif
 
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
+#if NCNN_VFPV4
     if (cpu_support_arm_vfpv4() && opt.use_fp16_storage)
     {
         return forward_fp16s(bottom_blob, top_blob, opt);
@@ -182,7 +175,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     const int num_input = weight_data_size / num_output;
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {
         // gemm
         int h = bottom_blob.h;
@@ -422,6 +415,8 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -456,6 +451,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             const float* sptr = bottom_blob_flattened;
 
             int i = 0;
+#if NCNN_GNU_INLINE_ASM
             for (; i + 7 < num_input; i += 8)
             {
 #if __aarch64__
@@ -518,6 +514,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9");
 #endif
             }
+#endif // NCNN_GNU_INLINE_ASM
             for (; i + 3 < num_input; i += 4)
             {
                 float32x4_t _val = vld1q_f32(sptr);
@@ -596,129 +593,117 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
             const float* m = bottom_blob_flattened;
 
-#if __ARM_NEON
-            int nn = num_input >> 3;
-            int remain = num_input & 7;
-#else
-            int remain = num_input;
-#endif // __ARM_NEON
-
+            int i = 0;
 #if __ARM_NEON
             float32x4_t _sum0 = vdupq_n_f32(0.f);
             float32x4_t _sum1 = vdupq_n_f32(0.f);
             float32x4_t _sum2 = vdupq_n_f32(0.f);
             float32x4_t _sum3 = vdupq_n_f32(0.f);
+#if NCNN_GNU_INLINE_ASM
+            for (; i + 7 < num_input; i += 8)
+            {
 #if __aarch64__
-            if (nn > 0)
-            {
                 asm volatile(
-                    "0:                                   \n"
+                    "prfm       pldl1keep, [%0, #256]     \n"
+                    "ld1        {v0.4s, v1.4s}, [%0], #32 \n"
                     "prfm       pldl1keep, [%1, #256]     \n"
-                    "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
+                    "ld1        {v2.4s, v3.4s}, [%1], #32 \n"
                     "prfm       pldl1keep, [%2, #256]     \n"
-                    "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
+                    "ld1        {v4.4s, v5.4s}, [%2], #32 \n"
                     "prfm       pldl1keep, [%3, #256]     \n"
-                    "ld1        {v4.4s, v5.4s}, [%3], #32 \n"
+                    "ld1        {v6.4s, v7.4s}, [%3], #32 \n"
                     "prfm       pldl1keep, [%4, #256]     \n"
-                    "ld1        {v6.4s, v7.4s}, [%4], #32 \n"
-                    "prfm       pldl1keep, [%5, #256]     \n"
-                    "ld1        {v8.4s, v9.4s}, [%5], #32 \n"
-                    "fmla       %6.4s, v0.4s, v2.4s       \n"
-                    "fmla       %7.4s, v0.4s, v4.4s       \n"
-                    "fmla       %8.4s, v0.4s, v6.4s       \n"
-                    "fmla       %9.4s, v0.4s, v8.4s       \n"
-                    "subs       %w0, %w0, #1              \n"
-                    "fmla       %6.4s, v1.4s, v3.4s       \n"
-                    "fmla       %7.4s, v1.4s, v5.4s       \n"
-                    "fmla       %8.4s, v1.4s, v7.4s       \n"
-                    "fmla       %9.4s, v1.4s, v9.4s       \n"
-                    "bne        0b                        \n"
-                    : "=r"(nn),    // %0
-                    "=r"(m),     // %1
-                    "=r"(w0),    // %2
-                    "=r"(w1),    // %3
-                    "=r"(w2),    // %4
-                    "=r"(w3),    // %5
-                    "=w"(_sum0), // %6
-                    "=w"(_sum1), // %7
-                    "=w"(_sum2), // %8
-                    "=w"(_sum3)  // %9
-                    : "0"(nn),
-                    "1"(m),
-                    "2"(w0),
-                    "3"(w1),
-                    "4"(w2),
-                    "5"(w3),
-                    "6"(_sum0),
-                    "7"(_sum1),
-                    "8"(_sum2),
-                    "9"(_sum3)
+                    "ld1        {v8.4s, v9.4s}, [%4], #32 \n"
+                    "fmla       %5.4s, v0.4s, v2.4s       \n"
+                    "fmla       %6.4s, v0.4s, v4.4s       \n"
+                    "fmla       %7.4s, v0.4s, v6.4s       \n"
+                    "fmla       %8.4s, v0.4s, v8.4s       \n"
+                    "fmla       %5.4s, v1.4s, v3.4s       \n"
+                    "fmla       %6.4s, v1.4s, v5.4s       \n"
+                    "fmla       %7.4s, v1.4s, v7.4s       \n"
+                    "fmla       %8.4s, v1.4s, v9.4s       \n"
+                    : "=r"(m),     // %0
+                    "=r"(w0),    // %1
+                    "=r"(w1),    // %2
+                    "=r"(w2),    // %3
+                    "=r"(w3),    // %4
+                    "=w"(_sum0), // %5
+                    "=w"(_sum1), // %6
+                    "=w"(_sum2), // %7
+                    "=w"(_sum3)  // %8
+                    : "0"(m),
+                    "1"(w0),
+                    "2"(w1),
+                    "3"(w2),
+                    "4"(w3),
+                    "5"(_sum0),
+                    "6"(_sum1),
+                    "7"(_sum2),
+                    "8"(_sum3)
                     : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
-            }
 #else
-            if (nn > 0)
-            {
                 asm volatile(
-                    "0:                             \n"
+                    "pld        [%0, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%0 :128]! \n"
                     "pld        [%1, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%1 :128]! \n"
+                    "vld1.f32   {d4-d7}, [%1]!      \n"
                     "pld        [%2, #256]          \n"
-                    "vld1.f32   {d4-d7}, [%2]!      \n"
+                    "vld1.f32   {d8-d11}, [%2]!     \n"
                     "pld        [%3, #256]          \n"
-                    "vld1.f32   {d8-d11}, [%3]!     \n"
+                    "vld1.f32   {d12-d15}, [%3]!    \n"
                     "pld        [%4, #256]          \n"
-                    "vld1.f32   {d12-d15}, [%4]!    \n"
-                    "pld        [%5, #256]          \n"
-                    "vld1.f32   {d16-d19}, [%5]!    \n"
-                    "vmla.f32   %q6, q0, q2         \n"
-                    "vmla.f32   %q7, q0, q4         \n"
-                    "vmla.f32   %q8, q0, q6         \n"
-                    "vmla.f32   %q9, q0, q8         \n"
-                    "subs       %0, #1              \n"
-                    "vmla.f32   %q6, q1, q3         \n"
-                    "vmla.f32   %q7, q1, q5         \n"
-                    "vmla.f32   %q8, q1, q7         \n"
-                    "vmla.f32   %q9, q1, q9         \n"
-                    "bne        0b                  \n"
-                    : "=r"(nn),    // %0
-                    "=r"(m),     // %1
-                    "=r"(w0),    // %2
-                    "=r"(w1),    // %3
-                    "=r"(w2),    // %4
-                    "=r"(w3),    // %5
-                    "=w"(_sum0), // %6
-                    "=w"(_sum1), // %7
-                    "=w"(_sum2), // %8
-                    "=w"(_sum3)  // %9
-                    : "0"(nn),
-                    "1"(m),
-                    "2"(w0),
-                    "3"(w1),
-                    "4"(w2),
-                    "5"(w3),
-                    "6"(_sum0),
-                    "7"(_sum1),
-                    "8"(_sum2),
-                    "9"(_sum3)
+                    "vld1.f32   {d16-d19}, [%4]!    \n"
+                    "vmla.f32   %q5, q0, q2         \n"
+                    "vmla.f32   %q6, q0, q4         \n"
+                    "vmla.f32   %q7, q0, q6         \n"
+                    "vmla.f32   %q8, q0, q8         \n"
+                    "vmla.f32   %q5, q1, q3         \n"
+                    "vmla.f32   %q6, q1, q5         \n"
+                    "vmla.f32   %q7, q1, q7         \n"
+                    "vmla.f32   %q8, q1, q9         \n"
+                    : "=r"(m),     // %0
+                    "=r"(w0),    // %1
+                    "=r"(w1),    // %2
+                    "=r"(w2),    // %3
+                    "=r"(w3),    // %4
+                    "=w"(_sum0), // %5
+                    "=w"(_sum1), // %6
+                    "=w"(_sum2), // %7
+                    "=w"(_sum3)  // %8
+                    : "0"(m),
+                    "1"(w0),
+                    "2"(w1),
+                    "3"(w2),
+                    "4"(w3),
+                    "5"(_sum0),
+                    "6"(_sum1),
+                    "7"(_sum2),
+                    "8"(_sum3)
                     : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9");
-            }
 #endif // __aarch64__
-#endif // __ARM_NEON
-            for (; remain > 0; remain--)
+            }
+#endif // NCNN_GNU_INLINE_ASM
+            for (; i + 3 < num_input; i += 4)
             {
-                sum0 += *m * *w0;
-                sum1 += *m * *w1;
-                sum2 += *m * *w2;
-                sum3 += *m * *w3;
+                float32x4_t _val = vld1q_f32(m);
 
-                m++;
-                w0++;
-                w1++;
-                w2++;
-                w3++;
+                float32x4_t _w0 = vld1q_f32(w0);
+                float32x4_t _w1 = vld1q_f32(w1);
+                float32x4_t _w2 = vld1q_f32(w2);
+                float32x4_t _w3 = vld1q_f32(w3);
+
+                _sum0 = vmlaq_f32(_sum0, _val, _w0);
+                _sum1 = vmlaq_f32(_sum1, _val, _w1);
+                _sum2 = vmlaq_f32(_sum2, _val, _w2);
+                _sum3 = vmlaq_f32(_sum3, _val, _w3);
+
+                m += 4;
+                w0 += 4;
+                w1 += 4;
+                w2 += 4;
+                w3 += 4;
             }
 
-#if __ARM_NEON
             float32x2_t _sum0ss = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
             float32x2_t _sum1ss = vadd_f32(vget_low_f32(_sum1), vget_high_f32(_sum1));
             float32x2_t _sum2ss = vadd_f32(vget_low_f32(_sum2), vget_high_f32(_sum2));
@@ -731,8 +716,20 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             sum1 += vget_lane_f32(_sum01ss, 1);
             sum2 += vget_lane_f32(_sum23ss, 0);
             sum3 += vget_lane_f32(_sum23ss, 1);
-
 #endif // __ARM_NEON
+            for (; i < num_input; i++)
+            {
+                sum0 += *m * *w0;
+                sum1 += *m * *w1;
+                sum2 += *m * *w2;
+                sum3 += *m * *w3;
+
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+            }
 
             sum0 = activation_ss(sum0, activation_type, activation_params);
             sum1 = activation_ss(sum1, activation_type, activation_params);
@@ -758,77 +755,59 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
             const float* m = bottom_blob_flattened;
 
-#if __ARM_NEON
-            int nn = num_input >> 3;
-            int remain = num_input & 7;
-#else
-            int remain = num_input;
-#endif // __ARM_NEON
-
+            int i = 0;
 #if __ARM_NEON
             float32x4_t _sum = vdupq_n_f32(0.f);
             float32x4_t _sum2 = vdupq_n_f32(0.f);
+#if NCNN_GNU_INLINE_ASM
+            for (; i + 7 < num_input; i += 8)
+            {
 #if __aarch64__
-            if (nn > 0)
-            {
                 asm volatile(
-                    "0:                                   \n"
+                    "prfm       pldl1keep, [%0, #256]     \n"
+                    "ld1        {v0.4s, v1.4s}, [%0], #32 \n"
                     "prfm       pldl1keep, [%1, #256]     \n"
-                    "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
-                    "prfm       pldl1keep, [%2, #256]     \n"
-                    "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
-                    "fmla       %3.4s, v0.4s, v2.4s       \n"
-                    "subs       %w0, %w0, #1              \n"
-                    "fmla       %4.4s, v1.4s, v3.4s       \n"
-                    "bne        0b                        \n"
-                    : "=r"(nn),   // %0
-                    "=r"(m),    // %1
-                    "=r"(w),    // %2
-                    "=w"(_sum), // %3
-                    "=w"(_sum2) // %4
-                    : "0"(nn),
-                    "1"(m),
-                    "2"(w),
-                    "3"(_sum),
-                    "4"(_sum2)
+                    "ld1        {v2.4s, v3.4s}, [%1], #32 \n"
+                    "fmla       %2.4s, v0.4s, v2.4s       \n"
+                    "fmla       %3.4s, v1.4s, v3.4s       \n"
+                    : "=r"(m),    // %0
+                    "=r"(w),    // %1
+                    "=w"(_sum), // %2
+                    "=w"(_sum2) // %3
+                    : "0"(m),
+                    "1"(w),
+                    "2"(_sum),
+                    "3"(_sum2)
                     : "cc", "memory", "v0", "v1", "v2", "v3");
-            }
 #else
-            if (nn > 0)
-            {
                 asm volatile(
-                    "0:                             \n"
+                    "pld        [%0, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%0 :128]! \n"
                     "pld        [%1, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%1 :128]! \n"
-                    "pld        [%2, #256]          \n"
-                    "vld1.f32   {d4-d7}, [%2]!      \n"
-                    "vmla.f32   %q3, q0, q2         \n"
-                    "subs       %0, #1              \n"
-                    "vmla.f32   %q4, q1, q3         \n"
-                    "bne        0b                  \n"
-                    : "=r"(nn),   // %0
-                    "=r"(m),    // %1
-                    "=r"(w),    // %2
-                    "=w"(_sum), // %3
-                    "=w"(_sum2) // %4
-                    : "0"(nn),
-                    "1"(m),
-                    "2"(w),
-                    "3"(_sum),
-                    "4"(_sum2)
+                    "vld1.f32   {d4-d7}, [%1]!      \n"
+                    "vmla.f32   %q2, q0, q2         \n"
+                    "vmla.f32   %q3, q1, q3         \n"
+                    : "=r"(m),    // %0
+                    "=r"(w),    // %1
+                    "=w"(_sum), // %2
+                    "=w"(_sum2) // %3
+                    : "0"(m),
+                    "1"(w),
+                    "2"(_sum),
+                    "3"(_sum2)
                     : "cc", "memory", "q0", "q1", "q2", "q3");
-            }
 #endif // __aarch64__
-#endif // __ARM_NEON
-            for (; remain > 0; remain--)
+            }
+#endif // NCNN_GNU_INLINE_ASM
+            for (; i + 3 < num_input; i += 4)
             {
-                sum += *m * *w;
-
-                m++;
-                w++;
+                float32x4_t _val = vld1q_f32(m);
+                float32x4_t _w = vld1q_f32(w);
+                _sum = vmlaq_f32(_sum, _val, _w);
+                m += 4;
+                w += 4;
             }
 
-#if __ARM_NEON
             _sum = vaddq_f32(_sum, _sum2);
 #if __aarch64__
             sum += vaddvq_f32(_sum);
@@ -838,6 +817,13 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             sum += vget_lane_f32(_sumss, 0);
 #endif // __aarch64__
 #endif // __ARM_NEON
+            for (; i < num_input; i++)
+            {
+                sum += *m * *w;
+
+                m++;
+                w++;
+            }
 
             sum = activation_ss(sum, activation_type, activation_params);
 
@@ -847,86 +833,6 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     return 0;
 }
-
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
-int InnerProduct_arm::create_pipeline_fp16s(const Option& opt)
-{
-    const int num_input = weight_data_size / num_output;
-
-    innerproduct_transform_kernel_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, opt);
-
-#if NCNN_ARM82
-    if (ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
-    {
-        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
-    }
-#endif
-
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
-
-    return 0;
-}
-
-int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    const int num_input = weight_data_size / num_output;
-
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
-    {
-        // gemm
-        int h = bottom_blob.h;
-        size_t elemsize = bottom_blob.elemsize;
-        int elempack = bottom_blob.elempack;
-
-        top_blob.create(num_output, h, elemsize, elempack, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
-        innerproduct_gemm_fp16s_neon(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
-
-        return 0;
-    }
-
-    // flatten
-    Mat bottom_blob_flattened = bottom_blob;
-    if (bottom_blob.dims != 1)
-    {
-        Option opt_flatten = opt;
-        opt_flatten.blob_allocator = opt.workspace_allocator;
-
-        flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
-    }
-
-    size_t elemsize = bottom_blob_flattened.elemsize;
-    int elempack = bottom_blob_flattened.elempack;
-
-    int out_elempack = 1;
-    if (opt.use_packing_layout)
-    {
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
-    }
-    size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    if (out_elempack == 4)
-    {
-        innerproduct_pack4_fp16s_neon(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
-    }
-
-    if (out_elempack == 1)
-    {
-        innerproduct_fp16s_neon(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
-    }
-
-    return 0;
-}
-#endif // (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
 
 #if NCNN_BF16
 int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
@@ -963,9 +869,7 @@ int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -974,7 +878,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 {
     const int num_input = weight_data_size / num_output;
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {
         // gemm
         int h = bottom_blob.h;
@@ -1021,8 +925,8 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int i = 0; i < num_input; i++)
                     {
-                        float32x4_t _val = float2bfloat(vld1_u16(m));
-                        float32x4_t _k = float2bfloat(vld1_u16(kptr));
+                        float32x4_t _val = bfloat2float(vld1_u16(m));
+                        float32x4_t _k = bfloat2float(vld1_u16(kptr));
 #if __aarch64__
                         _sum0 = vfmaq_laneq_f32(_sum0, _val, _k, 0);
                         _sum1 = vfmaq_laneq_f32(_sum1, _val, _k, 1);
@@ -1044,10 +948,10 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                     _sum2 = activation_ps(_sum2, activation_type, activation_params);
                     _sum3 = activation_ps(_sum3, activation_type, activation_params);
 
-                    vst1_u16(outptr, bfloat2float(_sum0));
-                    vst1_u16(outptr + 4, bfloat2float(_sum1));
-                    vst1_u16(outptr + 8, bfloat2float(_sum2));
-                    vst1_u16(outptr + 12, bfloat2float(_sum3));
+                    vst1_u16(outptr, float2bfloat(_sum0));
+                    vst1_u16(outptr + 4, float2bfloat(_sum1));
+                    vst1_u16(outptr + 8, float2bfloat(_sum2));
+                    vst1_u16(outptr + 12, float2bfloat(_sum3));
                     outptr += 16;
                 }
             }
@@ -1071,7 +975,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                     for (int i = 0; i < num_input; i++)
                     {
                         float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(m[0]));
-                        float32x4_t _k = float2bfloat(vld1_u16(kptr));
+                        float32x4_t _k = bfloat2float(vld1_u16(kptr));
                         _sum = vmlaq_f32(_sum, _val, _k);
 
                         m += 1;
@@ -1080,7 +984,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
                     _sum = activation_ps(_sum, activation_type, activation_params);
 
-                    vst1_u16(outptr, bfloat2float(_sum));
+                    vst1_u16(outptr, float2bfloat(_sum));
                     outptr += 4;
                 }
             }
@@ -1103,7 +1007,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int i = 0; i < num_input; i++)
                     {
-                        float32x4_t _val = float2bfloat(vld1_u16(m));
+                        float32x4_t _val = bfloat2float(vld1_u16(m));
                         float32x4_t _k = vdupq_n_f32(bfloat16_to_float32(kptr[0]));
                         _sum = vmlaq_f32(_sum, _val, _k);
 
@@ -1113,7 +1017,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
                     _sum = activation_ps(_sum, activation_type, activation_params);
 
-                    vst1_u16(outptr, bfloat2float(_sum));
+                    vst1_u16(outptr, float2bfloat(_sum));
                     outptr += 4;
                 }
             }
@@ -1162,6 +1066,8 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -1204,12 +1110,12 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             int i = 0;
             for (; i + 3 < num_input; i += 4)
             {
-                float32x4_t _val = float2bfloat(vld1_u16(sptr));
+                float32x4_t _val = bfloat2float(vld1_u16(sptr));
 
-                float32x4_t _w0 = float2bfloat(vld1_u16(kptr));
-                float32x4_t _w1 = float2bfloat(vld1_u16(kptr + 4));
-                float32x4_t _w2 = float2bfloat(vld1_u16(kptr + 8));
-                float32x4_t _w3 = float2bfloat(vld1_u16(kptr + 12));
+                float32x4_t _w0 = bfloat2float(vld1_u16(kptr));
+                float32x4_t _w1 = bfloat2float(vld1_u16(kptr + 4));
+                float32x4_t _w2 = bfloat2float(vld1_u16(kptr + 8));
+                float32x4_t _w3 = bfloat2float(vld1_u16(kptr + 12));
 
 #if __aarch64__
                 _sum0 = vmlaq_laneq_f32(_sum0, _w0, _val, 0);
@@ -1230,7 +1136,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             {
                 float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(sptr[0]));
 
-                float32x4_t _w = float2bfloat(vld1_u16(kptr));
+                float32x4_t _w = bfloat2float(vld1_u16(kptr));
 
                 _sum0 = vmlaq_f32(_sum0, _val, _w);
 
@@ -1245,7 +1151,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             _sum0 = activation_ps(_sum0, activation_type, activation_params);
 
             unsigned short* outptr = (unsigned short*)top_blob;
-            vst1_u16(outptr + p * 4, bfloat2float(_sum0));
+            vst1_u16(outptr + p * 4, float2bfloat(_sum0));
         }
     }
 #endif // __ARM_NEON
@@ -1270,8 +1176,8 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             float32x4_t _sum = vdupq_n_f32(0.f);
             for (; i + 3 < num_input; i += 4)
             {
-                float32x4_t _m = float2bfloat(vld1_u16(sptr));
-                float32x4_t _w = float2bfloat(vld1_u16(kptr));
+                float32x4_t _m = bfloat2float(vld1_u16(sptr));
+                float32x4_t _w = bfloat2float(vld1_u16(kptr));
 
                 _sum = vmlaq_f32(_sum, _m, _w);
 
@@ -1359,9 +1265,7 @@ int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -1378,15 +1282,19 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
-    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input && bottom_blob_int8.h * bottom_blob_int8.elempack > 1)
+    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input)
     {
         // gemm
         Mat bottom_blob_int8_unpacked;
         Option opt_unpack = opt;
         opt_unpack.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_int8, bottom_blob_int8_unpacked, 1, opt_unpack);
+        if (bottom_blob_int8_unpacked.empty())
+            return -100;
 
         int h = bottom_blob_int8_unpacked.h;
 
@@ -1784,6 +1692,8 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_flatten = opt;
         opt_flatten.blob_allocator = opt.workspace_allocator;
         flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+        if (bottom_blob_int8_flattened.empty())
+            return -100;
     }
 
     //     int elempack = bottom_blob_int8_flattened.elempack;

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BNLL_x86 : virtual public BNLL
+class BNLL_x86 : public BNLL
 {
 public:
     BNLL_x86();

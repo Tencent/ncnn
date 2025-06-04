@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Quantize_x86 : virtual public Quantize
+class Quantize_x86 : public Quantize
 {
 public:
     Quantize_x86();

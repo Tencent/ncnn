@@ -10,7 +10,7 @@ Before PNNX, we had the following methods:
 2. export to ONNX, and convert onnx to inference-framework specific format, and deploy with TensorRT/OpenVINO/ncnn/etc.
 3. export to TorchScript, and deploy with libtorch
 
-As far as we know, ONNX has the ability to express the PyTorch model and it is an open standard. People usually use ONNX as an intermediate  representation between PyTorch and the inference platform. However, ONNX still has the following fatal problems, which makes the birth of PNNX necessary:
+As far as we know, ONNX has the ability to express the PyTorch model and it is an open standard. People usually use ONNX as an intermediate representation between PyTorch and the inference platform. However, ONNX still has the following fatal problems, which makes the birth of PNNX necessary:
 
 1. ONNX does not have a human-readable and editable file representation, making it difficult for users to easily modify the computation graph or add custom operators.
 2. The operator definition of ONNX is not completely in accordance with PyTorch. When exporting some PyTorch operators, glue operators are often added passively by ONNX, which makes the computation graph inconsistent with PyTorch and may impact the inference efficiency.
@@ -62,13 +62,15 @@ mod.save("resnet18.pt")
 pnnx resnet18.pt inputshape=[1,3,224,224]
 ```
 
-Normally, you will get six files
+Normally, you will get seven files
 
 ```resnet18.pnnx.param``` PNNX graph definition
 
 ```resnet18.pnnx.bin``` PNNX model weight
 
 ```resnet18_pnnx.py``` PyTorch script for inference, the python code for model construction and weight initialization
+
+```resnet18.pnnx.onnx``` PNNX model in onnx format
 
 ```resnet18.ncnn.param``` ncnn graph definition
 
@@ -87,9 +89,11 @@ Usage: pnnx [model.pt] [(key=value)...]
   pnnxparam=model.pnnx.param
   pnnxbin=model.pnnx.bin
   pnnxpy=model_pnnx.py
+  pnnxonnx=model.pnnx.onnx
   ncnnparam=model.ncnn.param
   ncnnbin=model.ncnn.bin
   ncnnpy=model_ncnn.py
+  fp16=1
   optlevel=2
   device=cpu/gpu
   inputshape=[1,3,224,224],...
@@ -108,11 +112,15 @@ Parameters:
 
 `pnnxpy` (default="*_pnnx.py"): PyTorch script for inference, including model construction and weight initialization code
 
+`pnnxonnx` (default="*.pnnx.onnx"): PNNX model in onnx format
+
 `ncnnparam` (default="*.ncnn.param"): ncnn graph definition
 
 `ncnnbin` (default="*.ncnn.bin"): ncnn model weight
 
 `ncnnpy` (default="*_ncnn.py"): pyncnn script for inference
+
+`fp16` (default=1): save ncnn weight and onnx in fp16 data type
 
 `optlevel` (default=2): graph optimization level 
 
@@ -180,7 +188,7 @@ weight binaries can be listed or modified with any archive application eg. 7zip
 # PNNX operator
 PNNX always preserve operators from what PyTorch python api provides.
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -204,7 +212,7 @@ class Model(nn.Module):
 # PNNX expression operator
 PNNX trys to preserve expression from what PyTorch python code writes.
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -220,7 +228,7 @@ def foo(x, y):
 # PNNX torch function operator
 PNNX trys to preserve torch functions and Tensor member functions as one operator from what PyTorch python api provides.
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -245,7 +253,7 @@ Users could ask PNNX to keep module as one big operator when it has complex logi
 
 The process is optional and could be enabled via moduleop command line option.
 
-After pass_level0, all modules will be presented in terminal output, then you can pick the intersting ones as module operators.
+After pass_level0, all modules will be presented in terminal output, then you can pick the interesting ones as module operators.
 ```
 ############# pass_level0
 inline module = models.common.Bottleneck
@@ -262,7 +270,7 @@ inline module = utils.activations.SiLU
 pnnx yolov5s.pt inputshape=[1,3,640,640] moduleop=models.common.Focus,models.yolo.Detect
 ```
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -285,13 +293,13 @@ class Focus(nn.Module):
 
 # PNNX python inference
 
-A python script will be generated by default when converting torchscript to pnnx.
+A python script will be generated by default when converting TorchScript to pnnx.
 
 This script is the python code representation of PNNX and can be used for model inference.
 
 There are some utility functions for loading weight binary from pnnx.bin.
 
-You can even export the model torchscript AGAIN from this generated code!
+You can even export the model TorchScript AGAIN from this generated code!
 
 ```python
 import torch
@@ -338,11 +346,9 @@ class Model(nn.Module):
         return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype))
 
     def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):
-        _, tmppath = tempfile.mkstemp()
-        tmpf = open(tmppath, 'wb')
-        with archive.open(key) as keyfile:
+        fd, tmppath = tempfile.mkstemp()
+        with os.fdopen(fd, 'wb') as tmpf, archive.open(key) as keyfile:
             tmpf.write(keyfile.read())
-        tmpf.close()
         m = np.memmap(tmppath, dtype=dtype, mode='r', shape=shape).copy()
         os.remove(tmppath)
         return torch.from_numpy(m)
@@ -465,7 +471,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.BatchNorm2d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.BatchNorm3d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Bilinear                |   |
-|nn.CELU                    | :heavy_check_mark: |
+|nn.CELU                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ChannelShuffle          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad1d           | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad2d           | :heavy_check_mark: | :heavy_check_mark: |
@@ -484,10 +490,11 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Embedding               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.EmbeddingBag            |   |
 |nn.Flatten                 | :heavy_check_mark: |
-|nn.Fold                    |   |
+|nn.Fold                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.FractionalMaxPool2d     |   |
 |nn.FractionalMaxPool3d     |   |
 |nn.GELU                    | :heavy_check_mark: | :heavy_check_mark: |
+|nn.GLU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GroupNorm               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRUCell                 |   |
@@ -495,7 +502,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Hardsigmoid             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardswish               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardtanh                | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Identity                |   |
+|nn.Identity                | :heavy_check_mark: | :heavy_check_mark: |
 |nn.InstanceNorm1d          | :heavy_check_mark: |
 |nn.InstanceNorm2d          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.InstanceNorm3d          | :heavy_check_mark: |
@@ -513,8 +520,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.LeakyReLU               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Linear                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LocalResponseNorm       | :heavy_check_mark: | :heavy_check_mark: |
-|nn.LogSigmoid              | :heavy_check_mark: |
-|nn.LogSoftmax              | :heavy_check_mark: |
+|nn.LogSigmoid              | :heavy_check_mark: | :heavy_check_mark: |
+|nn.LogSoftmax              | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LPPool1d                | :heavy_check_mark: |
 |nn.LPPool2d                | :heavy_check_mark: |
 |nn.LSTM                    | :heavy_check_mark: | :heavy_check_mark: |
@@ -546,7 +553,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Sigmoid                 | :heavy_check_mark: | :heavy_check_mark: |
 |nn.SiLU                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softmax                 | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Softmax2d               |   |
+|nn.Softmax2d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softmin                 | :heavy_check_mark: |
 |nn.Softplus                | :heavy_check_mark: |
 |nn.Softshrink              | :heavy_check_mark: |
@@ -561,7 +568,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.TransformerEncoder      |   |
 |nn.TransformerEncoderLayer |   |
 |nn.Unflatten               |   |
-|nn.Unfold                  |   |
+|nn.Unfold                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Upsample                | :heavy_check_mark: | :heavy_check_mark: |
 |nn.UpsamplingBilinear2d    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.UpsamplingNearest2d     | :heavy_check_mark: | :heavy_check_mark: |
@@ -599,12 +606,12 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.embedding                | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding_bag            |  |
 |F.feature_alpha_dropout    | :heavy_check_mark: | :heavy_check_mark: |
-|F.fold                     |  |
+|F.fold                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.fractional_max_pool2d    |  |
 |F.fractional_max_pool3d    |  |
 |F.gelu                     | :heavy_check_mark: | :heavy_check_mark: |
-|F.glu                      |  |
-|F.grid_sample              | :heavy_check_mark: |
+|F.glu                      | :heavy_check_mark: | :heavy_check_mark: |
+|F.grid_sample              | :heavy_check_mark: | :heavy_check_mark: |
 |F.group_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.gumbel_softmax           |  |
 |F.hardshrink               | :heavy_check_mark: |
@@ -619,8 +626,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.leaky_relu_              | :heavy_check_mark: | :heavy_check_mark: |
 |F.linear                   | :heavy_check_mark: | :heavy_check_mark:* |
 |F.local_response_norm      | :heavy_check_mark: | :heavy_check_mark: |
-|F.logsigmoid               | :heavy_check_mark: |
-|F.log_softmax              | :heavy_check_mark: |
+|F.logsigmoid               | :heavy_check_mark: | :heavy_check_mark: |
+|F.log_softmax              | :heavy_check_mark: | :heavy_check_mark: |
 |F.lp_pool1d                | :heavy_check_mark: |
 |F.lp_pool2d                | :heavy_check_mark: |
 |F.max_pool1d               | :heavy_check_mark: | :heavy_check_mark: |
@@ -643,6 +650,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.relu6                    | :heavy_check_mark: | :heavy_check_mark: |
 |F.rrelu                    | :heavy_check_mark: |
 |F.rrelu_                   | :heavy_check_mark: |
+|F.scaled_dot_product_attention | :heavy_check_mark: |                |
 |F.selu                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.sigmoid                  | :heavy_check_mark: | :heavy_check_mark: |
 |F.silu                     | :heavy_check_mark: | :heavy_check_mark: |
@@ -655,7 +663,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.tanhshrink               | :heavy_check_mark: |
 |F.threshold                | :heavy_check_mark: |
 |F.threshold_               | :heavy_check_mark: |
-|F.unfold                   |  |
+|F.unfold                   | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample                 | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample_bilinear        | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample_nearest         | :heavy_check_mark: | :heavy_check_mark: |

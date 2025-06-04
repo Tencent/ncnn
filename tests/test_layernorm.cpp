@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/layernorm.h"
 #include "testutil.h"
 
 static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int affine)
@@ -26,7 +25,7 @@ static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int af
     weights[0] = RandomMat(affine_size);
     weights[1] = RandomMat(affine_size);
 
-    int ret = test_layer<ncnn::LayerNorm>("LayerNorm", pd, weights, a);
+    int ret = test_layer("LayerNorm", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_layernorm failed a.dims=%d a=(%d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.c, affine_size, eps, affine);

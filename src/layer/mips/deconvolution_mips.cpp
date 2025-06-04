@@ -40,6 +40,9 @@ Deconvolution_mips::Deconvolution_mips()
 
 int Deconvolution_mips::create_pipeline(const Option& opt)
 {
+    if (dynamic_weight)
+        return 0;
+
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
@@ -124,9 +127,7 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -277,6 +278,112 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     cut_padding(top_blob_bordered, top_blob, opt);
     if (top_blob.empty())
         return -100;
+
+    return 0;
+}
+
+int Deconvolution_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int _num_input = bottom_blob.c * bottom_blob.elempack;
+    const int _kernel_w = _weight_data.w;
+    const int _kernel_h = _weight_data.h;
+    const int _num_output = _weight_data.d * 1;
+
+    Mat weight_data_flattened;
+    flatten(_weight_data, weight_data_flattened, opt);
+    if (weight_data_flattened.empty())
+        return -100;
+
+    // weight_data_flattened as pack1
+    weight_data_flattened.w *= weight_data_flattened.elempack;
+    weight_data_flattened.elemsize /= weight_data_flattened.elempack;
+    weight_data_flattened.elempack = 1;
+
+    // transpose group-inch/group-outch/group-kh-kw to group-outch/group-inch/group-kh-kw
+    Mat weight_data_transposed;
+    {
+        weight_data_transposed.create(_kernel_w * _kernel_h * _num_output * _num_input / 1, 4u, opt.workspace_allocator);
+        if (weight_data_transposed.empty())
+            return -100;
+
+        const int outch_g = _num_output / 1;
+        const int inch_g = _num_input / 1;
+        const int maxk = _kernel_h * _kernel_w;
+
+        for (int g = 0; g < 1; g++)
+        {
+            // reorder weight from inch-outch to outch-inch
+            float* wg2 = (float*)weight_data_transposed + g * outch_g * inch_g * maxk;
+            const float* wg = (const float*)weight_data_flattened + g * inch_g * outch_g * maxk;
+            for (int i = 0; i < outch_g; i++)
+            {
+                for (int j = 0; j < inch_g; j++)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        wg2[(i * inch_g + j) * maxk + k] = wg[(j * outch_g + i) * maxk + k];
+                    }
+                }
+            }
+        }
+    }
+
+    Mat bias_data_flattened;
+    if (bias_term)
+    {
+        const Mat& _bias_data = bottom_blobs[2];
+        flatten(_bias_data, bias_data_flattened, opt);
+        if (bias_data_flattened.empty())
+            return -100;
+
+        // bias_data_flattened as pack1
+        bias_data_flattened.w *= bias_data_flattened.elempack;
+        bias_data_flattened.elemsize /= bias_data_flattened.elempack;
+        bias_data_flattened.elempack = 1;
+    }
+
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
+
+    ncnn::ParamDict pd;
+    pd.set(0, _num_output);
+    pd.set(1, _kernel_w);
+    pd.set(11, _kernel_h);
+    pd.set(2, dilation_w);
+    pd.set(12, dilation_h);
+    pd.set(3, stride_w);
+    pd.set(13, stride_h);
+    pd.set(4, pad_left);
+    pd.set(15, pad_right);
+    pd.set(14, pad_top);
+    pd.set(16, pad_bottom);
+    pd.set(18, output_pad_right);
+    pd.set(19, output_pad_bottom);
+    pd.set(20, output_w);
+    pd.set(21, output_h);
+    pd.set(5, bias_term);
+    pd.set(6, weight_data_transposed.w);
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    op->load_param(pd);
+
+    ncnn::Mat weights[2];
+    weights[0] = weight_data_transposed;
+    weights[1] = bias_data_flattened;
+
+    op->load_model(ncnn::ModelBinFromMatArray(weights));
+
+    op->create_pipeline(opt);
+
+    op->forward(bottom_blob, top_blob, opt);
+
+    op->destroy_pipeline(opt);
+
+    delete op;
 
     return 0;
 }

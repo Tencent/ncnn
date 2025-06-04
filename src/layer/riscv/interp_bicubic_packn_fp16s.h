@@ -15,7 +15,7 @@
 static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = dst.w;
     int h = dst.h;
@@ -57,13 +57,13 @@ static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* al
                 int sx = xofs[dx] * packn;
                 const __fp16* S3p = S3 + sx;
 
-                vfloat16m1_t _S30 = vle16_v_f16m1(S3p - packn, vl);
-                vfloat16m1_t _S31 = vle16_v_f16m1(S3p, vl);
-                vfloat16m1_t _S32 = vle16_v_f16m1(S3p + packn, vl);
-                vfloat16m1_t _S33 = vle16_v_f16m1(S3p + packn * 2, vl);
-                vfloat32m2_t _rows3 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
+                vfloat16m1_t _S30 = __riscv_vle16_v_f16m1(S3p - packn, vl);
+                vfloat16m1_t _S31 = __riscv_vle16_v_f16m1(S3p, vl);
+                vfloat16m1_t _S32 = __riscv_vle16_v_f16m1(S3p + packn, vl);
+                vfloat16m1_t _S33 = __riscv_vle16_v_f16m1(S3p + packn * 2, vl);
+                vfloat32m2_t _rows3 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
 
-                vse32_v_f32m2(rows3p + dx * packn, _rows3, vl);
+                __riscv_vse32_v_f32m2(rows3p + dx * packn, _rows3, vl);
 
                 alphap += 4;
             }
@@ -89,19 +89,19 @@ static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* al
                 const __fp16* S2p = S2 + sx;
                 const __fp16* S3p = S3 + sx;
 
-                vfloat16m1_t _S20 = vle16_v_f16m1(S2p - packn, vl);
-                vfloat16m1_t _S21 = vle16_v_f16m1(S2p, vl);
-                vfloat16m1_t _S22 = vle16_v_f16m1(S2p + packn, vl);
-                vfloat16m1_t _S23 = vle16_v_f16m1(S2p + packn * 2, vl);
-                vfloat16m1_t _S30 = vle16_v_f16m1(S3p - packn, vl);
-                vfloat16m1_t _S31 = vle16_v_f16m1(S3p, vl);
-                vfloat16m1_t _S32 = vle16_v_f16m1(S3p + packn, vl);
-                vfloat16m1_t _S33 = vle16_v_f16m1(S3p + packn * 2, vl);
-                vfloat32m2_t _rows2 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
-                vfloat32m2_t _rows3 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
+                vfloat16m1_t _S20 = __riscv_vle16_v_f16m1(S2p - packn, vl);
+                vfloat16m1_t _S21 = __riscv_vle16_v_f16m1(S2p, vl);
+                vfloat16m1_t _S22 = __riscv_vle16_v_f16m1(S2p + packn, vl);
+                vfloat16m1_t _S23 = __riscv_vle16_v_f16m1(S2p + packn * 2, vl);
+                vfloat16m1_t _S30 = __riscv_vle16_v_f16m1(S3p - packn, vl);
+                vfloat16m1_t _S31 = __riscv_vle16_v_f16m1(S3p, vl);
+                vfloat16m1_t _S32 = __riscv_vle16_v_f16m1(S3p + packn, vl);
+                vfloat16m1_t _S33 = __riscv_vle16_v_f16m1(S3p + packn * 2, vl);
+                vfloat32m2_t _rows2 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
+                vfloat32m2_t _rows3 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
 
-                vse32_v_f32m2(rows2p + dx * packn, _rows2, vl);
-                vse32_v_f32m2(rows3p + dx * packn, _rows3, vl);
+                __riscv_vse32_v_f32m2(rows2p + dx * packn, _rows2, vl);
+                __riscv_vse32_v_f32m2(rows3p + dx * packn, _rows3, vl);
 
                 alphap += 4;
             }
@@ -131,25 +131,25 @@ static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* al
                 const __fp16* S2p = S2 + sx;
                 const __fp16* S3p = S3 + sx;
 
-                vfloat16m1_t _S10 = vle16_v_f16m1(S1p - packn, vl);
-                vfloat16m1_t _S11 = vle16_v_f16m1(S1p, vl);
-                vfloat16m1_t _S12 = vle16_v_f16m1(S1p + packn, vl);
-                vfloat16m1_t _S13 = vle16_v_f16m1(S1p + packn * 2, vl);
-                vfloat16m1_t _S20 = vle16_v_f16m1(S2p - packn, vl);
-                vfloat16m1_t _S21 = vle16_v_f16m1(S2p, vl);
-                vfloat16m1_t _S22 = vle16_v_f16m1(S2p + packn, vl);
-                vfloat16m1_t _S23 = vle16_v_f16m1(S2p + packn * 2, vl);
-                vfloat16m1_t _S30 = vle16_v_f16m1(S3p - packn, vl);
-                vfloat16m1_t _S31 = vle16_v_f16m1(S3p, vl);
-                vfloat16m1_t _S32 = vle16_v_f16m1(S3p + packn, vl);
-                vfloat16m1_t _S33 = vle16_v_f16m1(S3p + packn * 2, vl);
-                vfloat32m2_t _rows1 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S10, alphap[0], vl), alphap[1], _S11, vl), alphap[2], _S12, vl), alphap[3], _S13, vl);
-                vfloat32m2_t _rows2 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
-                vfloat32m2_t _rows3 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
+                vfloat16m1_t _S10 = __riscv_vle16_v_f16m1(S1p - packn, vl);
+                vfloat16m1_t _S11 = __riscv_vle16_v_f16m1(S1p, vl);
+                vfloat16m1_t _S12 = __riscv_vle16_v_f16m1(S1p + packn, vl);
+                vfloat16m1_t _S13 = __riscv_vle16_v_f16m1(S1p + packn * 2, vl);
+                vfloat16m1_t _S20 = __riscv_vle16_v_f16m1(S2p - packn, vl);
+                vfloat16m1_t _S21 = __riscv_vle16_v_f16m1(S2p, vl);
+                vfloat16m1_t _S22 = __riscv_vle16_v_f16m1(S2p + packn, vl);
+                vfloat16m1_t _S23 = __riscv_vle16_v_f16m1(S2p + packn * 2, vl);
+                vfloat16m1_t _S30 = __riscv_vle16_v_f16m1(S3p - packn, vl);
+                vfloat16m1_t _S31 = __riscv_vle16_v_f16m1(S3p, vl);
+                vfloat16m1_t _S32 = __riscv_vle16_v_f16m1(S3p + packn, vl);
+                vfloat16m1_t _S33 = __riscv_vle16_v_f16m1(S3p + packn * 2, vl);
+                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, alphap[0], vl), alphap[1], _S11, vl), alphap[2], _S12, vl), alphap[3], _S13, vl);
+                vfloat32m2_t _rows2 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
+                vfloat32m2_t _rows3 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
 
-                vse32_v_f32m2(rows1p + dx * packn, _rows1, vl);
-                vse32_v_f32m2(rows2p + dx * packn, _rows2, vl);
-                vse32_v_f32m2(rows3p + dx * packn, _rows3, vl);
+                __riscv_vse32_v_f32m2(rows1p + dx * packn, _rows1, vl);
+                __riscv_vse32_v_f32m2(rows2p + dx * packn, _rows2, vl);
+                __riscv_vse32_v_f32m2(rows3p + dx * packn, _rows3, vl);
 
                 alphap += 4;
             }
@@ -175,31 +175,31 @@ static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* al
                 const __fp16* S2p = S2 + sx;
                 const __fp16* S3p = S3 + sx;
 
-                vfloat16m1_t _S00 = vle16_v_f16m1(S0p - packn, vl);
-                vfloat16m1_t _S01 = vle16_v_f16m1(S0p, vl);
-                vfloat16m1_t _S02 = vle16_v_f16m1(S0p + packn, vl);
-                vfloat16m1_t _S03 = vle16_v_f16m1(S0p + packn * 2, vl);
-                vfloat16m1_t _S10 = vle16_v_f16m1(S1p - packn, vl);
-                vfloat16m1_t _S11 = vle16_v_f16m1(S1p, vl);
-                vfloat16m1_t _S12 = vle16_v_f16m1(S1p + packn, vl);
-                vfloat16m1_t _S13 = vle16_v_f16m1(S1p + packn * 2, vl);
-                vfloat16m1_t _S20 = vle16_v_f16m1(S2p - packn, vl);
-                vfloat16m1_t _S21 = vle16_v_f16m1(S2p, vl);
-                vfloat16m1_t _S22 = vle16_v_f16m1(S2p + packn, vl);
-                vfloat16m1_t _S23 = vle16_v_f16m1(S2p + packn * 2, vl);
-                vfloat16m1_t _S30 = vle16_v_f16m1(S3p - packn, vl);
-                vfloat16m1_t _S31 = vle16_v_f16m1(S3p, vl);
-                vfloat16m1_t _S32 = vle16_v_f16m1(S3p + packn, vl);
-                vfloat16m1_t _S33 = vle16_v_f16m1(S3p + packn * 2, vl);
-                vfloat32m2_t _rows0 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S00, alphap[0], vl), alphap[1], _S01, vl), alphap[2], _S02, vl), alphap[3], _S03, vl);
-                vfloat32m2_t _rows1 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S10, alphap[0], vl), alphap[1], _S11, vl), alphap[2], _S12, vl), alphap[3], _S13, vl);
-                vfloat32m2_t _rows2 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
-                vfloat32m2_t _rows3 = vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmacc_vf_f32m2(vfwmul_vf_f32m2(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
+                vfloat16m1_t _S00 = __riscv_vle16_v_f16m1(S0p - packn, vl);
+                vfloat16m1_t _S01 = __riscv_vle16_v_f16m1(S0p, vl);
+                vfloat16m1_t _S02 = __riscv_vle16_v_f16m1(S0p + packn, vl);
+                vfloat16m1_t _S03 = __riscv_vle16_v_f16m1(S0p + packn * 2, vl);
+                vfloat16m1_t _S10 = __riscv_vle16_v_f16m1(S1p - packn, vl);
+                vfloat16m1_t _S11 = __riscv_vle16_v_f16m1(S1p, vl);
+                vfloat16m1_t _S12 = __riscv_vle16_v_f16m1(S1p + packn, vl);
+                vfloat16m1_t _S13 = __riscv_vle16_v_f16m1(S1p + packn * 2, vl);
+                vfloat16m1_t _S20 = __riscv_vle16_v_f16m1(S2p - packn, vl);
+                vfloat16m1_t _S21 = __riscv_vle16_v_f16m1(S2p, vl);
+                vfloat16m1_t _S22 = __riscv_vle16_v_f16m1(S2p + packn, vl);
+                vfloat16m1_t _S23 = __riscv_vle16_v_f16m1(S2p + packn * 2, vl);
+                vfloat16m1_t _S30 = __riscv_vle16_v_f16m1(S3p - packn, vl);
+                vfloat16m1_t _S31 = __riscv_vle16_v_f16m1(S3p, vl);
+                vfloat16m1_t _S32 = __riscv_vle16_v_f16m1(S3p + packn, vl);
+                vfloat16m1_t _S33 = __riscv_vle16_v_f16m1(S3p + packn * 2, vl);
+                vfloat32m2_t _rows0 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S00, alphap[0], vl), alphap[1], _S01, vl), alphap[2], _S02, vl), alphap[3], _S03, vl);
+                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, alphap[0], vl), alphap[1], _S11, vl), alphap[2], _S12, vl), alphap[3], _S13, vl);
+                vfloat32m2_t _rows2 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
+                vfloat32m2_t _rows3 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
 
-                vse32_v_f32m2(rows0p + dx * packn, _rows0, vl);
-                vse32_v_f32m2(rows1p + dx * packn, _rows1, vl);
-                vse32_v_f32m2(rows2p + dx * packn, _rows2, vl);
-                vse32_v_f32m2(rows3p + dx * packn, _rows3, vl);
+                __riscv_vse32_v_f32m2(rows0p + dx * packn, _rows0, vl);
+                __riscv_vse32_v_f32m2(rows1p + dx * packn, _rows1, vl);
+                __riscv_vse32_v_f32m2(rows2p + dx * packn, _rows2, vl);
+                __riscv_vse32_v_f32m2(rows3p + dx * packn, _rows3, vl);
 
                 alphap += 4;
             }
@@ -221,14 +221,14 @@ static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* al
 
         for (int dx = 0; dx < w; dx++)
         {
-            vfloat32m2_t _rows0 = vle32_v_f32m2(rows0p, vl);
-            vfloat32m2_t _rows1 = vle32_v_f32m2(rows1p, vl);
-            vfloat32m2_t _rows2 = vle32_v_f32m2(rows2p, vl);
-            vfloat32m2_t _rows3 = vle32_v_f32m2(rows3p, vl);
+            vfloat32m2_t _rows0 = __riscv_vle32_v_f32m2(rows0p, vl);
+            vfloat32m2_t _rows1 = __riscv_vle32_v_f32m2(rows1p, vl);
+            vfloat32m2_t _rows2 = __riscv_vle32_v_f32m2(rows2p, vl);
+            vfloat32m2_t _rows3 = __riscv_vle32_v_f32m2(rows3p, vl);
 
-            vfloat32m2_t _D = vfmacc_vf_f32m2(vfmacc_vf_f32m2(vfmacc_vf_f32m2(vfmul_vf_f32m2(_rows0, b0, vl), b1, _rows1, vl), b2, _rows2, vl), b3, _rows3, vl);
+            vfloat32m2_t _Dp = __riscv_vfmacc_vf_f32m2(__riscv_vfmacc_vf_f32m2(__riscv_vfmacc_vf_f32m2(__riscv_vfmul_vf_f32m2(_rows0, b0, vl), b1, _rows1, vl), b2, _rows2, vl), b3, _rows3, vl);
 
-            vse16_v_f16m1(Dp, vfncvt_f_f_w_f16m1(_D, vl), vl);
+            __riscv_vse16_v_f16m1(Dp, __riscv_vfncvt_f_f_w_f16m1(_Dp, vl), vl);
 
             Dp += packn;
             rows0p += packn;
@@ -244,7 +244,7 @@ static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* al
 static void resize_bicubic_image_packn_fp16sa(const Mat& src, Mat& dst, __fp16* alpha, int* xofs, __fp16* beta, int* yofs)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = dst.w;
     int h = dst.h;
@@ -286,13 +286,13 @@ static void resize_bicubic_image_packn_fp16sa(const Mat& src, Mat& dst, __fp16* 
                 int sx = xofs[dx] * packn;
                 const __fp16* S3p = S3 + sx;
 
-                vfloat16m1_t _S30 = vle16_v_f16m1(S3p - packn, vl);
-                vfloat16m1_t _S31 = vle16_v_f16m1(S3p, vl);
-                vfloat16m1_t _S32 = vle16_v_f16m1(S3p + packn, vl);
-                vfloat16m1_t _S33 = vle16_v_f16m1(S3p + packn * 2, vl);
-                vfloat16m1_t _rows3 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
+                vfloat16m1_t _S30 = __riscv_vle16_v_f16m1(S3p - packn, vl);
+                vfloat16m1_t _S31 = __riscv_vle16_v_f16m1(S3p, vl);
+                vfloat16m1_t _S32 = __riscv_vle16_v_f16m1(S3p + packn, vl);
+                vfloat16m1_t _S33 = __riscv_vle16_v_f16m1(S3p + packn * 2, vl);
+                vfloat16m1_t _rows3 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
 
-                vse16_v_f16m1(rows3p + dx * packn, _rows3, vl);
+                __riscv_vse16_v_f16m1(rows3p + dx * packn, _rows3, vl);
 
                 alphap += 4;
             }
@@ -318,19 +318,19 @@ static void resize_bicubic_image_packn_fp16sa(const Mat& src, Mat& dst, __fp16* 
                 const __fp16* S2p = S2 + sx;
                 const __fp16* S3p = S3 + sx;
 
-                vfloat16m1_t _S20 = vle16_v_f16m1(S2p - packn, vl);
-                vfloat16m1_t _S21 = vle16_v_f16m1(S2p, vl);
-                vfloat16m1_t _S22 = vle16_v_f16m1(S2p + packn, vl);
-                vfloat16m1_t _S23 = vle16_v_f16m1(S2p + packn * 2, vl);
-                vfloat16m1_t _S30 = vle16_v_f16m1(S3p - packn, vl);
-                vfloat16m1_t _S31 = vle16_v_f16m1(S3p, vl);
-                vfloat16m1_t _S32 = vle16_v_f16m1(S3p + packn, vl);
-                vfloat16m1_t _S33 = vle16_v_f16m1(S3p + packn * 2, vl);
-                vfloat16m1_t _rows2 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
-                vfloat16m1_t _rows3 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
+                vfloat16m1_t _S20 = __riscv_vle16_v_f16m1(S2p - packn, vl);
+                vfloat16m1_t _S21 = __riscv_vle16_v_f16m1(S2p, vl);
+                vfloat16m1_t _S22 = __riscv_vle16_v_f16m1(S2p + packn, vl);
+                vfloat16m1_t _S23 = __riscv_vle16_v_f16m1(S2p + packn * 2, vl);
+                vfloat16m1_t _S30 = __riscv_vle16_v_f16m1(S3p - packn, vl);
+                vfloat16m1_t _S31 = __riscv_vle16_v_f16m1(S3p, vl);
+                vfloat16m1_t _S32 = __riscv_vle16_v_f16m1(S3p + packn, vl);
+                vfloat16m1_t _S33 = __riscv_vle16_v_f16m1(S3p + packn * 2, vl);
+                vfloat16m1_t _rows2 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
+                vfloat16m1_t _rows3 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
 
-                vse16_v_f16m1(rows2p + dx * packn, _rows2, vl);
-                vse16_v_f16m1(rows3p + dx * packn, _rows3, vl);
+                __riscv_vse16_v_f16m1(rows2p + dx * packn, _rows2, vl);
+                __riscv_vse16_v_f16m1(rows3p + dx * packn, _rows3, vl);
 
                 alphap += 4;
             }
@@ -360,25 +360,25 @@ static void resize_bicubic_image_packn_fp16sa(const Mat& src, Mat& dst, __fp16* 
                 const __fp16* S2p = S2 + sx;
                 const __fp16* S3p = S3 + sx;
 
-                vfloat16m1_t _S10 = vle16_v_f16m1(S1p - packn, vl);
-                vfloat16m1_t _S11 = vle16_v_f16m1(S1p, vl);
-                vfloat16m1_t _S12 = vle16_v_f16m1(S1p + packn, vl);
-                vfloat16m1_t _S13 = vle16_v_f16m1(S1p + packn * 2, vl);
-                vfloat16m1_t _S20 = vle16_v_f16m1(S2p - packn, vl);
-                vfloat16m1_t _S21 = vle16_v_f16m1(S2p, vl);
-                vfloat16m1_t _S22 = vle16_v_f16m1(S2p + packn, vl);
-                vfloat16m1_t _S23 = vle16_v_f16m1(S2p + packn * 2, vl);
-                vfloat16m1_t _S30 = vle16_v_f16m1(S3p - packn, vl);
-                vfloat16m1_t _S31 = vle16_v_f16m1(S3p, vl);
-                vfloat16m1_t _S32 = vle16_v_f16m1(S3p + packn, vl);
-                vfloat16m1_t _S33 = vle16_v_f16m1(S3p + packn * 2, vl);
-                vfloat16m1_t _rows1 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S10, alphap[0], vl), alphap[1], _S11, vl), alphap[2], _S12, vl), alphap[3], _S13, vl);
-                vfloat16m1_t _rows2 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
-                vfloat16m1_t _rows3 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
+                vfloat16m1_t _S10 = __riscv_vle16_v_f16m1(S1p - packn, vl);
+                vfloat16m1_t _S11 = __riscv_vle16_v_f16m1(S1p, vl);
+                vfloat16m1_t _S12 = __riscv_vle16_v_f16m1(S1p + packn, vl);
+                vfloat16m1_t _S13 = __riscv_vle16_v_f16m1(S1p + packn * 2, vl);
+                vfloat16m1_t _S20 = __riscv_vle16_v_f16m1(S2p - packn, vl);
+                vfloat16m1_t _S21 = __riscv_vle16_v_f16m1(S2p, vl);
+                vfloat16m1_t _S22 = __riscv_vle16_v_f16m1(S2p + packn, vl);
+                vfloat16m1_t _S23 = __riscv_vle16_v_f16m1(S2p + packn * 2, vl);
+                vfloat16m1_t _S30 = __riscv_vle16_v_f16m1(S3p - packn, vl);
+                vfloat16m1_t _S31 = __riscv_vle16_v_f16m1(S3p, vl);
+                vfloat16m1_t _S32 = __riscv_vle16_v_f16m1(S3p + packn, vl);
+                vfloat16m1_t _S33 = __riscv_vle16_v_f16m1(S3p + packn * 2, vl);
+                vfloat16m1_t _rows1 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S10, alphap[0], vl), alphap[1], _S11, vl), alphap[2], _S12, vl), alphap[3], _S13, vl);
+                vfloat16m1_t _rows2 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
+                vfloat16m1_t _rows3 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
 
-                vse16_v_f16m1(rows1p + dx * packn, _rows1, vl);
-                vse16_v_f16m1(rows2p + dx * packn, _rows2, vl);
-                vse16_v_f16m1(rows3p + dx * packn, _rows3, vl);
+                __riscv_vse16_v_f16m1(rows1p + dx * packn, _rows1, vl);
+                __riscv_vse16_v_f16m1(rows2p + dx * packn, _rows2, vl);
+                __riscv_vse16_v_f16m1(rows3p + dx * packn, _rows3, vl);
 
                 alphap += 4;
             }
@@ -404,31 +404,31 @@ static void resize_bicubic_image_packn_fp16sa(const Mat& src, Mat& dst, __fp16* 
                 const __fp16* S2p = S2 + sx;
                 const __fp16* S3p = S3 + sx;
 
-                vfloat16m1_t _S00 = vle16_v_f16m1(S0p - packn, vl);
-                vfloat16m1_t _S01 = vle16_v_f16m1(S0p, vl);
-                vfloat16m1_t _S02 = vle16_v_f16m1(S0p + packn, vl);
-                vfloat16m1_t _S03 = vle16_v_f16m1(S0p + packn * 2, vl);
-                vfloat16m1_t _S10 = vle16_v_f16m1(S1p - packn, vl);
-                vfloat16m1_t _S11 = vle16_v_f16m1(S1p, vl);
-                vfloat16m1_t _S12 = vle16_v_f16m1(S1p + packn, vl);
-                vfloat16m1_t _S13 = vle16_v_f16m1(S1p + packn * 2, vl);
-                vfloat16m1_t _S20 = vle16_v_f16m1(S2p - packn, vl);
-                vfloat16m1_t _S21 = vle16_v_f16m1(S2p, vl);
-                vfloat16m1_t _S22 = vle16_v_f16m1(S2p + packn, vl);
-                vfloat16m1_t _S23 = vle16_v_f16m1(S2p + packn * 2, vl);
-                vfloat16m1_t _S30 = vle16_v_f16m1(S3p - packn, vl);
-                vfloat16m1_t _S31 = vle16_v_f16m1(S3p, vl);
-                vfloat16m1_t _S32 = vle16_v_f16m1(S3p + packn, vl);
-                vfloat16m1_t _S33 = vle16_v_f16m1(S3p + packn * 2, vl);
-                vfloat16m1_t _rows0 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S00, alphap[0], vl), alphap[1], _S01, vl), alphap[2], _S02, vl), alphap[3], _S03, vl);
-                vfloat16m1_t _rows1 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S10, alphap[0], vl), alphap[1], _S11, vl), alphap[2], _S12, vl), alphap[3], _S13, vl);
-                vfloat16m1_t _rows2 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
-                vfloat16m1_t _rows3 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
+                vfloat16m1_t _S00 = __riscv_vle16_v_f16m1(S0p - packn, vl);
+                vfloat16m1_t _S01 = __riscv_vle16_v_f16m1(S0p, vl);
+                vfloat16m1_t _S02 = __riscv_vle16_v_f16m1(S0p + packn, vl);
+                vfloat16m1_t _S03 = __riscv_vle16_v_f16m1(S0p + packn * 2, vl);
+                vfloat16m1_t _S10 = __riscv_vle16_v_f16m1(S1p - packn, vl);
+                vfloat16m1_t _S11 = __riscv_vle16_v_f16m1(S1p, vl);
+                vfloat16m1_t _S12 = __riscv_vle16_v_f16m1(S1p + packn, vl);
+                vfloat16m1_t _S13 = __riscv_vle16_v_f16m1(S1p + packn * 2, vl);
+                vfloat16m1_t _S20 = __riscv_vle16_v_f16m1(S2p - packn, vl);
+                vfloat16m1_t _S21 = __riscv_vle16_v_f16m1(S2p, vl);
+                vfloat16m1_t _S22 = __riscv_vle16_v_f16m1(S2p + packn, vl);
+                vfloat16m1_t _S23 = __riscv_vle16_v_f16m1(S2p + packn * 2, vl);
+                vfloat16m1_t _S30 = __riscv_vle16_v_f16m1(S3p - packn, vl);
+                vfloat16m1_t _S31 = __riscv_vle16_v_f16m1(S3p, vl);
+                vfloat16m1_t _S32 = __riscv_vle16_v_f16m1(S3p + packn, vl);
+                vfloat16m1_t _S33 = __riscv_vle16_v_f16m1(S3p + packn * 2, vl);
+                vfloat16m1_t _rows0 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S00, alphap[0], vl), alphap[1], _S01, vl), alphap[2], _S02, vl), alphap[3], _S03, vl);
+                vfloat16m1_t _rows1 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S10, alphap[0], vl), alphap[1], _S11, vl), alphap[2], _S12, vl), alphap[3], _S13, vl);
+                vfloat16m1_t _rows2 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S20, alphap[0], vl), alphap[1], _S21, vl), alphap[2], _S22, vl), alphap[3], _S23, vl);
+                vfloat16m1_t _rows3 = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_S30, alphap[0], vl), alphap[1], _S31, vl), alphap[2], _S32, vl), alphap[3], _S33, vl);
 
-                vse16_v_f16m1(rows0p + dx * packn, _rows0, vl);
-                vse16_v_f16m1(rows1p + dx * packn, _rows1, vl);
-                vse16_v_f16m1(rows2p + dx * packn, _rows2, vl);
-                vse16_v_f16m1(rows3p + dx * packn, _rows3, vl);
+                __riscv_vse16_v_f16m1(rows0p + dx * packn, _rows0, vl);
+                __riscv_vse16_v_f16m1(rows1p + dx * packn, _rows1, vl);
+                __riscv_vse16_v_f16m1(rows2p + dx * packn, _rows2, vl);
+                __riscv_vse16_v_f16m1(rows3p + dx * packn, _rows3, vl);
 
                 alphap += 4;
             }
@@ -450,14 +450,14 @@ static void resize_bicubic_image_packn_fp16sa(const Mat& src, Mat& dst, __fp16* 
 
         for (int dx = 0; dx < w; dx++)
         {
-            vfloat16m1_t _rows0 = vle16_v_f16m1(rows0p, vl);
-            vfloat16m1_t _rows1 = vle16_v_f16m1(rows1p, vl);
-            vfloat16m1_t _rows2 = vle16_v_f16m1(rows2p, vl);
-            vfloat16m1_t _rows3 = vle16_v_f16m1(rows3p, vl);
+            vfloat16m1_t _rows0 = __riscv_vle16_v_f16m1(rows0p, vl);
+            vfloat16m1_t _rows1 = __riscv_vle16_v_f16m1(rows1p, vl);
+            vfloat16m1_t _rows2 = __riscv_vle16_v_f16m1(rows2p, vl);
+            vfloat16m1_t _rows3 = __riscv_vle16_v_f16m1(rows3p, vl);
 
-            vfloat16m1_t _D = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_rows0, b0, vl), b1, _rows1, vl), b2, _rows2, vl), b3, _rows3, vl);
+            vfloat16m1_t _Dp = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_rows0, b0, vl), b1, _rows1, vl), b2, _rows2, vl), b3, _rows3, vl);
 
-            vse16_v_f16m1(Dp, _D, vl);
+            __riscv_vse16_v_f16m1(Dp, _Dp, vl);
 
             Dp += packn;
             rows0p += packn;

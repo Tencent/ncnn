@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Crop_x86 : virtual public Crop
+class Crop_x86 : public Crop
 {
 public:
     Crop_x86();

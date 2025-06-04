@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class MemoryData_vulkan : virtual public MemoryData
+class MemoryData_vulkan : public MemoryData
 {
 public:
     MemoryData_vulkan();

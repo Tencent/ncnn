@@ -12,42 +12,65 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <torch/csrc/jit/passes/quantization/helper.h>
+#include <torch/script.h>
+#include <torch/csrc/jit/api/module.h>
 #include <torch/csrc/api/include/torch/version.h>
+#include <torch/csrc/jit/passes/quantization/helper.h>
 
 #include "pass_level1.h"
 
+#include "pass_level1/fuse_module_pass.h"
+
 namespace pnnx {
 
-FuseModulePass::~FuseModulePass()
+static void fuse_moduleop_unpack(Graph& graph, const std::vector<std::string>& module_operators)
 {
-}
+    while (1)
+    {
+        bool matched = false;
 
-void FuseModulePass::write(Operator* /*op*/, const std::shared_ptr<torch::jit::Graph>& /*graph*/) const
-{
-}
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
 
-void FuseModulePass::write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& /*mod*/) const
-{
-    write(op, graph);
-}
+            if (std::find(module_operators.begin(), module_operators.end(), op->type) == module_operators.end())
+                continue;
 
-static std::vector<const FuseModulePass*> g_global_pnnx_fuse_module_passes;
+            if (op->outputs.size() != 1)
+                continue;
 
-const std::vector<const FuseModulePass*>& get_global_pnnx_fuse_module_passes()
-{
-    return g_global_pnnx_fuse_module_passes;
-}
+            if (op->outputs[0]->consumers.size() != 1)
+                continue;
 
-FuseModulePassRegister::FuseModulePassRegister(const FuseModulePass* _pass)
-    : pass(_pass)
-{
-    g_global_pnnx_fuse_module_passes.push_back(pass);
-}
+            Operator* op2 = op->outputs[0]->consumers[0];
+            if (op2->type != "prim::TupleUnpack")
+                continue;
 
-FuseModulePassRegister::~FuseModulePassRegister()
-{
-    delete pass;
+            matched = true;
+
+            op->outputs[0]->producer = 0;
+            op->outputs[0]->remove_consumer(op2);
+
+            for (auto& x : op2->outputs)
+            {
+                x->producer = op;
+            }
+
+            op->outputs = op2->outputs;
+
+            op2->inputs.clear();
+            op2->outputs.clear();
+
+            graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op2));
+
+            delete op2;
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
 }
 
 void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& g, const std::vector<std::string>& module_operators, Graph& pg)
@@ -131,7 +154,9 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 // sub_mod.dump(true, true, true);
 
-                op->attrs[name] = sub_mod.attr(name).toTensor();
+                op->attrs["data"] = sub_mod.attr(name).toTensor();
+                op->outputs[0]->type = op->attrs["data"].type;
+                op->outputs[0]->shape = op->attrs["data"].shape;
             }
         }
         else if (n->kind() == c10::prim::Constant) // || n->kind() == c10::prim::ListConstruct)
@@ -165,7 +190,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 op->params.erase("value");
 
-                op->attrs[name] = n->t(torch::jit::attr::value);
+                op->attrs["data"] = n->t(torch::jit::attr::value);
             }
         }
         else if (n->kind() == c10::prim::CallMethod)
@@ -222,13 +247,13 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 torch::jit::Function& function = class_type->getMethod(function_name);
                 if (function.isGraphFunction())
                 {
-                    int pnnx_moduleop_unknown_index = 0;
-
-#if TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
                     torch::jit::Block* moduleop_block = toGraphFunction(function).graph()->block();
 #else
                     torch::jit::Block* moduleop_block = function.graph()->block();
 #endif
+
+                    std::map<size_t, torch::jit::Node*> constant_attr_nodes;
                     for (const auto& mn : moduleop_block->nodes())
                     {
                         if (mn->kind() == c10::prim::GetAttr)
@@ -297,12 +322,19 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                             if (p.type == 8)
                             {
-                                char name[32];
-                                sprintf(name, "pnnx_%d", pnnx_moduleop_unknown_index++);
-
-                                op->attrs[name] = mn->t(torch::jit::attr::value);
+                                size_t unique_id = mn->output(0)->unique();
+                                constant_attr_nodes[unique_id] = mn;
                             }
                         }
+                    }
+
+                    int pnnx_moduleop_unknown_index = 0;
+                    for (auto attr : constant_attr_nodes)
+                    {
+                        char name[32];
+                        sprintf(name, "pnnx_%02d", pnnx_moduleop_unknown_index);
+                        op->attrs[name] = attr.second->t(torch::jit::attr::value);
+                        pnnx_moduleop_unknown_index++;
                     }
                 }
             }
@@ -339,11 +371,13 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                     op->name = wrapped_name;
 
-#if TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11
-                    ow->write(op, toGraphFunction(function).graph(), sub_mod);
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
+                    TorchGraphProxy graph_proxy(toGraphFunction(function).graph());
 #else
-                    ow->write(op, function.graph(), sub_mod);
+                    TorchGraphProxy graph_proxy(function.graph());
 #endif
+                    TorchModuleProxy sub_mod_proxy(sub_mod);
+                    ow->write(op, graph_proxy, sub_mod_proxy);
 
                     break;
                 }
@@ -376,10 +410,6 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 
-            // always treat inplace op type as non-inplace version
-            if (op->type.size() > 2 && op->type[op->type.size() - 2] != '_' && op->type[op->type.size() - 1] == '_')
-                op->type = op->type.substr(0, op->type.size() - 1);
-
             for (int i = 0; i < (int)n->inputs().size(); i++)
             {
                 const auto& in = n->input(i);
@@ -409,6 +439,9 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         r->consumers.push_back(op);
         op->inputs.push_back(r);
     }
+
+    // post process
+    fuse_moduleop_unpack(pg, module_operators);
 }
 
 } // namespace pnnx

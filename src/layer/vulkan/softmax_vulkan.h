@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Softmax_vulkan : virtual public Softmax
+class Softmax_vulkan : public Softmax
 {
 public:
     Softmax_vulkan();

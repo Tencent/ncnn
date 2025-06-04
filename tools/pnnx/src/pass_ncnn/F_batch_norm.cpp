@@ -26,8 +26,8 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @qwq
-pnnx.Attribute          op_var      0 1 running_var @qwq
+pnnx.Attribute          op_mean     0 1 running_mean @data
+pnnx.Attribute          op_var      0 1 running_var @data
 F.batch_norm            op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -45,15 +45,8 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        Attribute running_mean;
-        Attribute running_var;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 8) == "op_mean.")
-                running_mean = x.second;
-            if (x.first.substr(0, 7) == "op_var.")
-                running_var = x.second;
-        }
+        Attribute running_mean = captured_attrs.at("op_mean.data");
+        Attribute running_var = captured_attrs.at("op_var.data");
 
         op->params["0"] = running_mean.shape[0];
         op->params["1"] = captured_params.at("eps");
@@ -77,10 +70,10 @@ public:
         return R"PNNXIR(7767517
 7 6
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @qwq
-pnnx.Attribute          op_var      0 1 running_var @qwq
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
+pnnx.Attribute          op_mean     0 1 running_mean @data
+pnnx.Attribute          op_var      0 1 running_var @data
+pnnx.Attribute          op_weight   0 1 weight @data
+pnnx.Attribute          op_bias     0 1 bias @data
 F.batch_norm            op_0        5 1 input running_mean running_var weight bias out eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -98,21 +91,10 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        Attribute running_mean;
-        Attribute running_var;
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 8) == "op_mean.")
-                running_mean = x.second;
-            if (x.first.substr(0, 7) == "op_var.")
-                running_var = x.second;
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
+        Attribute running_mean = captured_attrs.at("op_mean.data");
+        Attribute running_var = captured_attrs.at("op_var.data");
+        Attribute weight = captured_attrs.at("op_weight.data");
+        Attribute bias = captured_attrs.at("op_bias.data");
 
         op->params["0"] = running_mean.shape[0];
         op->params["1"] = captured_params.at("eps");

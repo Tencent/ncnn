@@ -19,8 +19,6 @@
 #include "pipelinecache.h"
 #include "option.h"
 
-#include <math.h>
-
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
@@ -42,6 +40,7 @@ public:
     uint32_t local_size_x;
     uint32_t local_size_y;
     uint32_t local_size_z;
+    uint32_t subgroup_size;
 };
 
 Pipeline::Pipeline(const VulkanDevice* _vkdev)
@@ -56,6 +55,7 @@ Pipeline::Pipeline(const VulkanDevice* _vkdev)
     d->local_size_x = 1;
     d->local_size_y = 1;
     d->local_size_z = 1;
+    d->subgroup_size = vkdev->info.subgroup_size();
 }
 
 Pipeline::~Pipeline()
@@ -113,6 +113,15 @@ void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
     set_local_size_xyz(w, h, c);
 }
 
+void Pipeline::set_subgroup_size(uint32_t subgroup_size)
+{
+    // assert subgroup_size be power of two
+    subgroup_size = std::max(subgroup_size, vkdev->info.min_subgroup_size());
+    subgroup_size = std::min(subgroup_size, vkdev->info.max_subgroup_size());
+
+    d->subgroup_size = subgroup_size;
+}
+
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
     d->local_size_x = w;
@@ -127,7 +136,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
     const PipelineCache* pipeline_cache = vkdev->get_pipeline_cache();
 
     // get from pipeline cache
-    return pipeline_cache->get_pipeline(spv_data, spv_data_size, specializations, d->local_size_x, d->local_size_y, d->local_size_z,
+    return pipeline_cache->get_pipeline(spv_data, spv_data_size, specializations, d->local_size_x, d->local_size_y, d->local_size_z, d->subgroup_size,
                                         &d->shader_module, &d->descriptorset_layout, &d->pipeline_layout, &d->pipeline, &d->descriptor_update_template,
                                         d->shader_info);
 }
@@ -137,7 +146,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     const PipelineCache* pipeline_cache = opt.pipeline_cache ? opt.pipeline_cache : vkdev->get_pipeline_cache();
 
     // get from pipeline cache
-    return pipeline_cache->get_pipeline(shader_type_index, opt, specializations, d->local_size_x, d->local_size_y, d->local_size_z,
+    return pipeline_cache->get_pipeline(shader_type_index, opt, specializations, d->local_size_x, d->local_size_y, d->local_size_z, d->subgroup_size,
                                         &d->shader_module, &d->descriptorset_layout, &d->pipeline_layout, &d->pipeline, &d->descriptor_update_template,
                                         d->shader_info);
 }
@@ -319,7 +328,7 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     vkdev->create_pipeline_layout(_shader_info.push_constant_count, descriptorset_layout(), &pipeline_layout);
 
-    vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, &pipeline);
+    vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, vkdev->info.subgroup_size(), &pipeline);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template())
     {
