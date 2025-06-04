@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2025 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -29,7 +29,6 @@ public:
 protected:
 #if NCNN_ARM82
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
-    int forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const;
 #endif
 #if NCNN_BF16
     int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;

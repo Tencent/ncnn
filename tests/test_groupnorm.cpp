@@ -39,7 +39,7 @@ static int test_groupnorm(const ncnn::Mat& a, int group, float eps, int affine)
     int ret = test_layer("GroupNorm", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_groupnorm failed a.dims=%d a=(%d %d %d) group=%d eps=%f\n", a.dims, a.w, a.h, a.c, group, eps);
+        fprintf(stderr, "test_groupnorm failed a.dims=%d a=(%d %d %d %d) group=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.d, a.c, group, eps, affine);
     }
 
     return ret;

@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2025 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -21,282 +21,270 @@
 namespace ncnn {
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+static void groupnorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep)
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int size = w * h;
-    int elempack = bottom_top_blob.elempack;
-    int channels_per_group = channels / group;
-
-    if (elempack == 8)
+    float32x4_t _mean0 = vdupq_n_f32(0.f);
+    float32x4_t _mean1 = vdupq_n_f32(0.f);
+    float mean = 0.f;
+    for (int q = 0; q < channels; q++)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g = 0; g < group; g++)
+        const __fp16* ptr0 = ptr + cstep * q * elempack;
+
+        int i = 0;
+        for (; i + 7 < size; i += 8)
         {
-            Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_per_group, channels_per_group);
-
-            float32x4_t _div_size = vdupq_n_f32(1.f / (channels_per_group * size));
-            float32x4_t _eps = vdupq_n_f32(eps);
-
-            // mean and var
-            float32x4_t _sum0 = vdupq_n_f32(0.f);
-            float32x4_t _sum1 = vdupq_n_f32(0.f);
-            float32x4_t _sqsum0 = vdupq_n_f32(0.f);
-            float32x4_t _sqsum1 = vdupq_n_f32(0.f);
-
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                const __fp16* ptr = bottom_top_blob_g.channel(q);
-                for (int i = 0; i < size; i++)
-                {
-                    float16x8_t _p = vld1q_f16(ptr);
-                    float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
-                    float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
-                    _sum0 = vaddq_f32(_sum0, _p0);
-                    _sum1 = vaddq_f32(_sum1, _p1);
-                    ptr += 8;
-                }
-            }
-            float32x4_t _mean0 = vmulq_f32(_sum0, _div_size);
-            float32x4_t _mean1 = vmulq_f32(_sum1, _div_size);
-
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                const __fp16* ptr = bottom_top_blob_g.channel(q);
-                for (int i = 0; i < size; i++)
-                {
-                    float16x8_t _p = vld1q_f16(ptr);
-                    float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
-                    float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
-                    float32x4_t _tmp0 = vsubq_f32(_p0, _mean0);
-                    float32x4_t _tmp1 = vsubq_f32(_p1, _mean1);
-                    _sqsum0 = vfmaq_f32(_sqsum0, _tmp0, _tmp0);
-                    _sqsum1 = vfmaq_f32(_sqsum1, _tmp1, _tmp1);
-                    ptr += 8;
-                }
-            }
-            float32x4_t _var_eps0 = vfmaq_f32(_eps, _sqsum0, _div_size);
-            float32x4_t _var_eps1 = vfmaq_f32(_eps, _sqsum1, _div_size);
-
-            float32x4_t _reciprocal0 = vrsqrteq_f32(_var_eps0);
-            float32x4_t _reciprocal1 = vrsqrteq_f32(_var_eps1);
-            _reciprocal0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_var_eps0, _reciprocal0), _reciprocal0), _reciprocal0);
-            _reciprocal1 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_var_eps1, _reciprocal1), _reciprocal1), _reciprocal1);
-
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                float16x8_t _a;
-                float16x8_t _b;
-
-                if (affine)
-                {
-                    float32x4_t _gamma0 = vld1q_f32((const float*)gamma_data + (g * channels_per_group + q) * 8);
-                    float32x4_t _gamma1 = vld1q_f32((const float*)gamma_data + (g * channels_per_group + q) * 8 + 4);
-                    float32x4_t _beta0 = vld1q_f32((const float*)beta_data + (g * channels_per_group + q) * 8);
-                    float32x4_t _beta1 = vld1q_f32((const float*)beta_data + (g * channels_per_group + q) * 8 + 4);
-
-                    float32x4_t _a320 = vmulq_f32(_gamma0, _reciprocal0);
-                    float32x4_t _a321 = vmulq_f32(_gamma1, _reciprocal1);
-                    float16x4_t _a0 = vcvt_f16_f32(_a320);
-                    float16x4_t _a1 = vcvt_f16_f32(_a321);
-                    float16x4_t _b0 = vcvt_f16_f32(vmlsq_f32(_beta0, _mean0, _a320));
-                    float16x4_t _b1 = vcvt_f16_f32(vmlsq_f32(_beta1, _mean1, _a321));
-
-                    _a = vcombine_f16(_a0, _a1);
-                    _b = vcombine_f16(_b0, _b1);
-                }
-                else
-                {
-                    float16x4_t _a0 = vcvt_f16_f32(_reciprocal0);
-                    float16x4_t _a1 = vcvt_f16_f32(_reciprocal1);
-                    float16x4_t _b0 = vcvt_f16_f32(vnegq_f32(vmulq_f32(_mean0, _reciprocal0)));
-                    float16x4_t _b1 = vcvt_f16_f32(vnegq_f32(vmulq_f32(_mean1, _reciprocal1)));
-
-                    _a = vcombine_f16(_a0, _a1);
-                    _b = vcombine_f16(_b0, _b1);
-                }
-
-                __fp16* ptr = bottom_top_blob_g.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    float16x8_t _p = vld1q_f16(ptr);
-                    _p = vfmaq_f16(_b, _p, _a);
-                    vst1q_f16(ptr, _p);
-                    ptr += 8;
-                }
-            }
+            float16x8_t _p = vld1q_f16(ptr0);
+            float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
+            float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
+            _mean0 = vaddq_f32(_mean0, _p0);
+            _mean1 = vaddq_f32(_mean1, _p1);
+            ptr0 += 8;
         }
-
-        return 0;
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr0));
+            _mean0 = vaddq_f32(_mean0, _p);
+            ptr0 += 4;
+        }
+        for (; i < size; i++)
+        {
+            mean += (float)ptr0[0];
+            ptr0++;
+        }
     }
 
-    if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g = 0; g < group; g++)
-        {
-            Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_per_group, channels_per_group);
+        _mean0 = vaddq_f32(_mean0, _mean1);
+        mean += vaddvq_f32(_mean0);
 
-            float32x4_t _div_size = vdupq_n_f32(1.f / (channels_per_group * size));
-
-            // mean and var
-            float32x4_t _sum = vdupq_n_f32(0.f);
-            float32x4_t _sqsum = vdupq_n_f32(0.f);
-
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                const __fp16* ptr = bottom_top_blob_g.channel(q);
-                for (int i = 0; i < size; i++)
-                {
-                    float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
-                    _sum = vaddq_f32(_sum, _p);
-                    ptr += 4;
-                }
-            }
-            float32x4_t _mean = vmulq_f32(_sum, _div_size);
-
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                const __fp16* ptr = bottom_top_blob_g.channel(q);
-                for (int i = 0; i < size; i++)
-                {
-                    float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
-                    float32x4_t _tmp = vsubq_f32(_p, _mean);
-                    _sqsum = vfmaq_f32(_sqsum, _tmp, _tmp);
-                    ptr += 4;
-                }
-            }
-            float32x4_t _var_eps = vfmaq_f32(vdupq_n_f32(eps), _sqsum, _div_size);
-
-            float32x4_t _reciprocal = vrsqrteq_f32(_var_eps);
-            _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_var_eps, _reciprocal), _reciprocal), _reciprocal);
-
-            for (int q = 0; q < channels_per_group; q++)
-            {
-                float16x4_t _a;
-                float16x4_t _b;
-                if (affine)
-                {
-                    float32x4_t _gamma = vld1q_f32((const float*)gamma_data + (g * channels_per_group + q) * 4);
-                    float32x4_t _beta = vld1q_f32((const float*)beta_data + (g * channels_per_group + q) * 4);
-
-                    float32x4_t _a32 = vmulq_f32(_gamma, _reciprocal);
-                    _a = vcvt_f16_f32(_a32);
-                    _b = vcvt_f16_f32(vmlsq_f32(_beta, _mean, _a32));
-                }
-                else
-                {
-                    _a = vcvt_f16_f32(_reciprocal);
-                    _b = vcvt_f16_f32(vnegq_f32(vmulq_f32(_mean, _reciprocal)));
-                }
-
-                __fp16* ptr = bottom_top_blob_g.channel(q);
-                for (int i = 0; i < size; i++)
-                {
-                    float16x4_t _p = vld1_f16(ptr);
-                    _p = vfma_f16(_b, _p, _a);
-                    vst1_f16(ptr, _p);
-                    ptr += 4;
-                }
-            }
-        }
-
-        return 0;
+        mean = mean / (channels * size);
+        _mean0 = vdupq_n_f32(mean);
+        _mean1 = _mean0;
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++)
+    float32x4_t _var0 = vdupq_n_f32(0.f);
+    float32x4_t _var1 = vdupq_n_f32(0.f);
+    float var = 0.f;
+    for (int q = 0; q < channels; q++)
     {
-        Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_per_group, channels_per_group);
+        const __fp16* ptr0 = ptr + cstep * q * elempack;
 
-        // mean and var
-        float sum = 0.f;
-        float sqsum = 0.f;
-        for (int q = 0; q < channels_per_group; q++)
+        int i = 0;
+        for (; i + 7 < size; i += 8)
         {
-            const __fp16* ptr = bottom_top_blob_g.channel(q);
-            int i = 0;
-#if __ARM_NEON
-            float32x4_t _sum = vdupq_n_f32(0.f);
-            for (; i + 3 < size; i += 4)
-            {
-                float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
-                _sum = vaddq_f32(_sum, _p);
-                ptr += 4;
-            }
-            sum += vaddvq_f32(_sum);
-#endif // __ARM_NEON
-            for (; i < size; i++)
-            {
-                sum += *ptr++;
-            }
+            float16x8_t _p = vld1q_f16(ptr0);
+            float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
+            float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
+            _p0 = vsubq_f32(_p0, _mean0);
+            _p1 = vsubq_f32(_p1, _mean1);
+            _var0 = vfmaq_f32(_var0, _p0, _p0);
+            _var1 = vfmaq_f32(_var1, _p1, _p1);
+            ptr0 += 8;
         }
-
-        float mean = sum / (channels_per_group * size);
-
-        for (int q = 0; q < channels_per_group; q++)
+        for (; i + 3 < size; i += 4)
         {
-            const __fp16* ptr = bottom_top_blob_g.channel(q);
-            int i = 0;
-#if __ARM_NEON
-            float32x4_t _sqsum = vdupq_n_f32(0.f);
-            float32x4_t _mean = vdupq_n_f32(mean);
-            for (; i + 3 < size; i += 4)
-            {
-                float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
-                float32x4_t _tmp = vsubq_f32(_p, _mean);
-                _sqsum = vmlaq_f32(_sqsum, _tmp, _tmp);
-                ptr += 4;
-            }
-            sqsum += vaddvq_f32(_sqsum);
-#endif // __ARM_NEON
-            for (; i < size; i++)
-            {
-                float tmp = *ptr++ - mean;
-                sqsum += tmp * tmp;
-            }
+            float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr0));
+            _p = vsubq_f32(_p, _mean0);
+            _var0 = vfmaq_f32(_var0, _p, _p);
+            ptr0 += 4;
         }
-        float var = sqsum / (channels_per_group * size);
-
-        for (int q = 0; q < channels_per_group; q++)
+        for (; i < size; i++)
         {
-            __fp16 a;
-            __fp16 b;
-            if (affine)
-            {
-                float gamma = gamma_data[g * channels_per_group + q];
-                float beta = beta_data[g * channels_per_group + q];
+            float v = (float)ptr0[0] - mean;
+            var += v * v;
+            ptr0++;
+        }
+    }
 
-                a = (__fp16)(gamma / (sqrt(var + eps)));
-                b = (__fp16)(-mean * a + beta);
-            }
-            else
+    {
+        _var0 = vaddq_f32(_var0, _var1);
+        var += vaddvq_f32(_var0);
+
+        var = 1.f / sqrtf(var / (channels * size) + eps);
+        mean = -mean * var;
+        _var0 = vdupq_n_f32(var);
+        _mean0 = vdupq_n_f32(mean);
+        _var1 = _var0;
+        _mean1 = _mean0;
+    }
+
+    if (gamma_ptr && beta_ptr)
+    {
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr0 = ptr + cstep * q * elempack;
+
+            float32x4_t _a0 = vdupq_n_f32(0.f);
+            float32x4_t _b0 = vdupq_n_f32(0.f);
+            float32x4_t _a1 = vdupq_n_f32(0.f);
+            float32x4_t _b1 = vdupq_n_f32(0.f);
+            float a = 0.f;
+            float b = 0.f;
+
+            if (elempack == 8)
             {
-                a = (__fp16)(1.f / (sqrt(var + eps)));
-                b = (__fp16)(-mean * a);
+                float32x4_t _gamma0 = vld1q_f32(gamma_ptr + q * elempack);
+                float32x4_t _gamma1 = vld1q_f32(gamma_ptr + q * elempack + 4);
+                float32x4_t _beta0 = vld1q_f32(beta_ptr + q * elempack);
+                float32x4_t _beta1 = vld1q_f32(beta_ptr + q * elempack + 4);
+
+                _a0 = vmulq_f32(_var0, _gamma0);
+                _a1 = vmulq_f32(_var1, _gamma1);
+                _b0 = vfmaq_f32(_beta0, _mean0, _gamma0);
+                _b1 = vfmaq_f32(_beta1, _mean1, _gamma1);
+            }
+            if (elempack == 4)
+            {
+                float32x4_t _gamma = vld1q_f32(gamma_ptr + q * elempack);
+                float32x4_t _beta = vld1q_f32(beta_ptr + q * elempack);
+
+                _a0 = vmulq_f32(_var0, _gamma);
+                _b0 = vfmaq_f32(_beta, _mean0, _gamma);
+                _a1 = _a0;
+                _b1 = _b0;
+            }
+            if (elempack == 1)
+            {
+                const float gamma = gamma_ptr[q];
+                const float beta = beta_ptr[q];
+
+                a = var * gamma;
+                b = mean * gamma + beta;
+                _a0 = vdupq_n_f32(a);
+                _b0 = vdupq_n_f32(b);
+                _a1 = _a0;
+                _b1 = _b0;
             }
 
-            __fp16* ptr = bottom_top_blob_g.channel(q);
             int i = 0;
-#if __ARM_NEON
-            float16x8_t _a = vdupq_n_f16(a);
-            float16x8_t _b = vdupq_n_f16(b);
             for (; i + 7 < size; i += 8)
             {
-                float16x8_t _p = vld1q_f16(ptr);
-                _p = vfmaq_f16(_b, _p, _a);
-                vst1q_f16(ptr, _p);
-                ptr += 8;
+                float16x8_t _p = vld1q_f16(ptr0);
+                float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
+                float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
+                _p0 = vfmaq_f32(_b0, _p0, _a0);
+                _p1 = vfmaq_f32(_b1, _p1, _a1);
+                _p = vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1));
+                vst1q_f16(ptr0, _p);
+                ptr0 += 8;
             }
-#endif // __ARM_NEON
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr0));
+                _p = vfmaq_f32(_b0, _p, _a0);
+                vst1_f16(ptr0, vcvt_f16_f32(_p));
+                ptr0 += 4;
+            }
             for (; i < size; i++)
             {
-                *ptr = *ptr * a + b;
-                ptr++;
+                *ptr0 = (__fp16)((float)*ptr0 * a + b);
+                ptr0++;
             }
         }
+    }
+    else
+    {
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr0 = ptr + cstep * q * elempack;
+
+            int i = 0;
+            for (; i + 7 < size; i += 8)
+            {
+                float16x8_t _p = vld1q_f16(ptr0);
+                float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
+                float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
+                _p0 = vfmaq_f32(_mean0, _p0, _var0);
+                _p1 = vfmaq_f32(_mean1, _p1, _var1);
+                _p = vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1));
+                vst1q_f16(ptr0, _p);
+                ptr0 += 8;
+            }
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr0));
+                _p = vfmaq_f32(_mean0, _p, _var0);
+                vst1_f16(ptr0, vcvt_f16_f32(_p));
+                ptr0 += 4;
+            }
+            for (; i < size; i++)
+            {
+                *ptr0 = (__fp16)((float)*ptr0 * var + mean);
+                ptr0++;
+            }
+        }
+    }
+}
+
+int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    const int dims = bottom_top_blob.dims;
+    const int elempack = bottom_top_blob.elempack;
+    const int channels_g = channels / group;
+
+    int g_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        if (opt.use_fp16_arithmetic)
+            g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+        else
+            g_elempack = channels_g % 4 == 0 ? 4 : 1;
+    }
+
+    Mat bottom_top_blob_unpacked = bottom_top_blob;
+    if (elempack > g_elempack)
+    {
+        Option opt_p = opt;
+        opt_p.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_top_blob, bottom_top_blob_unpacked, g_elempack, opt_p);
+        if (bottom_top_blob_unpacked.empty())
+            return -100;
+    }
+
+    if (dims == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g = 0; g < group; g++)
+        {
+            Mat bottom_top_blob_g = bottom_top_blob_unpacked.range(g * channels_g / g_elempack, channels_g / g_elempack);
+            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_g : 0;
+            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_g : 0;
+            groupnorm_fp16s(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g / g_elempack, 1 * g_elempack, g_elempack, 1);
+        }
+    }
+
+    if (dims == 2)
+    {
+        const int w = bottom_top_blob_unpacked.w;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g = 0; g < group; g++)
+        {
+            Mat bottom_top_blob_g = bottom_top_blob_unpacked.row_range(g * channels_g / g_elempack, channels_g / g_elempack);
+            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_g : 0;
+            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_g : 0;
+            groupnorm_fp16s(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g / g_elempack, w * g_elempack, g_elempack, w);
+        }
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+        const int size = bottom_top_blob_unpacked.w * bottom_top_blob_unpacked.h * bottom_top_blob_unpacked.d;
+        const size_t cstep = bottom_top_blob_unpacked.cstep;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g = 0; g < group; g++)
+        {
+            Mat bottom_top_blob_g = bottom_top_blob_unpacked.channel_range(g * channels_g / g_elempack, channels_g / g_elempack);
+            const float* gamma_ptr = affine ? (const float*)gamma_data + g * channels_g : 0;
+            const float* beta_ptr = affine ? (const float*)beta_data + g * channels_g : 0;
+            groupnorm_fp16s(bottom_top_blob_g, gamma_ptr, beta_ptr, eps, channels_g / g_elempack, size * g_elempack, g_elempack, cstep);
+        }
+    }
+
+    if (g_elempack != elempack)
+    {
+        convert_packing(bottom_top_blob_unpacked, bottom_top_blob, elempack, opt);
     }
 
     return 0;
