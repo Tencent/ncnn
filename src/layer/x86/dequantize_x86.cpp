@@ -201,7 +201,7 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
             _mm256_storeu_ps(ptr, _v);
 #else  // __AVX__
             __m128 _v0 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr));
-            __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr + 4));
+            __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)(intptr + 4)));
             _v0 = _mm_comp_fmadd_ps(_v0, _scale0, _bias0);
             _v1 = _mm_comp_fmadd_ps(_v1, _scale1, _bias1);
             _mm_storeu_ps(ptr, _v0);
