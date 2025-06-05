@@ -48,12 +48,19 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
 
     float scale = scale_data[0];
 #if __ARM_NEON
-    float32x4_t _scale = vdupq_n_f32(scale);
+    float32x4_t _scale0 = vdupq_n_f32(scale);
+    float32x4_t _scale1 = _scale0;
     if (scale_data_size > 1)
     {
         if (elempack == 4)
         {
-            _scale = vld1q_f32((const float*)scale_data);
+            _scale0 = vld1q_f32((const float*)scale_data);
+            _scale1 = _scale0;
+        }
+        if (elempack == 8)
+        {
+            _scale0 = vld1q_f32((const float*)scale_data);
+            _scale1 = vld1q_f32((const float*)scale_data + 4);
         }
     }
 #endif // __ARM_NEON
@@ -62,10 +69,21 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
     {
         int i = 0;
 #if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+            _v0 = vmulq_f32(_v0, _scale0);
+            _v1 = vmulq_f32(_v1, _scale1);
+            vst1q_f32(ptr, _v0);
+            vst1q_f32(ptr + 4, _v1);
+            intptr += 8;
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-            _v = vmulq_f32(_v, _scale);
+            _v = vmulq_f32(_v, _scale0);
             vst1q_f32(ptr, _v);
             intptr += 4;
             ptr += 4;
@@ -82,25 +100,48 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
     {
         float bias = bias_data[0];
 #if __ARM_NEON
-        float32x4_t _bias = vdupq_n_f32(bias);
+        float32x4_t _bias0 = vdupq_n_f32(bias);
+        float32x4_t _bias1 = _bias0;
         if (bias_data_size > 1)
         {
             if (elempack == 4)
             {
-                _bias = vld1q_f32((const float*)bias_data);
+                _bias0 = vld1q_f32((const float*)bias_data);
+                _bias1 = _bias0;
+            }
+            if (elempack == 8)
+            {
+                _bias0 = vld1q_f32((const float*)bias_data);
+                _bias1 = vld1q_f32((const float*)bias_data + 4);
             }
         }
 #endif // __ARM_NEON
 
         int i = 0;
 #if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+            _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+            _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+#else
+            _v0 = vmlaq_f32(_bias0, _v0, _scale0);
+            _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+#endif
+            vst1q_f32(ptr, _v0);
+            vst1q_f32(ptr + 4, _v1);
+            intptr += 8;
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
 #if __aarch64__
-            _v = vfmaq_f32(_bias, _v, _scale);
+            _v = vfmaq_f32(_bias0, _v, _scale0);
 #else
-            _v = vmlaq_f32(_bias, _v, _scale);
+            _v = vmlaq_f32(_bias0, _v, _scale0);
 #endif
             vst1q_f32(ptr, _v);
             intptr += 4;
@@ -208,12 +249,19 @@ static void dequantize_bf16s(const int* intptr, unsigned short* ptr, const Mat& 
 
     float scale = scale_data[0];
 #if __ARM_NEON
-    float32x4_t _scale = vdupq_n_f32(scale);
+    float32x4_t _scale0 = vdupq_n_f32(scale);
+    float32x4_t _scale1 = _scale0;
     if (scale_data_size > 1)
     {
         if (elempack == 4)
         {
-            _scale = vld1q_f32((const float*)scale_data);
+            _scale0 = vld1q_f32((const float*)scale_data);
+            _scale1 = _scale0;
+        }
+        if (elempack == 8)
+        {
+            _scale0 = vld1q_f32((const float*)scale_data);
+            _scale1 = vld1q_f32((const float*)scale_data + 4);
         }
     }
 #endif // __ARM_NEON
@@ -222,10 +270,20 @@ static void dequantize_bf16s(const int* intptr, unsigned short* ptr, const Mat& 
     {
         int i = 0;
 #if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+            _v0 = vmulq_f32(_v0, _scale0);
+            _v1 = vmulq_f32(_v1, _scale1);
+            vst1q_u16(ptr, vcombine_u16(float2bfloat(_v0), float2bfloat(_v1)));
+            intptr += 8;
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-            _v = vmulq_f32(_v, _scale);
+            _v = vmulq_f32(_v, _scale0);
             vst1_u16(ptr, float2bfloat(_v));
             intptr += 4;
             ptr += 4;
@@ -242,25 +300,47 @@ static void dequantize_bf16s(const int* intptr, unsigned short* ptr, const Mat& 
     {
         float bias = bias_data[0];
 #if __ARM_NEON
-        float32x4_t _bias = vdupq_n_f32(bias);
+        float32x4_t _bias0 = vdupq_n_f32(bias);
+        float32x4_t _bias1 = _bias0;
         if (bias_data_size > 1)
         {
             if (elempack == 4)
             {
-                _bias = vld1q_f32((const float*)bias_data);
+                _bias0 = vld1q_f32((const float*)bias_data);
+                _bias1 = _bias0;
+            }
+            if (elempack == 8)
+            {
+                _bias0 = vld1q_f32((const float*)bias_data);
+                _bias1 = vld1q_f32((const float*)bias_data + 4);
             }
         }
 #endif // __ARM_NEON
 
         int i = 0;
 #if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+            _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+            _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+#else
+            _v0 = vmlaq_f32(_bias0, _v0, _scale0);
+            _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+#endif
+            vst1q_u16(ptr, vcombine_u16(float2bfloat(_v0), float2bfloat(_v1)));
+            intptr += 8;
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
 #if __aarch64__
-            _v = vfmaq_f32(_bias, _v, _scale);
+            _v = vfmaq_f32(_bias0, _v, _scale0);
 #else
-            _v = vmlaq_f32(_bias, _v, _scale);
+            _v = vmlaq_f32(_bias0, _v, _scale0);
 #endif
             vst1_u16(ptr, float2bfloat(_v));
             intptr += 4;
