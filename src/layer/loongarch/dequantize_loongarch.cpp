@@ -39,12 +39,19 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
 
     float scale = scale_data[0];
 #if __loongarch_sx
-    __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
+    __m128 _scale0 = (__m128)__lsx_vreplfr2vr_s(scale);
+    __m128 _scale1 = _scale0;
     if (scale_data_size > 1)
     {
         if (elempack == 4)
         {
-            _scale = (__m128)__lsx_vld((const float*)scale_data, 0);
+            _scale0 = (__m128)__lsx_vld((const float*)scale_data, 0);
+            _scale1 = _scale0;
+        }
+        if (elempack == 8)
+        {
+            _scale0 = (__m128)__lsx_vld((const float*)scale_data, 0);
+            _scale1 = (__m128)__lsx_vld((const float*)scale_data + 4, 0);
         }
     }
 #endif // __loongarch_sx
@@ -53,11 +60,22 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
     {
         int i = 0;
 #if __loongarch_sx
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+            _v0 = __lsx_vfmul_s(_v0, _scale0);
+            _v1 = __lsx_vfmul_s(_v1, _scale1);
+            __lsx_vst(_v0, ptr, 0);
+            __lsx_vst(_v1, ptr + 4, 0);
+            intptr += 8;
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
-            __builtin_prefetch(intptr + 16);
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-            _v = __lsx_vfmul_s(_v, _scale);
+            _v = __lsx_vfmul_s(_v, _scale0);
             __lsx_vst(_v, ptr, 0);
             intptr += 4;
             ptr += 4;
@@ -74,23 +92,41 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
     {
         float bias = bias_data[0];
 #if __loongarch_sx
-        __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias);
+        __m128 _bias0 = (__m128)__lsx_vreplfr2vr_s(bias);
+        __m128 _bias1 = _bias0;
         if (bias_data_size > 1)
         {
             if (elempack == 4)
             {
-                _bias = (__m128)__lsx_vld((const float*)bias_data, 0);
+                _bias0 = (__m128)__lsx_vld((const float*)bias_data, 0);
+                _bias1 = _bias0;
+            }
+            if (elempack == 8)
+            {
+                _bias0 = (__m128)__lsx_vld((const float*)bias_data, 0);
+                _bias1 = (__m128)__lsx_vld((const float*)bias_data + 4, 0);
             }
         }
 #endif // __loongarch_sx
 
         int i = 0;
 #if __loongarch_sx
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+            _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
+            _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
+            __lsx_vst(_v0, ptr, 0);
+            __lsx_vst(_v1, ptr, 0);
+            intptr += 8;
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
-            __builtin_prefetch(intptr + 16);
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
-            _v = __lsx_vfmadd_s(_scale, _v, _bias);
+            _v = __lsx_vfmadd_s(_scale0, _v, _bias0);
             __lsx_vst(_v, ptr, 0);
             intptr += 4;
             ptr += 4;
