@@ -39,12 +39,19 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
 
     float scale = scale_data[0];
 #if __mips_msa
-    v4f32 _scale = (v4f32)__msa_fill_w_f32(scale);
+    v4f32 _scale0 = (v4f32)__msa_fill_w_f32(scale);
+    v4f32 _scale1 = _scale0;
     if (scale_data_size > 1)
     {
         if (elempack == 4)
         {
-            _scale = (v4f32)__msa_ld_w((const float*)scale_data, 0);
+            _scale0 = (v4f32)__msa_ld_w((const float*)scale_data, 0);
+            _scale1 = _scale0;
+        }
+        if (elempack == 8)
+        {
+            _scale0 = (v4f32)__msa_ld_w((const float*)scale_data, 0);
+            _scale1 = (v4f32)__msa_ld_w((const float*)scale_data + 4, 0);
         }
     }
 #endif // __mips_msa
@@ -53,11 +60,22 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
     {
         int i = 0;
 #if __mips_msa
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
+            _v0 = __msa_fmul_w(_v0, _scale0);
+            _v1 = __msa_fmul_w(_v1, _scale1);
+            __msa_st_w((v4i32)_v0, ptr, 0);
+            __msa_st_w((v4i32)_v1, ptr + 4, 0);
+            intptr += 8;
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
-            __builtin_prefetch(intptr + 16);
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            _v = __msa_fmul_w(_v, _scale);
+            _v = __msa_fmul_w(_v, _scale0);
             __msa_st_w((v4i32)_v, ptr, 0);
             intptr += 4;
             ptr += 4;
@@ -74,23 +92,41 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
     {
         float bias = bias_data[0];
 #if __mips_msa
-        v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
+        v4f32 _bias0 = (v4f32)__msa_fill_w_f32(bias);
+        v4f32 _bias1 = _bias0;
         if (bias_data_size > 1)
         {
             if (elempack == 4)
             {
-                _bias = (v4f32)__msa_ld_w((const float*)bias_data, 0);
+                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data, 0);
+                _bias1 = _bias0;
+            }
+            if (elempack == 8)
+            {
+                _bias0 = (v4f32)__msa_ld_w((const float*)bias_data, 0);
+                _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + 4, 0);
             }
         }
 #endif // __mips_msa
 
         int i = 0;
 #if __mips_msa
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(intptr + 32);
+            v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
+            v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
+            _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
+            _v1 = __msa_fmadd_w(_bias1, _v1, _scale1);
+            __msa_st_w((v4i32)_v0, ptr, 0);
+            __msa_st_w((v4i32)_v1, ptr + 4, 0);
+            intptr += 8;
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
-            __builtin_prefetch(intptr + 16);
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            _v = __msa_fmadd_w(_bias, _v, _scale);
+            _v = __msa_fmadd_w(_bias0, _v, _scale0);
             __msa_st_w((v4i32)_v, ptr, 0);
             intptr += 4;
             ptr += 4;
