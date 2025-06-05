@@ -119,7 +119,7 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
             _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
             _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
             __lsx_vst(_v0, ptr, 0);
-            __lsx_vst(_v1, ptr, 0);
+            __lsx_vst(_v1, ptr + 4, 0);
             intptr += 8;
             ptr += 8;
         }
