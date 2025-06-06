@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Scale_arm : virtual public Scale
+class Scale_arm : public Scale
 {
 public:
     Scale_arm();

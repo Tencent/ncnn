@@ -26,10 +26,13 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
+    virtual int load_model(const ModelBin& mb);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-    float scale;
+    int scale_data_size;
+    Mat scale_data;
 };
 
 } // namespace ncnn

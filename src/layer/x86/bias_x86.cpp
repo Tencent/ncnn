@@ -27,8 +27,9 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
 
     const float* bias_ptr = bias_data;
     #pragma omp parallel for num_threads(opt.num_threads)

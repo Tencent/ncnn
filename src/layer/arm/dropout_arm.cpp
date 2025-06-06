@@ -34,70 +34,94 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 
-    int dims = bottom_top_blob.dims;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int channels = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
-#if __ARM_NEON
-    if (elempack == 4)
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
     {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
-        int size = w * h;
+        float* ptr = bottom_top_blob.channel(q);
 
+        int i = 0;
+#if __ARM_NEON
         float32x4_t _scale = vdupq_n_f32(scale);
-
-        if (dims == 1)
+        for (; i + 15 < size; i += 16)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++)
-            {
-                float* ptr = (float*)bottom_top_blob + i * 4;
-                float32x4_t _p = vld1q_f32(ptr);
-                _p = vmulq_f32(_p, _scale);
-                vst1q_f32(ptr, _p);
-            }
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+            asm volatile(
+                "prfm   pldl1keep, [%0, #512]   \n"
+                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
+                "fmul   v0.4s, v0.4s, %2.4s     \n"
+                "fmul   v1.4s, v1.4s, %2.4s     \n"
+                "fmul   v2.4s, v2.4s, %2.4s     \n"
+                "fmul   v3.4s, v3.4s, %2.4s     \n"
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                : "=r"(ptr) // %0
+                : "0"(ptr),
+                "w"(_scale) // %2
+                : "memory", "v0", "v1", "v2", "v3");
+#else  // __aarch64__
+            asm volatile(
+                "pld        [%0, #512]      \n"
+                "vldm       %0, {d0-d7}     \n"
+                "vmul.f32   q0, q0, %q2     \n"
+                "vmul.f32   q1, q1, %q2     \n"
+                "vmul.f32   q2, q2, %q2     \n"
+                "vmul.f32   q3, q3, %q2     \n"
+                "vstm       %0!, {d0-d7}    \n"
+                : "=r"(ptr) // %0
+                : "0"(ptr),
+                "w"(_scale) // %2
+                : "memory", "q0", "q1", "q2", "q3");
+#endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            float32x4_t _p2 = vld1q_f32(ptr + 8);
+            float32x4_t _p3 = vld1q_f32(ptr + 12);
+            _p0 = vmulq_f32(_p0, _scale);
+            _p1 = vmulq_f32(_p1, _scale);
+            _p2 = vmulq_f32(_p2, _scale);
+            _p3 = vmulq_f32(_p3, _scale);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            vst1q_f32(ptr + 8, _p2);
+            vst1q_f32(ptr + 12, _p3);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
-
-        if (dims == 2)
+        for (; i + 7 < size; i += 8)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                float* ptr = bottom_top_blob.row(i);
-
-                for (int j = 0; j < w; j++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr);
-                    _p = vmulq_f32(_p, _scale);
-                    vst1q_f32(ptr, _p);
-                    ptr += 4;
-                }
-            }
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            _p0 = vmulq_f32(_p0, _scale);
+            _p1 = vmulq_f32(_p1, _scale);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            ptr += 8;
         }
-
-        if (dims == 3)
+        for (; i + 3 < size; i += 4)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr);
-                    _p = vmulq_f32(_p, _scale);
-                    vst1q_f32(ptr, _p);
-                    ptr += 4;
-                }
-            }
+            float32x4_t _p = vld1q_f32(ptr);
+            _p = vmulq_f32(_p, _scale);
+            vst1q_f32(ptr, _p);
+            ptr += 4;
         }
-
-        return 0;
-    }
 #endif // __ARM_NEON
+        for (; i < size; i++)
+        {
+            *ptr = *ptr * scale;
 
-    return Dropout::forward_inplace(bottom_top_blob, opt);
+            ptr++;
+        }
+    }
+
+    return 0;
 }
 
 } // namespace ncnn

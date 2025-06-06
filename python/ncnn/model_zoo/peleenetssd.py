@@ -31,7 +31,7 @@ class PeleeNet_SSD:
 
         # model is converted from https://github.com/eric612/MobileNet-YOLO
         # and can be downloaded from https://drive.google.com/open?id=1Wt6jKv13sBRMHgrGAJYlOlRF-o80pC0g
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("pelee.param"))
         self.net.load_model(get_model_file("pelee.bin"))
 

@@ -381,7 +381,7 @@ int InstanceNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
     Mat gamma_data_packed;
-    convert_packing(gamma_data, gamma_data_packed, elempack);
+    convert_packing(gamma_data, gamma_data_packed, elempack, opt);
 
     if (opt.use_image_storage)
     {
@@ -393,7 +393,7 @@ int InstanceNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     }
 
     Mat beta_data_packed;
-    convert_packing(beta_data, beta_data_packed, elempack);
+    convert_packing(beta_data, beta_data_packed, elempack, opt);
 
     if (opt.use_image_storage)
     {

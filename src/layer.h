@@ -21,13 +21,9 @@
 #include "paramdict.h"
 #include "platform.h"
 
-#include <math.h>
-
 #if NCNN_VULKAN
 #include "command.h"
 #include "pipeline.h"
-
-#include <vulkan/vulkan.h>
 #endif // NCNN_VULKAN
 
 namespace ncnn {
@@ -84,9 +80,7 @@ public:
     // shader tensor storage
     bool support_tensor_storage;
 
-    // TODO drop these fields
-    bool use_int8_inference;
-    bool support_weight_fp16_storage;
+    bool support_reserved_00;
 
     bool support_reserved_0;
     bool support_reserved_1;
@@ -98,9 +92,9 @@ public:
     bool support_reserved_7;
     bool support_reserved_8;
     bool support_reserved_9;
-    bool support_reserved_10;
-    bool support_reserved_11;
-    bool support_reserved_12;
+
+    // feature disabled set
+    int featmask;
 
 public:
     // implement inference
@@ -190,14 +184,34 @@ struct custom_layer_registry_entry
     void* userdata;
 };
 
+struct overwrite_builtin_layer_registry_entry
+{
+    // layer type index
+    int typeindex;
+    // layer factory entry
+    layer_creator_func creator;
+    layer_destroyer_func destroyer;
+    void* userdata;
+};
+
 #if NCNN_STRING
 // get layer type from type name
 NCNN_EXPORT int layer_to_index(const char* type);
 // create layer from type name
 NCNN_EXPORT Layer* create_layer(const char* type);
+NCNN_EXPORT Layer* create_layer_naive(const char* type);
+NCNN_EXPORT Layer* create_layer_cpu(const char* type);
+#if NCNN_VULKAN
+NCNN_EXPORT Layer* create_layer_vulkan(const char* type);
+#endif // NCNN_VULKAN
 #endif // NCNN_STRING
 // create layer from layer type
 NCNN_EXPORT Layer* create_layer(int index);
+NCNN_EXPORT Layer* create_layer_naive(int index);
+NCNN_EXPORT Layer* create_layer_cpu(int index);
+#if NCNN_VULKAN
+NCNN_EXPORT Layer* create_layer_vulkan(int index);
+#endif // NCNN_VULKAN
 
 #define DEFINE_LAYER_CREATOR(name)                          \
     ::ncnn::Layer* name##_layer_creator(void* /*userdata*/) \

@@ -19,9 +19,11 @@
 
 namespace ncnn {
 
-class AbsVal_mips : virtual public AbsVal
+class AbsVal_mips : public AbsVal
 {
 public:
+    AbsVal_mips();
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 

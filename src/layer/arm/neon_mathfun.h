@@ -25,36 +25,10 @@
  *  (this is the zlib license)
  */
 
-#include <arm_neon.h>
+#ifndef NEON_MATHFUN_H
+#define NEON_MATHFUN_H
 
-#if (__ARM_FP & 2)
-static inline float32x4_t loadfp16(const void* ptr)
-{
-#if __ARM_FP16_FORMAT_IEEE
-    return vcvt_f32_f16(vld1_f16((const __fp16*)ptr));
-#else // __ARM_FP16_FORMAT_IEEE
-    float32x4_t v;
-#if __aarch64__
-    asm volatile(
-        "ld1    {v0.4h}, [%2]       \n"
-        "fcvtl  %0.4s, v0.4h        \n"
-        : "=w"(v) // %0
-        : "0"(v),
-        "r"(ptr) // %2
-        : "memory", "v0");
-#else
-    asm volatile(
-        "vld1.s16       {d0}, [%2]  \n"
-        "vcvt.f32.f16   %q0, d0     \n"
-        : "=w"(v) // %0
-        : "0"(v),
-        "r"(ptr) // %2
-        : "memory", "d0");
-#endif // __aarch64__
-    return v;
-#endif // __ARM_FP16_FORMAT_IEEE
-}
-#endif
+#include <arm_neon.h>
 
 #define c_inv_mant_mask ~0x7f800000u
 #define c_cephes_SQRTHF 0.707106781186547524
@@ -109,35 +83,24 @@ static inline float32x4_t log_ps(float32x4_t x)
     float32x4_t z = vmulq_f32(x, x);
 
     float32x4_t y = vdupq_n_f32(c_cephes_log_p0);
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, vdupq_n_f32(c_cephes_log_p1));
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, vdupq_n_f32(c_cephes_log_p2));
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, vdupq_n_f32(c_cephes_log_p3));
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, vdupq_n_f32(c_cephes_log_p4));
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, vdupq_n_f32(c_cephes_log_p5));
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, vdupq_n_f32(c_cephes_log_p6));
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, vdupq_n_f32(c_cephes_log_p7));
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, vdupq_n_f32(c_cephes_log_p8));
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p1), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p2), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p3), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p4), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p5), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p6), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p7), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p8), y, x);
     y = vmulq_f32(y, x);
 
     y = vmulq_f32(y, z);
 
-    tmp = vmulq_f32(e, vdupq_n_f32(c_cephes_log_q1));
-    y = vaddq_f32(y, tmp);
+    y = vmlaq_f32(y, e, vdupq_n_f32(c_cephes_log_q1));
 
-    tmp = vmulq_f32(z, vdupq_n_f32(0.5f));
-    y = vsubq_f32(y, tmp);
+    y = vmlsq_f32(y, z, vdupq_n_f32(0.5f));
 
-    tmp = vmulq_f32(e, vdupq_n_f32(c_cephes_log_q2));
     x = vaddq_f32(x, y);
-    x = vaddq_f32(x, tmp);
+    x = vmlaq_f32(x, e, vdupq_n_f32(c_cephes_log_q2));
     x = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(x), invalid_mask)); // negative arg will be NAN
     return x;
 }
@@ -182,29 +145,16 @@ static inline float32x4_t exp_ps(float32x4_t x)
     x = vsubq_f32(x, tmp);
     x = vsubq_f32(x, z);
 
-    static const float cephes_exp_p[6] = {c_cephes_exp_p0, c_cephes_exp_p1, c_cephes_exp_p2, c_cephes_exp_p3, c_cephes_exp_p4, c_cephes_exp_p5};
-    float32x4_t y = vld1q_dup_f32(cephes_exp_p + 0);
-    float32x4_t c1 = vld1q_dup_f32(cephes_exp_p + 1);
-    float32x4_t c2 = vld1q_dup_f32(cephes_exp_p + 2);
-    float32x4_t c3 = vld1q_dup_f32(cephes_exp_p + 3);
-    float32x4_t c4 = vld1q_dup_f32(cephes_exp_p + 4);
-    float32x4_t c5 = vld1q_dup_f32(cephes_exp_p + 5);
-
-    y = vmulq_f32(y, x);
     z = vmulq_f32(x, x);
 
-    y = vaddq_f32(y, c1);
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, c2);
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, c3);
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, c4);
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, c5);
+    float32x4_t y = vdupq_n_f32(c_cephes_exp_p0);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p1), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p2), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p3), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p4), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p5), y, x);
 
-    y = vmulq_f32(y, z);
-    y = vaddq_f32(y, x);
+    y = vmlaq_f32(x, y, z);
     y = vaddq_f32(y, one);
 
     /* build 2^n */
@@ -247,7 +197,7 @@ static inline float32x4_t exp_ps(float32x4_t x)
 static inline void sincos_ps(float32x4_t x, float32x4_t* ysin, float32x4_t* ycos)
 {
     // any x
-    float32x4_t xmm1, xmm2, xmm3, y;
+    float32x4_t y;
 
     uint32x4_t emm2;
 
@@ -275,12 +225,9 @@ static inline void sincos_ps(float32x4_t x, float32x4_t* ysin, float32x4_t* ycos
 
     /* The magic pass: "Extended precision modular arithmetic"
      *     x = ((x - y * DP1) - y * DP2) - y * DP3; */
-    xmm1 = vmulq_n_f32(y, c_minus_cephes_DP1);
-    xmm2 = vmulq_n_f32(y, c_minus_cephes_DP2);
-    xmm3 = vmulq_n_f32(y, c_minus_cephes_DP3);
-    x = vaddq_f32(x, xmm1);
-    x = vaddq_f32(x, xmm2);
-    x = vaddq_f32(x, xmm3);
+    x = vmlaq_f32(x, y, vdupq_n_f32(c_minus_cephes_DP1));
+    x = vmlaq_f32(x, y, vdupq_n_f32(c_minus_cephes_DP2));
+    x = vmlaq_f32(x, y, vdupq_n_f32(c_minus_cephes_DP3));
 
     sign_mask_sin = veorq_u32(sign_mask_sin, vtstq_u32(emm2, vdupq_n_u32(4)));
     sign_mask_cos = vtstq_u32(vsubq_u32(emm2, vdupq_n_u32(2)), vdupq_n_u32(4));
@@ -290,20 +237,15 @@ static inline void sincos_ps(float32x4_t x, float32x4_t* ysin, float32x4_t* ycos
     float32x4_t z = vmulq_f32(x, x);
     float32x4_t y1, y2;
 
-    y1 = vmulq_n_f32(z, c_coscof_p0);
-    y2 = vmulq_n_f32(z, c_sincof_p0);
-    y1 = vaddq_f32(y1, vdupq_n_f32(c_coscof_p1));
-    y2 = vaddq_f32(y2, vdupq_n_f32(c_sincof_p1));
-    y1 = vmulq_f32(y1, z);
-    y2 = vmulq_f32(y2, z);
-    y1 = vaddq_f32(y1, vdupq_n_f32(c_coscof_p2));
-    y2 = vaddq_f32(y2, vdupq_n_f32(c_sincof_p2));
+    y1 = vmlaq_f32(vdupq_n_f32(c_coscof_p1), z, vdupq_n_f32(c_coscof_p0));
+    y2 = vmlaq_f32(vdupq_n_f32(c_sincof_p1), z, vdupq_n_f32(c_sincof_p0));
+    y1 = vmlaq_f32(vdupq_n_f32(c_coscof_p2), y1, z);
+    y2 = vmlaq_f32(vdupq_n_f32(c_sincof_p2), y2, z);
     y1 = vmulq_f32(y1, z);
     y2 = vmulq_f32(y2, z);
     y1 = vmulq_f32(y1, z);
-    y2 = vmulq_f32(y2, x);
-    y1 = vsubq_f32(y1, vmulq_f32(z, vdupq_n_f32(0.5f)));
-    y2 = vaddq_f32(y2, x);
+    y1 = vmlsq_f32(y1, z, vdupq_n_f32(0.5f));
+    y2 = vmlaq_f32(x, y2, x);
     y1 = vaddq_f32(y1, vdupq_n_f32(1));
 
     /* select the correct result from the two polynoms */
@@ -334,9 +276,17 @@ static inline float32x4_t div_ps(float32x4_t a, float32x4_t b)
 #else
     float32x4_t reciprocal = vrecpeq_f32(b);
     reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
-    // reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
+    reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
     return vmulq_f32(a, reciprocal);
 #endif
+}
+
+static inline float32x4_t tan_ps(float32x4_t x)
+{
+    float32x4_t ysin, ycos;
+    sincos_ps(x, &ysin, &ycos);
+    float32x4_t ytan = div_ps(ysin, ycos);
+    return ytan;
 }
 
 static inline float32x4_t pow_ps(float32x4_t a, float32x4_t b)
@@ -352,8 +302,98 @@ static inline float32x4_t sigmoid_ps(float32x4_t _v)
     _v = exp_ps(_v);
     _v = vaddq_f32(_v, _one);
     float32x4_t _outp = vrecpeq_f32(_v);
-    // _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
+    _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
     return vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
 }
 
+static const float asinf_lut[7] = {
+    1.5707961728,
+    -0.2145852647,
+    0.0887556286,
+    -0.0488025043,
+    0.0268999482,
+    -0.0111462294,
+    0.0022959648
+};
+
+static inline void asincos_ps(float32x4_t x, float32x4_t* yasin, float32x4_t* yacos)
+{
+    int i = 0;
+    float32x4_t one = vdupq_n_f32(1);
+    float32x4_t negone = vdupq_n_f32(-1);
+    float32x4_t lut[7];
+    float32x4_t xv[5];
+    float32x4_t a0, a1, a2, a3;
+    float32x4_t phx;
+    float32x4_t arcsinx, arcnsinx;
+    float32x4_t sat = vdupq_n_f32(0.9999999f);
+    float32x4_t m_pi_2 = vdupq_n_f32(1.570796326);
+    for (i = 0; i <= 6; i++)
+    {
+        lut[i] = vdupq_n_f32(asinf_lut[i]);
+    }
+
+    uint32x4_t sign_mask_asin, saturate;
+    sign_mask_asin = vcltq_f32(x, vdupq_n_f32(0));
+    x = vabsq_f32(x);
+    saturate = vcgeq_f32(x, one);
+    x = vbslq_f32(saturate, sat, x);
+    float32x4_t y = vsubq_f32(one, x);
+
+#if __aarch64__
+    y = vsqrtq_f32(y);
+#else
+    float32x4_t _reciprocal = vrsqrteq_f32(y);
+    _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(y, _reciprocal), _reciprocal), _reciprocal);
+    y = vmulq_f32(y, _reciprocal);
+#endif
+
+    xv[0] = vmulq_f32(x, x);
+    for (i = 1; i < 5; i++)
+    {
+        xv[i] = vmulq_f32(xv[i - 1], x);
+    }
+
+    a0 = vaddq_f32(lut[0], vmulq_f32(lut[1], x));
+    a1 = vaddq_f32(vmulq_f32(lut[2], xv[0]), vmulq_f32(lut[3], xv[1]));
+    a2 = vaddq_f32(vmulq_f32(lut[4], xv[2]), vmulq_f32(lut[5], xv[3]));
+    a3 = vmulq_f32(lut[6], xv[4]);
+    phx = vaddq_f32(vaddq_f32(a0, vaddq_f32(a1, a2)), a3);
+
+    arcsinx = vmulq_f32(y, phx);
+    arcsinx = vsubq_f32(m_pi_2, arcsinx);
+    arcnsinx = vmulq_f32(negone, arcsinx);
+    arcsinx = vbslq_f32(sign_mask_asin, arcnsinx, arcsinx);
+
+    *yasin = arcsinx;
+    *yacos = vsubq_f32(m_pi_2, arcsinx);
+}
+
+static inline float32x4_t asin_ps(float32x4_t x)
+{
+    float32x4_t yasin, yacos;
+    asincos_ps(x, &yasin, &yacos);
+    return yasin;
+}
+
+static inline float32x4_t acos_ps(float32x4_t x)
+{
+    float32x4_t yasin, yacos;
+    asincos_ps(x, &yasin, &yacos);
+    return yacos;
+}
+
+static inline float32x4_t atan2_ps(float32x4_t a, float32x4_t b)
+{
+    //TODO neon optimize
+    float tmpx[4];
+    float tmpy[4];
+    vst1q_f32(tmpx, a);
+    vst1q_f32(tmpy, b);
+    for (int i = 0; i < 4; i++)
+        tmpx[i] = atan2f(tmpx[i], tmpy[i]);
+    return vld1q_f32(tmpx);
+}
+
 #include "neon_mathfun_tanh.h"
+#endif // NEON_MATHFUN_H

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class TanH_vulkan : virtual public TanH
+class TanH_vulkan : public TanH
 {
 public:
     TanH_vulkan();

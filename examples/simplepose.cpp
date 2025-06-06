@@ -15,9 +15,13 @@
 #include "net.h"
 
 #include <algorithm>
+#if defined(USE_NCNN_SIMPLEOCV)
+#include "simpleocv.h"
+#else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#endif
 #include <stdio.h>
 #include <vector>
 
@@ -40,8 +44,10 @@ static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
     //      pose_net.export('pose')
     // then mxnet2ncnn
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    posenet.load_param("pose.param");
-    posenet.load_model("pose.bin");
+    if (posenet.load_param("pose.param"))
+        exit(-1);
+    if (posenet.load_model("pose.bin"))
+        exit(-1);
 
     int w = bgr.cols;
     int h = bgr.rows;

@@ -31,12 +31,16 @@ _model_sha1 = {
         ("1528cf08b9823fc01aaebfc932ec8c8d4a3b1613", "mobilenet_yolo.bin"),
         ("3f5b78b0c982f8bdf3a2c3a27e6136d4d2680e96", "mobilenetv2_yolov3.param"),
         ("0705b0f8fe5a77718561b9b7d6ed4f33fcd3d455", "mobilenetv2_yolov3.bin"),
-        ("cf78817b5c147b6922fb3ef40479864935aa22da", "yolov4-tiny-opt.param"),
+        ("de59186323ebad5650631e12a6cc66b526ec7df4", "yolov4-tiny-opt.param"),
         ("1765c3b251c041dd6ac59d2ec3ddf7b983fe9ee9", "yolov4-tiny-opt.bin"),
         ("e92d3a3a8ac5e6a6c08c433aa2252b0680124328", "yolov4-opt.param"),
         ("69d128b42b70fb790e9d3ccabcf1b6e8cc2859fe", "yolov4-opt.bin"),
-        ("d8d5b94a9beb283082cae44ac50df46bffedc9c4", "yolov5s.param"),
+        ("6fa8ccc8cabc0f5633ab3c6ffa268e6042b8888f", "yolov5s.param"),
         ("0cbab3664deb090480ea748c1305f6fe850b9ac4", "yolov5s.bin"),
+        ("35ab0c1ce2864e0759d5794aa818df2de3013ab3", "yolov7-tiny.param"),
+        ("c0454f072b41997aa230c3fe1c1d504566574b6c", "yolov7-tiny.bin"),
+        ("e9de3c929d1c93f7dc94ed0f125795ac16ecc120", "yolov8s.param"),
+        ("90f4eb9e90086e2ec3af4c7837f00757e710b9c6", "yolov8s.bin"),
         ("e65bae7052d9e9b9d45e1214a8d1b5fe6f64e8af", "yolact.param"),
         ("9bda99f50b1c14c98c5c6bbc08d4f782eed66548", "yolact.bin"),
         ("3723ce3e312db6a102cff1a5c39dae80e1de658e", "mobilenet_ssd_voc_ncnn.param"),
@@ -57,15 +61,35 @@ _model_sha1 = {
         ("3ff9a51dc81cdf506a87543dbf752071ffc50b8d", "mnet.25-opt.bin"),
         ("50acebff393c91468a73a7b7c604ef231429d068", "rfcn_end2end.param"),
         ("9a68cd937959b4dda9c5bf9c99181cb0e40f266b", "rfcn_end2end.bin"),
-        ("5a76b44b869a925d64abefcadf296c0f36886085", "shufflenet_v2_x0.5.param"),
-        ("85998dfe1fb2caeeadc6267927434bb5aa0878f3", "shufflenet_v2_x0.5.bin"),
+        ("d6b289cda068e9a9d8a171fb909352a05a39a494", "shufflenet_v2_x0.5.param"),
+        ("2ccd631d04a1b7e05483cd8a8def76bca7d330a8", "shufflenet_v2_x0.5.bin"),
         ("7c8f8d72c60aab6802985423686b36c61be2f68c", "pose.param"),
         ("7f691540972715298c611a3e595b20c59c2147ce", "pose.bin"),
+        ("979d09942881cf1207a93cbfa9853005a434469b", "nanodet_m.param"),
+        ("51d868905361e4ba9c45bd12e8a5608e7aadd1bd", "nanodet_m.bin"),
     ]
 }
 
+
+_split_model_bins = {
+    "ZF_faster_rcnn_final.bin": 3,
+    "rfcn_end2end.bin": 2,
+    "yolov4-opt.bin": 7,
+}
+
+
 github_repo_url = "https://github.com/nihui/ncnn-assets/raw/master/models/"
 _url_format = "{repo_url}{file_name}"
+
+
+def merge_file(root, files_in, file_out, remove=True):
+    with open(file_out, "wb") as fd_out:
+        for file_in in files_in:
+            file = os.path.join(root, file_in)
+            with open(file, "rb") as fd_in:
+                fd_out.write(fd_in.read())
+            if remove == True:
+                os.remove(file)
 
 
 def short_hash(name):
@@ -130,14 +154,32 @@ def get_model_file(name, tag=None, root=os.path.join("~", ".ncnn", "models")):
             logging.info("Model file not found. Downloading.")
 
         zip_file_path = os.path.join(root, file_name)
-        repo_url = os.environ.get("NCNN_REPO", github_repo_url)
-        if repo_url[-1] != "/":
-            repo_url = repo_url + "/"
-        download(
-            _url_format.format(repo_url=repo_url, file_name=file_name),
-            path=zip_file_path,
-            overwrite=True,
-        )
+        if file_name in _split_model_bins:
+            file_name_parts = [
+                "%s.part%02d" % (file_name, i + 1)
+                for i in range(_split_model_bins[file_name])
+            ]
+            for file_name_part in file_name_parts:
+                file_path = os.path.join(root, file_name_part)
+                repo_url = os.environ.get("NCNN_REPO", github_repo_url)
+                if repo_url[-1] != "/":
+                    repo_url = repo_url + "/"
+                download(
+                    _url_format.format(repo_url=repo_url, file_name=file_name_part),
+                    path=file_path,
+                    overwrite=True,
+                )
+
+            merge_file(root, file_name_parts, zip_file_path)
+        else:
+            repo_url = os.environ.get("NCNN_REPO", github_repo_url)
+            if repo_url[-1] != "/":
+                repo_url = repo_url + "/"
+            download(
+                _url_format.format(repo_url=repo_url, file_name=file_name),
+                path=zip_file_path,
+                overwrite=True,
+            )
         if zip_file_path.endswith(".zip"):
             with zipfile.ZipFile(zip_file_path) as zf:
                 zf.extractall(root)

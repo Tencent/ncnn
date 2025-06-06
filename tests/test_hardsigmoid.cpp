@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/hardsigmoid.h"
 #include "testutil.h"
 
 static int test_hardsigmoid(const ncnn::Mat& a, float alpha, float beta)
@@ -23,7 +22,7 @@ static int test_hardsigmoid(const ncnn::Mat& a, float alpha, float beta)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::HardSigmoid>("HardSigmoid", pd, weights, a);
+    int ret = test_layer("HardSigmoid", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_hardsigmoid failed a.dims=%d a=(%d %d %d) alpha=%f beta=%f\n", a.dims, a.w, a.h, a.c, alpha, beta);

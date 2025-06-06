@@ -106,9 +106,9 @@ static void resize_bilinear_image_pack4_fp16s(const Mat& src, Mat& dst, float* a
         {
             float32x4_t _rows0 = vld1q_f32(rows0p);
             float32x4_t _rows1 = vld1q_f32(rows1p);
-            float32x4_t _D = vmulq_lane_f32(_rows0, _b01, 0);
-            _D = vmlaq_lane_f32(_D, _rows1, _b01, 1);
-            vst1_f16(Dp, vcvt_f16_f32(_D));
+            float32x4_t _Dp = vmulq_lane_f32(_rows0, _b01, 0);
+            _Dp = vmlaq_lane_f32(_Dp, _rows1, _b01, 1);
+            vst1_f16(Dp, vcvt_f16_f32(_Dp));
 
             Dp += 4;
             rows0p += 4;
@@ -213,9 +213,9 @@ static void resize_bilinear_image_pack4_fp16sa(const Mat& src, Mat& dst, __fp16*
         {
             float16x4_t _rows0 = vld1_f16(rows0p);
             float16x4_t _rows1 = vld1_f16(rows1p);
-            float16x4_t _D = vmul_lane_f16(_rows0, _b01, 0);
-            _D = vfma_lane_f16(_D, _rows1, _b01, 1);
-            vst1_f16(Dp, _D);
+            float16x4_t _Dp = vmul_lane_f16(_rows0, _b01, 0);
+            _Dp = vfma_lane_f16(_Dp, _rows1, _b01, 1);
+            vst1_f16(Dp, _Dp);
 
             Dp += 4;
             rows0p += 4;

@@ -23,64 +23,29 @@
 #include <vector>
 
 // ncnn public header
+#include "datareader.h"
 #include "layer.h"
 #include "layer_type.h"
 #include "net.h"
 
 // ncnn private header
-#include "layer/batchnorm.h"
-#include "layer/bias.h"
-#include "layer/binaryop.h"
-#include "layer/clip.h"
-#include "layer/concat.h"
-#include "layer/convolution.h"
-#include "layer/convolutiondepthwise.h"
-#include "layer/crop.h"
-#include "layer/deconvolution.h"
-#include "layer/deconvolutiondepthwise.h"
-#include "layer/detectionoutput.h"
-#include "layer/dropout.h"
-#include "layer/eltwise.h"
-#include "layer/elu.h"
-#include "layer/exp.h"
-#include "layer/flatten.h"
-#include "layer/innerproduct.h"
-#include "layer/input.h"
-#include "layer/instancenorm.h"
-#include "layer/interp.h"
-#include "layer/log.h"
-#include "layer/lrn.h"
-#include "layer/lstm.h"
-#include "layer/memorydata.h"
-#include "layer/mvn.h"
-#include "layer/normalize.h"
-#include "layer/padding.h"
-#include "layer/permute.h"
-#include "layer/pixelshuffle.h"
-#include "layer/pooling.h"
-#include "layer/power.h"
-#include "layer/prelu.h"
-#include "layer/priorbox.h"
-#include "layer/proposal.h"
-#include "layer/psroipooling.h"
-#include "layer/quantize.h"
-#include "layer/reduction.h"
-#include "layer/relu.h"
-#include "layer/reorg.h"
-#include "layer/requantize.h"
-#include "layer/reshape.h"
-#include "layer/roialign.h"
-#include "layer/roipooling.h"
-#include "layer/scale.h"
-#include "layer/shufflechannel.h"
-#include "layer/slice.h"
-#include "layer/softmax.h"
-#include "layer/threshold.h"
-#include "layer/unaryop.h"
-#include "layer/yolodetectionoutput.h"
-#include "layer/yolov3detectionoutput.h"
+#include "../modelwriter.h"
 
-static bool read_int8scale_table(const char* filepath, std::map<std::string, std::vector<float> >& blob_int8scale_table, std::map<std::string, std::vector<float> >& weight_int8scale_table)
+class DataReaderFromEmpty : public ncnn::DataReader
+{
+public:
+    virtual int scan(const char* format, void* p) const
+    {
+        return 0;
+    }
+    virtual size_t read(void* buf, size_t size) const
+    {
+        memset(buf, 0, size);
+        return size;
+    }
+};
+
+static bool read_int8scale_table(const char* filepath, std::map<std::string, ncnn::Mat>& blob_int8scale_table, std::map<std::string, ncnn::Mat>& weight_int8scale_table)
 {
     blob_int8scale_table.clear();
     weight_int8scale_table.clear();
@@ -95,12 +60,16 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
     std::string key_str;
     std::vector<float> scales;
 
-    std::vector<char> line(102400);
+    std::vector<char> line(10240000);
     char* pch = NULL;
     size_t len = 0;
 
-    while (NULL != std::fgets(line.data(), static_cast<int>(line.size()), fp))
+    while (!feof(fp))
     {
+        char* s = fgets(line.data(), (int)line.size(), fp);
+        if (!s)
+            break;
+
         float scale = 1.f;
         char key[256];
         line[strcspn(line.data(), "\r\n")] = 0;
@@ -132,11 +101,11 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
         // XYZ_param_N pattern
         if (strstr(key_str.c_str(), "_param_"))
         {
-            weight_int8scale_table[key_str] = scales;
+            weight_int8scale_table[key_str] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
         }
         else
         {
-            blob_int8scale_table[key_str] = scales;
+            blob_int8scale_table[key_str] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
         }
         key_str.clear();
         scales.clear();
@@ -147,36 +116,32 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
     return true;
 }
 
-class NetQuantize : public ncnn::Net
+class NetQuantize : public ModelWriter
 {
 public:
     NetQuantize();
 
-    std::vector<ncnn::Blob>& blobs;
-    std::vector<ncnn::Layer*>& layers;
-
-    // 0=fp32 1=fp16 2=int8
-    int storage_type;
-    std::map<std::string, std::vector<float> > blob_int8scale_table;
-    std::map<std::string, std::vector<float> > weight_int8scale_table;
+    std::map<std::string, ncnn::Mat> blob_int8scale_table;
+    std::map<std::string, ncnn::Mat> weight_int8scale_table;
 
 public:
     int quantize_convolution();
     int quantize_convolutiondepthwise();
     int quantize_innerproduct();
 
-public:
-    int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
-    int fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp);
+    int quantize_rnn();
+    int quantize_lstm();
+    int quantize_gru();
 
-    int fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp);
-    int fwrite_weight_data(const ncnn::Mat& data, FILE* bp);
+    int quantize_embed();
+    int quantize_gemm();
+    int quantize_multiheadattention();
 
-    int save(const char* parampath, const char* binpath);
+    int fuse_requantize();
 };
 
 NetQuantize::NetQuantize()
-    : blobs(mutable_blobs()), layers(mutable_layers())
+    : ModelWriter()
 {
 }
 
@@ -190,14 +155,14 @@ int NetQuantize::quantize_convolution()
             continue;
 
         // find convolution layer
-        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, ncnn::Mat>::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
         if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-        std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
+        std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
@@ -207,41 +172,32 @@ int NetQuantize::quantize_convolution()
         // Convolution - quantize weight from fp32 to int8
         ncnn::Convolution* convolution = (ncnn::Convolution*)layers[i];
 
-        std::vector<float> weight_data_int8_scales = iter->second;
+        ncnn::Mat bottom_blob_int8_scales = iter_data->second;
+        ncnn::Mat weight_data_int8_scales = iter->second;
 
         fprintf(stderr, "quantize_convolution %s\n", convolution->name.c_str());
 
         {
-            ncnn::Mat int8_weight_data(convolution->weight_data_size, (size_t)1u);
-            if (int8_weight_data.empty())
+            const int maxk = convolution->kernel_w * convolution->kernel_h;
+            const int num_input = convolution->weight_data_size / convolution->num_output / maxk;
+
+            ncnn::Mat weight_data_r2 = convolution->weight_data.reshape(maxk, num_input, convolution->num_output);
+
+            ncnn::Mat weight_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = convolution->weight_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
+            if (weight_data_int8.empty())
                 return -100;
 
-            const int weight_data_size_output = convolution->weight_data_size / convolution->num_output;
-
-            // quantize weight to int8
-            for (int n = 0; n < convolution->num_output; n++)
-            {
-                ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
-
-                ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[n]); // scale
-
-                op->load_param(pd);
-
-                ncnn::Option opt;
-                opt.blob_allocator = int8_weight_data.allocator;
-
-                const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                ncnn::Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                op->forward(weight_data_n, int8_weight_data_n, opt);
-
-                delete op;
-            }
-
-            convolution->weight_data = int8_weight_data;
+            convolution->weight_data = weight_data_int8.reshape(convolution->weight_data_size);
         }
 
         convolution->int8_scale_term = 2;
+        convolution->weight_data_int8_scales = weight_data_int8_scales;
+        convolution->bottom_blob_int8_scales = bottom_blob_int8_scales;
     }
 
     return 0;
@@ -252,19 +208,19 @@ int NetQuantize::quantize_convolutiondepthwise()
     const int layer_count = static_cast<int>(layers.size());
     for (int i = 0; i < layer_count; i++)
     {
-        // find convoultion layer
+        // find convolution layer
         if (layers[i]->type != "ConvolutionDepthWise")
             continue;
 
         // find convolutiondepthwise layer
-        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, ncnn::Mat>::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
         if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-        std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
+        std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
@@ -274,41 +230,36 @@ int NetQuantize::quantize_convolutiondepthwise()
         // Convolution - quantize weight from fp32 to int8
         ncnn::ConvolutionDepthWise* convdw = (ncnn::ConvolutionDepthWise*)layers[i];
 
-        std::vector<float> weight_data_int8_scales = iter->second;
+        ncnn::Mat bottom_blob_int8_scales = iter_data->second;
+        ncnn::Mat weight_data_int8_scales = iter->second;
 
-        fprintf(stderr, "quantize_convolution %s\n", convdw->name.c_str());
+        fprintf(stderr, "quantize_convolutiondepthwise %s\n", convdw->name.c_str());
 
         {
             ncnn::Mat int8_weight_data(convdw->weight_data_size, (size_t)1u);
             if (int8_weight_data.empty())
                 return -100;
 
-            const int weight_data_size_output = convdw->weight_data_size / convdw->group;
+            const int weight_data_size_g = convdw->weight_data_size / convdw->group;
 
-            // quantize weight to int8
-            for (int n = 0; n < convdw->group; n++)
+            for (int g = 0; g < convdw->group; g++)
             {
-                ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
+                ncnn::Option opt_q = opt;
+                opt_q.blob_allocator = int8_weight_data.allocator;
+                opt_q.use_packing_layout = false;
 
-                ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[n]); // scale
-
-                op->load_param(pd);
-
-                ncnn::Option opt;
-                opt.blob_allocator = int8_weight_data.allocator;
-
-                const ncnn::Mat weight_data_n = convdw->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                ncnn::Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                op->forward(weight_data_n, int8_weight_data_n, opt);
-
-                delete op;
+                const ncnn::Mat weight_data_g = convdw->weight_data.range(weight_data_size_g * g, weight_data_size_g);
+                ncnn::Mat int8_weight_data_g = int8_weight_data.range(weight_data_size_g * g, weight_data_size_g);
+                const ncnn::Mat weight_data_int8_scales_g = weight_data_int8_scales.range(g, 1);
+                ncnn::quantize_to_int8(weight_data_g, int8_weight_data_g, weight_data_int8_scales_g, opt_q);
             }
 
             convdw->weight_data = int8_weight_data;
         }
 
         convdw->int8_scale_term = 1;
+        convdw->weight_data_int8_scales = weight_data_int8_scales;
+        convdw->bottom_blob_int8_scales = bottom_blob_int8_scales;
     }
 
     return 0;
@@ -319,19 +270,19 @@ int NetQuantize::quantize_innerproduct()
     const int layer_count = static_cast<int>(layers.size());
     for (int i = 0; i < layer_count; i++)
     {
-        // find convoultion layer
+        // find convolution layer
         if (layers[i]->type != "InnerProduct")
             continue;
 
         // find InnerProduct layer
-        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, ncnn::Mat>::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
         if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-        std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
+        std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
@@ -341,948 +292,773 @@ int NetQuantize::quantize_innerproduct()
         // InnerProduct - quantize weight from fp32 to int8
         ncnn::InnerProduct* fc = (ncnn::InnerProduct*)layers[i];
 
-        std::vector<float> weight_data_int8_scales = iter->second;
+        ncnn::Mat bottom_blob_int8_scales = iter_data->second;
+        ncnn::Mat weight_data_int8_scales = iter->second;
 
-        fprintf(stderr, "quantize_convolution %s\n", fc->name.c_str());
+        fprintf(stderr, "quantize_innerproduct %s\n", fc->name.c_str());
 
         {
-            ncnn::Mat int8_weight_data(fc->weight_data_size, (size_t)1u);
-            if (int8_weight_data.empty())
+            const int num_input = fc->weight_data_size / fc->num_output;
+
+            ncnn::Mat weight_data_r2 = fc->weight_data.reshape(num_input, fc->num_output);
+
+            ncnn::Mat weight_data_int8;
+            ncnn::Option opt_q = opt;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
+            if (weight_data_int8.empty())
                 return -100;
 
-            const int weight_data_size_output = fc->weight_data_size / fc->num_output;
-
-            // quantize weight to int8
-            for (int n = 0; n < fc->num_output; n++)
-            {
-                ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
-
-                ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[n]); // scale
-
-                op->load_param(pd);
-
-                ncnn::Option opt;
-                opt.blob_allocator = int8_weight_data.allocator;
-
-                const ncnn::Mat weight_data_n = fc->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                ncnn::Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                op->forward(weight_data_n, int8_weight_data_n, opt);
-
-                delete op;
-            }
-
-            fc->weight_data = int8_weight_data;
+            fc->weight_data = weight_data_int8.reshape(fc->weight_data_size);
         }
 
         fc->int8_scale_term = 2;
+        fc->weight_data_int8_scales = weight_data_int8_scales;
+        fc->bottom_blob_int8_scales = bottom_blob_int8_scales;
     }
 
     return 0;
 }
 
-int NetQuantize::fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp)
+int NetQuantize::quantize_rnn()
 {
-    const int count = m.w;
-    const int* ptr = m;
-
-    fprintf(pp, " -%d=%d", 23300 + id, count);
-    for (int i = 0; i < count; i++)
+    for (size_t i = 0; i < layers.size(); i++)
     {
-        fprintf(pp, ",%d", ptr[i]);
-    }
-
-    return 0;
-}
-
-int NetQuantize::fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp)
-{
-    const int count = m.w;
-    const float* ptr = m;
-
-    fprintf(pp, " -%d=%d", 23300 + id, count);
-    for (int i = 0; i < count; i++)
-    {
-        fprintf(pp, ",%f", ptr[i]);
-    }
-
-    return 0;
-}
-
-static inline size_t alignSize(size_t sz, int n)
-{
-    return (sz + n - 1) & -n;
-}
-
-int NetQuantize::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp)
-{
-    int p0 = ftell(bp);
-
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
-
-    if (data.elemsize == 1)
-        tag = 0x000D4B38; // int8 magic
-
-    fwrite(&tag, sizeof(int), 1, bp);
-    fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
-
-    // padding to 32bit align
-    int nwrite = ftell(bp) - p0;
-    int nalign = static_cast<int>(alignSize(nwrite, 4));
-    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
-    fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
-
-    return 0;
-}
-
-int NetQuantize::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
-{
-    int p0 = ftell(bp);
-
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
-    fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
-
-    // padding to 32bit align
-    int nwrite = ftell(bp) - p0;
-    int nalign = static_cast<int>(alignSize(nwrite, 4));
-    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
-    fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
-
-    return 0;
-}
-
-int NetQuantize::save(const char* parampath, const char* binpath)
-{
-    FILE* pp = fopen(parampath, "wb");
-    FILE* bp = fopen(binpath, "wb");
-
-    fprintf(pp, "7767517\n");
-
-    const int layer_count = static_cast<int>(layers.size());
-
-    int layer_count_fused = 0;
-    std::set<std::string> blob_names;
-    for (int i = 0; i < layer_count; i++)
-    {
-        const ncnn::Layer* layer = layers[i];
-        if (layer->type == "ncnnfused")
+        if (layers[i]->type != "RNN")
             continue;
 
-        layer_count_fused++;
+        // RNN - quantize weight from fp32 to int8
+        ncnn::RNN* rnn = (ncnn::RNN*)layers[i];
 
-        int bottom_count = static_cast<int>(layer->bottoms.size());
-        for (int j = 0; j < bottom_count; j++)
+        fprintf(stderr, "quantize_rnn %s\n", rnn->name.c_str());
+
+        // TODO move to ncnn2table
+        const int num_directions = rnn->direction == 2 ? 2 : 1;
+        const int size = rnn->weight_data_size / num_directions / rnn->num_output;
+
+        ncnn::Mat weight_xc_data_int8_scales(rnn->num_output * num_directions);
+        ncnn::Mat weight_hc_data_int8_scales(rnn->num_output * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
         {
-            int bottom_blob_index = layer->bottoms[j];
-            blob_names.insert(blobs[bottom_blob_index].name);
+            for (int q = 0; q < rnn->num_output; q++)
+            {
+                {
+                    const float* weight_xc_ptr = rnn->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int i = 0; i < size; i++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[i]));
+                    }
+                    weight_xc_data_int8_scales[d * rnn->num_output + q] = 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = rnn->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int i = 0; i < size; i++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[i]));
+                    }
+                    weight_hc_data_int8_scales[d * rnn->num_output + q] = 127 / absmax;
+                }
+            }
         }
 
-        int top_count = static_cast<int>(layer->tops.size());
-        for (int j = 0; j < top_count; j++)
         {
-            int top_blob_index = layer->tops[j];
-            blob_names.insert(blobs[top_blob_index].name);
+            ncnn::Mat weight_xc_data_r2 = rnn->weight_xc_data.reshape(size, rnn->num_output * num_directions);
+
+            ncnn::Mat weight_xc_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = rnn->weight_xc_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_xc_data_r2, weight_xc_data_int8, weight_xc_data_int8_scales, opt_q);
+            if (weight_xc_data_int8.empty())
+                return -100;
+
+            rnn->weight_xc_data = weight_xc_data_int8.reshape(size * rnn->num_output * num_directions);
         }
+        {
+            ncnn::Mat weight_hc_data_r2 = rnn->weight_hc_data.reshape(rnn->num_output, rnn->num_output * num_directions);
+
+            ncnn::Mat weight_hc_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = rnn->weight_hc_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_hc_data_r2, weight_hc_data_int8, weight_hc_data_int8_scales, opt_q);
+            if (weight_hc_data_int8.empty())
+                return -100;
+
+            rnn->weight_hc_data = weight_hc_data_int8.reshape(rnn->num_output * rnn->num_output * num_directions);
+        }
+
+        rnn->int8_scale_term = 2;
+        rnn->weight_xc_data_int8_scales = weight_xc_data_int8_scales;
+        rnn->weight_hc_data_int8_scales = weight_hc_data_int8_scales;
     }
 
-    int blob_count_fused = static_cast<int>(blob_names.size());
+    return 0;
+}
 
-    fprintf(pp, "%d %d\n", layer_count_fused, blob_count_fused);
-
-    for (int i = 0; i < layer_count; i++)
+int NetQuantize::quantize_lstm()
+{
+    for (size_t i = 0; i < layers.size(); i++)
     {
-        const ncnn::Layer* layer = layers[i];
-        if (layer->type == "ncnnfused")
+        if (layers[i]->type != "LSTM")
             continue;
 
-        int bottom_count = static_cast<int>(layer->bottoms.size());
-        int top_count = static_cast<int>(layer->tops.size());
+        // LSTM - quantize weight from fp32 to int8
+        ncnn::LSTM* lstm = (ncnn::LSTM*)layers[i];
 
-        fprintf(pp, "%-24s %-24s %d %d", layer->type.c_str(), layer->name.c_str(), bottom_count, top_count);
+        fprintf(stderr, "quantize_lstm %s\n", lstm->name.c_str());
 
-        for (int j = 0; j < bottom_count; j++)
+        // TODO move to ncnn2table
+        const int num_directions = lstm->direction == 2 ? 2 : 1;
+        const int size = lstm->weight_data_size / num_directions / lstm->hidden_size / 4;
+
+        ncnn::Mat weight_xc_data_int8_scales(lstm->hidden_size * 4 * num_directions);
+        ncnn::Mat weight_hc_data_int8_scales(lstm->hidden_size * 4 * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
         {
-            int bottom_blob_index = layer->bottoms[j];
-            fprintf(pp, " %s", blobs[bottom_blob_index].name.c_str());
+            for (int q = 0; q < lstm->hidden_size * 4; q++)
+            {
+                {
+                    const float* weight_xc_ptr = lstm->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int i = 0; i < size; i++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[i]));
+                    }
+                    weight_xc_data_int8_scales[d * lstm->hidden_size * 4 + q] = 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = lstm->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int i = 0; i < size; i++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[i]));
+                    }
+                    weight_hc_data_int8_scales[d * lstm->hidden_size * 4 + q] = 127 / absmax;
+                }
+            }
         }
-        for (int j = 0; j < top_count; j++)
+
         {
-            int top_blob_index = layer->tops[j];
-            fprintf(pp, " %s", blobs[top_blob_index].name.c_str());
+            ncnn::Mat weight_xc_data_r2 = lstm->weight_xc_data.reshape(size, lstm->hidden_size * 4 * num_directions);
+
+            ncnn::Mat weight_xc_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = lstm->weight_xc_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_xc_data_r2, weight_xc_data_int8, weight_xc_data_int8_scales, opt_q);
+            if (weight_xc_data_int8.empty())
+                return -100;
+
+            lstm->weight_xc_data = weight_xc_data_int8.reshape(size * lstm->hidden_size * 4 * num_directions);
+        }
+        {
+            ncnn::Mat weight_hc_data_r2 = lstm->weight_hc_data.reshape(lstm->num_output, lstm->hidden_size * 4 * num_directions);
+
+            ncnn::Mat weight_hc_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = lstm->weight_hc_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_hc_data_r2, weight_hc_data_int8, weight_hc_data_int8_scales, opt_q);
+            if (weight_hc_data_int8.empty())
+                return -100;
+
+            lstm->weight_hc_data = weight_hc_data_int8.reshape(lstm->num_output * lstm->hidden_size * 4 * num_directions);
         }
 
-        ncnn::Layer* layer_default = ncnn::create_layer(layer->typeindex);
-
-        ncnn::ParamDict pd;
-        layer_default->load_param(pd);
-
-#define fprintf_param_value(format, phase)                                  \
-    {                                                                       \
-        if (op->phase != op_default->phase) fprintf(pp, format, op->phase); \
+        lstm->int8_scale_term = 2;
+        lstm->weight_xc_data_int8_scales = weight_xc_data_int8_scales;
+        lstm->weight_hc_data_int8_scales = weight_hc_data_int8_scales;
     }
 
-        if (layer->type == "BatchNorm")
+    return 0;
+}
+
+int NetQuantize::quantize_gru()
+{
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (layers[i]->type != "GRU")
+            continue;
+
+        // GRU - quantize weight from fp32 to int8
+        ncnn::GRU* gru = (ncnn::GRU*)layers[i];
+
+        fprintf(stderr, "quantize_gru %s\n", gru->name.c_str());
+
+        // TODO move to ncnn2table
+        const int num_directions = gru->direction == 2 ? 2 : 1;
+        const int size = gru->weight_data_size / num_directions / gru->num_output / 3;
+
+        ncnn::Mat weight_xc_data_int8_scales(gru->num_output * 3 * num_directions);
+        ncnn::Mat weight_hc_data_int8_scales(gru->num_output * 3 * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
         {
-            ncnn::BatchNorm* op = (ncnn::BatchNorm*)layer;
-            ncnn::BatchNorm* op_default = (ncnn::BatchNorm*)layer_default;
-
-            fprintf_param_value(" 0=%d", channels)
-            fprintf_param_value(" 1=%f", eps)
-
-            fwrite_weight_data(op->slope_data, bp);
-            fwrite_weight_data(op->mean_data, bp);
-            fwrite_weight_data(op->var_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
-        }
-        else if (layer->type == "Bias")
-        {
-            ncnn::Bias* op = (ncnn::Bias*)layer;
-            ncnn::Bias* op_default = (ncnn::Bias*)layer_default;
-
-            fprintf_param_value(" 0=%d", bias_data_size)
-
-            fwrite_weight_data(op->bias_data, bp);
-        }
-        else if (layer->type == "BinaryOp")
-        {
-            ncnn::BinaryOp* op = (ncnn::BinaryOp*)layer;
-            ncnn::BinaryOp* op_default = (ncnn::BinaryOp*)layer_default;
-
-            fprintf_param_value(" 0=%d", op_type)
-            fprintf_param_value(" 1=%d", with_scalar)
-            fprintf_param_value(" 2=%f", b)
-        }
-        else if (layer->type == "Clip")
-        {
-            ncnn::Clip* op = (ncnn::Clip*)layer;
-            ncnn::Clip* op_default = (ncnn::Clip*)layer_default;
-
-            fprintf_param_value(" 0=%f", min)
-            fprintf_param_value(" 1=%f", max)
-        }
-        else if (layer->type == "Concat")
-        {
-            ncnn::Concat* op = (ncnn::Concat*)layer;
-            ncnn::Concat* op_default = (ncnn::Concat*)layer_default;
-
-            fprintf_param_value(" 0=%d", axis)
-        }
-        else if (layer->type == "Convolution")
-        {
-            ncnn::Convolution* op = (ncnn::Convolution*)layer;
-            ncnn::Convolution* op_default = (ncnn::Convolution*)layer_default;
-
-            fprintf_param_value(" 0=%d", num_output)
-            fprintf_param_value(" 1=%d", kernel_w)
+            for (int q = 0; q < gru->num_output * 3; q++)
             {
-                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
-            }
-            fprintf_param_value(" 2=%d", dilation_w)
-            {
-                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
-            }
-            fprintf_param_value(" 3=%d", stride_w)
-            {
-                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
-            }
-            fprintf_param_value(" 4=%d", pad_left)
-            {
-                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
-            }
-            {
-                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
-            }
-            {
-                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
-            }
-            fprintf_param_value(" 5=%d", bias_term)
-            fprintf_param_value(" 6=%d", weight_data_size)
-            fprintf_param_value(" 8=%d", int8_scale_term)
-            fprintf_param_value(" 9=%d", activation_type)
-            {
-                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
-            }
-
-            fwrite_weight_tag_data(0, op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
-
-            // write int8_scale data
-            if (op->int8_scale_term)
-            {
-                std::vector<float> weight_int8scale;
-                std::vector<float> blob_int8scale;
-
-                char key[256];
-                sprintf(key, "%s_param_0", layers[i]->name.c_str());
-
-                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
                 {
-                    weight_int8scale = weight_int8scale_table[std::string(key)];
+                    const float* weight_xc_ptr = gru->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int i = 0; i < size; i++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[i]));
+                    }
+                    weight_xc_data_int8_scales[d * gru->num_output * 3 + q] = 127 / absmax;
                 }
 
-                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end())
                 {
-                    blob_int8scale = blob_int8scale_table[layer->name];
+                    const float* weight_hc_ptr = gru->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int i = 0; i < size; i++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[i]));
+                    }
+                    weight_hc_data_int8_scales[d * gru->num_output * 3 + q] = 127 / absmax;
                 }
-
-                // write int8_scale data
-                fwrite(weight_int8scale.data(), sizeof(float), weight_int8scale.size(), bp);
-                fwrite(blob_int8scale.data(), sizeof(float), blob_int8scale.size(), bp);
             }
         }
-        else if (layer->type == "ConvolutionDepthWise")
+
         {
-            ncnn::ConvolutionDepthWise* op = (ncnn::ConvolutionDepthWise*)layer;
-            ncnn::ConvolutionDepthWise* op_default = (ncnn::ConvolutionDepthWise*)layer_default;
+            ncnn::Mat weight_xc_data_r2 = gru->weight_xc_data.reshape(size, gru->num_output * 3 * num_directions);
 
-            fprintf_param_value(" 0=%d", num_output)
-            fprintf_param_value(" 1=%d", kernel_w)
-            {
-                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
-            }
-            fprintf_param_value(" 2=%d", dilation_w)
-            {
-                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
-            }
-            fprintf_param_value(" 3=%d", stride_w)
-            {
-                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
-            }
-            fprintf_param_value(" 4=%d", pad_left)
-            {
-                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
-            }
-            {
-                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
-            }
-            {
-                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
-            }
-            fprintf_param_value(" 5=%d", bias_term)
-            fprintf_param_value(" 6=%d", weight_data_size)
-            fprintf_param_value(" 7=%d", group)
-            fprintf_param_value(" 8=%d", int8_scale_term)
-            fprintf_param_value(" 9=%d", activation_type)
-            {
-                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
-            }
+            ncnn::Mat weight_xc_data_int8;
 
-            fwrite_weight_tag_data(0, op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = gru->weight_xc_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_xc_data_r2, weight_xc_data_int8, weight_xc_data_int8_scales, opt_q);
+            if (weight_xc_data_int8.empty())
+                return -100;
 
-            // write int8_scale data
-            if (op->int8_scale_term)
-            {
-                std::vector<float> weight_int8scale;
-                std::vector<float> blob_int8scale;
-
-                char key[256];
-                sprintf(key, "%s_param_0", layers[i]->name.c_str());
-
-                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
-                {
-                    weight_int8scale = weight_int8scale_table[std::string(key)];
-                }
-
-                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end())
-                {
-                    blob_int8scale = blob_int8scale_table[layer->name];
-                }
-
-                // write int8_scale data
-                fwrite(weight_int8scale.data(), sizeof(float), weight_int8scale.size(), bp);
-                fwrite(blob_int8scale.data(), sizeof(float), blob_int8scale.size(), bp);
-            }
+            gru->weight_xc_data = weight_xc_data_int8.reshape(size * gru->num_output * 3 * num_directions);
         }
-        else if (layer->type == "Crop")
         {
-            ncnn::Crop* op = (ncnn::Crop*)layer;
-            ncnn::Crop* op_default = (ncnn::Crop*)layer_default;
+            ncnn::Mat weight_hc_data_r2 = gru->weight_hc_data.reshape(gru->num_output, gru->num_output * 3 * num_directions);
 
-            fprintf_param_value(" 0=%d", woffset)
-            fprintf_param_value(" 1=%d", hoffset)
-            fprintf_param_value(" 2=%d", coffset)
-            fprintf_param_value(" 3=%d", outw)
-            fprintf_param_value(" 4=%d", outh)
-            fprintf_param_value(" 5=%d", outc)
-            fprintf_param_value(" 6=%d", woffset2)
-            fprintf_param_value(" 7=%d", hoffset2)
-            fprintf_param_value(" 8=%d", coffset2)
-            {
-                if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp);
-            }
-            {
-                if (!op->ends.empty()) fprintf_param_int_array(10, op->ends, pp);
-            }
-            {
-                if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp);
-            }
-        }
-        else if (layer->type == "Deconvolution")
-        {
-            ncnn::Deconvolution* op = (ncnn::Deconvolution*)layer;
-            ncnn::Deconvolution* op_default = (ncnn::Deconvolution*)layer_default;
+            ncnn::Mat weight_hc_data_int8;
 
-            fprintf_param_value(" 0=%d", num_output)
-            fprintf_param_value(" 1=%d", kernel_w)
-            {
-                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
-            }
-            fprintf_param_value(" 2=%d", dilation_w)
-            {
-                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
-            }
-            fprintf_param_value(" 3=%d", stride_w)
-            {
-                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
-            }
-            fprintf_param_value(" 4=%d", pad_left)
-            {
-                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
-            }
-            {
-                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
-            }
-            {
-                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
-            }
-            fprintf_param_value(" 5=%d", bias_term)
-            fprintf_param_value(" 6=%d", weight_data_size)
-            fprintf_param_value(" 9=%d", activation_type)
-            {
-                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
-            }
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = gru->weight_hc_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_hc_data_r2, weight_hc_data_int8, weight_hc_data_int8_scales, opt_q);
+            if (weight_hc_data_int8.empty())
+                return -100;
 
-            fwrite_weight_tag_data(0, op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
-        }
-        else if (layer->type == "DeconvolutionDepthWise")
-        {
-            ncnn::DeconvolutionDepthWise* op = (ncnn::DeconvolutionDepthWise*)layer;
-            ncnn::DeconvolutionDepthWise* op_default = (ncnn::DeconvolutionDepthWise*)layer_default;
-
-            fprintf_param_value(" 0=%d", num_output)
-            fprintf_param_value(" 1=%d", kernel_w)
-            {
-                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
-            }
-            fprintf_param_value(" 2=%d", dilation_w)
-            {
-                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
-            }
-            fprintf_param_value(" 3=%d", stride_w)
-            {
-                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
-            }
-            fprintf_param_value(" 4=%d", pad_left)
-            {
-                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
-            }
-            {
-                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
-            }
-            {
-                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
-            }
-            fprintf_param_value(" 5=%d", bias_term)
-            fprintf_param_value(" 6=%d", weight_data_size)
-            fprintf_param_value(" 7=%d", group)
-            fprintf_param_value(" 9=%d", activation_type)
-            {
-                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
-            }
-
-            fwrite_weight_tag_data(0, op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
-        }
-        else if (layer->type == "DetectionOutput")
-        {
-            ncnn::DetectionOutput* op = (ncnn::DetectionOutput*)layer;
-            ncnn::DetectionOutput* op_default = (ncnn::DetectionOutput*)layer_default;
-
-            fprintf_param_value(" 0=%d", num_class)
-            fprintf_param_value(" 1=%f", nms_threshold)
-            fprintf_param_value(" 2=%d", nms_top_k)
-            fprintf_param_value(" 3=%d", keep_top_k)
-            fprintf_param_value(" 4=%f", confidence_threshold)
-            fprintf_param_value(" 5=%f", variances[0])
-            fprintf_param_value(" 6=%f", variances[1])
-            fprintf_param_value(" 7=%f", variances[2])
-            fprintf_param_value(" 8=%f", variances[3])
-        }
-        else if (layer->type == "Dropout")
-        {
-            ncnn::Dropout* op = (ncnn::Dropout*)layer;
-            ncnn::Dropout* op_default = (ncnn::Dropout*)layer_default;
-
-            fprintf_param_value(" 0=%f", scale)
-        }
-        else if (layer->type == "Eltwise")
-        {
-            ncnn::Eltwise* op = (ncnn::Eltwise*)layer;
-            ncnn::Eltwise* op_default = (ncnn::Eltwise*)layer_default;
-
-            fprintf_param_value(" 0=%d", op_type)
-            {
-                if (!op->coeffs.empty()) fprintf_param_float_array(1, op->coeffs, pp);
-            }
-        }
-        else if (layer->type == "ELU")
-        {
-            ncnn::ELU* op = (ncnn::ELU*)layer;
-            ncnn::ELU* op_default = (ncnn::ELU*)layer_default;
-
-            fprintf_param_value(" 0=%f", alpha)
-        }
-        else if (layer->type == "Exp")
-        {
-            ncnn::Exp* op = (ncnn::Exp*)layer;
-            ncnn::Exp* op_default = (ncnn::Exp*)layer_default;
-
-            fprintf_param_value(" 0=%f", base)
-            fprintf_param_value(" 1=%f", scale)
-            fprintf_param_value(" 2=%f", shift)
-        }
-        else if (layer->type == "InnerProduct")
-        {
-            ncnn::InnerProduct* op = (ncnn::InnerProduct*)layer;
-            ncnn::InnerProduct* op_default = (ncnn::InnerProduct*)layer_default;
-
-            fprintf_param_value(" 0=%d", num_output)
-            fprintf_param_value(" 1=%d", bias_term)
-            fprintf_param_value(" 2=%d", weight_data_size)
-            fprintf_param_value(" 8=%d", int8_scale_term)
-            fprintf_param_value(" 9=%d", activation_type)
-            {
-                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
-            }
-
-            fwrite_weight_tag_data(0, op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
-
-            // write int8_scale data
-            if (op->int8_scale_term)
-            {
-                std::vector<float> weight_int8scale;
-                std::vector<float> blob_int8scale;
-
-                char key[256];
-                sprintf(key, "%s_param_0", layers[i]->name.c_str());
-
-                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
-                {
-                    weight_int8scale = weight_int8scale_table[std::string(key)];
-                }
-
-                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end())
-                {
-                    blob_int8scale = blob_int8scale_table[layer->name];
-                }
-
-                // write int8_scale data
-                fwrite(weight_int8scale.data(), sizeof(float), weight_int8scale.size(), bp);
-                fwrite(blob_int8scale.data(), sizeof(float), blob_int8scale.size(), bp);
-            }
-        }
-        else if (layer->type == "Input")
-        {
-            ncnn::Input* op = (ncnn::Input*)layer;
-            ncnn::Input* op_default = (ncnn::Input*)layer_default;
-
-            fprintf_param_value(" 0=%d", w)
-            fprintf_param_value(" 1=%d", h)
-            fprintf_param_value(" 2=%d", c)
-        }
-        else if (layer->type == "InstanceNorm")
-        {
-            ncnn::InstanceNorm* op = (ncnn::InstanceNorm*)layer;
-            ncnn::InstanceNorm* op_default = (ncnn::InstanceNorm*)layer_default;
-
-            fprintf_param_value(" 0=%d", channels)
-            fprintf_param_value(" 1=%f", eps)
-        }
-        else if (layer->type == "Interp")
-        {
-            ncnn::Interp* op = (ncnn::Interp*)layer;
-            ncnn::Interp* op_default = (ncnn::Interp*)layer_default;
-
-            fprintf_param_value(" 0=%d", resize_type)
-            fprintf_param_value(" 1=%f", height_scale)
-            fprintf_param_value(" 2=%f", width_scale)
-            fprintf_param_value(" 3=%d", output_height)
-            fprintf_param_value(" 4=%d", output_width)
-        }
-        else if (layer->type == "Log")
-        {
-            ncnn::Log* op = (ncnn::Log*)layer;
-            ncnn::Log* op_default = (ncnn::Log*)layer_default;
-
-            fprintf_param_value(" 0=%f", base)
-            fprintf_param_value(" 1=%f", scale)
-            fprintf_param_value(" 2=%f", shift)
-        }
-        else if (layer->type == "LRN")
-        {
-            ncnn::LRN* op = (ncnn::LRN*)layer;
-            ncnn::LRN* op_default = (ncnn::LRN*)layer_default;
-
-            fprintf_param_value(" 0=%d", region_type)
-            fprintf_param_value(" 1=%d", local_size)
-            fprintf_param_value(" 2=%f", alpha)
-            fprintf_param_value(" 3=%f", beta)
-            fprintf_param_value(" 4=%f", bias)
-        }
-        else if (layer->type == "LSTM")
-        {
-            ncnn::LSTM* op = (ncnn::LSTM*)layer;
-            ncnn::LSTM* op_default = (ncnn::LSTM*)layer_default;
-
-            fprintf_param_value(" 0=%d", num_output)
-            fprintf_param_value(" 1=%d", weight_data_size)
-            fprintf_param_value(" 2=%d", direction)
-
-            fwrite_weight_tag_data(0, op->weight_xc_data, bp);
-            fwrite_weight_tag_data(0, op->bias_c_data, bp);
-            fwrite_weight_tag_data(0, op->weight_hc_data, bp);
-        }
-        else if (layer->type == "MemoryData")
-        {
-            ncnn::MemoryData* op = (ncnn::MemoryData*)layer;
-            ncnn::MemoryData* op_default = (ncnn::MemoryData*)layer_default;
-
-            fprintf_param_value(" 0=%d", w)
-            fprintf_param_value(" 1=%d", h)
-            fprintf_param_value(" 2=%d", c)
-            fwrite_weight_data(op->data, bp);
-        }
-        else if (layer->type == "MVN")
-        {
-            ncnn::MVN* op = (ncnn::MVN*)layer;
-            ncnn::MVN* op_default = (ncnn::MVN*)layer_default;
-
-            fprintf_param_value(" 0=%d", normalize_variance)
-            fprintf_param_value(" 1=%d", across_channels)
-            fprintf_param_value(" 2=%f", eps)
-        }
-        else if (layer->type == "Normalize")
-        {
-            ncnn::Normalize* op = (ncnn::Normalize*)layer;
-            ncnn::Normalize* op_default = (ncnn::Normalize*)layer_default;
-
-            fprintf_param_value(" 0=%d", across_spatial)
-            fprintf_param_value(" 1=%d", channel_shared)
-            fprintf_param_value(" 2=%f", eps)
-            fprintf_param_value(" 3=%d", scale_data_size)
-            fprintf_param_value(" 4=%d", across_channel)
-
-            fwrite_weight_data(op->scale_data, bp);
-        }
-        else if (layer->type == "Padding")
-        {
-            ncnn::Padding* op = (ncnn::Padding*)layer;
-            ncnn::Padding* op_default = (ncnn::Padding*)layer_default;
-
-            fprintf_param_value(" 0=%d", top)
-            fprintf_param_value(" 1=%d", bottom)
-            fprintf_param_value(" 2=%d", left)
-            fprintf_param_value(" 3=%d", right)
-            fprintf_param_value(" 4=%d", type)
-            fprintf_param_value(" 5=%f", value)
-        }
-        else if (layer->type == "Permute")
-        {
-            ncnn::Permute* op = (ncnn::Permute*)layer;
-            ncnn::Permute* op_default = (ncnn::Permute*)layer_default;
-
-            fprintf_param_value(" 0=%d", order_type)
-        }
-        else if (layer->type == "PixelShuffle")
-        {
-            ncnn::PixelShuffle* op = (ncnn::PixelShuffle*)layer;
-            ncnn::PixelShuffle* op_default = (ncnn::PixelShuffle*)layer_default;
-
-            fprintf_param_value(" 0=%d", upscale_factor)
-        }
-        else if (layer->type == "Pooling")
-        {
-            ncnn::Pooling* op = (ncnn::Pooling*)layer;
-            ncnn::Pooling* op_default = (ncnn::Pooling*)layer_default;
-
-            fprintf_param_value(" 0=%d", pooling_type)
-            fprintf_param_value(" 1=%d", kernel_w)
-            {
-                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
-            }
-            fprintf_param_value(" 2=%d", stride_w)
-            {
-                if (op->stride_h != op->stride_w) fprintf(pp, " 12=%d", op->stride_h);
-            }
-            fprintf_param_value(" 3=%d", pad_left)
-            {
-                if (op->pad_top != op->pad_left) fprintf(pp, " 13=%d", op->pad_top);
-            }
-            {
-                if (op->pad_right != op->pad_left) fprintf(pp, " 14=%d", op->pad_right);
-            }
-            {
-                if (op->pad_bottom != op->pad_top) fprintf(pp, " 15=%d", op->pad_bottom);
-            }
-            fprintf_param_value(" 4=%d", global_pooling)
-            fprintf_param_value(" 5=%d", pad_mode)
-            fprintf_param_value(" 6=%d", avgpool_count_include_pad)
-            fprintf_param_value(" 7=%d", adaptive_pooling)
-            fprintf_param_value(" 8=%d", out_w)
-            {
-                if (op->out_h != op->out_w) fprintf(pp, " 18=%d", op->out_h);
-            }
-        }
-        else if (layer->type == "Power")
-        {
-            ncnn::Power* op = (ncnn::Power*)layer;
-            ncnn::Power* op_default = (ncnn::Power*)layer_default;
-
-            fprintf_param_value(" 0=%f", power)
-            fprintf_param_value(" 1=%f", scale)
-            fprintf_param_value(" 2=%f", shift)
-        }
-        else if (layer->type == "PReLU")
-        {
-            ncnn::PReLU* op = (ncnn::PReLU*)layer;
-            ncnn::PReLU* op_default = (ncnn::PReLU*)layer_default;
-
-            fprintf_param_value(" 0=%d", num_slope)
-
-            fwrite_weight_data(op->slope_data, bp);
-        }
-        else if (layer->type == "PriorBox")
-        {
-            ncnn::PriorBox* op = (ncnn::PriorBox*)layer;
-            ncnn::PriorBox* op_default = (ncnn::PriorBox*)layer_default;
-
-            {
-                if (!op->min_sizes.empty()) fprintf_param_float_array(0, op->min_sizes, pp);
-            }
-            {
-                if (!op->max_sizes.empty()) fprintf_param_float_array(1, op->max_sizes, pp);
-            }
-            {
-                if (!op->aspect_ratios.empty()) fprintf_param_float_array(2, op->aspect_ratios, pp);
-            }
-            fprintf_param_value(" 3=%f", variances[0])
-            fprintf_param_value(" 4=%f", variances[1])
-            fprintf_param_value(" 5=%f", variances[2])
-            fprintf_param_value(" 6=%f", variances[3])
-            fprintf_param_value(" 7=%d", flip)
-            fprintf_param_value(" 8=%d", clip)
-            fprintf_param_value(" 9=%d", image_width)
-            fprintf_param_value(" 10=%d", image_height)
-            fprintf_param_value(" 11=%f", step_width)
-            fprintf_param_value(" 12=%f", step_height)
-            fprintf_param_value(" 13=%f", offset)
-        }
-        else if (layer->type == "Proposal")
-        {
-            ncnn::Proposal* op = (ncnn::Proposal*)layer;
-            ncnn::Proposal* op_default = (ncnn::Proposal*)layer_default;
-
-            fprintf_param_value(" 0=%d", feat_stride)
-            fprintf_param_value(" 1=%d", base_size)
-            fprintf_param_value(" 2=%d", pre_nms_topN)
-            fprintf_param_value(" 3=%d", after_nms_topN)
-            fprintf_param_value(" 4=%f", nms_thresh)
-            fprintf_param_value(" 5=%d", min_size)
-        }
-        else if (layer->type == "PSROIPooling")
-        {
-            ncnn::PSROIPooling* op = (ncnn::PSROIPooling*)layer;
-            ncnn::PSROIPooling* op_default = (ncnn::PSROIPooling*)layer_default;
-
-            fprintf_param_value(" 0=%d", pooled_width)
-            fprintf_param_value(" 1=%d", pooled_height)
-            fprintf_param_value(" 2=%f", spatial_scale)
-            fprintf_param_value(" 3=%d", output_dim)
-        }
-        else if (layer->type == "Quantize")
-        {
-            ncnn::Quantize* op = (ncnn::Quantize*)layer;
-            ncnn::Quantize* op_default = (ncnn::Quantize*)layer_default;
-
-            fprintf_param_value(" 0=%f", scale)
-        }
-        else if (layer->type == "Reduction")
-        {
-            ncnn::Reduction* op = (ncnn::Reduction*)layer;
-            ncnn::Reduction* op_default = (ncnn::Reduction*)layer_default;
-
-            fprintf_param_value(" 0=%d", operation)
-            fprintf_param_value(" 1=%d", reduce_all)
-            fprintf_param_value(" 2=%f", coeff)
-            {
-                if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
-            }
-            fprintf_param_value(" 4=%d", keepdims)
-        }
-        else if (layer->type == "ReLU")
-        {
-            ncnn::ReLU* op = (ncnn::ReLU*)layer;
-            ncnn::ReLU* op_default = (ncnn::ReLU*)layer_default;
-
-            fprintf_param_value(" 0=%f", slope)
-        }
-        else if (layer->type == "Reorg")
-        {
-            ncnn::Reorg* op = (ncnn::Reorg*)layer;
-            ncnn::Reorg* op_default = (ncnn::Reorg*)layer_default;
-
-            fprintf_param_value(" 0=%d", stride)
-        }
-        else if (layer->type == "Requantize")
-        {
-            ncnn::Requantize* op = (ncnn::Requantize*)layer;
-            ncnn::Requantize* op_default = (ncnn::Requantize*)layer_default;
-
-            fprintf_param_value(" 0=%f", scale_in)
-            fprintf_param_value(" 1=%f", scale_out)
-            fprintf_param_value(" 2=%d", bias_term)
-            fprintf_param_value(" 3=%d", bias_data_size)
-            fprintf_param_value(" 4=%d", fusion_relu)
-        }
-        else if (layer->type == "Reshape")
-        {
-            ncnn::Reshape* op = (ncnn::Reshape*)layer;
-            ncnn::Reshape* op_default = (ncnn::Reshape*)layer_default;
-
-            fprintf_param_value(" 0=%d", w)
-            fprintf_param_value(" 1=%d", h)
-            fprintf_param_value(" 2=%d", c)
-            fprintf_param_value(" 3=%d", permute)
-        }
-        else if (layer->type == "ROIAlign")
-        {
-            ncnn::ROIAlign* op = (ncnn::ROIAlign*)layer;
-            ncnn::ROIAlign* op_default = (ncnn::ROIAlign*)layer_default;
-
-            fprintf_param_value(" 0=%d", pooled_width)
-            fprintf_param_value(" 1=%d", pooled_height)
-            fprintf_param_value(" 2=%f", spatial_scale)
-            fprintf_param_value(" 3=%d", sampling_ratio)
-            fprintf_param_value(" 4=%d", aligned)
-            fprintf_param_value(" 5=%d", version)
-        }
-        else if (layer->type == "ROIPooling")
-        {
-            ncnn::ROIPooling* op = (ncnn::ROIPooling*)layer;
-            ncnn::ROIPooling* op_default = (ncnn::ROIPooling*)layer_default;
-
-            fprintf_param_value(" 0=%d", pooled_width)
-            fprintf_param_value(" 1=%d", pooled_height)
-            fprintf_param_value(" 2=%f", spatial_scale)
-        }
-        else if (layer->type == "Scale")
-        {
-            ncnn::Scale* op = (ncnn::Scale*)layer;
-            ncnn::Scale* op_default = (ncnn::Scale*)layer_default;
-
-            fprintf_param_value(" 0=%d", scale_data_size)
-            fprintf_param_value(" 1=%d", bias_term)
-
-            fwrite_weight_data(op->scale_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
-        }
-        else if (layer->type == "ShuffleChannel")
-        {
-            ncnn::ShuffleChannel* op = (ncnn::ShuffleChannel*)layer;
-            ncnn::ShuffleChannel* op_default = (ncnn::ShuffleChannel*)layer_default;
-
-            fprintf_param_value(" 0=%d", group)
-        }
-        else if (layer->type == "Slice")
-        {
-            ncnn::Slice* op = (ncnn::Slice*)layer;
-            ncnn::Slice* op_default = (ncnn::Slice*)layer_default;
-
-            {
-                if (!op->slices.empty()) fprintf_param_int_array(0, op->slices, pp);
-            }
-            fprintf_param_value(" 1=%d", axis)
-        }
-        else if (layer->type == "Softmax")
-        {
-            ncnn::Softmax* op = (ncnn::Softmax*)layer;
-            ncnn::Softmax* op_default = (ncnn::Softmax*)layer_default;
-
-            fprintf_param_value(" 0=%d", axis)
-
-            // HACK
-            if (op->axis != 0)
-            {
-                int fixbug0 = 1;
-                fprintf(pp, " 1=%d", fixbug0);
-            }
-        }
-        else if (layer->type == "Threshold")
-        {
-            ncnn::Threshold* op = (ncnn::Threshold*)layer;
-            ncnn::Threshold* op_default = (ncnn::Threshold*)layer_default;
-
-            fprintf_param_value(" 0=%f", threshold)
-        }
-        else if (layer->type == "UnaryOp")
-        {
-            ncnn::UnaryOp* op = (ncnn::UnaryOp*)layer;
-            ncnn::UnaryOp* op_default = (ncnn::UnaryOp*)layer_default;
-
-            fprintf_param_value(" 0=%d", op_type)
-        }
-        else if (layer->type == "YoloDetectionOutput")
-        {
-            ncnn::YoloDetectionOutput* op = (ncnn::YoloDetectionOutput*)layer;
-            ncnn::YoloDetectionOutput* op_default = (ncnn::YoloDetectionOutput*)layer_default;
-
-            fprintf_param_value(" 0=%d", num_class)
-            fprintf_param_value(" 1=%d", num_box)
-            fprintf_param_value(" 2=%f", confidence_threshold)
-            fprintf_param_value(" 3=%f", nms_threshold)
-            {
-                if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp);
-            }
-        }
-        else if (layer->type == "Yolov3DetectionOutput")
-        {
-            ncnn::Yolov3DetectionOutput* op = (ncnn::Yolov3DetectionOutput*)layer;
-            ncnn::Yolov3DetectionOutput* op_default = (ncnn::Yolov3DetectionOutput*)layer_default;
-
-            fprintf_param_value(" 0=%d", num_class)
-            fprintf_param_value(" 1=%d", num_box)
-            fprintf_param_value(" 2=%f", confidence_threshold)
-            fprintf_param_value(" 3=%f", nms_threshold)
-            {
-                if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp);
-            }
-            {
-                if (!op->mask.empty()) fprintf_param_int_array(5, op->mask, pp);
-            }
-            {
-                if (!op->anchors_scale.empty()) fprintf_param_float_array(6, op->anchors_scale, pp);
-            }
+            gru->weight_hc_data = weight_hc_data_int8.reshape(gru->num_output * gru->num_output * 3 * num_directions);
         }
 
-#undef fprintf_param_value
-
-        fprintf(pp, "\n");
-
-        delete layer_default;
+        gru->int8_scale_term = 2;
+        gru->weight_xc_data_int8_scales = weight_xc_data_int8_scales;
+        gru->weight_hc_data_int8_scales = weight_hc_data_int8_scales;
     }
 
-    fclose(pp);
-    fclose(bp);
+    return 0;
+}
+
+int NetQuantize::quantize_embed()
+{
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (layers[i]->type != "Embed")
+            continue;
+
+        // Embed - quantize weight from fp32 to int8
+        ncnn::Embed* embed = (ncnn::Embed*)layers[i];
+
+        fprintf(stderr, "quantize_embed %s\n", embed->name.c_str());
+
+        // TODO move to ncnn2table
+
+        const int num_output = embed->num_output;
+        const int input_dim = embed->input_dim;
+
+        ncnn::Mat weight_data_int8_scales(1);
+        {
+            const float* ptr = embed->weight_data;
+            float absmax = 0.f;
+            for (int i = 0; i < embed->weight_data.w; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(ptr[i]));
+            }
+
+            weight_data_int8_scales[0] = absmax == 0.f ? 1.f : 127 / absmax;
+        }
+
+        {
+            ncnn::Mat weight_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = embed->weight_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(embed->weight_data, weight_data_int8, weight_data_int8_scales, opt_q);
+            if (weight_data_int8.empty())
+                return -100;
+
+            embed->weight_data = weight_data_int8;
+        }
+
+        embed->int8_scale_term = 2;
+        embed->weight_data_int8_scale = weight_data_int8_scales[0];
+    }
+
+    return 0;
+}
+
+int NetQuantize::quantize_gemm()
+{
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (layers[i]->type != "Gemm")
+            continue;
+
+        // Gemm - quantize weight from fp32 to int8
+        ncnn::Gemm* gemm = (ncnn::Gemm*)layers[i];
+
+        fprintf(stderr, "quantize_gemm %s\n", gemm->name.c_str());
+
+        // TODO move to ncnn2table
+
+        if (gemm->constantA)
+        {
+            if (gemm->transA == 1)
+            {
+                // transpose for easier quantization
+                ncnn::Mat A_data_transposed(gemm->constantK * gemm->constantM);
+                for (int i = 0; i < gemm->constantM; i++)
+                {
+                    float* ptr = (float*)A_data_transposed + i * gemm->constantK;
+                    for (int j = 0; j < gemm->constantK; j++)
+                    {
+                        ptr[j] = gemm->A_data[j * gemm->constantM + i];
+                    }
+                }
+                gemm->A_data = A_data_transposed;
+                gemm->transA = 0;
+            }
+
+            gemm->A_data_int8_scales.create(gemm->constantM);
+            for (int i = 0; i < gemm->constantM; i++)
+            {
+                float absmax = 0.f;
+
+                const float* ptr = (const float*)gemm->A_data + i * gemm->constantK;
+                for (int j = 0; j < gemm->constantK; j++)
+                {
+                    absmax = std::max(absmax, (float)fabs(ptr[j]));
+                }
+
+                gemm->A_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+            }
+
+            ncnn::Mat A_data = gemm->A_data.reshape(gemm->constantK, gemm->constantM);
+            ncnn::Mat A_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = A_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(A_data, A_data_int8, gemm->A_data_int8_scales, opt_q);
+            if (A_data_int8.empty())
+                return -100;
+
+            gemm->A_data = A_data_int8.reshape(gemm->constantK * gemm->constantM);
+        }
+
+        if (gemm->constantB)
+        {
+            if (gemm->transB == 0)
+            {
+                // transpose for easier quantization
+                ncnn::Mat B_data_transposed(gemm->constantK * gemm->constantN);
+                for (int i = 0; i < gemm->constantN; i++)
+                {
+                    float* ptr = (float*)B_data_transposed + i * gemm->constantK;
+                    for (int j = 0; j < gemm->constantK; j++)
+                    {
+                        ptr[j] = gemm->B_data[j * gemm->constantN + i];
+                    }
+                }
+                gemm->B_data = B_data_transposed;
+                gemm->transB = 1;
+            }
+
+            const float* ptr = gemm->B_data;
+            float absmax = 0.f;
+            for (int j = 0; j < gemm->B_data.w; j++)
+            {
+                absmax = std::max(absmax, (float)fabs(ptr[j]));
+            }
+
+            gemm->B_data_int8_scale = absmax == 0.f ? 1.f : 127 / absmax;
+
+            ncnn::Mat B_data_int8_scales(1);
+            B_data_int8_scales[0] = gemm->B_data_int8_scale;
+
+            ncnn::Mat B_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = gemm->B_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(gemm->B_data, B_data_int8, B_data_int8_scales, opt_q);
+            if (B_data_int8.empty())
+                return -100;
+
+            gemm->B_data = B_data_int8;
+        }
+
+        gemm->int8_scale_term = 2;
+    }
+
+    return 0;
+}
+
+int NetQuantize::quantize_multiheadattention()
+{
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (layers[i]->type != "MultiHeadAttention")
+            continue;
+
+        // MultiHeadAttention - quantize weight from fp32 to int8
+        ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layers[i];
+
+        fprintf(stderr, "quantize_multiheadattention %s\n", mha->name.c_str());
+
+        // TODO move to ncnn2table
+
+        const int qdim = mha->weight_data_size / mha->embed_dim;
+
+        {
+            mha->q_weight_data_int8_scales.create(mha->embed_dim);
+            for (int i = 0; i < mha->embed_dim; i++)
+            {
+                float absmax = 0.f;
+
+                const float* ptr = (const float*)mha->q_weight_data + i * qdim;
+                for (int j = 0; j < qdim; j++)
+                {
+                    absmax = std::max(absmax, (float)fabs(ptr[j]));
+                }
+
+                mha->q_weight_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+            }
+
+            ncnn::Mat q_weight_data = mha->q_weight_data.reshape(qdim, mha->embed_dim);
+            ncnn::Mat q_weight_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = q_weight_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(q_weight_data, q_weight_data_int8, mha->q_weight_data_int8_scales, opt_q);
+            if (q_weight_data_int8.empty())
+                return -100;
+
+            mha->q_weight_data = q_weight_data_int8.reshape(qdim * mha->embed_dim);
+        }
+
+        {
+            mha->k_weight_data_int8_scales.create(mha->embed_dim);
+            for (int i = 0; i < mha->embed_dim; i++)
+            {
+                float absmax = 0.f;
+
+                const float* ptr = (const float*)mha->k_weight_data + i * mha->kdim;
+                for (int j = 0; j < mha->kdim; j++)
+                {
+                    absmax = std::max(absmax, (float)fabs(ptr[j]));
+                }
+
+                mha->k_weight_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+            }
+
+            ncnn::Mat k_weight_data = mha->k_weight_data.reshape(mha->kdim, mha->embed_dim);
+            ncnn::Mat k_weight_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = k_weight_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(k_weight_data, k_weight_data_int8, mha->k_weight_data_int8_scales, opt_q);
+            if (k_weight_data_int8.empty())
+                return -100;
+
+            mha->k_weight_data = k_weight_data_int8.reshape(mha->kdim * mha->embed_dim);
+        }
+
+        {
+            mha->v_weight_data_int8_scales.create(mha->embed_dim);
+            for (int i = 0; i < mha->embed_dim; i++)
+            {
+                float absmax = 0.f;
+
+                const float* ptr = (const float*)mha->v_weight_data + i * mha->vdim;
+                for (int j = 0; j < mha->vdim; j++)
+                {
+                    absmax = std::max(absmax, (float)fabs(ptr[j]));
+                }
+
+                mha->v_weight_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+            }
+
+            ncnn::Mat v_weight_data = mha->v_weight_data.reshape(mha->vdim, mha->embed_dim);
+            ncnn::Mat v_weight_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = v_weight_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(v_weight_data, v_weight_data_int8, mha->v_weight_data_int8_scales, opt_q);
+            if (v_weight_data_int8.empty())
+                return -100;
+
+            mha->v_weight_data = v_weight_data_int8.reshape(mha->vdim * mha->embed_dim);
+        }
+
+        {
+            const float* ptr = mha->out_weight_data;
+            float absmax = 0.f;
+            for (int j = 0; j < mha->out_weight_data.w; j++)
+            {
+                absmax = std::max(absmax, (float)fabs(ptr[j]));
+            }
+
+            mha->out_weight_data_int8_scale = absmax == 0.f ? 1.f : 127 / absmax;
+
+            ncnn::Mat out_weight_data_int8_scales(1);
+            out_weight_data_int8_scales[0] = mha->out_weight_data_int8_scale;
+
+            ncnn::Mat out_weight_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = mha->out_weight_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(mha->out_weight_data, out_weight_data_int8, out_weight_data_int8_scales, opt_q);
+            if (out_weight_data_int8.empty())
+                return -100;
+
+            mha->out_weight_data = out_weight_data_int8;
+        }
+
+        mha->int8_scale_term = 2;
+    }
+
+    return 0;
+}
+
+int NetQuantize::fuse_requantize()
+{
+    const size_t layer_count = layers.size();
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "Convolution" && layers[i]->type != "ConvolutionDepthWise")
+            continue;
+
+        // Convolution/ConvolutionDepthWise - Convolution/ConvolutionDepthWise
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "Convolution" && layers[j]->type != "ConvolutionDepthWise")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse requantize
+        fprintf(stderr, "fuse_requantize %s %s\n", layers[i]->name.c_str(), layers[j]->name.c_str());
+
+        if (layers[i]->type == "Convolution" && layers[j]->type == "Convolution")
+        {
+            ncnn::Convolution* convolution1 = (ncnn::Convolution*)layers[i];
+            ncnn::Convolution* convolution2 = (ncnn::Convolution*)layers[j];
+
+            if (convolution1->weight_data.elemsize != 1u || convolution2->weight_data.elemsize != 1u)
+                continue;
+
+            convolution1->int8_scale_term += 100;
+            convolution1->top_blob_int8_scales = convolution2->bottom_blob_int8_scales;
+        }
+        if (layers[i]->type == "Convolution" && layers[j]->type == "ConvolutionDepthWise")
+        {
+            ncnn::Convolution* convolution1 = (ncnn::Convolution*)layers[i];
+            ncnn::ConvolutionDepthWise* convolution2 = (ncnn::ConvolutionDepthWise*)layers[j];
+
+            if (convolution1->weight_data.elemsize != 1u || convolution2->weight_data.elemsize != 1u)
+                continue;
+
+            convolution1->int8_scale_term += 100;
+            convolution1->top_blob_int8_scales = convolution2->bottom_blob_int8_scales;
+        }
+        if (layers[i]->type == "ConvolutionDepthWise" && layers[j]->type == "Convolution")
+        {
+            ncnn::ConvolutionDepthWise* convolution1 = (ncnn::ConvolutionDepthWise*)layers[i];
+            ncnn::Convolution* convolution2 = (ncnn::Convolution*)layers[j];
+
+            if (convolution1->weight_data.elemsize != 1u || convolution2->weight_data.elemsize != 1u)
+                continue;
+
+            convolution1->int8_scale_term += 100;
+            convolution1->top_blob_int8_scales = convolution2->bottom_blob_int8_scales;
+        }
+        if (layers[i]->type == "ConvolutionDepthWise" && layers[j]->type == "ConvolutionDepthWise")
+        {
+            ncnn::ConvolutionDepthWise* convolution1 = (ncnn::ConvolutionDepthWise*)layers[i];
+            ncnn::ConvolutionDepthWise* convolution2 = (ncnn::ConvolutionDepthWise*)layers[j];
+
+            if (convolution1->weight_data.elemsize != 1u || convolution2->weight_data.elemsize != 1u)
+                continue;
+
+            convolution1->int8_scale_term += 100;
+            convolution1->top_blob_int8_scales = convolution2->bottom_blob_int8_scales;
+        }
+    }
+
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "Convolution" && layers[i]->type != "ConvolutionDepthWise")
+            continue;
+
+        // Convolution/ConvolutionDepthWise - Split - Convolution/ConvolutionDepthWise
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "Split")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::Split* split = (ncnn::Split*)layers[j];
+
+        bool all_conv = true;
+        for (size_t p = 0; p < split->tops.size(); p++)
+        {
+            int split_top_blob_index = split->tops[p];
+
+            size_t k = j + 1;
+            for (; k < layer_count; k++)
+            {
+                if (layers[k]->type != "Convolution" && layers[k]->type != "ConvolutionDepthWise")
+                    continue;
+
+                if (layers[k]->bottoms.size() != 1)
+                    continue;
+
+                if (layers[k]->bottoms[0] == split_top_blob_index)
+                    break;
+            }
+
+            if (k == layer_count)
+            {
+                all_conv = false;
+                break;
+            }
+
+            if (layers[k]->type == "Convolution")
+            {
+                ncnn::Convolution* convolution = (ncnn::Convolution*)layers[k];
+                if (convolution->weight_data.elemsize != 1u)
+                {
+                    all_conv = false;
+                    break;
+                }
+            }
+            if (layers[k]->type == "ConvolutionDepthWise")
+            {
+                ncnn::ConvolutionDepthWise* convolution = (ncnn::ConvolutionDepthWise*)layers[k];
+                if (convolution->weight_data.elemsize != 1u)
+                {
+                    all_conv = false;
+                    break;
+                }
+            }
+        }
+
+        if (!all_conv)
+            continue;
+
+        j = blobs[split->tops[0]].consumer;
+
+        // fuse requantize
+        fprintf(stderr, "fuse_requantize %s %s\n", layers[i]->name.c_str(), split->name.c_str());
+
+        if (layers[i]->type == "Convolution" && layers[j]->type == "Convolution")
+        {
+            ncnn::Convolution* convolution1 = (ncnn::Convolution*)layers[i];
+            ncnn::Convolution* convolution2 = (ncnn::Convolution*)layers[j];
+
+            if (convolution1->weight_data.elemsize != 1u || convolution2->weight_data.elemsize != 1u)
+                continue;
+
+            convolution1->int8_scale_term += 100;
+            convolution1->top_blob_int8_scales = convolution2->bottom_blob_int8_scales;
+        }
+        if (layers[i]->type == "Convolution" && layers[j]->type == "ConvolutionDepthWise")
+        {
+            ncnn::Convolution* convolution1 = (ncnn::Convolution*)layers[i];
+            ncnn::ConvolutionDepthWise* convolution2 = (ncnn::ConvolutionDepthWise*)layers[j];
+
+            if (convolution1->weight_data.elemsize != 1u || convolution2->weight_data.elemsize != 1u)
+                continue;
+
+            convolution1->int8_scale_term += 100;
+            convolution1->top_blob_int8_scales = convolution2->bottom_blob_int8_scales;
+        }
+        if (layers[i]->type == "ConvolutionDepthWise" && layers[j]->type == "Convolution")
+        {
+            ncnn::ConvolutionDepthWise* convolution1 = (ncnn::ConvolutionDepthWise*)layers[i];
+            ncnn::Convolution* convolution2 = (ncnn::Convolution*)layers[j];
+
+            if (convolution1->weight_data.elemsize != 1u || convolution2->weight_data.elemsize != 1u)
+                continue;
+
+            convolution1->int8_scale_term += 100;
+            convolution1->top_blob_int8_scales = convolution2->bottom_blob_int8_scales;
+        }
+        if (layers[i]->type == "ConvolutionDepthWise" && layers[j]->type == "ConvolutionDepthWise")
+        {
+            ncnn::ConvolutionDepthWise* convolution1 = (ncnn::ConvolutionDepthWise*)layers[i];
+            ncnn::ConvolutionDepthWise* convolution2 = (ncnn::ConvolutionDepthWise*)layers[j];
+
+            if (convolution1->weight_data.elemsize != 1u || convolution2->weight_data.elemsize != 1u)
+                continue;
+
+            convolution1->int8_scale_term += 100;
+            convolution1->top_blob_int8_scales = convolution2->bottom_blob_int8_scales;
+        }
+    }
 
     return 0;
 }
 
 int main(int argc, char** argv)
 {
-    if (argc != 6)
+    if (argc != 5 && argc != 6)
     {
         fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [calibration table]\n", argv[0]);
         return -1;
@@ -1292,9 +1068,10 @@ int main(int argc, char** argv)
     const char* inbin = argv[2];
     const char* outparam = argv[3];
     const char* outbin = argv[4];
-    const char* int8scale_table_path = argv[5];
+    const char* int8scale_table_path = argc == 6 ? argv[5] : NULL;
 
     NetQuantize quantizer;
+    quantizer.storage_type = 1; // use fp16 where int8 not applied
 
     // parse the calibration scale table
     if (int8scale_table_path)
@@ -1308,11 +1085,27 @@ int main(int argc, char** argv)
     }
 
     quantizer.load_param(inparam);
-    quantizer.load_model(inbin);
+    if (strcmp(inbin, "null") == 0)
+    {
+        DataReaderFromEmpty dr;
+        quantizer.load_model(dr);
+        quantizer.gen_random_weight = true;
+    }
+    else
+        quantizer.load_model(inbin);
 
     quantizer.quantize_convolution();
     quantizer.quantize_convolutiondepthwise();
     quantizer.quantize_innerproduct();
+
+    quantizer.quantize_rnn();
+    quantizer.quantize_lstm();
+    quantizer.quantize_gru();
+    quantizer.quantize_embed();
+    quantizer.quantize_gemm();
+    quantizer.quantize_multiheadattention();
+
+    quantizer.fuse_requantize();
 
     quantizer.save(outparam, outbin);
 

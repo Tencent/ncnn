@@ -254,7 +254,7 @@ int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
 
         Mat scale_data_packed;
-        convert_packing(scale_data, scale_data_packed, elempack);
+        convert_packing(scale_data, scale_data_packed, elempack, opt);
 
         if (opt.use_image_storage)
         {
@@ -264,6 +264,9 @@ int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         {
             cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
         }
+
+        if (opt.lightmode)
+            scale_data.release();
     }
 
     return 0;

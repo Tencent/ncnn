@@ -31,7 +31,7 @@ int MemoryData_vulkan::create_pipeline(const Option& opt)
     int out_elempack = 1;
     if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
     if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t out_elemsize;
     if (opt.use_fp16_storage)
@@ -50,7 +50,7 @@ int MemoryData_vulkan::create_pipeline(const Option& opt)
     Mat out_shape_packed;
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 3 || out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     // check blob shape
     if (!vkdev->shape_support_image_storage(out_shape_packed))
@@ -68,10 +68,10 @@ int MemoryData_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     int elempack = 1;
     if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
     if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     Mat data_packed;
-    convert_packing(data, data_packed, elempack);
+    convert_packing(data, data_packed, elempack, opt);
 
     if (support_image_storage && opt.use_image_storage)
     {
@@ -80,6 +80,11 @@ int MemoryData_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     else
     {
         cmd.record_upload(data_packed, data_gpu, opt, /*bool flatten*/ false);
+    }
+
+    if (opt.lightmode)
+    {
+        data.release();
     }
 
     return 0;

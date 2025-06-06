@@ -31,81 +31,81 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
-
-#if __ARM_NEON
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            for (int i = 0; i < size; i++)
-            {
-                float32x4_t _p = vld1q_f32(ptr);
-                _p = vabsq_f32(_p);
-                vst1q_f32(ptr, _p);
-
-                ptr += 4;
-            }
-        }
-
-        return 0;
-    }
-#endif // __ARM_NEON
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
+        int i = 0;
 #if __ARM_NEON
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
+        for (; i + 15 < size; i += 16)
+        {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
-        if (nn > 0)
-        {
             asm volatile(
-                "0:                               \n"
-                "prfm       pldl1keep, [%1, #128] \n"
-                "ld1        {v0.4s}, [%1]         \n"
-                "fabs       v0.4s, v0.4s          \n"
-                "subs       %w0, %w0, #1          \n"
-                "st1        {v0.4s}, [%1], #16    \n"
-                "bne        0b                    \n"
-                : "=r"(nn), // %0
-                "=r"(ptr) // %1
-                : "0"(nn),
-                "1"(ptr)
-                : "cc", "memory", "v0");
-        }
-#else
-        if (nn > 0)
-        {
+                "prfm   pldl1keep, [%0, #512]   \n"
+                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
+                "fabs   v0.4s, v0.4s            \n"
+                "fabs   v1.4s, v1.4s            \n"
+                "fabs   v2.4s, v2.4s            \n"
+                "fabs   v3.4s, v3.4s            \n"
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                : "=r"(ptr) // %0
+                : "0"(ptr)
+                : "memory", "v0", "v1", "v2", "v3");
+#else  // __aarch64__
             asm volatile(
-                "0:                             \n"
-                "vld1.f32   {d0-d1}, [%1]       \n"
-                "vabs.f32   q0, q0              \n"
-                "subs       %0, #1              \n"
-                "vst1.f32   {d0-d1}, [%1]!      \n"
-                "bne        0b                  \n"
-                : "=r"(nn), // %0
-                "=r"(ptr) // %1
-                : "0"(nn),
-                "1"(ptr)
-                : "cc", "memory", "q0");
-        }
+                "pld        [%0, #512]      \n"
+                "vldm       %0, {d0-d7}     \n"
+                "vabs.f32   q0, q0          \n"
+                "vabs.f32   q1, q1          \n"
+                "vabs.f32   q2, q2          \n"
+                "vabs.f32   q3, q3          \n"
+                "vstm       %0!, {d0-d7}    \n"
+                : "=r"(ptr) // %0
+                : "0"(ptr)
+                : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            float32x4_t _p2 = vld1q_f32(ptr + 8);
+            float32x4_t _p3 = vld1q_f32(ptr + 12);
+            _p0 = vabsq_f32(_p0);
+            _p1 = vabsq_f32(_p1);
+            _p2 = vabsq_f32(_p2);
+            _p3 = vabsq_f32(_p3);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            vst1q_f32(ptr + 8, _p2);
+            vst1q_f32(ptr + 12, _p3);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
+        }
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            _p0 = vabsq_f32(_p0);
+            _p1 = vabsq_f32(_p1);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _p = vld1q_f32(ptr);
+            _p = vabsq_f32(_p);
+            vst1q_f32(ptr, _p);
+            ptr += 4;
+        }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *ptr = *ptr > 0 ? *ptr : -*ptr;
 

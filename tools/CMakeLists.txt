@@ -1,5 +1,10 @@
-cmake_minimum_required(VERSION 3.1) # for CMAKE_CXX_STANDARD
+cmake_minimum_required(VERSION 3.1...3.10) # for CMAKE_CXX_STANDARD
 set(CMAKE_CXX_STANDARD 11)
+
+include(GNUInstallDirs)
+macro(ncnn_install_tool toolname)
+    install(TARGETS ${toolname} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endmacro()
 
 if(MSVC)
     # warning C4018: '<': signed/unsigned mismatch
@@ -12,7 +17,11 @@ add_subdirectory(caffe)
 add_subdirectory(mxnet)
 add_subdirectory(onnx)
 add_subdirectory(darknet)
-add_subdirectory(quantize)
+if(NCNN_INT8)
+    add_subdirectory(quantize)
+else()
+    message(WARNING "NCNN_INT8 disabled, quantize tools won't be built")
+endif()
 
 add_executable(ncnn2mem ncnn2mem.cpp)
 target_link_libraries(ncnn2mem PRIVATE ncnn)
@@ -32,3 +41,6 @@ add_executable(ncnnmerge ncnnmerge.cpp)
 set_property(TARGET ncnn2mem PROPERTY FOLDER "tools")
 set_property(TARGET ncnnoptimize PROPERTY FOLDER "tools")
 set_property(TARGET ncnnmerge PROPERTY FOLDER "tools")
+ncnn_install_tool(ncnn2mem)
+ncnn_install_tool(ncnnmerge)
+ncnn_install_tool(ncnnoptimize)

@@ -969,10 +969,16 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
 
 int main(int argc, char** argv)
 {
+    if (!(argc == 3 || argc == 5))
+    {
+        fprintf(stderr, "Usage: %s [mxnetjson] [mxnetparam] [ncnnparam] [ncnnbin]\n", argv[0]);
+        return -1;
+    }
+
     const char* jsonpath = argv[1];
     const char* parampath = argv[2];
-    const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.param";
-    const char* ncnn_modelbin = argc >= 5 ? argv[4] : "ncnn.bin";
+    const char* ncnn_prototxt = argc == 5 ? argv[3] : "ncnn.param";
+    const char* ncnn_modelbin = argc == 5 ? argv[4] : "ncnn.bin";
 
     std::vector<MXNetNode> nodes;
     std::vector<MXNetParam> params;
@@ -993,6 +999,26 @@ int main(int argc, char** argv)
 
     // weight node
     std::vector<int> weight_nodes;
+
+    // sometimes mxnet produce non-unique name for activation op
+    {
+        std::set<std::string> known_names;
+        for (size_t i = 0; i < node_count; i++)
+        {
+            MXNetNode& n = nodes[i];
+
+            if (known_names.find(n.name) == known_names.end())
+            {
+                known_names.insert(n.name);
+                continue;
+            }
+
+            // non-unique name detected, append index as suffix
+            char suffix[32];
+            sprintf(suffix, "_%d", (int)i);
+            n.name = n.name + std::string(suffix);
+        }
+    }
 
     // global definition line
     // [layer count] [blob count]
@@ -1685,6 +1711,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "_copy")
         {
+            // noop
         }
         else if (n.op == "_div_scalar")
         {
@@ -2152,6 +2179,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "Flatten")
         {
+            // no param
         }
         else if (n.op == "floor")
         {
@@ -2266,6 +2294,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "LinearRegressionOutput")
         {
+            // noop
         }
         else if (n.op == "log")
         {
@@ -2274,9 +2303,11 @@ int main(int argc, char** argv)
         }
         else if (n.op == "LogisticRegressionOutput")
         {
+            // noop
         }
         else if (n.op == "MAERegressionOutput")
         {
+            // noop
         }
         else if (n.op == "max" || n.op == "mean" || n.op == "min" || n.op == "prod" || n.op == "sum")
         {
@@ -2303,12 +2334,13 @@ int main(int argc, char** argv)
                 fprintf(pp, " -23303=%zd", axis.size());
                 for (size_t j = 0; j < axis.size(); j++)
                 {
-                    if (axis[j] == 0 || axis[j] > 3 || axis[j] < -3)
+                    if (axis[j] == 0 || axis[j] > 4 || axis[j] < -3)
                         fprintf(stderr, "Unsupported reduction axis !\n");
-                    fprintf(pp, ",%d", axis[j]);
+                    fprintf(pp, ",%d", axis[j] > 0 ? axis[j] - 1 : axis[j]);
                 }
             }
             fprintf(pp, " 4=%d", keepdims);
+            fprintf(pp, " 5=1");
         }
         else if (n.op == "maximum")
         {
@@ -2352,12 +2384,6 @@ int main(int argc, char** argv)
 
             int channel_before = pad_width[2];
             int channel_after = pad_width[3];
-            if (channel_before != 0 || channel_after != 0)
-            {
-                // FIXME
-                fprintf(stderr, "Unsupported pad_width on channel axis !\n");
-            }
-
             int top = pad_width[4];
             int bottom = pad_width[5];
             int left = pad_width[6];
@@ -2369,6 +2395,8 @@ int main(int argc, char** argv)
             fprintf(pp, " 3=%d", right);
             fprintf(pp, " 4=%d", type);
             fprintf(pp, " 5=%e", constant_value);
+            fprintf(pp, " 7=%d", channel_before);
+            fprintf(pp, " 8=%d", channel_after);
         }
         else if (n.op == "Pooling")
         {
@@ -2447,6 +2475,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "relu")
         {
+            // no param
         }
         else if (n.op == "Reshape")
         {
@@ -2485,6 +2514,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "sigmoid")
         {
+            // no param
         }
         else if (n.op == "sin")
         {
@@ -2605,6 +2635,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "tanh")
         {
+            // no param
         }
         else if (n.op == "Transpose" || n.op == "transpose")
         {

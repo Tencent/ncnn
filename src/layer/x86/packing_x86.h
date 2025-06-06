@@ -19,12 +19,15 @@
 
 namespace ncnn {
 
-class Packing_x86 : virtual public Packing
+class Packing_x86 : public Packing
 {
 public:
     Packing_x86();
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+protected:
+    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

@@ -16,7 +16,7 @@ import sys
 import time
 import ncnn
 
-param_root = "../benchmark/"
+param_root = "../../benchmark"
 
 g_warmup_loop_count = 8
 g_loop_count = 4
@@ -51,14 +51,18 @@ def benchmark(comment, _in, opt):
     dr = ncnn.DataReaderFromEmpty()
     net.load_model(dr)
 
+    input_names = net.input_names()
+    output_names = net.output_names()
+
     if g_enable_cooling_down:
         time.sleep(10)
 
     # warm up
     for i in range(g_warmup_loop_count):
-        ex = net.create_extractor()
-        ex.input("data", _in)
-        ex.extract("output")
+        # test with statement
+        with net.create_extractor() as ex:
+            ex.input(input_names[0], _in)
+            ex.extract(output_names[0])
 
     time_min = sys.float_info.max
     time_max = -sys.float_info.max
@@ -67,9 +71,10 @@ def benchmark(comment, _in, opt):
     for i in range(g_loop_count):
         start = time.time()
 
+        # test net keep alive until ex freed
         ex = net.create_extractor()
-        ex.input("data", _in)
-        ex.extract("output")
+        ex.input(input_names[0], _in)
+        ex.extract(output_names[0])
 
         end = time.time()
 
@@ -78,10 +83,6 @@ def benchmark(comment, _in, opt):
         time_min = timespan if timespan < time_min else time_min
         time_max = timespan if timespan > time_max else time_max
         time_avg += timespan
-
-    # extractor need relese manually when build ncnn with vuklan,
-    # due to python relese ex after net, but in extractor.destruction use net
-    ex = None
 
     time_avg /= g_loop_count
 

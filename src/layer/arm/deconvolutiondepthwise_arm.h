@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class DeconvolutionDepthWise_arm : virtual public DeconvolutionDepthWise
+class DeconvolutionDepthWise_arm : public DeconvolutionDepthWise
 {
 public:
     DeconvolutionDepthWise_arm();
@@ -29,26 +29,25 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
+    int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif
+#if NCNN_BF16
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 
 public:
     std::vector<ncnn::Layer*> group_ops;
 
-    // packing
-    Mat weight_data_pack4;
-    Mat weight_data_pack1;
+    Mat weight_data_tm;
 
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
-
-    // bf16
-    Mat weight_data_bf16;
 };
 
 } // namespace ncnn

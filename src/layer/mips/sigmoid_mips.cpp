@@ -15,39 +15,41 @@
 #include "sigmoid_mips.h"
 
 #if __mips_msa
-#include "mips_common.h"
-#include "mips_mathfun.h"
-
 #include <msa.h>
+#include "msa_mathfun.h"
 #endif // __mips_msa
 
-#include <math.h>
+#include "mips_usability.h"
 
 namespace ncnn {
+
+Sigmoid_mips::Sigmoid_mips()
+{
+#if __mips_msa
+    support_packing = true;
+#endif
+}
 
 int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
-#if __mips_msa
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __mips_msa
-
+        int i = 0;
 #if __mips_msa
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = (v4f32)__msa_bnegi_w((v4u32)_p, 31);
             _p = exp_ps(_p);
@@ -58,9 +60,9 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
         }
 #endif // __mips_msa
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
-            *ptr = 1.f / (1.f + exp(-*ptr));
+            *ptr = 1.f / (1.f + expf(-*ptr));
 
             ptr++;
         }

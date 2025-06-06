@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class UnaryOp_arm : virtual public UnaryOp
+class UnaryOp_arm : public UnaryOp
 {
 public:
     UnaryOp_arm();
@@ -27,10 +27,12 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif
+#if NCNN_BF16
     int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

@@ -24,6 +24,8 @@ HardSigmoid::HardSigmoid()
 
 int HardSigmoid::load_param(const ParamDict& pd)
 {
+    // tensorflow uses alpha,beta = 0.2, 0.5
+    // pytorch uses alpha,beta = 1/6, 0.5
     alpha = pd.get(0, 0.2f);
     beta = pd.get(1, 0.5f);
     lower = -beta / alpha;

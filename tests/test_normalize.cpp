@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/normalize.h"
 #include "testutil.h"
 
 static int test_normalize(const ncnn::Mat& a, int across_spatial, int across_channel, int channel_shared, float eps, int eps_mode)
@@ -30,7 +29,7 @@ static int test_normalize(const ncnn::Mat& a, int across_spatial, int across_cha
     std::vector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(scale_data_size);
 
-    int ret = test_layer<ncnn::Normalize>("Normalize", pd, weights, a);
+    int ret = test_layer("Normalize", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_normalize failed a.dims=%d a=(%d %d %d) across_spatial=%d across_channel=%d channel_shared=%d eps=%f eps_mode=%d\n", a.dims, a.w, a.h, a.c, across_spatial, across_channel, channel_shared, eps, eps_mode);

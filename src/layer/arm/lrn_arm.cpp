@@ -14,12 +14,9 @@
 
 #include "lrn_arm.h"
 
-#include <math.h>
-
 #if __ARM_NEON
-#include "neon_mathfun.h"
-
 #include <arm_neon.h>
+#include "neon_mathfun.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -150,7 +147,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
             for (; remain > 0; remain--)
             {
-                *ptr = *ptr * pow(bias + alpha_div_size * *ssptr, -beta);
+                *ptr = *ptr * powf(bias + alpha_div_size * *ssptr, -beta);
 
                 ssptr++;
                 ptr++;
@@ -219,7 +216,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         ss += val;
                     }
 
-                    ptr[j] = ptr[j] * pow(bias + alpha_div_size * ss, -beta);
+                    ptr[j] = ptr[j] * powf(bias + alpha_div_size * ss, -beta);
                 }
 
                 ptr += outw;

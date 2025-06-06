@@ -71,17 +71,17 @@ static void conv3x3s1_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r11 = _mm256_loadu_ps(r1 + 8);
                     __m256 _r12 = _mm256_loadu_ps(r1 + 16);
 
-                    _sum0 = _mm256_fmadd_ps(_k10, _r10, _sum0);
-                    _sum1 = _mm256_fmadd_ps(_k11, _r11, _sum1);
-                    _sum2 = _mm256_fmadd_ps(_k12, _r12, _sum2);
+                    _sum0 = _mm256_comp_fmadd_ps(_k10, _r10, _sum0);
+                    _sum1 = _mm256_comp_fmadd_ps(_k11, _r11, _sum1);
+                    _sum2 = _mm256_comp_fmadd_ps(_k12, _r12, _sum2);
 
                     __m256 _r20 = _mm256_loadu_ps(r2);
                     __m256 _r21 = _mm256_loadu_ps(r2 + 8);
                     __m256 _r22 = _mm256_loadu_ps(r2 + 16);
 
-                    _sum0 = _mm256_fmadd_ps(_k20, _r20, _sum0);
-                    _sum1 = _mm256_fmadd_ps(_k21, _r21, _sum1);
-                    _sum2 = _mm256_fmadd_ps(_k22, _r22, _sum2);
+                    _sum0 = _mm256_comp_fmadd_ps(_k20, _r20, _sum0);
+                    _sum1 = _mm256_comp_fmadd_ps(_k21, _r21, _sum1);
+                    _sum2 = _mm256_comp_fmadd_ps(_k22, _r22, _sum2);
                     __m128 _sum = HorizontalSums(_sum0, _sum1, _sum2);
 
                     *outptr0 += _mm_reduce_add_ps(_sum); // dot

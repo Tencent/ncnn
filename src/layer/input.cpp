@@ -30,8 +30,8 @@ int Input::load_param(const ParamDict& pd)
 {
     w = pd.get(0, 0);
     h = pd.get(1, 0);
+    d = pd.get(11, 0);
     c = pd.get(2, 0);
-
     return 0;
 }
 

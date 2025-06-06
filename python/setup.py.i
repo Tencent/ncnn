@@ -1,3 +1,4 @@
+import sys
 from setuptools import setup, find_packages
 
 try:
@@ -28,9 +29,18 @@ setup(
     url="https://github.com/Tencent/ncnn",
     classifiers=[
         "Programming Language :: C++",
-        "Programming Language :: Python 3",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     license="BSD-3",
     python_requires=">=3.5",

@@ -27,7 +27,7 @@ def test_option():
     opt.lightmode = False
     assert opt.lightmode == False
 
-    assert opt.num_threads == ncnn.get_cpu_count()
+    assert opt.num_threads == ncnn.get_physical_big_cpu_count()
     opt.num_threads = 1
     assert opt.num_threads == 1
 
@@ -108,25 +108,10 @@ def test_option():
     opt.use_shader_pack8 = False
     assert opt.use_shader_pack8 == False
 
-    opt.use_subgroup_basic = True
-    assert opt.use_subgroup_basic == True
-    opt.use_subgroup_basic = False
-    assert opt.use_subgroup_basic == False
-
-    opt.use_subgroup_vote = True
-    assert opt.use_subgroup_vote == True
-    opt.use_subgroup_vote = False
-    assert opt.use_subgroup_vote == False
-
-    opt.use_subgroup_ballot = True
-    assert opt.use_subgroup_ballot == True
-    opt.use_subgroup_ballot = False
-    assert opt.use_subgroup_ballot == False
-
-    opt.use_subgroup_shuffle = True
-    assert opt.use_subgroup_shuffle == True
-    opt.use_subgroup_shuffle = False
-    assert opt.use_subgroup_shuffle == False
+    opt.use_subgroup_ops = True
+    assert opt.use_subgroup_ops == True
+    opt.use_subgroup_ops = False
+    assert opt.use_subgroup_ops == False
 
     opt.use_image_storage = True
     assert opt.use_image_storage == True
@@ -137,8 +122,3 @@ def test_option():
     assert opt.use_tensor_storage == True
     opt.use_tensor_storage = False
     assert opt.use_tensor_storage == False
-
-    opt.use_weight_fp16_storage = True
-    assert opt.use_weight_fp16_storage == True
-    opt.use_weight_fp16_storage = False
-    assert opt.use_weight_fp16_storage == False

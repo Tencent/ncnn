@@ -33,6 +33,7 @@ public:
     Mutex budgets_lock;
     Mutex payouts_lock;
     unsigned int size_compare_ratio; // 0~256
+    size_t size_drop_threshold;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -40,7 +41,8 @@ public:
 PoolAllocator::PoolAllocator()
     : Allocator(), d(new PoolAllocatorPrivate)
 {
-    d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_compare_ratio = 0;
+    d->size_drop_threshold = 10;
 }
 
 PoolAllocator::~PoolAllocator()
@@ -99,12 +101,17 @@ void PoolAllocator::set_size_compare_ratio(float scr)
     d->size_compare_ratio = (unsigned int)(scr * 256);
 }
 
+void PoolAllocator::set_size_drop_threshold(size_t threshold)
+{
+    d->size_drop_threshold = threshold;
+}
+
 void* PoolAllocator::fastMalloc(size_t size)
 {
     d->budgets_lock.lock();
 
     // find free budget
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin(), it_max = d->budgets.begin(), it_min = d->budgets.begin();
     for (; it != d->budgets.end(); ++it)
     {
         size_t bs = it->first;
@@ -125,6 +132,35 @@ void* PoolAllocator::fastMalloc(size_t size)
             d->payouts_lock.unlock();
 
             return ptr;
+        }
+
+        if (bs < it_min->first)
+        {
+            it_min = it;
+        }
+        if (bs > it_max->first)
+        {
+            it_max = it;
+        }
+    }
+
+    if (d->budgets.size() >= d->size_drop_threshold)
+    {
+        // All chunks in pool are not chosen. Then try to drop some outdated
+        // chunks and return them to OS.
+        if (it_max->first < size)
+        {
+            // Current query is asking for a chunk larger than any cached chunks.
+            // Then remove the smallest one.
+            ncnn::fastFree(it_min->second);
+            d->budgets.erase(it_min);
+        }
+        else if (it_min->first > size)
+        {
+            // Current query is asking for a chunk smaller than any cached chunks.
+            // Then remove the largest one.
+            ncnn::fastFree(it_max->second);
+            d->budgets.erase(it_max);
         }
     }
 
@@ -178,6 +214,7 @@ class UnlockedPoolAllocatorPrivate
 {
 public:
     unsigned int size_compare_ratio; // 0~256
+    size_t size_drop_threshold;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -185,7 +222,8 @@ public:
 UnlockedPoolAllocator::UnlockedPoolAllocator()
     : Allocator(), d(new UnlockedPoolAllocatorPrivate)
 {
-    d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_compare_ratio = 0;
+    d->size_drop_threshold = 10;
 }
 
 UnlockedPoolAllocator::~UnlockedPoolAllocator()
@@ -240,10 +278,15 @@ void UnlockedPoolAllocator::set_size_compare_ratio(float scr)
     d->size_compare_ratio = (unsigned int)(scr * 256);
 }
 
+void UnlockedPoolAllocator::set_size_drop_threshold(size_t threshold)
+{
+    d->size_drop_threshold = threshold;
+}
+
 void* UnlockedPoolAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin(), it_max = d->budgets.begin(), it_min = d->budgets.begin();
     for (; it != d->budgets.end(); ++it)
     {
         size_t bs = it->first;
@@ -258,6 +301,29 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
             d->payouts.push_back(std::make_pair(bs, ptr));
 
             return ptr;
+        }
+
+        if (bs > it_max->first)
+        {
+            it_max = it;
+        }
+        if (bs < it_min->first)
+        {
+            it_min = it;
+        }
+    }
+
+    if (d->budgets.size() >= d->size_drop_threshold)
+    {
+        if (it_max->first < size)
+        {
+            ncnn::fastFree(it_min->second);
+            d->budgets.erase(it_min);
+        }
+        else if (it_min->first > size)
+        {
+            ncnn::fastFree(it_max->second);
+            d->budgets.erase(it_max);
         }
     }
 
@@ -672,6 +738,16 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
         {
             // integrated gpu, prefer unified memory
             buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+            // on amd integrated gpu, there is a faster and larger device-only heap
+            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+            uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
+            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+            {
+                buffer_memory_type_index = device_local_memory_type_index;
+            }
         }
         else
         {
@@ -854,6 +930,11 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
     // find first spare space in image_memory_blocks
     for (int i = 0; i < image_memory_block_count; i++)
     {
+#if __APPLE__
+        // HACK moltenvk v1.2.3 is unhappy for image binding with offset  :(
+        break;
+#endif
+
         std::list<std::pair<size_t, size_t> >::iterator it = d->image_memory_budgets[i].begin();
         while (it != d->image_memory_budgets[i].end())
         {
@@ -919,6 +1000,16 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
         {
             // integrated gpu, prefer unified memory
             image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+            // on amd integrated gpu, there is a faster and larger device-only heap
+            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+            uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
+            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+            {
+                image_memory_type_index = device_local_memory_type_index;
+            }
         }
         else
         {
@@ -932,6 +1023,12 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
     // create new block
     size_t new_block_size = std::max(d->block_size, aligned_size);
+
+#if __APPLE__
+    // HACK moltenvk v1.2.3 is unhappy for image binding with offset
+    // always ignore block size for smaller memory footprint :(
+    new_block_size = aligned_size;
+#endif
 
     // bind at memory offset
     ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
@@ -1222,6 +1319,16 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 {
                     // integrated gpu, prefer unified memory
                     buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+                    // on amd integrated gpu, there is a faster and larger device-only heap
+                    uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+                    uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
+                    uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+                    if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+                    {
+                        buffer_memory_type_index = device_local_memory_type_index;
+                    }
                 }
                 else
                 {
@@ -1271,6 +1378,16 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         {
             // integrated gpu, prefer unified memory
             buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+            // on amd integrated gpu, there is a faster and larger device-only heap
+            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+            uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
+            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+            {
+                buffer_memory_type_index = device_local_memory_type_index;
+            }
         }
         else
         {
@@ -1407,6 +1524,16 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
                 {
                     // integrated gpu, prefer unified memory
                     image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+                    // on amd integrated gpu, there is a faster and larger device-only heap
+                    uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+                    uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
+                    uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+                    if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+                    {
+                        image_memory_type_index = device_local_memory_type_index;
+                    }
                 }
                 else
                 {
@@ -1501,6 +1628,16 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         {
             // integrated gpu, prefer unified memory
             image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+            // on amd integrated gpu, there is a faster and larger device-only heap
+            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+            uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
+            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+            {
+                image_memory_type_index = device_local_memory_type_index;
+            }
         }
         else
         {
@@ -1796,6 +1933,7 @@ void VkWeightStagingAllocator::fastFree(VkImageMemory* /*ptr*/)
 {
 }
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, AHardwareBuffer* _hb)
     : VkAllocator(_vkdev), hb(_hb)
@@ -1984,7 +2122,7 @@ int VkAndroidHardwareBufferImageAllocator::init()
     bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
     bufferProperties.pNext = &bufferFormatProperties;
 
-    ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
+    ret = vkdev->vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkGetAndroidHardwareBufferPropertiesANDROID failed %d", ret);
@@ -2034,6 +2172,7 @@ uint64_t VkAndroidHardwareBufferImageAllocator::external_format() const
     return bufferFormatProperties.externalFormat;
 }
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
 #endif // NCNN_VULKAN
 

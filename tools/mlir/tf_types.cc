@@ -230,7 +230,7 @@ ArrayRef<TensorType> TensorFlowTypeWithSubtype::GetSubtypes()
 
 // TODO(jpienaar): BroadcastCompatible and HasCompatibleElementTypes have
 // similar structure that could be extracted into helper method.
-bool BroadcastCompatible(ArrayRef<Type> lhs, ArrayRef<Type> rhs)
+bool BroadcastCompatible(TypeRange lhs, TypeRange rhs)
 {
     if (lhs.size() != rhs.size()) return false;
     for (auto types : llvm::zip(lhs, rhs))
@@ -293,7 +293,7 @@ bool BroadcastCompatible(ArrayRef<Type> lhs, ArrayRef<Type> rhs)
 // The two types are considered cast compatible if they have dynamically equal
 // shapes and element type. For element types that do not have subtypes, they
 // must be equal. However for TensorFlow types such as Resource and Variant,
-// that also have subtypes, we recursively check for subtype compatibilty for
+// that also have subtypes, we recursively check for subtype compatibility for
 // Resource types and assume all variant types are cast compatible. If either
 // one of `a` or `b` have empty subtypes, they are considered cast compatible.
 //
@@ -395,7 +395,7 @@ bool HasCompatibleElementTypes(Type lhs, Type rhs,
     return GetCastCompatibleType(lhs, rhs, may_ignore_ref_type_lhs) != nullptr;
 }
 
-bool AreCastCompatible(ArrayRef<Type> types)
+bool AreCastCompatible(TypeRange types)
 {
     Type common = types.front();
     for (auto type : types.drop_front())
@@ -407,7 +407,7 @@ bool AreCastCompatible(ArrayRef<Type> types)
     return true;
 }
 
-bool ArraysAreCastCompatible(ArrayRef<Type> lhs, ArrayRef<Type> rhs)
+bool ArraysAreCastCompatible(TypeRange lhs, TypeRange rhs)
 {
     if (lhs.size() != rhs.size()) return false;
     for (auto pair : llvm::zip(lhs, rhs))

@@ -38,7 +38,7 @@ RAM: 3G
 
 Benchmark method: 
 
-Run squeezenet, mobilenet inference 23 times in a loop, discard the the first three warmup records, and then calculate the average inference time
+Run squeezenet, mobilenet inference 23 times in a loop, discard the first three warmup records, and then calculate the average inference time
 
 Run vgg169 times in a loop, discard the first warmup record, and then calculate the average inference time
 
@@ -88,7 +88,7 @@ squeezenet
 ![](https://github.com/nihui/ncnn-assets/raw/master/20180413/8.jpg)
 ***
 
-mobilnet
+mobilenet
 
 ![](https://github.com/nihui/ncnn-assets/raw/master/20180413/9.jpg)
 

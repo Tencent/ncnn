@@ -1115,7 +1115,7 @@ message PriorBoxParameter {
   // Variance for adjusting the prior bboxes.
   repeated float variance = 6;
   // By default, we calculate img_height, img_width, step_x, step_y based on
-  // bottom[0] (feat) and bottom[1] (img). Unless these values are explicitely
+  // bottom[0] (feat) and bottom[1] (img). Unless these values are explicitly
   // provided.
   // Explicitly provide the img_size.
   optional uint32 img_size = 7;
@@ -1658,6 +1658,6 @@ message PReLUParameter {
 
   // Initial value of a_i. Default is a_i=0.25 for all i.
   optional FillerParameter filler = 1;
-  // Whether or not slope paramters are shared across channels.
+  // Whether or not slope parameters are shared across channels.
   optional bool channel_shared = 2 [default = false];
 }

@@ -1,4 +1,4 @@
-﻿// Tencent is pleased to support the open source community by making ncnn available.
+// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -13,8 +13,6 @@
 // specific language governing permissions and limitations under the License.
 
 #include "roialign_x86.h"
-
-#include <math.h>
 
 namespace ncnn {
 

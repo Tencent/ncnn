@@ -12,53 +12,42 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <mlir/IR/Matchers.h>
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/IR/Operation.h>
 #include <mlir/IR/PatternMatch.h>
+#include <mlir/Pass/Pass.h>
+#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 #include "tf_dialect.h"
 #include "ncnn_dialect.h"
 
 using namespace mlir;
 
-#include "ncnn_rewriter.inc"
-
 namespace mlir {
 
 namespace ncnn {
 
-void BinaryOpOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
+#include "ncnn_rewriter.inc"
+
+class NCNNOptimizePass : public PassWrapper<NCNNOptimizePass, FunctionPass>
 {
-    results.insert<FuseBinaryOpPattern0>(context);
-    results.insert<FuseBinaryOpPattern1>(context);
+public:
+    void runOnFunction();
+};
+
+void NCNNOptimizePass::runOnFunction()
+{
+    mlir::OwningRewritePatternList patterns;
+    mlir::ncnn::populateWithGenerated(&getContext(), patterns);
+
+    (void)mlir::applyPatternsAndFoldGreedily(getFunction(), std::move(patterns));
 }
 
-void KerasConv2DOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
+std::unique_ptr<OperationPass<FuncOp> > createNCNNOptimizePass()
 {
-    results.insert<FuseKerasConv2DOpPattern>(context);
+    return std::make_unique<NCNNOptimizePass>();
 }
 
-void KerasDenseOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
-{
-    results.insert<FuseKerasDenseOpPattern>(context);
-}
-
-void KerasBatchNormOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
-{
-    results.insert<FuseKerasBatchNormOpPattern>(context);
-}
-
-void InstanceNormOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
-{
-    results.insert<FuseInstanceNormPattern0>(context);
-    results.insert<FuseInstanceNormPattern1>(context);
-}
-
-void InstanceNormAffineOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
-{
-    results.insert<FuseInstanceNormAffinePattern>(context);
-}
+static PassRegistration<NCNNOptimizePass> pass("ncnn-optimize", "ncnn optimization");
 
 } // namespace ncnn
 

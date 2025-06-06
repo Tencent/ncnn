@@ -38,14 +38,14 @@ static int test_mat_pixel_rotate_c1(int w, int h)
 {
     ncnn::Mat a0 = RandomMat(w, h, 1);
 
-    ncnn::Mat a1(w, h, 1u, 1);
-    ncnn::Mat a2(w, h, 1u, 1);
-    ncnn::Mat a3(w, h, 1u, 1);
-    ncnn::Mat a4(w, h, 1u, 1);
-    ncnn::Mat a5(h, w, 1u, 1);
-    ncnn::Mat a6(w, h, 1u, 1);
-    ncnn::Mat a7(h, w, 1u, 1);
-    ncnn::Mat a8(w, h, 1u, 1);
+    ncnn::Mat a1(w, h, (size_t)1u, 1);
+    ncnn::Mat a2(w, h, (size_t)1u, 1);
+    ncnn::Mat a3(w, h, (size_t)1u, 1);
+    ncnn::Mat a4(w, h, (size_t)1u, 1);
+    ncnn::Mat a5(h, w, (size_t)1u, 1);
+    ncnn::Mat a6(w, h, (size_t)1u, 1);
+    ncnn::Mat a7(h, w, (size_t)1u, 1);
+    ncnn::Mat a8(w, h, (size_t)1u, 1);
 
     ncnn::kanna_rotate_c1(a0, w, h, a1, w, h, 1);
     ncnn::kanna_rotate_c1(a1, w, h, a2, w, h, 2);
@@ -69,14 +69,14 @@ static int test_mat_pixel_rotate_c2(int w, int h)
 {
     ncnn::Mat a0 = RandomMat(w, h, 2);
 
-    ncnn::Mat a1(w, h, 2u, 2);
-    ncnn::Mat a2(w, h, 2u, 2);
-    ncnn::Mat a3(w, h, 2u, 2);
-    ncnn::Mat a4(w, h, 2u, 2);
-    ncnn::Mat a5(h, w, 2u, 2);
-    ncnn::Mat a6(w, h, 2u, 2);
-    ncnn::Mat a7(h, w, 2u, 2);
-    ncnn::Mat a8(w, h, 2u, 2);
+    ncnn::Mat a1(w, h, (size_t)2u, 2);
+    ncnn::Mat a2(w, h, (size_t)2u, 2);
+    ncnn::Mat a3(w, h, (size_t)2u, 2);
+    ncnn::Mat a4(w, h, (size_t)2u, 2);
+    ncnn::Mat a5(h, w, (size_t)2u, 2);
+    ncnn::Mat a6(w, h, (size_t)2u, 2);
+    ncnn::Mat a7(h, w, (size_t)2u, 2);
+    ncnn::Mat a8(w, h, (size_t)2u, 2);
 
     ncnn::kanna_rotate_c2(a0, w, h, a1, w, h, 1);
     ncnn::kanna_rotate_c2(a1, w, h, a2, w, h, 2);
@@ -100,14 +100,14 @@ static int test_mat_pixel_rotate_c3(int w, int h)
 {
     ncnn::Mat a0 = RandomMat(w, h, 3);
 
-    ncnn::Mat a1(w, h, 3u, 3);
-    ncnn::Mat a2(w, h, 3u, 3);
-    ncnn::Mat a3(w, h, 3u, 3);
-    ncnn::Mat a4(w, h, 3u, 3);
-    ncnn::Mat a5(h, w, 3u, 3);
-    ncnn::Mat a6(w, h, 3u, 3);
-    ncnn::Mat a7(h, w, 3u, 3);
-    ncnn::Mat a8(w, h, 3u, 3);
+    ncnn::Mat a1(w, h, (size_t)3u, 3);
+    ncnn::Mat a2(w, h, (size_t)3u, 3);
+    ncnn::Mat a3(w, h, (size_t)3u, 3);
+    ncnn::Mat a4(w, h, (size_t)3u, 3);
+    ncnn::Mat a5(h, w, (size_t)3u, 3);
+    ncnn::Mat a6(w, h, (size_t)3u, 3);
+    ncnn::Mat a7(h, w, (size_t)3u, 3);
+    ncnn::Mat a8(w, h, (size_t)3u, 3);
 
     ncnn::kanna_rotate_c3(a0, w, h, a1, w, h, 1);
     ncnn::kanna_rotate_c3(a1, w, h, a2, w, h, 2);
@@ -131,14 +131,14 @@ static int test_mat_pixel_rotate_c4(int w, int h)
 {
     ncnn::Mat a0 = RandomMat(w, h, 4);
 
-    ncnn::Mat a1(w, h, 4u, 4);
-    ncnn::Mat a2(w, h, 4u, 4);
-    ncnn::Mat a3(w, h, 4u, 4);
-    ncnn::Mat a4(w, h, 4u, 4);
-    ncnn::Mat a5(h, w, 4u, 4);
-    ncnn::Mat a6(w, h, 4u, 4);
-    ncnn::Mat a7(h, w, 4u, 4);
-    ncnn::Mat a8(w, h, 4u, 4);
+    ncnn::Mat a1(w, h, (size_t)4u, 4);
+    ncnn::Mat a2(w, h, (size_t)4u, 4);
+    ncnn::Mat a3(w, h, (size_t)4u, 4);
+    ncnn::Mat a4(w, h, (size_t)4u, 4);
+    ncnn::Mat a5(h, w, (size_t)4u, 4);
+    ncnn::Mat a6(w, h, (size_t)4u, 4);
+    ncnn::Mat a7(h, w, (size_t)4u, 4);
+    ncnn::Mat a8(w, h, (size_t)4u, 4);
 
     ncnn::kanna_rotate_c4(a0, w, h, a1, w, h, 1);
     ncnn::kanna_rotate_c4(a1, w, h, a2, w, h, 2);
@@ -179,14 +179,14 @@ static int test_mat_pixel_rotate_yuv420sp(int w, int h)
 {
     ncnn::Mat a0 = RandomMat(w, h * 3 / 2, 1);
 
-    ncnn::Mat a1(w, h * 3 / 2, 1u, 1);
-    ncnn::Mat a2(w, h * 3 / 2, 1u, 1);
-    ncnn::Mat a3(w, h * 3 / 2, 1u, 1);
-    ncnn::Mat a4(w, h * 3 / 2, 1u, 1);
-    ncnn::Mat a5(h, w * 3 / 2, 1u, 1);
-    ncnn::Mat a6(w, h * 3 / 2, 1u, 1);
-    ncnn::Mat a7(h, w * 3 / 2, 1u, 1);
-    ncnn::Mat a8(w, h * 3 / 2, 1u, 1);
+    ncnn::Mat a1(w, h * 3 / 2, (size_t)1u, 1);
+    ncnn::Mat a2(w, h * 3 / 2, (size_t)1u, 1);
+    ncnn::Mat a3(w, h * 3 / 2, (size_t)1u, 1);
+    ncnn::Mat a4(w, h * 3 / 2, (size_t)1u, 1);
+    ncnn::Mat a5(h, w * 3 / 2, (size_t)1u, 1);
+    ncnn::Mat a6(w, h * 3 / 2, (size_t)1u, 1);
+    ncnn::Mat a7(h, w * 3 / 2, (size_t)1u, 1);
+    ncnn::Mat a8(w, h * 3 / 2, (size_t)1u, 1);
 
     ncnn::kanna_rotate_yuv420sp(a0, w, h, a1, w, h, 1);
     ncnn::kanna_rotate_yuv420sp(a1, w, h, a2, w, h, 2);

@@ -10,7 +10,7 @@ n01514859 hen
 n01518878 ostrich, Struthio camelus
 n01530575 brambling, Fringilla montifringilla
 n01531178 goldfinch, Carduelis carduelis
-n01532829 house finch, linnet, Carpodacus mexicanus
+n01532829 house finch, linnet, Carpodacus mexicans
 n01534433 junco, snowbird
 n01537544 indigo bunting, indigo finch, indigo bird, Passerina cyanea
 n01558993 robin, American robin, Turdus migratorius
@@ -120,7 +120,7 @@ n01978287 Dungeness crab, Cancer magister
 n01978455 rock crab, Cancer irroratus
 n01980166 fiddler crab
 n01981276 king crab, Alaska crab, Alaskan king crab, Alaska king crab, Paralithodes camtschatica
-n01983481 American lobster, Northern lobster, Maine lobster, Homarus americanus
+n01983481 American lobster, Northern lobster, Maine lobster, Homarus americans
 n01984695 spiny lobster, langouste, rock lobster, crawfish, crayfish, sea crawfish
 n01985128 crayfish, crawfish, crawdad, crawdaddy
 n01986214 hermit crab
@@ -293,7 +293,7 @@ n02129165 lion, king of beasts, Panthera leo
 n02129604 tiger, Panthera tigris
 n02130308 cheetah, chetah, Acinonyx jubatus
 n02132136 brown bear, bruin, Ursus arctos
-n02133161 American black bear, black bear, Ursus americanus, Euarctos americanus
+n02133161 American black bear, black bear, Ursus americans, Euarctos americans
 n02134084 ice bear, polar bear, Ursus Maritimus, Thalarctos maritimus
 n02134418 sloth bear, Melursus ursinus, Ursus ursinus
 n02137549 mongoose

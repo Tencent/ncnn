@@ -1,19 +1,29 @@
 name: release-python
+# on: [push, pull_request]
 on:
   push:
     tags:
       - '*'
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  MAC_DEPLOYMENT_TARGET: '11.0'
+  ENABLE_BITCODE: OFF
+  ENABLE_ARC: OFF
+  ENABLE_VISIBILITY: OFF
 
 jobs:
   build_sdist:
     name: Build SDist
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
 
     - name: Install deps
       run: python -m pip install twine build
@@ -24,33 +34,225 @@ jobs:
     - name: Check metadata
       run: twine check dist/*
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v4
       with:
+        name: sdist
         path: dist/*.tar.gz
 
-
   build_wheels:
-    name: Wheels on ${{ matrix.os }}
+    name: ${{ matrix.arch }} ${{ matrix.build_id }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - { os: ubuntu-24.04,     arch: x86_64,     build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04,     arch: x86_64,     build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04,     arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04,     arch: i686,       build: 'pp*',            build_id: pp           }
+          - { os: windows-2019,     arch: x86,        build: 'cp*',            build_id: cp           }
+          - { os: windows-2019,     arch: AMD64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-2019,     arch: AMD64,      build: 'pp*',            build_id: pp           }
+          - { os: windows-2019,     arch: ARM64,      build: 'cp*',            build_id: cp           }
+          - { os: macos-13,         arch: x86_64,     build: 'cp*',            build_id: cp           }
+          - { os: macos-13,         arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: macos-13,         arch: arm64,      build: 'cp*',            build_id: cp           }
+          - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'pp*',            build_id: pp           }
+
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
 
-    - name: Install cibuildwheel
-      run: python -m pip install cibuildwheel
-
-    - name: Build wheel
-      run: python -m cibuildwheel --output-dir wheelhouse
+    # build wheels for ubuntu-24.04
+    - name: Build wheels for ubuntu
+      if: matrix.os == 'ubuntu-24.04'
+      uses: pypa/cibuildwheel@v2.23.3
       env:
-        CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
+      with:
+        output-dir: wheelhouse
+
+    # build wheels for ubuntu-24.04 armv7l
+    - name: Build wheels for ubuntu armv7l
+      if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'armv7l')
+      uses: pypa/cibuildwheel@v2.23.3
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
+          CFLAGS="-mfpu=neon" CXXFLAGS="-mfpu=neon"
+      with:
+        output-dir: wheelhouse
+
+    # build wheels for ubuntu-24.04 aarch64
+    - name: Build wheels for ubuntu aarch64
+      if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'aarch64')
+      uses: pypa/cibuildwheel@v2.23.3
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
+      with:
+        output-dir: wheelhouse
+
+    # build wheels for windows-2019
+    - name: Build wheels for windows
+      if: matrix.os == 'windows-2019' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
+      uses: pypa/cibuildwheel@v2.23.3
+      env:
+        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=4
+        CIBW_BEFORE_BUILD: pip install delvewheel
+        CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel}
+      with:
+        output-dir: wheelhouse
+
+    - name: Build wheels for windows ARM64
+      if: matrix.os == 'windows-2019' && matrix.arch == 'ARM64'
+      uses: pypa/cibuildwheel@v2.23.3
+      env:
+        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=4
+        CIBW_BEFORE_BUILD: pip install delvewheel
+        CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel} --no-dll "msvcp140.dll;vcomp140.dll"
+      with:
+        output-dir: wheelhouse
+
+    # build wheels for macos-13
+    - name: cache-openmp for macos
+      if: matrix.os == 'macos-13'
+      id: cache-openmp
+      uses: actions/cache@v4
+      with:
+        path: openmp-install
+        key: openmp-macos-install-20240403
+
+    - name: openmp for macos
+      if: matrix.os == 'macos-13' && steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+
+    - name: openmp-build-x86_64 for macos
+      if: matrix.os == 'macos-13' && steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-x86_64 && cd build-x86_64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" ..
+        cmake --build . -j 4
+        cmake --build . --target install
+
+    - name: openmp-build-arm64 for macos
+      if: matrix.os == 'macos-13' && steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64 && cd build-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install
+
+    - name: openmp-merge-fat-library for macos
+      if: matrix.os == 'macos-13' && steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
+        lipo -create \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
+            -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+
+    - name: install-openmp for macos
+      if: matrix.os == 'macos-13'
+      run: |
+        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
+
+    - name: vulkansdk for macos
+      if: matrix.os == 'macos-13'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.3.290.0/mac/vulkansdk-macos-1.3.290.0.dmg?Human=true -O vulkansdk-macos-1.3.290.0.dmg
+        hdiutil attach vulkansdk-macos-1.3.290.0.dmg
+        sudo /Volumes/vulkansdk-macos-1.3.290.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.3.290.0 --accept-licenses --default-answer --confirm-command install
+
+    - name: Build wheels for macos x86_64
+      if: matrix.os == 'macos-13' && matrix.arch == 'x86_64'
+      uses: pypa/cibuildwheel@v2.23.3
+      env:
+        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=3
+          CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC ARCHS="x86_64"
+          DEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF
+          OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
+          OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
+          OpenMP_libomp_LIBRARY="libomp.a"
+          Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.290.0/macOS/lib/libMoltenVK.dylib
+          MACOSX_DEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET
+      with:
+        output-dir: wheelhouse
+
+    - name: Build wheels for macos arm64
+      if: matrix.os == 'macos-13' && matrix.arch == 'arm64'
+      uses: pypa/cibuildwheel@v2.23.3
+      env:
+        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=3
+          CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC_ARM64 ARCHS="arm64"
+          DEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF
+          OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
+          OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
+          OpenMP_libomp_LIBRARY="libomp.a"
+          Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.290.0/macOS/lib/libMoltenVK.dylib
+          MACOSX_DEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET
+      with:
+        output-dir: wheelhouse
 
     - name: Show files
       run: ls -lh wheelhouse
@@ -61,25 +263,29 @@ jobs:
       shell: bash
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
+        name: wheels-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.build_id }}
         path: wheelhouse/*.whl
 
   upload_all:
-    name: Upload if release
+    permissions:
+      contents: none
+    name: Upload
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
-    - uses: actions/setup-python@v2
-
-    - uses: actions/download-artifact@v2
+    - uses: actions/setup-python@v5
       with:
-        name: artifact
-        path: dist
+        python-version: '3.x'
 
-    - uses: pypa/gh-action-pypi-publish@v1.4.1
+    - uses: actions/download-artifact@v4
+      with:
+        path: dist
+        merge-multiple: true
+
+    - uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}

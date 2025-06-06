@@ -18,6 +18,7 @@
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
+#include <mlir/Pass/Pass.h>
 
 namespace mlir {
 
@@ -33,6 +34,8 @@ public:
         return "ncnn";
     }
 };
+
+std::unique_ptr<OperationPass<FuncOp> > createNCNNOptimizePass();
 
 } // namespace ncnn
 

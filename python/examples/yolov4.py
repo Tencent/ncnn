@@ -14,8 +14,6 @@
 
 import sys
 import cv2
-import numpy as np
-import ncnn
 from ncnn.model_zoo import get_model
 from ncnn.utils import draw_detection_objects
 
@@ -50,4 +48,4 @@ if __name__ == "__main__":
 
             objects = net(frame)
 
-            draw_detection_objects(m, net.class_names, objects)
+            draw_detection_objects(frame, net.class_names, objects)

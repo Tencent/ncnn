@@ -14,9 +14,13 @@
 
 #include "net.h"
 
+#if defined(USE_NCNN_SIMPLEOCV)
+#include "simpleocv.h"
+#else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#endif
 #include <stdio.h>
 #include <vector>
 
@@ -36,8 +40,10 @@ static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects, ncn
     // model is converted from https://github.com/eric612/MobileNet-YOLO
     // and can be downloaded from https://drive.google.com/open?id=1Wt6jKv13sBRMHgrGAJYlOlRF-o80pC0g
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    peleenet.load_param("pelee.param");
-    peleenet.load_model("pelee.bin");
+    if (peleenet.load_param("pelee.param"))
+        exit(-1);
+    if (peleenet.load_model("pelee.bin"))
+        exit(-1);
 
     const int target_size = 304;
 

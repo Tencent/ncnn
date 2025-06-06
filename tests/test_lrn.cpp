@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/lrn.h"
 #include "testutil.h"
 
 static int test_lrn(const ncnn::Mat& a, int region_type, int local_size, float alpha, float beta, float bias)
@@ -26,7 +25,7 @@ static int test_lrn(const ncnn::Mat& a, int region_type, int local_size, float a
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::LRN>("LRN", pd, weights, a);
+    int ret = test_layer("LRN", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_lrn failed a.dims=%d a=(%d %d %d) region_type=%d local_size=%d alpha=%f beta=%f bias=%f\n", a.dims, a.w, a.h, a.c, region_type, local_size, alpha, beta, bias);

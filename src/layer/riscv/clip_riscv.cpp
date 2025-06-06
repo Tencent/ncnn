@@ -14,47 +14,67 @@
 
 #include "clip_riscv.h"
 
+#if __riscv_vector
+#include <riscv_vector.h>
+#endif // __riscv_vector
+
+#include "cpu.h"
+
 namespace ncnn {
 
 Clip_riscv::Clip_riscv()
 {
+#if __riscv_vector
+    support_packing = true;
+#endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 }
 
 int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_ZFH
+    int elembits = bottom_top_blob.elembits();
+
+    if (opt.use_fp16_storage && elembits == 16)
+    {
+        return forward_inplace_fp16s(bottom_top_blob, opt);
+    }
+#endif
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
-        int remain = size;
-
 #if __riscv_vector
-        asm volatile(
-            "L0:                        \n"
-            "vsetvli    t0, %1, e32, m8 \n"
-            "vle32.v    v0, (%0)        \n"
-            "vfmax.vf   v0, v0, %4      \n"
-            "vfmin.vf   v0, v0, %5      \n"
-            "vse32.v    v0, (%0)        \n"
-            "slli       t1, t0, 2       \n"
-            "add        %0, %0, t1      \n"
-            "sub        %1, %1, t0      \n"
-            "bnez       %1, L0          \n"
-            : "=r"(ptr),   // %0
-            "=r"(remain) // %1
-            : "0"(ptr),
-            "1"(remain),
-            "f"(min), // %4
-            "f"(max)  // %5
-            : "cc", "memory", "t0", "t1");
+        int n = size;
+        while (n > 0)
+        {
+            size_t vl = __riscv_vsetvl_e32m8(n);
+
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+            _p = __riscv_vfmax_vf_f32m8(_p, min, vl);
+            _p = __riscv_vfmin_vf_f32m8(_p, max, vl);
+            __riscv_vse32_v_f32m8(ptr, _p, vl);
+
+            ptr += vl;
+            n -= vl;
+        }
 #else  // __riscv_vector
-        for (; remain > 0; remain--)
+        for (int i = 0; i < size; i++)
         {
             if (*ptr < min)
                 *ptr = min;

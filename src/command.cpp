@@ -177,6 +177,7 @@ public:
             {
                 uint32_t download_post_mat_fp16_offset;
                 uint32_t download_post_mat_offset;
+                int num_threads;
             } post_cast_float16_to_float32;
         };
     };
@@ -400,7 +401,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     int elemcount = 0;
     if (dims == 1) elemcount = src_fp16.elempack * src_fp16.w;
     if (dims == 2) elemcount = src_fp16.elempack * src_fp16.h;
-    if (dims == 3) elemcount = src_fp16.elempack * src_fp16.c;
+    if (dims == 3 || dims == 4) elemcount = src_fp16.elempack * src_fp16.c;
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
@@ -456,7 +457,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
     int elemcount = 0;
     if (dims == 1) elemcount = src_fp16.elempack * src_fp16.w;
     if (dims == 2) elemcount = src_fp16.elempack * src_fp16.h;
-    if (dims == 3) elemcount = src_fp16.elempack * src_fp16.c;
+    if (dims == 3 || dims == 4) elemcount = src_fp16.elempack * src_fp16.c;
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
@@ -465,7 +466,27 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
     // gpu cast to fp16 on the fly (integrated gpu)
-    vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
+    if (vkdev->info.bug_buffer_image_load_zero())
+    {
+        // clone buffer to bridge image
+        VkImageMat dst_image;
+        record_clone(dst_staging, dst_image, opt);
+        if (dst_image.empty())
+            return;
+
+        vkdev->convert_packing(dst_image, dst, dst_elempack, *this, opt);
+
+        // image and imageview can not be destroyed until command execution ends
+        NCNN_XADD(&dst_image.data->command_refcount, 1);
+        d->image_blocks_to_destroy.push_back(dst_image.data);
+
+        submit_and_wait();
+        reset();
+    }
+    else
+    {
+        vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
+    }
 }
 
 void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
@@ -477,7 +498,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     int elemcount = 0;
     if (dims == 1) elemcount = src.elempack * src.w;
     if (dims == 2) elemcount = src.elempack * src.h;
-    if (dims == 3) elemcount = src.elempack * src.c;
+    if (dims == 3 || dims == 4) elemcount = src.elempack * src.c;
 
     int dst_elempack = 1;
     if (opt.use_packing_layout)
@@ -492,17 +513,13 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         opt_staging.use_fp16_packed = false;
         opt_staging.use_fp16_storage = false;
     }
-
-    VkMat dst_staging;
-    if (opt_staging.blob_vkallocator->mappable)
-    {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
-    }
-    else
+    if (!opt_staging.blob_vkallocator->mappable)
     {
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
+
+    VkMat dst_staging;
+    vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
 
     // barrier device any @ compute to host-read @ compute
     if (dst_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
@@ -575,6 +592,8 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
                 dst.create(dst_fp16.w, dst_fp16.h, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
             if (dims == 3)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 4)
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
 
             d->download_post_mats.push_back(dst);
 
@@ -583,6 +602,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             r.command_buffer = 0;
             r.post_cast_float16_to_float32.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
             r.post_cast_float16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
+            r.post_cast_float16_to_float32.num_threads = opt.num_threads;
             d->delayed_records.push_back(r);
         }
         else
@@ -605,7 +625,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
     int elemcount = 0;
     if (dims == 1) elemcount = src.elempack * src.w;
     if (dims == 2) elemcount = src.elempack * src.h;
-    if (dims == 3) elemcount = src.elempack * src.c;
+    if (dims == 3 || dims == 4) elemcount = src.elempack * src.c;
 
     int dst_elempack = 1;
     if (opt.use_packing_layout)
@@ -620,17 +640,33 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
         opt_staging.use_fp16_packed = false;
         opt_staging.use_fp16_storage = false;
     }
+    if (!opt_staging.blob_vkallocator->mappable)
+    {
+        opt_staging.blob_vkallocator = opt.staging_vkallocator;
+    }
 
     VkMat dst_staging;
-    if (opt_staging.blob_vkallocator->mappable)
+    if (vkdev->info.bug_buffer_image_load_zero())
     {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
+        VkImageMat src_image;
+        vkdev->convert_packing(src, src_image, dst_elempack, *this, opt);
+        if (src_image.empty())
+            return;
+
+        record_clone(src_image, dst_staging, opt_staging);
+
+        // image and imageview can not be destroyed until command execution ends
+        NCNN_XADD(&src_image.data->command_refcount, 1);
+        d->image_blocks_to_destroy.push_back(src_image.data);
     }
     else
     {
-        opt_staging.blob_vkallocator = opt.staging_vkallocator;
         vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
+
+    // image and imageview can not be destroyed until command execution ends
+    NCNN_XADD(&src.data->command_refcount, 1);
+    d->image_blocks_to_destroy.push_back(src.data);
 
     // barrier device any @ compute to host-read @ compute
     if (dst_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
@@ -703,6 +739,8 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
                 dst.create(dst_fp16.w, dst_fp16.h, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
             if (dims == 3)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 4)
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
 
             d->download_post_mats.push_back(dst);
 
@@ -711,6 +749,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
             r.command_buffer = 0;
             r.post_cast_float16_to_float32.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
             r.post_cast_float16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
+            r.post_cast_float16_to_float32.num_threads = opt.num_threads;
             d->delayed_records.push_back(r);
         }
         else
@@ -733,7 +772,7 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
     int elemcount = 0;
     if (dims == 1) elemcount = src.elempack * src.w;
     if (dims == 2) elemcount = src.elempack * src.h;
-    if (dims == 3) elemcount = src.elempack * src.c;
+    if (dims == 3 || dims == 4) elemcount = src.elempack * src.c;
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
@@ -741,7 +780,24 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
-    vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
+    if (vkdev->info.bug_buffer_image_load_zero())
+    {
+        // clone buffer to bridge image
+        VkImageMat src_image;
+        record_clone(src, src_image, opt);
+        if (src_image.empty())
+            return;
+
+        vkdev->convert_packing(src_image, dst, dst_elempack, *this, opt);
+
+        // image and imageview can not be destroyed until command execution ends
+        NCNN_XADD(&src_image.data->command_refcount, 1);
+        d->image_blocks_to_destroy.push_back(src_image.data);
+    }
+    else
+    {
+        vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
+    }
 }
 
 void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt)
@@ -753,7 +809,7 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
     int elemcount = 0;
     if (dims == 1) elemcount = src.elempack * src.w;
     if (dims == 2) elemcount = src.elempack * src.h;
-    if (dims == 3) elemcount = src.elempack * src.c;
+    if (dims == 3 || dims == 4) elemcount = src.elempack * src.c;
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
@@ -761,7 +817,29 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
-    vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
+    if (vkdev->info.bug_buffer_image_load_zero())
+    {
+        VkImageMat src_image;
+        Option opt_image = opt;
+        opt_image.blob_vkallocator = src.allocator;
+        vkdev->convert_packing(src, src_image, dst_elempack, *this, opt_image);
+        if (src_image.empty())
+            return;
+
+        record_clone(src_image, dst, opt);
+
+        // image and imageview can not be destroyed until command execution ends
+        NCNN_XADD(&src_image.data->command_refcount, 1);
+        d->image_blocks_to_destroy.push_back(src_image.data);
+    }
+    else
+    {
+        vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
+    }
+
+    // image and imageview can not be destroyed until command execution ends
+    NCNN_XADD(&src.data->command_refcount, 1);
+    d->image_blocks_to_destroy.push_back(src.data);
 }
 
 void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
@@ -1427,14 +1505,14 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
 {
-    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.c, (void*)0);
+    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.d, dispatcher.c, (void*)0);
 
     record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
 }
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
 {
-    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.c, (void*)0);
+    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.d, dispatcher.c, (void*)0);
 
     record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
 }
@@ -1734,7 +1812,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     // record dispatch
     {
         uint32_t group_count_x = (dispatcher.w + pipeline->local_size_x() - 1) / pipeline->local_size_x();
-        uint32_t group_count_y = (dispatcher.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
+        uint32_t group_count_y = (dispatcher.h * (dispatcher.d ? dispatcher.d : 1) + pipeline->local_size_y() - 1) / pipeline->local_size_y();
         uint32_t group_count_z = (dispatcher.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
@@ -2269,6 +2347,7 @@ int VkCompute::submit_and_wait()
             case VkComputePrivate::record::TYPE_push_constants:
             {
                 vkCmdPushConstants(r.command_buffer, r.push_constants.pipeline_layout, r.push_constants.stage_flags, 0, r.push_constants.size, r.push_constants.values);
+                delete[](unsigned char*) r.push_constants.values;
                 break;
             }
             case VkComputePrivate::record::TYPE_dispatch:
@@ -2383,6 +2462,7 @@ int VkCompute::submit_and_wait()
             Mat& dst = d->download_post_mats[r.post_cast_float16_to_float32.download_post_mat_offset];
 
             Option opt;
+            opt.num_threads = r.post_cast_float16_to_float32.num_threads;
             opt.blob_allocator = dst.allocator;
             ncnn::cast_float16_to_float32(src, dst, opt);
             break;
@@ -2921,7 +3001,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         if (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0))
         {
             Mat src_fp16;
-            cast_float32_to_float16(src, src_fp16);
+            cast_float32_to_float16(src, src_fp16, opt);
 
             record_upload(src_fp16, dst, opt, flatten);
 
@@ -3095,12 +3175,12 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
     //     NCNN_LOGE("record_upload image src = %d | %d %d %d @ %d", src.dims, src.w, src.h, src.c, src.elempack);
 
     // NOTE keep the hack here ?
-    if (src.elemsize == src.elempack * 4u)
+    if (src.elembits() == 32)
     {
         if (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0))
         {
             Mat src_fp16;
-            cast_float32_to_float16(src, src_fp16);
+            cast_float32_to_float16(src, src_fp16, opt);
 
             record_upload(src_fp16, dst, opt);
 

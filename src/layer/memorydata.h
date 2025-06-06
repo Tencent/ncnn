@@ -33,7 +33,9 @@ public:
 public:
     int w;
     int h;
+    int d;
     int c;
+    int load_type;
 
     Mat data;
 };

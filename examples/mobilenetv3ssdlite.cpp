@@ -15,9 +15,13 @@
 #include "net.h"
 #include "platform.h"
 
+#if defined(USE_NCNN_SIMPLEOCV)
+#include "simpleocv.h"
+#else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#endif
 #include <stdio.h>
 #include <vector>
 #if NCNN_VULKAN
@@ -47,8 +51,10 @@ static int detect_mobilenetv3(const cv::Mat& bgr, std::vector<Object>& objects)
 #endif // NCNN_VULKAN
 
     // converted ncnn model from https://github.com/ujsyehao/mobilenetv3-ssd
-    mobilenetv3.load_param("./mobilenetv3_ssdlite_voc.param");
-    mobilenetv3.load_model("./mobilenetv3_ssdlite_voc.bin");
+    if (mobilenetv3.load_param("./mobilenetv3_ssdlite_voc.param"))
+        exit(-1);
+    if (mobilenetv3.load_model("./mobilenetv3_ssdlite_voc.bin"))
+        exit(-1);
 
     const int target_size = 300;
 

@@ -134,7 +134,7 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         int elempack = opt.use_shader_pack8 && num_slope % 8 == 0 ? 8 : num_slope % 4 == 0 ? 4 : 1;
 
         Mat slope_data_packed;
-        convert_packing(slope_data, slope_data_packed, elempack);
+        convert_packing(slope_data, slope_data_packed, elempack, opt);
 
         if (opt.use_image_storage)
         {
@@ -143,6 +143,11 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         else
         {
             cmd.record_upload(slope_data_packed, slope_data_gpu, opt);
+        }
+
+        if (opt.lightmode)
+        {
+            slope_data.release();
         }
     }
 

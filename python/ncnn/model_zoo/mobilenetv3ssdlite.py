@@ -40,7 +40,7 @@ class MobileNetV3_SSDLite:
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # converted ncnn model from https://github.com/ujsyehao/mobilenetv3-ssd
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("mobilenetv3_ssdlite_voc.param"))
         self.net.load_model(get_model_file("mobilenetv3_ssdlite_voc.bin"))
 

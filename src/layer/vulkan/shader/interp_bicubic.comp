@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #define shape_constant_id_offset 0
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
@@ -69,6 +62,40 @@ void main()
 
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
+
+    if (psc(dims) == 2)
+    {
+        int sx = xofs_blob_data[gx];
+
+#if NCNN_image_shader
+        afp b0 = image3d_ld1(bottom_blob, ivec3(sx - 1, gy, gz));
+        afp b1 = image3d_ld1(bottom_blob, ivec3(sx + 0, gy, gz));
+        afp b2 = image3d_ld1(bottom_blob, ivec3(sx + 1, gy, gz));
+        afp b3 = image3d_ld1(bottom_blob, ivec3(sx + 2, gy, gz));
+#else
+        int v_offset_1 = gz * psc(cstep) + gy * psc(w) + sx;
+
+        afp b0 = buffer_ld1(bottom_blob_data, v_offset_1 - 1);
+        afp b1 = buffer_ld1(bottom_blob_data, v_offset_1 + 0);
+        afp b2 = buffer_ld1(bottom_blob_data, v_offset_1 + 1);
+        afp b3 = buffer_ld1(bottom_blob_data, v_offset_1 + 2);
+#endif
+
+        afpvec4 alpha = buffer_ld4(alpha_blob_data, gx);
+
+        afpvec4 abcd = afpvec4(b0, b1, b2, b3);
+
+        afp v = dot(abcd, alpha);
+
+#if NCNN_image_shader
+        image3d_st1(top_blob, ivec3(gx, gy, gz), v);
+#else
+        const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+        buffer_st1(top_blob_data, gi, v);
+#endif
+        return;
+    }
 
     int sx = xofs_blob_data[gx];
     int sy = yofs_blob_data[gy];

@@ -28,13 +28,13 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
-    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-    float scale;
-    int bias_term;
+    int scale_data_size;
     int bias_data_size;
 
+    Mat scale_data;
     Mat bias_data;
 };
 

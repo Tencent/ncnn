@@ -30,9 +30,20 @@ Pooling_vulkan::Pooling_vulkan()
     pipeline_pooling = 0;
     pipeline_pooling_pack4 = 0;
     pipeline_pooling_pack8 = 0;
-    pipeline_pooling_global = 0;
-    pipeline_pooling_global_pack4 = 0;
-    pipeline_pooling_global_pack8 = 0;
+
+    pipeline_pooling_adaptive = 0;
+    pipeline_pooling_adaptive_pack4 = 0;
+    pipeline_pooling_adaptive_pack8 = 0;
+
+    pipeline_pooling_global_reduce_first = 0;
+    pipeline_pooling_global_reduce_first_pack4 = 0;
+    pipeline_pooling_global_reduce_first_pack8 = 0;
+    pipeline_pooling_global_reduce = 0;
+    pipeline_pooling_global_reduce_pack4 = 0;
+    pipeline_pooling_global_reduce_pack8 = 0;
+    pipeline_pooling_global_reduce_last = 0;
+    pipeline_pooling_global_reduce_last_pack4 = 0;
+    pipeline_pooling_global_reduce_last_pack8 = 0;
 }
 
 int Pooling_vulkan::create_pipeline(const Option& _opt)
@@ -117,7 +128,7 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        padding = ncnn::create_layer(ncnn::LayerType::Padding);
+        padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
 
         padding->bottom_shapes.resize(1);
@@ -134,7 +145,12 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
 
         if (pooling_type == PoolMethod_MAX)
         {
-            pd.set(5, -FLT_MAX);
+            // FLT_MAX becomes NaN during fp16 conversion in shader with swiftshader
+            // use a proper fp16-representable max as workaround   --- nihui
+            if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_fp16_arithmetic)
+                pd.set(5, -65000.f);
+            else
+                pd.set(5, -FLT_MAX);
         }
         else if (pooling_type == PoolMethod_AVE)
         {
@@ -147,6 +163,133 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
     }
 
     if (global_pooling)
+    {
+        // reduce first
+        {
+            std::vector<vk_specialization_type> specializations(6);
+            specializations[0].i = shape_bordered_packed.w;
+            specializations[1].i = shape_bordered_packed.h;
+            specializations[2].i = shape_bordered_packed.c;
+            specializations[3].i = shape_bordered_packed.cstep;
+            specializations[4].i = 0;
+            specializations[5].i = 0;
+
+            Mat local_size_xyz(64, 1, 1, (void*)0);
+
+            // pack1
+            if (shape.dims == 0 || elempack == 1)
+            {
+                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_first : LayerShaderType::pooling_global_reduce_sum_first;
+
+                pipeline_pooling_global_reduce_first = new Pipeline(vkdev);
+                pipeline_pooling_global_reduce_first->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_pooling_global_reduce_first->create(layer_shader_type, opt, specializations);
+            }
+
+            // pack4
+            if (shape.dims == 0 || elempack == 4)
+            {
+                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_first_pack4 : LayerShaderType::pooling_global_reduce_sum_first_pack4;
+
+                pipeline_pooling_global_reduce_first_pack4 = new Pipeline(vkdev);
+                pipeline_pooling_global_reduce_first_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_pooling_global_reduce_first_pack4->create(layer_shader_type, opt, specializations);
+            }
+
+            // pack8
+            if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
+            {
+                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_first_pack8 : LayerShaderType::pooling_global_reduce_sum_first_pack8;
+
+                pipeline_pooling_global_reduce_first_pack8 = new Pipeline(vkdev);
+                pipeline_pooling_global_reduce_first_pack8->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_pooling_global_reduce_first_pack8->create(layer_shader_type, opt, specializations);
+            }
+        }
+
+        // reduce more
+        {
+            std::vector<vk_specialization_type> specializations(5);
+            specializations[0].i = 0;
+            specializations[1].i = shape_bordered_packed.c;
+            specializations[2].i = 0;
+            specializations[3].i = 0;
+            specializations[4].i = 0;
+
+            Mat local_size_xyz(64, 1, 1, (void*)0);
+
+            // pack1
+            if (shape.dims == 0 || elempack == 1)
+            {
+                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max : LayerShaderType::pooling_global_reduce_sum;
+
+                pipeline_pooling_global_reduce = new Pipeline(vkdev);
+                pipeline_pooling_global_reduce->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_pooling_global_reduce->create(layer_shader_type, opt, specializations);
+            }
+
+            // pack4
+            if (shape.dims == 0 || elempack == 4)
+            {
+                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_pack4 : LayerShaderType::pooling_global_reduce_sum_pack4;
+
+                pipeline_pooling_global_reduce_pack4 = new Pipeline(vkdev);
+                pipeline_pooling_global_reduce_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_pooling_global_reduce_pack4->create(layer_shader_type, opt, specializations);
+            }
+
+            // pack8
+            if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
+            {
+                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_pack8 : LayerShaderType::pooling_global_reduce_sum_pack8;
+
+                pipeline_pooling_global_reduce_pack8 = new Pipeline(vkdev);
+                pipeline_pooling_global_reduce_pack8->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_pooling_global_reduce_pack8->create(layer_shader_type, opt, specializations);
+            }
+        }
+
+        // reduce last
+        {
+            std::vector<vk_specialization_type> specializations(3);
+            specializations[0].i = 0;
+            specializations[1].i = shape_bordered_packed.c;
+            specializations[2].i = 0;
+
+            Mat local_size_xyz(1, 1, 64, (void*)0);
+
+            // pack1
+            if (shape.dims == 0 || elempack == 1)
+            {
+                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_last : LayerShaderType::pooling_global_reduce_sum_last;
+
+                pipeline_pooling_global_reduce_last = new Pipeline(vkdev);
+                pipeline_pooling_global_reduce_last->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_pooling_global_reduce_last->create(layer_shader_type, opt, specializations);
+            }
+
+            // pack4
+            if (shape.dims == 0 || elempack == 4)
+            {
+                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_last_pack4 : LayerShaderType::pooling_global_reduce_sum_last_pack4;
+
+                pipeline_pooling_global_reduce_last_pack4 = new Pipeline(vkdev);
+                pipeline_pooling_global_reduce_last_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_pooling_global_reduce_last_pack4->create(layer_shader_type, opt, specializations);
+            }
+
+            // pack8
+            if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
+            {
+                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_last_pack8 : LayerShaderType::pooling_global_reduce_sum_last_pack8;
+
+                pipeline_pooling_global_reduce_last_pack8 = new Pipeline(vkdev);
+                pipeline_pooling_global_reduce_last_pack8->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_pooling_global_reduce_last_pack8->create(layer_shader_type, opt, specializations);
+            }
+        }
+    }
+    else if (adaptive_pooling)
     {
         std::vector<vk_specialization_type> specializations(1 + 10);
         specializations[0].i = pooling_type;
@@ -161,36 +304,36 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
         specializations[1 + 8].i = out_shape_packed.c;
         specializations[1 + 9].i = out_shape_packed.cstep;
 
-        Mat local_size_xyz(64, 1, 1, (void*)0);
+        Mat local_size_xyz;
         if (out_shape_packed.dims != 0)
         {
-            local_size_xyz.w = std::min(64, out_shape_packed.w);
-            local_size_xyz.h = 1;
-            local_size_xyz.c = 1;
+            local_size_xyz.w = std::min(4, out_shape_packed.w);
+            local_size_xyz.h = std::min(4, out_shape_packed.h);
+            local_size_xyz.c = std::min(4, out_shape_packed.c);
         }
 
         // pack1
         if (shape.dims == 0 || elempack == 1)
         {
-            pipeline_pooling_global = new Pipeline(vkdev);
-            pipeline_pooling_global->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_global->create(LayerShaderType::pooling_global, opt, specializations);
+            pipeline_pooling_adaptive = new Pipeline(vkdev);
+            pipeline_pooling_adaptive->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_pooling_adaptive->create(LayerShaderType::pooling_adaptive, opt, specializations);
         }
 
         // pack4
         if (shape.dims == 0 || elempack == 4)
         {
-            pipeline_pooling_global_pack4 = new Pipeline(vkdev);
-            pipeline_pooling_global_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_global_pack4->create(LayerShaderType::pooling_global_pack4, opt, specializations);
+            pipeline_pooling_adaptive_pack4 = new Pipeline(vkdev);
+            pipeline_pooling_adaptive_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_pooling_adaptive_pack4->create(LayerShaderType::pooling_adaptive_pack4, opt, specializations);
         }
 
         // pack8
         if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
         {
-            pipeline_pooling_global_pack8 = new Pipeline(vkdev);
-            pipeline_pooling_global_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_global_pack8->create(LayerShaderType::pooling_global_pack8, opt, specializations);
+            pipeline_pooling_adaptive_pack8 = new Pipeline(vkdev);
+            pipeline_pooling_adaptive_pack8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_pooling_adaptive_pack8->create(LayerShaderType::pooling_adaptive_pack8, opt, specializations);
         }
     }
     else
@@ -252,12 +395,6 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
-    // todo support adaptive_pooling in vulkan implementation
-    if (adaptive_pooling)
-    {
-        support_vulkan = false;
-    }
-
     return 0;
 }
 
@@ -282,14 +419,41 @@ int Pooling_vulkan::destroy_pipeline(const Option& _opt)
     delete pipeline_pooling_pack8;
     pipeline_pooling_pack8 = 0;
 
-    delete pipeline_pooling_global;
-    pipeline_pooling_global = 0;
+    delete pipeline_pooling_adaptive;
+    pipeline_pooling_adaptive = 0;
 
-    delete pipeline_pooling_global_pack4;
-    pipeline_pooling_global_pack4 = 0;
+    delete pipeline_pooling_adaptive_pack4;
+    pipeline_pooling_adaptive_pack4 = 0;
 
-    delete pipeline_pooling_global_pack8;
-    pipeline_pooling_global_pack8 = 0;
+    delete pipeline_pooling_adaptive_pack8;
+    pipeline_pooling_adaptive_pack8 = 0;
+
+    delete pipeline_pooling_global_reduce_first;
+    pipeline_pooling_global_reduce_first = 0;
+
+    delete pipeline_pooling_global_reduce_first_pack4;
+    pipeline_pooling_global_reduce_first_pack4 = 0;
+
+    delete pipeline_pooling_global_reduce_first_pack8;
+    pipeline_pooling_global_reduce_first_pack8 = 0;
+
+    delete pipeline_pooling_global_reduce;
+    pipeline_pooling_global_reduce = 0;
+
+    delete pipeline_pooling_global_reduce_pack4;
+    pipeline_pooling_global_reduce_pack4 = 0;
+
+    delete pipeline_pooling_global_reduce_pack8;
+    pipeline_pooling_global_reduce_pack8 = 0;
+
+    delete pipeline_pooling_global_reduce_last;
+    pipeline_pooling_global_reduce_last = 0;
+
+    delete pipeline_pooling_global_reduce_last_pack4;
+    pipeline_pooling_global_reduce_last_pack4 = 0;
+
+    delete pipeline_pooling_global_reduce_last_pack8;
+    pipeline_pooling_global_reduce_last_pack8 = 0;
 
     return 0;
 }
@@ -314,7 +478,117 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (global_pooling)
     {
-        top_blob.create(channels, elemsize, elempack, opt.blob_vkallocator);
+        // reduce first
+        VkMat reduced_blob;
+        {
+            int reduced_size = (w * h + 7) / 8;
+            size_t reduced_elemsize = pooling_type == 0 ? elemsize : 4u * elempack;
+            reduced_blob.create(reduced_size, 1, channels, reduced_elemsize, elempack, opt.workspace_vkallocator);
+            if (reduced_blob.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(2);
+            bindings[0] = bottom_blob;
+            bindings[1] = reduced_blob;
+
+            std::vector<vk_constant_type> constants(6);
+            constants[0].i = bottom_blob.w;
+            constants[1].i = bottom_blob.h;
+            constants[2].i = bottom_blob.c;
+            constants[3].i = bottom_blob.cstep;
+            constants[4].i = reduced_blob.w;
+            constants[5].i = reduced_blob.cstep;
+
+            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_first_pack8
+                                       : elempack == 4 ? pipeline_pooling_global_reduce_first_pack4
+                                       : pipeline_pooling_global_reduce_first;
+
+            VkMat dispatcher;
+            dispatcher.w = reduced_blob.w;
+            dispatcher.h = 1;
+            dispatcher.c = bottom_blob.c;
+
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        }
+
+        // reduce more
+        while (reduced_blob.w > 32)
+        {
+            int reduced_size = (reduced_blob.w + 7) / 8;
+            size_t reduced_elemsize = pooling_type == 0 ? elemsize : 4u * elempack;
+            VkMat reduced_blob2;
+            reduced_blob2.create(reduced_size, 1, channels, reduced_elemsize, elempack, opt.workspace_vkallocator);
+            if (reduced_blob2.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(2);
+            bindings[0] = reduced_blob;
+            bindings[1] = reduced_blob2;
+
+            std::vector<vk_constant_type> constants(5);
+            constants[0].i = reduced_blob.w;
+            constants[1].i = reduced_blob.c;
+            constants[2].i = reduced_blob.cstep;
+            constants[3].i = reduced_blob2.w;
+            constants[4].i = reduced_blob2.cstep;
+
+            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_pack8
+                                       : elempack == 4 ? pipeline_pooling_global_reduce_pack4
+                                       : pipeline_pooling_global_reduce;
+
+            VkMat dispatcher;
+            dispatcher.w = reduced_blob2.w;
+            dispatcher.h = 1;
+            dispatcher.c = reduced_blob2.c;
+
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+
+            reduced_blob = reduced_blob2;
+        }
+
+        // reduce last
+        {
+            top_blob.create(channels, elemsize, elempack, opt.blob_vkallocator);
+            if (top_blob.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(2);
+            bindings[0] = reduced_blob;
+            bindings[1] = top_blob;
+
+            std::vector<vk_constant_type> constants(4);
+            constants[0].i = reduced_blob.w;
+            constants[1].i = reduced_blob.c;
+            constants[2].i = reduced_blob.cstep;
+            constants[3].i = w * h;
+
+            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_last_pack8
+                                       : elempack == 4 ? pipeline_pooling_global_reduce_last_pack4
+                                       : pipeline_pooling_global_reduce_last;
+
+            VkMat dispatcher;
+            dispatcher.w = 1;
+            dispatcher.h = 1;
+            dispatcher.c = top_blob.w;
+
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        }
+
+        return 0;
+    }
+
+    if (adaptive_pooling)
+    {
+        int _out_w = out_w == -233 ? w : out_w;
+        int _out_h = out_h == -233 ? h : out_h;
+
+        if (_out_w == w && _out_h == h)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(_out_w, _out_h, channels, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -334,9 +608,9 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_pack8
-                                   : elempack == 4 ? pipeline_pooling_global_pack4
-                                   : pipeline_pooling_global;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_adaptive_pack8
+                                   : elempack == 4 ? pipeline_pooling_adaptive_pack4
+                                   : pipeline_pooling_adaptive;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -490,7 +764,117 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
     if (global_pooling)
     {
-        top_blob.create(channels, elemsize, elempack, opt.blob_vkallocator);
+        // reduce first
+        VkImageMat reduced_blob;
+        {
+            int reduced_size = (w * h + 7) / 8;
+            size_t reduced_elemsize = pooling_type == 0 ? elemsize : 4u * elempack;
+            reduced_blob.create(reduced_size, 1, channels, reduced_elemsize, elempack, opt.workspace_vkallocator);
+            if (reduced_blob.empty())
+                return -100;
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = bottom_blob;
+            bindings[1] = reduced_blob;
+
+            std::vector<vk_constant_type> constants(6);
+            constants[0].i = bottom_blob.w;
+            constants[1].i = bottom_blob.h;
+            constants[2].i = bottom_blob.c;
+            constants[3].i = 0; //bottom_blob.cstep;
+            constants[4].i = reduced_blob.w;
+            constants[5].i = 0; //reduced_blob.cstep;
+
+            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_first_pack8
+                                       : elempack == 4 ? pipeline_pooling_global_reduce_first_pack4
+                                       : pipeline_pooling_global_reduce_first;
+
+            VkImageMat dispatcher;
+            dispatcher.w = reduced_blob.w;
+            dispatcher.h = 1;
+            dispatcher.c = bottom_blob.c;
+
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        }
+
+        // reduce more
+        while (reduced_blob.w > 32)
+        {
+            int reduced_size = (reduced_blob.w + 7) / 8;
+            size_t reduced_elemsize = pooling_type == 0 ? elemsize : 4u * elempack;
+            VkImageMat reduced_blob2;
+            reduced_blob2.create(reduced_size, 1, channels, reduced_elemsize, elempack, opt.workspace_vkallocator);
+            if (reduced_blob2.empty())
+                return -100;
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = reduced_blob;
+            bindings[1] = reduced_blob2;
+
+            std::vector<vk_constant_type> constants(5);
+            constants[0].i = reduced_blob.w;
+            constants[1].i = reduced_blob.c;
+            constants[2].i = 0; //reduced_blob.cstep;
+            constants[3].i = reduced_blob2.w;
+            constants[4].i = 0; //reduced_blob2.cstep;
+
+            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_pack8
+                                       : elempack == 4 ? pipeline_pooling_global_reduce_pack4
+                                       : pipeline_pooling_global_reduce;
+
+            VkImageMat dispatcher;
+            dispatcher.w = reduced_blob2.w;
+            dispatcher.h = 1;
+            dispatcher.c = reduced_blob2.c;
+
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+
+            reduced_blob = reduced_blob2;
+        }
+
+        // reduce last
+        {
+            top_blob.create(channels, elemsize, elempack, opt.blob_vkallocator);
+            if (top_blob.empty())
+                return -100;
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = reduced_blob;
+            bindings[1] = top_blob;
+
+            std::vector<vk_constant_type> constants(4);
+            constants[0].i = reduced_blob.w;
+            constants[1].i = reduced_blob.c;
+            constants[2].i = 0; //reduced_blob.cstep;
+            constants[3].i = w * h;
+
+            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_last_pack8
+                                       : elempack == 4 ? pipeline_pooling_global_reduce_last_pack4
+                                       : pipeline_pooling_global_reduce_last;
+
+            VkImageMat dispatcher;
+            dispatcher.w = 1;
+            dispatcher.h = 1;
+            dispatcher.c = top_blob.w;
+
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        }
+
+        return 0;
+    }
+
+    if (adaptive_pooling)
+    {
+        int _out_w = out_w == -233 ? w : out_w;
+        int _out_h = out_h == -233 ? h : out_h;
+
+        if (_out_w == w && _out_h == h)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(_out_w, _out_h, channels, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -510,9 +894,9 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         constants[8].i = top_blob.c;
         constants[9].i = 0; //top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_pack8
-                                   : elempack == 4 ? pipeline_pooling_global_pack4
-                                   : pipeline_pooling_global;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_adaptive_pack8
+                                   : elempack == 4 ? pipeline_pooling_adaptive_pack4
+                                   : pipeline_pooling_adaptive;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

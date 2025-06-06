@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Interp_vulkan : virtual public Interp
+class Interp_vulkan : public Interp
 {
 public:
     Interp_vulkan();

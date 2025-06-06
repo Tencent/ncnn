@@ -16,7 +16,6 @@
 
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -34,817 +33,873 @@ int Reduction::load_param(const ParamDict& pd)
     axes = pd.get(3, Mat());
     keepdims = pd.get(4, 0);
 
+    // the original reduction handle axes as blob with batch dimension
+    // ask user to regenerate param instead of producing wrong result
+    int fixbug0 = pd.get(5, 0);
+    if (fixbug0 == 0 && !axes.empty())
+    {
+        NCNN_LOGE("param is too old, please regenerate!");
+        return -1;
+    }
+
     return 0;
 }
 
-template<typename Op, typename Op2>
-static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool reduce_h, bool reduce_c, const Option& opt)
+template<typename Op>
+static float reduction(float v0, const float* ptr, int size)
 {
     Op op;
-    Op2 op2;
 
-    size_t elemsize = a.elemsize;
-    int dims = a.dims;
-
-    if (dims == 1)
+    float sum = v0;
+    for (int i = 0; i < size; i++)
     {
-        int w = a.w;
-        b.create(1, elemsize, opt.blob_allocator);
-        const float* ptr = a;
-
-        float sum = v0;
-        for (int i = 0; i < w; i++)
-        {
-            sum = op(sum, ptr[i]);
-        }
-        b[0] = sum;
-
-        return 0;
+        sum = op(sum, ptr[i]);
     }
 
-    if (dims == 2)
-    {
-        int w = a.w;
-        int h = a.h;
-
-        if (reduce_w && reduce_h)
-        {
-            // w h -> X X
-            b.create(1, elemsize, opt.blob_allocator);
-
-            Mat sums(h, elemsize, opt.workspace_allocator);
-            if (sums.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const float* ptr = a.row(i);
-
-                float sum = v0;
-                for (int j = 0; j < w; j++)
-                {
-                    sum = op(sum, ptr[j]);
-                }
-                sums[i] = sum;
-            }
-
-            float sum = v0;
-            for (int i = 0; i < h; i++)
-            {
-                sum = op2(sum, sums[i]);
-            }
-            b[0] = sum;
-
-            return 0;
-        }
-
-        if (reduce_w && !reduce_h)
-        {
-            // w h -> X h
-            b.create(h, elemsize, opt.blob_allocator);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const float* ptr = a.row(i);
-
-                float sum = v0;
-                for (int j = 0; j < w; j++)
-                {
-                    sum = op(sum, ptr[j]);
-                }
-                b[i] = sum;
-            }
-            return 0;
-        }
-
-        if (!reduce_w && reduce_h)
-        {
-            // w h -> w X
-            b.create(w, elemsize, opt.blob_allocator);
-            b.fill(v0);
-
-            for (int i = 0; i < h; i++)
-            {
-                const float* ptr = a.row(i);
-                for (int j = 0; j < w; j++)
-                {
-                    b[j] = op(b[j], ptr[j]);
-                }
-            }
-            return 0;
-        }
-    }
-
-    if (dims == 3)
-    {
-        int w = a.w;
-        int h = a.h;
-        int channels = a.c;
-        int size = w * h;
-
-        if (reduce_w && reduce_h && reduce_c)
-        {
-            // w h c -> X X X
-            b.create(1, elemsize, opt.blob_allocator);
-            Mat sums(channels, elemsize, opt.workspace_allocator);
-            if (sums.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-
-                float sum = v0;
-                for (int i = 0; i < size; i++)
-                {
-                    sum = op(sum, ptr[i]);
-                }
-                sums[q] = sum;
-            }
-
-            float sum = v0;
-            for (int i = 0; i < channels; i++)
-            {
-                sum = op2(sum, sums[i]);
-            }
-            b[0] = sum;
-
-            return 0;
-        }
-
-        if (reduce_w && reduce_h && !reduce_c)
-        {
-            // w h c -> X X c
-            b.create(channels, elemsize, opt.blob_allocator);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-
-                float sum = v0;
-                for (int i = 0; i < size; i++)
-                {
-                    sum = op(sum, ptr[i]);
-                }
-                b[q] = sum;
-            }
-
-            return 0;
-        }
-
-        if (reduce_w && !reduce_h && !reduce_c)
-        {
-            // w h c -> X h c
-            b.create(h, channels, elemsize, opt.blob_allocator);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                float* outptr = b.row(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    float sum = v0;
-                    for (int j = 0; j < w; j++)
-                    {
-                        sum = op(sum, ptr[j]);
-                    }
-                    outptr[i] = sum;
-                    ptr += w;
-                }
-            }
-
-            return 0;
-        }
-
-        if (reduce_w && !reduce_h && reduce_c)
-        {
-            // w h c -> X h X
-            b.create(h, elemsize, opt.blob_allocator);
-            Mat mins(1, h, channels, elemsize, opt.workspace_allocator);
-            if (mins.empty())
-                return -100;
-
-            mins.fill(v0);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                float* mins_ptr = mins.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    float sum = v0;
-                    for (int j = 0; j < w; j++)
-                    {
-                        sum = op(sum, ptr[j]);
-                    }
-                    mins_ptr[i] = sum;
-                    ptr += w;
-                }
-            }
-
-            b.fill(v0);
-
-            for (int q = 0; q < channels; q++)
-            {
-                const float* mins_ptr = mins.channel(q);
-                for (int i = 0; i < h; i++)
-                {
-                    b[i] = op2(b[i], mins_ptr[i]);
-                }
-            }
-
-            return 0;
-        }
-
-        if (!reduce_w && reduce_h && reduce_c)
-        {
-            // w h c -> w X X
-            b.create(w, elemsize, opt.blob_allocator);
-
-            Mat mins(w, 1, channels, elemsize, opt.workspace_allocator);
-            if (mins.empty())
-                return -100;
-
-            mins.fill(v0);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                float* mins_ptr = mins.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    for (int j = 0; j < w; j++)
-                    {
-                        mins_ptr[j] = op(mins_ptr[j], ptr[j]);
-                    }
-                    ptr += w;
-                }
-            }
-
-            b.fill(v0);
-
-            for (int q = 0; q < channels; q++)
-            {
-                const float* mins_ptr = mins.channel(q);
-                for (int j = 0; j < w; j++)
-                {
-                    b[j] = op2(b[j], mins_ptr[j]);
-                }
-            }
-
-            return 0;
-        }
-
-        if (!reduce_w && !reduce_h && reduce_c)
-        {
-            // w h c -> w h X
-            b.create(w, h, elemsize, opt.blob_allocator);
-
-            b.fill(v0);
-
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    b[i] = op(b[i], ptr[i]);
-                }
-            }
-
-            return 0;
-        }
-
-        if (!reduce_w && reduce_h && !reduce_c)
-        {
-            // w h c -> w X c
-            b.create(w, channels, elemsize, opt.blob_allocator);
-
-            b.fill(v0);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                float* outptr = b.row(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    for (int j = 0; j < w; j++)
-                    {
-                        outptr[j] = op(outptr[j], ptr[j]);
-                    }
-                    ptr += w;
-                }
-            }
-            return 0;
-        }
-    }
-
-    return 0;
+    return sum;
 }
 
-template<typename Op, typename Op2>
-static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, bool reduce_h, bool reduce_c, const Option& opt)
+template<typename Op>
+static float reduction(float v0, const float* ptr, int size, int stride)
 {
     Op op;
-    Op2 op2;
 
-    size_t elemsize = a.elemsize;
-    int dims = a.dims;
-
-    if (dims == 1)
+    float sum = v0;
+    for (int i = 0; i < size; i++)
     {
-        int w = a.w;
-        b.create(1, elemsize, opt.blob_allocator);
-        const float* ptr = a;
-
-        float sum = v0;
-        for (int i = 0; i < w; i++)
-        {
-            sum = op(sum, ptr[i]);
-        }
-        b[0] = sum;
-
-        return 0;
+        sum = op(sum, *ptr);
+        ptr += stride;
     }
 
-    if (dims == 2)
-    {
-        int w = a.w;
-        int h = a.h;
-
-        if (reduce_w && reduce_h)
-        {
-            // w h -> 1 1
-            b.create(1, 1, elemsize, opt.blob_allocator);
-
-            Mat sums(h, elemsize, opt.workspace_allocator);
-            if (sums.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const float* ptr = a.row(i);
-
-                float sum = v0;
-                for (int j = 0; j < w; j++)
-                {
-                    sum = op(sum, ptr[j]);
-                }
-                sums[i] = sum;
-            }
-
-            float sum = v0;
-            for (int i = 0; i < h; i++)
-            {
-                sum = op2(sum, sums[i]);
-            }
-            b[0] = sum;
-
-            return 0;
-        }
-
-        if (reduce_w && !reduce_h)
-        {
-            // w h -> 1 h
-            b.create(1, h, elemsize, opt.blob_allocator);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const float* ptr = a.row(i);
-
-                float sum = v0;
-                for (int j = 0; j < w; j++)
-                {
-                    sum = op(sum, ptr[j]);
-                }
-                b[i] = sum;
-            }
-
-            return 0;
-        }
-
-        if (!reduce_w && reduce_h)
-        {
-            // w h -> w 1
-            b.create(w, 1, elemsize, opt.blob_allocator);
-            b.fill(v0);
-
-            for (int i = 0; i < h; i++)
-            {
-                const float* ptr = a.row(i);
-                for (int j = 0; j < w; j++)
-                {
-                    b[j] = op(b[j], ptr[j]);
-                }
-            }
-
-            return 0;
-        }
-    }
-
-    if (dims == 3)
-    {
-        int w = a.w;
-        int h = a.h;
-        int channels = a.c;
-        int size = w * h;
-
-        if (reduce_w && reduce_h && reduce_c)
-        {
-            // w h c -> 1 1 1
-            b.create(1, 1, 1, elemsize, opt.blob_allocator);
-            Mat sums(channels, elemsize, opt.workspace_allocator);
-            if (sums.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-
-                float sum = v0;
-                for (int i = 0; i < size; i++)
-                {
-                    sum = op(sum, ptr[i]);
-                }
-                sums[q] = sum;
-            }
-
-            float sum = v0;
-            for (int i = 0; i < channels; i++)
-            {
-                sum = op2(sum, sums[i]);
-            }
-            b[0] = sum;
-
-            return 0;
-        }
-
-        if (reduce_w && reduce_h && !reduce_c)
-        {
-            // w h c -> 1 1 c
-            b.create(1, 1, channels, elemsize, opt.blob_allocator);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                float* outptr = b.channel(q);
-
-                float sum = v0;
-                for (int i = 0; i < size; i++)
-                {
-                    sum = op(sum, ptr[i]);
-                }
-
-                outptr[0] = sum;
-            }
-
-            return 0;
-        }
-
-        if (reduce_w && !reduce_h && !reduce_c)
-        {
-            // w h c -> 1 h c
-            b.create(1, h, channels, elemsize, opt.blob_allocator);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                float* outptr = b.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    float sum = v0;
-                    for (int j = 0; j < w; j++)
-                    {
-                        sum = op(sum, ptr[j]);
-                    }
-                    outptr[i] = sum;
-                    ptr += w;
-                }
-            }
-
-            return 0;
-        }
-
-        if (reduce_w && !reduce_h && reduce_c)
-        {
-            // w h c -> 1 h 1
-            b.create(1, h, 1, elemsize, opt.blob_allocator);
-
-            Mat mins(1, h, channels, elemsize, opt.workspace_allocator);
-            if (mins.empty())
-                return -100;
-
-            mins.fill(v0);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                float* mins_ptr = mins.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    float sum = v0;
-                    for (int j = 0; j < w; j++)
-                    {
-                        sum = op(sum, ptr[j]);
-                    }
-                    mins_ptr[i] = sum;
-                    ptr += w;
-                }
-            }
-
-            b.fill(v0);
-
-            for (int q = 0; q < channels; q++)
-            {
-                const float* mins_ptr = mins.channel(q);
-                for (int i = 0; i < h; i++)
-                {
-                    b[i] = op2(b[i], mins_ptr[i]);
-                }
-            }
-
-            return 0;
-        }
-
-        if (!reduce_w && reduce_h && reduce_c)
-        {
-            // w h c -> w 1 1
-            b.create(w, 1, 1, elemsize, opt.blob_allocator);
-
-            Mat mins(w, 1, channels, elemsize, opt.workspace_allocator);
-            if (mins.empty())
-                return -100;
-
-            mins.fill(v0);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                float* mins_ptr = mins.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    for (int j = 0; j < w; j++)
-                    {
-                        mins_ptr[j] = op(mins_ptr[j], ptr[j]);
-                    }
-                    ptr += w;
-                }
-            }
-
-            b.fill(v0);
-
-            for (int q = 0; q < channels; q++)
-            {
-                const float* mins_ptr = mins.channel(q);
-                for (int j = 0; j < w; j++)
-                {
-                    b[j] = op2(b[j], mins_ptr[j]);
-                }
-            }
-
-            return 0;
-        }
-
-        if (!reduce_w && !reduce_h && reduce_c)
-        {
-            // w h c -> w h 1
-            b.create(w, h, 1, elemsize, opt.blob_allocator);
-
-            b.fill(v0);
-
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    b[i] = op(b[i], ptr[i]);
-                }
-            }
-
-            return 0;
-        }
-
-        if (!reduce_w && reduce_h && !reduce_c)
-        {
-            // w h c -> w 1 c
-            b.create(w, 1, channels, elemsize, opt.blob_allocator);
-            b.fill(v0);
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                float* outptr = b.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    for (int j = 0; j < w; j++)
-                    {
-                        outptr[j] = op(outptr[j], ptr[j]);
-                    }
-                    ptr += w;
-                }
-            }
-
-            return 0;
-        }
-    }
-
-    return 0;
+    return sum;
 }
 
-template<typename MathOp>
-static int reduction_post_process(Mat& a, float coeff, const Option& opt)
+template<typename Op>
+static float reduction(float v0, const float* ptr, int size0, int size1, int stride1)
 {
-    MathOp mathop;
+    Op op;
 
-    int dims = a.dims;
-    if (dims == 1)
+    float sum = v0;
+    for (int i = 0; i < size1; i++)
     {
-        int w = a.w;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < w; i++)
-            a[i] = mathop(a[i]) * coeff;
-    }
-    else if (dims == 2)
-    {
-        int size = a.w * a.h;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-            a[i] = mathop(a[i]) * coeff;
-    }
-    else if (dims == 3)
-    {
-        int c = a.c;
-        int size = a.w * a.h;
-        if (c == 1)
+        for (int j = 0; j < size0; j++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < size; i++)
-                a[i] = mathop(a[i]) * coeff;
+            sum = op(sum, ptr[j]);
         }
-        else
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < c; q++)
-            {
-                float* outptr = a.channel(q);
-                for (int i = 0; i < size; i++)
-                    outptr[i] = mathop(outptr[i]) * coeff;
-            }
-        }
+        ptr += stride1;
     }
 
-    return 0;
+    return sum;
 }
 
-template<typename Op, typename Op2, typename Op3>
-static int reduction(const Mat& a, Mat& b, float v0, bool reduce_w, bool reduce_h, bool reduce_c, bool post_process, float coeff, int keepdims, const Option& opt)
+template<typename Op>
+static float reduction(float v0, const float* ptr, int size0, int stride0, int size1, int stride1)
 {
-    int ret;
-    if (keepdims)
-        ret = reduction_op_keepdims<Op, Op2>(a, b, v0, reduce_w, reduce_h, reduce_c, opt);
-    else
-        ret = reduction_op<Op, Op2>(a, b, v0, reduce_w, reduce_h, reduce_c, opt);
-    if (ret != 0)
-        return -100;
+    Op op;
 
-    if (post_process || fabs(coeff - 1.f) > FLT_EPSILON)
+    float sum = v0;
+    for (int i = 0; i < size1; i++)
     {
-        ret = reduction_post_process<Op3>(b, coeff, opt);
-        if (ret != 0)
-            return -100;
+        const float* ptr0 = ptr;
+        for (int j = 0; j < size0; j++)
+        {
+            sum = op(sum, *ptr0);
+            ptr0 += stride0;
+        }
+        ptr += stride1;
     }
-    return ret;
+
+    return sum;
 }
 
-template<typename T>
-struct post_process_identity
-{
-    T operator()(const T& x) const
-    {
-        return x;
-    }
-};
-
-template<typename T>
-struct post_process_sqrt
-{
-    T operator()(const T& x) const
-    {
-        return static_cast<T>(sqrt(x));
-    }
-};
-
-template<typename T>
-struct post_process_log
-{
-    T operator()(const T& x) const
-    {
-        return static_cast<T>(log(x));
-    }
-};
-
-template<typename T>
 struct reduction_op_add
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return x + y;
     }
 };
 
-template<typename T>
 struct reduction_op_mul
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return x * y;
     }
 };
 
-template<typename T>
 struct reduction_op_asum
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
-        return static_cast<T>(x + fabs(y));
+        return x + fabsf(y);
     }
 };
 
-template<typename T>
 struct reduction_op_sumsq
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return x + y * y;
     }
 };
 
-template<typename T>
-struct reduction_op_sumsexp
+struct reduction_op_sumexp
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
-        return static_cast<T>(x + exp(y));
+        return x + expf(y);
     }
 };
 
-template<typename T>
 struct reduction_op_max
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return std::max(x, y);
     }
 };
 
-template<typename T>
 struct reduction_op_min
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return std::min(x, y);
     }
 };
 
+static float reduction(float v0, const float* ptr, int size, int op_type)
+{
+    if (op_type == Reduction::ReductionOp_SUM) return reduction<reduction_op_add>(v0, ptr, size);
+    if (op_type == Reduction::ReductionOp_ASUM) return reduction<reduction_op_asum>(v0, ptr, size);
+    if (op_type == Reduction::ReductionOp_SUMSQ) return reduction<reduction_op_sumsq>(v0, ptr, size);
+    if (op_type == Reduction::ReductionOp_PROD) return reduction<reduction_op_mul>(v0, ptr, size);
+    if (op_type == Reduction::ReductionOp_MAX) return reduction<reduction_op_max>(v0, ptr, size);
+    if (op_type == Reduction::ReductionOp_MIN) return reduction<reduction_op_min>(v0, ptr, size);
+    if (op_type == Reduction::ReductionOp_LogSumExp) return reduction<reduction_op_sumexp>(v0, ptr, size);
+
+    // should never reach here
+    return v0;
+}
+
+static float reduction(float v0, const float* ptr, int size, int stride, int op_type)
+{
+    if (op_type == Reduction::ReductionOp_SUM) return reduction<reduction_op_add>(v0, ptr, size, stride);
+    if (op_type == Reduction::ReductionOp_ASUM) return reduction<reduction_op_asum>(v0, ptr, size, stride);
+    if (op_type == Reduction::ReductionOp_SUMSQ) return reduction<reduction_op_sumsq>(v0, ptr, size, stride);
+    if (op_type == Reduction::ReductionOp_PROD) return reduction<reduction_op_mul>(v0, ptr, size, stride);
+    if (op_type == Reduction::ReductionOp_MAX) return reduction<reduction_op_max>(v0, ptr, size, stride);
+    if (op_type == Reduction::ReductionOp_MIN) return reduction<reduction_op_min>(v0, ptr, size, stride);
+    if (op_type == Reduction::ReductionOp_LogSumExp) return reduction<reduction_op_sumexp>(v0, ptr, size, stride);
+
+    // should never reach here
+    return v0;
+}
+
+static float reduction(float v0, const float* ptr, int size0, int size1, int stride1, int op_type)
+{
+    if (op_type == Reduction::ReductionOp_SUM) return reduction<reduction_op_add>(v0, ptr, size0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_ASUM) return reduction<reduction_op_asum>(v0, ptr, size0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_SUMSQ) return reduction<reduction_op_sumsq>(v0, ptr, size0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_PROD) return reduction<reduction_op_mul>(v0, ptr, size0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_MAX) return reduction<reduction_op_max>(v0, ptr, size0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_MIN) return reduction<reduction_op_min>(v0, ptr, size0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_LogSumExp) return reduction<reduction_op_sumexp>(v0, ptr, size0, size1, stride1);
+
+    // should never reach here
+    return v0;
+}
+
+static float reduction(float v0, const float* ptr, int size0, int stride0, int size1, int stride1, int op_type)
+{
+    if (op_type == Reduction::ReductionOp_SUM) return reduction<reduction_op_add>(v0, ptr, size0, stride0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_ASUM) return reduction<reduction_op_asum>(v0, ptr, size0, stride0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_SUMSQ) return reduction<reduction_op_sumsq>(v0, ptr, size0, stride0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_PROD) return reduction<reduction_op_mul>(v0, ptr, size0, stride0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_MAX) return reduction<reduction_op_max>(v0, ptr, size0, stride0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_MIN) return reduction<reduction_op_min>(v0, ptr, size0, stride0, size1, stride1);
+    if (op_type == Reduction::ReductionOp_LogSumExp) return reduction<reduction_op_sumexp>(v0, ptr, size0, stride0, size1, stride1);
+
+    // should never reach here
+    return v0;
+}
+
+static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, int keepdims, int operation, float coeff, const Option& opt)
+{
+    int op_type = Reduction::ReductionOp_SUM;
+    int op2_type = Reduction::ReductionOp_SUM;
+    float v0 = 0.f;
+
+    switch (operation)
+    {
+    case Reduction::ReductionOp_SUM:
+    case Reduction::ReductionOp_MEAN:
+    case Reduction::ReductionOp_LogSum:
+    {
+        break;
+    }
+    case Reduction::ReductionOp_ASUM:
+    case Reduction::ReductionOp_L1:
+    {
+        op_type = Reduction::ReductionOp_ASUM;
+        break;
+    }
+    case Reduction::ReductionOp_SUMSQ:
+    case Reduction::ReductionOp_L2:
+    {
+        op_type = Reduction::ReductionOp_SUMSQ;
+        break;
+    }
+    case Reduction::ReductionOp_MAX:
+    {
+        op_type = Reduction::ReductionOp_MAX;
+        op2_type = Reduction::ReductionOp_MAX;
+        v0 = -FLT_MAX;
+        break;
+    }
+    case Reduction::ReductionOp_MIN:
+    {
+        op_type = Reduction::ReductionOp_MIN;
+        op2_type = Reduction::ReductionOp_MIN;
+        v0 = FLT_MAX;
+        break;
+    }
+    case Reduction::ReductionOp_PROD:
+    {
+        op_type = Reduction::ReductionOp_PROD;
+        op2_type = Reduction::ReductionOp_PROD;
+        v0 = 1.f;
+        break;
+    }
+    case Reduction::ReductionOp_LogSumExp:
+    {
+        op_type = Reduction::ReductionOp_LogSumExp;
+        break;
+    }
+    default:
+    {
+        // should never reach here
+        break;
+    }
+    }
+
+    const size_t elemsize = a.elemsize;
+    const int dims = a.dims;
+
+    // NCNN_LOGE("%d  (%d %d %d %d)    %d %d %d %d", dims, a.w, a.h, a.d, a.c, reduce_w, reduce_h, reduce_d, reduce_c);
+
+    if (dims == 1)
+    {
+        const int w = a.w;
+        b.create(1, elemsize, opt.blob_allocator);
+
+        b[0] = reduction(v0, a, w, op_type);
+    }
+
+    if (dims == 2)
+    {
+        const int w = a.w;
+        const int h = a.h;
+
+        if (reduce_w && reduce_h)
+        {
+            // w h -> X X
+            if (keepdims)
+                b.create(1, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(1, elemsize, opt.blob_allocator);
+
+            Mat sums(h, elemsize, opt.workspace_allocator);
+            if (sums.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const float* ptr = a.row(i);
+
+                sums[i] = reduction(v0, ptr, w, op_type);
+            }
+
+            b[0] = reduction(v0, sums, h, op2_type);
+        }
+
+        if (reduce_w && !reduce_h)
+        {
+            // w h -> X h
+            if (keepdims)
+                b.create(1, h, elemsize, opt.blob_allocator);
+            else
+                b.create(h, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const float* ptr = a.row(i);
+
+                b[i] = reduction(v0, ptr, w, op_type);
+            }
+        }
+
+        if (!reduce_w && reduce_h)
+        {
+            // w h -> w X
+            if (keepdims)
+                b.create(w, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(w, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                b[i] = reduction(v0, (const float*)a + i, h, a.w, op_type);
+            }
+        }
+    }
+
+    if (dims == 3)
+    {
+        const int w = a.w;
+        const int h = a.h;
+        const int channels = a.c;
+        const int size = w * h;
+
+        if (reduce_w && reduce_h && reduce_c)
+        {
+            // w h c -> X X X
+            if (keepdims)
+                b.create(1, 1, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(1, elemsize, opt.blob_allocator);
+            Mat sums(channels, elemsize, opt.workspace_allocator);
+            if (sums.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+
+                sums[q] = reduction(v0, ptr, size, op_type);
+            }
+
+            b[0] = reduction(v0, sums, channels, op2_type);
+        }
+
+        if (reduce_w && reduce_h && !reduce_c)
+        {
+            // w h c -> X X c
+            if (keepdims)
+                b.create(1, 1, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* outptr = keepdims ? b.channel(q) : (float*)b + q;
+
+                outptr[0] = reduction(v0, ptr, size, op_type);
+            }
+        }
+
+        if (reduce_w && !reduce_h && reduce_c)
+        {
+            // w h c -> X h X
+            if (keepdims)
+                b.create(1, h, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(h, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                b[i] = reduction(v0, (const float*)a.row(i), w, channels, a.cstep, op_type);
+            }
+        }
+
+        if (!reduce_w && reduce_h && reduce_c)
+        {
+            // w h c -> w X X
+            if (keepdims)
+                b.create(w, 1, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(w, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < w; j++)
+            {
+                b[j] = reduction(v0, (const float*)a + j, h, w, channels, a.cstep, op_type);
+            }
+        }
+
+        if (reduce_w && !reduce_h && !reduce_c)
+        {
+            // w h c -> X h c
+            if (keepdims)
+                b.create(1, h, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(h, channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* outptr = keepdims ? b.channel(q) : b.row(q);
+
+                for (int i = 0; i < h; i++)
+                {
+                    outptr[i] = reduction(v0, ptr, w, op_type);
+                    ptr += w;
+                }
+            }
+        }
+
+        if (!reduce_w && !reduce_h && reduce_c)
+        {
+            // w h c -> w h X
+            if (keepdims)
+                b.create(w, h, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(w, h, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < size; i++)
+            {
+                b[i] = reduction(v0, (const float*)a + i, channels, a.cstep, op_type);
+            }
+        }
+
+        if (!reduce_w && reduce_h && !reduce_c)
+        {
+            // w h c -> w X c
+            if (keepdims)
+                b.create(w, 1, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(w, channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* outptr = keepdims ? b.channel(q) : b.row(q);
+
+                for (int j = 0; j < w; j++)
+                {
+                    outptr[j] = reduction(v0, ptr + j, h, w, op_type);
+                }
+            }
+        }
+    }
+
+    if (dims == 4)
+    {
+        const int w = a.w;
+        const int h = a.h;
+        const int d = a.d;
+        const int channels = a.c;
+        const int size = w * h * d;
+
+        if (reduce_w && reduce_h && reduce_d && reduce_c)
+        {
+            // w h d c -> X X X X
+            if (keepdims)
+                b.create(1, 1, 1, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(1, elemsize, opt.blob_allocator);
+            Mat sums(channels, elemsize, opt.workspace_allocator);
+            if (sums.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+
+                sums[q] = reduction(v0, ptr, size, op_type);
+            }
+
+            b[0] = reduction(v0, sums, channels, op2_type);
+        }
+
+        if (reduce_w && reduce_h && reduce_d && !reduce_c)
+        {
+            // w h d c -> X X X c
+            if (keepdims)
+                b.create(1, 1, 1, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* outptr = keepdims ? b.channel(q) : (float*)b + q;
+
+                outptr[0] = reduction(v0, ptr, size, op_type);
+            }
+        }
+
+        if (reduce_w && reduce_h && !reduce_d && reduce_c)
+        {
+            // w h d c -> X X d X
+            if (keepdims)
+                b.create(1, 1, d, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(d, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < d; i++)
+            {
+                b[i] = reduction(v0, (const float*)a.depth(i), w * h, channels, a.cstep, op_type);
+            }
+        }
+
+        if (reduce_w && !reduce_h && reduce_d && reduce_c)
+        {
+            // w h d c -> X h X X
+            if (keepdims)
+                b.create(1, h, 1, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(h, elemsize, opt.blob_allocator);
+            Mat mins(h, 1, channels, elemsize, opt.workspace_allocator);
+            if (mins.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* mins_ptr = mins.channel(q);
+
+                for (int j = 0; j < h; j++)
+                {
+                    mins_ptr[j] = reduction(v0, ptr, w, d, w * h, op_type);
+                    ptr += w;
+                }
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                b[i] = reduction(v0, (const float*)mins + i, channels, mins.cstep, op2_type);
+            }
+        }
+
+        if (!reduce_w && reduce_h && reduce_d && reduce_c)
+        {
+            // w h d c -> w X X X
+            if (keepdims)
+                b.create(w, 1, 1, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(w, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                b[i] = reduction(v0, (const float*)a + i, h * d, w, channels, a.cstep, op_type);
+            }
+        }
+
+        if (reduce_w && reduce_h && !reduce_d && !reduce_c)
+        {
+            // w h d c -> X X d c
+            if (keepdims)
+                b.create(1, 1, d, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(d, channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* outptr = keepdims ? b.channel(q) : b.row(q);
+
+                for (int i = 0; i < d; i++)
+                {
+                    outptr[i] = reduction(v0, ptr, w * h, op_type);
+                    ptr += w * h;
+                }
+            }
+        }
+
+        if (reduce_w && !reduce_h && !reduce_d && reduce_c)
+        {
+            // w h d c -> X h d X
+            if (keepdims)
+                b.create(1, h, d, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(h, d, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < d; i++)
+            {
+                float* bptr = keepdims ? b.depth(i) : b.row(i);
+
+                for (int j = 0; j < h; j++)
+                {
+                    bptr[j] = reduction(v0, a.depth(i).row(j), w, channels, a.cstep, op_type);
+                }
+            }
+        }
+
+        if (!reduce_w && !reduce_h && reduce_d && reduce_c)
+        {
+            // w h d c -> w h X X
+            if (keepdims)
+                b.create(w, h, 1, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(w, h, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                float* bptr = b.row(i);
+
+                for (int j = 0; j < w; j++)
+                {
+                    bptr[j] = reduction(v0, a.row(i) + j, d, w * h, channels, a.cstep, op_type);
+                }
+            }
+        }
+
+        if (reduce_w && !reduce_h && reduce_d && !reduce_c)
+        {
+            // w h d c -> X h X c
+            if (keepdims)
+                b.create(1, h, 1, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(h, channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* outptr = keepdims ? b.channel(q) : b.row(q);
+
+                for (int i = 0; i < h; i++)
+                {
+                    outptr[i] = reduction(v0, ptr, w, d, w * h, op_type);
+                    ptr += w;
+                }
+            }
+        }
+
+        if (!reduce_w && reduce_h && !reduce_d && reduce_c)
+        {
+            // w h d c -> w X d X
+            if (keepdims)
+                b.create(w, 1, d, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(w, d, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < d; i++)
+            {
+                float* bptr = b.row(i);
+
+                for (int j = 0; j < w; j++)
+                {
+                    bptr[j] = reduction(v0, (const float*)a.depth(i) + j, h, w, channels, a.cstep, op_type);
+                }
+            }
+        }
+
+        if (!reduce_w && reduce_h && reduce_d && !reduce_c)
+        {
+            // w h d c -> w X X c
+            if (keepdims)
+                b.create(w, 1, 1, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(w, channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* outptr = keepdims ? b.channel(q) : b.row(q);
+
+                for (int i = 0; i < w; i++)
+                {
+                    outptr[i] = reduction(v0, ptr + i, h * d, w, op_type);
+                }
+            }
+        }
+
+        if (reduce_w && !reduce_h && !reduce_d && !reduce_c)
+        {
+            // w h d c -> X h d c
+            if (keepdims)
+                b.create(1, h, d, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(h, d, channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* outptr = b.channel(q);
+
+                for (int i = 0; i < d * h; i++)
+                {
+                    outptr[i] = reduction(v0, ptr, w, op_type);
+                    ptr += w;
+                }
+            }
+        }
+
+        if (!reduce_w && !reduce_h && !reduce_d && reduce_c)
+        {
+            // w h d c -> w h d X
+            if (keepdims)
+                b.create(w, h, d, 1, elemsize, opt.blob_allocator);
+            else
+                b.create(w, h, d, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < d; i++)
+            {
+                float* outptr = keepdims ? b.depth(i) : b.channel(i);
+
+                for (int j = 0; j < w * h; j++)
+                {
+                    outptr[j] = reduction(v0, (const float*)a.depth(i) + j, channels, a.cstep, op_type);
+                }
+            }
+        }
+
+        if (!reduce_w && reduce_h && !reduce_d && !reduce_c)
+        {
+            // w h d c -> w X d c
+            if (keepdims)
+                b.create(w, 1, d, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(w, d, channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                Mat outm = b.channel(q);
+
+                for (int i = 0; i < d; i++)
+                {
+                    const float* ptr = a.channel(q).depth(i);
+                    float* outptr = outm.row(i);
+
+                    for (int k = 0; k < w; k++)
+                    {
+                        outptr[k] = reduction(v0, ptr + k, h, w, op_type);
+                    }
+                }
+            }
+        }
+
+        if (!reduce_w && !reduce_h && reduce_d && !reduce_c)
+        {
+            // w h d c -> w h X c
+            if (keepdims)
+                b.create(w, h, 1, channels, elemsize, opt.blob_allocator);
+            else
+                b.create(w, h, channels, elemsize, opt.blob_allocator);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                float* outptr = b.channel(q);
+
+                for (int j = 0; j < w * h; j++)
+                {
+                    outptr[j] = reduction(v0, ptr + j, d, w * h, op_type);
+                }
+            }
+        }
+    }
+
+    if (operation == Reduction::ReductionOp_LogSum || operation == Reduction::ReductionOp_LogSumExp)
+    {
+        const int size = b.total();
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < size; i++)
+        {
+            b[i] = logf(b[i]);
+        }
+    }
+
+    if (operation == Reduction::ReductionOp_L2)
+    {
+        const int size = b.total();
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < size; i++)
+        {
+            // math optimization will probably generate rsqrt
+            // that produce -inf on sse with subnormal input
+            // flush subnormal input to zero as a workaround
+            // TODO explicit use simd sqrt like unaryop     --- nihui
+            b[i] = sqrtf(b[i] < FLT_MIN ? 0.f : b[i]);
+        }
+    }
+
+    if (operation == Reduction::ReductionOp_MEAN)
+    {
+        int scale = 1;
+        if (dims == 1)
+        {
+            scale = a.w;
+        }
+        if (dims == 2)
+        {
+            if (reduce_w) scale *= a.w;
+            if (reduce_h) scale *= a.h;
+        }
+        if (dims == 3)
+        {
+            if (reduce_w) scale *= a.w;
+            if (reduce_h) scale *= a.h;
+            if (reduce_c) scale *= a.c;
+        }
+        if (dims == 4)
+        {
+            if (reduce_w) scale *= a.w;
+            if (reduce_h) scale *= a.h;
+            if (reduce_d) scale *= a.d;
+            if (reduce_c) scale *= a.c;
+        }
+
+        coeff = coeff / scale;
+    }
+
+    if (coeff != 1.f)
+    {
+        const int size = b.total();
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < size; i++)
+        {
+            b[i] = b[i] * coeff;
+        }
+    }
+
+    return 0;
+}
+
 int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int dims = bottom_blob.dims;
-    int axes_flag[3] = {0};
+    int axes_flag[4] = {0};
     bool reduce_w = false;
     bool reduce_h = false;
+    bool reduce_d = false;
     bool reduce_c = false;
 
     if (reduce_all)
     {
         reduce_w = true;
         reduce_h = true;
+        reduce_d = true;
         reduce_c = true;
     }
     else
@@ -857,8 +912,8 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             int axis = axes_ptr[i];
             // handle negative axis
             if (axis < 0)
-                axis += dims + 1;
-            axes_flag[axis - 1] = 1;
+                axis += dims;
+            axes_flag[axis] = 1;
         }
 
         if (dims == 1)
@@ -876,63 +931,16 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             if (axes_flag[1] == 1) reduce_h = true;
             if (axes_flag[2] == 1) reduce_w = true;
         }
+        else if (dims == 4)
+        {
+            if (axes_flag[0] == 1) reduce_c = true;
+            if (axes_flag[1] == 1) reduce_d = true;
+            if (axes_flag[2] == 1) reduce_h = true;
+            if (axes_flag[3] == 1) reduce_w = true;
+        }
     }
 
-    if (operation == ReductionOp_SUM)
-        return reduction<reduction_op_add<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
-
-    if (operation == ReductionOp_ASUM)
-        return reduction<reduction_op_asum<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
-
-    if (operation == ReductionOp_SUMSQ)
-        return reduction<reduction_op_sumsq<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
-
-    if (operation == ReductionOp_MEAN)
-    {
-        int scale = 1;
-        int dims = bottom_blob.dims;
-        if (dims == 1)
-        {
-            scale = bottom_blob.w;
-        }
-        else if (dims == 2)
-        {
-            if (reduce_w) scale *= bottom_blob.w;
-            if (reduce_h) scale *= bottom_blob.h;
-        }
-        else if (dims == 3)
-        {
-            if (reduce_w) scale *= bottom_blob.w;
-            if (reduce_h) scale *= bottom_blob.h;
-            if (reduce_c) scale *= bottom_blob.c;
-        }
-
-        float coeff_mean = coeff / scale;
-        return reduction<reduction_op_add<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, coeff_mean, keepdims, opt);
-    }
-
-    if (operation == ReductionOp_MAX)
-        return reduction<reduction_op_max<float>, reduction_op_max<float>, post_process_identity<float> >(bottom_blob, top_blob, -FLT_MAX, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
-
-    if (operation == ReductionOp_MIN)
-        return reduction<reduction_op_min<float>, reduction_op_min<float>, post_process_identity<float> >(bottom_blob, top_blob, FLT_MAX, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
-
-    if (operation == ReductionOp_PROD)
-        return reduction<reduction_op_mul<float>, reduction_op_mul<float>, post_process_identity<float> >(bottom_blob, top_blob, 1.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
-
-    if (operation == ReductionOp_L1)
-        return reduction<reduction_op_asum<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, 1.f, keepdims, opt);
-
-    if (operation == ReductionOp_L2)
-        return reduction<reduction_op_sumsq<float>, reduction_op_add<float>, post_process_sqrt<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
-
-    if (operation == ReductionOp_LogSum)
-        return reduction<reduction_op_add<float>, reduction_op_add<float>, post_process_log<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
-
-    if (operation == ReductionOp_LogSumExp)
-        return reduction<reduction_op_sumsexp<float>, reduction_op_add<float>, post_process_log<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
-
-    return 0;
+    return reduction_op(bottom_blob, top_blob, reduce_w, reduce_h, reduce_d, reduce_c, keepdims, operation, coeff, opt);
 }
 
 } // namespace ncnn

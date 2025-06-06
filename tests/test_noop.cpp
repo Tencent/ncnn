@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/noop.h"
 #include "testutil.h"
 
 static int test_noop(const ncnn::Mat& a)
@@ -24,7 +23,7 @@ static int test_noop(const ncnn::Mat& a)
     std::vector<ncnn::Mat> as(1);
     as[0] = a;
 
-    int ret = test_layer<ncnn::Noop>("Noop", pd, weights, as, 1);
+    int ret = test_layer("Noop", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_noop failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);

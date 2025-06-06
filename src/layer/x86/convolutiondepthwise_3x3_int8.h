@@ -12,14 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static inline signed char float2int8(float v)
-{
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
-}
-
 static void convdw3x3s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)
 {
     int w = bottom_blob.w;

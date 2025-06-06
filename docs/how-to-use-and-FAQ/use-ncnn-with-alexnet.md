@@ -44,7 +44,7 @@ caffe2ncnn deploy.prototxt bvlc_alexnet.caffemodel alexnet.param alexnet.bin
 
 ### strip visible string
 
-It is already enough for deploying with param and bin file only, but there are visible strings in param file, it may not be suitable to distrubute plain neural network information in your APP.
+It is already enough for deploying with param and bin file only, but there are visible strings in param file, it may not be suitable to distribute plain neural network information in your APP.
 
 You can use ncnn2mem tool to convert plain model file to binary representation. It will generate alexnet.param.bin and two static array code files.
 ```
@@ -85,7 +85,7 @@ net.clear();
 
 ncnn Mat is the data structure for input and output data
 
-Input image should be converted to Mat, and substracted mean values and normalized when needed
+Input image should be converted to Mat, and subtracted mean values and normalized when needed
 
 ```cpp
 #include "mat.h"
@@ -103,7 +103,6 @@ Execute the network inference and retrieve the result
 ncnn::Mat in;// input blob as above
 ncnn::Mat out;
 ncnn::Extractor ex = net.create_extractor();
-ex.set_light_mode(true);
 ex.input("data", in);
 ex.extract("prob", out);
 ```
@@ -114,7 +113,6 @@ If you load model with binary param.bin file, you should use the enum value in a
 ncnn::Mat in;// input blob as above
 ncnn::Mat out;
 ncnn::Extractor ex = net.create_extractor();
-ex.set_light_mode(true);
 ex.input(alexnet_param_id::BLOB_data, in);
 ex.extract(alexnet_param_id::BLOB_prob, out);
 ```
@@ -131,10 +129,6 @@ for (int j=0; j<out_flatterned.w; j++)
 
 ### some tricks
 
-Set multithreading thread number with Extractor
-```cpp
-ex.set_num_threads(4);
-```
 Convert image colorspace and resize image with Mat convenient function, these functions are well optimized
 
 Support RGB2GRAY GRAY2RGB RGB2BGR etc, support scale up and scale down

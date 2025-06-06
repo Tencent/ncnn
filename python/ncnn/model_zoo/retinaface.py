@@ -33,7 +33,7 @@ class RetinaFace:
         # model is converted from
         # https://github.com/deepinsight/insightface/tree/master/RetinaFace#retinaface-pretrained-models
         # https://github.com/deepinsight/insightface/issues/669
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("mnet.25-opt.param"))
         self.net.load_model(get_model_file("mnet.25-opt.bin"))
 

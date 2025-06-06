@@ -34,6 +34,20 @@ using namespace ncnn;
 
 namespace py = pybind11;
 
+class DataReaderFromMemoryCopy : public DataReaderFromMemory
+{
+public:
+    explicit DataReaderFromMemoryCopy(const unsigned char*& mem)
+        : DataReaderFromMemory(mem)
+    {
+    }
+
+    virtual size_t reference(size_t size, const void** buf) const
+    {
+        return 0;
+    }
+};
+
 struct LayerFactory
 {
     std::string name;
@@ -148,7 +162,12 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("consumer", &Blob::consumer)
     .def_readwrite("shape", &Blob::shape);
 
-    py::class_<ModelBin, PyModelBin<> >(m, "ModelBin");
+    py::class_<ModelBin, PyModelBin<> >(m, "ModelBin")
+    .def(py::init<>())
+    .def("load", (Mat(ModelBin::*)(int, int) const) & ModelBin::load, py::arg("w"), py::arg("type"))
+    .def("load", (Mat(ModelBin::*)(int, int, int) const) & ModelBin::load, py::arg("w"), py::arg("h"), py::arg("type"))
+    .def("load", (Mat(ModelBin::*)(int, int, int, int) const) & ModelBin::load, py::arg("w"), py::arg("h"), py::arg("c"), py::arg("type"))
+    .def("load", (Mat(ModelBin::*)(int, int, int, int, int) const) & ModelBin::load, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::arg("type"));
     py::class_<ModelBinFromDataReader, ModelBin, PyModelBinOther<ModelBinFromDataReader> >(m, "ModelBinFromDataReader")
     .def(py::init<const DataReader&>(), py::arg("dr"))
     .def("load", &ModelBinFromDataReader::load, py::arg("w"), py::arg("type"));
@@ -180,6 +199,9 @@ PYBIND11_MODULE(ncnn, m)
 #endif // NCNN_VULKAN
     .def_readwrite("openmp_blocktime", &Option::openmp_blocktime)
     .def_readwrite("use_winograd_convolution", &Option::use_winograd_convolution)
+    .def_readwrite("use_winograd23_convolution", &Option::use_winograd23_convolution)
+    .def_readwrite("use_winograd43_convolution", &Option::use_winograd43_convolution)
+    .def_readwrite("use_winograd63_convolution", &Option::use_winograd63_convolution)
     .def_readwrite("use_sgemm_convolution", &Option::use_sgemm_convolution)
     .def_readwrite("use_int8_inference", &Option::use_int8_inference)
     .def_readwrite("use_vulkan_compute", &Option::use_vulkan_compute)
@@ -192,13 +214,9 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_int8_arithmetic", &Option::use_int8_arithmetic)
     .def_readwrite("use_packing_layout", &Option::use_packing_layout)
     .def_readwrite("use_shader_pack8", &Option::use_shader_pack8)
-    .def_readwrite("use_subgroup_basic", &Option::use_subgroup_basic)
-    .def_readwrite("use_subgroup_vote", &Option::use_subgroup_vote)
-    .def_readwrite("use_subgroup_ballot", &Option::use_subgroup_ballot)
-    .def_readwrite("use_subgroup_shuffle", &Option::use_subgroup_shuffle)
+    .def_readwrite("use_subgroup_ops", &Option::use_subgroup_ops)
     .def_readwrite("use_image_storage", &Option::use_image_storage)
-    .def_readwrite("use_tensor_storage", &Option::use_tensor_storage)
-    .def_readwrite("use_weight_fp16_storage", &Option::use_weight_fp16_storage);
+    .def_readwrite("use_tensor_storage", &Option::use_tensor_storage);
 
     py::class_<Mat> mat(m, "Mat", py::buffer_protocol());
     mat.def(py::init<>())
@@ -214,12 +232,14 @@ PYBIND11_MODULE(ncnn, m)
             mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
             break;
         case 3:
-            mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
-                          elemsize, elempack, allocator);
+            mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, allocator);
+            break;
+        case 4:
+            mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, allocator);
             break;
         default:
             std::stringstream ss;
-            ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+            ss << "shape must be 1, 2, 3 or 4 dims, not " << shape.size();
             pybind11::pybind11_fail(ss.str());
         }
         return mat;
@@ -235,35 +255,22 @@ PYBIND11_MODULE(ncnn, m)
     .def(py::init<int, int, int, size_t, int, Allocator*>(),
          py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(),
          py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def(py::init<int, int, int, int, size_t, int, Allocator*>(),
+         py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(),
+         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
 
     .def(py::init<const Mat&>(), py::arg("m"))
 
     .def(py::init([](py::buffer const b) {
         py::buffer_info info = b.request();
-        if (info.ndim > 3)
+        if (info.ndim > 4)
         {
             std::stringstream ss;
-            ss << "convert numpy.ndarray to ncnn.Mat only dims <=3 support now, but given " << info.ndim;
+            ss << "convert numpy.ndarray to ncnn.Mat only dims <=4 support now, but given " << info.ndim;
             pybind11::pybind11_fail(ss.str());
         }
 
-        size_t elemsize = 4u;
-        if (info.format == py::format_descriptor<double>::format())
-        {
-            elemsize = 8u;
-        }
-        if (info.format == py::format_descriptor<float>::format() || info.format == py::format_descriptor<int>::format())
-        {
-            elemsize = 4u;
-        }
-        else if (info.format == "e")
-        {
-            elemsize = 2u;
-        }
-        else if (info.format == py::format_descriptor<int8_t>::format() || info.format == py::format_descriptor<uint8_t>::format())
-        {
-            elemsize = 1u;
-        }
+        size_t elemsize = info.itemsize;
 
         Mat* v = nullptr;
         if (info.ndim == 1)
@@ -283,62 +290,33 @@ PYBIND11_MODULE(ncnn, m)
             // so we set the cstep as numpy's cstep
             v->cstep = (int)info.shape[2] * (int)info.shape[1];
         }
-        return v;
+        else if (info.ndim == 4)
+        {
+            v = new Mat((int)info.shape[3], (int)info.shape[2], (int)info.shape[1], (int)info.shape[0], info.ptr, elemsize);
+
+            // in ncnn, buffer to construct ncnn::Mat need align to ncnn::alignSize
+            // with (w * h * d elemsize, 16) / elemsize, but the buffer from numpy not
+            // so we set the cstep as numpy's cstep
+            v->cstep = (int)info.shape[3] * (int)info.shape[2] * (int)info.shape[1];
+        }
+        return std::unique_ptr<Mat>(v);
     }),
     py::arg("array"))
     .def_buffer([](Mat& m) -> py::buffer_info {
-        if (m.elemsize != 1 && m.elemsize != 2 && m.elemsize != 4)
-        {
-            std::stringstream ss;
-            ss << "convert ncnn.Mat to numpy.ndarray only elemsize 1, 2, 4 support now, but given " << m.elemsize;
-            pybind11::pybind11_fail(ss.str());
-        }
-        if (m.elempack != 1)
-        {
-            std::stringstream ss;
-            ss << "convert ncnn.Mat to numpy.ndarray only elempack 1 support now, but given " << m.elempack;
-            pybind11::pybind11_fail(ss.str());
-        }
-        std::string format = get_mat_format(m);
-        std::vector<ssize_t> shape;
-        std::vector<ssize_t> strides;
-        if (m.dims == 1)
-        {
-            shape.push_back(m.w);
-            strides.push_back(m.elemsize);
-        }
-        else if (m.dims == 2)
-        {
-            shape.push_back(m.h);
-            shape.push_back(m.w);
-            strides.push_back(m.w * m.elemsize);
-            strides.push_back(m.elemsize);
-        }
-        else if (m.dims == 3)
-        {
-            shape.push_back(m.c);
-            shape.push_back(m.h);
-            shape.push_back(m.w);
-            strides.push_back(m.cstep * m.elemsize);
-            strides.push_back(m.w * m.elemsize);
-            strides.push_back(m.elemsize);
-        }
-        return py::buffer_info(
-            m.data,     /* Pointer to buffer */
-            m.elemsize, /* Size of one scalar */
-            format,     /* Python struct-style format descriptor */
-            m.dims,     /* Number of dimensions */
-            shape,      /* Buffer dimensions */
-            strides     /* Strides (in bytes) for each index */
-        );
+        return to_buffer_info(m);
     })
+    .def(
+    "numpy", [](py::object obj, const std::string& format = "") -> py::array {
+        auto* m = obj.cast<Mat*>();
+        return py::array(to_buffer_info(*m, format), obj);
+    },
+    py::arg("format") = "", "i for int32, f for float32, d for double")
     //.def("fill", (void (Mat::*)(int))(&Mat::fill), py::arg("v"))
     .def("fill", (void (Mat::*)(float))(&Mat::fill), py::arg("v"))
     .def("clone", &Mat::clone, py::arg("allocator") = nullptr)
     .def("clone_from", &Mat::clone_from, py::arg("mat"), py::arg("allocator") = nullptr)
     .def(
-        "reshape",
-    [](Mat& mat, py::tuple shape, Allocator* allocator) {
+    "reshape", [](Mat& mat, py::tuple shape, Allocator* allocator) {
         switch (shape.size())
         {
         case 1:
@@ -347,24 +325,23 @@ PYBIND11_MODULE(ncnn, m)
             return mat.reshape(shape[0].cast<int>(), shape[1].cast<int>(), allocator);
         case 3:
             return mat.reshape(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), allocator);
+        case 4:
+            return mat.reshape(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), allocator);
         default:
             std::stringstream ss;
-            ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+            ss << "shape must be 1, 2, 3 or 4 dims, not " << shape.size();
             pybind11::pybind11_fail(ss.str());
         }
         return Mat();
     },
     py::arg("shape") = py::tuple(1), py::arg("allocator") = nullptr)
-    .def("reshape", (Mat(Mat::*)(int, Allocator*) const) & Mat::reshape,
-         py::arg("w"), py::kw_only(), py::arg("allocator") = nullptr)
-    .def("reshape", (Mat(Mat::*)(int, int, Allocator*) const) & Mat::reshape,
-         py::arg("w"), py::arg("h"), py::kw_only(), py::arg("allocator") = nullptr)
-    .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape,
-         py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
+    .def("reshape", (Mat(Mat::*)(int, Allocator*) const) & Mat::reshape, py::arg("w"), py::kw_only(), py::arg("allocator") = nullptr)
+    .def("reshape", (Mat(Mat::*)(int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("allocator") = nullptr)
+    .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
+    .def("reshape", (Mat(Mat::*)(int, int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
 
     .def(
-        "create",
-    [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
+    "create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
         switch (shape.size())
         {
         case 1:
@@ -372,29 +349,22 @@ PYBIND11_MODULE(ncnn, m)
         case 2:
             return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
         case 3:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
-                              elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, allocator);
+        case 4:
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, allocator);
         default:
             std::stringstream ss;
-            ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+            ss << "shape must be 1, 2, 3 or 4 dims, not " << shape.size();
             pybind11::pybind11_fail(ss.str());
         }
         return;
     },
-    py::arg("shape"), py::kw_only(),
-    py::arg("elemsize") = 4, py::arg("elempack") = 1,
-    py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w"), py::kw_only(),
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w"), py::arg("h"), py::kw_only(),
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(),
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like,
-         py::arg("m"), py::arg("allocator") = nullptr)
+    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
     .def("release", &Mat::release)
     .def("empty", &Mat::empty)
@@ -403,9 +373,10 @@ PYBIND11_MODULE(ncnn, m)
     .def("shape", &Mat::shape)
     .def("channel", (Mat(Mat::*)(int)) & Mat::channel, py::arg("c"))
     //.def("channel", (const Mat (Mat::*)(int) const) & Mat::channel, py::arg("c"))
+    .def("depth", (Mat(Mat::*)(int)) & Mat::depth, py::arg("z"))
+    //.def("depth", (const Mat (Mat::*)(int) const) & Mat::depth, py::arg("z"))
     .def(
-        "row",
-    [](Mat& m, int y) {
+    "row", [](Mat& m, int y) {
         if (m.elempack != 1)
         {
             std::stringstream ss;
@@ -431,6 +402,8 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("y"))
     .def("channel_range", (Mat(Mat::*)(int, int)) & Mat::channel_range, py::arg("c"), py::arg("channels"))
     //.def("channel_range", (const Mat (Mat::*)(int, int) const) & Mat::channel_range, py::arg("c"), py::arg("channels"))
+    .def("depth_range", (Mat(Mat::*)(int, int)) & Mat::depth_range, py::arg("z"), py::arg("depths"))
+    //.def("depth_range", (const Mat (Mat::*)(int, int) const) & Mat::depth_range, py::arg("z"), py::arg("depths"))
     .def("row_range", (Mat(Mat::*)(int, int)) & Mat::row_range, py::arg("y"), py::arg("rows"))
     //.def("row_range", (const Mat (Mat::*)(int, int) const) & Mat::row_range, py::arg("y"), py::arg("rows"))
     .def("range", (Mat(Mat::*)(int, int)) & Mat::range, py::arg("x"), py::arg("n"))
@@ -445,6 +418,9 @@ PYBIND11_MODULE(ncnn, m)
         m[i] = v;
     },
     py::arg("i"), py::arg("v"))
+    .def("__len__", [](Mat& m) {
+        return m.w;
+    })
 
     //convenient construct from pixel data
     .def_static(
@@ -505,11 +481,12 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("dims", &Mat::dims)
     .def_readwrite("w", &Mat::w)
     .def_readwrite("h", &Mat::h)
+    .def_readwrite("d", &Mat::d)
     .def_readwrite("c", &Mat::c)
     .def_readwrite("cstep", &Mat::cstep)
     .def("__repr__", [](const Mat& m) {
         std::stringstream ss;
-        ss << "<ncnn.Mat w=" << m.w << " h=" << m.h << " c=" << m.c << " dims=" << m.dims
+        ss << "<ncnn.Mat w=" << m.w << " h=" << m.h << " d=" << m.d << " c=" << m.c << " dims=" << m.dims
            << " cstep=" << m.cstep << " elemsize=" << m.elemsize << " elempack=" << m.elempack << "\n\t"
            << "refcount=" << (m.refcount ? *m.refcount : 0) << " data=0x" << static_cast<const void*>(m.data)
            << " allocator=0x" << static_cast<const void*>(m.allocator) << ">\n";
@@ -717,6 +694,119 @@ PYBIND11_MODULE(ncnn, m)
             } // for k
             ss << "]\n";
         }
+        else if (m.dims == 4)
+        {
+            bool dot_printed_c = false;
+            ss << "[";
+            for (int k = 0; k < m.c; k++)
+            {
+                bool dot_printed_d = false;
+                if (k < max_count / 2 || k >= m.c - max_count / 2)
+                {
+                    Mat channel = m.channel(k);
+                    if (k > 0)
+                    {
+                        ss << " ";
+                    }
+                    ss << "[";
+                    for (int z = 0; z < channel.d; z++)
+                    {
+                        bool dot_printed_h = false;
+                        if (z < max_count / 2 || z >= channel.d - max_count / 2)
+                        {
+                            if (z > 0)
+                            {
+                                ss << "  ";
+                            }
+                            ss << "[";
+                            for (int j = 0; j < channel.h; j++)
+                            {
+                                bool dot_printed_w = false;
+                                if (j < max_count / 2 || j >= channel.h - max_count / 2)
+                                {
+                                    if (j > 0)
+                                    {
+                                        ss << "  ";
+                                    }
+                                    ss << "[";
+                                    if (m.elemsize == 1)
+                                    {
+                                        const int8_t* row = channel.depth(z).row<int8_t>(j);
+                                        for (int i = 0; i < channel.w; i++)
+                                        {
+                                            if (i < max_count / 2 || i >= channel.w - max_count / 2)
+                                            {
+                                                if (i > 0)
+                                                {
+                                                    ss << ", ";
+                                                }
+                                                ss << static_cast<int>(row[i]);
+                                            }
+                                            else if (!dot_printed_w)
+                                            {
+                                                dot_printed_w = true;
+                                                ss << ", ...";
+                                            }
+                                        }
+                                    }
+                                    if (m.elemsize == 4)
+                                    {
+                                        const float* row = channel.depth(z).row<float>(j);
+                                        for (int i = 0; i < m.w; i++)
+                                        {
+                                            if (i < max_count / 2 || i >= m.w - max_count / 2)
+                                            {
+                                                if (i > 0)
+                                                {
+                                                    ss << ", ";
+                                                }
+                                                ss << row[i];
+                                            }
+                                            else if (!dot_printed_w)
+                                            {
+                                                dot_printed_w = true;
+                                                ss << ", ...";
+                                            }
+                                        }
+                                    }
+                                    ss << "]";
+                                    if (j < channel.h - 1)
+                                    {
+                                        ss << "\n";
+                                    }
+                                }
+                                else if (!dot_printed_h)
+                                {
+                                    dot_printed_h = true;
+                                    ss << "  ...\n";
+                                }
+                            } // for j
+                            ss << "]";
+                            if (z < channel.d - 1)
+                            {
+                                ss << "\n";
+                            }
+                        }
+                        else if (!dot_printed_d)
+                        {
+                            dot_printed_d = true;
+                            ss << " ...\n";
+                        }
+                    } // for z
+                    ss << "]";
+                    if (k < m.c - 1)
+                    {
+                        ss << "\n\n";
+                    }
+                }
+                else if (!dot_printed_c)
+                {
+                    dot_printed_c = true;
+                    ss << " ...\n";
+                }
+            } // for k
+            ss << "]\n";
+        }
         return ss.str();
     });
 
@@ -757,32 +847,33 @@ PYBIND11_MODULE(ncnn, m)
     .value("PIXEL_BGRA2RGBA", ncnn::Mat::PixelType::PIXEL_BGRA2RGBA);
 
     py::class_<Extractor>(m, "Extractor")
+    .def("__enter__", [](Extractor& ex) -> Extractor& { return ex; })
+    .def("__exit__", [](Extractor& ex, pybind11::args) {
+        ex.clear();
+    })
+    .def("clear", &Extractor::clear)
     .def("set_light_mode", &Extractor::set_light_mode, py::arg("enable"))
     .def("set_num_threads", &Extractor::set_num_threads, py::arg("num_threads"))
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
 #if NCNN_STRING
     .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
-    .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract,
-         py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
     .def(
-        "extract",
-    [](Extractor& ex, const char* blob_name, int type) {
+    "extract", [](Extractor& ex, const char* blob_name, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_name, feat, type);
-        return py::make_tuple(ret, feat);
+        return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_name"), py::arg("type") = 0)
 #endif
     .def("input", (int (Extractor::*)(int, const Mat&)) & Extractor::input)
-    .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract,
-         py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract, py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0)
     .def(
-        "extract",
-    [](Extractor& ex, int blob_index, int type) {
+    "extract", [](Extractor& ex, int blob_index, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_index, feat, type);
-        return py::make_tuple(ret, feat);
+        return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_index"), py::arg("type") = 0);
 
@@ -799,8 +890,6 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("support_bf16_storage", &Layer::support_bf16_storage)
     .def_readwrite("support_fp16_storage", &Layer::support_fp16_storage)
     .def_readwrite("support_image_storage", &Layer::support_image_storage)
-    .def_readwrite("use_int8_inference", &Layer::use_int8_inference)
-    .def_readwrite("support_weight_fp16_storage", &Layer::support_weight_fp16_storage)
     .def("forward", (int (Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
          py::arg("bottom_blobs"), py::arg("top_blobs"), py::arg("opt"))
     .def("forward", (int (Layer::*)(const Mat&, Mat&, const Option&) const) & Layer::forward,
@@ -822,19 +911,20 @@ PYBIND11_MODULE(ncnn, m)
     py::class_<Net>(m, "Net")
     .def(py::init<>())
     .def_readwrite("opt", &Net::opt)
+    .def("__enter__", [](Net& net) -> Net& { return net; })
+    .def("__exit__", [](Net& net, pybind11::args) {
+        net.clear();
+    })
 
 #if NCNN_VULKAN
     .def("set_vulkan_device", (void (Net::*)(int)) & Net::set_vulkan_device, py::arg("device_index"))
     .def("set_vulkan_device", (void (Net::*)(const VulkanDevice*)) & Net::set_vulkan_device, py::arg("vkdev"))
-    .def("vulkan_device", &Net::vulkan_device)
+    .def("vulkan_device", &Net::vulkan_device, py::return_value_policy::reference_internal)
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
     .def(
-        "register_custom_layer",
-        [](Net& net, const char* type,
-           const std::function<ncnn::Layer*()>& creator,
-    const std::function<void(ncnn::Layer*)>& destroyer) {
+    "register_custom_layer", [](Net& net, const char* type, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
         if (g_layer_factroy_index == g_layer_factroys.size())
         {
             std::stringstream ss;
@@ -850,10 +940,7 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("type"), py::arg("creator"), py::arg("destroyer"))
 #endif //NCNN_STRING
     .def(
-        "register_custom_layer",
-        [](Net& net, int index,
-           const std::function<ncnn::Layer*()>& creator,
-    const std::function<void(ncnn::Layer*)>& destroyer) {
+    "register_custom_layer", [](Net& net, int index, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
         if (g_layer_factroy_index == g_layer_factroys.size())
         {
             std::stringstream ss;
@@ -876,13 +963,29 @@ PYBIND11_MODULE(ncnn, m)
 #if NCNN_STDIO
 #if NCNN_STRING
     .def("load_param", (int (Net::*)(const char*)) & Net::load_param, py::arg("protopath"))
+    .def("load_param_mem", (int (Net::*)(const char*)) & Net::load_param_mem, py::arg("mem"))
 #endif // NCNN_STRING
     .def("load_param_bin", (int (Net::*)(const char*)) & Net::load_param_bin, py::arg("protopath"))
     .def("load_model", (int (Net::*)(const char*)) & Net::load_model, py::arg("modelpath"))
+    .def(
+    "load_model_mem", [](Net& net, const char* mem) {
+        const unsigned char* _mem = (const unsigned char*)mem;
+        DataReaderFromMemoryCopy dr(_mem);
+        net.load_model(dr);
+    },
+    py::arg("mem"))
 #endif // NCNN_STDIO
 
     .def("clear", &Net::clear)
-    .def("create_extractor", &Net::create_extractor)
+    .def("create_extractor", &Net::create_extractor, py::keep_alive<0, 1>()) //net should be kept alive until retuned ex is freed by gc
+
+    .def("input_indexes", &Net::input_indexes, py::return_value_policy::reference)
+    .def("output_indexes", &Net::output_indexes, py::return_value_policy::reference)
+#if NCNN_STRING
+    .def("input_names", &Net::input_names, py::return_value_policy::reference)
+    .def("output_names", &Net::output_names, py::return_value_policy::reference)
+#endif // NCNN_STRING
+
     .def("blobs", &Net::blobs, py::return_value_policy::reference_internal)
     .def("layers", &Net::layers, py::return_value_policy::reference_internal);
 
@@ -894,9 +997,13 @@ PYBIND11_MODULE(ncnn, m)
     m.def("cpu_support_arm_vfpv4", &cpu_support_arm_vfpv4);
     m.def("cpu_support_arm_asimdhp", &cpu_support_arm_asimdhp);
     m.def("cpu_support_x86_avx2", &cpu_support_x86_avx2);
+    m.def("cpu_support_x86_avx", &cpu_support_x86_avx);
     m.def("get_cpu_count", &get_cpu_count);
     m.def("get_little_cpu_count", &get_little_cpu_count);
     m.def("get_big_cpu_count", &get_big_cpu_count);
+    m.def("get_physical_cpu_count", &get_physical_cpu_count);
+    m.def("get_physical_little_cpu_count", &get_physical_little_cpu_count);
+    m.def("get_physical_big_cpu_count", &get_physical_big_cpu_count);
     m.def("get_cpu_powersave", &get_cpu_powersave);
     m.def("set_cpu_powersave", &set_cpu_powersave, py::arg("powersave"));
     m.def("get_omp_num_threads", &get_omp_num_threads);
@@ -920,6 +1027,21 @@ PYBIND11_MODULE(ncnn, m)
     },
     py::arg("src"),
     py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"),
+    py::arg("type"), py::arg("v"), py::arg("opt") = Option());
+
+    m.def("copy_make_border_3d", &copy_make_border_3d,
+          py::arg("src"), py::arg("dst"),
+          py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"), py::arg("front"), py::arg("behind"),
+          py::arg("type"), py::arg("v"), py::arg("opt") = Option());
+    m.def(
+        "copy_make_border_3d",
+    [](const Mat& src, int top, int bottom, int left, int right, int front, int behind, int type, float v, const Option& opt) {
+        Mat dst;
+        copy_make_border_3d(src, dst, top, bottom, left, right, front, behind, type, v, opt);
+        return dst;
+    },
+    py::arg("src"),
+    py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"), py::arg("front"), py::arg("behind"),
     py::arg("type"), py::arg("v"), py::arg("opt") = Option());
 
     m.def("copy_cut_border", &copy_cut_border,
@@ -1075,19 +1197,19 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("src"),
     py::arg("opt") = Option());
 
-    m.def("quantize_float32_to_int8", &quantize_float32_to_int8,
+    m.def("quantize_to_int8", &quantize_to_int8,
           py::arg("src"), py::arg("dst"),
-          py::arg("scale"),
+          py::arg("scale_data"),
           py::arg("opt") = Option());
     m.def(
-        "quantize_float32_to_int8",
-    [](const Mat& src, float scale, const Option& opt) {
+        "quantize_to_int8",
+    [](const Mat& src, const Mat& scale_data, const Option& opt) {
         Mat dst;
-        quantize_float32_to_int8(src, dst, scale, opt);
+        quantize_to_int8(src, dst, scale_data, opt);
         return dst;
     },
     py::arg("src"),
-    py::arg("scale"),
+    py::arg("scale_data"),
     py::arg("opt") = Option());
 
 #if NCNN_STRING
@@ -1107,15 +1229,26 @@ PYBIND11_MODULE(ncnn, m)
 #endif //NCNN_STRING
 
 #if NCNN_VULKAN
-    m.def("create_gpu_instance", &create_gpu_instance);
+    m.def("create_gpu_instance", &create_gpu_instance, py::arg("driver_path") = ((const char*)0));
     m.def("destroy_gpu_instance", &destroy_gpu_instance);
     m.def("get_gpu_count", &get_gpu_count);
     m.def("get_default_gpu_index", &get_default_gpu_index);
-    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0);
-    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0);
+    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0, py::return_value_policy::reference);
+    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0, py::return_value_policy::reference);
+
+    py::class_<VkBufferMemory>(m, "VkBufferMemory")
+    .def_readwrite("offset", &VkBufferMemory::offset)
+    .def_readwrite("capacity", &VkBufferMemory::capacity)
+    .def_readwrite("refcount", &VkBufferMemory::refcount);
+
+    py::class_<VkImageMemory>(m, "VkImageMemory")
+    .def_readwrite("width", &VkImageMemory::width)
+    .def_readwrite("height", &VkImageMemory::height)
+    .def_readwrite("depth", &VkImageMemory::depth)
+    .def_readwrite("refcount", &VkImageMemory::refcount);
 
     py::class_<VkAllocator, PyVkAllocator<> >(m, "VkAllocator")
-    .def_readwrite("vkdev", &VkAllocator::vkdev)
+    .def_readonly("vkdev", &VkAllocator::vkdev)
     .def_readwrite("buffer_memory_type_index", &VkAllocator::buffer_memory_type_index)
     .def_readwrite("image_memory_type_index", &VkAllocator::image_memory_type_index)
     .def_readwrite("mappable", &VkAllocator::mappable)
@@ -1124,37 +1257,59 @@ PYBIND11_MODULE(ncnn, m)
     py::class_<VkBlobAllocator, VkAllocator, PyVkAllocatorOther<VkBlobAllocator> >(m, "VkBlobAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("clear", &VkBlobAllocator::clear)
-    .def("fastMalloc", (VkBufferMemory * (VkBlobAllocator::*)(size_t size)) & VkBlobAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkBlobAllocator::*)(size_t size)) & VkBlobAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkBlobAllocator::*)(VkBufferMemory * ptr)) & VkBlobAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkBlobAllocator::*)(int, int, int, size_t, int)) & VkBlobAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkBlobAllocator::*)(int, int, int, size_t, int)) & VkBlobAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkBlobAllocator::*)(VkImageMemory * ptr)) & VkBlobAllocator::fastFree);
 
     py::class_<VkWeightAllocator, VkAllocator, PyVkAllocatorOther<VkWeightAllocator> >(m, "VkWeightAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("clear", &VkWeightAllocator::clear)
-    .def("fastMalloc", (VkBufferMemory * (VkWeightAllocator::*)(size_t size)) & VkWeightAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkWeightAllocator::*)(size_t size)) & VkWeightAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightAllocator::*)(VkBufferMemory * ptr)) & VkWeightAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkWeightAllocator::*)(int, int, int, size_t, int)) & VkWeightAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkWeightAllocator::*)(int, int, int, size_t, int)) & VkWeightAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightAllocator::*)(VkImageMemory * ptr)) & VkWeightAllocator::fastFree);
 
     py::class_<VkStagingAllocator, VkAllocator, PyVkAllocatorOther<VkStagingAllocator> >(m, "VkStagingAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("set_size_compare_ratio", &VkStagingAllocator::set_size_compare_ratio)
     .def("clear", &VkStagingAllocator::clear)
-    .def("fastMalloc", (VkBufferMemory * (VkStagingAllocator::*)(size_t size)) & VkStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkStagingAllocator::*)(size_t size)) & VkStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkStagingAllocator::*)(VkBufferMemory * ptr)) & VkStagingAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkStagingAllocator::*)(int, int, int, size_t, int)) & VkStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkStagingAllocator::*)(int, int, int, size_t, int)) & VkStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkStagingAllocator::*)(VkImageMemory * ptr)) & VkStagingAllocator::fastFree);
 
     py::class_<VkWeightStagingAllocator, VkAllocator, PyVkAllocatorOther<VkWeightStagingAllocator> >(m, "VkWeightStagingAllocator")
     .def(py::init<const VulkanDevice*>())
-    .def("fastMalloc", (VkBufferMemory * (VkWeightStagingAllocator::*)(size_t size)) & VkWeightStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkWeightStagingAllocator::*)(size_t size)) & VkWeightStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightStagingAllocator::*)(VkBufferMemory * ptr)) & VkWeightStagingAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkWeightStagingAllocator::*)(int, int, int, size_t, int)) & VkWeightStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkWeightStagingAllocator::*)(int, int, int, size_t, int)) & VkWeightStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightStagingAllocator::*)(VkImageMemory * ptr)) & VkWeightStagingAllocator::fastFree);
 
+    py::class_<GpuInfo>(m, "GpuInfo")
+    .def(py::init<>())
+    .def("api_version", &GpuInfo::api_version)
+    .def("driver_version", &GpuInfo::driver_version)
+    .def("vendor_id", &GpuInfo::vendor_id)
+    .def("device_id", &GpuInfo::device_id)
+    .def("pipeline_cache_uuid", [](GpuInfo& gpuinfo) {
+        return py::memoryview::from_buffer(gpuinfo.pipeline_cache_uuid(), {VK_UUID_SIZE}, {sizeof(uint8_t) * VK_UUID_SIZE});
+    })
+    .def("type", &GpuInfo::type)
+    .def("device_name", &GpuInfo::device_name);
+
     py::class_<VulkanDevice>(m, "VulkanDevice")
-    .def(py::init<int>(), py::arg("device_index") = 0);
+    .def(py::init<int>(), py::arg("device_index") = 0)
+    .def(
+    "info", [](VulkanDevice& dev) {
+        return &dev.info;
+    },
+    py::return_value_policy::reference_internal)
+    .def("acquire_blob_allocator", &VulkanDevice::acquire_blob_allocator)
+    .def("reclaim_blob_allocator", &VulkanDevice::reclaim_blob_allocator, py::arg("vkallocator"))
+    .def("acquire_staging_allocator", &VulkanDevice::acquire_staging_allocator)
+    .def("reclaim_staging_allocator", &VulkanDevice::reclaim_staging_allocator, py::arg("vkallocator"))
+    .def("get_heap_budget", &VulkanDevice::get_heap_budget);
 #endif // NCNN_VULKAN
 
     m.doc() = R"pbdoc(

@@ -19,9 +19,11 @@
 
 namespace ncnn {
 
-class TanH_mips : virtual public TanH
+class TanH_mips : public TanH
 {
 public:
+    TanH_mips();
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 

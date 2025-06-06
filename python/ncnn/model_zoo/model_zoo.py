@@ -16,6 +16,8 @@ from .yolov2 import MobileNet_YoloV2
 from .yolov3 import MobileNetV2_YoloV3
 from .yolov4 import YoloV4_Tiny, YoloV4
 from .yolov5 import YoloV5s
+from .yolov7 import YoloV7_Tiny
+from .yolov8 import YoloV8s
 from .yolact import Yolact
 from .mobilenetssd import MobileNet_SSD
 from .squeezenetssd import SqueezeNet_SSD
@@ -28,6 +30,7 @@ from .retinaface import RetinaFace
 from .rfcn import RFCN
 from .shufflenetv2 import ShuffleNetV2
 from .simplepose import SimplePose
+from .nanodet import NanoDet
 
 __all__ = ["get_model", "get_model_list"]
 
@@ -37,6 +40,8 @@ _models = {
     "yolov4_tiny": YoloV4_Tiny,
     "yolov4": YoloV4,
     "yolov5s": YoloV5s,
+    "yolov7_tiny": YoloV7_Tiny,
+    "yolov8s": YoloV8s,
     "yolact": Yolact,
     "mobilenet_ssd": MobileNet_SSD,
     "squeezenet_ssd": SqueezeNet_SSD,
@@ -49,6 +54,7 @@ _models = {
     "rfcn": RFCN,
     "shufflenetv2": ShuffleNetV2,
     "simplepose": SimplePose,
+    "nanodet": NanoDet,
 }
 
 

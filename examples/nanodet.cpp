@@ -14,9 +14,13 @@
 
 #include "net.h"
 
+#if defined(USE_NCNN_SIMPLEOCV)
+#include "simpleocv.h"
+#else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#endif
 #include <stdlib.h>
 #include <float.h>
 #include <stdio.h>
@@ -80,7 +84,7 @@ static void qsort_descent_inplace(std::vector<Object>& faceobjects)
     qsort_descent_inplace(faceobjects, 0, faceobjects.size() - 1);
 }
 
-static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold, bool agnostic = false)
 {
     picked.clear();
 
@@ -89,7 +93,7 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
     std::vector<float> areas(n);
     for (int i = 0; i < n; i++)
     {
-        areas[i] = faceobjects[i].rect.width * faceobjects[i].rect.height;
+        areas[i] = faceobjects[i].rect.area();
     }
 
     for (int i = 0; i < n; i++)
@@ -100,6 +104,9 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
         for (int j = 0; j < (int)picked.size(); j++)
         {
             const Object& b = faceobjects[picked[j]];
+
+            if (!agnostic && a.label != b.label)
+                continue;
 
             // intersection over union
             float inter_area = intersection_area(a, b);
@@ -178,7 +185,7 @@ static void generate_proposals(const ncnn::Mat& cls_pred, const ncnn::Mat& dis_p
                     delete softmax;
                 }
 
-                float dis_pred[4];
+                float pred_ltrb[4];
                 for (int k = 0; k < 4; k++)
                 {
                     float dis = 0.f;
@@ -188,16 +195,16 @@ static void generate_proposals(const ncnn::Mat& cls_pred, const ncnn::Mat& dis_p
                         dis += l * dis_after_sm[l];
                     }
 
-                    dis_pred[k] = dis * stride;
+                    pred_ltrb[k] = dis * stride;
                 }
 
                 float pb_cx = (j + 0.5f) * stride;
                 float pb_cy = (i + 0.5f) * stride;
 
-                float x0 = pb_cx - dis_pred[0];
-                float y0 = pb_cy - dis_pred[1];
-                float x1 = pb_cx + dis_pred[2];
-                float y1 = pb_cy + dis_pred[3];
+                float x0 = pb_cx - pred_ltrb[0];
+                float y0 = pb_cy - pred_ltrb[1];
+                float x1 = pb_cx + pred_ltrb[2];
+                float y1 = pb_cy + pred_ltrb[3];
 
                 Object obj;
                 obj.rect.x = x0;
@@ -222,8 +229,10 @@ static int detect_nanodet(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // original pretrained model from https://github.com/RangiLyu/nanodet
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    nanodet.load_param("nanodet_m.param");
-    nanodet.load_model("nanodet_m.bin");
+    if (nanodet.load_param("nanodet_m.param"))
+        exit(-1);
+    if (nanodet.load_model("nanodet_m.bin"))
+        exit(-1);
 
     int width = bgr.cols;
     int height = bgr.rows;

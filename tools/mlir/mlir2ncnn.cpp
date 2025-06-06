@@ -20,6 +20,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Parser.h>
+#include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 
@@ -244,9 +245,15 @@ static std::vector<float> get_operation_attr_af(const mlir::Operation& _operatio
 
 int main(int argc, char** argv)
 {
+    if (!(argc == 2 || argc == 4))
+    {
+        fprintf(stderr, "Usage: %s [mlir] [ncnnparam] [ncnnbin]\n", argv[0]);
+        return -1;
+    }
+
     const char* mlirpath = argv[1];
-    const char* ncnn_prototxt = argc >= 4 ? argv[2] : "ncnn.param";
-    const char* ncnn_modelbin = argc >= 4 ? argv[3] : "ncnn.bin";
+    const char* ncnn_prototxt = argc == 4 ? argv[2] : "ncnn.param";
+    const char* ncnn_modelbin = argc == 4 ? argv[3] : "ncnn.bin";
 
     mlir::MLIRContext context;
 
@@ -257,12 +264,13 @@ int main(int argc, char** argv)
     mlir::OwningModuleRef m = mlir::parseSourceFile(mlirpath, &context);
 
     mlir::PassManager pm(&context);
-    // Apply any generic pass manager command line options and run the pipeline.
-    applyPassManagerCLOptions(pm);
 
-    // Add a run of the canonicalizer to optimize the mlir module.
-    pm.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
-    pm.run(*m);
+    pm.addNestedPass<mlir::FuncOp>(mlir::ncnn::createNCNNOptimizePass());
+    if (pm.run(*m).failed())
+    {
+        fprintf(stderr, "canonicalizer pass failed\n");
+        return -1;
+    }
 
     //     m->dump();
 
@@ -609,6 +617,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InstanceNorm");
         }
+        else if (op == "ncnn.Swish")
+        {
+            fprintf(pp, "%-16s", "Swish");
+        }
         else if (op == "tf.AddN")
         {
             fprintf(pp, "%-16s", "Eltwise");
@@ -696,7 +708,6 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(stderr, "tf.Mean is not global avg pooling\n");
                 fprintf(pp, "%-16s", "Reduction");
             }
         }
@@ -767,7 +778,10 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", op.c_str());
         }
 
-        fprintf(pp, " op_%d %d %d", opid, num_input, num_output);
+        char opid_name[64];
+        sprintf(opid_name, "op_%d", opid);
+
+        fprintf(pp, " %-24s %d %d", opid_name, num_input, num_output);
 
         for (int i = 0; i < (int)operation.getNumOperands(); i++)
         {
@@ -989,6 +1003,10 @@ int main(int argc, char** argv)
 
             fwrite(gv.data(), sizeof(float), gv.size(), bp);
             fwrite(bv.data(), sizeof(float), bv.size(), bp);
+        }
+        else if (op == "ncnn.Swish")
+        {
+            // no param
         }
         else if (op == "tf.AddN")
         {
@@ -1449,7 +1467,21 @@ int main(int argc, char** argv)
             }
             else
             {
-                // TODO
+                // Reduction mean
+                fprintf(pp, " 0=3");
+                fprintf(pp, " 1=0"); // reduce_all
+                fprintf(pp, " -23303=%d", (int)v.size());
+                for (int i = 0; i < (int)v.size(); i++)
+                {
+                    if (v[i] == 1)
+                        fprintf(pp, ",1");
+                    if (v[i] == 2)
+                        fprintf(pp, ",2");
+                    if (v[i] == 3)
+                        fprintf(pp, ",0");
+                }
+                fprintf(pp, " 4=%d", keep_dims);
+                fprintf(pp, " 5=1");
             }
         }
         else if (op == "tf.Minimum")

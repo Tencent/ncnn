@@ -24,16 +24,25 @@ static inline void interpolate_cubic_fp16sa(float fx, __fp16* coeffs)
     coeffs[0] = (__fp16)(A * fx0 * fx0 * fx0 - 5 * A * fx0 * fx0 + 8 * A * fx0 - 4 * A);
     coeffs[1] = (__fp16)((A + 2) * fx1 * fx1 * fx1 - (A + 3) * fx1 * fx1 + 1);
     coeffs[2] = (__fp16)((A + 2) * fx2 * fx2 * fx2 - (A + 3) * fx2 * fx2 + 1);
-    coeffs[3] = (__fp16)(1.f - coeffs[0] - coeffs[1] - coeffs[2]);
+    coeffs[3] = (__fp16)((__fp16)1.f - coeffs[0] - coeffs[1] - coeffs[2]);
 }
 
-static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha)
+static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
 {
     double scale = (double)w / outw;
+    if (align_corner)
+    {
+        scale = (double)(w - 1) / (outw - 1);
+    }
 
     for (int dx = 0; dx < outw; dx++)
     {
         float fx = (float)((dx + 0.5) * scale - 0.5);
+        if (align_corner)
+        {
+            fx = static_cast<float>(dx * scale);
+        }
+
         int sx = static_cast<int>(floor(fx));
         fx -= sx;
 
@@ -42,7 +51,7 @@ static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha)
         if (sx <= -1)
         {
             sx = 1;
-            alpha[dx * 4 + 0] = (__fp16)(1.f - alpha[dx * 4 + 3]);
+            alpha[dx * 4 + 0] = (__fp16)((__fp16)1.f - alpha[dx * 4 + 3]);
             alpha[dx * 4 + 1] = (__fp16)alpha[dx * 4 + 3];
             alpha[dx * 4 + 2] = (__fp16)0.f;
             alpha[dx * 4 + 3] = (__fp16)0.f;
@@ -66,7 +75,7 @@ static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha)
         if (sx >= w - 1)
         {
             sx = w - 3;
-            alpha[dx * 4 + 3] = (__fp16)(1.f - alpha[dx * 4 + 0]);
+            alpha[dx * 4 + 3] = (__fp16)((__fp16)1.f - alpha[dx * 4 + 0]);
             alpha[dx * 4 + 2] = (__fp16)(alpha[dx * 4 + 0]);
             alpha[dx * 4 + 1] = (__fp16)0.f;
             alpha[dx * 4 + 0] = (__fp16)0.f;

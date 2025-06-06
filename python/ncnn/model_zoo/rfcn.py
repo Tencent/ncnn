@@ -45,7 +45,7 @@ class RFCN:
         # https://github.com/YuwenXiong/py-R-FCN/blob/master/models/pascal_voc/ResNet-50/rfcn_end2end/test_agnostic.prototxt
         # https://1drv.ms/u/s!AoN7vygOjLIQqUWHpY67oaC7mopf
         # resnet50_rfcn_final.caffemodel
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("rfcn_end2end.param"))
         self.net.load_model(get_model_file("rfcn_end2end.bin"))
 

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_vulkan : virtual public InnerProduct
+class InnerProduct_vulkan : public InnerProduct
 {
 public:
     InnerProduct_vulkan();
@@ -36,6 +36,9 @@ public:
 public:
     ncnn::Layer* flatten;
 
+    Mat weight_data_packed;
+    Mat bias_data_packed;
+
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
@@ -43,14 +46,9 @@ public:
     VkImageMat bias_data_gpu_image;
 
     Pipeline* pipeline_innerproduct;
-    Pipeline* pipeline_innerproduct_pack4;
-    Pipeline* pipeline_innerproduct_pack1to4;
-    Pipeline* pipeline_innerproduct_pack4to1;
-    Pipeline* pipeline_innerproduct_pack8;
-    Pipeline* pipeline_innerproduct_pack1to8;
-    Pipeline* pipeline_innerproduct_pack4to8;
-    Pipeline* pipeline_innerproduct_pack8to4;
-    Pipeline* pipeline_innerproduct_pack8to1;
+
+    Pipeline* pipeline_innerproduct_sum8;
+    Pipeline* pipeline_innerproduct_reduce_sum8;
 
     Pipeline* pipeline_innerproduct_gemm;
 };

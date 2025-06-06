@@ -19,10 +19,20 @@
 
 namespace ncnn {
 
-class Dequantize_arm : virtual public Dequantize
+class Dequantize_arm : public Dequantize
 {
 public:
-    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+    Dequantize_arm();
+
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+protected:
+#if NCNN_ARM82
+    int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+#if NCNN_BF16
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

@@ -19,6 +19,9 @@
 
 #if NCNN_SIMPLEOCV
 
+#include <limits.h>
+#include <string.h>
+#include "allocator.h"
 #include "mat.h"
 
 #if defined(_MSC_VER) || defined(__GNUC__)
@@ -28,23 +31,136 @@
 #undef max
 #endif
 
+#ifndef NCNN_XADD
+using ncnn::NCNN_XADD;
+#endif
+
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
+
+enum
+{
+    CV_LOAD_IMAGE_UNCHANGED = -1,
+    CV_LOAD_IMAGE_GRAYSCALE = 0,
+    CV_LOAD_IMAGE_COLOR = 1,
+};
+
+enum
+{
+    CV_IMWRITE_JPEG_QUALITY = 1
+};
+
 // minimal opencv style data structure implementation
 namespace cv {
 
-struct NCNN_EXPORT Size
+template<typename _Tp>
+static inline _Tp saturate_cast(int v)
 {
-    Size()
+    return _Tp(v);
+}
+template<>
+inline uchar saturate_cast<uchar>(int v)
+{
+    return (uchar)((unsigned)v <= UCHAR_MAX ? v : v > 0 ? UCHAR_MAX : 0);
+}
+
+template<typename _Tp>
+struct Scalar_
+{
+    Scalar_()
+    {
+        v[0] = 0;
+        v[1] = 0;
+        v[2] = 0;
+        v[3] = 0;
+    }
+    Scalar_(_Tp _v0)
+    {
+        v[0] = _v0;
+        v[1] = 0;
+        v[2] = 0;
+        v[3] = 0;
+    }
+    Scalar_(_Tp _v0, _Tp _v1, _Tp _v2)
+    {
+        v[0] = _v0;
+        v[1] = _v1;
+        v[2] = _v2;
+        v[3] = 0;
+    }
+    Scalar_(_Tp _v0, _Tp _v1, _Tp _v2, _Tp _v3)
+    {
+        v[0] = _v0;
+        v[1] = _v1;
+        v[2] = _v2;
+        v[3] = _v3;
+    }
+
+    const _Tp operator[](const int i) const
+    {
+        return v[i];
+    }
+
+    _Tp operator[](const int i)
+    {
+        return v[i];
+    }
+
+    _Tp v[4];
+};
+
+typedef Scalar_<uchar> Scalar;
+
+template<typename _Tp>
+struct Point_
+{
+    Point_()
+        : x(0), y(0)
+    {
+    }
+    Point_(_Tp _x, _Tp _y)
+        : x(_x), y(_y)
+    {
+    }
+
+    template<typename _Tp2>
+    operator Point_<_Tp2>() const
+    {
+        return Point_<_Tp2>(saturate_cast<_Tp2>(x), saturate_cast<_Tp2>(y));
+    }
+
+    _Tp x;
+    _Tp y;
+};
+
+typedef Point_<int> Point;
+typedef Point_<float> Point2f;
+
+template<typename _Tp>
+struct Size_
+{
+    Size_()
         : width(0), height(0)
     {
     }
-    Size(int _w, int _h)
+    Size_(_Tp _w, _Tp _h)
         : width(_w), height(_h)
     {
     }
 
-    int width;
-    int height;
+    template<typename _Tp2>
+    operator Size_<_Tp2>() const
+    {
+        return Size_<_Tp2>(saturate_cast<_Tp2>(width), saturate_cast<_Tp2>(height));
+    }
+
+    _Tp width;
+    _Tp height;
 };
+
+typedef Size_<int> Size;
+typedef Size_<float> Size2f;
 
 template<typename _Tp>
 struct Rect_
@@ -56,6 +172,16 @@ struct Rect_
     Rect_(_Tp _x, _Tp _y, _Tp _w, _Tp _h)
         : x(_x), y(_y), width(_w), height(_h)
     {
+    }
+    Rect_(Point_<_Tp> _p, Size_<_Tp> _size)
+        : x(_p.x), y(_p.y), width(_size.width), height(_size.height)
+    {
+    }
+
+    template<typename _Tp2>
+    operator Rect_<_Tp2>() const
+    {
+        return Rect_<_Tp2>(saturate_cast<_Tp2>(x), saturate_cast<_Tp2>(y), saturate_cast<_Tp2>(width), saturate_cast<_Tp2>(height));
     }
 
     _Tp x;
@@ -110,25 +236,6 @@ static inline Rect_<_Tp> operator|(const Rect_<_Tp>& a, const Rect_<_Tp>& b)
 
 typedef Rect_<int> Rect;
 typedef Rect_<float> Rect2f;
-
-template<typename _Tp>
-struct Point_
-{
-    Point_()
-        : x(0), y(0)
-    {
-    }
-    Point_(_Tp _x, _Tp _y)
-        : x(_x), y(_y)
-    {
-    }
-
-    _Tp x;
-    _Tp y;
-};
-
-typedef Point_<int> Point;
-typedef Point_<float> Point2f;
 
 #define CV_8UC1  1
 #define CV_8UC3  3
@@ -194,6 +301,23 @@ struct NCNN_EXPORT Mat
         return *this;
     }
 
+    Mat& operator=(const Scalar& s)
+    {
+        if (total() > 0)
+        {
+            uchar* p = data;
+            for (int i = 0; i < cols * rows; i++)
+            {
+                for (int j = 0; j < c; j++)
+                {
+                    *p++ = s[j];
+                }
+            }
+        }
+
+        return *this;
+    }
+
     void create(int _rows, int _cols, int flags)
     {
         release();
@@ -206,8 +330,8 @@ struct NCNN_EXPORT Mat
         {
             // refcount address must be aligned, so we expand totalsize here
             size_t totalsize = (total() + 3) >> 2 << 2;
-            data = (unsigned char*)ncnn::fastMalloc(totalsize + (int)sizeof(*refcount));
-            refcount = (int*)(((unsigned char*)data) + totalsize);
+            data = (uchar*)ncnn::fastMalloc(totalsize + (int)sizeof(*refcount));
+            refcount = (int*)(((uchar*)data) + totalsize);
             *refcount = 1;
         }
     }
@@ -251,19 +375,36 @@ struct NCNN_EXPORT Mat
         return c;
     }
 
+    int type() const
+    {
+        return c;
+    }
+
     size_t total() const
     {
         return cols * rows * c;
     }
 
-    const unsigned char* ptr(int y) const
+    const uchar* ptr(int y) const
     {
         return data + y * cols * c;
     }
 
-    unsigned char* ptr(int y)
+    uchar* ptr(int y)
     {
         return data + y * cols * c;
+    }
+
+    template<typename _Tp>
+    const _Tp* ptr(int y) const
+    {
+        return (const _Tp*)(data + y * cols * c);
+    }
+
+    template<typename _Tp>
+    _Tp* ptr(int y)
+    {
+        return (_Tp*)(data + y * cols * c);
     }
 
     // roi
@@ -277,8 +418,8 @@ struct NCNN_EXPORT Mat
         int sy = roi.y;
         for (int y = 0; y < roi.height; y++)
         {
-            const unsigned char* sptr = ptr(sy) + roi.x * c;
-            unsigned char* dptr = m.ptr(y);
+            const uchar* sptr = ptr(sy) + roi.x * c;
+            uchar* dptr = m.ptr(y);
             memcpy(dptr, sptr, roi.width * c);
             sy++;
         }
@@ -286,7 +427,7 @@ struct NCNN_EXPORT Mat
         return m;
     }
 
-    unsigned char* data;
+    uchar* data;
 
     // pointer to the reference counter;
     // when points to user-allocated data, the pointer is NULL
@@ -298,14 +439,57 @@ struct NCNN_EXPORT Mat
     int c;
 };
 
-#define CV_LOAD_IMAGE_GRAYSCALE 1
-#define CV_LOAD_IMAGE_COLOR     3
-NCNN_EXPORT Mat imread(const std::string& path, int flags);
-NCNN_EXPORT void imwrite(const std::string& path, const Mat& m);
+enum ImreadModes
+{
+    IMREAD_UNCHANGED = -1,
+    IMREAD_GRAYSCALE = 0,
+    IMREAD_COLOR = 1
+};
+
+NCNN_EXPORT Mat imread(const std::string& path, int flags = IMREAD_COLOR);
+
+NCNN_EXPORT Mat imdecode(const std::vector<uchar>& buf, int flags = IMREAD_COLOR);
+
+enum ImwriteFlags
+{
+    IMWRITE_JPEG_QUALITY = 1
+};
+
+NCNN_EXPORT bool imwrite(const std::string& path, const Mat& m, const std::vector<int>& params = std::vector<int>());
+
+NCNN_EXPORT void imshow(const std::string& name, const Mat& m);
+
+NCNN_EXPORT int waitKey(int delay = 0);
 
 #if NCNN_PIXEL
 NCNN_EXPORT void resize(const Mat& src, Mat& dst, const Size& size, float sw = 0.f, float sh = 0.f, int flags = 0);
 #endif // NCNN_PIXEL
+
+#if NCNN_PIXEL_DRAWING
+
+enum
+{
+    FILLED = -1
+};
+
+NCNN_EXPORT void rectangle(Mat& img, Point pt1, Point pt2, const Scalar& color, int thickness = 1);
+
+NCNN_EXPORT void rectangle(Mat& img, Rect rec, const Scalar& color, int thickness = 1);
+
+NCNN_EXPORT void circle(Mat& img, Point center, int radius, const Scalar& color, int thickness = 1);
+
+NCNN_EXPORT void line(Mat& img, Point p0, Point p1, const Scalar& color, int thickness = 1);
+
+enum
+{
+    FONT_HERSHEY_SIMPLEX = 0
+};
+
+NCNN_EXPORT void putText(Mat& img, const std::string& text, Point org, int fontFace, double fontScale, Scalar color, int thickness = 1);
+
+NCNN_EXPORT Size getTextSize(const std::string& text, int fontFace, double fontScale, int thickness, int* baseLine);
+
+#endif // NCNN_PIXEL_DRAWING
 
 } // namespace cv
 

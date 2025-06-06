@@ -47,11 +47,11 @@ public:
     Type parseType(DialectAsmParser& parser) const override;
 
     // Parses resource type with potential subtypes.
-    Type ParseResourceType(DialectAsmParser& parser, Location loc) const;
+    Type ParseResourceType(DialectAsmParser& parser) const;
 
     // Parse and print variant type. It may have subtypes inferred using shape
     // inference.
-    Type ParseVariantType(DialectAsmParser& parser, Location loc) const;
+    Type ParseVariantType(DialectAsmParser& parser) const;
 
     // Registered hook to materialize a constant operation from a given attribute
     // value with the desired resultant type.

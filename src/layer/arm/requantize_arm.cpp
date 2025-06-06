@@ -1,6 +1,7 @@
-// BUG1989 is pleased to support the open source community by supporting ncnn available.
+// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2019 BUG1989. All rights reserved.
+// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -14,350 +15,559 @@
 
 #include "requantize_arm.h"
 
-#include <math.h>
-
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "arm_activation.h"
+#include "arm_usability.h"
+
 namespace ncnn {
 
-static inline signed char float2int8(float v)
+Requantize_arm::Requantize_arm()
 {
-    int int32 = round(v);
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
+static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int elemcount, int elempack)
+{
+    const int scale_in_data_size = scale_in_data.w;
+    const int bias_data_size = bias_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+    const int size = elemcount * elempack;
+
+    // NCNN_LOGE("requantize_relu %d %d %d   %d %d", scale_in_data_size, bias_data_size, scale_out_data_size, elemcount, elempack);
+
+    // int8(relu(v * scale_in) * scale_out)
+    // int8_relu(v * (scale_in * scale_out))
+
+    // int8(relu(v * scale_in + bias) * scale_out)
+    // int8_relu(v * (scale_in * scale_out) + (bias * scale_out))
+
+    float scale_in = scale_in_data[0];
+#if __ARM_NEON
+    float32x4_t _scale_in0 = vdupq_n_f32(scale_in);
+    float32x4_t _scale_in1 = _scale_in0;
+    if (scale_in_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_in0 = vld1q_f32((const float*)scale_in_data);
+            _scale_in1 = vld1q_f32((const float*)scale_in_data + 4);
+        }
+    }
+#endif // __ARM_NEON
+
+    float scale_out = scale_out_data[0];
+#if __ARM_NEON
+    float32x4_t _scale_out0 = vdupq_n_f32(scale_out);
+    float32x4_t _scale_out1 = _scale_out0;
+    if (scale_out_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_out0 = vld1q_f32((const float*)scale_out_data);
+            _scale_out1 = vld1q_f32((const float*)scale_out_data + 4);
+        }
+    }
+#endif // __ARM_NEON
+
+    float scale = scale_in * scale_out;
+#if __ARM_NEON
+    float32x4_t _scale0 = vmulq_f32(_scale_in0, _scale_out0);
+    float32x4_t _scale1 = vmulq_f32(_scale_in1, _scale_out1);
+#endif // __ARM_NEON
+
+    if (bias_data_size == 0)
+    {
+        int i = 0;
+#if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+            _v0 = vmulq_f32(_v0, _scale0);
+            _v1 = vmulq_f32(_v1, _scale1);
+            vst1_s8(ptr, float2int8relu(_v0, _v1));
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+            _v = vmulq_f32(_v, _scale0);
+            int8x8_t v = float2int8relu(_v, _v);
+            ptr[0] = vget_lane_s8(v, 0);
+            ptr[1] = vget_lane_s8(v, 1);
+            ptr[2] = vget_lane_s8(v, 2);
+            ptr[3] = vget_lane_s8(v, 3);
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __ARM_NEON
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale;
+            if (v < 0) v = 0;
+            *ptr = float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+    else
+    {
+        float bias = bias_data[0];
+#if __ARM_NEON
+        float32x4_t _bias0 = vdupq_n_f32(bias);
+        float32x4_t _bias1 = _bias0;
+        if (bias_data_size > 1)
+        {
+            if (elempack == 8)
+            {
+                _bias0 = vld1q_f32((const float*)bias_data);
+                _bias1 = vld1q_f32((const float*)bias_data + 4);
+            }
+        }
+#endif // __ARM_NEON
+
+        bias = bias * scale_out;
+#if __ARM_NEON
+        _bias0 = vmulq_f32(_bias0, _scale_out0);
+        _bias1 = vmulq_f32(_bias1, _scale_out1);
+#endif // __ARM_NEON
+
+        int i = 0;
+#if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+            _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+            _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+#else  // __aarch64__
+            _v0 = vmlaq_f32(_bias0, _v0, _scale0);
+            _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+#endif // __aarch64__
+            vst1_s8(ptr, float2int8relu(_v0, _v1));
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+            _v = vfmaq_f32(_bias0, _v, _scale0);
+#else  // __aarch64__
+            _v = vmlaq_f32(_bias0, _v, _scale0);
+#endif // __aarch64__
+            int8x8_t v = float2int8relu(_v, _v);
+            ptr[0] = vget_lane_s8(v, 0);
+            ptr[1] = vget_lane_s8(v, 1);
+            ptr[2] = vget_lane_s8(v, 2);
+            ptr[3] = vget_lane_s8(v, 3);
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __ARM_NEON
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale + bias;
+            if (v < 0) v = 0;
+            *ptr = float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+}
+
+static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, float slope, int elemcount, int elempack)
+{
+    const int scale_in_data_size = scale_in_data.w;
+    const int bias_data_size = bias_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+    const int size = elemcount * elempack;
+
+    // NCNN_LOGE("requantize_leakyrelu %d %d %d   %d %d", scale_in_data_size, bias_data_size, scale_out_data_size, elemcount, elempack);
+
+    // int8(leakyrelu(v * scale_in, slope) * scale_out)
+    // int8_leakyrelu(v * (scale_in * scale_out), slope)
+
+    // int8(leakyrelu(v * scale_in + bias, slope) * scale_out)
+    // int8_leakyrelu(v * (scale_in * scale_out) + (bias * scale_out), slope)
+
+    float scale_in = scale_in_data[0];
+#if __ARM_NEON
+    float32x4_t _scale_in0 = vdupq_n_f32(scale_in);
+    float32x4_t _scale_in1 = _scale_in0;
+    if (scale_in_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_in0 = vld1q_f32((const float*)scale_in_data);
+            _scale_in1 = vld1q_f32((const float*)scale_in_data + 4);
+        }
+    }
+#endif // __ARM_NEON
+
+    float scale_out = scale_out_data[0];
+#if __ARM_NEON
+    float32x4_t _scale_out0 = vdupq_n_f32(scale_out);
+    float32x4_t _scale_out1 = _scale_out0;
+    if (scale_out_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_out0 = vld1q_f32((const float*)scale_out_data);
+            _scale_out1 = vld1q_f32((const float*)scale_out_data + 4);
+        }
+    }
+#endif // __ARM_NEON
+
+    float scale = scale_in * scale_out;
+#if __ARM_NEON
+    float32x4_t _scale0 = vmulq_f32(_scale_in0, _scale_out0);
+    float32x4_t _scale1 = vmulq_f32(_scale_in1, _scale_out1);
+    float32x4_t _slope = vdupq_n_f32(slope);
+#endif // __ARM_NEON
+
+    if (bias_data_size == 0)
+    {
+        int i = 0;
+#if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+            _v0 = vmulq_f32(_v0, _scale0);
+            _v1 = vmulq_f32(_v1, _scale1);
+            vst1_s8(ptr, float2int8leakyrelu(_v0, _v1, _slope));
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+            _v = vmulq_f32(_v, _scale0);
+            int8x8_t v = float2int8leakyrelu(_v, _v, _slope);
+            ptr[0] = vget_lane_s8(v, 0);
+            ptr[1] = vget_lane_s8(v, 1);
+            ptr[2] = vget_lane_s8(v, 2);
+            ptr[3] = vget_lane_s8(v, 3);
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __ARM_NEON
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale;
+            if (v < 0) v *= slope;
+            *ptr = float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+    else
+    {
+        float bias = bias_data[0];
+#if __ARM_NEON
+        float32x4_t _bias0 = vdupq_n_f32(bias);
+        float32x4_t _bias1 = _bias0;
+        if (bias_data_size > 1)
+        {
+            if (elempack == 8)
+            {
+                _bias0 = vld1q_f32((const float*)bias_data);
+                _bias1 = vld1q_f32((const float*)bias_data + 4);
+            }
+        }
+#endif // __ARM_NEON
+
+        bias = bias * scale_out;
+#if __ARM_NEON
+        _bias0 = vmulq_f32(_bias0, _scale_out0);
+        _bias1 = vmulq_f32(_bias1, _scale_out1);
+#endif // __ARM_NEON
+
+        int i = 0;
+#if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+            _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+            _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+#else  // __aarch64__
+            _v0 = vmlaq_f32(_bias0, _v0, _scale0);
+            _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+#endif // __aarch64__
+            vst1_s8(ptr, float2int8leakyrelu(_v0, _v1, _slope));
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+            _v = vfmaq_f32(_bias0, _v, _scale0);
+#else  // __aarch64__
+            _v = vmlaq_f32(_bias0, _v, _scale0);
+#endif // __aarch64__
+            int8x8_t v = float2int8leakyrelu(_v, _v, _slope);
+            ptr[0] = vget_lane_s8(v, 0);
+            ptr[1] = vget_lane_s8(v, 1);
+            ptr[2] = vget_lane_s8(v, 2);
+            ptr[3] = vget_lane_s8(v, 3);
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __ARM_NEON
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale + bias;
+            if (v < 0) v *= slope;
+            *ptr = float2int8(v);
+            intptr++;
+            ptr++;
+        }
+    }
+}
+
+static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int activation_type, const Mat& activation_params, int elemcount, int elempack)
+{
+    if (activation_type == 1)
+    {
+        requantize_relu(intptr, ptr, scale_in_data, bias_data, scale_out_data, elemcount, elempack);
+        return;
+    }
+
+    if (activation_type == 2 && activation_params[0] > 0.f)
+    {
+        const float slope = activation_params[0];
+        requantize_leakyrelu(intptr, ptr, scale_in_data, bias_data, scale_out_data, slope, elemcount, elempack);
+        return;
+    }
+
+    const int scale_in_data_size = scale_in_data.w;
+    const int bias_data_size = bias_data.w;
+    const int scale_out_data_size = scale_out_data.w;
+    const int size = elemcount * elempack;
+
+    // NCNN_LOGE("requantize %d %d %d   %d %d", scale_in_data_size, bias_data_size, scale_out_data_size, elemcount, elempack);
+
+    float scale_in = scale_in_data[0];
+#if __ARM_NEON
+    float32x4_t _scale_in0 = vdupq_n_f32(scale_in);
+    float32x4_t _scale_in1 = _scale_in0;
+    if (scale_in_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_in0 = vld1q_f32((const float*)scale_in_data);
+            _scale_in1 = vld1q_f32((const float*)scale_in_data + 4);
+        }
+    }
+#endif // __ARM_NEON
+
+    float scale_out = scale_out_data[0];
+#if __ARM_NEON
+    float32x4_t _scale_out0 = vdupq_n_f32(scale_out);
+    float32x4_t _scale_out1 = _scale_out0;
+    if (scale_out_data_size > 1)
+    {
+        if (elempack == 8)
+        {
+            _scale_out0 = vld1q_f32((const float*)scale_out_data);
+            _scale_out1 = vld1q_f32((const float*)scale_out_data + 4);
+        }
+    }
+#endif // __ARM_NEON
+
+    if (bias_data_size == 0)
+    {
+        int i = 0;
+#if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+            _v0 = vmulq_f32(_v0, _scale_in0);
+            _v1 = vmulq_f32(_v1, _scale_in1);
+            _v0 = activation_ps(_v0, activation_type, activation_params);
+            _v1 = activation_ps(_v1, activation_type, activation_params);
+            _v0 = vmulq_f32(_v0, _scale_out0);
+            _v1 = vmulq_f32(_v1, _scale_out1);
+            vst1_s8(ptr, float2int8(_v0, _v1));
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+            _v = vmulq_f32(_v, _scale_in0);
+            _v = activation_ps(_v, activation_type, activation_params);
+            _v = vmulq_f32(_v, _scale_out0);
+            int8x8_t v = float2int8(_v, _v);
+            ptr[0] = vget_lane_s8(v, 0);
+            ptr[1] = vget_lane_s8(v, 1);
+            ptr[2] = vget_lane_s8(v, 2);
+            ptr[3] = vget_lane_s8(v, 3);
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __ARM_NEON
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale_in;
+            v = activation_ss(v, activation_type, activation_params);
+            *ptr = float2int8(v * scale_out);
+            intptr++;
+            ptr++;
+        }
+    }
+    else
+    {
+        float bias = bias_data[0];
+#if __ARM_NEON
+        float32x4_t _bias0 = vdupq_n_f32(bias);
+        float32x4_t _bias1 = _bias0;
+        if (bias_data_size > 1)
+        {
+            if (elempack == 8)
+            {
+                _bias0 = vld1q_f32((const float*)bias_data);
+                _bias1 = vld1q_f32((const float*)bias_data + 4);
+            }
+        }
+#endif // __ARM_NEON
+
+        int i = 0;
+#if __ARM_NEON
+        for (; i + 7 < size; i += 8)
+        {
+            float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+            float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+            _v0 = vfmaq_f32(_bias0, _v0, _scale_in0);
+            _v1 = vfmaq_f32(_bias1, _v1, _scale_in1);
+#else  // __aarch64__
+            _v0 = vmlaq_f32(_bias0, _v0, _scale_in0);
+            _v1 = vmlaq_f32(_bias1, _v1, _scale_in1);
+#endif // __aarch64__
+            _v0 = activation_ps(_v0, activation_type, activation_params);
+            _v1 = activation_ps(_v1, activation_type, activation_params);
+            _v0 = vmulq_f32(_v0, _scale_out0);
+            _v1 = vmulq_f32(_v1, _scale_out1);
+            vst1_s8(ptr, float2int8(_v0, _v1));
+            intptr += 8;
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+            _v = vfmaq_f32(_bias0, _v, _scale_in0);
+#else  // __aarch64__
+            _v = vmlaq_f32(_bias0, _v, _scale_in0);
+#endif // __aarch64__
+            _v = activation_ps(_v, activation_type, activation_params);
+            _v = vmulq_f32(_v, _scale_out0);
+            int8x8_t v = float2int8(_v, _v);
+            ptr[0] = vget_lane_s8(v, 0);
+            ptr[1] = vget_lane_s8(v, 1);
+            ptr[2] = vget_lane_s8(v, 2);
+            ptr[3] = vget_lane_s8(v, 3);
+            intptr += 4;
+            ptr += 4;
+        }
+#endif // __ARM_NEON
+        for (; i < size; i++)
+        {
+            float v = *intptr * scale_in + bias;
+            v = activation_ss(v, activation_type, activation_params);
+            *ptr = float2int8(v * scale_out);
+            intptr++;
+            ptr++;
+        }
+    }
 }
 
 int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int dims = bottom_blob.dims;
+    const int dims = bottom_blob.dims;
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const int elempack = bottom_blob.elempack;
+    const size_t out_elemsize = elempack * 1u;
 
     if (dims == 1)
     {
-        int w = bottom_blob.w;
+        top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-        const int* intptr = bottom_blob;
-        signed char* ptr = top_blob;
+        const int wp = std::max(1, w / opt.num_threads);
+        const int nn_w = (w + wp - 1) / wp;
 
-        if (bias_term)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_w; ii++)
         {
-            if (bias_data_size > 1)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    ptr[i] = float2int8(((intptr[i] * scale_in) + bias_data[i]) * scale_out);
-                    if (fusion_relu && ptr[i] < 0)
-                        ptr[i] = 0;
-                }
-            }
-            else
-            {
-                float bias = bias_data[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    ptr[i] = float2int8(((intptr[i] * scale_in) + bias) * scale_out);
-                    if (fusion_relu && ptr[i] < 0)
-                        ptr[i] = 0;
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++)
-            {
-                ptr[i] = float2int8(intptr[i] * scale_in * scale_out);
-                if (fusion_relu && ptr[i] < 0)
-                    ptr[i] = 0;
-            }
+            const int i = ii * wp;
+
+            const int* intptr = (const int*)bottom_blob + i * elempack;
+            signed char* ptr = (signed char*)top_blob + i * elempack;
+
+            // assert scale_in_data_size == 1
+            // assert bias_data_size == 0 || bias_data_size == 1
+            // assert scale_out_data_size == 1
+
+            const int size = std::min(w - i, wp) * elempack;
+
+            requantize(intptr, ptr, scale_in_data, bias_data, scale_out_data, activation_type, activation_params, size, 1);
         }
     }
 
     if (dims == 2)
     {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
+        top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-        if (bias_term)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const int* intptr = bottom_blob.row<const int>(i);
-                signed char* ptr = top_blob.row<signed char>(i);
+            const int* intptr = bottom_blob.row<const int>(i);
+            signed char* ptr = top_blob.row<signed char>(i);
 
-                float bias = bias_data_size > 1 ? bias_data[i] : bias_data[0];
+            const Mat scale_in_data_i = scale_in_data_size > 1 ? scale_in_data.range(i * elempack, elempack) : scale_in_data;
+            const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * elempack, elempack) : bias_data;
+            const Mat scale_out_data_i = scale_out_data_size > 1 ? scale_out_data.range(i * elempack, elempack) : scale_out_data;
 
-                for (int j = 0; j < w; j++)
-                {
-                    ptr[j] = float2int8(((intptr[j] * scale_in) + bias) * scale_out);
-                    if (fusion_relu && ptr[j] < 0)
-                        ptr[j] = 0;
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const int* intptr = bottom_blob.row<const int>(i);
-                signed char* ptr = top_blob.row<signed char>(i);
-
-                for (int j = 0; j < w; j++)
-                {
-                    ptr[j] = float2int8(intptr[j] * scale_in * scale_out);
-                    if (fusion_relu && ptr[j] < 0)
-                        ptr[j] = 0;
-                }
-            }
+            requantize(intptr, ptr, scale_in_data_i, bias_data_i, scale_out_data_i, activation_type, activation_params, w, elempack);
         }
     }
 
     if (dims == 3)
     {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-        int channels = bottom_blob.c;
-        int size = w * h;
+        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-        double scale_fuse = scale_in * scale_out;
-
-        if (bias_term)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const int* intptr = bottom_blob.channel(q);
-                signed char* ptr = top_blob.channel(q);
+            const int* intptr = bottom_blob.channel(q);
+            signed char* ptr = top_blob.channel(q);
 
-                float bias = bias_data_size > 1 ? bias_data[q] : bias_data[0];
+            const Mat scale_in_data_q = scale_in_data_size > 1 ? scale_in_data.range(q * elempack, elempack) : scale_in_data;
+            const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
+            const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * elempack, elempack) : scale_out_data;
 
-#if __ARM_NEON
-                int nn = size >> 3;
-                int remain = size & 7;
-
-#if __aarch64__
-                if (nn > 0)
-                {
-                    asm volatile(
-                        "dup    v2.4s, %w6                   \n" // scale_in
-                        "dup    v3.4s, %w7                   \n" // scale_out
-                        "dup    v4.4s, %w8                   \n" // bias
-                        "0:                                  \n"
-                        "prfm   pldl1keep, [%1, #128]        \n"
-                        "ld1    {v0.4s, v1.4s}, [%1], #32    \n" // data
-                        // top_s32 -> top_f32
-                        "scvtf  v5.4s, v0.4s                 \n"
-                        "scvtf  v6.4s, v1.4s                 \n"
-                        // top_f32 = top_f32 * scale_in
-                        "fmul   v5.4s, v5.4s, v2.4s          \n"
-                        "fmul   v6.4s, v6.4s, v2.4s          \n"
-                        // top_f32 = top_f32 + bias
-                        "fadd   v5.4s, v5.4s, v4.4s          \n"
-                        "fadd   v6.4s, v6.4s, v4.4s          \n"
-                        // top_f32 = top_f32 * scale_out
-                        "fmul   v5.4s, v5.4s, v3.4s          \n"
-                        "fmul   v6.4s, v6.4s, v3.4s          \n"
-                        // top_f32 -> top_s32
-                        "fcvtas v5.4s, v5.4s                 \n"
-                        "fcvtas v6.4s, v6.4s                 \n"
-                        // top_s32 -> top_s16
-                        "sqxtn  v7.4h, v5.4s                 \n"
-                        "sqxtn2 v7.8h, v6.4s                 \n"
-                        // top_s16 -> top_s8
-                        "sqxtn  v8.8b, v7.8h                 \n"
-                        // save top_s8
-                        "st1    {v8.8b}, [%2], #8            \n"
-                        "subs   %w0, %w0, #1                 \n"
-                        "bne    0b                           \n"
-                        : "=r"(nn),     // %0
-                        "=r"(intptr), // %1
-                        "=r"(ptr)     // %2
-                        : "0"(nn),
-                        "1"(intptr),
-                        "2"(ptr),
-                        "r"(scale_in),  // %6
-                        "r"(scale_out), // %7
-                        "r"(bias)       // %8
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8");
-                }
-#else
-                if (nn > 0)
-                {
-                    asm volatile(
-                        "pld        [%1, #256]          \n"
-                        "vld1.s32   {d0-d3}, [%1:128]!  \n" //q0-q1 data
-                        "vdup.f32   q10, %6             \n" //q10 scale_in
-                        "vdup.f32   q11, %7             \n" //q11 scale_out
-                        "vdup.f32   q12, %8             \n" //q12 bias
-                        "0:                             \n"
-                        // top_s32 -> top_f32
-                        "vcvt.f32.s32 q0, q0            \n"
-                        "vcvt.f32.s32 q1, q1            \n"
-                        // top_f32 = top_f32 * scale_int
-                        "vmul.f32   q0, q0, q10         \n"
-                        "vmul.f32   q1, q1, q10         \n"
-                        // top_f32 = top_f32 + bias
-                        "vadd.f32   q0, q0, q12         \n"
-                        "vadd.f32   q1, q1, q12         \n"
-                        // top_f32 = top_f32 * scale_out
-                        "vmul.f32   q0, q0, q11         \n"
-                        "vmul.f32   q1, q1, q11         \n"
-                        // top_f32 -> top_s32
-                        "vcvtr.s32.f32 s0, s0           \n"
-                        "vcvtr.s32.f32 s1, s1           \n"
-                        "vcvtr.s32.f32 s2, s2           \n"
-                        "vcvtr.s32.f32 s3, s3           \n"
-                        "vcvtr.s32.f32 s4, s4           \n"
-                        "vcvtr.s32.f32 s5, s5           \n"
-                        "vcvtr.s32.f32 s6, s6           \n"
-                        "vcvtr.s32.f32 s7, s7           \n"
-                        // top_s32 -> top_s16
-                        "vqmovn.s32 d4, q0              \n"
-                        "vqmovn.s32 d5, q1              \n"
-                        "pld        [%1, #256]          \n"
-                        "vld1.s32   {d0-d3}, [%1:128]!  \n" //q0-q1 data
-                        // top_s16 -> top_s8
-                        "vqmovn.s16   d4, q2            \n"
-                        // save top_s8
-                        "vst1.8     {d4}, [%2:64]!      \n"
-                        "subs       %0, #1              \n"
-                        "bne        0b                  \n"
-                        "sub        %1, #32             \n"
-                        : "=r"(nn),     // %0
-                        "=r"(intptr), // %1
-                        "=r"(ptr)     // %2
-                        : "0"(nn),
-                        "1"(intptr),
-                        "2"(ptr),
-                        "r"(scale_in),  // %6
-                        "r"(scale_out), // %7
-                        "r"(bias)       // %8
-                        : "cc", "memory", "q0", "q1", "q2", "q10", "q11", "q12");
-                }
-#endif // __aarch64__
-#else
-                int remain = size;
-#endif // __ARM_NEON
-
-                for (; remain > 0; remain--)
-                {
-                    *ptr = float2int8(((*intptr * scale_in) + bias) * scale_out);
-
-                    intptr++;
-                    ptr++;
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const int* intptr = bottom_blob.channel(q);
-                signed char* ptr = top_blob.channel(q);
-
-#if __ARM_NEON
-                int nn = size >> 3;
-                int remain = size & 7;
-
-#if __aarch64__
-                if (nn > 0)
-                {
-                    asm volatile(
-                        "dup    v2.4s, %w6                   \n" // scale_fuse
-                        "0:                                  \n"
-                        "prfm   pldl1keep, [%1, #128]        \n"
-                        "ld1    {v0.4s, v1.4s}, [%1], #32    \n" // data
-                        // top_s32 -> top_f32
-                        "scvtf  v5.4s, v0.4s                 \n"
-                        "scvtf  v6.4s, v1.4s                 \n"
-                        // top_f32 = top_f32 * scale_fuse
-                        "fmul   v5.4s, v5.4s, v2.4s          \n"
-                        "fmul   v6.4s, v6.4s, v2.4s          \n"
-                        // top_f32 -> top_s32
-                        "fcvtas v5.4s, v5.4s                 \n"
-                        "fcvtas v6.4s, v6.4s                 \n"
-                        // top_s32 -> top_s16
-                        "sqxtn  v7.4h, v5.4s                 \n"
-                        "sqxtn2 v7.8h, v6.4s                 \n"
-                        // top_s16 -> top_s8
-                        "sqxtn  v8.8b, v7.8h                 \n"
-                        // save top_s8
-                        "st1    {v8.8b}, [%2], #8            \n"
-                        "subs   %w0, %w0, #1                 \n"
-                        "bne    0b                           \n"
-                        : "=r"(nn),     // %0
-                        "=r"(intptr), // %1
-                        "=r"(ptr)     // %2
-                        : "0"(nn),
-                        "1"(intptr),
-                        "2"(ptr),
-                        "r"(scale_fuse) // %6
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8");
-                }
-#else
-                if (nn > 0)
-                {
-                    asm volatile(
-                        "pld        [%1, #256]          \n"
-                        "vld1.s32   {d0-d3}, [%1:128]!  \n" //q0-q1 data
-                        "vdup.f32   q10, %6             \n" //q10 scale_fuse
-                        "0:                             \n"
-                        // top_s32 -> top_f32
-                        "vcvt.f32.s32 q0, q0            \n"
-                        "vcvt.f32.s32 q1, q1            \n"
-                        // top_f32 = top_f32 * scale_fuse
-                        "vmul.f32   q0, q0, q10         \n"
-                        "vmul.f32   q1, q1, q10         \n"
-                        // top_f32 -> top_s32
-                        "vcvtr.s32.f32 s0, s0           \n"
-                        "vcvtr.s32.f32 s1, s1           \n"
-                        "vcvtr.s32.f32 s2, s2           \n"
-                        "vcvtr.s32.f32 s3, s3           \n"
-                        "vcvtr.s32.f32 s4, s4           \n"
-                        "vcvtr.s32.f32 s5, s5           \n"
-                        "vcvtr.s32.f32 s6, s6           \n"
-                        "vcvtr.s32.f32 s7, s7           \n"
-                        // top_s32 -> top_s16
-                        "vqmovn.s32 d4, q0              \n"
-                        "vqmovn.s32 d5, q1              \n"
-                        "pld        [%1, #256]          \n"
-                        "vld1.s32   {d0-d3}, [%1:128]!  \n" //q0-q1 data
-                        // top_s16 -> top_s8
-                        "vqmovn.s16   d4, q2            \n"
-                        // save top_s8
-                        "vst1.8     {d4}, [%2:64]!      \n"
-                        "subs       %0, #1              \n"
-                        "bne        0b                  \n"
-                        "sub        %1, #32             \n"
-                        : "=r"(nn),     // %0
-                        "=r"(intptr), // %1
-                        "=r"(ptr)     // %2
-                        : "0"(nn),
-                        "1"(intptr),
-                        "2"(ptr),
-                        "r"(scale_fuse) // %6
-                        : "cc", "memory", "q0", "q1", "q2", "q10", "q11");
-                }
-#endif // __aarch64__
-#else
-                int remain = size;
-#endif // __ARM_NEON
-
-                for (; remain > 0; remain--)
-                {
-                    *ptr = float2int8(*intptr * scale_fuse);
-
-                    intptr++;
-                    ptr++;
-                }
-            }
+            requantize(intptr, ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h, elempack);
         }
     }
 

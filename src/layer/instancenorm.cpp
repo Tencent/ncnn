@@ -14,8 +14,6 @@
 
 #include "instancenorm.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 InstanceNorm::InstanceNorm()
@@ -89,12 +87,12 @@ int InstanceNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float gamma = gamma_data[q];
             float beta = beta_data[q];
 
-            a = static_cast<float>(gamma / (sqrt(var + eps)));
+            a = gamma / (sqrtf(var + eps));
             b = -mean * a + beta;
         }
         else
         {
-            a = static_cast<float>(1.f / (sqrt(var + eps)));
+            a = 1.f / (sqrtf(var + eps));
             b = -mean * a;
         }
 

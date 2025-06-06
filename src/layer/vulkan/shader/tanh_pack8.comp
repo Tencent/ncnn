@@ -14,14 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #define shape_constant_id_offset 0
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
@@ -62,8 +54,13 @@ void main()
     afpvec8 v = buffer_ld8(bottom_top_blob_data, gi);
 #endif
 
+#if NCNN_moltenvk
+    v[0] = afpvec4(tanh(vec4(v[0])));
+    v[1] = afpvec4(tanh(vec4(v[1])));
+#else
     v[0] = tanh(v[0]);
     v[1] = tanh(v[1]);
+#endif
 
 #if NCNN_image_shader
     image3d_st8(top_blob_3d, ivec3(gx, gy, gz), v);

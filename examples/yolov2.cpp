@@ -14,9 +14,13 @@
 
 #include "net.h"
 
+#if defined(USE_NCNN_SIMPLEOCV)
+#include "simpleocv.h"
+#else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#endif
 #include <stdio.h>
 #include <vector>
 
@@ -37,8 +41,10 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
     // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy.prototxt
     // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_80000.caffemodel
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    yolov2.load_param("mobilenet_yolo.param");
-    yolov2.load_model("mobilenet_yolo.bin");
+    if (yolov2.load_param("mobilenet_yolo.param"))
+        exit(-1);
+    if (yolov2.load_model("mobilenet_yolo.bin"))
+        exit(-1);
 
     const int target_size = 416;
 

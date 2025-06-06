@@ -1,4 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+// // Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -20,31 +20,37 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "cpu.h"
+
 namespace ncnn {
 
 ShuffleChannel_arm::ShuffleChannel_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int elembits = bottom_blob.elembits();
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
 
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
@@ -137,6 +143,8 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             Mat bottom_blob_unpacked;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+            if (bottom_blob_unpacked.empty())
+                return -100;
 
             Mat top_blob_unpacked;
             int ret = ShuffleChannel::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
@@ -302,7 +310,7 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
         return 0;
     }
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     if (elempack == 8)
     {
         if (_group == 2 && channels % _group != 0)
@@ -321,24 +329,24 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
             // TODO unroll me
             for (int q = 0; q < channels_per_group; q++)
             {
-                const __fp16* ptr0 = bottom_blob.channel(q);
-                const __fp16* ptr1 = bottom_blob.channel(channels_per_group + q);
-                const __fp16* ptr2 = bottom_blob.channel(channels_per_group + q + 1);
-                __fp16* outptr0 = top_blob.channel(q * 2);
-                __fp16* outptr1 = top_blob.channel(q * 2 + 1);
+                const unsigned short* ptr0 = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
+                const unsigned short* ptr2 = bottom_blob.channel(channels_per_group + q + 1);
+                unsigned short* outptr0 = top_blob.channel(q * 2);
+                unsigned short* outptr1 = top_blob.channel(q * 2 + 1);
 
                 for (int i = 0; i < size; i++)
                 {
-                    float16x8_t _p0 = vld1q_f16(ptr0);
-                    float16x8_t _p1 = vld1q_f16(ptr1);
-                    float16x8_t _p2 = vld1q_f16(ptr2);
+                    uint16x8_t _p0 = vld1q_u16(ptr0);
+                    uint16x8_t _p1 = vld1q_u16(ptr1);
+                    uint16x8_t _p2 = vld1q_u16(ptr2);
 
-                    float16x8_t _p12 = vextq_f16(_p1, _p2, 4);
+                    uint16x8_t _p12 = vextq_u16(_p1, _p2, 4);
 
-                    float16x8x2_t _p01 = vzipq_f16(_p0, _p12);
+                    uint16x8x2_t _p01 = vzipq_u16(_p0, _p12);
 
-                    vst1q_f16(outptr0, _p01.val[0]);
-                    vst1q_f16(outptr1, _p01.val[1]);
+                    vst1q_u16(outptr0, _p01.val[0]);
+                    vst1q_u16(outptr1, _p01.val[1]);
 
                     ptr0 += 8;
                     ptr1 += 8;
@@ -350,21 +358,21 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
             // handle the last channel
             {
-                const __fp16* ptr0 = bottom_blob.channel(channels_per_group);
-                const __fp16* ptr1 = bottom_blob.channel(channels_per_group + channels_per_group);
-                __fp16* outptr0 = top_blob.channel(channels_per_group * 2);
+                const unsigned short* ptr0 = bottom_blob.channel(channels_per_group);
+                const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + channels_per_group);
+                unsigned short* outptr0 = top_blob.channel(channels_per_group * 2);
 
                 ptr1 += 4;
 
                 for (int i = 0; i < size; i++)
                 {
-                    float16x4_t _p0 = vld1_f16(ptr0);
-                    float16x4_t _p1 = vld1_f16(ptr1);
+                    uint16x4_t _p0 = vld1_u16(ptr0);
+                    uint16x4_t _p1 = vld1_u16(ptr1);
 
-                    float16x4x2_t _p01 = vzip_f16(_p0, _p1);
+                    uint16x4x2_t _p01 = vzip_u16(_p0, _p1);
 
-                    vst1_f16(outptr0, _p01.val[0]);
-                    vst1_f16(outptr0 + 4, _p01.val[1]);
+                    vst1_u16(outptr0, _p01.val[0]);
+                    vst1_u16(outptr0 + 4, _p01.val[1]);
 
                     ptr0 += 8;
                     ptr1 += 8;
@@ -383,6 +391,8 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
             Mat bottom_blob_unpacked;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+            if (bottom_blob_unpacked.empty())
+                return -100;
 
             Mat top_blob_unpacked;
             int ret = ShuffleChannel::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
@@ -390,6 +400,8 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
                 return ret;
 
             convert_packing(top_blob_unpacked, top_blob, elempack, opt);
+            if (top_blob.empty())
+                return -100;
 
             return 0;
         }
@@ -409,20 +421,20 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
         {
             for (int q = 0; q < channels_per_group; q++)
             {
-                const __fp16* ptr0 = bottom_blob.channel(q);
-                const __fp16* ptr1 = bottom_blob.channel(channels_per_group + q);
-                __fp16* outptr0 = top_blob.channel(q * 2);
-                __fp16* outptr1 = top_blob.channel(q * 2 + 1);
+                const unsigned short* ptr0 = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
+                unsigned short* outptr0 = top_blob.channel(q * 2);
+                unsigned short* outptr1 = top_blob.channel(q * 2 + 1);
 
                 for (int i = 0; i < size; i++)
                 {
-                    float16x8_t _p0 = vld1q_f16(ptr0);
-                    float16x8_t _p1 = vld1q_f16(ptr1);
+                    uint16x8_t _p0 = vld1q_u16(ptr0);
+                    uint16x8_t _p1 = vld1q_u16(ptr1);
 
-                    float16x8x2_t _p01 = vzipq_f16(_p0, _p1);
+                    uint16x8x2_t _p01 = vzipq_u16(_p0, _p1);
 
-                    vst1q_f16(outptr0, _p01.val[0]);
-                    vst1q_f16(outptr1, _p01.val[1]);
+                    vst1q_u16(outptr0, _p01.val[0]);
+                    vst1q_u16(outptr1, _p01.val[1]);
 
                     ptr0 += 8;
                     ptr1 += 8;
@@ -436,18 +448,18 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
         {
             for (int q = 0; q < channels_per_group; q++)
             {
-                const __fp16* ptr0 = bottom_blob.channel(q);
-                const __fp16* ptr1 = bottom_blob.channel(channels_per_group + q);
-                const __fp16* ptr2 = bottom_blob.channel(channels_per_group * 2 + q);
-                __fp16* outptr0 = top_blob.channel(q * 3);
-                __fp16* outptr1 = top_blob.channel(q * 3 + 1);
-                __fp16* outptr2 = top_blob.channel(q * 3 + 2);
+                const unsigned short* ptr0 = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
+                const unsigned short* ptr2 = bottom_blob.channel(channels_per_group * 2 + q);
+                unsigned short* outptr0 = top_blob.channel(q * 3);
+                unsigned short* outptr1 = top_blob.channel(q * 3 + 1);
+                unsigned short* outptr2 = top_blob.channel(q * 3 + 2);
 
                 for (int i = 0; i < size; i++)
                 {
-                    float16x8_t _p0 = vld1q_f16(ptr0);
-                    float16x8_t _p1 = vld1q_f16(ptr1);
-                    float16x8_t _p2 = vld1q_f16(ptr2);
+                    uint16x8_t _p0 = vld1q_u16(ptr0);
+                    uint16x8_t _p1 = vld1q_u16(ptr1);
+                    uint16x8_t _p2 = vld1q_u16(ptr2);
 
                     // TODO figure out a faster way
 
@@ -455,21 +467,21 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
                     // 89abcdef   ->   i3bj4ck5
                     // ghijklmn        dl6em7fn
 
-                    float16x8x3_t _p012;
+                    uint16x8x3_t _p012;
                     _p012.val[0] = _p0;
                     _p012.val[1] = _p1;
                     _p012.val[2] = _p2;
 
-                    __fp16 tmp[24];
-                    vst3q_f16(&tmp[0], _p012);
+                    unsigned short tmp[24];
+                    vst3q_u16(&tmp[0], _p012);
 
-                    _p0 = vld1q_f16(&tmp[0]);
-                    _p1 = vld1q_f16(&tmp[8]);
-                    _p2 = vld1q_f16(&tmp[16]);
+                    _p0 = vld1q_u16(&tmp[0]);
+                    _p1 = vld1q_u16(&tmp[8]);
+                    _p2 = vld1q_u16(&tmp[16]);
 
-                    vst1q_f16(outptr0, _p0);
-                    vst1q_f16(outptr1, _p1);
-                    vst1q_f16(outptr2, _p2);
+                    vst1q_u16(outptr0, _p0);
+                    vst1q_u16(outptr1, _p1);
+                    vst1q_u16(outptr2, _p2);
 
                     ptr0 += 8;
                     ptr1 += 8;
@@ -485,36 +497,36 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
         {
             for (int q = 0; q < channels_per_group; q++)
             {
-                const __fp16* ptr0 = bottom_blob.channel(q);
-                const __fp16* ptr1 = bottom_blob.channel(channels_per_group + q);
-                const __fp16* ptr2 = bottom_blob.channel(channels_per_group * 2 + q);
-                const __fp16* ptr3 = bottom_blob.channel(channels_per_group * 3 + q);
-                __fp16* outptr0 = top_blob.channel(q * 4);
-                __fp16* outptr1 = top_blob.channel(q * 4 + 1);
-                __fp16* outptr2 = top_blob.channel(q * 4 + 2);
-                __fp16* outptr3 = top_blob.channel(q * 4 + 3);
+                const unsigned short* ptr0 = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
+                const unsigned short* ptr2 = bottom_blob.channel(channels_per_group * 2 + q);
+                const unsigned short* ptr3 = bottom_blob.channel(channels_per_group * 3 + q);
+                unsigned short* outptr0 = top_blob.channel(q * 4);
+                unsigned short* outptr1 = top_blob.channel(q * 4 + 1);
+                unsigned short* outptr2 = top_blob.channel(q * 4 + 2);
+                unsigned short* outptr3 = top_blob.channel(q * 4 + 3);
 
                 for (int i = 0; i < size; i++)
                 {
-                    float16x8_t _p0 = vld1q_f16(ptr0);
-                    float16x8_t _p1 = vld1q_f16(ptr1);
-                    float16x8_t _p2 = vld1q_f16(ptr2);
-                    float16x8_t _p3 = vld1q_f16(ptr3);
+                    uint16x8_t _p0 = vld1q_u16(ptr0);
+                    uint16x8_t _p1 = vld1q_u16(ptr1);
+                    uint16x8_t _p2 = vld1q_u16(ptr2);
+                    uint16x8_t _p3 = vld1q_u16(ptr3);
 
                     // transpose 4x4
-                    float16x8x2_t _p01 = vtrnq_f16(_p0, _p1);
-                    float16x8x2_t _p23 = vtrnq_f16(_p2, _p3);
-                    uint32x4x2_t _p02 = vtrnq_u32(vreinterpretq_u32_f16(_p01.val[0]), vreinterpretq_u32_f16(_p23.val[0]));
-                    uint32x4x2_t _p13 = vtrnq_u32(vreinterpretq_u32_f16(_p01.val[1]), vreinterpretq_u32_f16(_p23.val[1]));
-                    _p0 = vreinterpretq_f16_u32(_p02.val[0]);
-                    _p1 = vreinterpretq_f16_u32(_p13.val[0]);
-                    _p2 = vreinterpretq_f16_u32(_p02.val[1]);
-                    _p3 = vreinterpretq_f16_u32(_p13.val[1]);
+                    uint16x8x2_t _p01 = vtrnq_u16(_p0, _p1);
+                    uint16x8x2_t _p23 = vtrnq_u16(_p2, _p3);
+                    uint32x4x2_t _p02 = vtrnq_u32(vreinterpretq_u32_u16(_p01.val[0]), vreinterpretq_u32_u16(_p23.val[0]));
+                    uint32x4x2_t _p13 = vtrnq_u32(vreinterpretq_u32_u16(_p01.val[1]), vreinterpretq_u32_u16(_p23.val[1]));
+                    _p0 = vreinterpretq_u16_u32(_p02.val[0]);
+                    _p1 = vreinterpretq_u16_u32(_p13.val[0]);
+                    _p2 = vreinterpretq_u16_u32(_p02.val[1]);
+                    _p3 = vreinterpretq_u16_u32(_p13.val[1]);
 
-                    vst1q_f16(outptr0, vcombine_f16(vget_low_f16(_p0), vget_low_f16(_p1)));
-                    vst1q_f16(outptr1, vcombine_f16(vget_low_f16(_p2), vget_low_f16(_p3)));
-                    vst1q_f16(outptr2, vcombine_f16(vget_high_f16(_p0), vget_high_f16(_p1)));
-                    vst1q_f16(outptr3, vcombine_f16(vget_high_f16(_p2), vget_high_f16(_p3)));
+                    vst1q_u16(outptr0, vcombine_u16(vget_low_u16(_p0), vget_low_u16(_p1)));
+                    vst1q_u16(outptr1, vcombine_u16(vget_low_u16(_p2), vget_low_u16(_p3)));
+                    vst1q_u16(outptr2, vcombine_u16(vget_high_u16(_p0), vget_high_u16(_p1)));
+                    vst1q_u16(outptr3, vcombine_u16(vget_high_u16(_p2), vget_high_u16(_p3)));
 
                     ptr0 += 8;
                     ptr1 += 8;
@@ -530,7 +542,7 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
         return 0;
     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // NCNN_ARM82
 
 #if __ARM_NEON
     if (elempack == 4)
@@ -612,6 +624,8 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
             Mat bottom_blob_unpacked;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+            if (bottom_blob_unpacked.empty())
+                return -100;
 
             Mat top_blob_unpacked;
             int ret = ShuffleChannel::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
@@ -619,6 +633,8 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
                 return ret;
 
             convert_packing(top_blob_unpacked, top_blob, elempack, opt);
+            if (top_blob.empty())
+                return -100;
 
             return 0;
         }
