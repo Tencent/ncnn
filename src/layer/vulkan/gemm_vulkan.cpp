@@ -161,7 +161,7 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         B_data_packed.release();
     }
 
-    if (constantC)
+    if (constantC && constant_broadcast_type_C != -1)
     {
         if (support_image_storage && opt.use_image_storage)
         {

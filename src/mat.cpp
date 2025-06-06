@@ -99,7 +99,7 @@ Mat Mat::reshape(int _w, Allocator* _allocator) const
     m.d = 1;
     m.c = 1;
 
-    m.cstep = _w;
+    m.cstep = alignSize((size_t)_w * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -135,7 +135,7 @@ Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     m.d = 1;
     m.c = 1;
 
-    m.cstep = (size_t)_w * _h;
+    m.cstep = alignSize((size_t)_w * _h * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -247,7 +247,7 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize((size_t)w * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -282,7 +282,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -387,7 +387,7 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize((size_t)w * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -422,7 +422,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
     d = 1;
     c = 1;
 
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -569,7 +569,7 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -602,7 +602,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w * h;
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -701,7 +701,7 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -734,7 +734,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     d = 1;
     c = 1;
 
-    cstep = w * h;
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
