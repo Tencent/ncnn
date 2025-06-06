@@ -1088,6 +1088,12 @@ void GpuInfoPrivate::query_extension_properties()
         }
 
         queryCooperativeMatrixProperties.resize(propertyCount);
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            memset(&queryCooperativeMatrixProperties[j], 0, sizeof(queryCooperativeMatrixProperties[j]));
+            queryCooperativeMatrixProperties[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR;
+            queryCooperativeMatrixProperties[j].pNext = 0;
+        }
         ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice, &propertyCount, queryCooperativeMatrixProperties.data());
         if (ret != VK_SUCCESS)
         {
@@ -1141,6 +1147,7 @@ void GpuInfoPrivate::query_extension_properties()
         queryCooperativeMatrixPropertiesNV.resize(propertyCount);
         for (uint32_t j = 0; j < propertyCount; j++)
         {
+            memset(&queryCooperativeMatrixPropertiesNV[j], 0, sizeof(queryCooperativeMatrixPropertiesNV[j]));
             queryCooperativeMatrixPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
             queryCooperativeMatrixPropertiesNV[j].pNext = 0;
         }
@@ -3375,10 +3382,11 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     pipelineShaderStageCreateInfo.pName = "main";
     pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
 
-    if (info.support_compute_full_subgroups())
-    {
-        pipelineShaderStageCreateInfo.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
-    }
+    // but full subgroup bits enforce local_size_x be multiple of subgroup size
+    // if (info.support_compute_full_subgroups())
+    // {
+    //     pipelineShaderStageCreateInfo.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
+    // }
 
     void* enabledExtensionFeatures = 0;
 
