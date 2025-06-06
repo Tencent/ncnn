@@ -122,99 +122,79 @@ void Pipeline::set_subgroup_size(uint32_t subgroup_size)
     d->subgroup_size = subgroup_size;
 }
 
+#if 1//__APPLE__
+static int count_trailing_zeros(unsigned int v)
+{
+    int cnt = 0;
+    while ((v & 1) == 0)
+    {
+        cnt++;
+        v >>= 1;
+    }
+    return cnt;
+}
+
+static unsigned int round_up_pow2_mul(unsigned int v, int k)
+{
+    unsigned int m = 1u << k;
+    return ((v + m - 1) / m) * m;
+}
+
+static void adjust_xyz(int *x, int *y, int *z, int size)
+{
+    int n = 0;
+    while ((1 << n) != size)
+        n++;
+
+    const int tx = count_trailing_zeros((unsigned int)*x);
+    const int ty = count_trailing_zeros((unsigned int)*y);
+    const int tz = count_trailing_zeros((unsigned int)*z);
+    const int total2 = tx + ty + tz;
+
+    if (total2 >= n)
+        return;
+
+    int need = n - total2;
+    long best_cost = LONG_MAX;
+    unsigned int best_x = *x, best_y = *y, best_z = *z;
+
+    for (int kx = 0; kx <= need; kx++)
+    {
+        for (int ky = 0; ky <= need - kx; ky++)
+        {
+            int kz = need - kx - ky;
+            if (kx >= 32 || ky >= 32 || kz >= 32)
+                continue;
+
+            unsigned int nx = round_up_pow2_mul((unsigned int)*x, kx);
+            unsigned int ny = round_up_pow2_mul((unsigned int)*y, ky);
+            unsigned int nz = round_up_pow2_mul((unsigned int)*z, kz);
+            if (nx == 0 || ny == 0 || nz == 0 || nx > INT_MAX || ny > INT_MAX || nz > INT_MAX)
+                continue;
+
+            long cost = (long)(nx - *x) + (long)(ny - *y) + (long)(nz - *z);
+            if (cost < best_cost)
+            {
+                best_cost = cost;
+                best_x = nx;
+                best_y = ny;
+                best_z = nz;
+            }
+        }
+    }
+
+    *x = best_x;
+    *y = best_y;
+    *z = best_z;
+}
+#endif // __APPLE__
+
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
-    int local_size = w * h * c;
-
-    // be multiple of subgroup size
-    int subgroup_size = vkdev->info.subgroup_size();
-    int local_size2 = std::max(1, local_size / subgroup_size) * subgroup_size;
-    for (; local_size > local_size2; local_size = w * h * c)
-    {
-        if (local_size == local_size2 * 2)
-        {
-            if (c % 2 == 0)
-                c /= 2;
-            else if (h % 2 == 0)
-                w /= 2;
-            else if (w % 2 == 0)
-                h /= 2;
-            else
-                c /= 2;
-        }
-        else if (local_size == local_size2 * 4)
-        {
-            if (w % 2 == 0 && h % 2 == 0)
-            {
-                w /= 2;
-                h /= 2;
-            }
-            else if (h % 2 == 0 && c % 2 == 0)
-            {
-                h /= 2;
-                c /= 2;
-            }
-            else if (w % 2 == 0 && c % 2 == 0)
-            {
-                w /= 2;
-                c /= 2;
-            }
-            else if (c % 4 == 0)
-            {
-                c /= 4;
-            }
-            else if (h % 4 == 0)
-            {
-                h /= 4;
-            }
-            else if (w % 4 == 0)
-            {
-                w /= 4;
-            }
-            else if (c % 2 == 0)
-            {
-                h /= 2;
-                c /= 2;
-            }
-            else if (h % 2 == 0)
-            {
-                w /= 2;
-                h /= 2;
-            }
-            else if (w % 2 == 0)
-            {
-                w /= 2;
-                h /= 2;
-            }
-            else
-            {
-                w /= 2;
-                h /= 2;
-            }
-        }
-        else
-        {
-            if (w % 2 != 0 && h % 2 != 0 && c % 2 != 0)
-            {
-                w /= 2;
-                h /= 2;
-                c /= 2;
-            }
-            else
-            {
-                if (c % 2 == 0)
-                    c /= 2;
-                if (h % 2 == 0)
-                    h /= 2;
-                if (w % 2 == 0)
-                    w /= 2;
-            }
-        }
-
-        w = std::max(1, w);
-        h = std::max(1, h);
-        c = std::max(1, c);
-    }
+#if 1//__APPLE__
+    // metal _validateThreadsPerThreadgroup
+    adjust_xyz(&w, &h, &c, d->subgroup_size);
+#endif // __APPLE__
 
     d->local_size_x = w;
     d->local_size_y = h;
