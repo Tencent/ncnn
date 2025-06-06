@@ -122,7 +122,7 @@ void Pipeline::set_subgroup_size(uint32_t subgroup_size)
     d->subgroup_size = subgroup_size;
 }
 
-#if 1//__APPLE__
+#if 1 //__APPLE__
 static int count_trailing_zeros(unsigned int v)
 {
     int cnt = 0;
@@ -140,7 +140,7 @@ static unsigned int round_up_pow2_mul(unsigned int v, int k)
     return ((v + m - 1) / m) * m;
 }
 
-static void adjust_xyz(int *x, int *y, int *z, int size)
+static void adjust_xyz(int* x, int* y, int* z, int size)
 {
     int n = 0;
     while ((1 << n) != size)
@@ -191,7 +191,7 @@ static void adjust_xyz(int *x, int *y, int *z, int size)
 
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
-#if 1//__APPLE__
+#if 1 //__APPLE__
     // metal _validateThreadsPerThreadgroup
     adjust_xyz(&w, &h, &c, d->subgroup_size);
 #endif // __APPLE__
