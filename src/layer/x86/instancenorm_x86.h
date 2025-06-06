@@ -23,7 +23,6 @@ class InstanceNorm_x86 : public InstanceNorm
 {
 public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
-
 };
 
 } // namespace ncnn
