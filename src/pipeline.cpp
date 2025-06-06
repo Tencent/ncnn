@@ -124,7 +124,6 @@ void Pipeline::set_subgroup_size(uint32_t subgroup_size)
     d->subgroup_size = subgroup_size;
 }
 
-#if 1 //__APPLE__
 static int count_trailing_zeros(unsigned int v)
 {
     int cnt = 0;
@@ -189,14 +188,13 @@ static void adjust_xyz(int* x, int* y, int* z, int size)
     *y = best_y;
     *z = best_z;
 }
-#endif // __APPLE__
 
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
-#if 1 //__APPLE__
-    // metal _validateThreadsPerThreadgroup
+    // dispatch at least one subgroup
+    // make local size be multiple of subgroup size
+    // and metal is unhappy with arbitary local size anyway
     adjust_xyz(&w, &h, &c, d->subgroup_size);
-#endif // __APPLE__
 
     d->local_size_x = w;
     d->local_size_y = h;
