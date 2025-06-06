@@ -14,6 +14,8 @@
 
 #include "pipeline.h"
 
+#include <limits.h>
+
 #include "layer_shader_type.h"
 #include "mat.h"
 #include "pipelinecache.h"
