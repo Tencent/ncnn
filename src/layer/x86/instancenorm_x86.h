@@ -22,23 +22,8 @@ namespace ncnn {
 class InstanceNorm_x86 : public InstanceNorm
 {
 public:
-    InstanceNorm_x86();
-
-    virtual int load_param(const ParamDict& pd);
-
-    virtual int load_model(const ModelBin& mb);
-
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-public:
-    // param
-    int channels;
-    float eps;
-    int affine;
-
-    // model
-    Mat gamma_data;
-    Mat beta_data;
 };
 
 } // namespace ncnn
