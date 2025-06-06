@@ -142,6 +142,10 @@ static unsigned int round_up_pow2_mul(unsigned int v, int k)
     return ((v + m - 1) / m) * m;
 }
 
+// adjust x, y, z so that new x * y * z is a multiple of size (size must be a power of two), and new x, y, z are no less than the inputs
+// new values do not have to be integer multiples of the originals
+// minimize the total increment (x'-x)+(y'-y)+(z'-z)
+// additional constraint: if original y is 1, prefer not to adjust y; if original z is 1, prefer not to adjust z
 static void adjust_xyz(int* x, int* y, int* z, int size)
 {
     int n = 0;
@@ -157,32 +161,52 @@ static void adjust_xyz(int* x, int* y, int* z, int size)
         return;
 
     int need = n - total2;
+    int orig_x = *x, orig_y = *y, orig_z = *z;
+    int restrict_y = (orig_y == 1);
+    int restrict_z = (orig_z == 1);
     long best_cost = LONG_MAX;
-    unsigned int best_x = *x, best_y = *y, best_z = *z;
+    unsigned int best_x = orig_x, best_y = orig_y, best_z = orig_z;
 
-    for (int kx = 0; kx <= need; kx++)
+    // distribute the extra factors of two (need) across x, y, z:
+    // enumerate kx, ky, kz >= 0 with kx+ky+kz = need
+    // first pass: enforce ky=0 if y==1, kz=0 if z==1
+    // second pass: relax constraints if no solution found
+    for (int pass = 0; pass < 2; pass++)
     {
-        for (int ky = 0; ky <= need - kx; ky++)
+        for (int kx = 0; kx <= need; kx++)
         {
-            int kz = need - kx - ky;
-            if (kx >= 32 || ky >= 32 || kz >= 32)
-                continue;
-
-            unsigned int nx = round_up_pow2_mul((unsigned int)*x, kx);
-            unsigned int ny = round_up_pow2_mul((unsigned int)*y, ky);
-            unsigned int nz = round_up_pow2_mul((unsigned int)*z, kz);
-            if (nx == 0 || ny == 0 || nz == 0 || nx > INT_MAX || ny > INT_MAX || nz > INT_MAX)
-                continue;
-
-            long cost = (long)(nx - *x) + (long)(ny - *y) + (long)(nz - *z);
-            if (cost < best_cost)
+            for (int ky = 0; ky <= need - kx; ky++)
             {
-                best_cost = cost;
-                best_x = nx;
-                best_y = ny;
-                best_z = nz;
+                int kz = need - kx - ky;
+                if (pass == 0)
+                {
+                    if (restrict_y && ky > 0)
+                        continue;
+                    if (restrict_z && kz > 0)
+                        continue;
+                }
+
+                unsigned int nx = round_up_pow2_mul((unsigned int)orig_x, kx);
+                unsigned int ny = round_up_pow2_mul((unsigned int)orig_y, ky);
+                unsigned int nz = round_up_pow2_mul((unsigned int)orig_z, kz);
+
+                // skip invalid or overflowed values
+                if (nx == 0 || ny == 0 || nz == 0 || nx > INT_MAX || ny > INT_MAX || nz > INT_MAX)
+                    continue;
+
+                long cost = (long)(nx - orig_x) + (long)(ny - orig_y) + (long)(nz - orig_z);
+                if (cost < best_cost)
+                {
+                    best_cost = cost;
+                    best_x = nx;
+                    best_y = ny;
+                    best_z = nz;
+                }
             }
         }
+
+        if (best_cost < LONG_MAX)
+            break;
     }
 
     *x = best_x;
