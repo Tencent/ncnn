@@ -1007,14 +1007,14 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m128i _re = _mm256_cvtps_ph(_mm256_loadu_ps(ke), _MM_FROUND_TRUNC);
                 __m128i _rf = _mm256_cvtps_ph(_mm256_loadu_ps(kf), _MM_FROUND_TRUNC);
 
-                __m256i _r08 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r8, 1);
-                __m256i _r19 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r9, 1);
-                __m256i _r2a = _mm256_inserti128_si256(_mm256_castsi128_si256(_r2), _ra, 1);
-                __m256i _r3b = _mm256_inserti128_si256(_mm256_castsi128_si256(_r3), _rb, 1);
-                __m256i _r4c = _mm256_inserti128_si256(_mm256_castsi128_si256(_r4), _rc, 1);
-                __m256i _r5d = _mm256_inserti128_si256(_mm256_castsi128_si256(_r5), _rd, 1);
-                __m256i _r6e = _mm256_inserti128_si256(_mm256_castsi128_si256(_r6), _re, 1);
-                __m256i _r7f = _mm256_inserti128_si256(_mm256_castsi128_si256(_r7), _rf, 1);
+                __m256i _r08 = combine4x2_epi32(_r0, _r8);
+                __m256i _r19 = combine4x2_epi32(_r1, _r9);
+                __m256i _r2a = combine4x2_epi32(_r2, _ra);
+                __m256i _r3b = combine4x2_epi32(_r3, _rb);
+                __m256i _r4c = combine4x2_epi32(_r4, _rc);
+                __m256i _r5d = combine4x2_epi32(_r5, _rd);
+                __m256i _r6e = combine4x2_epi32(_r6, _re);
+                __m256i _r7f = combine4x2_epi32(_r7, _rf);
 
                 __m256i _tmp0 = _mm256_unpacklo_epi16(_r08, _r19);
                 __m256i _tmp1 = _mm256_unpackhi_epi16(_r08, _r19);
