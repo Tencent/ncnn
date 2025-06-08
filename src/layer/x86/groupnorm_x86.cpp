@@ -95,9 +95,9 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
 #if __SSE2__
         _mean = _mm_set1_ps(mean);
 #if __AVX__
-        _mean_avx = _mm256_insertf128_ps(_mm256_castps128_ps256(_mean), _mean, 1);
+        _mean_avx = combine4x2_ps(_mean, _mean);
 #if __AVX512F__
-        _mean_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_mean_avx), _mean_avx, 1);
+        _mean_avx512 = combine8x2_ps(_mean_avx, _mean_avx);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -170,11 +170,11 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
         _var = _mm_set1_ps(var);
         _mean = _mm_set1_ps(mean);
 #if __AVX__
-        _var_avx = _mm256_insertf128_ps(_mm256_castps128_ps256(_var), _var, 1);
-        _mean_avx = _mm256_insertf128_ps(_mm256_castps128_ps256(_mean), _mean, 1);
+        _var_avx = combine4x2_ps(_var, _var);
+        _mean_avx = combine4x2_ps(_mean, _mean);
 #if __AVX512F__
-        _var_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_var_avx), _var_avx, 1);
-        _mean_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_mean_avx), _mean_avx, 1);
+        _var_avx512 = combine8x2_ps(_var_avx, _var_avx);
+        _mean_avx512 = combine8x2_ps(_mean_avx, _mean_avx);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -226,8 +226,8 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
                 _a_avx = _mm256_mul_ps(_var_avx, _gamma);
                 _b_avx = _mm256_comp_fmsub_ps(_mean_avx, _gamma, _beta);
 #if __AVX512F__
-                _a_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_a_avx), _a_avx, 1);
-                _b_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_b_avx), _b_avx, 1);
+                _a_avx512 = combine8x2_ps(_a_avx, _a_avx);
+                _b_avx512 = combine8x2_ps(_b_avx, _b_avx);
 #endif // __AVX512F__
             }
 #endif // __AVX__
@@ -239,11 +239,11 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
                 _a = _mm_mul_ps(_var, _gamma);
                 _b = _mm_comp_fmsub_ps(_mean, _gamma, _beta);
 #if __AVX__
-                _a_avx = _mm256_insertf128_ps(_mm256_castps128_ps256(_a), _a, 1);
-                _b_avx = _mm256_insertf128_ps(_mm256_castps128_ps256(_b), _b, 1);
+                _a_avx = combine4x2_ps(_a, _a);
+                _b_avx = combine4x2_ps(_b, _b);
 #if __AVX512F__
-                _a_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_a_avx), _a_avx, 1);
-                _b_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_b_avx), _b_avx, 1);
+                _a_avx512 = combine8x2_ps(_a_avx, _a_avx);
+                _b_avx512 = combine8x2_ps(_b_avx, _b_avx);
 #endif // __AVX512F__
 #endif // __AVX__
             }
@@ -259,11 +259,11 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
                 _a = _mm_set1_ps(a);
                 _b = _mm_set1_ps(b);
 #if __AVX__
-                _a_avx = _mm256_insertf128_ps(_mm256_castps128_ps256(_a), _a, 1);
-                _b_avx = _mm256_insertf128_ps(_mm256_castps128_ps256(_b), _b, 1);
+                _a_avx = combine4x2_ps(_a, _a);
+                _b_avx = combine4x2_ps(_b, _b);
 #if __AVX512F__
-                _a_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_a_avx), _a_avx, 1);
-                _b_avx512 = _mm512_insertf32x8(_mm512_castps256_ps512(_b_avx), _b_avx, 1);
+                _a_avx512 = combine8x2_ps(_a_avx, _a_avx);
+                _b_avx512 = combine8x2_ps(_b_avx, _b_avx);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__

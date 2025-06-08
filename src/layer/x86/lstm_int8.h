@@ -2263,7 +2263,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m256i _w2 = _mm256_loadu_si256((const __m256i*)(kptr + 64));
                 __m256i _w3 = _mm256_loadu_si256((const __m256i*)(kptr + 96));
 
-                __m256i _xii = _mm256_inserti128_si256(_mm256_castsi128_si256(_xi), _xi, 1);
+                __m256i _xii = combine4x2_epi32(_xi, _xi);
 
                 _sum0 = _mm256_comp_dpbusd_epi32(_sum0, _xii, _w0);
                 _sum1 = _mm256_comp_dpbusd_epi32(_sum1, _xii, _w1);
