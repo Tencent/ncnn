@@ -960,7 +960,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m512i _pA0 = _mm512_loadu_si512((const __m512i*)pA);
                     __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
                     __m512i _pA1 = _mm512_permutex_epi64(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
-                    __m512i _pB0 = _mm512_inserti32x8(_mm512_castsi256_si512(_pB), _pB, 1);
+                    __m512i _pB0 = combine8x2_epi32(_pB, _pB);
                     __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
                     __m512i _pB2 = _mm512_shuffle_epi32(_pB0, _MM_PERM_BADC);
                     __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
@@ -982,7 +982,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m512i _pA0 = _mm512_cvtepi16_epi32(_mm256_load_si256((const __m256i*)pA));
                     __m256i _pB = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i*)pB));
                     __m512i _pA1 = _mm512_permutex_epi64(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
-                    __m512i _pB0 = _mm512_inserti32x8(_mm512_castsi256_si512(_pB), _pB, 1);
+                    __m512i _pB0 = combine8x2_epi32(_pB, _pB);
                     __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
                     __m512i _pB2 = _mm512_permutex_epi64(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
                     __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
@@ -1344,7 +1344,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
                     __m512i _pB0 = _mm512_loadu_si512((const __m512i*)pB);
 
-                    __m512i _pA00 = _mm512_inserti32x8(_mm512_castsi256_si512(_pA0), _pA0, 1);
+                    __m512i _pA00 = combine8x2_epi32(_pA0, _pA0);
                     __m512i _pA11 = _mm512_permutex_epi64(_pA00, _MM_SHUFFLE(1, 0, 3, 2));
                     __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
                     __m512i _pB2 = _mm512_shuffle_epi32(_pB0, _MM_PERM_BADC);
@@ -1370,7 +1370,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m256i _pA0 = _mm256_cvtepi16_epi32(_pA);
                     __m512i _pB0 = _mm512_cvtepi16_epi32(_pB);
 
-                    __m512i _pA00 = _mm512_inserti32x8(_mm512_castsi256_si512(_pA0), _pA0, 1);
+                    __m512i _pA00 = combine8x2_epi32(_pA0, _pA0);
                     __m512i _pA11 = _mm512_permutex_epi64(_pA00, _MM_SHUFFLE(1, 0, 3, 2));
 
                     __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
@@ -1539,10 +1539,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
                     __m256i _pB0 = _mm256_loadu_si256((const __m256i*)pB);
 #if __AVX512F__
-                    __m512i _pA00 = _mm512_inserti32x8(_mm512_castsi256_si512(_pA0), _pA0, 1);
+                    __m512i _pA00 = combine8x2_epi32(_pA0, _pA0);
                     __m512i _pA11 = _mm512_permutex_epi64(_pA00, _MM_SHUFFLE(1, 0, 3, 2));
                     __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
-                    __m512i _pB01 = _mm512_inserti32x8(_mm512_castsi256_si512(_pB0), _pB1, 1);
+                    __m512i _pB01 = combine8x2_epi32(_pB0, _pB1);
                     __m512i _pB23 = _mm512_shuffle_epi32(_pB01, _MM_PERM_BADC);
 
                     _sum0 = _mm512_comp_dpwssd_epi32(_sum0, _pA00, _pB01);
@@ -1576,10 +1576,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m256i _pA0 = _mm256_cvtepi16_epi32(_pA);
                     __m256i _pB0 = _mm256_cvtepi16_epi32(_pB);
 #if __AVX512F__
-                    __m512i _pA00 = _mm512_inserti32x8(_mm512_castsi256_si512(_pA0), _pA0, 1);
+                    __m512i _pA00 = combine8x2_epi32(_pA0, _pA0);
                     __m512i _pA11 = _mm512_shuffle_i32x4(_pA00, _pA00, _MM_SHUFFLE(2, 3, 0, 1));
                     __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
-                    __m512i _pB01 = _mm512_inserti32x8(_mm512_castsi256_si512(_pB0), _pB1, 1);
+                    __m512i _pB01 = combine8x2_epi32(_pB0, _pB1);
                     __m512i _pB23 = _mm512_permutex_epi64(_pB01, _MM_SHUFFLE(2, 3, 0, 1));
 
                     __m512i _s01 = _mm512_mullo_epi32(_pA00, _pB01);
@@ -1776,7 +1776,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
                     __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
                     __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
-                    __m256i _pB0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_pB), _pB, 1);
+                    __m256i _pB0 = combine4x2_epi32(_pB, _pB);
                     __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                     _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
@@ -1989,8 +1989,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
                     __m512i _pB0 = _mm512_loadu_si512((const __m512i*)pB);
-                    __m256i _pAA = _mm256_inserti128_si256(_mm256_castsi128_si256(_pA), _pA, 1);
-                    __m512i _pA0 = _mm512_inserti32x8(_mm512_castsi256_si512(_pAA), _pAA, 1);
+                    __m256i _pAA = combine4x2_epi32(_pA, _pA);
+                    __m512i _pA0 = combine8x2_epi32(_pAA, _pAA);
                     __m512i _pA1 = _mm512_shuffle_epi32(_pA0, _MM_PERM_BADC);
                     __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
 
@@ -2133,7 +2133,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 #if __AVX2__
                     __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
                     __m256i _pB0 = _mm256_loadu_si256((const __m256i*)pB);
-                    __m256i _pA0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_pA), _pA, 1);
+                    __m256i _pA0 = combine4x2_epi32(_pA, _pA);
                     __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
                     __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
@@ -3519,7 +3519,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
                         if (tj * 2 + 3 < w) _r3 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 3), _vindex, 1)));
 #else
                         __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                        __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                        __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                         __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0, _vindex, 1), _sindex88);
                         _r0 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val0_32, 0), _mm256_extracti128_si256(_val0_32, 1)));
                         if (tj * 2 + 1 < w)
@@ -4789,7 +4789,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                         if (tj * 4 + 5 < w) _r5 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 5), _vindex, 1)));
 #else
                         __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                        __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                        __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                         __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0, _vindex, 1), _sindex88);
                         _r0 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val0_32, 0), _mm256_extracti128_si256(_val0_32, 1)));
                         if (tj * 4 + 1 < w)

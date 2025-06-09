@@ -882,7 +882,11 @@ static NCNN_FORCEINLINE __m256 combine4x2_ps(__m128 a, __m128 b)
 
 static NCNN_FORCEINLINE __m256i combine4x2_epi32(__m128i a, __m128i b)
 {
+#if __AVX2__
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(a), b, 1);
+#else
     return _mm256_insertf128_si256(_mm256_castsi128_si256(a), b, 1);
+#endif
 }
 
 static NCNN_FORCEINLINE float _mm256_reduce_add_ps(__m256 x)

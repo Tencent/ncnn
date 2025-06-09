@@ -354,10 +354,10 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 __m128 _val6 = _mm_broadcast_ss(sptr + 6);
                 __m128 _val7 = _mm_broadcast_ss(sptr + 7);
 
-                __m256 _val01 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val0), _val1, 1);
-                __m256 _val23 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val2), _val3, 1);
-                __m256 _val45 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val4), _val5, 1);
-                __m256 _val67 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val6), _val7, 1);
+                __m256 _val01 = combine4x2_ps(_val0, _val1);
+                __m256 _val23 = combine4x2_ps(_val2, _val3);
+                __m256 _val45 = combine4x2_ps(_val4, _val5);
+                __m256 _val67 = combine4x2_ps(_val6, _val7);
 
 #if NCNN_IMPL_FP16S
                 __m256i _w0123 = _mm256_lddqu_si256((const __m256i*)kptr);
@@ -390,8 +390,8 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 __m128 _val2 = _mm_broadcast_ss(sptr + 2);
                 __m128 _val3 = _mm_broadcast_ss(sptr + 3);
 
-                __m256 _val01 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val0), _val1, 1);
-                __m256 _val23 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val2), _val3, 1);
+                __m256 _val01 = combine4x2_ps(_val0, _val1);
+                __m256 _val23 = combine4x2_ps(_val2, _val3);
 
 #if NCNN_IMPL_FP16S
                 __m256i _w0123 = _mm256_lddqu_si256((const __m256i*)kptr);
@@ -1007,14 +1007,14 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m128i _re = _mm256_cvtps_ph(_mm256_loadu_ps(ke), _MM_FROUND_TRUNC);
                 __m128i _rf = _mm256_cvtps_ph(_mm256_loadu_ps(kf), _MM_FROUND_TRUNC);
 
-                __m256i _r08 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r8, 1);
-                __m256i _r19 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r9, 1);
-                __m256i _r2a = _mm256_inserti128_si256(_mm256_castsi128_si256(_r2), _ra, 1);
-                __m256i _r3b = _mm256_inserti128_si256(_mm256_castsi128_si256(_r3), _rb, 1);
-                __m256i _r4c = _mm256_inserti128_si256(_mm256_castsi128_si256(_r4), _rc, 1);
-                __m256i _r5d = _mm256_inserti128_si256(_mm256_castsi128_si256(_r5), _rd, 1);
-                __m256i _r6e = _mm256_inserti128_si256(_mm256_castsi128_si256(_r6), _re, 1);
-                __m256i _r7f = _mm256_inserti128_si256(_mm256_castsi128_si256(_r7), _rf, 1);
+                __m256i _r08 = combine4x2_epi32(_r0, _r8);
+                __m256i _r19 = combine4x2_epi32(_r1, _r9);
+                __m256i _r2a = combine4x2_epi32(_r2, _ra);
+                __m256i _r3b = combine4x2_epi32(_r3, _rb);
+                __m256i _r4c = combine4x2_epi32(_r4, _rc);
+                __m256i _r5d = combine4x2_epi32(_r5, _rd);
+                __m256i _r6e = combine4x2_epi32(_r6, _re);
+                __m256i _r7f = combine4x2_epi32(_r7, _rf);
 
                 __m256i _tmp0 = _mm256_unpacklo_epi16(_r08, _r19);
                 __m256i _tmp1 = _mm256_unpackhi_epi16(_r08, _r19);
@@ -1350,8 +1350,8 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m128 _r3 = _mm_loadu_ps(k3);
                 _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
 #if NCNN_IMPL_FP16S
-                __m256 _r01 = _mm256_insertf128_ps(_mm256_castps128_ps256(_r0), _r1, 1);
-                __m256 _r23 = _mm256_insertf128_ps(_mm256_castps128_ps256(_r2), _r3, 1);
+                __m256 _r01 = combine4x2_ps(_r0, _r1);
+                __m256 _r23 = combine4x2_ps(_r2, _r3);
                 __m128i _r01_fp16 = _mm256_cvtps_ph(_r01, _MM_FROUND_TRUNC);
                 __m128i _r23_fp16 = _mm256_cvtps_ph(_r23, _MM_FROUND_TRUNC);
                 _mm_storeu_si128((__m128i*)g0, _r01_fp16);

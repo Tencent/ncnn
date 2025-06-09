@@ -287,7 +287,7 @@ struct unary_op_rsqrt
         __m256 _x1 = _mm512_extractf32x8_ps(x, 1);
         _x0 = _mm256_rsqrt_ps(_x0);
         _x1 = _mm256_rsqrt_ps(_x1);
-        return _mm512_insertf32x8(_mm512_castps256_ps512(_x0), _x1, 1);
+        return combine8x2_ps(_x0, _x1);
     }
 #endif // __AVX512F__
 #endif // __AVX__

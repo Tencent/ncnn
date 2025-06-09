@@ -2485,7 +2485,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m512 _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + sok)), _mm256_load_ps(r1 + sok), 1);
+                            __m512 _r0 = combine8x2_ps(_mm256_load_ps(r0 + sok), _mm256_load_ps(r1 + sok));
                             __m512 _w0 = _mm512_load_ps(kptr);
                             __m512 _w1 = _mm512_load_ps(kptr + 16);
                             _sum0_avx512 = _mm512_fmadd_ps(_r0, _w0, _sum0_avx512);
@@ -2503,7 +2503,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m512 _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + sok)), _mm_load_ps(r1 + sok), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + sok)), _mm_load_ps(r3 + sok), 1), 1);
+                            __m512 _r0 = combine4x4_ps(_mm_load_ps(r0 + sok), _mm_load_ps(r1 + sok), _mm_load_ps(r2 + sok), _mm_load_ps(r3 + sok));
                             __m512 _w0 = _mm512_load_ps(kptr);
                             __m512 _w1 = _mm512_load_ps(kptr + 16);
                             _sum0_avx512 = _mm512_fmadd_ps(_r0, _w0, _sum0_avx512);
@@ -2557,7 +2557,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m256 _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + sok)), _mm_load_ps(r1 + sok), 1);
+                            __m256 _r0 = combine4x2_ps(_mm_load_ps(r0 + sok), _mm_load_ps(r1 + sok));
                             __m256 _w0 = _mm256_load_ps(kptr);
                             __m256 _w1 = _mm256_load_ps(kptr + 8);
                             _sum0_avx = _mm256_comp_fmadd_ps(_r0, _w0, _sum0_avx);
@@ -2722,7 +2722,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m512 _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + sok)), _mm256_load_ps(r1 + sok), 1);
+                            __m512 _r0 = combine8x2_ps(_mm256_load_ps(r0 + sok), _mm256_load_ps(r1 + sok));
                             __m512 _w = _mm512_load_ps(kptr);
                             _sum_avx512 = _mm512_fmadd_ps(_r0, _w, _sum_avx512);
 
@@ -2738,7 +2738,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m512 _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + sok)), _mm_load_ps(r1 + sok), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + sok)), _mm_load_ps(r3 + sok), 1), 1);
+                            __m512 _r0 = combine4x4_ps(_mm_load_ps(r0 + sok), _mm_load_ps(r1 + sok), _mm_load_ps(r2 + sok), _mm_load_ps(r3 + sok));
                             __m512 _w = _mm512_load_ps(kptr);
                             _sum_avx512 = _mm512_fmadd_ps(_r0, _w, _sum_avx512);
 
@@ -2784,7 +2784,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m256 _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + sok)), _mm_load_ps(r1 + sok), 1);
+                            __m256 _r0 = combine4x2_ps(_mm_load_ps(r0 + sok), _mm_load_ps(r1 + sok));
                             __m256 _w = _mm256_load_ps(kptr);
                             _sum_avx = _mm256_comp_fmadd_ps(_r0, _w, _sum_avx);
 
