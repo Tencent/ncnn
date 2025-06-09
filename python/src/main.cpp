@@ -276,10 +276,20 @@ PYBIND11_MODULE(ncnn, m)
         if (info.ndim == 1)
         {
             v = new Mat((int)info.shape[0], info.ptr, elemsize);
+
+            // in ncnn, buffer to construct ncnn::Mat need align to ncnn::alignSize
+            // with (w * elemsize, 16) / elemsize, but the buffer from numpy not
+            // so we set the cstep as numpy's cstep
+            v->cstep = (int)info.shape[0];
         }
         else if (info.ndim == 2)
         {
             v = new Mat((int)info.shape[1], (int)info.shape[0], info.ptr, elemsize);
+
+            // in ncnn, buffer to construct ncnn::Mat need align to ncnn::alignSize
+            // with (w * h * elemsize, 16) / elemsize, but the buffer from numpy not
+            // so we set the cstep as numpy's cstep
+            v->cstep = (int)info.shape[1] * (int)info.shape[0];
         }
         else if (info.ndim == 3)
         {
