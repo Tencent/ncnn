@@ -135,6 +135,7 @@ static int count_trailing_zeros(unsigned int v)
     return cnt;
 }
 
+// round up v to the next multiple of 2^k
 static unsigned int round_up_pow2_mul(unsigned int v, int k)
 {
     unsigned int m = 1u << k;
@@ -145,72 +146,73 @@ static unsigned int round_up_pow2_mul(unsigned int v, int k)
 // new values do not have to be integer multiples of the originals
 // minimize the total increment (x'-x)+(y'-y)+(z'-z)
 // additional constraint: if original y is 1, prefer not to adjust y; if original z is 1, prefer not to adjust z
-static void adjust_xyz(int* x, int* y, int* z, int size)
+static void adjust_xyz(int& x, int& y, int& z, const int subgroup_size)
 {
-    int n = 0;
-    while ((1 << n) != size)
-        n++;
-
-    const int tx = count_trailing_zeros((unsigned int)*x);
-    const int ty = count_trailing_zeros((unsigned int)*y);
-    const int tz = count_trailing_zeros((unsigned int)*z);
-    const int total2 = tx + ty + tz;
-
-    if (total2 >= n)
+    if (x * y * z % subgroup_size == 0)
         return;
 
-    int need = n - total2;
-    int orig_x = *x, orig_y = *y, orig_z = *z;
-    int restrict_y = (orig_y == 1);
-    int restrict_z = (orig_z == 1);
-    long best_cost = LONG_MAX;
-    unsigned int best_x = orig_x, best_y = orig_y, best_z = orig_z;
-
-    // distribute the extra factors of two (need) across x, y, z:
-    // enumerate kx, ky, kz >= 0 with kx+ky+kz = need
-    // first pass: enforce ky=0 if y==1, kz=0 if z==1
-    // second pass: relax constraints if no solution found
-    for (int pass = 0; pass < 2; pass++)
+    int target_n = 0;
     {
-        for (int kx = 0; kx <= need; kx++)
-        {
-            for (int ky = 0; ky <= need - kx; ky++)
-            {
-                int kz = need - kx - ky;
-                if (pass == 0)
-                {
-                    if (restrict_y && ky > 0)
-                        continue;
-                    if (restrict_z && kz > 0)
-                        continue;
-                }
-
-                unsigned int nx = round_up_pow2_mul((unsigned int)orig_x, kx);
-                unsigned int ny = round_up_pow2_mul((unsigned int)orig_y, ky);
-                unsigned int nz = round_up_pow2_mul((unsigned int)orig_z, kz);
-
-                // skip invalid or overflowed values
-                if (nx == 0 || ny == 0 || nz == 0 || nx > INT_MAX || ny > INT_MAX || nz > INT_MAX)
-                    continue;
-
-                long cost = (long)(nx - orig_x) + (long)(ny - orig_y) + (long)(nz - orig_z);
-                if (cost < best_cost)
-                {
-                    best_cost = cost;
-                    best_x = nx;
-                    best_y = ny;
-                    best_z = nz;
-                }
-            }
-        }
-
-        if (best_cost < LONG_MAX)
-            break;
+        while ((1 << target_n) != subgroup_size)
+            target_n++;
     }
 
-    *x = best_x;
-    *y = best_y;
-    *z = best_z;
+    // subgroup shall usually be 4 ~ 128, sanitize the max possible size
+    target_n = std::min(target_n, 10);
+
+    const int tx = count_trailing_zeros((unsigned int)x);
+    const int ty = count_trailing_zeros((unsigned int)y);
+    const int tz = count_trailing_zeros((unsigned int)z);
+    const int tn = tx + ty + tz;
+
+    const int need = target_n - tn;
+
+    if (z == 1)
+    {
+        if (y == 1)
+        {
+            // adjust x only
+            x = round_up_pow2_mul((unsigned int)x, target_n);
+        }
+        else if (x == 1)
+        {
+            // adjust y only
+            y = round_up_pow2_mul((unsigned int)y, target_n);
+        }
+        else
+        {
+            // adjust x and y
+            y = round_up_pow2_mul((unsigned int)y, ty + need / 2);
+            x = round_up_pow2_mul((unsigned int)x, tx + need - need / 2);
+        }
+    }
+    else if (y == 1)
+    {
+        if (x == 1)
+        {
+            // adjust z only
+            z = round_up_pow2_mul((unsigned int)z, target_n);
+        }
+        else
+        {
+            // adjust x and z
+            z = round_up_pow2_mul((unsigned int)z, tz + need / 2);
+            x = round_up_pow2_mul((unsigned int)x, tx + need - need / 2);
+        }
+    }
+    else if (x == 1)
+    {
+        // adjust y and z
+        z = round_up_pow2_mul((unsigned int)z, tz + need / 2);
+        y = round_up_pow2_mul((unsigned int)y, ty + need - need / 2);
+    }
+    else
+    {
+        // adjust x y z
+        z = round_up_pow2_mul((unsigned int)z, tz + need / 3);
+        y = round_up_pow2_mul((unsigned int)y, ty + (need - need / 3) / 2);
+        x = round_up_pow2_mul((unsigned int)x, tx + need - (need - need / 3) / 2);
+    }
 }
 
 void Pipeline::set_local_size_xyz(int w, int h, int c)
@@ -218,7 +220,7 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
     // dispatch at least one subgroup
     // make local size be multiple of subgroup size
     // and metal is unhappy with arbitary local size anyway
-    adjust_xyz(&w, &h, &c, d->subgroup_size);
+    adjust_xyz(w, h, c, d->subgroup_size);
 
     d->local_size_x = w;
     d->local_size_y = h;
