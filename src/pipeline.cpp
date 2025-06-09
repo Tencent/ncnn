@@ -14,8 +14,6 @@
 
 #include "pipeline.h"
 
-#include <limits.h>
-
 #include "layer_shader_type.h"
 #include "mat.h"
 #include "pipelinecache.h"
@@ -219,7 +217,7 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
     // dispatch at least one subgroup
     // make local size be multiple of subgroup size
-    // and metal is unhappy with arbitary local size anyway
+    // and metal is unhappy with arbitrary local size anyway
     adjust_xyz(w, h, c, d->subgroup_size);
 
     d->local_size_x = w;
