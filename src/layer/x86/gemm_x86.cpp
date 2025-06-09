@@ -537,14 +537,14 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 __m256 _rf = _mm256_load_ps(p0 + 8 * 15);
 
                 transpose8x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
-                __m512 _rr0 = _mm512_insertf32x8(_mm512_castps256_ps512(_r0), _r1, 1);
-                __m512 _rr1 = _mm512_insertf32x8(_mm512_castps256_ps512(_r2), _r3, 1);
-                __m512 _rr2 = _mm512_insertf32x8(_mm512_castps256_ps512(_r4), _r5, 1);
-                __m512 _rr3 = _mm512_insertf32x8(_mm512_castps256_ps512(_r6), _r7, 1);
-                __m512 _rr4 = _mm512_insertf32x8(_mm512_castps256_ps512(_r8), _r9, 1);
-                __m512 _rr5 = _mm512_insertf32x8(_mm512_castps256_ps512(_ra), _rb, 1);
-                __m512 _rr6 = _mm512_insertf32x8(_mm512_castps256_ps512(_rc), _rd, 1);
-                __m512 _rr7 = _mm512_insertf32x8(_mm512_castps256_ps512(_re), _rf, 1);
+                __m512 _rr0 = combine8x2_ps(_r0, _r1);
+                __m512 _rr1 = combine8x2_ps(_r2, _r3);
+                __m512 _rr2 = combine8x2_ps(_r4, _r5);
+                __m512 _rr3 = combine8x2_ps(_r6, _r7);
+                __m512 _rr4 = combine8x2_ps(_r8, _r9);
+                __m512 _rr5 = combine8x2_ps(_ra, _rb);
+                __m512 _rr6 = combine8x2_ps(_rc, _rd);
+                __m512 _rr7 = combine8x2_ps(_re, _rf);
 
                 _mm512_store_ps(pp, _rr0);
                 _mm512_store_ps(pp + 16 * 1, _rr1);
