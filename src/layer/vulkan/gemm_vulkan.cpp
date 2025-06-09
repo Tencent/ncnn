@@ -194,7 +194,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     VkMat C;
     int broadcast_type_C = -1;
-    if (constantC)
+    if (constantC && constant_broadcast_type_C != -1)
     {
         vkdev->convert_packing(C_data_gpu, C, 1, cmd, opt);
         broadcast_type_C = constant_broadcast_type_C;
@@ -348,7 +348,7 @@ int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
 
     VkImageMat C;
     int broadcast_type_C = -1;
-    if (constantC)
+    if (constantC && constant_broadcast_type_C != -1)
     {
         vkdev->convert_packing(C_data_gpu_image, C, 1, cmd, opt);
         broadcast_type_C = constant_broadcast_type_C;
