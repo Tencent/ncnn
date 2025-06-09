@@ -226,7 +226,7 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
     d->local_size_y = h;
     d->local_size_z = c;
 
-    //     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
+    // NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
 }
 
 int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
