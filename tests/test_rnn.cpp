@@ -312,8 +312,8 @@ static int test_rnn_int8(int size, int T, int outch, int direction)
     weights[0] = RandomS8Mat(outch * size * num_directions);
     weights[1] = RandomMat(outch * num_directions);
     weights[2] = RandomS8Mat(outch * outch * num_directions);
-    weights[3] = RandomMat(outch * num_directions, 10.f, 20.f);
-    weights[4] = RandomMat(outch * num_directions, 10.f, 20.f);
+    weights[3] = RandomMat(outch * num_directions, 100.f, 200.f);
+    weights[4] = RandomMat(outch * num_directions, 100.f, 200.f);
 
     ncnn::Mat a(size, T);
     RandomizeA(a, 10.f);
@@ -341,8 +341,8 @@ int test_rnn_int8_with_hidden(int size, int T, int outch, int direction)
     weights[0] = RandomS8Mat(outch * size * num_directions);
     weights[1] = RandomMat(outch * num_directions);
     weights[2] = RandomS8Mat(outch * outch * num_directions);
-    weights[3] = RandomMat(outch * num_directions, 10.f, 20.f);
-    weights[4] = RandomMat(outch * num_directions, 10.f, 20.f);
+    weights[3] = RandomMat(outch * num_directions, 100.f, 200.f);
+    weights[4] = RandomMat(outch * num_directions, 100.f, 200.f);
 
     ncnn::Mat a(size, T);
     RandomizeA(a, 10.f);
@@ -378,8 +378,8 @@ int test_rnn_int8_with_hidden_input(int size, int T, int outch, int direction)
     weights[0] = RandomS8Mat(outch * size * num_directions);
     weights[1] = RandomMat(outch * num_directions);
     weights[2] = RandomS8Mat(outch * outch * num_directions);
-    weights[3] = RandomMat(outch * num_directions, 10.f, 20.f);
-    weights[4] = RandomMat(outch * num_directions, 10.f, 20.f);
+    weights[3] = RandomMat(outch * num_directions, 100.f, 200.f);
+    weights[4] = RandomMat(outch * num_directions, 100.f, 200.f);
 
     ncnn::Mat a(size, T);
     RandomizeA(a, 10.f);
@@ -415,8 +415,8 @@ int test_rnn_int8_with_hidden_output(int size, int T, int outch, int direction)
     weights[0] = RandomS8Mat(outch * size * num_directions);
     weights[1] = RandomMat(outch * num_directions);
     weights[2] = RandomS8Mat(outch * outch * num_directions);
-    weights[3] = RandomMat(outch * num_directions, 10.f, 20.f);
-    weights[4] = RandomMat(outch * num_directions, 10.f, 20.f);
+    weights[3] = RandomMat(outch * num_directions, 100.f, 200.f);
+    weights[4] = RandomMat(outch * num_directions, 100.f, 200.f);
 
     ncnn::Mat a(size, T);
     RandomizeA(a, 10.f);
