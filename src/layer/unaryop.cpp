@@ -37,7 +37,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 {
     Op op;
 
-    int size = static_cast<int>(a.total());
+    const int size = (int)a.total();
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < size; i++)
