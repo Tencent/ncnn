@@ -47,7 +47,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 #if __AVX__
 #if __AVX512F__
         __m512 _sum_avx512 = _mm512_setzero_ps();
-        for (; i <= size - 16; i += 16)
+        for (; i + 15 < size; i += 16)
         {
             __m512 _p = _mm512_loadu_ps(ptr + i);
             _sum_avx512 = _mm512_add_ps(_sum_avx512, _p);
@@ -55,7 +55,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         sum = _mm512_comp_reduce_add_ps(_sum_avx512);
 #endif // __AVX512F__
         __m256 _sum_avx = _mm256_setzero_ps();
-        for (; i <= size - 8; i += 8)
+        for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr + i);
             _sum_avx = _mm256_add_ps(_sum_avx, _p);
@@ -64,7 +64,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 #endif // __AVX__
         __m128 _sum = _mm_setzero_ps();
 
-        for (; i <= size - 4; i += 4)
+        for (; i + 3 < size; i += 4)
         {
             __m128 _p = _mm_loadu_ps(ptr + i);
             _sum = _mm_add_ps(_sum, _p);
@@ -87,7 +87,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         __m512 _sqsum_avx512 = _mm512_setzero_ps();
         __m512 _mean_avx512 = _mm512_set1_ps(mean);
 
-        for (; i <= size - 16; i += 16)
+        for (; i + 15 < size; i += 16)
         {
             __m512 _p = _mm512_loadu_ps(ptr + i);
             __m512 _diff = _mm512_sub_ps(_p, _mean_avx512);
@@ -98,7 +98,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         __m256 _sqsum_avx = _mm256_setzero_ps();
         __m256 _mean_avx = _mm256_set1_ps(mean);
 
-        for (; i <= size - 8; i += 8)
+        for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr + i);
             __m256 _diff = _mm256_sub_ps(_p, _mean_avx);
@@ -109,7 +109,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         __m128 _sqsum = _mm_setzero_ps();
         __m128 _mean = _mm_set1_ps(mean);
 
-        for (; i <= size - 4; i += 4)
+        for (; i + 3 < size; i += 4)
         {
             __m128 _p = _mm_loadu_ps(ptr + i);
             __m128 _diff = _mm_sub_ps(_p, _mean);
@@ -151,7 +151,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         __m512 _va_avx512 = _mm512_set1_ps(a);
         __m512 _vb_avx512 = _mm512_set1_ps(b);
 
-        for (; i <= size - 16; i += 16)
+        for (; i + 16 < size; i += 16)
         {
             __m512 _p = _mm512_loadu_ps(ptr + i);
             _p = _mm512_fmadd_ps(_p, _va_avx512, _vb_avx512);
@@ -161,7 +161,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         __m256 _va_avx = _mm256_set1_ps(a);
         __m256 _vb_vax = _mm256_set1_ps(b);
 
-        for (; i <= size - 8; i += 8)
+        for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr + i);
             _p = _mm256_comp_fmadd_ps(_p, _va_avx, _vb_vax);
@@ -171,7 +171,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         __m128 _va = _mm_set1_ps(a);
         __m128 _vb = _mm_set1_ps(b);
 
-        for (; i <= size - 4; i += 4)
+        for (; i + 3 < size; i += 4)
         {
             __m128 _p = _mm_loadu_ps(ptr + i);
             _p = _mm_comp_fmadd_ps(_p, _va, _vb); // Fused Multiply-Add
