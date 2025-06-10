@@ -2422,10 +2422,14 @@ int create_gpu_instance(const char* driver_path)
         // collect matrix mnk
         std::string fp16_matrix_info_str;
         std::string int8_matrix_info_str;
+        std::string bf16_matrix_info_str;
+        std::string fp8_matrix_info_str;
         if (gpu_info.support_VK_KHR_cooperative_matrix())
         {
             std::vector<VkCooperativeMatrixPropertiesKHR> fp16_matrix_properties;
             std::vector<VkCooperativeMatrixPropertiesKHR> int8_matrix_properties;
+            std::vector<VkCooperativeMatrixPropertiesKHR> bf16_matrix_properties;
+            std::vector<VkCooperativeMatrixPropertiesKHR> fp8_matrix_properties;
 
             const std::vector<VkCooperativeMatrixPropertiesKHR>& properties = gpu_info.queryCooperativeMatrixProperties();
             for (uint32_t j = 0; j < properties.size(); j++)
@@ -2462,6 +2466,36 @@ int create_gpu_instance(const char* driver_path)
                     if (!mnk_hit)
                         int8_matrix_properties.push_back(cmp);
                 }
+                if (cmp.AType == VK_COMPONENT_TYPE_BFLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_BFLOAT16_KHR)
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < bf16_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixPropertiesKHR& cmp0 = bf16_matrix_properties[k];
+                        if (cmp.MSize == cmp0.MSize && cmp.NSize == cmp0.NSize && cmp.KSize == cmp0.KSize)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                        bf16_matrix_properties.push_back(cmp);
+                }
+                if (0) // (cmp.AType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT && cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT)
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < fp8_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixPropertiesKHR& cmp0 = fp8_matrix_properties[k];
+                        if (cmp.MSize == cmp0.MSize && cmp.NSize == cmp0.NSize && cmp.KSize == cmp0.KSize)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                        fp8_matrix_properties.push_back(cmp);
+                }
             }
 
             for (uint32_t j = 0; j < fp16_matrix_properties.size(); j++)
@@ -2477,6 +2511,20 @@ int create_gpu_instance(const char* driver_path)
                 char tmp[64];
                 sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MSize, cmp.NSize, cmp.KSize);
                 int8_matrix_info_str += tmp;
+            }
+            for (uint32_t j = 0; j < bf16_matrix_properties.size(); j++)
+            {
+                const VkCooperativeMatrixPropertiesKHR& cmp = bf16_matrix_properties[j];
+                char tmp[64];
+                sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MSize, cmp.NSize, cmp.KSize);
+                bf16_matrix_info_str += tmp;
+            }
+            for (uint32_t j = 0; j < fp8_matrix_properties.size(); j++)
+            {
+                const VkCooperativeMatrixPropertiesKHR& cmp = fp8_matrix_properties[j];
+                char tmp[64];
+                sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MSize, cmp.NSize, cmp.KSize);
+                fp8_matrix_info_str += tmp;
             }
         }
         else if (gpu_info.support_VK_NV_cooperative_matrix())
@@ -2541,8 +2589,13 @@ int create_gpu_instance(const char* driver_path)
             fp16_matrix_info_str = "0";
         if (int8_matrix_info_str.empty())
             int8_matrix_info_str = "0";
+        if (bf16_matrix_info_str.empty())
+            bf16_matrix_info_str = "0";
+        if (fp8_matrix_info_str.empty())
+            fp8_matrix_info_str = "0";
 
-        NCNN_LOGE("[%u %s]  fp16-cm=%s  int8-cm=%s", i, gpu_info.device_name(), fp16_matrix_info_str.c_str(), int8_matrix_info_str.c_str());
+        NCNN_LOGE("[%u %s]  fp16-cm=%s  int8-cm=%s  bf16-cm=%s  fp8-cm=%s", i, gpu_info.device_name(),
+                  fp16_matrix_info_str.c_str(), int8_matrix_info_str.c_str(), bf16_matrix_info_str.c_str(), fp8_matrix_info_str.c_str());
 
         gpu_info_index++;
     }
