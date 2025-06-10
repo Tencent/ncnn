@@ -207,7 +207,7 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         top_blob.dims = 1;
         top_blob.w = total / out_elempack;
         top_blob.h = 1;
-        top_blob.cstep = top_blob.w;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = out_elemsize;
         top_blob.elempack = out_elempack;
         return 0;

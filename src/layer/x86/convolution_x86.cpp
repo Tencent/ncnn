@@ -553,7 +553,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             top_blob.w = top_blob_3d.c;
             top_blob.h = 1;
             top_blob.c = 1;
-            bottom_blob_3d.cstep = top_blob_3d.c;
+            top_blob.cstep = top_blob_3d.c;
         }
         else
         {

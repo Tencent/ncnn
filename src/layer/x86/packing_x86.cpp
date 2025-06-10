@@ -98,7 +98,7 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
         return 0;
@@ -1451,7 +1451,7 @@ int Packing_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
         return 0;

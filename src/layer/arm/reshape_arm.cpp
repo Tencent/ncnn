@@ -113,7 +113,7 @@ int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             top_blob.dims = 2;
             top_blob.w = outw;
             top_blob.h = outh;
-            top_blob.cstep = (size_t)outw * outh;
+            top_blob.cstep = top_blob.cstep * top_blob.elempack;
             top_blob.elemsize = out_elemsize;
             top_blob.elempack = out_elempack;
 
@@ -399,7 +399,7 @@ int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
             top_blob.dims = 2;
             top_blob.w = outw;
             top_blob.h = outh;
-            top_blob.cstep = (size_t)outw * outh;
+            top_blob.cstep = top_blob.cstep * top_blob.elempack;
             top_blob.elemsize = out_elemsize;
             top_blob.elempack = out_elempack;
 
