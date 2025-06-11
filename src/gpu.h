@@ -365,14 +365,16 @@ public:
     const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
 
     // extension properties
-    const void* queryDeviceProperties() const;
+    const void* queryExtensionProperties() const;
     const VkPhysicalDeviceFloatControlsPropertiesKHR& queryFloatControlsProperties() const;
     const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
     const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
     const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
-    const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixProperties() const;
-    const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixPropertiesNV() const;
+
+    // extension sub properties
+    const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
+    const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixSubPropertiesNV() const;
 
 private:
     GpuInfo(const GpuInfo&);
