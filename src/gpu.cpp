@@ -388,9 +388,11 @@ public:
     VkPhysicalDeviceDriverPropertiesKHR queryDriverProperties;
     VkPhysicalDeviceSubgroupSizeControlPropertiesEXT querySubgroupSizeControlProperties;
     VkPhysicalDeviceCooperativeVectorPropertiesNV queryCooperativeVectorPropertiesNV;
-    std::vector<VkCooperativeMatrixPropertiesKHR> queryCooperativeMatrixProperties;
-    std::vector<VkCooperativeMatrixPropertiesNV> queryCooperativeMatrixPropertiesNV;
-    std::vector<VkCooperativeVectorPropertiesNV> queryCooperativeVectorPropertiesNV;
+
+    // extension sub properties
+    std::vector<VkCooperativeMatrixPropertiesKHR> queryCooperativeMatrixSubProperties;
+    std::vector<VkCooperativeMatrixPropertiesNV> queryCooperativeMatrixSubPropertiesNV;
+    std::vector<VkCooperativeVectorPropertiesNV> queryCooperativeVectorSubPropertiesNV;
 };
 
 void GpuInfoPrivate::query_features()
@@ -865,17 +867,19 @@ void GpuInfoPrivate::query_extension_features()
 
     // query cooperative_matrix
     memset(&queryCooperativeMatrixFeatures, 0, sizeof(queryCooperativeMatrixFeatures));
-    memset(&queryCooperativeMatrixFeaturesNV, 0, sizeof(queryCooperativeMatrixFeaturesNV));
     queryCooperativeMatrixFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR;
     queryCooperativeMatrixFeatures.pNext = 0;
-    queryCooperativeMatrixFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV;
-    queryCooperativeMatrixFeaturesNV.pNext = 0;
     if (support_VK_KHR_cooperative_matrix)
     {
         queryCooperativeMatrixFeatures.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryCooperativeMatrixFeatures;
     }
-    else if (support_VK_NV_cooperative_matrix)
+
+    // query nv cooperative matrix
+    memset(&queryCooperativeMatrixFeaturesNV, 0, sizeof(queryCooperativeMatrixFeaturesNV));
+    queryCooperativeMatrixFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV;
+    queryCooperativeMatrixFeaturesNV.pNext = 0;
+    if (support_VK_NV_cooperative_matrix)
     {
         queryCooperativeMatrixFeaturesNV.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryCooperativeMatrixFeaturesNV;
@@ -1072,8 +1076,8 @@ void GpuInfoPrivate::query_extension_properties()
     queryCooperativeVectorPropertiesNV.pNext = 0;
     if (support_VK_NV_cooperative_vector)
     {
-        queryCooperativeVectorPropertiesNV.pNext = queryExtensionFeatures;
-        queryExtensionFeatures = &queryCooperativeVectorPropertiesNV;
+        queryCooperativeVectorPropertiesNV.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryCooperativeVectorPropertiesNV;
     }
 
     if (support_VK_KHR_get_physical_device_properties2)
@@ -1102,8 +1106,8 @@ void GpuInfoPrivate::query_extension_properties()
     }
 
     // query supported cooperative matrix types and operations
-    queryCooperativeMatrixProperties.clear();
-    queryCooperativeMatrixPropertiesNV.clear();
+    queryCooperativeMatrixSubProperties.clear();
+    queryCooperativeMatrixSubPropertiesNV.clear();
     support_cooperative_matrix_8_8_16 = false;
     support_cooperative_matrix_16_8_8 = false;
     support_cooperative_matrix_16_8_16 = false;
@@ -1117,14 +1121,14 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR failed %d", ret);
         }
 
-        queryCooperativeMatrixProperties.resize(propertyCount);
+        queryCooperativeMatrixSubProperties.resize(propertyCount);
         for (uint32_t j = 0; j < propertyCount; j++)
         {
-            memset(&queryCooperativeMatrixProperties[j], 0, sizeof(queryCooperativeMatrixProperties[j]));
-            queryCooperativeMatrixProperties[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR;
-            queryCooperativeMatrixProperties[j].pNext = 0;
+            memset(&queryCooperativeMatrixSubProperties[j], 0, sizeof(queryCooperativeMatrixSubProperties[j]));
+            queryCooperativeMatrixSubProperties[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR;
+            queryCooperativeMatrixSubProperties[j].pNext = 0;
         }
-        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice, &propertyCount, queryCooperativeMatrixProperties.data());
+        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice, &propertyCount, queryCooperativeMatrixSubProperties.data());
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR failed %d", ret);
@@ -1132,7 +1136,7 @@ void GpuInfoPrivate::query_extension_properties()
 
         for (uint32_t j = 0; j < propertyCount; j++)
         {
-            const VkCooperativeMatrixPropertiesKHR& cmp = queryCooperativeMatrixProperties[j];
+            const VkCooperativeMatrixPropertiesKHR& cmp = queryCooperativeMatrixSubProperties[j];
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.ResultType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
@@ -1174,14 +1178,14 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesNV failed %d", ret);
         }
 
-        queryCooperativeMatrixPropertiesNV.resize(propertyCount);
+        queryCooperativeMatrixSubPropertiesNV.resize(propertyCount);
         for (uint32_t j = 0; j < propertyCount; j++)
         {
-            memset(&queryCooperativeMatrixPropertiesNV[j], 0, sizeof(queryCooperativeMatrixPropertiesNV[j]));
-            queryCooperativeMatrixPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
-            queryCooperativeMatrixPropertiesNV[j].pNext = 0;
+            memset(&queryCooperativeMatrixSubPropertiesNV[j], 0, sizeof(queryCooperativeMatrixSubPropertiesNV[j]));
+            queryCooperativeMatrixSubPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
+            queryCooperativeMatrixSubPropertiesNV[j].pNext = 0;
         }
-        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, &propertyCount, queryCooperativeMatrixPropertiesNV.data());
+        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, &propertyCount, queryCooperativeMatrixSubPropertiesNV.data());
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesNV failed %d", ret);
@@ -1189,7 +1193,7 @@ void GpuInfoPrivate::query_extension_properties()
 
         for (uint32_t j = 0; j < propertyCount; j++)
         {
-            const VkCooperativeMatrixPropertiesNV& cmp = queryCooperativeMatrixPropertiesNV[j];
+            const VkCooperativeMatrixPropertiesNV& cmp = queryCooperativeMatrixSubPropertiesNV[j];
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
@@ -1907,19 +1911,19 @@ const VkPhysicalDeviceCooperativeVectorPropertiesNV& GpuInfo::queryCooperativeVe
     return d->queryCooperativeVectorPropertiesNV;
 }
 
-const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMatrixProperties() const
+const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMatrixSubProperties() const
 {
-    return d->queryCooperativeMatrixProperties;
+    return d->queryCooperativeMatrixSubProperties;
 }
 
-const std::vector<VkCooperativeMatrixPropertiesNV>& GpuInfo::queryCooperativeMatrixPropertiesNV() const
+const std::vector<VkCooperativeMatrixPropertiesNV>& GpuInfo::queryCooperativeMatrixSubPropertiesNV() const
 {
-    return d->queryCooperativeMatrixPropertiesNV;
+    return d->queryCooperativeMatrixSubPropertiesNV;
 }
 
-const std::vector<VkCooperativeVectorPropertiesNV>& GpuInfo::queryCooperativeVectorPropertiesNV() const
+const std::vector<VkCooperativeVectorPropertiesNV>& GpuInfo::queryCooperativeVectorSubPropertiesNV() const
 {
-    return d->queryCooperativeVectorPropertiesNV;
+    return d->queryCooperativeVectorSubPropertiesNV;
 }
 
 static int init_instance_core()

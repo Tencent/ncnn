@@ -379,9 +379,9 @@ public:
     const VkPhysicalDeviceCooperativeVectorPropertiesNV& queryCooperativeVectorProperties() const;
 
     // extension sub properties
-    const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixProperties() const;
-    const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixPropertiesNV() const;
-    const std::vector<VkCooperativeVectorPropertiesNV>& queryCooperativeVectorPropertiesNV() const;
+    const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
+    const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixSubPropertiesNV() const;
+    const std::vector<VkCooperativeVectorPropertiesNV>& queryCooperativeVectorSubPropertiesNV() const;
 
 private:
     GpuInfo(const GpuInfo&);

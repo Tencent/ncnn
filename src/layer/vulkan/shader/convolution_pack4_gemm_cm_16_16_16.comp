@@ -20,7 +20,11 @@
 #extension GL_KHR_memory_scope_semantics: require
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#if ncnn_VK_KHR_cooperative_matrix
+#extension GL_KHR_cooperative_matrix: require
+#elif ncnn_VK_NV_cooperative_matrix
 #extension GL_NV_cooperative_matrix: require
+#endif
 
 layout (constant_id = 0) const int kernel_w = 1;
 layout (constant_id = 1) const int kernel_h = 1;
@@ -81,6 +85,33 @@ void main()
     const int lxd16 = lx / 16; // 0 1
     const int lxm16 = lx % 16; // 0 1 2 3 .... 15
 
+#if ncnn_VK_KHR_cooperative_matrix
+    coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> sum0;
+    coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> sum1;
+    coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> sum2;
+    coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> sum3;
+
+    if (bias_term == 1)
+    {
+        coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> bias0;
+        coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> bias1;
+
+        coopMatLoad(bias0, bias_data, gy, 0, gl_CooperativeMatrixLayoutRowMajor);
+        coopMatLoad(bias1, bias_data, gy + 4, 0, gl_CooperativeMatrixLayoutRowMajor);
+
+        sum0 = coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(bias0);
+        sum1 = coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(bias0);
+        sum2 = coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(bias1);
+        sum3 = coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(bias1);
+    }
+    else
+    {
+        sum0 = coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(0.f);
+        sum1 = coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(0.f);
+        sum2 = coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(0.f);
+        sum3 = coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(0.f);
+    }
+#elif ncnn_VK_NV_cooperative_matrix
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum0;
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum1;
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum2;
@@ -106,6 +137,7 @@ void main()
         sum2 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
         sum3 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
     }
+#endif
 
     const int maxk = kernel_w * kernel_h;
     const int N = psc(c) / 4 * maxk;
@@ -148,6 +180,23 @@ void main()
 
         for (int z4 = 0; z4 < UNROLL_INCH; z4++)
         {
+#if ncnn_VK_KHR_cooperative_matrix
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseA> A0;
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseA> A1;
+            coopMatLoad(A0, tmp_v0, z4*16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(A1, tmp_v1, z4*16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseB> B0;
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseB> B1;
+            coopMatLoad(B0, tmp_k0, z4*16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B1, tmp_k1, z4*16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+
+            // sum += v * k
+            sum0 = coopMatMulAdd(A0, B0, sum0);
+            sum1 = coopMatMulAdd(A1, B0, sum1);
+            sum2 = coopMatMulAdd(A0, B1, sum2);
+            sum3 = coopMatMulAdd(A1, B1, sum3);
+#elif ncnn_VK_NV_cooperative_matrix
             fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> A0;
             fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> A1;
             coopMatLoadNV(A0, tmp_v0, z4*16*4, 4, false);
@@ -163,6 +212,7 @@ void main()
             sum1 = coopMatMulAddNV(A1, B0, sum1);
             sum2 = coopMatMulAddNV(A0, B1, sum2);
             sum3 = coopMatMulAddNV(A1, B1, sum3);
+#endif
         }
 
         barrier();
@@ -208,6 +258,23 @@ void main()
 
         for (int z4 = 0; z4 < remain; z4++)
         {
+#if ncnn_VK_KHR_cooperative_matrix
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseA> A0;
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseA> A1;
+            coopMatLoad(A0, tmp_v0, z4*16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(A1, tmp_v1, z4*16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseB> B0;
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseB> B1;
+            coopMatLoad(B0, tmp_k0, z4*16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B1, tmp_k1, z4*16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+
+            // sum += v * k
+            sum0 = coopMatMulAdd(A0, B0, sum0);
+            sum1 = coopMatMulAdd(A1, B0, sum1);
+            sum2 = coopMatMulAdd(A0, B1, sum2);
+            sum3 = coopMatMulAdd(A1, B1, sum3);
+#elif ncnn_VK_NV_cooperative_matrix
             fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> A0;
             fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> A1;
             coopMatLoadNV(A0, tmp_v0, z4*16*4, 4, false);
@@ -223,6 +290,7 @@ void main()
             sum1 = coopMatMulAddNV(A1, B0, sum1);
             sum2 = coopMatMulAddNV(A0, B1, sum2);
             sum3 = coopMatMulAddNV(A1, B1, sum3);
+#endif
         }
 
         barrier();
@@ -231,6 +299,17 @@ void main()
     if (gx >= outsize || gy >= psc(outc))
         return;
 
+#if ncnn_VK_KHR_cooperative_matrix
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> sum0_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(sum0);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> sum1_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(sum1);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> sum2_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(sum2);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> sum3_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator>(sum3);
+
+    coopMatStore(sum0_fp16, tmp_v0, 0, 4, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum1_fp16, tmp_v1, 0, 4, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum2_fp16, tmp_v0, 16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum3_fp16, tmp_v1, 16*4, 4, gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sum0_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(sum0);
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sum1_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(sum1);
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sum2_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(sum2);
@@ -240,6 +319,7 @@ void main()
     coopMatStoreNV(sum1_fp16, tmp_v1, 0, 4, false);
     coopMatStoreNV(sum2_fp16, tmp_v0, 16*4, 4, false);
     coopMatStoreNV(sum3_fp16, tmp_v1, 16*4, 4, false);
+#endif
 
     barrier();
 
