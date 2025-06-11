@@ -1576,43 +1576,46 @@ typedef void(VKAPI_PTR* PFN_vkCmdConvertCooperativeVectorMatrixNV)(VkCommandBuff
 #endif // VK_NV_cooperative_vector
 
 #ifndef VK_NV_cooperative_matrix2
-#define VK_NV_cooperative_matrix2 1
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV      (VkStructureType)1000593000
-#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_FLEXIBLE_DIMENSIONS_PROPERTIES_NV  (VkStructureType)1000593001
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_PROPERTIES_NV    (VkStructureType)1000593002
-typedef struct VkCooperativeMatrixFlexibleDimensionsPropertiesNV {
-    VkStructureType       sType;
-    void*                 pNext;
-    uint32_t              MGranularity;
-    uint32_t              NGranularity;
-    uint32_t              KGranularity;
-    VkComponentTypeKHR    AType;
-    VkComponentTypeKHR    BType;
-    VkComponentTypeKHR    CType;
-    VkComponentTypeKHR    ResultType;
-    VkBool32              saturatingAccumulation;
-    VkScopeKHR            scope;
-    uint32_t              workgroupInvocations;
+#define VK_NV_cooperative_matrix2                                              1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV     (VkStructureType)1000593000
+#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_FLEXIBLE_DIMENSIONS_PROPERTIES_NV (VkStructureType)1000593001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_PROPERTIES_NV   (VkStructureType)1000593002
+typedef struct VkCooperativeMatrixFlexibleDimensionsPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t MGranularity;
+    uint32_t NGranularity;
+    uint32_t KGranularity;
+    VkComponentTypeKHR AType;
+    VkComponentTypeKHR BType;
+    VkComponentTypeKHR CType;
+    VkComponentTypeKHR ResultType;
+    VkBool32 saturatingAccumulation;
+    VkScopeKHR scope;
+    uint32_t workgroupInvocations;
 } VkCooperativeMatrixFlexibleDimensionsPropertiesNV;
-typedef struct VkPhysicalDeviceCooperativeMatrix2FeaturesNV {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           cooperativeMatrixWorkgroupScope;
-    VkBool32           cooperativeMatrixFlexibleDimensions;
-    VkBool32           cooperativeMatrixReductions;
-    VkBool32           cooperativeMatrixConversions;
-    VkBool32           cooperativeMatrixPerElementOperations;
-    VkBool32           cooperativeMatrixTensorAddressing;
-    VkBool32           cooperativeMatrixBlockLoads;
+typedef struct VkPhysicalDeviceCooperativeMatrix2FeaturesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrixWorkgroupScope;
+    VkBool32 cooperativeMatrixFlexibleDimensions;
+    VkBool32 cooperativeMatrixReductions;
+    VkBool32 cooperativeMatrixConversions;
+    VkBool32 cooperativeMatrixPerElementOperations;
+    VkBool32 cooperativeMatrixTensorAddressing;
+    VkBool32 cooperativeMatrixBlockLoads;
 } VkPhysicalDeviceCooperativeMatrix2FeaturesNV;
-typedef struct VkPhysicalDeviceCooperativeMatrix2PropertiesNV {
-    VkStructureType    sType;
-    void*              pNext;
-    uint32_t           cooperativeMatrixWorkgroupScopeMaxWorkgroupSize;
-    uint32_t           cooperativeMatrixFlexibleDimensionsMaxDimension;
-    uint32_t           cooperativeMatrixWorkgroupScopeReservedSharedMemory;
+typedef struct VkPhysicalDeviceCooperativeMatrix2PropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t cooperativeMatrixWorkgroupScopeMaxWorkgroupSize;
+    uint32_t cooperativeMatrixFlexibleDimensionsMaxDimension;
+    uint32_t cooperativeMatrixWorkgroupScopeReservedSharedMemory;
 } VkPhysicalDeviceCooperativeMatrix2PropertiesNV;
-typedef VkResult (VKAPI_PTR *PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixFlexibleDimensionsPropertiesNV* pProperties);
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixFlexibleDimensionsPropertiesNV* pProperties);
 #endif // VK_NV_cooperative_matrix2
 
 #endif // NCNN_VULKAN_HEADER_FIX_H
