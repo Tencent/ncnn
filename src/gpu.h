@@ -182,6 +182,12 @@ extern PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR;
 // VK_NV_cooperative_matrix
 extern PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV vkGetPhysicalDeviceCooperativeMatrixPropertiesNV;
 
+// VK_NV_cooperative_matrix2
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV;
+
+// VK_NV_cooperative_vector
+extern PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV vkGetPhysicalDeviceCooperativeVectorPropertiesNV;
+
 // get info
 NCNN_EXPORT int get_gpu_count();
 NCNN_EXPORT int get_default_gpu_index();
@@ -347,6 +353,8 @@ public:
     int support_VK_ANDROID_external_memory_android_hardware_buffer() const;
 #endif // __ANDROID_API__ >= 26
     int support_VK_NV_cooperative_matrix() const;
+    int support_VK_NV_cooperative_matrix2() const;
+    int support_VK_NV_cooperative_vector() const;
 
     // extension features
     const void* queryExtensionFeatures() const;
@@ -356,6 +364,8 @@ public:
     const VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR& querySamplerYcbcrConversionFeatures() const;
     const VkPhysicalDeviceCooperativeMatrixFeaturesKHR& queryCooperativeMatrixFeatures() const;
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
+    const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
+    const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
     const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
     const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& queryShaderFloatControls2Features() const;
@@ -365,14 +375,20 @@ public:
     const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
 
     // extension properties
-    const void* queryDeviceProperties() const;
+    const void* queryExtensionProperties() const;
+    const VkPhysicalDeviceCooperativeMatrix2PropertiesNV& queryCooperativeMatrix2PropertiesNV() const;
+    const VkPhysicalDeviceCooperativeVectorPropertiesNV& queryCooperativeVectorPropertiesNV() const;
+    const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
     const VkPhysicalDeviceFloatControlsPropertiesKHR& queryFloatControlsProperties() const;
     const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
-    const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
     const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
-    const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixProperties() const;
-    const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixPropertiesNV() const;
+
+    // extension sub properties
+    const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
+    const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixSubPropertiesNV() const;
+    const std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV>& queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV() const;
+    const std::vector<VkCooperativeVectorPropertiesNV>& queryCooperativeVectorSubPropertiesNV() const;
 
 private:
     GpuInfo(const GpuInfo&);
@@ -496,6 +512,10 @@ public:
     PFN_vkGetAndroidHardwareBufferPropertiesANDROID vkGetAndroidHardwareBufferPropertiesANDROID;
     PFN_vkGetMemoryAndroidHardwareBufferANDROID vkGetMemoryAndroidHardwareBufferANDROID;
 #endif // __ANDROID_API__ >= 26
+
+    // VK_NV_cooperative_vector
+    PFN_vkCmdConvertCooperativeVectorMatrixNV vkCmdConvertCooperativeVectorMatrixNV;
+    PFN_vkConvertCooperativeVectorMatrixNV vkConvertCooperativeVectorMatrixNV;
 
 protected:
     // device extension
