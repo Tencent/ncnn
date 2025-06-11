@@ -1508,6 +1508,10 @@ typedef VkPhysicalDeviceShaderFloatControls2Features VkPhysicalDeviceShaderFloat
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_PROPERTIES_NV (VkStructureType)1000491001
 #define VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV                 (VkStructureType)1000491002
 #define VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV        (VkStructureType)1000491004
+#define VK_COMPONENT_TYPE_SINT8_PACKED_NV                                  (VkComponentTypeKHR)1000491000
+#define VK_COMPONENT_TYPE_UINT8_PACKED_NV                                  (VkComponentTypeKHR)1000491001
+#define VK_COMPONENT_TYPE_FLOAT_E4M3_NV                                    (VkComponentTypeKHR)1000491002
+#define VK_COMPONENT_TYPE_FLOAT_E5M2_NV                                    (VkComponentTypeKHR)1000491003
 typedef enum VkCooperativeVectorMatrixLayoutNV
 {
     VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_ROW_MAJOR_NV = 0,
