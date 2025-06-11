@@ -2648,7 +2648,7 @@ int create_gpu_instance(const char* driver_path)
                         fp16_matrix_properties.push_back(cmp);
                 }
                 if ((cmp.AType == VK_COMPONENT_TYPE_SINT8_KHR || cmp.AType == VK_COMPONENT_TYPE_SINT8_PACKED_NV)
-                    && (cmp.BType == VK_COMPONENT_TYPE_SINT8_KHR || cmp.BType == VK_COMPONENT_TYPE_SINT8_PACKED_NV))
+                        && (cmp.BType == VK_COMPONENT_TYPE_SINT8_KHR || cmp.BType == VK_COMPONENT_TYPE_SINT8_PACKED_NV))
                 {
                     bool mnk_hit = false;
                     for (size_t k = 0; k < int8_matrix_properties.size(); k++)
@@ -2679,9 +2679,9 @@ int create_gpu_instance(const char* driver_path)
                         bf16_matrix_properties.push_back(cmp);
                 }
                 if ((cmp.AType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT || cmp.AType == VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT
-                    || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV)
-                    && (cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT || cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT
-                    || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV))
+                        || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV)
+                        && (cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT || cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT
+                            || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV))
                 {
                     bool mnk_hit = false;
                     for (size_t k = 0; k < fp8_matrix_properties.size(); k++)
