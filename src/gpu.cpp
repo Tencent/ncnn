@@ -2631,7 +2631,7 @@ int create_gpu_instance(const char* driver_path)
             std::vector<VkCooperativeMatrixPropertiesKHR> bf16_matrix_properties;
             std::vector<VkCooperativeMatrixPropertiesKHR> fp8_matrix_properties;
 
-            const std::vector<VkCooperativeMatrixPropertiesKHR>& properties = gpu_info.queryCooperativeMatrixProperties();
+            const std::vector<VkCooperativeMatrixPropertiesKHR>& properties = gpu_info.queryCooperativeMatrixSubProperties();
             for (uint32_t j = 0; j < properties.size(); j++)
             {
                 const VkCooperativeMatrixPropertiesKHR& cmp = properties[j];
@@ -2732,12 +2732,12 @@ int create_gpu_instance(const char* driver_path)
             std::vector<VkCooperativeMatrixPropertiesNV> fp16_matrix_properties;
             std::vector<VkCooperativeMatrixPropertiesNV> int8_matrix_properties;
 
-            const std::vector<VkCooperativeMatrixPropertiesNV>& properties = gpu_info.queryCooperativeMatrixPropertiesNV();
+            const std::vector<VkCooperativeMatrixPropertiesNV>& properties = gpu_info.queryCooperativeMatrixSubPropertiesNV();
             for (uint32_t j = 0; j < properties.size(); j++)
             {
                 const VkCooperativeMatrixPropertiesNV& cmp = properties[j];
 
-                if (cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR)
+                if (cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV)
                 {
                     bool mnk_hit = false;
                     for (size_t k = 0; k < fp16_matrix_properties.size(); k++)
@@ -2752,7 +2752,7 @@ int create_gpu_instance(const char* driver_path)
                     if (!mnk_hit)
                         fp16_matrix_properties.push_back(cmp);
                 }
-                if (cmp.AType == VK_COMPONENT_TYPE_SINT8_KHR && cmp.BType == VK_COMPONENT_TYPE_SINT8_KHR)
+                if (cmp.AType == VK_COMPONENT_TYPE_SINT8_NV && cmp.BType == VK_COMPONENT_TYPE_SINT8_NV)
                 {
                     bool mnk_hit = false;
                     for (size_t k = 0; k < int8_matrix_properties.size(); k++)
