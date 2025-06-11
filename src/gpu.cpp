@@ -1982,6 +1982,11 @@ const void* GpuInfo::queryExtensionProperties() const
     return d->queryExtensionProperties;
 }
 
+const VkPhysicalDeviceCooperativeMatrix2PropertiesNV& GpuInfo::queryCooperativeMatrix2PropertiesNV() const
+{
+    return d->queryCooperativeMatrix2PropertiesNV;
+}
+
 const VkPhysicalDeviceCooperativeVectorPropertiesNV& GpuInfo::queryCooperativeVectorPropertiesNV() const
 {
     return d->queryCooperativeVectorPropertiesNV;
@@ -5048,6 +5053,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_FEATURE(cooperativeMatrixTensorAddressing)
             DD_APPEND_FEATURE(cooperativeMatrixBlockLoads)
         }
+        if (info.support_VK_NV_cooperative_vector())
+        {
+            const VkPhysicalDeviceCooperativeVectorFeaturesNV& features = info.queryCooperativeVectorFeaturesNV();
+            DD_APPEND_FEATURE(cooperativeVector)
+            DD_APPEND_FEATURE(cooperativeVectorTraining)
+        }
         if (info.support_VK_EXT_subgroup_size_control())
         {
             const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& features = info.querySubgroupSizeControlFeatures();
@@ -5258,6 +5269,21 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             device_defines.append("subgroup_rotate", (properties.supportedOperations & VK_SUBGROUP_FEATURE_ROTATE_BIT) ? 1 : 0);
             device_defines.append("subgroup_rotate_relative", (properties.supportedOperations & VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT) ? 1 : 0);
             device_defines.append("subgroup_partitioned", (properties.supportedOperations & VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV) ? 1 : 0);
+        }
+        if (info.support_VK_NV_cooperative_matrix2())
+        {
+            const VkPhysicalDeviceCooperativeMatrix2PropertiesNV& properties = info.queryCooperativeMatrix2PropertiesNV();
+            DD_APPEND_PROPERTY(cooperativeMatrixWorkgroupScopeMaxWorkgroupSize)
+            DD_APPEND_PROPERTY(cooperativeMatrixFlexibleDimensionsMaxDimension)
+            DD_APPEND_PROPERTY(cooperativeMatrixWorkgroupScopeReservedSharedMemory)
+        }
+        if (info.support_VK_NV_cooperative_vector())
+        {
+            const VkPhysicalDeviceCooperativeVectorPropertiesNV& properties = info.queryCooperativeVectorPropertiesNV();
+            DD_APPEND_PROPERTY(cooperativeVectorSupportedStages)
+            DD_APPEND_PROPERTY(cooperativeVectorTrainingFloat16Accumulation)
+            DD_APPEND_PROPERTY(cooperativeVectorTrainingFloat32Accumulation)
+            DD_APPEND_PROPERTY(maxCooperativeVectorComponents)
         }
         if (info.support_VK_KHR_driver_properties())
         {
