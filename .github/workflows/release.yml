@@ -58,10 +58,8 @@ jobs:
     strategy:
       matrix:
         opt:
-          - { shared-lib: OFF, os: ubuntu-20.04, id: ubuntu-2004        }
           - { shared-lib: OFF, os: ubuntu-22.04, id: ubuntu-2204        }
           - { shared-lib: OFF, os: ubuntu-24.04, id: ubuntu-2404        }
-          - { shared-lib: ON,  os: ubuntu-20.04, id: ubuntu-2004-shared }
           - { shared-lib: ON,  os: ubuntu-22.04, id: ubuntu-2204-shared }
           - { shared-lib: ON,  os: ubuntu-24.04, id: ubuntu-2404-shared }
     runs-on: ${{ matrix.opt.os }}
@@ -242,19 +240,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create build-x86_64/install/lib/libglslang_combined.a build-arm64/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
@@ -416,11 +406,7 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
         cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
@@ -599,19 +585,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -796,19 +774,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -1291,19 +1261,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64e/install/lib/libglslang.a \
-            build-arm64e/install/lib/libMachineIndependent.a \
-            build-arm64e/install/lib/libGenericCodeGen.a \
             build-arm64e/install/lib/libSPIRV.a \
-            build-arm64e/install/lib/libOGLCompiler.a \
-            build-arm64e/install/lib/libOSDependent.a \
             -o build-arm64e/install/lib/libglslang_combined.a
         lipo -create \
             build-arm64/install/lib/libglslang_combined.a \
@@ -1488,19 +1450,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -1668,11 +1622,7 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
         cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
@@ -1851,19 +1801,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -1916,14 +1858,15 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake \
+        -DANDROID_PLATFORM=android-21 \
         -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False \
+        -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=install \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
         -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} \
-        -DNCNN_AVX512BF16=OFF \
 
     steps:
     - uses: actions/checkout@v4
@@ -1934,25 +1877,31 @@ jobs:
     - name: build-armeabi-v7a
       run: |
         mkdir build-armeabi-v7a && cd build-armeabi-v7a
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-arm64-v8a
       run: |
         mkdir build-arm64-v8a && cd build-arm64-v8a
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="arm64-v8a" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86_64" ..
+        cmake --build . -j $(nproc)
+        cmake --build . --target install/strip
+    - name: build-riscv64
+      run: |
+        mkdir build-riscv64 && cd build-riscv64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="riscv64" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
@@ -1963,6 +1912,7 @@ jobs:
         cp -a build-arm64-v8a/install ${{ env.PACKAGENAME }}/arm64-v8a
         cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
         cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
+        cp -a build-riscv64/install ${{ env.PACKAGENAME }}/riscv64
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
@@ -2101,13 +2051,6 @@ jobs:
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
-    - name: build-arm
-      if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
-      run: |
-        mkdir build-arm; cd build-arm
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A arm ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
     - name: build-arm64
       if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
       run: |
@@ -2130,11 +2073,9 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/arm
         mkdir ${{ env.PACKAGENAME }}/arm64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip

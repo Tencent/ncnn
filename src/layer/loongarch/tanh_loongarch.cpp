@@ -56,7 +56,7 @@ int TanH_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            *ptr = tanh(*ptr);
+            *ptr = tanhf(*ptr);
             ptr++;
         }
     }

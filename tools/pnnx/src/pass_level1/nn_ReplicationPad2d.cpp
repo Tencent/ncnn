@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,10 +29,10 @@ public:
         return "nn.ReplicationPad2d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* pad = find_node_by_kind(graph, "aten::pad");
-        const torch::jit::Node* replication_pad2d = find_node_by_kind(graph, "aten::replication_pad2d");
+        const TorchNodeProxy* pad = graph.find_node_by_kind("aten::pad");
+        const TorchNodeProxy* replication_pad2d = graph.find_node_by_kind("aten::replication_pad2d");
 
         if (pad)
         {

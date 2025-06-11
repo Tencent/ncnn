@@ -182,6 +182,12 @@ extern PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR;
 // VK_NV_cooperative_matrix
 extern PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV vkGetPhysicalDeviceCooperativeMatrixPropertiesNV;
 
+// VK_NV_cooperative_matrix2
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV;
+
+// VK_NV_cooperative_vector
+extern PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV vkGetPhysicalDeviceCooperativeVectorPropertiesNV;
+
 // get info
 NCNN_EXPORT int get_gpu_count();
 NCNN_EXPORT int get_default_gpu_index();
@@ -193,11 +199,24 @@ public:
     explicit GpuInfo();
     virtual ~GpuInfo();
 
+    int device_index() const;
+
     // vulkan physical device
-    VkPhysicalDevice physical_device() const;
+    VkPhysicalDevice physicalDevice() const;
+    VkPhysicalDevice physical_device() const; // api compatibility
+
+    // features
+    const VkPhysicalDeviceFeatures& physicalDevicefeatures() const;
+
+    // properties
+    const VkPhysicalDeviceProperties& physicalDeviceProperties() const;
 
     // memory properties
-    const VkPhysicalDeviceMemoryProperties& physical_device_memory_properties() const;
+    const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties() const;
+    const VkPhysicalDeviceMemoryProperties& physical_device_memory_properties() const; // api compatibility
+
+    // extension properties
+    const std::vector<VkExtensionProperties>& deviceExtensionProperties() const;
 
     // info
     uint32_t api_version() const;
@@ -249,10 +268,12 @@ public:
 
     // subgroup
     uint32_t subgroup_size() const;
-    bool support_subgroup_basic() const;
-    bool support_subgroup_vote() const;
-    bool support_subgroup_ballot() const;
-    bool support_subgroup_shuffle() const;
+    uint32_t min_subgroup_size() const;
+    uint32_t max_subgroup_size() const;
+    uint32_t max_compute_workgroup_subgroups() const;
+    bool support_subgroup_size_control() const;
+    bool support_compute_full_subgroups() const;
+    uint32_t support_subgroup_ops() const;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1() const;
@@ -271,6 +292,13 @@ public:
     bool support_int8_storage() const;
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
+
+    // r16f and r8s format in storage image
+    bool support_fp16_image() const;
+    bool support_int8_image() const;
+
+    // shader float controls2
+    bool support_fp_fast_math() const;
 
     // ycbcr conversion feature
     bool support_ycbcr_conversion() const;
@@ -301,20 +329,68 @@ public:
     int support_VK_KHR_portability_subset() const;
     int support_VK_KHR_push_descriptor() const;
     int support_VK_KHR_sampler_ycbcr_conversion() const;
+    int support_VK_KHR_shader_bfloat16() const;
     int support_VK_KHR_shader_float16_int8() const;
     int support_VK_KHR_shader_float_controls() const;
+    int support_VK_KHR_shader_float_controls2() const;
+    int support_VK_KHR_shader_integer_dot_product() const;
+    int support_VK_KHR_shader_non_semantic_info() const;
+    int support_VK_KHR_shader_subgroup_extended_types() const;
+    int support_VK_KHR_shader_subgroup_rotate() const;
     int support_VK_KHR_storage_buffer_storage_class() const;
     int support_VK_KHR_swapchain() const;
+    int support_VK_KHR_zero_initialize_workgroup_memory() const;
     int support_VK_EXT_buffer_device_address() const;
     int support_VK_EXT_descriptor_indexing() const;
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
+    int support_VK_EXT_shader_atomic_float() const;
+    int support_VK_EXT_shader_atomic_float2() const;
+    int support_VK_EXT_shader_float8() const;
+    int support_VK_EXT_subgroup_size_control() const;
     int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer() const;
 #endif // __ANDROID_API__ >= 26
     int support_VK_NV_cooperative_matrix() const;
+    int support_VK_NV_cooperative_matrix2() const;
+    int support_VK_NV_cooperative_vector() const;
+
+    // extension features
+    const void* queryExtensionFeatures() const;
+    const VkPhysicalDevice8BitStorageFeaturesKHR& query8BitStorageFeatures() const;
+    const VkPhysicalDevice16BitStorageFeaturesKHR& query16BitStorageFeatures() const;
+    const VkPhysicalDeviceFloat16Int8FeaturesKHR& queryFloat16Int8Features() const;
+    const VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR& querySamplerYcbcrConversionFeatures() const;
+    const VkPhysicalDeviceCooperativeMatrixFeaturesKHR& queryCooperativeMatrixFeatures() const;
+    const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
+    const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
+    const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
+    const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
+    const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
+    const VkPhysicalDeviceShaderFloat8FeaturesEXT& queryShaderFloat8Features() const;
+    const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& queryShaderFloatControls2Features() const;
+    const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& queryShaderIntegerDotProductFeatures() const;
+    const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;
+    const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& queryShaderAtomicFloatFeatures() const;
+    const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
+
+    // extension properties
+    const void* queryExtensionProperties() const;
+    const VkPhysicalDeviceCooperativeMatrix2PropertiesNV& queryCooperativeMatrix2PropertiesNV() const;
+    const VkPhysicalDeviceCooperativeVectorPropertiesNV& queryCooperativeVectorPropertiesNV() const;
+    const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
+    const VkPhysicalDeviceFloatControlsPropertiesKHR& queryFloatControlsProperties() const;
+    const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
+    const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
+    const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
+
+    // extension sub properties
+    const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
+    const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixSubPropertiesNV() const;
+    const std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV>& queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV() const;
+    const std::vector<VkCooperativeVectorPropertiesNV>& queryCooperativeVectorSubPropertiesNV() const;
 
 private:
     GpuInfo(const GpuInfo&);
@@ -351,7 +427,7 @@ public:
     // helper for creating pipeline
     int create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const;
     int create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
-    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, VkPipeline* pipeline) const;
+    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const;
     int create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const;
 
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
@@ -438,6 +514,10 @@ public:
     PFN_vkGetAndroidHardwareBufferPropertiesANDROID vkGetAndroidHardwareBufferPropertiesANDROID;
     PFN_vkGetMemoryAndroidHardwareBufferANDROID vkGetMemoryAndroidHardwareBufferANDROID;
 #endif // __ANDROID_API__ >= 26
+
+    // VK_NV_cooperative_vector
+    PFN_vkCmdConvertCooperativeVectorMatrixNV vkCmdConvertCooperativeVectorMatrixNV;
+    PFN_vkConvertCooperativeVectorMatrixNV vkConvertCooperativeVectorMatrixNV;
 
 protected:
     // device extension

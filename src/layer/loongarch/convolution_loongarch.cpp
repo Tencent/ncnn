@@ -282,7 +282,7 @@ int Convolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const 
             top_blob.w = top_blob_3d.c;
             top_blob.h = 1;
             top_blob.c = 1;
-            bottom_blob_3d.cstep = top_blob_3d.c;
+            top_blob.cstep = top_blob_3d.c;
         }
         else
         {
@@ -949,6 +949,29 @@ int Convolution_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& t
             convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
     }
+
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+        // NCNN_LOGE("top_blob_int32  %d  %d", top_blob_int32.c, top_blob_int32.elempack);
+        if (use_int8_requantize)
+        {
+            // TODO implement winograd sgemm packed int8 pack1 output
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 1)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 1, opt);
+                top_blob_int32 = tmp;
+            }
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 0)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 8, opt);
+                top_blob_int32 = tmp;
+            }
+        }
+    }
+#endif
 
     if (use_int8_requantize)
     {

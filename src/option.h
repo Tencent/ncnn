@@ -37,6 +37,14 @@ public:
     // enabled by default
     bool lightmode;
 
+    // use pack8 shader
+    bool use_shader_pack8;
+
+    // enable subgroup in shader
+    bool use_subgroup_ops;
+
+    bool use_reserved_0;
+
     // thread count
     // default value is the one returned by get_cpu_count()
     int num_threads;
@@ -105,19 +113,16 @@ public:
     // enabled by default
     bool use_packing_layout;
 
-    bool use_shader_pack8;
+    // the vulkan device
+    int vulkan_device_index;
 
-    // subgroup option
-    bool use_subgroup_basic;
-    bool use_subgroup_vote;
-    bool use_subgroup_ballot;
-    bool use_subgroup_shuffle;
+    bool use_reserved_1;
 
     // turn on for adreno
     bool use_image_storage;
     bool use_tensor_storage;
 
-    bool use_reserved_0;
+    bool use_reserved_2;
 
     // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)
     // default value is 3

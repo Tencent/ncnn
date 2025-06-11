@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,13 +29,13 @@ public:
         return "nn.quantized.Quantize";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
         //         mod.dump(true, false, false);
 
         //         graph->dump();
 
-        const torch::jit::Node* quantize_per_tensor = find_node_by_kind(graph, "aten::quantize_per_tensor");
+        const TorchNodeProxy* quantize_per_tensor = graph.find_node_by_kind("aten::quantize_per_tensor");
 
         //         for (auto aa : quantize_per_tensor->schema().arguments())
         //         {

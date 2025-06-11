@@ -214,10 +214,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_int8_arithmetic", &Option::use_int8_arithmetic)
     .def_readwrite("use_packing_layout", &Option::use_packing_layout)
     .def_readwrite("use_shader_pack8", &Option::use_shader_pack8)
-    .def_readwrite("use_subgroup_basic", &Option::use_subgroup_basic)
-    .def_readwrite("use_subgroup_vote", &Option::use_subgroup_vote)
-    .def_readwrite("use_subgroup_ballot", &Option::use_subgroup_ballot)
-    .def_readwrite("use_subgroup_shuffle", &Option::use_subgroup_shuffle)
+    .def_readwrite("use_subgroup_ops", &Option::use_subgroup_ops)
     .def_readwrite("use_image_storage", &Option::use_image_storage)
     .def_readwrite("use_tensor_storage", &Option::use_tensor_storage);
 

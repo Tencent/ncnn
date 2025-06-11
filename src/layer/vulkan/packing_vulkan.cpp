@@ -330,7 +330,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         {
             top_blob = bottom_blob;
             top_blob.w = w * elempack;
-            top_blob.cstep = w * elempack;
+            top_blob.cstep = bottom_blob.cstep * elempack;
             top_blob.elemsize = elemsize / elempack;
             top_blob.elempack = out_elempack;
             return 0;

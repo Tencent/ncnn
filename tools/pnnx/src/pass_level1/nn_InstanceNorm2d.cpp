@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,11 +29,11 @@ public:
         return "nn.InstanceNorm2d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
     {
         //         graph->dump();
 
-        const torch::jit::Node* in = find_node_by_kind(graph, "aten::instance_norm");
+        const TorchNodeProxy* in = graph.find_node_by_kind("aten::instance_norm");
 
         //         for (auto aa : in->schema().arguments())
         //         {
@@ -48,28 +46,28 @@ public:
 
         if (mod.hasattr("weight") && mod.hasattr("bias"))
         {
-            const auto& weight = mod.attr("weight").toTensor();
+            const TorchTensorProxy& weight = mod.attr("weight");
 
             op->params["num_features"] = weight.size(0);
 
             op->attrs["weight"] = weight;
-            op->attrs["bias"] = mod.attr("bias").toTensor();
+            op->attrs["bias"] = mod.attr("bias");
         }
 
         if (mod.hasattr("running_mean") && mod.hasattr("running_var"))
         {
-            const auto& running_mean = mod.attr("running_mean").toTensor();
+            const TorchTensorProxy& running_mean = mod.attr("running_mean");
 
             op->params["num_features"] = running_mean.size(0);
 
             op->attrs["running_mean"] = running_mean;
-            op->attrs["running_var"] = mod.attr("running_var").toTensor();
+            op->attrs["running_var"] = mod.attr("running_var");
         }
 
         // take num_features from input shape
         if (!op->has_param("num_features") && !op->inputs[0]->shape.empty())
         {
-            op->params["num_features"] = op->inputs[0]->shape[op->inputs[0]->shape.size() - 2];
+            op->params["num_features"] = op->inputs[0]->shape[op->inputs[0]->shape.size() - 3];
         }
     }
 };

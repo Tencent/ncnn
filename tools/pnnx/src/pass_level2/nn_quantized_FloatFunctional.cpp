@@ -38,6 +38,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_quantized_FloatFunctional_cat, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_quantized_FloatFunctional_cat, 60)
 
 } // namespace pnnx

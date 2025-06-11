@@ -115,9 +115,9 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to, 20)
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_1, 20)
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_2, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_1, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_2, 60)
 
 class Tensor_to_onnx : public GraphRewriterPass
 {
@@ -160,6 +160,45 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_onnx, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_onnx, 60)
+
+class Tensor_to_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.Cast                op_0        1 1 input out arg0=%to
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.to";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int to = captured_params.at("to").i;
+
+        op->params["non_blocking"] = false;
+        op->params["copy"] = false;
+        op->params["memory_format"] = "torch.preserve_format";
+
+        if (to == 0) op->params["dtype"] = "torch.float";
+        if (to == 1) op->params["dtype"] = "torch.half";
+        if (to == 2) op->params["dtype"] = "torch.int8";
+        if (to == 3) op->params["dtype"] = "torch.int";
+        if (to == 4) op->params["dtype"] = "torch.bfloat16";
+        if (to == 5) op->params["dtype"] = "torch.long";
+        if (to == 6) op->params["dtype"] = "torch.uint32";
+        if (to == 8) op->params["dtype"] = "torch.uint8";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_tnn, 60)
 
 } // namespace pnnx

@@ -14,58 +14,70 @@
 
 #include "testutil.h"
 
-static ncnn::Mat IntArrayMat(int a0)
+static std::vector<int> IntArray(int a0)
 {
-    ncnn::Mat m(1);
-    int* p = m;
-    p[0] = a0;
+    std::vector<int> m(1);
+    m[0] = a0;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1)
+static std::vector<int> IntArray(int a0, int a1)
 {
-    ncnn::Mat m(2);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
+    std::vector<int> m(2);
+    m[0] = a0;
+    m[1] = a1;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1, int a2)
+static std::vector<int> IntArray(int a0, int a1, int a2)
 {
-    ncnn::Mat m(3);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    p[2] = a2;
+    std::vector<int> m(3);
+    m[0] = a0;
+    m[1] = a1;
+    m[2] = a2;
     return m;
 }
 
-static ncnn::Mat IntArrayMat(int a0, int a1, int a2, int a3)
+static std::vector<int> IntArray(int a0, int a1, int a2, int a3)
 {
-    ncnn::Mat m(4);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    p[2] = a2;
-    p[3] = a3;
+    std::vector<int> m(4);
+    m[0] = a0;
+    m[1] = a1;
+    m[2] = a2;
+    m[3] = a3;
     return m;
 }
 
-static void print_int_array(const ncnn::Mat& a)
+static void print_int_array(const std::vector<int>& a)
 {
-    const int* pa = a;
-
     fprintf(stderr, "[");
-    for (int i = 0; i < a.w; i++)
+    for (size_t i = 0; i < a.size(); i++)
     {
-        fprintf(stderr, " %d", pa[i]);
+        fprintf(stderr, " %d", a[i]);
     }
     fprintf(stderr, " ]");
 }
 
-static int test_copyto(const ncnn::Mat& self, const ncnn::Mat& src, const ncnn::Mat& starts, const ncnn::Mat& axes)
+static int test_copyto(const ncnn::Mat& self, const ncnn::Mat& src, const std::vector<int>& starts_array, const std::vector<int>& axes_array)
 {
+    ncnn::Mat starts(starts_array.size());
+    {
+        int* p = starts;
+        for (size_t i = 0; i < starts_array.size(); i++)
+        {
+            p[i] = starts_array[i];
+        }
+    }
+
+    ncnn::Mat axes(axes_array.size());
+    {
+        int* p = axes;
+        for (size_t i = 0; i < axes_array.size(); i++)
+        {
+            p[i] = axes_array[i];
+        }
+    }
+
     ncnn::ParamDict pd;
     pd.set(9, starts); // starts
     pd.set(11, axes);  // axes
@@ -81,9 +93,9 @@ static int test_copyto(const ncnn::Mat& self, const ncnn::Mat& src, const ncnn::
     {
         fprintf(stderr, "test_copyto failed self.dims=%d self=(%d %d %d %d) src.dims=%d src=(%d %d %d %d)", self.dims, self.w, self.h, self.d, self.c, src.dims, src.w, src.h, src.d, src.c);
         fprintf(stderr, " starts=");
-        print_int_array(starts);
+        print_int_array(starts_array);
         fprintf(stderr, " axes=");
-        print_int_array(axes);
+        print_int_array(axes_array);
         fprintf(stderr, "\n");
     }
 
@@ -111,10 +123,10 @@ static int test_copyto_0()
             const ncnn::Mat& src = b[j];
 
             int ret = 0
-                      || test_copyto(self, src, IntArrayMat(0), IntArrayMat(0))
-                      || test_copyto(self, src, IntArrayMat(13), IntArrayMat(-1))
-                      || test_copyto(self, src, IntArrayMat(28), IntArrayMat(0))
-                      || test_copyto(self, src, IntArrayMat(32), ncnn::Mat());
+                      || test_copyto(self, src, IntArray(0), IntArray(0))
+                      || test_copyto(self, src, IntArray(13), IntArray(-1))
+                      || test_copyto(self, src, IntArray(28), IntArray(0))
+                      || test_copyto(self, src, IntArray(32), std::vector<int>());
 
             if (ret != 0)
                 return ret;
@@ -148,10 +160,10 @@ static int test_copyto_1()
             const ncnn::Mat& src = b[j];
 
             int ret = 0
-                      || test_copyto(self, src, IntArrayMat(0, 0), IntArrayMat(0, 1))
-                      || test_copyto(self, src, IntArrayMat(13, 1), IntArrayMat(-2, -1))
-                      || test_copyto(self, src, IntArrayMat(28, 3), IntArrayMat(0, 1))
-                      || test_copyto(self, src, IntArrayMat(32, 10), IntArrayMat(0, 1));
+                      || test_copyto(self, src, IntArray(0, 0), IntArray(0, 1))
+                      || test_copyto(self, src, IntArray(13, 1), IntArray(-2, -1))
+                      || test_copyto(self, src, IntArray(28, 3), IntArray(0, 1))
+                      || test_copyto(self, src, IntArray(32, 10), IntArray(0, 1));
 
             if (ret != 0)
                 return ret;
@@ -188,10 +200,10 @@ static int test_copyto_2()
             const ncnn::Mat& src = b[j];
 
             int ret = 0
-                      || test_copyto(self, src, IntArrayMat(0, 0, 0), IntArrayMat(0, 1, 2))
-                      || test_copyto(self, src, IntArrayMat(13, 1, 0), IntArrayMat(-3, -2, -1))
-                      || test_copyto(self, src, IntArrayMat(28, 3, 4), IntArrayMat(0, 1, 2))
-                      || test_copyto(self, src, IntArrayMat(32, 0, 5), IntArrayMat(0, 1, 2));
+                      || test_copyto(self, src, IntArray(0, 0, 0), IntArray(0, 1, 2))
+                      || test_copyto(self, src, IntArray(13, 1, 0), IntArray(-3, -2, -1))
+                      || test_copyto(self, src, IntArray(28, 3, 4), IntArray(0, 1, 2))
+                      || test_copyto(self, src, IntArray(32, 0, 5), IntArray(0, 1, 2));
 
             if (ret != 0)
                 return ret;
@@ -231,10 +243,10 @@ static int test_copyto_3()
             const ncnn::Mat& src = b[j];
 
             int ret = 0
-                      || test_copyto(self, src, IntArrayMat(0, 0, 0, 0), IntArrayMat(0, 1, 2, 3))
-                      || test_copyto(self, src, IntArrayMat(13, 1, 1, 0), IntArrayMat(-4, -3, 2, 3))
-                      || test_copyto(self, src, IntArrayMat(28, 0, 3, 4), IntArrayMat(0, 1, 2, 3))
-                      || test_copyto(self, src, IntArrayMat(32, 2, 0, 5), IntArrayMat(0, 1, 2, 3));
+                      || test_copyto(self, src, IntArray(0, 0, 0, 0), IntArray(0, 1, 2, 3))
+                      || test_copyto(self, src, IntArray(13, 1, 1, 0), IntArray(-4, -3, 2, 3))
+                      || test_copyto(self, src, IntArray(28, 0, 3, 4), IntArray(0, 1, 2, 3))
+                      || test_copyto(self, src, IntArray(32, 2, 0, 5), IntArray(0, 1, 2, 3));
 
             if (ret != 0)
                 return ret;

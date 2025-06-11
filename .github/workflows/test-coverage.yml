@@ -38,7 +38,7 @@ jobs:
         LD_LIBRARY_PATH: /data/action/install/lib64
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 4
     - name: test
       env:
@@ -54,94 +54,521 @@ jobs:
         lcov --list lcov.info
 
     - name: codecov
-      id: codecov
-      continue-on-error: true
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-1
-      continue-on-error: true
-      id: codecov-vlen256-retry-1
-      if: steps.codecov.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-2
-      continue-on-error: true
-      id: codecov-vlen256-retry-2
-      if: steps.codecov-vlen256-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-3
-      continue-on-error: true
-      id: codecov-vlen256-retry-3
-      if: steps.codecov-vlen256-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-4
-      continue-on-error: true
-      id: codecov-vlen256-retry-4
-      if: steps.codecov-vlen256-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-5
-      continue-on-error: true
-      id: codecov-vlen256-retry-5
-      if: steps.codecov-vlen256-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: set the status
-      if: always()
-      run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
-           echo fine
-        else
-           exit 1
-        fi
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
 
-  linux-gcc-x64-avx512-spr:
-    runs-on: ubuntu-22.04
+  linux-gcc-x64:
+    name: x64-${{ matrix.name }}
+    runs-on: [self-hosted, linux, ubuntu25]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'none',       SSE2: OFF, AVX: OFF, F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'sse2',       SSE2: ON,  AVX: OFF, F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'avx',        SSE2: ON,  AVX: ON,  F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'avx2',       SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'avx512',     SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: OFF }
+          - { name: 'avx512vnni', SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: ON  }
     steps:
     - uses: actions/checkout@v4
-    - name: update
-      run: sudo apt-get update
-    - name: gcc12
-      run: sudo apt-get install gcc-12 g++-12
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: Setup SDE binaries
-      uses: petarpetrovt/setup-sde@v2.4
-    - name: build-avx512-spr
-      env:
-        CC: gcc-12
-        CXX: g++-12
+    - name: build
       run: |
-        mkdir build-avx512-spr && cd build-avx512-spr
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=ON -DNCNN_AVX512FP16=ON -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test-avx512-spr
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_SSE2=${{ matrix.SSE2 }} \
+            -DNCNN_AVX=${{ matrix.AVX }} \
+            -DNCNN_F16C=${{ matrix.F16C }} \
+            -DNCNN_FMA=${{ matrix.FMA }} \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVXVNNI=OFF \
+            -DNCNN_AVX512BF16=OFF \
+            -DNCNN_AVX512FP16=OFF \
+            -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
       run: |
-        cd build-avx512-spr
-        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
+        cd build
+        ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
-        cd build-avx512-spr
-        lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
+        cd build
+        lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-avx512-spr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov-avx512-spr
-      uses: codecov/codecov-action@v4
+    - name: build-openmp
+      run: |
+        mkdir build-openmp && cd build-openmp
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_SSE2=${{ matrix.SSE2 }} \
+            -DNCNN_AVX=${{ matrix.AVX }} \
+            -DNCNN_F16C=${{ matrix.F16C }} \
+            -DNCNN_FMA=${{ matrix.FMA }} \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVXVNNI=OFF \
+            -DNCNN_AVX512BF16=OFF \
+            -DNCNN_AVX512FP16=OFF \
+            -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        cd build-openmp
+        ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build-openmp
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-openmp/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-avx512-spr/lcov.info
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info,build-openmp/lcov.info
+
+  linux-gcc-x64-simplestl-simplemath:
+    name: simplestl-simplemath
+    runs-on: [self-hosted, linux, ubuntu25]
+    steps:
+    - uses: actions/checkout@v4
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEMATH=ON \
+            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        cd build
+        ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gcc-x64-sde:
+    name: sde-${{ matrix.cpu }}
+    runs-on: [self-hosted, linux, ubuntu25]
+    env:
+      SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cpu: hsw, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: adl, AVX2: ON, AVXVNNI: ON,  AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: arl, AVX2: ON, AVXVNNI: ON,  AVXVNNIINT8: ON,  AVXNECONVERT: ON,  AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: spr, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: ON,  AVX512VNNI: ON,  AVX512BF16: ON,  AVX512FP16: ON  }
+    steps:
+    - uses: actions/checkout@v4
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_AVX=ON \
+            -DNCNN_F16C=ON \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVXVNNI=${{ matrix.AVXVNNI }} \
+            -DNCNN_AVXVNNIINT8=${{ matrix.AVXVNNIINT8 }} \
+            -DNCNN_AVXNECONVERT=${{ matrix.AVXNECONVERT }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_AVX512BF16=${{ matrix.AVX512BF16 }} \
+            -DNCNN_AVX512FP16=${{ matrix.AVX512FP16 }} \
+            -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-${{ matrix.cpu }};--" ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gcc-x64-sde-combined:
+    name: sde-combined
+    runs-on: [self-hosted, linux, ubuntu25]
+    env:
+      SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
+    steps:
+    - uses: actions/checkout@v4
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test-p4p
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-p4p;--" ctest --output-on-failure -j 8
+    - name: test-snb
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-snb;--" ctest --output-on-failure -j 8
+    - name: test-hsw
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-hsw;--" ctest --output-on-failure -j 8
+    - name: test-adl
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-adl;--" ctest --output-on-failure -j 8
+    - name: test-arl
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-arl;--" ctest --output-on-failure -j 8
+    - name: test-skx
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-skx;--" ctest --output-on-failure -j 8
+    - name: test-spr
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 8
+    - name: test-gnr
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-gnr;--" ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gcc-riscv64-rvv:
+    strategy:
+      matrix:
+        openmp: [ON, OFF]
+    runs-on: [self-hosted, linux, ubuntu]
+    steps:
+    - uses: actions/checkout@v4
+    - name: build
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/riscv
+        mkdir build
+        cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_ZFH=ON -DNCNN_ZVFH=ON -DNCNN_OPENMP=${{ matrix.openmp }} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test-vlen256
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+    - name: test-vlen128
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov --gcov-tool /data/action/osd/riscv/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/install/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gpu-llvmpipe:
+    runs-on: [self-hosted, linux, ubuntu25]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        export LP_NUM_THREADS=4
+        cd build && ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gpu-swiftshader:
+    runs-on: [self-hosted, linux, ubuntu25]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: actions/cache@v4
+      with:
+        path: swiftshader-install
+        key: swiftshader-linux-install-20250508
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: google/swiftshader
+        path: swiftshader
+        ref: 930d46d31b5d637f313fd5ef55da2bbf053c26c1
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 8
+        mkdir $GITHUB_WORKSPACE/swiftshader-install
+        cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd build && ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gcc-cross:
+    name: ${{ matrix.arch }}
+    runs-on: [self-hosted, linux, ubuntu25]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm
+            toolchain: arm-linux-gnueabi.toolchain.cmake
+            extra-cmake-args: -DNCNN_VFPV4=ON
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabi"
+
+          - arch: arm-noinlineasm
+            toolchain: arm-linux-gnueabi.toolchain.cmake
+            extra-cmake-args: -DNCNN_GNU_INLINE_ASM=OFF -DNCNN_VFPV4=ON
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabi"
+
+          - arch: armhf-vfpv3-d16
+            toolchain: arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake
+            extra-cmake-args: -DNCNN_VFPV4=OFF
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabihf"
+
+          - arch: armhf-vfpv3-d16-noinlineasm
+            toolchain: arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake
+            extra-cmake-args: -DNCNN_GNU_INLINE_ASM=OFF -DNCNN_VFPV4=OFF
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabihf"
+
+          - arch: aarch64-armv8.0
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM82=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.2
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM82DOT=OFF -DNCNN_ARM82FP16FML=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.4
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.6
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM86SVE=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.6-noinlineasm
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_GNU_INLINE_ASM=OFF -DNCNN_ARM86SVE=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: mipsisa32r6el
+            toolchain: mipsisa32r6el-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_MSA=OFF -DNCNN_MMI=OFF
+            qemu: qemu-mipsel-static
+            qemu-args: "-L;/usr/mipsisa32r6el-linux-gnu"
+
+          - arch: mipsisa64r6el
+            toolchain: mipsisa64r6el-linux-gnuabi64.toolchain.cmake
+            extra-cmake-args: -DNCNN_MSA=ON -DNCNN_MMI=OFF
+            qemu: qemu-mips64el-static
+            qemu-args: "-L;/usr/mipsisa64r6el-linux-gnuabi64"
+
+          - arch: powerpc
+            toolchain: powerpc-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-ppc-static
+            qemu-args: "-L;/usr/powerpc-linux-gnu"
+
+          - arch: powerpc64le
+            toolchain: powerpc64le-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-ppc64le-static
+            qemu-args: "-L;/usr/powerpc64le-linux-gnu"
+
+          - arch: riscv64
+            toolchain: riscv64-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-riscv64-static
+            qemu-args: "-L;/usr/riscv64-linux-gnu"
+
+          - arch: loongarch64-la264
+            toolchain: loongarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_LSX=ON -DNCNN_LASX=OFF
+            qemu: qemu-loongarch64-static
+            qemu-args: "-L;/usr/loongarch64-linux-gnu"
+
+          - arch: loongarch64-la664
+            toolchain: loongarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_LSX=ON -DNCNN_LASX=ON
+            qemu: qemu-loongarch64-static
+            qemu-args: "-L;/usr/loongarch64-linux-gnu"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} ${{ matrix.extra-cmake-args }} -DNCNN_OPENMP=OFF \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
+
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-openmp
+      run: |
+        mkdir build-openmp && cd build-openmp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} ${{ matrix.extra-cmake-args }} -DNCNN_OPENMP=ON \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test-openmp
+      run: |
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        cd build-openmp
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
+
+    - name: lcov-collect-openmp
+      run: |
+        cd build-openmp
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-openmp/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info,build-openmp/lcov.info

@@ -49,8 +49,33 @@ macro(ncnn_add_arch_opt_source class NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_C
     set(NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}.cpp)
 
     if(WITH_LAYER_${name} AND EXISTS ${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE})
-        set_source_files_properties(${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE} PROPERTIES COMPILE_FLAGS ${NCNN_TARGET_ARCH_OPT_CFLAGS})
+        if(NCNN_RUNTIME_CPU)
+            set_source_files_properties(${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE} PROPERTIES COMPILE_FLAGS ${NCNN_TARGET_ARCH_OPT_CFLAGS})
+        endif()
         list(APPEND ncnn_SRCS ${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE})
+    endif()
+endmacro()
+
+macro(ncnn_add_arch_opt_layer_source class NCNN_TARGET_ARCH_OPT_BASE NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_CFLAGS)
+    set(NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT_BASE}.cpp)
+
+    if(WITH_LAYER_${name} AND EXISTS ${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_SOURCE})
+
+        set(NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE ${CMAKE_CURRENT_BINARY_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}.cpp)
+
+        add_custom_command(
+            OUTPUT ${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE}
+            COMMAND ${CMAKE_COMMAND} -DSRC=${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_SOURCE} -DDST=${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE} -DCLASS=${class} -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_${NCNN_TARGET_ARCH_OPT}_source.cmake"
+            DEPENDS ${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_SOURCE}
+            COMMENT "Generating source ${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}.cpp"
+            VERBATIM
+        )
+        set_source_files_properties(${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE} PROPERTIES GENERATED TRUE)
+
+        if(NCNN_RUNTIME_CPU)
+            set_source_files_properties(${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE} PROPERTIES COMPILE_FLAGS ${NCNN_TARGET_ARCH_OPT_CFLAGS})
+        endif()
+        list(APPEND ncnn_SRCS ${NCNN_${NCNN_TARGET_ARCH_OPT_BASE}_${NCNN_TARGET_ARCH_OPT}_SOURCE})
     endif()
 endmacro()
 
@@ -105,8 +130,8 @@ macro(ncnn_add_layer class)
         set(layer_declaration "${layer_declaration}#include \"layer/vulkan/${name}_vulkan.h\"\n")
         set(layer_declaration "${layer_declaration}namespace ncnn { DEFINE_LAYER_CREATOR(${class}_vulkan) }\n")
 
-        file(GLOB_RECURSE NCNN_SHADER_SRCS "layer/vulkan/shader/${name}.comp")
-        file(GLOB_RECURSE NCNN_SHADER_SUBSRCS "layer/vulkan/shader/${name}_*.comp")
+        file(GLOB NCNN_SHADER_SRCS "layer/vulkan/shader/${name}.comp")
+        file(GLOB NCNN_SHADER_SUBSRCS "layer/vulkan/shader/${name}_*.comp")
         list(APPEND NCNN_SHADER_SRCS ${NCNN_SHADER_SUBSRCS})
         foreach(NCNN_SHADER_SRC ${NCNN_SHADER_SRCS})
             ncnn_add_shader(${NCNN_SHADER_SRC})
@@ -345,7 +370,8 @@ macro(ncnn_add_layer class)
                 ncnn_add_arch_opt_source(${class} asimddp "-march=armv8.2-a+fp16+dotprod")
             endif()
             if(NCNN_RUNTIME_CPU AND NCNN_ARM82FP16FML)
-                ncnn_add_arch_opt_source(${class} asimdfhm "-march=armv8.2-a+fp16+fp16fml")
+                # clang 9.0.9 shipped with android ndk-r21 is missing __ARM_FEATURE_FP16_FML macro for asimdfhm target
+                ncnn_add_arch_opt_source(${class} asimdfhm "-march=armv8.2-a+fp16+fp16fml -D__ARM_FEATURE_FP16_FML")
             endif()
             if(NCNN_RUNTIME_CPU AND NCNN_ARM84BF16)
                 ncnn_add_arch_opt_source(${class} bf16 "-march=armv8.4-a+fp16+dotprod+bf16")
@@ -391,13 +417,24 @@ macro(ncnn_add_layer class)
 
     if(NCNN_TARGET_ARCH STREQUAL "riscv" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         if(NCNN_RUNTIME_CPU AND NCNN_RVV)
-            if(NCNN_COMPILER_SUPPORT_RVV_ZFH)
-                ncnn_add_arch_opt_layer(${class} rvv "-march=rv64gcv_zfh")
-            elseif(NCNN_COMPILER_SUPPORT_RVV_ZVFH)
-                ncnn_add_arch_opt_layer(${class} rvv "-march=rv64gcv_zfh_zvfh0p1 -menable-experimental-extensions -D__fp16=_Float16")
-            elseif(NCNN_COMPILER_SUPPORT_RVV)
-                ncnn_add_arch_opt_layer(${class} rvv "-march=rv64gcv")
+            ncnn_add_arch_opt_layer(${class} rvv "-march=rv64gcv")
+        endif()
+        if(NCNN_ZFH)
+            if(NOT NCNN_RUNTIME_CPU AND NCNN_ZVFH)
+                ncnn_add_arch_opt_source(${class} zfh "-march=rv64gcv_zfh_zvfh -D__fp16=_Float16")
+            elseif(NOT NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
+                ncnn_add_arch_opt_source(${class} zfh "-march=rv64gc_zfh_xtheadvector -D__riscv_zvfh=1 -D__fp16=_Float16")
+            else()
+                ncnn_add_arch_opt_source(${class} zfh "-march=rv64gc_zfh -D__fp16=_Float16")
             endif()
+        endif()
+        if(NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
+            # linker complains the conflict of v and xtheadvector, so disable generating any riscv attributes
+            ncnn_add_arch_opt_layer(${class} xtheadvector "-march=rv64gc_xtheadvector -mno-riscv-attribute -Wa,-mno-arch-attr")
+            ncnn_add_arch_opt_layer_source(${class} zfh xtheadvector "-march=rv64gc_zfh_xtheadvector -mno-riscv-attribute -Wa,-mno-arch-attr -D__fp16=_Float16")
+        endif()
+        if(NCNN_RUNTIME_CPU AND NCNN_ZVFH)
+            ncnn_add_arch_opt_layer_source(${class} zfh rvv "-march=rv64gcv_zfh_zvfh -D__fp16=_Float16")
         endif()
     endif()
 

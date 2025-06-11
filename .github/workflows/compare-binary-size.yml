@@ -1,0 +1,102 @@
+name: compare-binary-size
+on: [pull_request_target]
+
+concurrency:
+  group: compare-binary-size-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  compare-size:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout-pr-branch
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.ref }}
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        submodules: true
+        path: pr
+
+    - name: checkout-base-branch
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.base.ref }}
+        repository: ${{ github.event.pull_request.base.repo.full_name }}
+        submodules: true
+        path: base
+
+    - name: install-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-arm-linux-gnueabihf g++-aarch64-linux-gnu
+
+    - name: compare-sizes
+      env:
+        COMMON_CMAKE_ARGS: -DNCNN_SHARED_LIB=ON -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF
+      run: |
+        # define target architectures
+        archs=("x86_64" "armhf" "aarch64")
+
+        # generate table
+        echo "The binary size change of libncnn.so (bytes)" >> compare-binary-size.md
+        echo "| architecture | base size | pr size | difference |" >> compare-binary-size.md
+        echo "|--------------|-----------|---------|------------|" >> compare-binary-size.md
+
+        for arch in "${archs[@]}"; do
+
+          mkdir -p pr/build_$arch
+          pushd pr/build_$arch
+          if [ "$arch" = "armhf" ]; then
+            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
+          elif [ "$arch" = "aarch64" ]; then
+            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
+          else
+            cmake ${{env.COMMON_CMAKE_ARGS}} ..
+          fi
+          cmake --build . -j $(nproc)
+          PR_SIZE=$(stat -c%s $(readlink -f src/libncnn.so))
+          popd
+
+          mkdir -p base/build_$arch
+          pushd base/build_$arch
+          if [ "$arch" = "armhf" ]; then
+            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
+          elif [ "$arch" = "aarch64" ]; then
+            cmake ${{env.COMMON_CMAKE_ARGS}} -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
+          else
+            cmake ${{env.COMMON_CMAKE_ARGS}} ..
+          fi
+          cmake --build . -j $(nproc)
+          BASE_SIZE=$(stat -c%s $(readlink -f src/libncnn.so))
+          popd
+
+          DIFF=$(($PR_SIZE - $BASE_SIZE))
+          if [ $DIFF -gt 0 ]; then
+            DIFF_STR="+$DIFF :warning:"
+          else
+            DIFF_STR="$DIFF :kissing_heart:"
+          fi
+
+          echo "| $arch | $BASE_SIZE | $PR_SIZE | $DIFF_STR |" >> compare-binary-size.md
+        done
+
+        cat compare-binary-size.md
+
+    - name: find-comment
+      uses: peter-evans/find-comment@v3
+      id: fc
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: 'github-actions[bot]'
+        body-includes: 'The binary size change of libncnn.so (bytes)'
+
+    - name: create-or-update-comment
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        comment-id: ${{ steps.fc.outputs.comment-id }}
+        issue-number: ${{ github.event.pull_request.number }}
+        body-path: compare-binary-size.md
+        edit-mode: replace

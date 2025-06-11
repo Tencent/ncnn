@@ -14,6 +14,8 @@
 
 #include "crop.h"
 
+#include "expression.h"
+
 namespace ncnn {
 
 Crop::Crop()
@@ -41,11 +43,32 @@ int Crop::load_param(const ParamDict& pd)
     ends = pd.get(10, Mat());
     axes = pd.get(11, Mat());
 
+    starts_expr = pd.get(19, "");
+    ends_expr = pd.get(20, "");
+    axes_expr = pd.get(21, "");
+
+    // NCNN_LOGE("%s %s %s", starts_expr.c_str(), ends_expr.c_str(), axes_expr.c_str());
+
     bool numpy_style_slice = !starts.empty() && !ends.empty();
+
+    if (!starts_expr.empty() && !ends_expr.empty())
+        numpy_style_slice = true;
 
     if (outw == 0 && outh == 0 && outd == 0 && outc == 0 && woffset2 == 0 && hoffset2 == 0 && doffset2 == 0 && coffset2 == 0 && !numpy_style_slice)
     {
         one_blob_only = false;
+    }
+
+    // count reference blobs
+    if (!starts_expr.empty() || !ends_expr.empty() || !axes_expr.empty())
+    {
+        const int starts_blob_count = count_expression_blobs(starts_expr);
+        const int ends_blob_count = count_expression_blobs(ends_expr);
+        const int axes_blob_count = count_expression_blobs(axes_expr);
+
+        // NCNN_LOGE("%d %d %d", starts_blob_count, ends_blob_count, axes_blob_count);
+        if (starts_blob_count > 1 || ends_blob_count > 1 || axes_blob_count > 1)
+            one_blob_only = false;
     }
 
     return 0;
@@ -89,7 +112,17 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
     int _woffset, _hoffset, _doffset, _coffset;
     int _outw = -1, _outh = -1, _outd = -1, _outc;
-    resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+
+    if (!starts_expr.empty() && !ends_expr.empty())
+    {
+        std::vector<Mat> bottom_blobs(1);
+        bottom_blobs[0] = bottom_blob;
+        eval_crop_expr(bottom_blobs, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else
+    {
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
 
     if (dims == 1)
     {
@@ -109,8 +142,6 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             copy_cut_border_image<unsigned short>(bottom_blob, top_blob, 0, _woffset);
         if (elemsize == 4)
             copy_cut_border_image<float>(bottom_blob, top_blob, 0, _woffset);
-
-        return 0;
     }
 
     if (dims == 2)
@@ -131,8 +162,6 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             copy_cut_border_image<unsigned short>(bottom_blob, top_blob, _hoffset, _woffset);
         if (elemsize == 4)
             copy_cut_border_image<float>(bottom_blob, top_blob, _hoffset, _woffset);
-
-        return 0;
     }
 
     if (dims == 3)
@@ -147,7 +176,7 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
         if (_outw == w && _outh == h)
         {
-            top_blob = bottom_blob_sliced.clone();
+            top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -171,8 +200,6 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             if (elemsize == 4)
                 copy_cut_border_image<float>(m, borderm, _hoffset, _woffset);
         }
-
-        return 0;
     }
 
     if (dims == 4)
@@ -187,7 +214,7 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
         if (_outw == w && _outh == h && _outd == d)
         {
-            top_blob = bottom_blob_sliced.clone();
+            top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -214,8 +241,6 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
                     copy_cut_border_image<float>(m, borderm, _hoffset, _woffset);
             }
         }
-
-        return 0;
     }
 
     return 0;
@@ -237,7 +262,12 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     int _woffset, _hoffset, _doffset, _coffset = -1;
     int _outw = -1, _outh = -1, _outd = -1, _outc;
-    if (woffset == -233)
+
+    if (!starts_expr.empty() && !ends_expr.empty())
+    {
+        eval_crop_expr(bottom_blobs, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else if (woffset == -233)
     {
         resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
     }
@@ -264,8 +294,6 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             copy_cut_border_image<unsigned short>(bottom_blob, top_blob, 0, _woffset);
         if (elemsize == 4)
             copy_cut_border_image<float>(bottom_blob, top_blob, 0, _woffset);
-
-        return 0;
     }
 
     if (dims == 2)
@@ -286,8 +314,6 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             copy_cut_border_image<unsigned short>(bottom_blob, top_blob, _hoffset, _woffset);
         if (elemsize == 4)
             copy_cut_border_image<float>(bottom_blob, top_blob, _hoffset, _woffset);
-
-        return 0;
     }
 
     if (dims == 3)
@@ -302,7 +328,7 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
         if (_outw == w && _outh == h)
         {
-            top_blob = bottom_blob_sliced.clone();
+            top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -326,8 +352,6 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             if (elemsize == 4)
                 copy_cut_border_image<float>(m, borderm, _hoffset, _woffset);
         }
-
-        return 0;
     }
 
     if (dims == 4)
@@ -342,7 +366,7 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
         if (_outw == w && _outh == h && _outd == d)
         {
-            top_blob = bottom_blob_sliced.clone();
+            top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -369,8 +393,6 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     copy_cut_border_image<float>(m, borderm, _hoffset, _woffset);
             }
         }
-
-        return 0;
     }
 
     return 0;
@@ -647,6 +669,152 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, const int* param_data, int& 
         _outd = param_data[6];
         _outc = param_data[7];
     }
+}
+
+int Crop::eval_crop_expr(const std::vector<Mat>& bottom_blobs, int& _woffset, int& _hoffset, int& _doffset, int& _coffset, int& _outw, int& _outh, int& _outd, int& _outc) const
+{
+    std::vector<int> _starts;
+    std::vector<int> _ends;
+    std::vector<int> _axes;
+    int er = eval_list_expression(starts_expr, bottom_blobs, _starts);
+    if (er != 0)
+        return -1;
+
+    er = eval_list_expression(ends_expr, bottom_blobs, _ends);
+    if (er != 0)
+        return -1;
+
+    er = eval_list_expression(axes_expr, bottom_blobs, _axes);
+    if (er != 0)
+        return -1;
+
+    // NCNN_LOGE("%d %d %d", _starts[0], _ends[0], _axes[0]);
+
+    const Mat& bottom_blob = bottom_blobs[0];
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+    const int dims = bottom_blob.dims;
+
+    _woffset = 0;
+    _hoffset = 0;
+    _doffset = 0;
+    _coffset = 0;
+    _outw = w;
+    _outh = h;
+    _outd = d;
+    _outc = channels;
+
+    const int* starts_ptr = _starts.data();
+    const int* ends_ptr = _ends.data();
+    const int* axes_ptr = _axes.data();
+
+    int _axes4[4] = {0, 1, 2, 3};
+    int num_axis = (int)_axes.size();
+    if (num_axis == 0)
+    {
+        num_axis = dims;
+    }
+    else
+    {
+        for (int i = 0; i < num_axis; i++)
+        {
+            int axis = axes_ptr[i];
+            if (axis < 0)
+                axis = dims + axis;
+            _axes4[i] = axis;
+        }
+    }
+
+    for (int i = 0; i < num_axis; i++)
+    {
+        int axis = _axes4[i];
+        int start = starts_ptr[i];
+        int end = ends_ptr[i];
+
+        if (dims == 1) // axis == 0
+        {
+            if (start == -233) start = 0;
+            if (end == -233) end = w;
+            _woffset = start >= 0 ? start : w + start;
+            _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+        }
+        if (dims == 2)
+        {
+            if (axis == 0)
+            {
+                if (start == -233) start = 0;
+                if (end == -233) end = h;
+                _hoffset = start >= 0 ? start : h + start;
+                _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
+            }
+            if (axis == 1)
+            {
+                if (start == -233) start = 0;
+                if (end == -233) end = w;
+                _woffset = start >= 0 ? start : w + start;
+                _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+            }
+        }
+        if (dims == 3)
+        {
+            if (axis == 0)
+            {
+                if (start == -233) start = 0;
+                if (end == -233) end = channels;
+                _coffset = start >= 0 ? start : channels + start;
+                _outc = std::min(channels, end > 0 ? end : channels + end) - _coffset;
+            }
+            if (axis == 1)
+            {
+                if (start == -233) start = 0;
+                if (end == -233) end = h;
+                _hoffset = start >= 0 ? start : h + start;
+                _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
+            }
+            if (axis == 2)
+            {
+                if (start == -233) start = 0;
+                if (end == -233) end = w;
+                _woffset = start >= 0 ? start : w + start;
+                _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+            }
+        }
+        if (dims == 4)
+        {
+            if (axis == 0)
+            {
+                if (start == -233) start = 0;
+                if (end == -233) end = channels;
+                _coffset = start >= 0 ? start : channels + start;
+                _outc = std::min(channels, end > 0 ? end : channels + end) - _coffset;
+            }
+            if (axis == 1)
+            {
+                if (start == -233) start = 0;
+                if (end == -233) end = d;
+                _doffset = start >= 0 ? start : d + start;
+                _outd = std::min(d, end > 0 ? end : d + end) - _doffset;
+            }
+            if (axis == 2)
+            {
+                if (start == -233) start = 0;
+                if (end == -233) end = h;
+                _hoffset = start >= 0 ? start : h + start;
+                _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
+            }
+            if (axis == 3)
+            {
+                if (start == -233) start = 0;
+                if (end == -233) end = w;
+                _woffset = start >= 0 ? start : w + start;
+                _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+            }
+        }
+    }
+
+    return 0;
 }
 
 } // namespace ncnn

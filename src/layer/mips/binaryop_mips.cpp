@@ -306,12 +306,12 @@ MAKE_FUNCTION(binary_op_mul, x * y, __msa_fmul_w(x, y))
 MAKE_FUNCTION(binary_op_div, x / y, __msa_fdiv_w(x, y))
 MAKE_FUNCTION(binary_op_max, std::max(x, y), __msa_fmax_w(x, y))
 MAKE_FUNCTION(binary_op_min, std::min(x, y), __msa_fmin_w(x, y))
-MAKE_FUNCTION(binary_op_pow, (float)pow(x, y), pow_ps(x, y))
+MAKE_FUNCTION(binary_op_pow, (float)powf(x, y), pow_ps(x, y))
 MAKE_FUNCTION(binary_op_rsub, y - x, __msa_fsub_w(y, x))
 MAKE_FUNCTION(binary_op_rdiv, y / x, __msa_fdiv_w(y, x))
-MAKE_FUNCTION(binary_op_rpow, (float)pow(y, x), pow_ps(y, x))
-MAKE_FUNCTION(binary_op_atan2, (float)atan2(x, y), atan2_ps(x, y))
-MAKE_FUNCTION(binary_op_ratan2, (float)atan2(y, x), atan2_ps(y, x))
+MAKE_FUNCTION(binary_op_rpow, (float)powf(y, x), pow_ps(y, x))
+MAKE_FUNCTION(binary_op_atan2, (float)atan2f(x, y), atan2_ps(x, y))
+MAKE_FUNCTION(binary_op_ratan2, (float)atan2f(y, x), atan2_ps(y, x))
 // *INDENT-ON*
 // clang-format on
 
@@ -507,7 +507,7 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 1)
@@ -520,7 +520,7 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 2)
@@ -535,7 +535,7 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 4 && A.dims == 2)
@@ -556,7 +556,7 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 1)
@@ -569,7 +569,7 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 2)
@@ -584,7 +584,7 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 4 && B.dims == 2)

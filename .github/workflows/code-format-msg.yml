@@ -1,0 +1,110 @@
+name: code-format-msg
+
+on:
+  workflow_run:
+    workflows: [code-format]
+    types: [completed]
+
+concurrency:
+  group: code-format-msg-${{ github.head_ref || github.run_id }}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  pr-context:
+    name: acquire-pr-context
+    runs-on: ubuntu-latest
+    outputs:
+      PR_HEADSHA: ${{ steps.set-pr-context.outputs.head-sha }}
+      PR_NUMBER:  ${{ steps.set-pr-context.outputs.number   }}
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    steps:
+    - name: get-pr-context
+      id: set-pr-context
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_TARGET_REPO: ${{ github.repository }}
+        PR_BRANCH: |-
+          ${{
+            (github.event.workflow_run.head_repository.owner.login != github.event.workflow_run.repository.owner.login)
+              && format('{0}:{1}', github.event.workflow_run.head_repository.owner.login, github.event.workflow_run.head_branch)
+              || github.event.workflow_run.head_branch
+          }}
+      run: |
+        gh pr view --repo "${PR_TARGET_REPO}" "${PR_BRANCH}" \
+          --json 'number,headRefOid' \
+          --jq '"number=\(.number)\nhead-sha=\(.headRefOid)"' \
+          >> $GITHUB_OUTPUT
+
+  remove-comment-if-success:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    needs: [pr-context]
+    env:
+      PR_HEADSHA: ${{ needs.pr-context.outputs.PR_HEADSHA }}
+      PR_NUMBER:  ${{ needs.pr-context.outputs.PR_NUMBER  }}
+    steps:
+    - name: Remove existing "format check failed" comment
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const { data: comments } = await github.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: ${{ env.PR_NUMBER }},
+          });
+
+          const targetComment = comments.find(comment =>
+            comment.body.includes("Please enable github action in **YOUR FORKED REPO** to make code-format workflow work")
+          );
+
+          if (targetComment) {
+            await github.rest.issues.deleteComment({
+              owner,
+              repo,
+              comment_id: targetComment.id,
+            });
+            console.log("Removed existing code-format failure comment.");
+          } else {
+            console.log("No existing format failure comment to remove.");
+          }
+
+  post-comment-if-failure:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    needs: [pr-context]
+    env:
+      PR_HEADSHA: ${{ needs.pr-context.outputs.PR_HEADSHA }}
+      PR_NUMBER:  ${{ needs.pr-context.outputs.PR_NUMBER  }}
+    steps:
+    - name: Post comment on failed code-format if not existing
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const { data: comments } = await github.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: ${{ env.PR_NUMBER }},
+          });
+
+          const existingComment = comments.find(comment =>
+            comment.body.includes("Please enable github action in **YOUR FORKED REPO** to make code-format workflow work")
+          );
+
+          if (existingComment) {
+            console.log("A code-format failure comment already exists.");
+          } else {
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: ${{ env.PR_NUMBER }},
+              body: "Please enable github action in **YOUR FORKED REPO** to make code-format workflow work",
+            });
+            console.log("Created code-format failure comment.");
+          }

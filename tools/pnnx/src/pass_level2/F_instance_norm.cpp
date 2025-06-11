@@ -43,7 +43,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_instance_norm, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_instance_norm, 130)
 
 class F_instance_norm_onnx : public GraphRewriterPass
 {
@@ -73,6 +73,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_instance_norm_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_instance_norm_onnx, 131)
 
 } // namespace pnnx

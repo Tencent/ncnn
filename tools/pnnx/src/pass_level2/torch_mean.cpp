@@ -38,7 +38,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean, 50)
 
 class torch_mean_01 : public GraphRewriterPass
 {
@@ -75,7 +75,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean_01, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean_01, 50)
 
 class torch_mean_1 : public GraphRewriterPass
 {
@@ -97,7 +97,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean_1, 50)
 
 class torch_mean_onnx : public GraphRewriterPass
 {
@@ -146,6 +146,42 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean_onnx, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean_onnx, 50)
+
+class torch_mean_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.ReduceMean          op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.mean";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        std::vector<int> dim;
+        for (int i = 1;; i++)
+        {
+            if (captured_params.find("op_0.arg" + std::to_string(i)) == captured_params.end())
+                break;
+
+            dim.push_back(captured_params.at("op_0.arg" + std::to_string(i)).i);
+        }
+
+        op->params["dim"] = dim;
+        op->params["keepdim"] = captured_params.at("op_0.arg0").i ? true : false;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean_tnn, 50)
 
 } // namespace pnnx

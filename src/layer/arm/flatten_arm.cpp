@@ -91,7 +91,7 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         top_blob.dims = 1;
         top_blob.w = total / out_elempack;
         top_blob.h = 1;
-        top_blob.cstep = top_blob.w;
+        top_blob.cstep = bottom_blob.cstep / out_elempack;
         top_blob.elemsize = out_elemsize;
         top_blob.elempack = out_elempack;
         return 0;
@@ -259,7 +259,7 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         top_blob.dims = 1;
         top_blob.w = total / out_elempack;
         top_blob.h = 1;
-        top_blob.cstep = top_blob.w;
+        top_blob.cstep = bottom_blob.cstep / out_elempack;
         top_blob.elemsize = out_elemsize;
         top_blob.elempack = out_elempack;
         return 0;
@@ -541,7 +541,7 @@ int Flatten_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         top_blob.dims = 1;
         top_blob.w = total / out_elempack;
         top_blob.h = 1;
-        top_blob.cstep = top_blob.w;
+        top_blob.cstep = bottom_blob.cstep / out_elempack;
         top_blob.elemsize = out_elemsize;
         top_blob.elempack = out_elempack;
         return 0;

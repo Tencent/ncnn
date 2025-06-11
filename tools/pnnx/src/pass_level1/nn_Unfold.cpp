@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,9 +29,9 @@ public:
         return "nn.Unfold";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* im2col = find_node_by_kind(graph, "aten::im2col");
+        const TorchNodeProxy* im2col = graph.find_node_by_kind("aten::im2col");
 
         op->params["kernel_size"] = im2col->namedInput("kernel_size");
         op->params["stride"] = im2col->namedInput("stride");

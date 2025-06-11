@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "save_ncnn.h"
+#include <cstdint>
 
 namespace pnnx {
 
@@ -124,7 +125,17 @@ static size_t alignSize(size_t sz, int n)
     return (sz + n - 1) & -n;
 }
 
-int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, int fp16)
+static int32_t safe_int64_to_int32(int64_t value)
+{
+    if (value > INT32_MAX || value < INT32_MIN)
+    {
+        fprintf(stderr, "Warning: int64 value %lld exceeds int32 range\n", value);
+        return (value > INT32_MAX) ? INT32_MAX : INT32_MIN;
+    }
+    return static_cast<int32_t>(value);
+}
+
+int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
     if (!paramfp)
@@ -239,6 +250,22 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             {
                 fprintf(paramfp, " %d=%e", idkey, param.f);
             }
+            if (param.type == 4)
+            {
+                bool is_identifier = isalpha(param.s[0]);
+                for (auto x : param.s)
+                {
+                    if (isalpha(x) || isdigit(x) || x == '_')
+                        continue;
+
+                    is_identifier = false;
+                    break;
+                }
+                if (is_identifier)
+                    fprintf(paramfp, " %d=%s", idkey, param.s.c_str());
+                else
+                    fprintf(paramfp, " %d=\"%s\"", idkey, param.s.c_str());
+            }
             if (param.type == 5)
             {
                 const int array_size = (int)param.ai.size();
@@ -298,6 +325,22 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 fwrite((const char*)&fp16_flag, sizeof(fp16_flag), 1, binfp);
 
                 is_type_flag_fp32 = true;
+                continue;
+            }
+
+            if (attr.type == 5) // i64 --> i32
+            {
+                const int64_t* p = (const int64_t*)attr.data.data();
+                int len = attr.data.size() / sizeof(int64_t);
+
+                std::vector<int32_t> data_int32(len);
+
+                for (int i = 0; i < len; i++)
+                {
+                    data_int32[i] = safe_int64_to_int32(p[i]);
+                }
+
+                fwrite(data_int32.data(), data_int32.size() * sizeof(int32_t), 1, binfp);
                 continue;
             }
 
@@ -373,12 +416,15 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (!r)
                 break;
 
+            const std::vector<int64_t>& shape0 = input_shapes[input_index];
+
             if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", r->shape[i]);
+                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                    fprintf(pyfp, "%d", dimsize);
                     if (i + 1 != r->shape.size() || r->shape.size() == 1)
                         fprintf(pyfp, ", ");
                 }
@@ -389,7 +435,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
+                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                    fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }

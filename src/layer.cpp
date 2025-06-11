@@ -37,13 +37,14 @@ Layer::Layer()
 
     support_reserved_00 = false;
 
-    typeindex = -1;
+    featmask = 0;
 
 #if NCNN_VULKAN
     vkdev = 0;
 #endif // NCNN_VULKAN
 
     userdata = 0;
+    typeindex = -1;
 }
 
 Layer::~Layer()
@@ -553,6 +554,13 @@ Layer* create_layer_cpu(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_RVV
+#if NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
+    if (ncnn::cpu_support_riscv_xtheadvector())
+    {
+        layer_creator = layer_registry_xtheadvector[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
     {
         layer_creator = layer_registry_arch[index].creator;
     }

@@ -14,14 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #define shape_constant_id_offset 0
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int c = 0;

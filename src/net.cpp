@@ -639,15 +639,15 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         }
         else
 #endif // NCNN_VFPV4
-#if NCNN_RVV
-        if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && layer->support_fp16_storage)
+#if NCNN_ZFH
+        if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && layer->support_fp16_storage)
         {
             Mat bottom_blob_fp16;
             cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
             bottom_blob = bottom_blob_fp16;
         }
         else
-#endif // NCNN_RVV
+#endif // NCNN_ZFH
 #if NCNN_BF16
         if (opt.use_bf16_storage && layer->support_bf16_storage)
         {
@@ -695,7 +695,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
-#elif NCNN_RVV
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
                 const int packn = ncnn::cpu_riscv_vlenb() / 4;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
@@ -711,7 +711,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
-#elif NCNN_RVV
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
                 const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
@@ -722,7 +722,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             }
             if (elembits == 8)
             {
-#if NCNN_RVV
+#if NCNN_RVV || NCNN_XTHEADVECTOR
                 const int packn = ncnn::cpu_riscv_vlenb() / 1;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
@@ -767,15 +767,15 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         }
         else
 #endif // NCNN_VFPV4
-#if NCNN_RVV
-        if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && !layer->support_fp16_storage)
+#if NCNN_ZFH
+        if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && !layer->support_fp16_storage)
         {
             Mat bottom_blob_fp32;
             cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
             bottom_blob = bottom_blob_fp32;
         }
         else
-#endif // NCNN_RVV
+#endif // NCNN_ZFH
 #if NCNN_BF16
         if (opt.use_bf16_storage && !layer->support_bf16_storage)
         {
@@ -1380,7 +1380,14 @@ int Net::load_param(const DataReader& dr)
 
     if (opt.use_vulkan_compute)
     {
-        if (!d->vkdev) d->vkdev = get_gpu_device();
+        if (!d->vkdev)
+        {
+            int device_index = opt.vulkan_device_index;
+            if (device_index < 0 || device_index >= get_gpu_count())
+                device_index = get_default_gpu_index();
+
+            d->vkdev = get_gpu_device(device_index);
+        }
         if (!d->vkdev || !d->vkdev->is_valid()) opt.use_vulkan_compute = false; // no valid vulkan device, fallback to cpu
     }
     if (opt.use_vulkan_compute)
@@ -1395,8 +1402,15 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
+        if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
+
+        if (opt.use_image_storage && !d->vkdev->info.support_fp16_image())
+        {
+            opt.use_fp16_storage = false;
+            opt.use_fp16_uniform = false;
+        }
 
         // enable local memory optimization on discrete gpu only
         if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
@@ -1676,7 +1690,14 @@ int Net::load_param_bin(const DataReader& dr)
 
     if (opt.use_vulkan_compute)
     {
-        if (!d->vkdev) d->vkdev = get_gpu_device();
+        if (!d->vkdev)
+        {
+            int device_index = opt.vulkan_device_index;
+            if (device_index < 0 || device_index >= get_gpu_count())
+                device_index = get_default_gpu_index();
+
+            d->vkdev = get_gpu_device(device_index);
+        }
         if (!d->vkdev || !d->vkdev->is_valid()) opt.use_vulkan_compute = false; // no valid vulkan device, fallback to cpu
     }
     if (opt.use_vulkan_compute)
@@ -1691,8 +1712,15 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
+        if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
+
+        if (opt.use_image_storage && !d->vkdev->info.support_fp16_image())
+        {
+            opt.use_fp16_storage = false;
+            opt.use_fp16_uniform = false;
+        }
 
         // enable local memory optimization on discrete gpu only
         if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
@@ -2291,11 +2319,13 @@ std::vector<Layer*>& Net::mutable_layers()
 #if NCNN_VULKAN
 void Net::set_vulkan_device(int device_index)
 {
+    opt.vulkan_device_index = device_index;
     d->vkdev = get_gpu_device(device_index);
 }
 
 void Net::set_vulkan_device(const VulkanDevice* _vkdev)
 {
+    opt.vulkan_device_index = _vkdev->info.device_index();
     d->vkdev = _vkdev;
 }
 
@@ -2501,10 +2531,12 @@ void Extractor::clear()
         if (d->local_blob_vkallocator)
         {
             d->net->vulkan_device()->reclaim_blob_allocator(d->local_blob_vkallocator);
+            d->local_blob_vkallocator = 0;
         }
         if (d->local_staging_vkallocator)
         {
             d->net->vulkan_device()->reclaim_staging_allocator(d->local_staging_vkallocator);
+            d->local_staging_vkallocator = 0;
         }
     }
 #endif // NCNN_VULKAN
@@ -2761,8 +2793,8 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
         }
         else
 #endif // NCNN_VFPV4
-#if NCNN_RVV
-        if (d->opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && (type == 0))
+#if NCNN_ZVFH
+        if (d->opt.use_fp16_storage && cpu_support_riscv_zvfh() && (type == 0))
         {
             if (feat.elembits() == 16)
             {
@@ -2772,7 +2804,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             }
         }
         else
-#endif // NCNN_RVV
+#endif // NCNN_ZVFH
 #if NCNN_BF16
         if (d->opt.use_bf16_storage && (type == 0))
         {

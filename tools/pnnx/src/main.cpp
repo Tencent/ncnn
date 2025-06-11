@@ -20,6 +20,11 @@
 #include <string>
 #include <vector>
 
+#if defined _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "ir.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
@@ -31,6 +36,9 @@
 #endif
 #if BUILD_ONNX2PNNX
 #include "load_onnx.h"
+#endif
+#if BUILD_TNN2PNNX
+#include "load_tnn.h"
 #endif
 
 #include "pass_ncnn.h"
@@ -173,6 +181,34 @@ static bool model_file_maybe_torchscript(const std::string& path)
     return signature == 0x04034b50;
 }
 
+static bool model_file_maybe_tnnproto(const std::string& path)
+{
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "open failed %s\n", path.c_str());
+        return false;
+    }
+
+    char line[256];
+    char* s = fgets(line, 256, fp);
+    if (!s)
+    {
+        fclose(fp);
+        return false;
+    }
+
+    uint32_t signature = 0;
+    if (line[0] == '\"')
+    {
+        sscanf(line + 1, "%*d %*d %*d %d", &signature);
+    }
+
+    fclose(fp);
+
+    return signature == 4206624772;
+}
+
 static void show_usage()
 {
     fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
@@ -200,6 +236,10 @@ static void show_usage()
 
 int main(int argc, char** argv)
 {
+#if defined _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
     if (argc < 2)
     {
         show_usage();
@@ -313,6 +353,17 @@ int main(int argc, char** argv)
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
     pnnx::Graph pnnx_graph;
+
+    // clang-format off
+    // *INDENT-OFF*
+
+#if BUILD_TNN2PNNX
+    if (model_file_maybe_tnnproto(ptpath))
+    {
+        load_tnn(ptpath, pnnx_graph);
+    }
+    else
+#endif
 #if BUILD_ONNX2PNNX
     if (!model_file_maybe_torchscript(ptpath))
     {
@@ -330,11 +381,14 @@ int main(int argc, char** argv)
                          foldable_constants_zippath, foldable_constants);
     }
 
+    // *INDENT-ON*
+    // clang-format on
+
     fprintf(stderr, "############# pass_level2\n");
 
     pnnx::pass_level2(pnnx_graph);
 
-    pnnx_graph.save("debug.param", "debug.bin");
+    // pnnx_graph.save("debug.param", "debug.bin");
 
     if (optlevel >= 1)
     {
@@ -347,7 +401,7 @@ int main(int argc, char** argv)
         pnnx::pass_level4(pnnx_graph);
     }
 
-    pnnx_graph.save("debug2.param", "debug2.bin");
+    // pnnx_graph.save("debug2.param", "debug2.bin");
 
     if (optlevel >= 2)
     {
@@ -361,7 +415,7 @@ int main(int argc, char** argv)
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath);
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
@@ -375,7 +429,7 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
     }
 
     //     pnnx::Graph pnnx_graph2;

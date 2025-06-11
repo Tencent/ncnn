@@ -22,6 +22,7 @@ set(ncnn_SRCS
     command.cpp
     cpu.cpp
     datareader.cpp
+    expression.cpp
     gpu.cpp
     layer.cpp
     mat.cpp
@@ -167,6 +168,8 @@ ncnn_add_layer(Diag)
 ncnn_add_layer(CELU)
 ncnn_add_layer(Shrink)
 ncnn_add_layer(RMSNorm)
+ncnn_add_layer(Spectrogram)
+ncnn_add_layer(InverseSpectrogram)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
@@ -243,8 +246,6 @@ if(NCNN_OPENMP)
         elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
             target_compile_options(ncnn PRIVATE -fopenmp)
             target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
-            # see cpu.cpp __wrap___kmp_abort_process comment for the linker magic
-            target_link_libraries(ncnn PUBLIC -Wl,-wrap,__kmp_affinity_determine_capable)
         elseif(OpenMP_CXX_FOUND)
             target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
         else()
@@ -344,6 +345,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
         target_compile_options(ncnn PRIVATE /fp:fast)
+    endif()
+
+    if(NCNN_TARGET_ARCH STREQUAL "arm")
+        # disable msvc svml optimization on arm target as it produces wrong result
+        target_compile_options(ncnn PRIVATE /d2Qvec-mathlib-)
     endif()
 
     if(NCNN_SHARED_LIB)
@@ -632,6 +638,8 @@ if(NCNN_TARGET_ARCH STREQUAL "arm" AND (CMAKE_SIZEOF_VOID_P EQUAL 8 OR NCNN_TARG
             endif()
             if(NCNN_ARM82FP16FML)
                 set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+fp16fml")
+                # clang 9.0.9 shipped with android ndk-r21 is missing __ARM_FEATURE_FP16_FML macro for asimdfhm target
+                target_compile_options(ncnn PRIVATE -D__ARM_FEATURE_FP16_FML)
             endif()
         endif()
     endif()
@@ -662,16 +670,24 @@ if(NCNN_TARGET_ARCH STREQUAL "loongarch")
     endif()
 endif()
 
-if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
+if(NCNN_TARGET_ARCH STREQUAL "riscv" AND CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT C906)
     if(NOT NCNN_RUNTIME_CPU AND NCNN_RVV)
-        if(NCNN_COMPILER_SUPPORT_RVV_ZFH)
-            target_compile_options(ncnn PRIVATE -march=rv64gcv_zfh)
-        elseif(NCNN_COMPILER_SUPPORT_RVV_ZVFH)
-            target_compile_options(ncnn PRIVATE -march=rv64gcv_zfh_zvfh0p1 -menable-experimental-extensions -D__fp16=_Float16)
-        elseif(NCNN_COMPILER_SUPPORT_RVV)
-            target_compile_options(ncnn PRIVATE -march=rv64gcv)
+        set(RISCV_MARCH_FLAG "-march=rv64gcv")
+        if(NCNN_ZFH)
+            set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zfh")
+            target_compile_options(ncnn PRIVATE -D__fp16=_Float16)
+        endif()
+        if(NCNN_ZVFH)
+            set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfh")
+        endif()
+    elseif(NOT NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
+        set(RISCV_MARCH_FLAG "-march=rv64gc_xtheadvector")
+        if(NCNN_ZFH)
+            set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zfh")
+            target_compile_options(ncnn PRIVATE -D__riscv_zvfh=1 -D__fp16=_Float16)
         endif()
     endif()
+    target_compile_options(ncnn PRIVATE ${RISCV_MARCH_FLAG})
 endif()
 
 if(NCNN_PPC64LE_VSX)
@@ -714,6 +730,7 @@ if(NCNN_INSTALL_SDK)
         command.h
         cpu.h
         datareader.h
+        expression.h
         gpu.h
         layer.h
         layer_shader_type.h

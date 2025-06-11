@@ -524,7 +524,7 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 1)
@@ -537,7 +537,7 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 2)
@@ -552,7 +552,7 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 4 && A.dims == 2)
@@ -573,7 +573,7 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 1)
@@ -586,7 +586,7 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 2)
@@ -601,7 +601,7 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 4 && B.dims == 2)

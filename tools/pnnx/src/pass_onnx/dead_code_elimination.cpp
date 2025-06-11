@@ -44,16 +44,25 @@ static void collect_dead_nodes(const onnx::GraphProto& graph, std::vector<std::s
 
         if (is_outputs_live)
         {
-            for (int j = node.output_size() - 1; j >= 0; j--)
+            bool is_outputs_optional = true;
+
+            // some operator output be discarded even if not used
+            const std::string& op_type = node.op_type();
+            if (op_type == "Split") is_outputs_optional = false;
+
+            if (is_outputs_optional)
             {
-                if (live_inputs.find(node.output(j)) == live_inputs.end())
+                for (int j = node.output_size() - 1; j >= 0; j--)
                 {
-                    dead_outputs.push_back(node.output(j));
-                }
-                else
-                {
-                    // leading outputs cannot be optional
-                    break;
+                    if (live_inputs.find(node.output(j)) == live_inputs.end())
+                    {
+                        dead_outputs.push_back(node.output(j));
+                    }
+                    else
+                    {
+                        // leading outputs cannot be optional
+                        break;
+                    }
                 }
             }
 
@@ -65,6 +74,11 @@ static void collect_dead_nodes(const onnx::GraphProto& graph, std::vector<std::s
         else
         {
             dead_node_indexes.push_back(i);
+
+            for (int j = node.output_size() - 1; j >= 0; j--)
+            {
+                dead_outputs.push_back(node.output(j));
+            }
         }
 
         if (is_outputs_live)

@@ -46,6 +46,7 @@
 * [Input](#input)
 * [InstanceNorm](#instancenorm)
 * [Interp](#interp)
+* [InverseSpectrogram](#inversespectrogram)
 * [LayerNorm](#layernorm)
 * [Log](#log)
 * [LRN](#lrn)
@@ -81,6 +82,7 @@
 * [Slice](#slice)
 * [Softmax](#softmax)
 * [Softplus](#softplus)
+* [Spectrogram](#spectrogram)
 * [Split](#split)
 * [Swish](#swish)
 * [TanH](#tanh)
@@ -491,6 +493,9 @@ y = crop(x)
 | 9         | starts        | array | [ ]       |                   |
 | 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
+| 19        | starts_expr   | str   | ""        |                   |
+| 20        | ends_expr     | str   | ""        |                   |
+| 21        | axes_expr     | str   | ""        |                   |
 
 # CumulativeSum
 
@@ -1135,11 +1140,36 @@ else                            y = resize(x0, size(x1))
 | 4         | output_width  | int   | 0         |                   |
 | 5         | dynamic_target_size| int | 0      |                   |
 | 6         | align_corner  | int   | 0         |                   |
+| 9         | size_expr     | str   | ""        |                   |
 
 Resize type:
 - 1 = Nearest
 - 2 = Bilinear
 - 3 = Bicubic
+
+# InverseSpectrogram
+```
+x1 = x as complex
+x1 = x1 * sqrt(norm) if normalized
+y = istft(x1)
+y1 = unpad(y) if center
+
+if returns == 0 return y1 as complex
+if returns == 1 return y1 real
+if returns == 2 return y1 imag
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | n_fft         | int   | 0         |                   |
+| 1         | returns       | int   | 1         |                   |
+| 2         | hoplen        | int   | n_fft / 4 |                   |
+| 3         | winlen        | int   | n_fft     |                   |
+| 4         | window_type   | int   | 0         | 0=ones 1=hann 2=hamming |
+| 5         | center        | int   | 1         |                   |
+| 7         | normalized    | int   | 0         | 0=no 1=n_fft 2=window-l2-energy |
 
 # LayerNorm
 ```
@@ -1662,8 +1692,7 @@ y = float2int8(x3 * scale_out)
 
 # Reshape
 ```
-if permute == 1     y = hwc2chw(reshape(chw2hwc(x)))
-else                y = reshape(x)
+y = reshape(x)
 ```
 
 * one_blob_only
@@ -1674,7 +1703,7 @@ else                y = reshape(x)
 | 1         | h             | int   | -233      |                   |
 | 11        | d             | int   | -233      |                   |
 | 2         | c             | int   | -233      |                   |
-| 3         | permute       | int   | 0         |                   |
+| 6         | shape_expr    | str   | ""        |                   |
 
 Reshape flag:
 - 0 = copy from bottom
@@ -1828,6 +1857,31 @@ y = log(exp(x) + 1)
 
 * one_blob_only
 * support_inplace
+
+# Spectrogram
+```
+x1 = pad(x) if center
+y = stft(x1)
+y = y / sqrt(norm) if normalized
+
+if power == 0 return y as real
+if power == 1 return magnitude
+if power == 2 return square of magnitude
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | n_fft         | int   | 0         |                   |
+| 1         | power         | int   | 0         |                   |
+| 2         | hoplen        | int   | n_fft / 4 |                   |
+| 3         | winlen        | int   | n_fft     |                   |
+| 4         | window_type   | int   | 0         | 0=ones 1=hann 2=hamming |
+| 5         | center        | int   | 1         |                   |
+| 6         | pad_type      | int   | 2         | 0=CONSTANT 1=REPLICATE 2=REFLECT |
+| 7         | normalized    | int   | 0         | 0=no 1=n_fft 2=window-l2-energy |
+| 8         | onesided      | int   | 1         |                   |
 
 # Split
 ```

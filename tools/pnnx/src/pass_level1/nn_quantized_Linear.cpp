@@ -12,9 +12,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
+#include "fuse_module_pass.h"
 
-#include "../utils.h"
+#include <torch/script.h>
+#include <torch/csrc/jit/api/module.h>
+#include <torch/csrc/jit/passes/quantization/helper.h>
 
 namespace pnnx {
 
@@ -31,13 +33,15 @@ public:
         return "nn.quantized.Linear";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& _mod) const
     {
+        const auto& mod = _mod.mod;
+
         //         mod.dump(true, false, false);
 
         //         graph->dump();
 
-        const torch::jit::Node* quantized_linear = find_node_by_kind(graph, "quantized::linear");
+        const TorchNodeProxy* quantized_linear = graph.find_node_by_kind("quantized::linear");
 
         //         for (auto aa : quantized_linear->schema().arguments())
         //         {
@@ -99,13 +103,15 @@ public:
         return "nn.intrinsic.quantized.LinearReLU";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& _mod) const
     {
+        const auto& mod = _mod.mod;
+
         //         mod.dump(true, false, false);
 
-        graph->dump();
+        graph.dump();
 
-        const torch::jit::Node* quantized_linear = find_node_by_kind(graph, "quantized::linear_relu");
+        const TorchNodeProxy* quantized_linear = graph.find_node_by_kind("quantized::linear_relu");
 
         //         for (auto aa : quantized_linear->schema().arguments())
         //         {

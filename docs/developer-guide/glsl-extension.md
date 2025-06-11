@@ -76,13 +76,6 @@ You can write shader code with ncnn glsl extension, compiled to spir-v using ncn
 static const char my_glsl_data[] = R"(
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
 layout (binding = 1) writeonly buffer b_blob { sfpvec4 b_blob_data[]; };
 
@@ -336,17 +329,114 @@ judge if the current platform is moltenvk, for enabling some platform-specific w
 #endif
 ```
 
-# option macros
+ncnn adds additional macro definitions in the new version, which may conflict or confuse the existing glsl code. In order to obtain cross-version compatibility of ncnn, you can switch between the old and new codes according to the `ncnn_glsl_version` macro version.
+
+```c
+#if ncnn_glsl_version >= 1
+// use device macros introduced since version 1
+#endif
+```
+
+ncnn additionally defines most of the vulkan device-related features as macros, which we can use to distinguish different platforms, device extensions, features, and properties
+
+### extension macros
+
+When the device supports an extension, `ncnn_<extension_name>` is defined as the extension version
+
+```c
+void main()
+{
+#if ncnn_VK_KHR_16bit_storage
+    // here is the code for any device that supports VK_KHR_16bit_storage
+#endif
+
+#if ncnn_VK_KHR_sampler_ycbcr_conversion >= 10
+    // here is the code for any device that supports VK_KHR_sampler_ycbcr_conversion and version >= 10
+#endif
+}
+```
+
+### device feature and property macros
+
+ncnn will query device features and properties and then define them as macros.
+
+The macro name is `ncnn_<feature_name>` or `ncnn_<property_name>`
+
+The `GL_EXT_shader_explicit_arithmetic_types_int64` extension will be automatically enabled without explicit code indication when the device supports `shaderInt64`
+
+```c
+void main()
+{
+#if ncnn_robustBufferAccess
+    // here is the code for any device that supports robustBufferAccess feature
+#endif
+
+#if ncnn_vendorID == 4318
+    // here is the vendor specific code, 4318 is nvidia graphics
+#endif
+
+#if ncnn_subgroupSize == 32
+    // here is the code path optimized for subgroup_size == 32
+#endif
+
+    // use macro definitions
+    uint size; // dynamic value from some previous routines
+    if (size < ncnn_subgroupSize)
+    {
+#if ncnn_supportedOperations & 4
+        // subgroup support arithmetic
+#endif
+
+#if ncnn_subgroup_arithmetic
+        // shorthand style for checking subgroup arithmetic :P
+#endif
+    }
+}
+```
+
+### validation layer macros
+
+ncnn will define some additional convenient macros when the vulkan validation layer enabled
+
+* `ncnn_enable_validataion_layer`
+* `NCNN_LOGE`
+
+currently, you have to modify the `ENABLE_VALIDATION_LAYER` definition at the beginning of `src/gpu.cpp` to `1` to enable these macros.
+
+The `GL_EXT_debug_printf` extension will be enabled automatically without explicitly specifying it in your code.
+
+```c
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+
+#if ncnn_enable_validataion_layer
+    NCNN_LOGE("gx = %d\n", gx);
+#endif
+}
+```
+
+At runtime, `NCNN_LOGE` will print out the value of `gx`
+
+### option macros
 
 enable glsl extension only if user enable some options
 
+The `GL_EXT_shader_16bit_storage` extension will be automatically enabled without explicit code indication when the device supports 16-bit storage and the user turns on `opt.use_fp16_storage`
+
+The `GL_EXT_shader_explicit_arithmetic_types_float16` extension will be automatically enabled without explicit code indication when the device supports 16-bit arithmetic and the user turns on `opt.use_fp16_arithmetic`
+
 ```c
+void main()
+{
 #if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
+    // the user enable fp16 storage option and the device has fp16 storage support
 #endif
+
 #if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+    // the user enable fp16 arithmetic option and the device has fp16 arithmetic support
 #endif
+}
 ```
 
 declare descriptor binding for image or buffer

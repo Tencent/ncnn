@@ -183,6 +183,36 @@ static int test_reshape_7()
 
 static int test_reshape_8()
 {
+    ncnn::Mat a = RandomMat(72);
+    ncnn::Mat b = RandomMat(40, 72);
+    ncnn::Mat c = RandomMat(34, 40, 72);
+    ncnn::Mat d = RandomMat(11, 34, 10, 72);
+
+    return 0
+           || test_reshape(a, 0, -233, -233, -233)
+           || test_reshape(b, 0, -1, -233, -233)
+           || test_reshape(b, -1, 0, -233, -233)
+           || test_reshape(c, 4, 0, -233, -1)
+           || test_reshape(c, 0, -1, -233, 4)
+           || test_reshape(c, -1, 4, -233, 0)
+           || test_reshape(c, 0, 0, -233, -1)
+           || test_reshape(c, 0, -1, -233, 0)
+           || test_reshape(c, -1, 0, -233, 0)
+           || test_reshape(d, 0, 9, 16, -1)
+           || test_reshape(d, 9, 0, -1, 16)
+           || test_reshape(d, 16, -1, 0, 9)
+           || test_reshape(d, 22, 10, -1, 0)
+           || test_reshape(d, 0, 0, -1, 18)
+           || test_reshape(d, -1, 17, 0, 0)
+           || test_reshape(d, 22, 0, -1, 0)
+           || test_reshape(d, 0, 0, 0, -1)
+           || test_reshape(d, 0, 0, -1, 0)
+           || test_reshape(d, 0, -1, 0, 0)
+           || test_reshape(d, -1, 0, 0, 0);
+}
+
+static int test_reshape_9()
+{
     ncnn::Mat a = RandomMat(1, 19, 15, 18);
 
     return test_reshape(a, 19, 15, -233, 18);
@@ -201,5 +231,6 @@ int main()
            || test_reshape_5()
            || test_reshape_6()
            || test_reshape_7()
-           || test_reshape_8();
+           || test_reshape_8()
+           || test_reshape_9();
 }

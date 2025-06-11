@@ -32,11 +32,14 @@ struct constant_as_attribute
 };
 
 static constant_as_attribute caas[] = {
+    {"Clip", 1, "min"},
+    {"Clip", 2, "max"},
     {"Expand", 1, "shape"},
     {"Gather", 1, "indices"},
     {"If", 0, "cond"},
     {"Pad", 1, "pads"},
     {"Pad", 2, "value"},
+    {"ReduceLogSumExp", 1, "axes"},
     {"ReduceMax", 1, "axes"},
     {"ReduceMean", 1, "axes"},
     {"ReduceMin", 1, "axes"},
@@ -282,6 +285,11 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
                     fprintf(stderr, "unknown constant list type %d\n", (int)tensor.data_type());
                     continue;
                 }
+            }
+            else
+            {
+                // tensor type, cannot fuse it as scalar attribute
+                continue;
             }
 
             fused_input_indexes.push_back(j);

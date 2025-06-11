@@ -42,7 +42,7 @@ def test():
     if not torch.allclose(a, b, 1e-4, 1e-4):
         return False
 
-    if version.parse(torch.__version__) < version.parse('2.6'):
+    if version.parse(torch.__version__) < version.parse('2.8'):
         return True
 
     # export dynamo onnx

@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,9 +29,9 @@ public:
         return "nn.Hardtanh";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* hardtanh = find_node_by_kind(graph, "aten::hardtanh");
+        const TorchNodeProxy* hardtanh = graph.find_node_by_kind("aten::hardtanh");
 
         op->params["min_val"] = hardtanh->namedInput("min_val");
         op->params["max_val"] = hardtanh->namedInput("max_val");
