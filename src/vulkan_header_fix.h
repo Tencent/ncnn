@@ -1627,11 +1627,12 @@ typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDime
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT (VkStructureType)1000567000
 #define VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT                            (VkComponentTypeKHR)1000567000
 #define VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT                            (VkComponentTypeKHR)1000567001
-typedef struct VkPhysicalDeviceShaderFloat8FeaturesEXT {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           shaderFloat8;
-    VkBool32           shaderFloat8CooperativeMatrix;
+typedef struct VkPhysicalDeviceShaderFloat8FeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderFloat8;
+    VkBool32 shaderFloat8CooperativeMatrix;
 } VkPhysicalDeviceShaderFloat8FeaturesEXT;
 #endif // VK_EXT_shader_float8
 
