@@ -416,17 +416,11 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
                 if (use_cooperative_matrix_16_8_8)
                 {
-                    if (vkdev->info.support_VK_KHR_cooperative_matrix())
-                        shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_khr_cm_16_8_8;
-                    else
-                        shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_nv_cm_16_8_8;
+                    shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_cm_16_8_8;
                 }
                 else if (use_cooperative_matrix_16_16_16)
                 {
-                    if (vkdev->info.support_VK_KHR_cooperative_matrix())
-                        shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_khr_cm_16_16_16;
-                    else
-                        shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_nv_cm_16_16_16;
+                    shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_cm_16_16_16;
                 }
 
                 pipeline_convolution_3x3s1d1_winograd43_gemm = new Pipeline(vkdev);
@@ -696,17 +690,11 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
                 if (use_cooperative_matrix_16_8_8)
                 {
-                    if (vkdev->info.support_VK_KHR_cooperative_matrix())
-                        shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_khr_cm_16_8_8;
-                    else
-                        shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_nv_cm_16_8_8;
+                    shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_cm_16_8_8;
                 }
                 else if (use_cooperative_matrix_16_16_16)
                 {
-                    if (vkdev->info.support_VK_KHR_cooperative_matrix())
-                        shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_khr_cm_16_16_16;
-                    else
-                        shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_nv_cm_16_16_16;
+                    shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm_cm_16_16_16;
                 }
 
                 pipeline_convolution_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
@@ -1028,17 +1016,11 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
         if (use_cooperative_matrix_16_8_8)
         {
-            if (vkdev->info.support_VK_KHR_cooperative_matrix())
-                shader_type_index = LayerShaderType::convolution_pack4_gemm_khr_cm_16_8_8;
-            else
-                shader_type_index = LayerShaderType::convolution_pack4_gemm_nv_cm_16_8_8;
+            shader_type_index = LayerShaderType::convolution_pack4_gemm_cm_16_8_8;
         }
         else if (use_cooperative_matrix_16_16_16)
         {
-            if (vkdev->info.support_VK_KHR_cooperative_matrix())
-                shader_type_index = LayerShaderType::convolution_pack4_gemm_khr_cm_16_16_16;
-            else
-                shader_type_index = LayerShaderType::convolution_pack4_gemm_nv_cm_16_16_16;
+            shader_type_index = LayerShaderType::convolution_pack4_gemm_cm_16_16_16;
         }
 
         pipeline_convolution_gemm = new Pipeline(vkdev);
@@ -1099,17 +1081,11 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
         if (use_cooperative_matrix_16_8_8)
         {
-            if (vkdev->info.support_VK_KHR_cooperative_matrix())
-                shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1_khr_cm_16_8_8;
-            else
-                shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1_nv_cm_16_8_8;
+            shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1_cm_16_8_8;
         }
         else if (use_cooperative_matrix_16_16_16)
         {
-            if (vkdev->info.support_VK_KHR_cooperative_matrix())
-                shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1_khr_cm_16_16_16;
-            else
-                shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1_nv_cm_16_16_16;
+            shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1_cm_16_16_16;
         }
 
         pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
