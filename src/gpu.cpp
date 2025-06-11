@@ -1982,6 +1982,11 @@ const void* GpuInfo::queryExtensionProperties() const
     return d->queryExtensionProperties;
 }
 
+const VkPhysicalDeviceCooperativeVectorPropertiesNV& GpuInfo::queryCooperativeVectorPropertiesNV() const
+{
+    return d->queryCooperativeVectorPropertiesNV;
+}
+
 const VkPhysicalDeviceCooperativeMatrix2PropertiesNV& GpuInfo::queryCooperativeMatrix2PropertiesNV() const
 {
     return d->queryCooperativeMatrix2PropertiesNV;
@@ -1995,6 +2000,16 @@ const VkPhysicalDeviceCooperativeVectorPropertiesNV& GpuInfo::queryCooperativeVe
 const VkPhysicalDeviceDriverPropertiesKHR& GpuInfo::queryDriverProperties() const
 {
     return d->queryDriverProperties;
+}
+
+const VkPhysicalDeviceFloatControlsPropertiesKHR& GpuInfo::queryFloatControlsProperties() const
+{
+    return d->queryFloatControlsProperties;
+}
+
+const VkPhysicalDeviceShaderIntegerDotProductProperties& GpuInfo::queryShaderIntegerDotProductProperties() const
+{
+    return d->queryShaderIntegerDotProductProperties;
 }
 
 const VkPhysicalDeviceFloatControlsPropertiesKHR& GpuInfo::queryFloatControlsProperties() const
