@@ -358,6 +358,7 @@ public:
     int support_VK_EXT_queue_family_foreign;
     int support_VK_EXT_shader_atomic_float;
     int support_VK_EXT_shader_atomic_float2;
+    int support_VK_EXT_shader_float8;
     int support_VK_EXT_subgroup_size_control;
     int support_VK_AMD_device_coherent_memory;
 #if __ANDROID_API__ >= 26
@@ -377,6 +378,7 @@ public:
     VkPhysicalDeviceCooperativeMatrixFeaturesNV queryCooperativeMatrixFeaturesNV;
     VkPhysicalDeviceCooperativeMatrix2FeaturesNV queryCooperativeMatrix2FeaturesNV;
     VkPhysicalDeviceShaderBfloat16FeaturesKHR queryShaderBfloat16Features;
+    VkPhysicalDeviceShaderFloat8FeaturesEXT queryShaderFloat8Features;
     VkPhysicalDeviceShaderFloatControls2FeaturesKHR queryShaderFloatControls2Features;
     VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR queryShaderIntegerDotProductFeatures;
     VkPhysicalDeviceSubgroupSizeControlFeaturesEXT querySubgroupSizeControlFeatures;
@@ -715,6 +717,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_EXT_queue_family_foreign = 0;
     support_VK_EXT_shader_atomic_float = 0;
     support_VK_EXT_shader_atomic_float2 = 0;
+    support_VK_EXT_shader_float8 = 0;
     support_VK_EXT_subgroup_size_control = 0;
     support_VK_AMD_device_coherent_memory = 0;
 #if __ANDROID_API__ >= 26
@@ -800,6 +803,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_shader_atomic_float = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_shader_atomic_float2") == 0)
             support_VK_EXT_shader_atomic_float2 = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_shader_float8") == 0)
+            support_VK_EXT_shader_float8 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_subgroup_size_control") == 0)
             support_VK_EXT_subgroup_size_control = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_AMD_device_coherent_memory") == 0)
@@ -913,6 +918,16 @@ void GpuInfoPrivate::query_extension_features()
     {
         queryShaderBfloat16Features.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryShaderBfloat16Features;
+    }
+
+    // query float8
+    memset(&queryShaderFloat8Features, 0, sizeof(queryShaderFloat8Features));
+    queryShaderFloat8Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT;
+    queryShaderFloat8Features.pNext = 0;
+    if (support_VK_EXT_shader_float8)
+    {
+        queryShaderFloat8Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderFloat8Features;
     }
 
     // query float controls 2
@@ -1865,6 +1880,11 @@ int GpuInfo::support_VK_EXT_shader_atomic_float2() const
     return d->support_VK_EXT_shader_atomic_float2;
 }
 
+int GpuInfo::support_VK_EXT_shader_float8() const
+{
+    return d->support_VK_EXT_shader_float8;
+}
+
 int GpuInfo::support_VK_EXT_subgroup_size_control() const
 {
     return d->support_VK_EXT_subgroup_size_control;
@@ -1950,6 +1970,11 @@ const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& GpuInfo::querySubgroupSize
 const VkPhysicalDeviceShaderBfloat16FeaturesKHR& GpuInfo::queryShaderBfloat16Features() const
 {
     return d->queryShaderBfloat16Features;
+}
+
+const VkPhysicalDeviceShaderFloat8FeaturesEXT& GpuInfo::queryShaderFloat8Features() const
+{
+    return d->queryShaderFloat8Features;
 }
 
 const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& GpuInfo::queryShaderFloatControls2Features() const
@@ -3255,6 +3280,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_shader_atomic_float");
     if (info.support_VK_EXT_shader_atomic_float2())
         enabledExtensions.push_back("VK_EXT_shader_atomic_float2");
+    if (info.support_VK_EXT_shader_float8())
+        enabledExtensions.push_back("VK_EXT_shader_float8");
     if (info.support_VK_EXT_subgroup_size_control())
         enabledExtensions.push_back("VK_EXT_subgroup_size_control");
     if (info.support_VK_AMD_device_coherent_memory())
@@ -5236,6 +5263,29 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_FEATURE(subgroupSizeControl)
             DD_APPEND_FEATURE(computeFullSubgroups)
         }
+        if (info.support_VK_KHR_shader_bfloat16())
+        {
+            const VkPhysicalDeviceShaderBfloat16FeaturesKHR& features = info.queryShaderBfloat16Features();
+            DD_APPEND_FEATURE(shaderBFloat16Type)
+            DD_APPEND_FEATURE(shaderBFloat16DotProduct)
+            DD_APPEND_FEATURE(shaderBFloat16CooperativeMatrix)
+        }
+        if (info.support_VK_EXT_shader_float8())
+        {
+            const VkPhysicalDeviceShaderFloat8FeaturesEXT& features = info.queryShaderFloat8Features();
+            DD_APPEND_FEATURE(shaderFloat8)
+            DD_APPEND_FEATURE(shaderFloat8CooperativeMatrix)
+        }
+        if (info.support_VK_KHR_shader_float_controls2())
+        {
+            const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& features = info.queryShaderFloatControls2Features();
+            DD_APPEND_FEATURE(shaderFloatControls2)
+        }
+        if (info.support_VK_KHR_shader_integer_dot_product())
+        {
+            const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& features = info.queryShaderIntegerDotProductFeatures();
+            DD_APPEND_FEATURE(shaderIntegerDotProduct)
+        }
         if (info.support_VK_KHR_shader_subgroup_rotate())
         {
             const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& features = info.queryShaderSubgroupRotateFeatures();
@@ -5466,6 +5516,40 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             device_defines.append("conformanceVersion_minor", properties.conformanceVersion.minor);
             device_defines.append("conformanceVersion_subminor", properties.conformanceVersion.subminor);
             device_defines.append("conformanceVersion_patch", properties.conformanceVersion.patch);
+        }
+        if (info.support_VK_KHR_shader_integer_dot_product())
+        {
+            const VkPhysicalDeviceShaderIntegerDotProductProperties& properties = info.queryShaderIntegerDotProductProperties();
+            DD_APPEND_PROPERTY(integerDotProduct8BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct8BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct8BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct4x8BitPackedUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct4x8BitPackedSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct4x8BitPackedMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct16BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct16BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct16BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct32BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct32BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct32BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct64BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct64BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct64BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating8BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating8BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating8BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating4x8BitPackedUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating4x8BitPackedSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating4x8BitPackedMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating16BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating16BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating16BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating32BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating32BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating32BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating64BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating64BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating64BitMixedSignednessAccelerated)
         }
         if (info.support_VK_EXT_subgroup_size_control())
         {
