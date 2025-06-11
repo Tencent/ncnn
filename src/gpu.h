@@ -347,6 +347,7 @@ public:
     int support_VK_EXT_queue_family_foreign() const;
     int support_VK_EXT_shader_atomic_float() const;
     int support_VK_EXT_shader_atomic_float2() const;
+    int support_VK_EXT_shader_float8() const;
     int support_VK_EXT_subgroup_size_control() const;
     int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
@@ -368,6 +369,7 @@ public:
     const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
     const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
+    const VkPhysicalDeviceShaderFloat8FeaturesEXT& queryShaderFloat8Features() const;
     const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& queryShaderFloatControls2Features() const;
     const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& queryShaderIntegerDotProductFeatures() const;
     const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;

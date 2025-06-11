@@ -1622,4 +1622,17 @@ typedef struct VkPhysicalDeviceCooperativeMatrix2PropertiesNV
 typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixFlexibleDimensionsPropertiesNV* pProperties);
 #endif // VK_NV_cooperative_matrix2
 
+#ifndef VK_EXT_shader_float8
+#define VK_EXT_shader_float8                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT (VkStructureType)1000567000
+#define VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT                            (VkComponentTypeKHR)1000567000
+#define VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT                            (VkComponentTypeKHR)1000567001
+typedef struct VkPhysicalDeviceShaderFloat8FeaturesEXT {
+    VkStructureType    sType;
+    void*              pNext;
+    VkBool32           shaderFloat8;
+    VkBool32           shaderFloat8CooperativeMatrix;
+} VkPhysicalDeviceShaderFloat8FeaturesEXT;
+#endif // VK_EXT_shader_float8
+
 #endif // NCNN_VULKAN_HEADER_FIX_H
