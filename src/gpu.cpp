@@ -255,6 +255,9 @@ PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR = 0;
 // VK_NV_cooperative_matrix
 PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV vkGetPhysicalDeviceCooperativeMatrixPropertiesNV = 0;
 
+// VK_NV_cooperative_vector
+PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV vkGetPhysicalDeviceCooperativeVectorPropertiesNV = 0;
+
 class GpuInfoPrivate
 {
 public:
@@ -358,6 +361,7 @@ public:
     int support_VK_ANDROID_external_memory_android_hardware_buffer;
 #endif // __ANDROID_API__ >= 26
     int support_VK_NV_cooperative_matrix;
+    int support_VK_NV_cooperative_vector;
 
     // extension features
     void* queryExtensionFeatures;
@@ -374,6 +378,7 @@ public:
     VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR queryShaderSubgroupRotateFeatures;
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT queryShaderAtomicFloatFeatures;
     VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT queryShaderAtomicFloat2Features;
+    VkPhysicalDeviceCooperativeVectorFeaturesNV queryCooperativeVectorFeaturesNV;
 
     // extension properties
     void* queryExtensionProperties;
@@ -382,10 +387,12 @@ public:
     VkPhysicalDeviceSubgroupProperties querySubgroupProperties;
     VkPhysicalDeviceDriverPropertiesKHR queryDriverProperties;
     VkPhysicalDeviceSubgroupSizeControlPropertiesEXT querySubgroupSizeControlProperties;
+    VkPhysicalDeviceCooperativeVectorPropertiesNV queryCooperativeVectorPropertiesNV;
 
     // extension sub properties
     std::vector<VkCooperativeMatrixPropertiesKHR> queryCooperativeMatrixSubProperties;
     std::vector<VkCooperativeMatrixPropertiesNV> queryCooperativeMatrixSubPropertiesNV;
+    std::vector<VkCooperativeVectorPropertiesNV> queryCooperativeVectorSubPropertiesNV;
 };
 
 void GpuInfoPrivate::query_features()
@@ -707,6 +714,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
 #endif // __ANDROID_API__ >= 26
     support_VK_NV_cooperative_matrix = 0;
+    support_VK_NV_cooperative_vector = 0;
     for (uint32_t j = 0; j < deviceExtensionPropertyCount; j++)
     {
         const VkExtensionProperties& exp = deviceExtensionProperties[j];
@@ -794,6 +802,8 @@ int GpuInfoPrivate::query_extensions()
 #endif // __ANDROID_API__ >= 26
         else if (strcmp(exp.extensionName, "VK_NV_cooperative_matrix") == 0)
             support_VK_NV_cooperative_matrix = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_NV_cooperative_vector") == 0)
+            support_VK_NV_cooperative_vector = exp.specVersion;
     }
 
     if (support_VK_KHR_buffer_device_address)
@@ -945,6 +955,16 @@ void GpuInfoPrivate::query_extension_features()
         queryExtensionFeatures = &queryShaderAtomicFloat2Features;
     }
 
+    // query nv cooperative vector
+    memset(&queryCooperativeVectorFeaturesNV, 0, sizeof(queryCooperativeVectorFeaturesNV));
+    queryCooperativeVectorFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV;
+    queryCooperativeVectorFeaturesNV.pNext = 0;
+    if (support_VK_NV_cooperative_vector)
+    {
+        queryCooperativeVectorFeaturesNV.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryCooperativeVectorFeaturesNV;
+    }
+
     if (support_VK_KHR_get_physical_device_properties2)
     {
         VkPhysicalDeviceFeatures2KHR queryFeatures;
@@ -1048,6 +1068,16 @@ void GpuInfoPrivate::query_extension_properties()
     {
         querySubgroupSizeControlProperties.pNext = queryExtensionProperties;
         queryExtensionProperties = &querySubgroupSizeControlProperties;
+    }
+
+    // query nv cooperative vector
+    memset(&queryCooperativeVectorPropertiesNV, 0, sizeof(queryCooperativeVectorPropertiesNV));
+    queryCooperativeVectorPropertiesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_PROPERTIES_NV;
+    queryCooperativeVectorPropertiesNV.pNext = 0;
+    if (support_VK_NV_cooperative_vector)
+    {
+        queryCooperativeVectorPropertiesNV.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryCooperativeVectorPropertiesNV;
     }
 
     if (support_VK_KHR_get_physical_device_properties2)
@@ -1194,6 +1224,37 @@ void GpuInfoPrivate::query_extension_properties()
             {
                 support_cooperative_matrix_16_16_16 = true;
             }
+        }
+    }
+
+    // query supported cooperative vector types and operations
+    queryCooperativeVectorSubPropertiesNV.clear();
+    if (support_VK_NV_cooperative_vector && queryCooperativeVectorFeaturesNV.cooperativeVector)
+    {
+        uint32_t propertyCount = 0;
+        VkResult ret = vkGetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice, &propertyCount, 0);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV failed %d", ret);
+        }
+
+        queryCooperativeVectorSubPropertiesNV.resize(propertyCount);
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            memset(&queryCooperativeVectorSubPropertiesNV[j], 0, sizeof(queryCooperativeVectorSubPropertiesNV[j]));
+            queryCooperativeVectorSubPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV;
+            queryCooperativeVectorSubPropertiesNV[j].pNext = 0;
+        }
+        ret = vkGetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice, &propertyCount, queryCooperativeVectorSubPropertiesNV.data());
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV failed %d", ret);
+        }
+
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            const VkCooperativeVectorPropertiesNV& cvp = queryCooperativeVectorSubPropertiesNV[j];
+            // NCNN_LOGE("cvp %d %d %d %d %d  %d", cvp.inputType, cvp.inputInterpretation, cvp.matrixInterpretation, cvp.biasInterpretation, cvp.resultType, cvp.transpose);
         }
     }
 
@@ -1766,6 +1827,11 @@ int GpuInfo::support_VK_NV_cooperative_matrix() const
     return d->support_VK_NV_cooperative_matrix;
 }
 
+int GpuInfo::support_VK_NV_cooperative_vector() const
+{
+    return d->support_VK_NV_cooperative_vector;
+}
+
 const void* GpuInfo::queryExtensionFeatures() const
 {
     return d->queryExtensionFeatures;
@@ -1841,6 +1907,11 @@ const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& GpuInfo::queryShaderAtomicF
     return d->queryShaderAtomicFloat2Features;
 }
 
+const VkPhysicalDeviceCooperativeVectorFeaturesNV& GpuInfo::queryCooperativeVectorFeaturesNV() const
+{
+    return d->queryCooperativeVectorFeaturesNV;
+}
+
 const void* GpuInfo::queryExtensionProperties() const
 {
     return d->queryExtensionProperties;
@@ -1866,6 +1937,11 @@ const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& GpuInfo::querySubgroupSi
     return d->querySubgroupSizeControlProperties;
 }
 
+const VkPhysicalDeviceCooperativeVectorPropertiesNV& GpuInfo::queryCooperativeVectorPropertiesNV() const
+{
+    return d->queryCooperativeVectorPropertiesNV;
+}
+
 const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMatrixSubProperties() const
 {
     return d->queryCooperativeMatrixSubProperties;
@@ -1874,6 +1950,11 @@ const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMa
 const std::vector<VkCooperativeMatrixPropertiesNV>& GpuInfo::queryCooperativeMatrixSubPropertiesNV() const
 {
     return d->queryCooperativeMatrixSubPropertiesNV;
+}
+
+const std::vector<VkCooperativeVectorPropertiesNV>& GpuInfo::queryCooperativeVectorSubPropertiesNV() const
+{
+    return d->queryCooperativeVectorSubPropertiesNV;
 }
 
 static int init_instance_core()
@@ -2024,6 +2105,11 @@ static int init_instance_extension()
     // VK_NV_cooperative_matrix
     {
         vkGetPhysicalDeviceCooperativeMatrixPropertiesNV = (PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceCooperativeMatrixPropertiesNV");
+    }
+
+    // VK_NV_cooperative_vector
+    {
+        vkGetPhysicalDeviceCooperativeVectorPropertiesNV = (PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceCooperativeVectorPropertiesNV");
     }
 
     return 0;
@@ -4067,6 +4153,12 @@ int VulkanDevice::init_device_extension()
         vkGetMemoryAndroidHardwareBufferANDROID = (PFN_vkGetMemoryAndroidHardwareBufferANDROID)vkGetDeviceProcAddr(d->device, "vkGetMemoryAndroidHardwareBufferANDROID");
     }
 #endif // __ANDROID_API__ >= 26
+
+    if (info.support_VK_NV_cooperative_vector())
+    {
+        vkCmdConvertCooperativeVectorMatrixNV = (PFN_vkCmdConvertCooperativeVectorMatrixNV)vkGetDeviceProcAddr(d->device, "vkCmdConvertCooperativeVectorMatrixNV");
+        vkConvertCooperativeVectorMatrixNV = (PFN_vkConvertCooperativeVectorMatrixNV)vkGetDeviceProcAddr(d->device, "vkConvertCooperativeVectorMatrixNV");
+    }
 
     return 0;
 }

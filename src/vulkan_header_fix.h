@@ -1502,4 +1502,77 @@ typedef struct VkPhysicalDeviceShaderFloatControls2Features
 typedef VkPhysicalDeviceShaderFloatControls2Features VkPhysicalDeviceShaderFloatControls2FeaturesKHR;
 #endif // VK_KHR_shader_float_controls2
 
+#ifndef VK_NV_cooperative_vector
+#define VK_NV_cooperative_vector                                           1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV   (VkStructureType)1000491000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_PROPERTIES_NV (VkStructureType)1000491001
+#define VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV                 (VkStructureType)1000491002
+#define VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV        (VkStructureType)1000491004
+typedef enum VkCooperativeVectorMatrixLayoutNV
+{
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_ROW_MAJOR_NV = 0,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_COLUMN_MAJOR_NV = 1,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_INFERENCING_OPTIMAL_NV = 2,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL_NV = 3,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_MAX_ENUM_NV = 0x7FFFFFFF
+} VkCooperativeVectorMatrixLayoutNV;
+typedef union VkDeviceOrHostAddressConstKHR
+{
+    VkDeviceAddress deviceAddress;
+    const void* hostAddress;
+} VkDeviceOrHostAddressConstKHR;
+typedef union VkDeviceOrHostAddressKHR
+{
+    VkDeviceAddress deviceAddress;
+    void* hostAddress;
+} VkDeviceOrHostAddressKHR;
+typedef struct VkPhysicalDeviceCooperativeVectorPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkShaderStageFlags cooperativeVectorSupportedStages;
+    VkBool32 cooperativeVectorTrainingFloat16Accumulation;
+    VkBool32 cooperativeVectorTrainingFloat32Accumulation;
+    uint32_t maxCooperativeVectorComponents;
+} VkPhysicalDeviceCooperativeVectorPropertiesNV;
+typedef struct VkPhysicalDeviceCooperativeVectorFeaturesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeVector;
+    VkBool32 cooperativeVectorTraining;
+} VkPhysicalDeviceCooperativeVectorFeaturesNV;
+typedef struct VkCooperativeVectorPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkComponentTypeKHR inputType;
+    VkComponentTypeKHR inputInterpretation;
+    VkComponentTypeKHR matrixInterpretation;
+    VkComponentTypeKHR biasInterpretation;
+    VkComponentTypeKHR resultType;
+    VkBool32 transpose;
+} VkCooperativeVectorPropertiesNV;
+typedef struct VkConvertCooperativeVectorMatrixInfoNV
+{
+    VkStructureType sType;
+    const void* pNext;
+    size_t srcSize;
+    VkDeviceOrHostAddressConstKHR srcData;
+    size_t* pDstSize;
+    VkDeviceOrHostAddressKHR dstData;
+    VkComponentTypeKHR srcComponentType;
+    VkComponentTypeKHR dstComponentType;
+    uint32_t numRows;
+    uint32_t numColumns;
+    VkCooperativeVectorMatrixLayoutNV srcLayout;
+    size_t srcStride;
+    VkCooperativeVectorMatrixLayoutNV dstLayout;
+    size_t dstStride;
+} VkConvertCooperativeVectorMatrixInfoNV;
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeVectorPropertiesNV* pProperties);
+typedef VkResult(VKAPI_PTR* PFN_vkConvertCooperativeVectorMatrixNV)(VkDevice device, const VkConvertCooperativeVectorMatrixInfoNV* pInfo);
+typedef void(VKAPI_PTR* PFN_vkCmdConvertCooperativeVectorMatrixNV)(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkConvertCooperativeVectorMatrixInfoNV* pInfos);
+#endif // VK_NV_cooperative_vector
+
 #endif // NCNN_VULKAN_HEADER_FIX_H
