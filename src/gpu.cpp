@@ -1227,6 +1227,37 @@ void GpuInfoPrivate::query_extension_properties()
         }
     }
 
+    // query supported cooperative vector types and operations
+    queryCooperativeVectorSubPropertiesNV.clear();
+    if (support_VK_NV_cooperative_vector && queryCooperativeVectorFeaturesNV.cooperativeVector)
+    {
+        uint32_t propertyCount = 0;
+        VkResult ret = vkGetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice, &propertyCount, 0);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV failed %d", ret);
+        }
+
+        queryCooperativeVectorSubPropertiesNV.resize(propertyCount);
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            memset(&queryCooperativeVectorSubPropertiesNV[j], 0, sizeof(queryCooperativeVectorSubPropertiesNV[j]));
+            queryCooperativeVectorSubPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV;
+            queryCooperativeVectorSubPropertiesNV[j].pNext = 0;
+        }
+        ret = vkGetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice, &propertyCount, queryCooperativeVectorSubPropertiesNV.data());
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV failed %d", ret);
+        }
+
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            const VkCooperativeVectorPropertiesNV& cvp = queryCooperativeVectorSubPropertiesNV[j];
+            // NCNN_LOGE("cvp %d %d %d %d %d  %d", cvp.inputType, cvp.inputInterpretation, cvp.matrixInterpretation, cvp.biasInterpretation, cvp.resultType, cvp.transpose);
+        }
+    }
+
     if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_TURNIP)
     {
         // turnip crash when compiling large shader with full subgroup
@@ -4122,6 +4153,12 @@ int VulkanDevice::init_device_extension()
         vkGetMemoryAndroidHardwareBufferANDROID = (PFN_vkGetMemoryAndroidHardwareBufferANDROID)vkGetDeviceProcAddr(d->device, "vkGetMemoryAndroidHardwareBufferANDROID");
     }
 #endif // __ANDROID_API__ >= 26
+
+    if (info.support_VK_NV_cooperative_vector())
+    {
+        vkCmdConvertCooperativeVectorMatrixNV = (PFN_vkCmdConvertCooperativeVectorMatrixNV)vkGetDeviceProcAddr(d->device, "vkCmdConvertCooperativeVectorMatrixNV");
+        vkConvertCooperativeVectorMatrixNV = (PFN_vkConvertCooperativeVectorMatrixNV)vkGetDeviceProcAddr(d->device, "vkConvertCooperativeVectorMatrixNV");
+    }
 
     return 0;
 }

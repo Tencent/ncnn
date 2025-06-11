@@ -367,7 +367,7 @@ public:
     const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& queryShaderAtomicFloatFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
-    const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeatures() const;
+    const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
 
     // extension properties
     const void* queryExtensionProperties() const;
@@ -376,7 +376,7 @@ public:
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
     const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
     const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
-    const VkPhysicalDeviceCooperativeVectorPropertiesNV& queryCooperativeVectorProperties() const;
+    const VkPhysicalDeviceCooperativeVectorPropertiesNV& queryCooperativeVectorPropertiesNV() const;
 
     // extension sub properties
     const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
@@ -509,7 +509,6 @@ public:
     // VK_NV_cooperative_vector
     PFN_vkCmdConvertCooperativeVectorMatrixNV vkCmdConvertCooperativeVectorMatrixNV;
     PFN_vkConvertCooperativeVectorMatrixNV vkConvertCooperativeVectorMatrixNV;
-    PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV vkGetPhysicalDeviceCooperativeVectorPropertiesNV;
 
 protected:
     // device extension
