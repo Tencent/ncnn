@@ -350,6 +350,7 @@ public:
     int support_VK_KHR_shader_subgroup_rotate;
     int support_VK_KHR_storage_buffer_storage_class;
     int support_VK_KHR_swapchain;
+    int support_VK_KHR_vulkan_memory_model;
     int support_VK_KHR_zero_initialize_workgroup_memory;
     int support_VK_EXT_buffer_device_address;
     int support_VK_EXT_descriptor_indexing;
@@ -386,6 +387,7 @@ public:
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT queryShaderAtomicFloatFeatures;
     VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT queryShaderAtomicFloat2Features;
     VkPhysicalDeviceCooperativeVectorFeaturesNV queryCooperativeVectorFeaturesNV;
+    VkPhysicalDeviceVulkanMemoryModelFeaturesKHR queryVulkanMemoryModelFeatures;
 
     // extension properties
     void* queryExtensionProperties;
@@ -709,6 +711,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_shader_subgroup_rotate = 0;
     support_VK_KHR_storage_buffer_storage_class = 0;
     support_VK_KHR_swapchain = 0;
+    support_VK_KHR_vulkan_memory_model = 0;
     support_VK_KHR_zero_initialize_workgroup_memory = 0;
     support_VK_EXT_buffer_device_address = 0;
     support_VK_EXT_descriptor_indexing = 0;
@@ -787,6 +790,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_swapchain") == 0)
             support_VK_KHR_swapchain = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_vulkan_memory_model") == 0)
+            support_VK_KHR_vulkan_memory_model = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_zero_initialize_workgroup_memory") == 0)
             support_VK_KHR_zero_initialize_workgroup_memory = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_buffer_device_address") == 0)
@@ -988,6 +993,16 @@ void GpuInfoPrivate::query_extension_features()
     {
         queryShaderAtomicFloat2Features.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryShaderAtomicFloat2Features;
+    }
+
+    // query vulkan memory model
+    memset(&queryVulkanMemoryModelFeatures, 0, sizeof(queryVulkanMemoryModelFeatures));
+    queryVulkanMemoryModelFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR;
+    queryVulkanMemoryModelFeatures.pNext = 0;
+    if (support_VK_KHR_vulkan_memory_model)
+    {
+        queryVulkanMemoryModelFeatures.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryVulkanMemoryModelFeatures;
     }
 
     // query nv cooperative vector
@@ -1841,6 +1856,11 @@ int GpuInfo::support_VK_KHR_swapchain() const
     return d->support_VK_KHR_swapchain;
 }
 
+int GpuInfo::support_VK_KHR_vulkan_memory_model() const
+{
+    return d->support_VK_KHR_vulkan_memory_model;
+}
+
 int GpuInfo::support_VK_KHR_zero_initialize_workgroup_memory() const
 {
     return d->support_VK_KHR_zero_initialize_workgroup_memory;
@@ -2001,6 +2021,11 @@ const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& GpuInfo::queryShaderAtomicFl
 const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& GpuInfo::queryShaderAtomicFloat2Features() const
 {
     return d->queryShaderAtomicFloat2Features;
+}
+
+const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR& GpuInfo::queryVulkanMemoryModelFeatures() const
+{
+    return d->queryVulkanMemoryModelFeatures;
 }
 
 const void* GpuInfo::queryExtensionProperties() const
@@ -3264,6 +3289,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
     if (info.support_VK_KHR_swapchain())
         enabledExtensions.push_back("VK_KHR_swapchain");
+    if (info.support_VK_KHR_vulkan_memory_model())
+        enabledExtensions.push_back("VK_KHR_vulkan_memory_model");
     if (info.support_VK_KHR_zero_initialize_workgroup_memory())
         enabledExtensions.push_back("VK_KHR_zero_initialize_workgroup_memory");
     if (info.support_VK_EXT_buffer_device_address())
@@ -5323,6 +5350,13 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_FEATURE(shaderSharedFloat64AtomicMinMax)
             DD_APPEND_FEATURE(shaderImageFloat32AtomicMinMax)
             DD_APPEND_FEATURE(sparseImageFloat32AtomicMinMax)
+        }
+        if (info.support_VK_KHR_vulkan_memory_model())
+        {
+            const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR& features = info.queryVulkanMemoryModelFeatures();
+            DD_APPEND_FEATURE(vulkanMemoryModel)
+            DD_APPEND_FEATURE(vulkanMemoryModelDeviceScope)
+            DD_APPEND_FEATURE(vulkanMemoryModelAvailabilityVisibilityChains)
         }
 
 #undef DD_APPEND_FEATURE
