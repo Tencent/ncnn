@@ -1636,4 +1636,19 @@ typedef struct VkPhysicalDeviceShaderFloat8FeaturesEXT
 } VkPhysicalDeviceShaderFloat8FeaturesEXT;
 #endif // VK_EXT_shader_float8
 
+#ifndef VK_KHR_vulkan_memory_model
+#define VK_KHR_vulkan_memory_model                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES     (VkStructureType)1000211000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES
+typedef struct VkPhysicalDeviceVulkanMemoryModelFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 vulkanMemoryModel;
+    VkBool32 vulkanMemoryModelDeviceScope;
+    VkBool32 vulkanMemoryModelAvailabilityVisibilityChains;
+} VkPhysicalDeviceVulkanMemoryModelFeatures;
+typedef VkPhysicalDeviceVulkanMemoryModelFeatures VkPhysicalDeviceVulkanMemoryModelFeaturesKHR;
+#endif // VK_KHR_vulkan_memory_model
+
 #endif // NCNN_VULKAN_HEADER_FIX_H
