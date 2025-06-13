@@ -22,13 +22,8 @@ layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int outw = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform highp sampler3D bottom_blob;
-layout (binding = 1, rgba32f) writeonly uniform highp image3D top_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { mat2x4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { mat2x4 top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -59,21 +54,10 @@ void main()
     {
         int i = gx + ii * psc(outw);
 
-#if NCNN_image_shader
-        mat2x4 v;
-        v[0] = texelFetch(bottom_blob, ivec3(i * 2, 0, gz), 0);
-        v[1] = texelFetch(bottom_blob, ivec3(i * 2 + 1, 0, gz), 0);
-#else
         mat2x4 v = bottom_blob_data[v_offset + i];
-#endif
         sum[0] += v[0];
         sum[1] += v[1];
     }
 
-#if NCNN_image_shader
-    imageStore(top_blob, ivec3(gx * 2, 0, gz), sum[0]);
-    imageStore(top_blob, ivec3(gx * 2 + 1, 0, gz), sum[1]);
-#else
     top_blob_data[gz * psc(outcstep) + gx] = sum;
-#endif
 }
