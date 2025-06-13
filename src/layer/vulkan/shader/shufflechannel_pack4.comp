@@ -30,13 +30,8 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -70,14 +65,6 @@ void main()
 
     ivec4 z4 = (gz4 % psc(group)) * channels_g + (gz4 / psc(group));
 
-#if NCNN_image_shader
-    ivec4 sz4 = z4 / 4;
-
-    afpvec4 vr = image3d_ld4(bottom_blob, ivec3(gx, gy, sz4.r));
-    afpvec4 vg = image3d_ld4(bottom_blob, ivec3(gx, gy, sz4.g));
-    afpvec4 vb = image3d_ld4(bottom_blob, ivec3(gx, gy, sz4.b));
-    afpvec4 va = image3d_ld4(bottom_blob, ivec3(gx, gy, sz4.a));
-#else
     ivec4 v_offset = (z4 / 4) * psc(cstep) + gy * psc(w) + gx;
 
     // v = v4[lane]
@@ -86,7 +73,6 @@ void main()
     afpvec4 vg = buffer_ld4(bottom_blob_data, v_offset.g);
     afpvec4 vb = buffer_ld4(bottom_blob_data, v_offset.b);
     afpvec4 va = buffer_ld4(bottom_blob_data, v_offset.a);
-#endif
 
     ivec4 lane4 = z4 % 4;
 
@@ -117,11 +103,7 @@ void main()
         v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
     }
 
-#if NCNN_image_shader
-    image3d_st4(top_blob, ivec3(gx, gy, gz), v);
-#else
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st4(top_blob_data, gi, v);
-#endif
 }
