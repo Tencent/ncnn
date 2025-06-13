@@ -42,17 +42,10 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D weight_blob;
-layout (binding = 3) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec8 weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfpvec8 bias_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -82,11 +75,7 @@ void main()
 
     if (bias_term == 1)
     {
-#if NCNN_image_shader
-        sum = image3d_ld8(bias_blob, ivec3(gz, 0, 0));
-#else
         sum = buffer_ld8(bias_data, gz);
-#endif
     }
     else
     {
@@ -94,31 +83,6 @@ void main()
     }
 
     // depth-wise convolution
-#if NCNN_image_shader
-    int sy = gy * stride_h;
-    int wx = 0;
-
-    for (int y = 0; y < kernel_h; y++)
-    {
-        int sx = gx * stride_w;
-
-        for (int x = 0; x < kernel_w; x++)
-        {
-            afpvec8 v = image3d_ld8(bottom_blob, ivec3(sx, sy, gz));
-
-            afpvec8 k = image3d_ld8(weight_blob, ivec3(wx, gz, 0));
-
-            // sum += v * k;
-            sum[0] += v[0] * k[0];
-            sum[1] += v[1] * k[1];
-
-            sx += dilation_w;
-            wx += 1;
-        }
-
-        sy += dilation_h;
-    }
-#else
     int w_offset = gz * kernel_w * kernel_h;
     int v_offset = gz * psc(cstep) + gy * stride_h * psc(w) + gx * stride_w;
 
@@ -138,15 +102,10 @@ void main()
         v_offset += dilation_h * psc(w);
         w_offset += kernel_w;
     }
-#endif
 
     sum = activation_afpvec8(sum, activation_type, activation_param_0, activation_param_1);
 
-#if NCNN_image_shader
-    image3d_st8(top_blob, ivec3(gx, gy, gz), sum);
-#else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st8(top_blob_data, gi, sum);
-#endif
 }
