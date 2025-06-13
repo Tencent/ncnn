@@ -135,13 +135,6 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
         // if (shape.dims == 4) should never reach here
     }
 
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(shape_unpacked) || !vkdev->shape_support_image_storage(out_shape_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
     std::vector<vk_specialization_type> specializations(3 + 10);
     specializations[0].i = type;
     specializations[1].f = value;

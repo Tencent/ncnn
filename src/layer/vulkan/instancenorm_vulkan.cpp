@@ -80,17 +80,6 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
 
     {
         Mat local_size_xyz;
-        if (opt.use_image_storage)
-        {
-            local_size_xyz = Mat(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
-            if (workspace_shape_packed.dims != 0)
-            {
-                local_size_xyz.w = 4;
-                local_size_xyz.h = 4;
-                local_size_xyz.c = std::min(4, workspace_shape_packed.c);
-            }
-        }
-        else
         {
             local_size_xyz = Mat(16, 1, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
             if (workspace_shape_packed.dims != 0)

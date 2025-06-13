@@ -100,20 +100,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         Mat shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
         Mat out_shape_packed = Mat(out_shape.w, out_shape.h / elempack, (void*)0, elemsize, elempack);
 
-        // check blob shape
-        if (!vkdev->shape_support_image_storage(shape) || !vkdev->shape_support_image_storage(out_shape))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-
-        // check blob shape
-        if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-
         std::vector<vk_specialization_type> specializations(4 + 10);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
@@ -192,32 +178,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     Mat out_shape_packed;
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_flatten_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
-    // check weight shape
-    Mat weight_data_packed(num_input / in_elempack, num_output / out_elempack, (void*)0, (size_t)4 * in_elempack * out_elempack, in_elempack * out_elempack);
-    if (!vkdev->shape_support_image_storage(weight_data_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
-    if (shape.dims == 0)
-    {
-        // check weight shape
-        Mat weight_data_packed(num_input, num_output, (void*)0, (size_t)4u, 1);
-        if (!vkdev->shape_support_image_storage(weight_data_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-    }
-
     {
         flatten = ncnn::create_layer_vulkan(ncnn::LayerType::Flatten);
         flatten->vkdev = vkdev;
@@ -238,11 +198,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     {
         Mat out_sum8_shape((num_input / in_elempack + 7) / 8, num_output, (void*)0);
         Mat out_sum8_shape_packed = Mat(out_sum8_shape.w, out_sum8_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-        if (!vkdev->shape_support_image_storage(out_sum8_shape_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
 
         // sum8
         {

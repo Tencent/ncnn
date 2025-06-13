@@ -93,12 +93,6 @@ int Concat_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 3) out_shape_unpacked = Mat(out_shape.w, out_shape.h, out_shape.c / elempack, (void*)0, elemsize, elempack);
     if (out_shape.dims == 4) out_shape_unpacked = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / elempack, (void*)0, elemsize, elempack);
 
-    if (!vkdev->shape_support_image_storage(out_shape_unpacked))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
     std::vector<vk_specialization_type> specializations(1 + 12);
     specializations[0].i = axis;
     specializations[1 + 0].i = 0; // TODO handle shape_packed for concat2

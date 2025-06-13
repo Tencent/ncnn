@@ -77,13 +77,6 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
     if (resize_type == 1 || resize_type == 2)
     {
         std::vector<vk_specialization_type> specializations(2 + 10);

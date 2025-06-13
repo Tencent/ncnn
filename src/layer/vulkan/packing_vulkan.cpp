@@ -77,13 +77,6 @@ int Packing_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(out_shape_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
     std::vector<vk_specialization_type> specializations(2 + 10);
     specializations[0].i = storage_type_from;
     specializations[1].i = storage_type_to;
@@ -373,12 +366,6 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     buffer_bindings[0] = bottom_blob;
     buffer_bindings[1] = top_blob;
 
-    std::vector<VkImageMat> image_bindings(2);
-    if (!opt.use_image_storage)
-    {
-        image_bindings.clear();
-    }
-
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
@@ -393,39 +380,39 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (elempack == 1 && out_elempack == 1)
     {
-        cmd.record_pipeline(pipeline_packing, buffer_bindings, image_bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_packing, buffer_bindings, constants, top_blob);
     }
     if (elempack == 4 && out_elempack == 4)
     {
-        cmd.record_pipeline(pipeline_packing_pack4, buffer_bindings, image_bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_packing_pack4, buffer_bindings, constants, top_blob);
     }
     if (elempack == 1 && out_elempack == 4)
     {
-        cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, image_bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, constants, top_blob);
     }
     if (elempack == 4 && out_elempack == 1)
     {
-        cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, image_bindings, constants, bottom_blob);
+        cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, constants, bottom_blob);
     }
     if (elempack == 8 && out_elempack == 8)
     {
-        cmd.record_pipeline(pipeline_packing_pack8, buffer_bindings, image_bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_packing_pack8, buffer_bindings, constants, top_blob);
     }
     if (elempack == 1 && out_elempack == 8)
     {
-        cmd.record_pipeline(pipeline_packing_pack1to8, buffer_bindings, image_bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_packing_pack1to8, buffer_bindings, constants, top_blob);
     }
     if (elempack == 4 && out_elempack == 8)
     {
-        cmd.record_pipeline(pipeline_packing_pack4to8, buffer_bindings, image_bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_packing_pack4to8, buffer_bindings, constants, top_blob);
     }
     if (elempack == 8 && out_elempack == 4)
     {
-        cmd.record_pipeline(pipeline_packing_pack8to4, buffer_bindings, image_bindings, constants, bottom_blob);
+        cmd.record_pipeline(pipeline_packing_pack8to4, buffer_bindings, constants, bottom_blob);
     }
     if (elempack == 8 && out_elempack == 1)
     {
-        cmd.record_pipeline(pipeline_packing_pack8to1, buffer_bindings, image_bindings, constants, bottom_blob);
+        cmd.record_pipeline(pipeline_packing_pack8to1, buffer_bindings, constants, bottom_blob);
     }
 
     return 0;

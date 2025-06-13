@@ -137,40 +137,6 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     Mat out_shape_bordered_g_packed;
     if (out_shape_bordered.dims == 3) out_shape_bordered_g_packed = Mat(out_shape_bordered.w, out_shape_bordered.h, out_shape_bordered.c / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
 
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_bordered_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
-    // check weight shape
-    if (channels == group && group == num_output)
-    {
-        Mat weight_data_packed(maxk, group / elempack, (void*)0, (size_t)4 * elempack, elempack);
-        if (!vkdev->shape_support_image_storage(weight_data_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-    }
-    else
-    {
-        // check blob shape
-        if (!vkdev->shape_support_image_storage(shape_g_packed) || !vkdev->shape_support_image_storage(out_shape_bordered_g_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-
-        Mat weight_data_packed_groups(maxk, channels_g / elempack_g, num_output_g / out_elempack_g * group, (size_t)4 * elempack_g * out_elempack_g, elempack_g * out_elempack_g);
-        if (!vkdev->shape_support_image_storage(weight_data_packed_groups))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-    }
-
     {
         crop = ncnn::create_layer_vulkan(ncnn::LayerType::Crop);
         crop->vkdev = vkdev;

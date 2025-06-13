@@ -146,40 +146,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     Mat out_shape_g_packed;
     if (out_shape.dims == 3) out_shape_g_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
 
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_bordered_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
-    // check weight shape
-    if (channels == group && group == num_output)
-    {
-        Mat weight_data_packed(maxk, group / elempack, (void*)0, (size_t)4 * elempack, elempack);
-        if (!vkdev->shape_support_image_storage(weight_data_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-    }
-    else
-    {
-        // check blob shape
-        if (!vkdev->shape_support_image_storage(shape_bordered_g_packed) || !vkdev->shape_support_image_storage(out_shape_g_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-
-        Mat weight_data_packed_groups(maxk, channels_g / elempack_g, num_output_g / out_elempack_g * group, (size_t)4 * elempack_g * out_elempack_g, elempack_g * out_elempack_g);
-        if (!vkdev->shape_support_image_storage(weight_data_packed_groups))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-    }
-
     {
         padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;

@@ -71,12 +71,6 @@ int Flatten_vulkan::create_pipeline(const Option& _opt)
     Mat out_shape_packed;
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
     std::vector<vk_specialization_type> specializations(0 + 10);
     specializations[0 + 0].i = std::min(3, shape_packed.dims);
     specializations[0 + 1].i = shape_packed.w;

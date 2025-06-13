@@ -39,7 +39,6 @@ int Deconvolution_vulkan::load_param(const ParamDict& pd)
     if (dynamic_weight)
     {
         support_vulkan = false;
-        support_image_storage = false;
     }
 
     return ret;
@@ -98,21 +97,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     if (out_shape_bordered.dims == 2) out_shape_bordered_packed = Mat(out_shape_bordered.w, out_shape_bordered.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape_bordered.dims == 3) out_shape_bordered_packed = Mat(out_shape_bordered.w, out_shape_bordered.h, out_shape_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_bordered_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
-    // check weight shape
-    Mat weight_data_packed_shape(maxk, num_input / elempack, num_output / out_elempack, (void*)0, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
-    if (!vkdev->shape_support_image_storage(weight_data_packed_shape))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
     {
         crop = ncnn::create_layer_vulkan(ncnn::LayerType::Crop);
         crop->vkdev = vkdev;
@@ -158,8 +142,8 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 
     if (opt.use_sgemm_convolution)
     {
-        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
-        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
+        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
+        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
         if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
         {
             use_cooperative_matrix_16_8_8 = false;
@@ -262,13 +246,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 
         Mat out_shape_col_packed;
         if (out_shape_col.dims == 2) out_shape_col_packed = Mat(out_shape_col.w, out_shape_col.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-
-        // check blob shape
-        if (!vkdev->shape_support_image_storage(out_shape_col_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
 
         {
             std::vector<vk_specialization_type> specializations(1 + 6);
@@ -557,8 +534,8 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     VkMat top_blob_bordered;
     if (opt.use_sgemm_convolution)
     {
-        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 8 == 0 && num_output % 8 == 0;
-        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 16 == 0 && num_output % 16 == 0;
+        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 8 == 0 && num_output % 8 == 0;
+        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 16 == 0 && num_output % 16 == 0;
         if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
         {
             use_cooperative_matrix_16_8_8 = false;

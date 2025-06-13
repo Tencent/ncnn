@@ -35,7 +35,6 @@ int Convolution1D_vulkan::load_param(const ParamDict& pd)
     if (dynamic_weight)
     {
         support_vulkan = false;
-        support_image_storage = false;
     }
 
     return ret;

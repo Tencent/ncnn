@@ -119,13 +119,6 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_bordered_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
     {
         padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
@@ -397,11 +390,8 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
     return 0;
 }
 
-int Pooling_vulkan::destroy_pipeline(const Option& _opt)
+int Pooling_vulkan::destroy_pipeline(const Option& opt)
 {
-    Option opt = _opt;
-    opt.use_image_storage = support_image_storage;
-
     if (padding)
     {
         padding->destroy_pipeline(opt);

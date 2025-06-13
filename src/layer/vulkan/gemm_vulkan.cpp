@@ -32,7 +32,6 @@ int Gemm_vulkan::load_param(const ParamDict& pd)
     if (int8_scale_term)
     {
         support_vulkan = false;
-        support_image_storage = false;
     }
 
     return ret;
