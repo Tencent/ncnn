@@ -21,6 +21,8 @@
 #endif // __AVX__
 #endif // __SSE2__
 
+#include "x86_usability.h"
+
 namespace ncnn {
 
 ShuffleChannel_x86::ShuffleChannel_x86()
@@ -344,8 +346,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     __m256 _p0 = _mm256_loadu_ps(ptr0);
 
-                    __m256 _p1 = _mm256_castps128_ps256(_mm_loadu_ps(ptr1));
-                    _p1 = _mm256_insertf128_ps(_p1, _mm_loadu_ps(ptr2), 1);
+                    __m256 _p1 = combine4x2_ps(_mm_loadu_ps(ptr1), _mm_loadu_ps(ptr2));
 
                     __m256 _lo = _mm256_unpacklo_ps(_p0, _p1);
                     __m256 _hi = _mm256_unpackhi_ps(_p0, _p1);

@@ -61,8 +61,6 @@ static int unary_op_inplace(Mat& a, const Option& opt)
         float* ptr = a.channel(q);
 
         int i = 0;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
         for (; i + 15 < size; i += 16)
         {
@@ -71,7 +69,17 @@ static int unary_op_inplace(Mat& a, const Option& opt)
             _mm512_storeu_ps(ptr, _p);
             ptr += 16;
         }
-#endif // __AVX512F__
+        if (i < size)
+        {
+            const unsigned int remain = size - i;
+            __mmask16 _mask = (__mmask16)((1u << remain) - 1);
+            __m512 _p = _mm512_maskz_loadu_ps(_mask, ptr);
+            _p = op.func_pack16(_p);
+            _mm512_mask_storeu_ps(ptr, _mask, _p);
+        }
+#else // __AVX512F__
+#if __SSE2__
+#if __AVX__
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
@@ -93,6 +101,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
             *ptr = op.func(*ptr);
             ptr++;
         }
+#endif // __AVX512F__
     }
 
     return 0;
@@ -278,7 +287,7 @@ struct unary_op_rsqrt
         __m256 _x1 = _mm512_extractf32x8_ps(x, 1);
         _x0 = _mm256_rsqrt_ps(_x0);
         _x1 = _mm256_rsqrt_ps(_x1);
-        return _mm512_insertf32x8(_mm512_castps256_ps512(_x0), _x1, 1);
+        return combine8x2_ps(_x0, _x1);
     }
 #endif // __AVX512F__
 #endif // __AVX__

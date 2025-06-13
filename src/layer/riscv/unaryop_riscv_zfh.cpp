@@ -281,7 +281,7 @@ struct unary_op_asin_fp16s
 #else  // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const
     {
-        return (__fp16)asin((float)x);
+        return (__fp16)asinf((float)x);
     }
 #endif // __riscv_zvfh
 };
@@ -303,7 +303,7 @@ struct unary_op_acos_fp16s
 #else  // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const
     {
-        return (__fp16)acos((float)x);
+        return (__fp16)acosf((float)x);
     }
 #endif // __riscv_zvfh
 };
@@ -325,7 +325,7 @@ struct unary_op_atan_fp16s
 #else  // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const
     {
-        return (__fp16)atan((float)x);
+        return (__fp16)atanf((float)x);
     }
 #endif // __riscv_zvfh
 };

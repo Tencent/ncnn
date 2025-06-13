@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,26 +29,27 @@ public:
         return "nn.LocalResponseNorm";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
+    void write(Operator* op, const TorchGraphProxy& graph) const
     {
-        const torch::jit::Node* avg_pool = find_node_by_kind(graph, "aten::avg_pool2d");
-        const torch::jit::Node* avg_pool3d = find_node_by_kind(graph, "aten::avg_pool3d");
+        const TorchNodeProxy* avg_pool = graph.find_node_by_kind("aten::avg_pool2d");
+        const TorchNodeProxy* avg_pool3d = graph.find_node_by_kind("aten::avg_pool3d");
 
         if (avg_pool3d)
         {
             avg_pool = avg_pool3d;
         }
 
-        op->params["size"] = avg_pool->namedInput("kernel_size")->node()->inputs()[0];
+        const TorchNodeProxy* kernel_size = graph.find_producer_node_by_value(avg_pool->namedInput("kernel_size"));
+        op->params["size"] = kernel_size->input(0);
 
-        const torch::jit::Node* pow = find_node_by_kind(graph, "aten::pow");
-        op->params["beta"] = pow->inputs()[1];
+        const TorchNodeProxy* pow = graph.find_node_by_kind("aten::pow");
+        op->params["beta"] = pow->input(1);
 
-        const torch::jit::Node* add = pow->inputs()[0]->node();
-        op->params["k"] = add->inputs()[1];
+        const TorchNodeProxy* add = graph.find_producer_node_by_value(pow->input(0));
+        op->params["k"] = add->input(1);
 
-        const torch::jit::Node* mul = add->inputs()[0]->node();
-        op->params["alpha"] = mul->inputs()[1];
+        const TorchNodeProxy* mul = graph.find_producer_node_by_value(add->input(0));
+        op->params["alpha"] = mul->input(1);
     }
 };
 

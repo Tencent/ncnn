@@ -20,6 +20,11 @@
 #include <string>
 #include <vector>
 
+#if defined _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "ir.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
@@ -231,6 +236,10 @@ static void show_usage()
 
 int main(int argc, char** argv)
 {
+#if defined _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
     if (argc < 2)
     {
         show_usage();
@@ -406,7 +415,7 @@ int main(int argc, char** argv)
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath);
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
@@ -420,7 +429,7 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
     }
 
     //     pnnx::Graph pnnx_graph2;

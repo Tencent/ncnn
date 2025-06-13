@@ -135,7 +135,7 @@ static int32_t safe_int64_to_int32(int64_t value)
     return static_cast<int32_t>(value);
 }
 
-int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, int fp16)
+int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
     if (!paramfp)
@@ -416,12 +416,15 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (!r)
                 break;
 
+            const std::vector<int64_t>& shape0 = input_shapes[input_index];
+
             if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", r->shape[i]);
+                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                    fprintf(pyfp, "%d", dimsize);
                     if (i + 1 != r->shape.size() || r->shape.size() == 1)
                         fprintf(pyfp, ", ");
                 }
@@ -432,7 +435,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
+                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                    fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }

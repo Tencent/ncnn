@@ -56,7 +56,7 @@ int Mish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         for (int i = 0; i < size; i++)
         {
             float v = (float)*ptr;
-            *ptr = (__fp16)(v * tanh(log(exp(v) + 1.f)));
+            *ptr = (__fp16)(v * tanhf(logf(expf(v) + 1.f)));
             ptr++;
         }
 #endif // __riscv_zvfh
@@ -95,7 +95,7 @@ int Mish_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) 
 #else  // __riscv_zvfh
         for (int i = 0; i < size; i++)
         {
-            *ptr = *ptr * (__fp16)tanh(log(exp((float)*ptr) + 1.f));
+            *ptr = *ptr * (__fp16)tanhf(logf(expf((float)*ptr) + 1.f));
             ptr++;
         }
 #endif // __riscv_zvfh

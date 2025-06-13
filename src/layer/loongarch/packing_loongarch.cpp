@@ -90,7 +90,7 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
         return 0;
@@ -399,7 +399,7 @@ int Packing_loongarch::forward_int8(const Mat& bottom_blob, Mat& top_blob, const
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
         return 0;

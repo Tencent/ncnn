@@ -97,9 +97,9 @@ static void binary_op_vector_broadcast_b(const float* ptr, const float* ptr1, fl
 #if __SSE2__
     __m128 _b_128 = (elempack == 4) ? _mm_loadu_ps(ptr1) : _mm_set1_ps(b);
 #if __AVX__
-    __m256 _b_256 = (elempack == 8) ? _mm256_loadu_ps(ptr1) : _mm256_insertf128_ps(_mm256_castps128_ps256(_b_128), _b_128, 1);
+    __m256 _b_256 = (elempack == 8) ? _mm256_loadu_ps(ptr1) : combine4x2_ps(_b_128, _b_128);
 #if __AVX512F__
-    __m512 _b_512 = (elempack == 16) ? _mm512_loadu_ps(ptr1) : _mm512_insertf32x8(_mm512_castps256_ps512(_b_256), _b_256, 1);
+    __m512 _b_512 = (elempack == 16) ? _mm512_loadu_ps(ptr1) : combine8x2_ps(_b_256, _b_256);
     for (; i + 15 < size; i += 16)
     {
         __m512 _p = _mm512_loadu_ps(ptr);
@@ -146,9 +146,9 @@ static void binary_op_vector_broadcast_a(const float* ptr, const float* ptr1, fl
 #if __SSE2__
     __m128 _a_128 = (elempack == 4) ? _mm_loadu_ps(ptr) : _mm_set1_ps(a);
 #if __AVX__
-    __m256 _a_256 = (elempack == 8) ? _mm256_loadu_ps(ptr) : _mm256_insertf128_ps(_mm256_castps128_ps256(_a_128), _a_128, 1);
+    __m256 _a_256 = (elempack == 8) ? _mm256_loadu_ps(ptr) : combine4x2_ps(_a_128, _a_128);
 #if __AVX512F__
-    __m512 _a_512 = (elempack == 16) ? _mm512_loadu_ps(ptr) : _mm512_insertf32x8(_mm512_castps256_ps512(_a_256), _a_256, 1);
+    __m512 _a_512 = (elempack == 16) ? _mm512_loadu_ps(ptr) : combine8x2_ps(_a_256, _a_256);
     for (; i + 15 < size; i += 16)
     {
         __m512 _b = _mm512_loadu_ps(ptr1);
@@ -216,7 +216,7 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
             __m512 _p = _mm512_loadu_ps(ptr);
             __m256 _b0 = _mm256_set1_ps(ptr1[0]);
             __m256 _b1 = _mm256_set1_ps(ptr1[1]);
-            __m512 _b = _mm512_insertf32x8(_mm512_castps256_ps512(_b0), _b1, 1);
+            __m512 _b = combine8x2_ps(_b0, _b1);
             __m512 _outp = op.func_pack16(_p, _b);
             _mm512_storeu_ps(outptr, _outp);
             ptr += 16;
@@ -248,9 +248,7 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
             __m128 _b1 = _mm_set1_ps(ptr1[1]);
             __m128 _b2 = _mm_set1_ps(ptr1[2]);
             __m128 _b3 = _mm_set1_ps(ptr1[3]);
-            __m256 _b01 = _mm256_insertf128_ps(_mm256_castps128_ps256(_b0), _b1, 1);
-            __m256 _b23 = _mm256_insertf128_ps(_mm256_castps128_ps256(_b2), _b3, 1);
-            __m512 _b = _mm512_insertf32x8(_mm512_castps256_ps512(_b01), _b23, 1);
+            __m512 _b = combine4x4_ps(_b0, _b1, _b2, _b3);
             __m512 _outp = op.func_pack16(_p, _b);
             _mm512_storeu_ps(outptr, _outp);
             ptr += 16;
@@ -263,7 +261,7 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
             __m256 _p = _mm256_loadu_ps(ptr);
             __m128 _b0 = _mm_set1_ps(ptr1[0]);
             __m128 _b1 = _mm_set1_ps(ptr1[1]);
-            __m256 _b = _mm256_insertf128_ps(_mm256_castps128_ps256(_b0), _b1, 1);
+            __m256 _b = combine4x2_ps(_b0, _b1);
             __m256 _outp = op.func_pack8(_p, _b);
             _mm256_storeu_ps(outptr, _outp);
             ptr += 8;
@@ -355,12 +353,12 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
         int i = 0;
         __m256 _p = _mm256_loadu_ps(ptr);
 #if __AVX512F__
-        __m512 _p_512 = _mm512_insertf32x8(_mm512_castps256_ps512(_p), _p, 1);
+        __m512 _p_512 = combine8x2_ps(_p, _p);
         for (; i + 1 < w; i += 2)
         {
             __m256 _b0 = _mm256_set1_ps(ptr1[0]);
             __m256 _b1 = _mm256_set1_ps(ptr1[1]);
-            __m512 _b = _mm512_insertf32x8(_mm512_castps256_ps512(_b0), _b1, 1);
+            __m512 _b = combine8x2_ps(_b0, _b1);
             __m512 _outp = op.func_pack16(_p_512, _b);
             _mm512_storeu_ps(outptr, _outp);
             ptr1 += 2;
@@ -382,18 +380,16 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
         int i = 0;
         __m128 _p = _mm_loadu_ps(ptr);
 #if __AVX__
-        __m256 _p_256 = _mm256_insertf128_ps(_mm256_castps128_ps256(_p), _p, 1);
+        __m256 _p_256 = combine4x2_ps(_p, _p);
 #if __AVX512F__
-        __m512 _p_512 = _mm512_insertf32x8(_mm512_castps256_ps512(_p_256), _p_256, 1);
+        __m512 _p_512 = combine8x2_ps(_p_256, _p_256);
         for (; i + 3 < w; i += 4)
         {
             __m128 _b0 = _mm_set1_ps(ptr1[0]);
             __m128 _b1 = _mm_set1_ps(ptr1[1]);
             __m128 _b2 = _mm_set1_ps(ptr1[2]);
             __m128 _b3 = _mm_set1_ps(ptr1[3]);
-            __m256 _b01 = _mm256_insertf128_ps(_mm256_castps128_ps256(_b0), _b1, 1);
-            __m256 _b23 = _mm256_insertf128_ps(_mm256_castps128_ps256(_b2), _b3, 1);
-            __m512 _b = _mm512_insertf32x8(_mm512_castps256_ps512(_b01), _b23, 1);
+            __m512 _b = combine4x4_ps(_b0, _b1, _b2, _b3);
             __m512 _outp = op.func_pack16(_p_512, _b);
             _mm512_storeu_ps(outptr, _outp);
             ptr1 += 4;
@@ -404,7 +400,7 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
         {
             __m128 _b0 = _mm_set1_ps(ptr1[0]);
             __m128 _b1 = _mm_set1_ps(ptr1[1]);
-            __m256 _b = _mm256_insertf128_ps(_mm256_castps128_ps256(_b0), _b1, 1);
+            __m256 _b = combine4x2_ps(_b0, _b1);
             __m256 _outp = op.func_pack8(_p_256, _b);
             _mm256_storeu_ps(outptr, _outp);
             ptr1 += 2;
@@ -979,7 +975,7 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 1)
@@ -992,7 +988,7 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 2)
@@ -1007,7 +1003,7 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 4 && A.dims == 2)
@@ -1028,7 +1024,7 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 1)
@@ -1041,7 +1037,7 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 2)
@@ -1056,7 +1052,7 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 4 && B.dims == 2)

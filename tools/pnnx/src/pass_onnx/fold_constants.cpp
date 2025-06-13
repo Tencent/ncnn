@@ -14,6 +14,7 @@
 
 #include "fold_constants.h"
 
+#include <stdlib.h>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -318,17 +319,20 @@ void fold_constants(onnx::ModelProto& model,
             fprintf(stderr, "ort SetSessionGraphOptimizationLevel failed %s\n", ort_api->GetErrorMessage(ort_status));
         }
 
-        // ort_status = ort_api->SetIntraOpNumThreads(ort_session_opt, 4);
-        // if (ort_status)
-        // {
-        //     fprintf(stderr, "ort SetIntraOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
-        // }
-        //
-        // ort_status = ort_api->SetInterOpNumThreads(ort_session_opt, 4);
-        // if (ort_status)
-        // {
-        //     fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
-        // }
+        const char* omp_thread_limit = std::getenv("OMP_THREAD_LIMIT");
+        const int num_threads = omp_thread_limit ? std::stoi(omp_thread_limit) : 0;
+
+        ort_status = ort_api->SetIntraOpNumThreads(ort_session_opt, num_threads);
+        if (ort_status)
+        {
+            fprintf(stderr, "ort SetIntraOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
+
+        ort_status = ort_api->SetInterOpNumThreads(ort_session_opt, num_threads);
+        if (ort_status)
+        {
+            fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
 
         OrtSession* ort_session = 0;
         ort_status = ort_api->CreateSessionFromArray(ort_env, (const void*)tmp_onnx_data.data(), tmp_onnx_data.size(), ort_session_opt, &ort_session);
@@ -901,17 +905,20 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
             fprintf(stderr, "ort SetSessionGraphOptimizationLevel failed %s\n", ort_api->GetErrorMessage(ort_status));
         }
 
-        // ort_status = ort_api->SetIntraOpNumThreads(ort_session_opt, 4);
-        // if (ort_status)
-        // {
-        //     fprintf(stderr, "ort SetIntraOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
-        // }
-        //
-        // ort_status = ort_api->SetInterOpNumThreads(ort_session_opt, 4);
-        // if (ort_status)
-        // {
-        //     fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
-        // }
+        const char* omp_thread_limit = std::getenv("OMP_THREAD_LIMIT");
+        const int num_threads = omp_thread_limit ? std::stoi(omp_thread_limit) : 0;
+
+        ort_status = ort_api->SetIntraOpNumThreads(ort_session_opt, num_threads);
+        if (ort_status)
+        {
+            fprintf(stderr, "ort SetIntraOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
+
+        ort_status = ort_api->SetInterOpNumThreads(ort_session_opt, num_threads);
+        if (ort_status)
+        {
+            fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
 
         OrtSession* ort_session = 0;
         ort_status = ort_api->CreateSessionFromArray(ort_env, (const void*)tmp_onnx_data.data(), tmp_onnx_data.size(), ort_session_opt, &ort_session);

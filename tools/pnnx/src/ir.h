@@ -34,6 +34,9 @@ struct Node;
 namespace at {
 class Tensor;
 }
+namespace pnnx {
+class TorchTensorProxy;
+} // namespace pnnx
 #endif // BUILD_TORCH2PNNX
 
 #if BUILD_ONNX2PNNX
@@ -230,6 +233,7 @@ public:
 
 #if BUILD_TORCH2PNNX
     Attribute(const at::Tensor& t);
+    Attribute(const TorchTensorProxy& t);
 #endif
 #if BUILD_ONNX2PNNX
     Attribute(const onnx::TensorProto& t);
@@ -323,7 +327,7 @@ public:
     int load(const std::string& parampath, const std::string& binpath);
     int save(const std::string& parampath, const std::string& binpath);
 
-    int python(const std::string& pypath, const std::string& binpath);
+    int python(const std::string& pypath, const std::string& binpath, const std::vector<std::vector<int64_t> >& input_shapes);
 
     int parse(const std::string& param);
 

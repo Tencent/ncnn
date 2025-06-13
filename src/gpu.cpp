@@ -91,8 +91,8 @@ static __ncnn_vulkan_instance_holder g_instance;
 static int g_gpu_count = 0;
 static int g_default_gpu_index = -1;
 
-// NOTE 8 is large enough i think ...
-#define NCNN_MAX_GPU_COUNT 8
+// NOTE 32 is large enough i think ...
+#define NCNN_MAX_GPU_COUNT 32
 static GpuInfo* g_gpu_infos[NCNN_MAX_GPU_COUNT] = {0};
 
 // default vulkan device
@@ -255,6 +255,12 @@ PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR = 0;
 // VK_NV_cooperative_matrix
 PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV vkGetPhysicalDeviceCooperativeMatrixPropertiesNV = 0;
 
+// VK_NV_cooperative_matrix2
+PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV = 0;
+
+// VK_NV_cooperative_vector
+PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV vkGetPhysicalDeviceCooperativeVectorPropertiesNV = 0;
+
 class GpuInfoPrivate
 {
 public:
@@ -334,13 +340,17 @@ public:
     int support_VK_KHR_portability_subset;
     int support_VK_KHR_push_descriptor;
     int support_VK_KHR_sampler_ycbcr_conversion;
+    int support_VK_KHR_shader_bfloat16;
     int support_VK_KHR_shader_float16_int8;
     int support_VK_KHR_shader_float_controls;
+    int support_VK_KHR_shader_float_controls2;
+    int support_VK_KHR_shader_integer_dot_product;
     int support_VK_KHR_shader_non_semantic_info;
     int support_VK_KHR_shader_subgroup_extended_types;
     int support_VK_KHR_shader_subgroup_rotate;
     int support_VK_KHR_storage_buffer_storage_class;
     int support_VK_KHR_swapchain;
+    int support_VK_KHR_vulkan_memory_model;
     int support_VK_KHR_zero_initialize_workgroup_memory;
     int support_VK_EXT_buffer_device_address;
     int support_VK_EXT_descriptor_indexing;
@@ -349,12 +359,15 @@ public:
     int support_VK_EXT_queue_family_foreign;
     int support_VK_EXT_shader_atomic_float;
     int support_VK_EXT_shader_atomic_float2;
+    int support_VK_EXT_shader_float8;
     int support_VK_EXT_subgroup_size_control;
     int support_VK_AMD_device_coherent_memory;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer;
 #endif // __ANDROID_API__ >= 26
     int support_VK_NV_cooperative_matrix;
+    int support_VK_NV_cooperative_matrix2;
+    int support_VK_NV_cooperative_vector;
 
     // extension features
     void* queryExtensionFeatures;
@@ -364,16 +377,33 @@ public:
     VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR querySamplerYcbcrConversionFeatures;
     VkPhysicalDeviceCooperativeMatrixFeaturesKHR queryCooperativeMatrixFeatures;
     VkPhysicalDeviceCooperativeMatrixFeaturesNV queryCooperativeMatrixFeaturesNV;
+    VkPhysicalDeviceCooperativeMatrix2FeaturesNV queryCooperativeMatrix2FeaturesNV;
+    VkPhysicalDeviceShaderBfloat16FeaturesKHR queryShaderBfloat16Features;
+    VkPhysicalDeviceShaderFloat8FeaturesEXT queryShaderFloat8Features;
+    VkPhysicalDeviceShaderFloatControls2FeaturesKHR queryShaderFloatControls2Features;
+    VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR queryShaderIntegerDotProductFeatures;
     VkPhysicalDeviceSubgroupSizeControlFeaturesEXT querySubgroupSizeControlFeatures;
     VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR queryShaderSubgroupRotateFeatures;
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT queryShaderAtomicFloatFeatures;
     VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT queryShaderAtomicFloat2Features;
+    VkPhysicalDeviceCooperativeVectorFeaturesNV queryCooperativeVectorFeaturesNV;
+    VkPhysicalDeviceVulkanMemoryModelFeaturesKHR queryVulkanMemoryModelFeatures;
 
     // extension properties
-    void* queryDeviceProperties;
+    void* queryExtensionProperties;
+    VkPhysicalDeviceFloatControlsPropertiesKHR queryFloatControlsProperties;
+    VkPhysicalDeviceShaderIntegerDotProductProperties queryShaderIntegerDotProductProperties;
     VkPhysicalDeviceSubgroupProperties querySubgroupProperties;
     VkPhysicalDeviceDriverPropertiesKHR queryDriverProperties;
     VkPhysicalDeviceSubgroupSizeControlPropertiesEXT querySubgroupSizeControlProperties;
+    VkPhysicalDeviceCooperativeMatrix2PropertiesNV queryCooperativeMatrix2PropertiesNV;
+    VkPhysicalDeviceCooperativeVectorPropertiesNV queryCooperativeVectorPropertiesNV;
+
+    // extension sub properties
+    std::vector<VkCooperativeMatrixPropertiesKHR> queryCooperativeMatrixSubProperties;
+    std::vector<VkCooperativeMatrixPropertiesNV> queryCooperativeMatrixSubPropertiesNV;
+    std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV> queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV;
+    std::vector<VkCooperativeVectorPropertiesNV> queryCooperativeVectorSubPropertiesNV;
 };
 
 void GpuInfoPrivate::query_features()
@@ -671,13 +701,17 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_portability_subset = 0;
     support_VK_KHR_push_descriptor = 0;
     support_VK_KHR_sampler_ycbcr_conversion = 0;
+    support_VK_KHR_shader_bfloat16 = 0;
     support_VK_KHR_shader_float16_int8 = 0;
     support_VK_KHR_shader_float_controls = 0;
+    support_VK_KHR_shader_float_controls2 = 0;
+    support_VK_KHR_shader_integer_dot_product = 0;
     support_VK_KHR_shader_non_semantic_info = 0;
     support_VK_KHR_shader_subgroup_extended_types = 0;
     support_VK_KHR_shader_subgroup_rotate = 0;
     support_VK_KHR_storage_buffer_storage_class = 0;
     support_VK_KHR_swapchain = 0;
+    support_VK_KHR_vulkan_memory_model = 0;
     support_VK_KHR_zero_initialize_workgroup_memory = 0;
     support_VK_EXT_buffer_device_address = 0;
     support_VK_EXT_descriptor_indexing = 0;
@@ -686,12 +720,15 @@ int GpuInfoPrivate::query_extensions()
     support_VK_EXT_queue_family_foreign = 0;
     support_VK_EXT_shader_atomic_float = 0;
     support_VK_EXT_shader_atomic_float2 = 0;
+    support_VK_EXT_shader_float8 = 0;
     support_VK_EXT_subgroup_size_control = 0;
     support_VK_AMD_device_coherent_memory = 0;
 #if __ANDROID_API__ >= 26
     support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
 #endif // __ANDROID_API__ >= 26
     support_VK_NV_cooperative_matrix = 0;
+    support_VK_NV_cooperative_matrix2 = 0;
+    support_VK_NV_cooperative_vector = 0;
     for (uint32_t j = 0; j < deviceExtensionPropertyCount; j++)
     {
         const VkExtensionProperties& exp = deviceExtensionProperties[j];
@@ -733,10 +770,16 @@ int GpuInfoPrivate::query_extensions()
             support_VK_KHR_push_descriptor = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_sampler_ycbcr_conversion") == 0)
             support_VK_KHR_sampler_ycbcr_conversion = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_bfloat16") == 0)
+            support_VK_KHR_shader_bfloat16 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
             support_VK_KHR_shader_float16_int8 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_float_controls") == 0)
             support_VK_KHR_shader_float_controls = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_float_controls2") == 0)
+            support_VK_KHR_shader_float_controls2 = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_integer_dot_product") == 0)
+            support_VK_KHR_shader_integer_dot_product = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_non_semantic_info") == 0)
             support_VK_KHR_shader_non_semantic_info = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_subgroup_extended_types") == 0)
@@ -747,6 +790,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_swapchain") == 0)
             support_VK_KHR_swapchain = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_vulkan_memory_model") == 0)
+            support_VK_KHR_vulkan_memory_model = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_zero_initialize_workgroup_memory") == 0)
             support_VK_KHR_zero_initialize_workgroup_memory = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_buffer_device_address") == 0)
@@ -763,6 +808,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_shader_atomic_float = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_shader_atomic_float2") == 0)
             support_VK_EXT_shader_atomic_float2 = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_shader_float8") == 0)
+            support_VK_EXT_shader_float8 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_subgroup_size_control") == 0)
             support_VK_EXT_subgroup_size_control = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_AMD_device_coherent_memory") == 0)
@@ -773,6 +820,10 @@ int GpuInfoPrivate::query_extensions()
 #endif // __ANDROID_API__ >= 26
         else if (strcmp(exp.extensionName, "VK_NV_cooperative_matrix") == 0)
             support_VK_NV_cooperative_matrix = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_NV_cooperative_matrix2") == 0)
+            support_VK_NV_cooperative_matrix2 = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_NV_cooperative_vector") == 0)
+            support_VK_NV_cooperative_vector = exp.specVersion;
     }
 
     if (support_VK_KHR_buffer_device_address)
@@ -836,20 +887,72 @@ void GpuInfoPrivate::query_extension_features()
 
     // query cooperative_matrix
     memset(&queryCooperativeMatrixFeatures, 0, sizeof(queryCooperativeMatrixFeatures));
-    memset(&queryCooperativeMatrixFeaturesNV, 0, sizeof(queryCooperativeMatrixFeaturesNV));
     queryCooperativeMatrixFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR;
     queryCooperativeMatrixFeatures.pNext = 0;
-    queryCooperativeMatrixFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV;
-    queryCooperativeMatrixFeaturesNV.pNext = 0;
     if (support_VK_KHR_cooperative_matrix)
     {
         queryCooperativeMatrixFeatures.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryCooperativeMatrixFeatures;
     }
-    else if (support_VK_NV_cooperative_matrix)
+
+    // query nv cooperative matrix
+    memset(&queryCooperativeMatrixFeaturesNV, 0, sizeof(queryCooperativeMatrixFeaturesNV));
+    queryCooperativeMatrixFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV;
+    queryCooperativeMatrixFeaturesNV.pNext = 0;
+    if (support_VK_NV_cooperative_matrix)
     {
         queryCooperativeMatrixFeaturesNV.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryCooperativeMatrixFeaturesNV;
+    }
+
+    // query nv cooperative matrix2
+    memset(&queryCooperativeMatrix2FeaturesNV, 0, sizeof(queryCooperativeMatrix2FeaturesNV));
+    queryCooperativeMatrix2FeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV;
+    queryCooperativeMatrix2FeaturesNV.pNext = 0;
+    if (support_VK_NV_cooperative_matrix2)
+    {
+        queryCooperativeMatrix2FeaturesNV.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryCooperativeMatrix2FeaturesNV;
+    }
+
+    // query bfloat16
+    memset(&queryShaderBfloat16Features, 0, sizeof(queryShaderBfloat16Features));
+    queryShaderBfloat16Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR;
+    queryShaderBfloat16Features.pNext = 0;
+    if (support_VK_KHR_shader_bfloat16)
+    {
+        queryShaderBfloat16Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderBfloat16Features;
+    }
+
+    // query float8
+    memset(&queryShaderFloat8Features, 0, sizeof(queryShaderFloat8Features));
+    queryShaderFloat8Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT;
+    queryShaderFloat8Features.pNext = 0;
+    if (support_VK_EXT_shader_float8)
+    {
+        queryShaderFloat8Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderFloat8Features;
+    }
+
+    // query float controls 2
+    memset(&queryShaderFloatControls2Features, 0, sizeof(queryShaderFloatControls2Features));
+    queryShaderFloatControls2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT_CONTROLS_2_FEATURES_KHR;
+    queryShaderFloatControls2Features.pNext = 0;
+    if (support_VK_KHR_shader_float_controls2)
+    {
+        queryShaderFloatControls2Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderFloatControls2Features;
+    }
+
+    // query integer dot product
+    memset(&queryShaderIntegerDotProductFeatures, 0, sizeof(queryShaderIntegerDotProductFeatures));
+    queryShaderIntegerDotProductFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES_KHR;
+    queryShaderIntegerDotProductFeatures.pNext = 0;
+    if (support_VK_KHR_shader_integer_dot_product)
+    {
+        queryShaderIntegerDotProductFeatures.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderIntegerDotProductFeatures;
     }
 
     // query subgroup size control
@@ -892,6 +995,26 @@ void GpuInfoPrivate::query_extension_features()
         queryExtensionFeatures = &queryShaderAtomicFloat2Features;
     }
 
+    // query vulkan memory model
+    memset(&queryVulkanMemoryModelFeatures, 0, sizeof(queryVulkanMemoryModelFeatures));
+    queryVulkanMemoryModelFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR;
+    queryVulkanMemoryModelFeatures.pNext = 0;
+    if (support_VK_KHR_vulkan_memory_model)
+    {
+        queryVulkanMemoryModelFeatures.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryVulkanMemoryModelFeatures;
+    }
+
+    // query nv cooperative vector
+    memset(&queryCooperativeVectorFeaturesNV, 0, sizeof(queryCooperativeVectorFeaturesNV));
+    queryCooperativeVectorFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV;
+    queryCooperativeVectorFeaturesNV.pNext = 0;
+    if (support_VK_NV_cooperative_vector)
+    {
+        queryCooperativeVectorFeaturesNV.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryCooperativeVectorFeaturesNV;
+    }
+
     if (support_VK_KHR_get_physical_device_properties2)
     {
         VkPhysicalDeviceFeatures2KHR queryFeatures;
@@ -925,19 +1048,31 @@ void GpuInfoPrivate::query_extension_features()
         // fp16 arithmetic yields wrong result on old adreno drivers :(
         queryFloat16Int8Features.shaderFloat16 = VK_FALSE;
     }
-
-    if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_RADV || queryDriverProperties.driverID == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA)
-    {
-        // cooperative matrix produces wrong result on mesa vulkan drivers :(
-        // https://gitlab.freedesktop.org/mesa/mesa/-/issues/10847
-        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
-        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
-    }
 }
 
 void GpuInfoPrivate::query_extension_properties()
 {
-    queryDeviceProperties = 0;
+    queryExtensionProperties = 0;
+
+    // query float controls
+    memset(&queryFloatControlsProperties, 0, sizeof(queryFloatControlsProperties));
+    queryFloatControlsProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES;
+    queryFloatControlsProperties.pNext = 0;
+    if (support_VK_KHR_shader_float_controls)
+    {
+        queryFloatControlsProperties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryFloatControlsProperties;
+    }
+
+    // query integer dot product
+    memset(&queryShaderIntegerDotProductProperties, 0, sizeof(queryShaderIntegerDotProductProperties));
+    queryShaderIntegerDotProductProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES_KHR;
+    queryShaderIntegerDotProductProperties.pNext = 0;
+    if (support_VK_KHR_driver_properties)
+    {
+        queryShaderIntegerDotProductProperties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryShaderIntegerDotProductProperties;
+    }
 
     // query subgroup
     memset(&querySubgroupProperties, 0, sizeof(querySubgroupProperties));
@@ -945,8 +1080,8 @@ void GpuInfoPrivate::query_extension_properties()
     querySubgroupProperties.pNext = 0;
     if (VK_VERSION_MAJOR(g_instance.instance_api_version) >= 1 && VK_VERSION_MINOR(g_instance.instance_api_version) >= 1)
     {
-        querySubgroupProperties.pNext = queryDeviceProperties;
-        queryDeviceProperties = &querySubgroupProperties;
+        querySubgroupProperties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &querySubgroupProperties;
     }
     else
     {
@@ -971,8 +1106,8 @@ void GpuInfoPrivate::query_extension_properties()
     queryDriverProperties.pNext = 0;
     if (support_VK_KHR_driver_properties)
     {
-        queryDriverProperties.pNext = queryDeviceProperties;
-        queryDeviceProperties = &queryDriverProperties;
+        queryDriverProperties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryDriverProperties;
     }
 
     // query subgroup size control
@@ -981,21 +1116,35 @@ void GpuInfoPrivate::query_extension_properties()
     querySubgroupSizeControlProperties.pNext = 0;
     if (support_VK_EXT_subgroup_size_control)
     {
-        querySubgroupSizeControlProperties.pNext = queryDeviceProperties;
-        queryDeviceProperties = &querySubgroupSizeControlProperties;
+        querySubgroupSizeControlProperties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &querySubgroupSizeControlProperties;
     }
-    else
+
+    // query nv cooperative matrix2
+    memset(&queryCooperativeMatrix2PropertiesNV, 0, sizeof(queryCooperativeMatrix2PropertiesNV));
+    queryCooperativeMatrix2PropertiesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_PROPERTIES_NV;
+    queryCooperativeMatrix2PropertiesNV.pNext = 0;
+    if (support_VK_NV_cooperative_matrix2)
     {
-        querySubgroupSizeControlProperties.minSubgroupSize = querySubgroupProperties.subgroupSize;
-        querySubgroupSizeControlProperties.maxSubgroupSize = querySubgroupProperties.subgroupSize;
-        querySubgroupSizeControlProperties.maxComputeWorkgroupSubgroups = std::max(physicalDeviceProperties.limits.maxComputeWorkGroupInvocations / querySubgroupProperties.subgroupSize, 1u);
+        queryCooperativeMatrix2PropertiesNV.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryCooperativeMatrix2PropertiesNV;
+    }
+
+    // query nv cooperative vector
+    memset(&queryCooperativeVectorPropertiesNV, 0, sizeof(queryCooperativeVectorPropertiesNV));
+    queryCooperativeVectorPropertiesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_PROPERTIES_NV;
+    queryCooperativeVectorPropertiesNV.pNext = 0;
+    if (support_VK_NV_cooperative_vector)
+    {
+        queryCooperativeVectorPropertiesNV.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryCooperativeVectorPropertiesNV;
     }
 
     if (support_VK_KHR_get_physical_device_properties2)
     {
         VkPhysicalDeviceProperties2KHR queryProperties;
         queryProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
-        queryProperties.pNext = queryDeviceProperties;
+        queryProperties.pNext = queryExtensionProperties;
 
         vkGetPhysicalDeviceProperties2KHR(physicalDevice, &queryProperties);
 
@@ -1009,7 +1158,16 @@ void GpuInfoPrivate::query_extension_properties()
         }
     }
 
+    if (!support_VK_EXT_subgroup_size_control)
+    {
+        querySubgroupSizeControlProperties.minSubgroupSize = querySubgroupProperties.subgroupSize;
+        querySubgroupSizeControlProperties.maxSubgroupSize = querySubgroupProperties.subgroupSize;
+        querySubgroupSizeControlProperties.maxComputeWorkgroupSubgroups = std::max(physicalDeviceProperties.limits.maxComputeWorkGroupInvocations / querySubgroupProperties.subgroupSize, 1u);
+    }
+
     // query supported cooperative matrix types and operations
+    queryCooperativeMatrixSubProperties.clear();
+    queryCooperativeMatrixSubPropertiesNV.clear();
     support_cooperative_matrix_8_8_16 = false;
     support_cooperative_matrix_16_8_8 = false;
     support_cooperative_matrix_16_8_16 = false;
@@ -1023,16 +1181,22 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR failed %d", ret);
         }
 
-        std::vector<VkCooperativeMatrixPropertiesKHR> properties(propertyCount);
-        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice, &propertyCount, properties.data());
+        queryCooperativeMatrixSubProperties.resize(propertyCount);
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            memset(&queryCooperativeMatrixSubProperties[j], 0, sizeof(queryCooperativeMatrixSubProperties[j]));
+            queryCooperativeMatrixSubProperties[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR;
+            queryCooperativeMatrixSubProperties[j].pNext = 0;
+        }
+        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(physicalDevice, &propertyCount, queryCooperativeMatrixSubProperties.data());
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR failed %d", ret);
         }
 
-        for (uint32_t j = 0; j < properties.size(); j++)
+        for (uint32_t j = 0; j < propertyCount; j++)
         {
-            const VkCooperativeMatrixPropertiesKHR& cmp = properties[j];
+            const VkCooperativeMatrixPropertiesKHR& cmp = queryCooperativeMatrixSubProperties[j];
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.ResultType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
@@ -1074,21 +1238,22 @@ void GpuInfoPrivate::query_extension_properties()
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesNV failed %d", ret);
         }
 
-        std::vector<VkCooperativeMatrixPropertiesNV> properties(propertyCount);
-        for (uint32_t j = 0; j < properties.size(); j++)
+        queryCooperativeMatrixSubPropertiesNV.resize(propertyCount);
+        for (uint32_t j = 0; j < propertyCount; j++)
         {
-            properties[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
-            properties[j].pNext = 0;
+            memset(&queryCooperativeMatrixSubPropertiesNV[j], 0, sizeof(queryCooperativeMatrixSubPropertiesNV[j]));
+            queryCooperativeMatrixSubPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
+            queryCooperativeMatrixSubPropertiesNV[j].pNext = 0;
         }
-        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, &propertyCount, properties.data());
+        ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, &propertyCount, queryCooperativeMatrixSubPropertiesNV.data());
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixPropertiesNV failed %d", ret);
         }
 
-        for (uint32_t j = 0; j < properties.size(); j++)
+        for (uint32_t j = 0; j < propertyCount; j++)
         {
-            const VkCooperativeMatrixPropertiesNV& cmp = properties[j];
+            const VkCooperativeMatrixPropertiesNV& cmp = queryCooperativeMatrixSubPropertiesNV[j];
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
@@ -1120,6 +1285,74 @@ void GpuInfoPrivate::query_extension_properties()
                 support_cooperative_matrix_16_16_16 = true;
             }
         }
+    }
+
+    // query supported cooperative matrix2 types and operations
+    queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV.clear();
+    if (support_VK_NV_cooperative_matrix2 && queryCooperativeMatrix2FeaturesNV.cooperativeMatrixFlexibleDimensions)
+    {
+        uint32_t propertyCount = 0;
+        VkResult ret = vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(physicalDevice, &propertyCount, 0);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV failed %d", ret);
+        }
+
+        queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV.resize(propertyCount);
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            memset(&queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV[j], 0, sizeof(queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV[j]));
+            queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_FLEXIBLE_DIMENSIONS_PROPERTIES_NV;
+            queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV[j].pNext = 0;
+        }
+        ret = vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(physicalDevice, &propertyCount, queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV.data());
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV failed %d", ret);
+        }
+
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            const VkCooperativeMatrixFlexibleDimensionsPropertiesNV& cmfdp = queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV[j];
+            // NCNN_LOGE("cmfdp %2d %2d %2d  %d %d %d %d  %d %d %d", cmfdp.MGranularity, cmfdp.NGranularity, cmfdp.KGranularity, cmfdp.AType, cmfdp.BType, cmfdp.CType, cmfdp.ResultType, cmfdp.saturatingAccumulation, cmfdp.scope, cmfdp.workgroupInvocations);
+        }
+    }
+
+    // query supported cooperative vector types and operations
+    queryCooperativeVectorSubPropertiesNV.clear();
+    if (support_VK_NV_cooperative_vector && queryCooperativeVectorFeaturesNV.cooperativeVector)
+    {
+        uint32_t propertyCount = 0;
+        VkResult ret = vkGetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice, &propertyCount, 0);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV failed %d", ret);
+        }
+
+        queryCooperativeVectorSubPropertiesNV.resize(propertyCount);
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            memset(&queryCooperativeVectorSubPropertiesNV[j], 0, sizeof(queryCooperativeVectorSubPropertiesNV[j]));
+            queryCooperativeVectorSubPropertiesNV[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV;
+            queryCooperativeVectorSubPropertiesNV[j].pNext = 0;
+        }
+        ret = vkGetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice, &propertyCount, queryCooperativeVectorSubPropertiesNV.data());
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV failed %d", ret);
+        }
+
+        for (uint32_t j = 0; j < propertyCount; j++)
+        {
+            const VkCooperativeVectorPropertiesNV& cvp = queryCooperativeVectorSubPropertiesNV[j];
+            // NCNN_LOGE("cvp %d %d %d %d %d  %d", cvp.inputType, cvp.inputInterpretation, cvp.matrixInterpretation, cvp.biasInterpretation, cvp.resultType, cvp.transpose);
+        }
+    }
+
+    if (queryDriverProperties.driverID == VK_DRIVER_ID_MESA_TURNIP)
+    {
+        // turnip crash when compiling large shader with full subgroup
+        querySubgroupSizeControlFeatures.computeFullSubgroups = VK_FALSE;
     }
 }
 
@@ -1443,6 +1676,16 @@ bool GpuInfo::support_fp16_image() const
     return d->physicalDevicefeatures.shaderStorageImageExtendedFormats;
 }
 
+bool GpuInfo::support_int8_image() const
+{
+    return d->physicalDevicefeatures.shaderStorageImageExtendedFormats;
+}
+
+bool GpuInfo::support_fp_fast_math() const
+{
+    return d->queryShaderFloatControls2Features.shaderFloatControls2;
+}
+
 bool GpuInfo::support_ycbcr_conversion() const
 {
     return d->querySamplerYcbcrConversionFeatures.samplerYcbcrConversion;
@@ -1563,6 +1806,11 @@ int GpuInfo::support_VK_KHR_sampler_ycbcr_conversion() const
     return d->support_VK_KHR_sampler_ycbcr_conversion;
 }
 
+int GpuInfo::support_VK_KHR_shader_bfloat16() const
+{
+    return d->support_VK_KHR_shader_bfloat16;
+}
+
 int GpuInfo::support_VK_KHR_shader_float16_int8() const
 {
     return d->support_VK_KHR_shader_float16_int8;
@@ -1571,6 +1819,16 @@ int GpuInfo::support_VK_KHR_shader_float16_int8() const
 int GpuInfo::support_VK_KHR_shader_float_controls() const
 {
     return d->support_VK_KHR_shader_float_controls;
+}
+
+int GpuInfo::support_VK_KHR_shader_float_controls2() const
+{
+    return d->support_VK_KHR_shader_float_controls2;
+}
+
+int GpuInfo::support_VK_KHR_shader_integer_dot_product() const
+{
+    return d->support_VK_KHR_shader_integer_dot_product;
 }
 
 int GpuInfo::support_VK_KHR_shader_non_semantic_info() const
@@ -1596,6 +1854,11 @@ int GpuInfo::support_VK_KHR_storage_buffer_storage_class() const
 int GpuInfo::support_VK_KHR_swapchain() const
 {
     return d->support_VK_KHR_swapchain;
+}
+
+int GpuInfo::support_VK_KHR_vulkan_memory_model() const
+{
+    return d->support_VK_KHR_vulkan_memory_model;
 }
 
 int GpuInfo::support_VK_KHR_zero_initialize_workgroup_memory() const
@@ -1638,6 +1901,11 @@ int GpuInfo::support_VK_EXT_shader_atomic_float2() const
     return d->support_VK_EXT_shader_atomic_float2;
 }
 
+int GpuInfo::support_VK_EXT_shader_float8() const
+{
+    return d->support_VK_EXT_shader_float8;
+}
+
 int GpuInfo::support_VK_EXT_subgroup_size_control() const
 {
     return d->support_VK_EXT_subgroup_size_control;
@@ -1658,6 +1926,16 @@ int GpuInfo::support_VK_ANDROID_external_memory_android_hardware_buffer() const
 int GpuInfo::support_VK_NV_cooperative_matrix() const
 {
     return d->support_VK_NV_cooperative_matrix;
+}
+
+int GpuInfo::support_VK_NV_cooperative_matrix2() const
+{
+    return d->support_VK_NV_cooperative_matrix2;
+}
+
+int GpuInfo::support_VK_NV_cooperative_vector() const
+{
+    return d->support_VK_NV_cooperative_vector;
 }
 
 const void* GpuInfo::queryExtensionFeatures() const
@@ -1695,9 +1973,39 @@ const VkPhysicalDeviceCooperativeMatrixFeaturesNV& GpuInfo::queryCooperativeMatr
     return d->queryCooperativeMatrixFeaturesNV;
 }
 
+const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& GpuInfo::queryCooperativeMatrix2FeaturesNV() const
+{
+    return d->queryCooperativeMatrix2FeaturesNV;
+}
+
+const VkPhysicalDeviceCooperativeVectorFeaturesNV& GpuInfo::queryCooperativeVectorFeaturesNV() const
+{
+    return d->queryCooperativeVectorFeaturesNV;
+}
+
 const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& GpuInfo::querySubgroupSizeControlFeatures() const
 {
     return d->querySubgroupSizeControlFeatures;
+}
+
+const VkPhysicalDeviceShaderBfloat16FeaturesKHR& GpuInfo::queryShaderBfloat16Features() const
+{
+    return d->queryShaderBfloat16Features;
+}
+
+const VkPhysicalDeviceShaderFloat8FeaturesEXT& GpuInfo::queryShaderFloat8Features() const
+{
+    return d->queryShaderFloat8Features;
+}
+
+const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& GpuInfo::queryShaderFloatControls2Features() const
+{
+    return d->queryShaderFloatControls2Features;
+}
+
+const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& GpuInfo::queryShaderIntegerDotProductFeatures() const
+{
+    return d->queryShaderIntegerDotProductFeatures;
 }
 
 const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& GpuInfo::queryShaderSubgroupRotateFeatures() const
@@ -1715,14 +2023,24 @@ const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& GpuInfo::queryShaderAtomicF
     return d->queryShaderAtomicFloat2Features;
 }
 
-const void* GpuInfo::queryDeviceProperties() const
+const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR& GpuInfo::queryVulkanMemoryModelFeatures() const
 {
-    return d->queryDeviceProperties;
+    return d->queryVulkanMemoryModelFeatures;
 }
 
-const VkPhysicalDeviceSubgroupProperties& GpuInfo::querySubgroupProperties() const
+const void* GpuInfo::queryExtensionProperties() const
 {
-    return d->querySubgroupProperties;
+    return d->queryExtensionProperties;
+}
+
+const VkPhysicalDeviceCooperativeMatrix2PropertiesNV& GpuInfo::queryCooperativeMatrix2PropertiesNV() const
+{
+    return d->queryCooperativeMatrix2PropertiesNV;
+}
+
+const VkPhysicalDeviceCooperativeVectorPropertiesNV& GpuInfo::queryCooperativeVectorPropertiesNV() const
+{
+    return d->queryCooperativeVectorPropertiesNV;
 }
 
 const VkPhysicalDeviceDriverPropertiesKHR& GpuInfo::queryDriverProperties() const
@@ -1730,9 +2048,44 @@ const VkPhysicalDeviceDriverPropertiesKHR& GpuInfo::queryDriverProperties() cons
     return d->queryDriverProperties;
 }
 
+const VkPhysicalDeviceFloatControlsPropertiesKHR& GpuInfo::queryFloatControlsProperties() const
+{
+    return d->queryFloatControlsProperties;
+}
+
+const VkPhysicalDeviceShaderIntegerDotProductProperties& GpuInfo::queryShaderIntegerDotProductProperties() const
+{
+    return d->queryShaderIntegerDotProductProperties;
+}
+
+const VkPhysicalDeviceSubgroupProperties& GpuInfo::querySubgroupProperties() const
+{
+    return d->querySubgroupProperties;
+}
+
 const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& GpuInfo::querySubgroupSizeControlProperties() const
 {
     return d->querySubgroupSizeControlProperties;
+}
+
+const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMatrixSubProperties() const
+{
+    return d->queryCooperativeMatrixSubProperties;
+}
+
+const std::vector<VkCooperativeMatrixPropertiesNV>& GpuInfo::queryCooperativeMatrixSubPropertiesNV() const
+{
+    return d->queryCooperativeMatrixSubPropertiesNV;
+}
+
+const std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV>& GpuInfo::queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV() const
+{
+    return d->queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV;
+}
+
+const std::vector<VkCooperativeVectorPropertiesNV>& GpuInfo::queryCooperativeVectorSubPropertiesNV() const
+{
+    return d->queryCooperativeVectorSubPropertiesNV;
 }
 
 static int init_instance_core()
@@ -1883,6 +2236,16 @@ static int init_instance_extension()
     // VK_NV_cooperative_matrix
     {
         vkGetPhysicalDeviceCooperativeMatrixPropertiesNV = (PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceCooperativeMatrixPropertiesNV");
+    }
+
+    // VK_NV_cooperative_matrix2
+    {
+        vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV = (PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV");
+    }
+
+    // VK_NV_cooperative_vector
+    {
+        vkGetPhysicalDeviceCooperativeVectorPropertiesNV = (PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceCooperativeVectorPropertiesNV");
     }
 
     return 0;
@@ -2265,9 +2628,6 @@ int create_gpu_instance(const char* driver_path)
                   gpu_info.graphics_queue_family_index(), gpu_info.graphics_queue_count(),
                   gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count());
 
-        NCNN_LOGE("[%u %s]  bugsbn1=%d  bugbilz=%d  bugcopc=%d  bugihfa=%d", i, gpu_info.device_name(),
-                  gpu_info.bug_storage_buffer_no_l1(), gpu_info.bug_buffer_image_load_zero(), gpu_info.bug_corrupted_online_pipeline_cache(), gpu_info.bug_implicit_fp16_arithmetic());
-
         NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d", i, gpu_info.device_name(),
                   gpu_info.support_fp16_packed(), gpu_info.support_fp16_storage(), gpu_info.support_fp16_uniform(), gpu_info.support_fp16_arithmetic(),
                   gpu_info.support_int8_packed(), gpu_info.support_int8_storage(), gpu_info.support_int8_uniform(), gpu_info.support_int8_arithmetic());
@@ -2285,9 +2645,182 @@ int create_gpu_instance(const char* driver_path)
                   (gpu_info.support_subgroup_ops() & VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR) != 0,
                   (gpu_info.support_subgroup_ops() & VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR) != 0);
 
-        NCNN_LOGE("[%u %s]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=%d/%d/%d/%d", i, gpu_info.device_name(),
-                  gpu_info.support_cooperative_matrix_8_8_16(), gpu_info.support_cooperative_matrix_16_8_8(),
-                  gpu_info.support_cooperative_matrix_16_8_16(), gpu_info.support_cooperative_matrix_16_16_16());
+        // collect matrix mnk
+        std::vector<VkCooperativeMatrixPropertiesKHR> fp16_matrix_properties;
+        std::vector<VkCooperativeMatrixPropertiesKHR> int8_matrix_properties;
+        std::vector<VkCooperativeMatrixPropertiesKHR> bf16_matrix_properties;
+        std::vector<VkCooperativeMatrixPropertiesKHR> fp8_matrix_properties;
+        if (gpu_info.support_VK_KHR_cooperative_matrix())
+        {
+            const std::vector<VkCooperativeMatrixPropertiesKHR>& properties = gpu_info.queryCooperativeMatrixSubProperties();
+            for (uint32_t j = 0; j < properties.size(); j++)
+            {
+                const VkCooperativeMatrixPropertiesKHR& cmp = properties[j];
+
+                if (cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR)
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < fp16_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixPropertiesKHR& cmp0 = fp16_matrix_properties[k];
+                        if (cmp.MSize == cmp0.MSize && cmp.NSize == cmp0.NSize && cmp.KSize == cmp0.KSize)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                        fp16_matrix_properties.push_back(cmp);
+                }
+                if ((cmp.AType == VK_COMPONENT_TYPE_SINT8_KHR || cmp.AType == VK_COMPONENT_TYPE_SINT8_PACKED_NV)
+                        && (cmp.BType == VK_COMPONENT_TYPE_SINT8_KHR || cmp.BType == VK_COMPONENT_TYPE_SINT8_PACKED_NV))
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < int8_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixPropertiesKHR& cmp0 = int8_matrix_properties[k];
+                        if (cmp.MSize == cmp0.MSize && cmp.NSize == cmp0.NSize && cmp.KSize == cmp0.KSize)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                        int8_matrix_properties.push_back(cmp);
+                }
+                if (cmp.AType == VK_COMPONENT_TYPE_BFLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_BFLOAT16_KHR)
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < bf16_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixPropertiesKHR& cmp0 = bf16_matrix_properties[k];
+                        if (cmp.MSize == cmp0.MSize && cmp.NSize == cmp0.NSize && cmp.KSize == cmp0.KSize)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                        bf16_matrix_properties.push_back(cmp);
+                }
+                if ((cmp.AType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT || cmp.AType == VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT
+                        || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV)
+                        && (cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT || cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT
+                            || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV))
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < fp8_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixPropertiesKHR& cmp0 = fp8_matrix_properties[k];
+                        if (cmp.MSize == cmp0.MSize && cmp.NSize == cmp0.NSize && cmp.KSize == cmp0.KSize)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                        fp8_matrix_properties.push_back(cmp);
+                }
+            }
+        }
+        else if (gpu_info.support_VK_NV_cooperative_matrix())
+        {
+            const std::vector<VkCooperativeMatrixPropertiesNV>& properties = gpu_info.queryCooperativeMatrixSubPropertiesNV();
+            for (uint32_t j = 0; j < properties.size(); j++)
+            {
+                const VkCooperativeMatrixPropertiesNV& cmp = properties[j];
+
+                if (cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV)
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < fp16_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixPropertiesKHR& cmp0 = fp16_matrix_properties[k];
+                        if (cmp.MSize == cmp0.MSize && cmp.NSize == cmp0.NSize && cmp.KSize == cmp0.KSize)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                    {
+                        VkCooperativeMatrixPropertiesKHR cmp_khr;
+                        cmp_khr.MSize = cmp.MSize;
+                        cmp_khr.NSize = cmp.NSize;
+                        cmp_khr.KSize = cmp.KSize;
+                        fp16_matrix_properties.push_back(cmp_khr);
+                    }
+                }
+                if (cmp.AType == VK_COMPONENT_TYPE_SINT8_NV && cmp.BType == VK_COMPONENT_TYPE_SINT8_NV)
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < int8_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixPropertiesKHR& cmp0 = int8_matrix_properties[k];
+                        if (cmp.MSize == cmp0.MSize && cmp.NSize == cmp0.NSize && cmp.KSize == cmp0.KSize)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                    {
+                        VkCooperativeMatrixPropertiesKHR cmp_khr;
+                        cmp_khr.MSize = cmp.MSize;
+                        cmp_khr.NSize = cmp.NSize;
+                        cmp_khr.KSize = cmp.KSize;
+                        int8_matrix_properties.push_back(cmp_khr);
+                    }
+                }
+            }
+        }
+
+        std::string fp16_matrix_info_str;
+        std::string int8_matrix_info_str;
+        std::string bf16_matrix_info_str;
+        std::string fp8_matrix_info_str;
+        {
+            for (uint32_t j = 0; j < fp16_matrix_properties.size(); j++)
+            {
+                const VkCooperativeMatrixPropertiesKHR& cmp = fp16_matrix_properties[j];
+                char tmp[64];
+                sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MSize, cmp.NSize, cmp.KSize);
+                fp16_matrix_info_str += tmp;
+            }
+            for (uint32_t j = 0; j < int8_matrix_properties.size(); j++)
+            {
+                const VkCooperativeMatrixPropertiesKHR& cmp = int8_matrix_properties[j];
+                char tmp[64];
+                sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MSize, cmp.NSize, cmp.KSize);
+                int8_matrix_info_str += tmp;
+            }
+            for (uint32_t j = 0; j < bf16_matrix_properties.size(); j++)
+            {
+                const VkCooperativeMatrixPropertiesKHR& cmp = bf16_matrix_properties[j];
+                char tmp[64];
+                sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MSize, cmp.NSize, cmp.KSize);
+                bf16_matrix_info_str += tmp;
+            }
+            for (uint32_t j = 0; j < fp8_matrix_properties.size(); j++)
+            {
+                const VkCooperativeMatrixPropertiesKHR& cmp = fp8_matrix_properties[j];
+                char tmp[64];
+                sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MSize, cmp.NSize, cmp.KSize);
+                fp8_matrix_info_str += tmp;
+            }
+
+            if (fp16_matrix_info_str.empty())
+                fp16_matrix_info_str = "0";
+            if (int8_matrix_info_str.empty())
+                int8_matrix_info_str = "0";
+            if (bf16_matrix_info_str.empty())
+                bf16_matrix_info_str = "0";
+            if (fp8_matrix_info_str.empty())
+                fp8_matrix_info_str = "0";
+        }
+
+        NCNN_LOGE("[%u %s]  fp16-cm=%s  int8-cm=%s  bf16-cm=%s  fp8-cm=%s", i, gpu_info.device_name(),
+                  fp16_matrix_info_str.c_str(), int8_matrix_info_str.c_str(), bf16_matrix_info_str.c_str(), fp8_matrix_info_str.c_str());
 
         gpu_info_index++;
     }
@@ -2736,10 +3269,16 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_push_descriptor");
     if (info.support_VK_KHR_sampler_ycbcr_conversion())
         enabledExtensions.push_back("VK_KHR_sampler_ycbcr_conversion");
+    if (info.support_VK_KHR_shader_bfloat16())
+        enabledExtensions.push_back("VK_KHR_shader_bfloat16");
     if (info.support_VK_KHR_shader_float16_int8())
         enabledExtensions.push_back("VK_KHR_shader_float16_int8");
     if (info.support_VK_KHR_shader_float_controls())
         enabledExtensions.push_back("VK_KHR_shader_float_controls");
+    if (info.support_VK_KHR_shader_float_controls2())
+        enabledExtensions.push_back("VK_KHR_shader_float_controls2");
+    if (info.support_VK_KHR_shader_integer_dot_product())
+        enabledExtensions.push_back("VK_KHR_shader_integer_dot_product");
     if (info.support_VK_KHR_shader_non_semantic_info())
         enabledExtensions.push_back("VK_KHR_shader_non_semantic_info");
     if (info.support_VK_KHR_shader_subgroup_extended_types())
@@ -2750,6 +3289,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
     if (info.support_VK_KHR_swapchain())
         enabledExtensions.push_back("VK_KHR_swapchain");
+    if (info.support_VK_KHR_vulkan_memory_model())
+        enabledExtensions.push_back("VK_KHR_vulkan_memory_model");
     if (info.support_VK_KHR_zero_initialize_workgroup_memory())
         enabledExtensions.push_back("VK_KHR_zero_initialize_workgroup_memory");
     if (info.support_VK_EXT_buffer_device_address())
@@ -2766,6 +3307,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_shader_atomic_float");
     if (info.support_VK_EXT_shader_atomic_float2())
         enabledExtensions.push_back("VK_EXT_shader_atomic_float2");
+    if (info.support_VK_EXT_shader_float8())
+        enabledExtensions.push_back("VK_EXT_shader_float8");
     if (info.support_VK_EXT_subgroup_size_control())
         enabledExtensions.push_back("VK_EXT_subgroup_size_control");
     if (info.support_VK_AMD_device_coherent_memory())
@@ -2776,6 +3319,10 @@ VulkanDevice::VulkanDevice(int device_index)
 #endif // __ANDROID_API__ >= 26
     if (info.support_VK_NV_cooperative_matrix())
         enabledExtensions.push_back("VK_NV_cooperative_matrix");
+    if (info.support_VK_NV_cooperative_matrix2())
+        enabledExtensions.push_back("VK_NV_cooperative_matrix2");
+    if (info.support_VK_NV_cooperative_vector())
+        enabledExtensions.push_back("VK_NV_cooperative_vector");
 
     const void* enabledExtensionFeatures = info.queryExtensionFeatures();
 
@@ -3239,10 +3786,11 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     pipelineShaderStageCreateInfo.pName = "main";
     pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
 
-    if (info.support_compute_full_subgroups())
-    {
-        pipelineShaderStageCreateInfo.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
-    }
+    // but full subgroup bits enforce local_size_x be multiple of subgroup size
+    // if (info.support_compute_full_subgroups())
+    // {
+    //     pipelineShaderStageCreateInfo.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
+    // }
 
     void* enabledExtensionFeatures = 0;
 
@@ -3919,6 +4467,12 @@ int VulkanDevice::init_device_extension()
         vkGetMemoryAndroidHardwareBufferANDROID = (PFN_vkGetMemoryAndroidHardwareBufferANDROID)vkGetDeviceProcAddr(d->device, "vkGetMemoryAndroidHardwareBufferANDROID");
     }
 #endif // __ANDROID_API__ >= 26
+
+    if (info.support_VK_NV_cooperative_vector())
+    {
+        vkCmdConvertCooperativeVectorMatrixNV = (PFN_vkCmdConvertCooperativeVectorMatrixNV)vkGetDeviceProcAddr(d->device, "vkCmdConvertCooperativeVectorMatrixNV");
+        vkConvertCooperativeVectorMatrixNV = (PFN_vkConvertCooperativeVectorMatrixNV)vkGetDeviceProcAddr(d->device, "vkConvertCooperativeVectorMatrixNV");
+    }
 
     return 0;
 }
@@ -4713,11 +5267,51 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_FEATURE(cooperativeMatrix)
             DD_APPEND_FEATURE(cooperativeMatrixRobustBufferAccess)
         }
+        if (info.support_VK_NV_cooperative_matrix2())
+        {
+            const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features = info.queryCooperativeMatrix2FeaturesNV();
+            DD_APPEND_FEATURE(cooperativeMatrixWorkgroupScope)
+            DD_APPEND_FEATURE(cooperativeMatrixFlexibleDimensions)
+            DD_APPEND_FEATURE(cooperativeMatrixReductions)
+            DD_APPEND_FEATURE(cooperativeMatrixConversions)
+            DD_APPEND_FEATURE(cooperativeMatrixPerElementOperations)
+            DD_APPEND_FEATURE(cooperativeMatrixTensorAddressing)
+            DD_APPEND_FEATURE(cooperativeMatrixBlockLoads)
+        }
+        if (info.support_VK_NV_cooperative_vector())
+        {
+            const VkPhysicalDeviceCooperativeVectorFeaturesNV& features = info.queryCooperativeVectorFeaturesNV();
+            DD_APPEND_FEATURE(cooperativeVector)
+            DD_APPEND_FEATURE(cooperativeVectorTraining)
+        }
         if (info.support_VK_EXT_subgroup_size_control())
         {
             const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& features = info.querySubgroupSizeControlFeatures();
             DD_APPEND_FEATURE(subgroupSizeControl)
             DD_APPEND_FEATURE(computeFullSubgroups)
+        }
+        if (info.support_VK_KHR_shader_bfloat16())
+        {
+            const VkPhysicalDeviceShaderBfloat16FeaturesKHR& features = info.queryShaderBfloat16Features();
+            DD_APPEND_FEATURE(shaderBFloat16Type)
+            DD_APPEND_FEATURE(shaderBFloat16DotProduct)
+            DD_APPEND_FEATURE(shaderBFloat16CooperativeMatrix)
+        }
+        if (info.support_VK_EXT_shader_float8())
+        {
+            const VkPhysicalDeviceShaderFloat8FeaturesEXT& features = info.queryShaderFloat8Features();
+            DD_APPEND_FEATURE(shaderFloat8)
+            DD_APPEND_FEATURE(shaderFloat8CooperativeMatrix)
+        }
+        if (info.support_VK_KHR_shader_float_controls2())
+        {
+            const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& features = info.queryShaderFloatControls2Features();
+            DD_APPEND_FEATURE(shaderFloatControls2)
+        }
+        if (info.support_VK_KHR_shader_integer_dot_product())
+        {
+            const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& features = info.queryShaderIntegerDotProductFeatures();
+            DD_APPEND_FEATURE(shaderIntegerDotProduct)
         }
         if (info.support_VK_KHR_shader_subgroup_rotate())
         {
@@ -4756,6 +5350,13 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_FEATURE(shaderSharedFloat64AtomicMinMax)
             DD_APPEND_FEATURE(shaderImageFloat32AtomicMinMax)
             DD_APPEND_FEATURE(sparseImageFloat32AtomicMinMax)
+        }
+        if (info.support_VK_KHR_vulkan_memory_model())
+        {
+            const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR& features = info.queryVulkanMemoryModelFeatures();
+            DD_APPEND_FEATURE(vulkanMemoryModel)
+            DD_APPEND_FEATURE(vulkanMemoryModelDeviceScope)
+            DD_APPEND_FEATURE(vulkanMemoryModelAvailabilityVisibilityChains)
         }
 
 #undef DD_APPEND_FEATURE
@@ -4924,6 +5525,21 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             device_defines.append("subgroup_rotate_relative", (properties.supportedOperations & VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT) ? 1 : 0);
             device_defines.append("subgroup_partitioned", (properties.supportedOperations & VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV) ? 1 : 0);
         }
+        if (info.support_VK_NV_cooperative_matrix2())
+        {
+            const VkPhysicalDeviceCooperativeMatrix2PropertiesNV& properties = info.queryCooperativeMatrix2PropertiesNV();
+            DD_APPEND_PROPERTY(cooperativeMatrixWorkgroupScopeMaxWorkgroupSize)
+            DD_APPEND_PROPERTY(cooperativeMatrixFlexibleDimensionsMaxDimension)
+            DD_APPEND_PROPERTY(cooperativeMatrixWorkgroupScopeReservedSharedMemory)
+        }
+        if (info.support_VK_NV_cooperative_vector())
+        {
+            const VkPhysicalDeviceCooperativeVectorPropertiesNV& properties = info.queryCooperativeVectorPropertiesNV();
+            DD_APPEND_PROPERTY(cooperativeVectorSupportedStages)
+            DD_APPEND_PROPERTY(cooperativeVectorTrainingFloat16Accumulation)
+            DD_APPEND_PROPERTY(cooperativeVectorTrainingFloat32Accumulation)
+            DD_APPEND_PROPERTY(maxCooperativeVectorComponents)
+        }
         if (info.support_VK_KHR_driver_properties())
         {
             const VkPhysicalDeviceDriverPropertiesKHR& properties = info.queryDriverProperties();
@@ -4934,6 +5550,40 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             device_defines.append("conformanceVersion_minor", properties.conformanceVersion.minor);
             device_defines.append("conformanceVersion_subminor", properties.conformanceVersion.subminor);
             device_defines.append("conformanceVersion_patch", properties.conformanceVersion.patch);
+        }
+        if (info.support_VK_KHR_shader_integer_dot_product())
+        {
+            const VkPhysicalDeviceShaderIntegerDotProductProperties& properties = info.queryShaderIntegerDotProductProperties();
+            DD_APPEND_PROPERTY(integerDotProduct8BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct8BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct8BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct4x8BitPackedUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct4x8BitPackedSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct4x8BitPackedMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct16BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct16BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct16BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct32BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct32BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct32BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct64BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct64BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProduct64BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating8BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating8BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating8BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating4x8BitPackedUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating4x8BitPackedSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating4x8BitPackedMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating16BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating16BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating16BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating32BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating32BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating32BitMixedSignednessAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating64BitUnsignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating64BitSignedAccelerated)
+            DD_APPEND_PROPERTY(integerDotProductAccumulatingSaturating64BitMixedSignednessAccelerated)
         }
         if (info.support_VK_EXT_subgroup_size_control())
         {

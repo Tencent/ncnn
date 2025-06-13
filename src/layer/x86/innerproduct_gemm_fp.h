@@ -395,8 +395,8 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m512 _val3 = _mm512_loadu_ps(m + 48);
 #if NCNN_IMPL_FP16S
                     __m128 _w = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)kptr));
-                    __m256 _ww = _mm256_insertf128_ps(_mm256_castps128_ps256(_w), _w, 1);
-                    __m512 _www = _mm512_insertf32x8(_mm512_castps256_ps512(_ww), _ww, 1);
+                    __m256 _ww = combine4x2_ps(_w, _w);
+                    __m512 _www = combine8x2_ps(_ww, _ww);
 
                     __m512 _w0 = _mm512_permute_ps(_www, _MM_SHUFFLE(0, 0, 0, 0));
                     __m512 _w1 = _mm512_permute_ps(_www, _MM_SHUFFLE(1, 1, 1, 1));
@@ -474,8 +474,8 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m512 _val = _mm512_loadu_ps(m);
 #if NCNN_IMPL_FP16S
                     __m128 _w = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)kptr));
-                    __m256 _ww = _mm256_insertf128_ps(_mm256_castps128_ps256(_w), _w, 1);
-                    __m512 _www = _mm512_insertf32x8(_mm512_castps256_ps512(_ww), _ww, 1);
+                    __m256 _ww = combine4x2_ps(_w, _w);
+                    __m512 _www = combine8x2_ps(_ww, _ww);
 
                     __m512 _w0 = _mm512_permute_ps(_www, _MM_SHUFFLE(0, 0, 0, 0));
                     __m512 _w1 = _mm512_permute_ps(_www, _MM_SHUFFLE(1, 1, 1, 1));
@@ -910,7 +910,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _val3 = _mm256_loadu_ps(m + 24);
 #if NCNN_IMPL_FP16S
                     __m128 _w = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)kptr));
-                    __m256 _ww = _mm256_insertf128_ps(_mm256_castps128_ps256(_w), _w, 1);
+                    __m256 _ww = combine4x2_ps(_w, _w);
 
                     __m256 _w0 = _mm256_permute_ps(_ww, _MM_SHUFFLE(0, 0, 0, 0));
                     __m256 _w1 = _mm256_permute_ps(_ww, _MM_SHUFFLE(1, 1, 1, 1));
@@ -988,7 +988,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _val = _mm256_loadu_ps(m);
 #if NCNN_IMPL_FP16S
                     __m128 _w = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)kptr));
-                    __m256 _ww = _mm256_insertf128_ps(_mm256_castps128_ps256(_w), _w, 1);
+                    __m256 _ww = combine4x2_ps(_w, _w);
 
                     __m256 _w0 = _mm256_permute_ps(_ww, _MM_SHUFFLE(0, 0, 0, 0));
                     __m256 _w1 = _mm256_permute_ps(_ww, _MM_SHUFFLE(1, 1, 1, 1));

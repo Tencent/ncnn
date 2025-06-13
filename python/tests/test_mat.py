@@ -557,9 +557,9 @@ def test_empty():
 
 def test_total():
     mat = ncnn.Mat(1)
-    assert mat.total() == 1
+    assert mat.total() == 4 # 1 aligned
     mat = ncnn.Mat(2, 3)
-    assert mat.total() == 2 * 3
+    assert mat.total() == 8 # 2 * 3 aligned
     mat = ncnn.Mat(4, 5, 6)
     assert mat.total() == 4 * 5 * 6
     mat = ncnn.Mat(7, 8, 9, 10)

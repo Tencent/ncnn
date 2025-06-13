@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "inline_block.h"
-#include "../pass_level1.h"
+#include "../pass_level1/fuse_module_pass.h"
 
 #include <set>
 

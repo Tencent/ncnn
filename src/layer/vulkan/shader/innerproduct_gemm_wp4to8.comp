@@ -68,7 +68,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= 1)
+    if (gx * 8 >= psc(outw) || gy >= psc(outh) || gz >= 1)
         return;
 
     afpvec8 sum;

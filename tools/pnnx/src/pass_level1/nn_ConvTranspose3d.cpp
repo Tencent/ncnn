@@ -12,9 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,11 +29,11 @@ public:
         return "nn.ConvTranspose3d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
     {
-        const torch::jit::Node* convolution = find_node_by_kind(graph, "aten::_convolution");
+        const TorchNodeProxy* convolution = graph.find_node_by_kind("aten::_convolution");
 
-        const auto& weight = mod.attr("weight").toTensor();
+        const TorchTensorProxy& weight = mod.attr("weight");
 
         op->params["groups"] = convolution->namedInput("groups");
         op->params["in_channels"] = weight.size(0);
@@ -50,7 +48,7 @@ public:
         op->attrs["weight"] = weight;
         if (mod.hasattr("bias"))
         {
-            op->attrs["bias"] = mod.attr("bias").toTensor();
+            op->attrs["bias"] = mod.attr("bias");
         }
 
         if (op->inputs.size() > 1)

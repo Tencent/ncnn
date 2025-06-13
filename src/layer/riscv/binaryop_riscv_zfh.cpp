@@ -276,12 +276,12 @@ MAKE_FUNCTION(binary_op_mul_fp16s, x * y, __riscv_vfmul_vv_f16m8(x, y, vl), __ri
 MAKE_FUNCTION(binary_op_div_fp16s, x / y, __riscv_vfdiv_vv_f16m8(x, y, vl), __riscv_vfdiv_vf_f16m8(x, y, vl), __riscv_vfrdiv_vf_f16m8(y, x, vl))
 MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y), __riscv_vfmax_vv_f16m8(x, y, vl), __riscv_vfmax_vf_f16m8(x, y, vl), __riscv_vfmax_vf_f16m8(y, x, vl))
 MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y), __riscv_vfmin_vv_f16m8(x, y, vl), __riscv_vfmin_vf_f16m8(x, y, vl), __riscv_vfmin_vf_f16m8(y, x, vl))
-MAKE_FUNCTION(binary_op_pow_fp16s, (__fp16)pow((float)x, (float)y), pow_ps(x, y, vl), pow_ps(x, __riscv_vfmv_v_f_f16m8(y, vl), vl), pow_ps(__riscv_vfmv_v_f_f16m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_pow_fp16s, (__fp16)powf((float)x, (float)y), pow_ps(x, y, vl), pow_ps(x, __riscv_vfmv_v_f_f16m8(y, vl), vl), pow_ps(__riscv_vfmv_v_f_f16m8(x, vl), y, vl))
 MAKE_FUNCTION(binary_op_rsub_fp16s, y - x, __riscv_vfsub_vv_f16m8(y, x, vl), __riscv_vfrsub_vf_f16m8(x, y, vl), __riscv_vfsub_vf_f16m8(y, x, vl))
 MAKE_FUNCTION(binary_op_rdiv_fp16s, y / x, __riscv_vfdiv_vv_f16m8(y, x, vl), __riscv_vfrdiv_vf_f16m8(x, y, vl), __riscv_vfdiv_vf_f16m8(y, x, vl))
-MAKE_FUNCTION(binary_op_rpow_fp16s, (__fp16)pow((float)y, (float)x), pow_ps(y, x, vl), pow_ps(__riscv_vfmv_v_f_f16m8(y, vl), x, vl), pow_ps(y, __riscv_vfmv_v_f_f16m8(x, vl), vl))
-MAKE_FUNCTION(binary_op_atan2_fp16s, (__fp16)atan2((float)x, (float)y), atan2_ps(x, y, vl), atan2_ps(x, __riscv_vfmv_v_f_f16m8(y, vl), vl), atan2_ps(__riscv_vfmv_v_f_f16m8(x, vl), y, vl))
-MAKE_FUNCTION(binary_op_ratan2_fp16s, (__fp16)atan2((float)y, (float)x), atan2_ps(y, x, vl), atan2_ps(__riscv_vfmv_v_f_f16m8(y, vl), x, vl), atan2_ps(y, __riscv_vfmv_v_f_f16m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_rpow_fp16s, (__fp16)powf((float)y, (float)x), pow_ps(y, x, vl), pow_ps(__riscv_vfmv_v_f_f16m8(y, vl), x, vl), pow_ps(y, __riscv_vfmv_v_f_f16m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_atan2_fp16s, (__fp16)atan2f((float)x, (float)y), atan2_ps(x, y, vl), atan2_ps(x, __riscv_vfmv_v_f_f16m8(y, vl), vl), atan2_ps(__riscv_vfmv_v_f_f16m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_ratan2_fp16s, (__fp16)atan2f((float)y, (float)x), atan2_ps(y, x, vl), atan2_ps(__riscv_vfmv_v_f_f16m8(y, vl), x, vl), atan2_ps(y, __riscv_vfmv_v_f_f16m8(x, vl), vl))
 // *INDENT-ON*
 // clang-format on
 
@@ -477,7 +477,7 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 1)
@@ -490,7 +490,7 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 2)
@@ -505,7 +505,7 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 4 && A.dims == 2)
@@ -526,7 +526,7 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 1)
@@ -539,7 +539,7 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 2)
@@ -554,7 +554,7 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 4 && B.dims == 2)

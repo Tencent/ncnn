@@ -137,7 +137,7 @@ static void embed_int8(const Mat& bottom_blob, const Mat& weight_data, float wei
 
 int Embed::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int words = static_cast<int>(bottom_blob.total());
+    const int words = bottom_blob.w;
 
     top_blob.create(num_output, words, 4u, opt.blob_allocator);
     if (top_blob.empty())
