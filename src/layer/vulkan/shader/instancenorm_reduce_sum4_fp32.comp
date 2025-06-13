@@ -14,13 +14,8 @@
 
 #version 450
 
-#if NCNN_image_shader
-layout (binding = 0) uniform highp sampler3D square_blob;
-layout (binding = 1, r32f) writeonly uniform highp image3D sqsum_blob;
-#else
 layout (binding = 0) readonly buffer square_blob { float square_blob_data[]; };
 layout (binding = 1) writeonly buffer sqsum_blob { float sqsum_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -46,46 +41,6 @@ void main()
 
     float sum;
 
-#if NCNN_image_shader
-    int sx = gx * 2;
-    int sy = gy * 2;
-
-    if (sy == p.h - 1)
-    {
-        if (sx == p.w - 1)
-        {
-            float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
-
-            sum = v0;
-        }
-        else
-        {
-            float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
-            float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, gz), 0).r;
-
-            sum = v0 + v1;
-        }
-    }
-    else
-    {
-        if (sx == p.w - 1)
-        {
-            float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
-            float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, gz), 0).r;
-
-            sum = v0 + v2;
-        }
-        else
-        {
-            float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
-            float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, gz), 0).r;
-            float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, gz), 0).r;
-            float v3 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, gz), 0).r;
-
-            sum = v0 + v1 + v2 + v3;
-        }
-    }
-#else
     int sx = gx * 4;
 
     int v_offset = gz * p.cstep + sx;
@@ -120,13 +75,8 @@ void main()
 
         sum = v0 + v1 + v2 + v3;
     }
-#endif
 
-#if NCNN_image_shader
-    imageStore(sqsum_blob, ivec3(gx, gy, gz), vec4(sum));
-#else
     int gi = gz * p.outcstep + gx;
 
     sqsum_blob_data[gi] = sum;
-#endif
 }
