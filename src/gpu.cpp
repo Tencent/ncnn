@@ -3029,12 +3029,10 @@ public:
     PipelineCache* pipeline_cache;
 
     // utility operator
-    // from buffer | image
-    // to buffer | image
     // from fp32-b/i | fp16p-b/i | fp16s-b/i
     // to fp32-b/i | fp16p-b/i | fp16s-b/i
     // to pack1 | pack4 | pack8
-    mutable ncnn::Packing_vulkan* uop_packing[2][2][3][3][3];
+    mutable ncnn::Packing_vulkan* uop_packing[3][3][3];
     mutable Mutex uop_lock;
 
     // device is valid and sucessfully initialized
@@ -3101,7 +3099,7 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
 {
     MutexLockGuard lock(uop_lock);
 
-    const ncnn::Packing_vulkan* cached_uop = uop_packing[storage_type_from][storage_type_to][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    const ncnn::Packing_vulkan* cached_uop = uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index];
     if (cached_uop)
         return cached_uop;
 
@@ -3161,7 +3159,7 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
 
     uop->create_pipeline(opt);
 
-    uop_packing[storage_type_from][storage_type_to][cast_type_from_index][cast_type_to_index][packing_type_to_index] = uop;
+    uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index] = uop;
 
     return uop;
 }
@@ -3176,52 +3174,44 @@ void VulkanDevicePrivate::destroy_utility_operator()
     opt.pipeline_cache = 0;
     opt.vulkan_device_index = vkdev->info.device_index();
 
-    // from buffer | image
-    // to buffer | image
-    for (int i0 = 0; i0 < 2; i0++)
+    opt.use_image_storage = false;
+
+    // from fp32-b/i | fp16p-b/i | fp16s-b/i
+    // to fp32-b/i | fp16p-b/i | fp16s-b/i
+    for (int j0 = 0; j0 < 3; j0++)
     {
-        for (int i1 = 0; i1 < 2; i1++)
+        for (int j1 = 0; j1 < 3; j1++)
         {
-            opt.use_image_storage = (i0 == 1 || i1 == 1);
-
-            // from fp32-b/i | fp16p-b/i | fp16s-b/i
-            // to fp32-b/i | fp16p-b/i | fp16s-b/i
-            for (int j0 = 0; j0 < 3; j0++)
+            if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
             {
-                for (int j1 = 0; j1 < 3; j1++)
-                {
-                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
-                    {
-                        // no fp16p to/from fp16s conversion
-                        continue;
-                    }
+                // no fp16p to/from fp16s conversion
+                continue;
+            }
 
-                    opt.use_fp16_packed = (j0 == 1 || j1 == 1);
-                    opt.use_fp16_storage = (j0 == 2 || j1 == 2);
+            opt.use_fp16_packed = (j0 == 1 || j1 == 1);
+            opt.use_fp16_storage = (j0 == 2 || j1 == 2);
 
-                    if (!vkdev->info.support_fp16_packed() && opt.use_fp16_packed)
-                        continue;
+            if (!vkdev->info.support_fp16_packed() && opt.use_fp16_packed)
+                continue;
 
-                    if (!vkdev->info.support_fp16_storage() && opt.use_fp16_storage)
-                        continue;
+            if (!vkdev->info.support_fp16_storage() && opt.use_fp16_storage)
+                continue;
 
-                    // to pack1 | pack4 | pack8
-                    for (int k = 0; k < 3; k++)
-                    {
-                        // enable pack8 for pack8to1/pack8to4
-                        opt.use_shader_pack8 = true;
+            // to pack1 | pack4 | pack8
+            for (int k = 0; k < 3; k++)
+            {
+                // enable pack8 for pack8to1/pack8to4
+                opt.use_shader_pack8 = true;
 
-                        ncnn::Layer* uop = uop_packing[i0][i1][j0][j1][k];
-                        if (!uop)
-                            continue;
+                ncnn::Layer* uop = uop_packing[j0][j1][k];
+                if (!uop)
+                    continue;
 
-                        uop->destroy_pipeline(opt);
+                uop->destroy_pipeline(opt);
 
-                        delete uop;
+                delete uop;
 
-                        uop_packing[i0][i1][j0][j1][k] = 0;
-                    }
-                }
+                uop_packing[j0][j1][k] = 0;
             }
         }
     }
@@ -4293,102 +4283,6 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     // NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
     const ncnn::Packing_vulkan* uop = d->get_utility_operator(0, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
-    uop->forward(src, dst, cmd, opt);
-}
-
-void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
-{
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
-
-    int cast_type_from_index;
-    if (src.elembits() == 32)
-    {
-        cast_type_from_index = 0;
-    }
-    else // if (src.elembits() == 16)
-    {
-        if (cast_type_to_index != 0)
-        {
-            cast_type_from_index = cast_type_to_index;
-        }
-        else if (info.support_fp16_storage())
-        {
-            cast_type_from_index = 2;
-        }
-        else // if (info.support_fp16_packed())
-        {
-            cast_type_from_index = 1;
-        }
-    }
-
-    // NCNN_LOGE("convert_packing i2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
-
-    const ncnn::Packing_vulkan* uop = d->get_utility_operator(1, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
-    uop->forward(src, dst, cmd, opt);
-}
-
-void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
-{
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
-
-    int cast_type_from_index;
-    if (src.elembits() == 32)
-    {
-        cast_type_from_index = 0;
-    }
-    else // if (src.elembits() == 16)
-    {
-        if (cast_type_to_index != 0)
-        {
-            cast_type_from_index = cast_type_to_index;
-        }
-        else if (info.support_fp16_storage())
-        {
-            cast_type_from_index = 2;
-        }
-        else // if (info.support_fp16_packed())
-        {
-            cast_type_from_index = 1;
-        }
-    }
-
-    // NCNN_LOGE("convert_packing b2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
-
-    const ncnn::Packing_vulkan* uop = d->get_utility_operator(0, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
-    uop->forward(src, dst, cmd, opt);
-}
-
-void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
-{
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
-
-    int cast_type_from_index;
-    if (src.elembits() == 32)
-    {
-        cast_type_from_index = 0;
-    }
-    else // if (src.elembits() == 16)
-    {
-        if (cast_type_to_index != 0)
-        {
-            cast_type_from_index = cast_type_to_index;
-        }
-        else if (info.support_fp16_storage())
-        {
-            cast_type_from_index = 2;
-        }
-        else // if (info.support_fp16_packed())
-        {
-            cast_type_from_index = 1;
-        }
-    }
-
-    // NCNN_LOGE("convert_packing i2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
-
-    const ncnn::Packing_vulkan* uop = d->get_utility_operator(1, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
 

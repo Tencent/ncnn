@@ -235,14 +235,6 @@ public:
     // get result by blob name
     // return 0 if success
     int extract(const char* blob_name, VkMat& feat, VkCompute& cmd);
-
-    // set input by blob name
-    // return 0 if success
-    int input(const char* blob_name, const VkImageMat& in);
-
-    // get result by blob name
-    // return 0 if success
-    int extract(const char* blob_name, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_STRING
 
     // set input by blob index
@@ -252,14 +244,6 @@ public:
     // get result by blob index
     // return 0 if success
     int extract(int blob_index, VkMat& feat, VkCompute& cmd);
-
-    // set input by blob index
-    // return 0 if success
-    int input(int blob_index, const VkImageMat& in);
-
-    // get result by blob index
-    // return 0 if success
-    int extract(int blob_index, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_VULKAN
 
 protected:

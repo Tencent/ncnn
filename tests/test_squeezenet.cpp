@@ -315,11 +315,6 @@ public:
     {
         return impl->forward(bottom_blob, top_blob, cmd, opt);
     }
-
-    virtual int forward(const ncnn::VkImageMat& bottom_blob, ncnn::VkImageMat& top_blob, ncnn::VkCompute& cmd, const ncnn::Option& opt) const
-    {
-        return impl->forward(bottom_blob, top_blob, cmd, opt);
-    }
 #endif // NCNN_VULKAN
 
 private:
