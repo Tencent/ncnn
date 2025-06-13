@@ -21,7 +21,6 @@ namespace ncnn {
 MemoryData_vulkan::MemoryData_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 }
 
 int MemoryData_vulkan::create_pipeline(const Option& opt)
@@ -73,14 +72,7 @@ int MemoryData_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     Mat data_packed;
     convert_packing(data, data_packed, elempack, opt);
 
-    if (support_image_storage && opt.use_image_storage)
-    {
-        cmd.record_upload(data_packed, data_gpu_image, opt);
-    }
-    else
-    {
-        cmd.record_upload(data_packed, data_gpu, opt, /*bool flatten*/ false);
-    }
+    cmd.record_upload(data_packed, data_gpu, opt, /*bool flatten*/ false);
 
     if (opt.lightmode)
     {
@@ -95,17 +87,6 @@ int MemoryData_vulkan::forward(const std::vector<VkMat>& /*bottom_blobs*/, std::
     VkMat& top_blob = top_blobs[0];
 
     cmd.record_clone(data_gpu, top_blob, opt);
-    if (top_blob.empty())
-        return -100;
-
-    return 0;
-}
-
-int MemoryData_vulkan::forward(const std::vector<VkImageMat>& /*bottom_blobs*/, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
-{
-    VkImageMat& top_blob = top_blobs[0];
-
-    cmd.record_clone(data_gpu_image, top_blob, opt);
     if (top_blob.empty())
         return -100;
 

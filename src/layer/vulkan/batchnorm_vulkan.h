@@ -31,13 +31,10 @@ public:
 
     using BatchNorm::forward_inplace;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     VkMat a_data_gpu;
     VkMat b_data_gpu;
-    VkImageMat a_data_gpu_image;
-    VkImageMat b_data_gpu_image;
 
     Pipeline* pipeline_batchnorm;
     Pipeline* pipeline_batchnorm_pack4;

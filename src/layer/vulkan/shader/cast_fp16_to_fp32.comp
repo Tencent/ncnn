@@ -27,13 +27,8 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, r32f) writeonly uniform highp image3D top_blob_3d;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -59,13 +54,9 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-#if NCNN_image_shader
-    image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gx, gy, gz));
-#else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     const int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
 
     top_blob_data[gi] = float(buffer_ld1(bottom_blob_data, v_offset));
-#endif
 }

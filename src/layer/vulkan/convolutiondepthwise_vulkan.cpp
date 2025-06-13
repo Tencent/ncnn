@@ -22,7 +22,6 @@ namespace ncnn {
 ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     padding = 0;
 
@@ -48,7 +47,6 @@ int ConvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
     if (dynamic_weight)
     {
         support_vulkan = false;
-        support_image_storage = false;
     }
 
     return ret;
@@ -486,27 +484,13 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
     // depth-wise
     if (channels == group && group == num_output)
     {
-        if (support_image_storage && opt.use_image_storage)
-        {
-            cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
-        }
-        else
-        {
-            cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
-        }
+        cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
         weight_data_packed.release();
 
         if (bias_term)
         {
-            if (support_image_storage && opt.use_image_storage)
-            {
-                cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
-            }
-            else
-            {
-                cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-            }
+            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
 
             bias_data_packed.release();
         }
@@ -514,27 +498,13 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
         return 0;
     }
 
-    if (support_image_storage && opt.use_image_storage)
-    {
-        cmd.record_upload(weight_data_packed_groups, weight_data_gpu_image, opt);
-    }
-    else
-    {
-        cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
-    }
+    cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
 
     weight_data_packed_groups.release();
 
     if (bias_term)
     {
-        if (support_image_storage && opt.use_image_storage)
-        {
-            cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
-        }
-        else
-        {
-            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-        }
+        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
 
         bias_data_packed.release();
     }
@@ -716,234 +686,6 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     constants[7].i = top_blob_unpacked.h;
     constants[8].i = top_blob_unpacked.c;
     constants[9].i = top_blob_unpacked.cstep;
-
-    const Pipeline* pipeline = 0;
-    if (elempack_g == 1 && out_elempack_g == 1)
-    {
-        pipeline = pipeline_convolutiondepthwise_group;
-    }
-    else if (elempack_g == 4 && out_elempack_g == 4)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack4;
-    }
-    else if (elempack_g == 1 && out_elempack_g == 4)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack1to4;
-    }
-    else if (elempack_g == 4 && out_elempack_g == 1)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack4to1;
-    }
-    else if (elempack_g == 8 && out_elempack_g == 8)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack8;
-    }
-    else if (elempack_g == 1 && out_elempack_g == 8)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack1to8;
-    }
-    else if (elempack_g == 4 && out_elempack_g == 8)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack4to8;
-    }
-    else if (elempack_g == 8 && out_elempack_g == 4)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack8to4;
-    }
-    else if (elempack_g == 8 && out_elempack_g == 1)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack8to1;
-    }
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);
-
-    // packing
-    if (out_elempack_g < out_elempack)
-    {
-        vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
-    }
-    else
-    {
-        top_blob = top_blob_unpacked;
-    }
-
-    return 0;
-}
-
-int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    VkImageMat bottom_blob_bordered = bottom_blob;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
-    {
-        Option opt_pad = opt;
-        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-
-        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt_pad);
-    }
-    else if (pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
-    {
-        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_pad = opt;
-            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-
-            VkImageMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-            int* padding_params = padding_param_blob.mapped();
-
-            padding_params[0] = hpad / 2;
-            padding_params[1] = hpad - hpad / 2;
-            padding_params[2] = wpad / 2;
-            padding_params[3] = wpad - wpad / 2;
-            padding_params[4] = 0;
-            padding_params[5] = 0;
-
-            std::vector<VkImageMat> padding_inputs(2);
-            padding_inputs[0] = bottom_blob;
-            padding_inputs[1] = padding_param_blob;
-
-            std::vector<VkImageMat> padding_outputs(1);
-            padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
-            bottom_blob_bordered = padding_outputs[0];
-        }
-    }
-    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
-    {
-        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_pad = opt;
-            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-
-            VkImageMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-            int* padding_params = padding_param_blob.mapped();
-
-            padding_params[0] = hpad - hpad / 2;
-            padding_params[1] = hpad / 2;
-            padding_params[2] = wpad - wpad / 2;
-            padding_params[3] = wpad / 2;
-            padding_params[4] = 0;
-            padding_params[5] = 0;
-
-            std::vector<VkImageMat> padding_inputs(2);
-            padding_inputs[0] = bottom_blob;
-            padding_inputs[1] = padding_param_blob;
-
-            std::vector<VkImageMat> padding_outputs(1);
-            padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
-            bottom_blob_bordered = padding_outputs[0];
-        }
-    }
-
-    w = bottom_blob_bordered.w;
-    h = bottom_blob_bordered.h;
-
-    int outw = (w - kernel_extent_w) / stride_w + 1;
-    int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-
-    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-    if (top_blob.empty())
-        return -100;
-
-    // depth-wise
-    if (channels == group / elempack && group / elempack == num_output / elempack)
-    {
-        std::vector<VkImageMat> bindings(4);
-        bindings[0] = bottom_blob_bordered;
-        bindings[1] = top_blob;
-        bindings[2] = weight_data_gpu_image;
-        bindings[3] = bias_data_gpu_image;
-
-        std::vector<vk_constant_type> constants(10);
-        constants[0].i = bottom_blob_bordered.dims;
-        constants[1].i = bottom_blob_bordered.w;
-        constants[2].i = bottom_blob_bordered.h;
-        constants[3].i = bottom_blob_bordered.c;
-        constants[4].i = 0; //bottom_blob_bordered.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = 0; //top_blob.cstep;
-
-        const Pipeline* pipeline = elempack == 8 ? pipeline_convolutiondepthwise_pack8
-                                   : elempack == 4 ? pipeline_convolutiondepthwise_pack4
-                                   : pipeline_convolutiondepthwise;
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-        return 0;
-    }
-
-    const int channels_g = channels * elempack / group;
-    const int num_output_g = num_output / group;
-
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
-    size_t out_elemsize_g = elemsize / elempack * out_elempack_g;
-
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack_g == 8) out_elemsize_g = 8 * 2u;
-        if (out_elempack_g == 4) out_elemsize_g = 4 * 2u;
-        if (out_elempack_g == 1) out_elemsize_g = 4u;
-    }
-
-    // unpacking
-    VkImageMat bottom_blob_bordered_unpacked = bottom_blob_bordered;
-    if (elempack > elempack_g)
-    {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
-
-        vkdev->convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, elempack_g, cmd, opt_pack1);
-    }
-
-    VkImageMat top_blob_unpacked = top_blob;
-    if (out_elempack_g < out_elempack)
-    {
-        top_blob_unpacked.create(outw, outh, num_output / out_elempack_g, out_elemsize_g, out_elempack_g, opt.workspace_vkallocator);
-        if (top_blob_unpacked.empty())
-            return -100;
-    }
-
-    std::vector<VkImageMat> bindings(4);
-    bindings[0] = bottom_blob_bordered_unpacked;
-    bindings[1] = top_blob_unpacked;
-    bindings[2] = weight_data_gpu_image;
-    bindings[3] = bias_data_gpu_image;
-
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob_bordered_unpacked.dims;
-    constants[1].i = bottom_blob_bordered_unpacked.w;
-    constants[2].i = bottom_blob_bordered_unpacked.h;
-    constants[3].i = bottom_blob_bordered_unpacked.c;
-    constants[4].i = 0; //bottom_blob_bordered_unpacked.cstep;
-    constants[5].i = top_blob_unpacked.dims;
-    constants[6].i = top_blob_unpacked.w;
-    constants[7].i = top_blob_unpacked.h;
-    constants[8].i = top_blob_unpacked.c;
-    constants[9].i = 0; //top_blob_unpacked.cstep;
 
     const Pipeline* pipeline = 0;
     if (elempack_g == 1 && out_elempack_g == 1)

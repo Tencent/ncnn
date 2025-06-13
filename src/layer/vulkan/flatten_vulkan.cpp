@@ -21,7 +21,6 @@ namespace ncnn {
 Flatten_vulkan::Flatten_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     pipeline_flatten = 0;
     pipeline_flatten_pack4 = 0;
@@ -232,86 +231,6 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[7].i = top_blob.h * top_blob.d;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
-
-    const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1)
-    {
-        pipeline = pipeline_flatten;
-    }
-    else if (elempack == 4 && out_elempack == 4)
-    {
-        pipeline = pipeline_flatten_pack4;
-    }
-    else if (elempack == 1 && out_elempack == 4)
-    {
-        pipeline = pipeline_flatten_pack1to4;
-    }
-    else if (elempack == 8 /*&& out_elempack == 8*/)
-    {
-        pipeline = pipeline_flatten_pack8;
-    }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_flatten_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_flatten_pack4to8;
-    }
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-    return 0;
-}
-
-int Flatten_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    int dims = bottom_blob.dims;
-
-    if (dims == 1)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    int total = w * h * d * channels * elempack;
-
-    int out_elempack = opt.use_shader_pack8 && total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-
-    top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-    if (top_blob.empty())
-        return -100;
-
-    std::vector<VkImageMat> bindings(2);
-    bindings[0] = bottom_blob;
-    bindings[1] = top_blob;
-
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = std::min(3, bottom_blob.dims);
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h * bottom_blob.d;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = 0; //bottom_blob.cstep;
-    constants[5].i = std::min(3, top_blob.dims);
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h * top_blob.d;
-    constants[8].i = top_blob.c;
-    constants[9].i = 0; //top_blob.cstep;
 
     const Pipeline* pipeline = 0;
     if (elempack == 1 && out_elempack == 1)

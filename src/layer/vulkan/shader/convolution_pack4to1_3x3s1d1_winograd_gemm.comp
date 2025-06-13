@@ -26,15 +26,9 @@ layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_tm_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_tm_blob;
-layout (binding = 2) uniform unfp sampler3D weight_tm_blob;
-#else
 layout (binding = 0) readonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
 layout (binding = 1) writeonly buffer top_tm_blob { sfp top_tm_blob_data[]; };
 layout (binding = 2) readonly buffer weight_tm_blob { sfpvec4 weight_tm_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -67,22 +61,6 @@ void main()
     afp sum2 = afp(0.f);
     afp sum3 = afp(0.f);
 
-#if NCNN_image_shader
-    for (int z = 0; z < psc(c); z++)
-    {
-        afpvec4 v0 = image3d_ld4(bottom_tm_blob, ivec3(gx + 0, z, gz));
-        afpvec4 v1 = image3d_ld4(bottom_tm_blob, ivec3(gx + 1, z, gz));
-        afpvec4 v2 = image3d_ld4(bottom_tm_blob, ivec3(gx + 2, z, gz));
-        afpvec4 v3 = image3d_ld4(bottom_tm_blob, ivec3(gx + 3, z, gz));
-
-        afpvec4 k = image3d_ld4(weight_tm_blob, ivec3(z, gy, gz));
-
-        sum0 += dot(v0, k);
-        sum1 += dot(v1, k);
-        sum2 += dot(v2, k);
-        sum3 += dot(v3, k);
-    }
-#else
     int v_offset = gz * psc(cstep) + gx;
     int w_offset = gz * psc(c) * psc(outc) + gy * psc(c);
 
@@ -188,24 +166,16 @@ void main()
         w_offset += 1;
     }
 #endif
-#endif
 
 #if NCNN_shader_local_memory
     if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
         return;
 #endif
 
-#if NCNN_image_shader
-    image3d_st1(top_tm_blob, ivec3(gx + 0, gy, gz), sum0);
-    image3d_st1(top_tm_blob, ivec3(gx + 1, gy, gz), sum1);
-    image3d_st1(top_tm_blob, ivec3(gx + 2, gy, gz), sum2);
-    image3d_st1(top_tm_blob, ivec3(gx + 3, gy, gz), sum3);
-#else
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st1(top_tm_blob_data, gi + 0, sum0);
     if (gx + 1 < psc(outw)) buffer_st1(top_tm_blob_data, gi + 1, sum1);
     if (gx + 2 < psc(outw)) buffer_st1(top_tm_blob_data, gi + 2, sum2);
     if (gx + 3 < psc(outw)) buffer_st1(top_tm_blob_data, gi + 3, sum3);
-#endif
 }

@@ -21,7 +21,6 @@ namespace ncnn {
 AbsVal_vulkan::AbsVal_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     pipeline_absval = 0;
     pipeline_absval_pack4 = 0;
@@ -137,30 +136,6 @@ int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
-
-    const Pipeline* pipeline = elempack == 8 ? pipeline_absval_pack8
-                               : elempack == 4 ? pipeline_absval_pack4
-                               : pipeline_absval;
-
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
-
-    return 0;
-}
-
-int AbsVal_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
-{
-    int elempack = bottom_top_blob.elempack;
-
-    std::vector<VkImageMat> bindings(2);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = bottom_top_blob;
-
-    std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = 0; //bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_absval_pack8
                                : elempack == 4 ? pipeline_absval_pack4

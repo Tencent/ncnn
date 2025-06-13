@@ -19,15 +19,9 @@ namespace ncnn {
 Noop_vulkan::Noop_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 }
 
 int Noop_vulkan::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
-{
-    return 0;
-}
-
-int Noop_vulkan::forward_inplace(std::vector<VkImageMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return 0;
 }
