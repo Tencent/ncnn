@@ -25,15 +25,9 @@ layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
 layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D col_blob;
-layout (binding = 2) uniform unfp sampler3D weight_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer col_blob { sfp col_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec8 weight_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -59,28 +53,6 @@ void main()
     afp sum2 = afp(0.f);
     afp sum3 = afp(0.f);
 
-#if NCNN_image_shader
-    ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
-
-    ivec4 sy4 = gx4 / psc(w);
-    ivec4 sx4 = gx4 % psc(w);
-
-    for (int z = 0; z < psc(c); z++)
-    {
-        afpvec8 v0 = image3d_ld8(bottom_blob, ivec3(sx4.r, sy4.r, z));
-        afpvec8 v1 = image3d_ld8(bottom_blob, ivec3(sx4.g, sy4.g, z));
-        afpvec8 v2 = image3d_ld8(bottom_blob, ivec3(sx4.b, sy4.b, z));
-        afpvec8 v3 = image3d_ld8(bottom_blob, ivec3(sx4.a, sy4.a, z));
-
-        afpvec8 k = image3d_ld8(weight_blob, ivec3(z, gy, 0));
-
-        // sum += dot(v, k);
-        sum0 += dot(v0[0], k[0]) + dot(v0[1], k[1]);
-        sum1 += dot(v1[0], k[0]) + dot(v1[1], k[1]);
-        sum2 += dot(v2[0], k[0]) + dot(v2[1], k[1]);
-        sum3 += dot(v3[0], k[0]) + dot(v3[1], k[1]);
-    }
-#else
     int v_offset = gx;
     int w_offset = gy * psc(c);
 
@@ -102,19 +74,11 @@ void main()
         v_offset += psc(cstep);
         w_offset += 1;
     }
-#endif
 
-#if NCNN_image_shader
-    image3d_st1(col_blob, ivec3(gx4.r, gy, 0), sum0);
-    image3d_st1(col_blob, ivec3(gx4.g, gy, 0), sum1);
-    image3d_st1(col_blob, ivec3(gx4.b, gy, 0), sum2);
-    image3d_st1(col_blob, ivec3(gx4.a, gy, 0), sum3);
-#else
     const int gi = gy * psc(outw) + gx;
 
     buffer_st1(col_blob_data, gi, sum0);
     if (gx + 1 < psc(outw)) buffer_st1(col_blob_data, gi + 1, sum1);
     if (gx + 2 < psc(outw)) buffer_st1(col_blob_data, gi + 2, sum2);
     if (gx + 3 < psc(outw)) buffer_st1(col_blob_data, gi + 3, sum3);
-#endif
 }
