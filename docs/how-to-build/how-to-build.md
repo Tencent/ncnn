@@ -653,19 +653,19 @@ Pick `build-XYZ/install` folder for further usage.
 
 ### Build for AllWinner D1
 
-Download c906 toolchain package from https://www.xrvm.cn/community/download?id=4382928864901402624
+Download c906 toolchain package from https://www.xrvm.cn/community/download?id=4453617141140230144
 
 ```shell
-tar -xf Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1-20241120.tar.gz
-export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.0.1
+tar -xf Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.1.0-20250522.tar.gz
+export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.1.0
 ```
 
 Build ncnn with riscv-v vector and simpleocv enabled:
 ```shell
 mkdir -p build-c906
 cd build-c906
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v226.toolchain.cmake \
-    -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=OFF -DNCNN_XTHEADVECTOR=ON -DNCNN_ZFH=ON \
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v310.toolchain.cmake \
+    -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=OFF -DNCNN_XTHEADVECTOR=ON -DNCNN_ZFH=ON -DNCNN_ZVFH=OFF \
     -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON ..
 cmake --build . -j 4
 cmake --build . --target install
