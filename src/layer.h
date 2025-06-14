@@ -21,13 +21,9 @@
 #include "paramdict.h"
 #include "platform.h"
 
-#include <math.h>
-
 #if NCNN_VULKAN
 #include "command.h"
 #include "pipeline.h"
-
-#include <vulkan/vulkan.h>
 #endif // NCNN_VULKAN
 
 namespace ncnn {
@@ -122,20 +118,10 @@ public:
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
-    // implement inference
-    // return 0 if success
-    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
-
     // implement inplace inference
     // return 0 if success
     virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-
-    // implement inplace inference
-    // return 0 if success
-    virtual int forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     // assigned immediately after creating this layer
@@ -188,14 +174,34 @@ struct custom_layer_registry_entry
     void* userdata;
 };
 
+struct overwrite_builtin_layer_registry_entry
+{
+    // layer type index
+    int typeindex;
+    // layer factory entry
+    layer_creator_func creator;
+    layer_destroyer_func destroyer;
+    void* userdata;
+};
+
 #if NCNN_STRING
 // get layer type from type name
 NCNN_EXPORT int layer_to_index(const char* type);
 // create layer from type name
 NCNN_EXPORT Layer* create_layer(const char* type);
+NCNN_EXPORT Layer* create_layer_naive(const char* type);
+NCNN_EXPORT Layer* create_layer_cpu(const char* type);
+#if NCNN_VULKAN
+NCNN_EXPORT Layer* create_layer_vulkan(const char* type);
+#endif // NCNN_VULKAN
 #endif // NCNN_STRING
 // create layer from layer type
 NCNN_EXPORT Layer* create_layer(int index);
+NCNN_EXPORT Layer* create_layer_naive(int index);
+NCNN_EXPORT Layer* create_layer_cpu(int index);
+#if NCNN_VULKAN
+NCNN_EXPORT Layer* create_layer_vulkan(int index);
+#endif // NCNN_VULKAN
 
 #define DEFINE_LAYER_CREATOR(name)                          \
     ::ncnn::Layer* name##_layer_creator(void* /*userdata*/) \

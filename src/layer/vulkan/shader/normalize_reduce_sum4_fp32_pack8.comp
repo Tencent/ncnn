@@ -14,24 +14,11 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int across_spatial = 0;
 layout (constant_id = 1) const int across_channel = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform highp sampler3D square_blob;
-layout (binding = 1, rgba32f) writeonly uniform highp image3D sqsum_blob;
-#else
 layout (binding = 0) readonly buffer square_blob { mat2x4 square_blob_data[]; };
 layout (binding = 1) writeonly buffer sqsum_blob { mat2x4 sqsum_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -59,97 +46,6 @@ void main()
 
     if (across_spatial == 1 && across_channel == 1)
     {
-#if NCNN_image_shader
-        int sz = gz * 2;
-        int sy = gy * 2;
-        int sx = gx * 2;
-
-        if (sz == p.c - 1)
-        {
-            if (sy == p.h - 1)
-            {
-                if (sx == p.w - 1)
-                {
-                    mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz), 0));
-
-                    sqsum = v0;
-                }
-                else
-                {
-                    mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz), 0));
-                    mat2x4 v1 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy, sz), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy, sz), 0));
-
-                    sqsum = v0 + v1;
-                }
-            }
-            else
-            {
-                if (sx == p.w - 1)
-                {
-                    mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz), 0));
-                    mat2x4 v2 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy + 1, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy + 1, sz), 0));
-
-                    sqsum = v0 + v2;
-                }
-                else
-                {
-                    mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz), 0));
-                    mat2x4 v1 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy, sz), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy, sz), 0));
-                    mat2x4 v2 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy + 1, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy + 1, sz), 0));
-                    mat2x4 v3 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy + 1, sz), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy + 1, sz), 0));
-
-                    sqsum = v0 + v1 + v2 + v3;
-                }
-            }
-        }
-        else
-        {
-            if (sy == p.h - 1)
-            {
-                if (sx == p.w - 1)
-                {
-                    mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz), 0));
-                    mat2x4 v4 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz + 1), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz + 1), 0));
-
-                    sqsum = v0 + v4;
-                }
-                else
-                {
-                    mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz), 0));
-                    mat2x4 v1 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy, sz), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy, sz), 0));
-                    mat2x4 v4 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz + 1), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz + 1), 0));
-                    mat2x4 v5 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy, sz + 1), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy, sz + 1), 0));
-
-                    sqsum = v0 + v1 + v4 + v5;
-                }
-            }
-            else
-            {
-                if (sx == p.w - 1)
-                {
-                    mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz), 0));
-                    mat2x4 v2 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy + 1, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy + 1, sz), 0));
-                    mat2x4 v4 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz + 1), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz + 1), 0));
-                    mat2x4 v6 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy + 1, sz + 1), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy + 1, sz + 1), 0));
-
-                    sqsum = v0 + v2 + v4 + v6;
-                }
-                else
-                {
-                    mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz), 0));
-                    mat2x4 v1 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy, sz), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy, sz), 0));
-                    mat2x4 v2 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy + 1, sz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy + 1, sz), 0));
-                    mat2x4 v3 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy + 1, sz), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy + 1, sz), 0));
-                    mat2x4 v4 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, sz + 1), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, sz + 1), 0));
-                    mat2x4 v5 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy, sz + 1), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy, sz + 1), 0));
-                    mat2x4 v6 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy + 1, sz + 1), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy + 1, sz + 1), 0));
-                    mat2x4 v7 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy + 1, sz + 1), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy + 1, sz + 1), 0));
-
-                    sqsum = v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7;
-                }
-            }
-        }
-#else
         int sz = gz * 2;
         int sx = gx * 2;
 
@@ -191,51 +87,10 @@ void main()
                 sqsum = v0 + v1 + v2 + v3;
             }
         }
-#endif
     }
 
     if (across_spatial == 1 && across_channel == 0)
     {
-#if NCNN_image_shader
-        int sy = gy * 2;
-        int sx = gx * 2;
-
-        if (sy == p.h - 1)
-        {
-            if (sx == p.w - 1)
-            {
-                mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, gz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, gz), 0));
-
-                sqsum = v0;
-            }
-            else
-            {
-                mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, gz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, gz), 0));
-                mat2x4 v1 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy, gz), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy, gz), 0));
-
-                sqsum = v0 + v1;
-            }
-        }
-        else
-        {
-            if (sx == p.w - 1)
-            {
-                mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, gz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, gz), 0));
-                mat2x4 v2 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy + 1, gz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy + 1, gz), 0));
-
-                sqsum = v0 + v2;
-            }
-            else
-            {
-                mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy, gz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy, gz), 0));
-                mat2x4 v1 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy, gz), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy, gz), 0));
-                mat2x4 v2 = mat2x4(texelFetch(square_blob, ivec3(sx * 2, sy + 1, gz), 0), texelFetch(square_blob, ivec3(sx * 2 + 1, sy + 1, gz), 0));
-                mat2x4 v3 = mat2x4(texelFetch(square_blob, ivec3((sx + 1) * 2, sy + 1, gz), 0), texelFetch(square_blob, ivec3((sx + 1) * 2 + 1, sy + 1, gz), 0));
-
-                sqsum = v0 + v1 + v2 + v3;
-            }
-        }
-#else
         int sz = gz;
         int sx = gx * 4;
 
@@ -271,45 +126,10 @@ void main()
 
             sqsum = v0 + v1 + v2 + v3;
         }
-#endif
     }
 
     if (across_spatial == 0 && across_channel == 1)
     {
-#if NCNN_image_shader
-        int sz = gz * 4;
-
-        if (sz == p.c - 1)
-        {
-            mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz), 0));
-
-            sqsum = v0;
-        }
-        else if (sz == p.c - 2)
-        {
-            mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz), 0));
-            mat2x4 v1 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz + 1), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz + 1), 0));
-
-            sqsum = v0 + v1;
-        }
-        else if (sz == p.c - 3)
-        {
-            mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz), 0));
-            mat2x4 v1 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz + 1), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz + 1), 0));
-            mat2x4 v2 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz + 2), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz + 2), 0));
-
-            sqsum = v0 + v1 + v2;
-        }
-        else
-        {
-            mat2x4 v0 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz), 0));
-            mat2x4 v1 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz + 1), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz + 1), 0));
-            mat2x4 v2 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz + 2), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz + 2), 0));
-            mat2x4 v3 = mat2x4(texelFetch(square_blob, ivec3(gx * 2, gy, sz + 3), 0), texelFetch(square_blob, ivec3(gx * 2 + 1, gy, sz + 3), 0));
-
-            sqsum = v0 + v1 + v2 + v3;
-        }
-#else
         int sz = gz * 4;
         int sx = gx;
 
@@ -345,15 +165,9 @@ void main()
 
             sqsum = v0 + v1 + v2 + v3;
         }
-#endif
     }
 
-#if NCNN_image_shader
-    imageStore(sqsum_blob, ivec3(gx * 2, gy, gz), sqsum[0]);
-    imageStore(sqsum_blob, ivec3(gx * 2 + 1, gy, gz), sqsum[1]);
-#else
     int gi = gz * p.outcstep + gx;
 
     sqsum_blob_data[gi] = sqsum;
-#endif
 }

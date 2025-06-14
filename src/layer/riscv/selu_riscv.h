@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class SELU_riscv : virtual public SELU
+class SELU_riscv : public SELU
 {
 public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;

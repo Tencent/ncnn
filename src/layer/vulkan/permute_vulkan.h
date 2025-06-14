@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Permute_vulkan : virtual public Permute
+class Permute_vulkan : public Permute
 {
 public:
     Permute_vulkan();
@@ -29,7 +29,6 @@ public:
 
     using Permute::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_permute;

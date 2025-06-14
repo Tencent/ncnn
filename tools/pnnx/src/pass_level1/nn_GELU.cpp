@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -27,6 +27,18 @@ public:
     const char* type_str() const
     {
         return "nn.GELU";
+    }
+
+    void write(Operator* op, const TorchGraphProxy& graph) const
+    {
+        const TorchNodeProxy* gelu = graph.find_node_by_kind("aten::gelu");
+
+        if (gelu->hasNamedInput("approximate"))
+        {
+            op->params["approximate"] = gelu->namedInput("approximate");
+            if (op->params["approximate"].s == "none")
+                op->params.clear();
+        }
     }
 };
 

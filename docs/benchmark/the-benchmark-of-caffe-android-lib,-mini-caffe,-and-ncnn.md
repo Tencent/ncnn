@@ -88,7 +88,7 @@ squeezenet
 ![](https://github.com/nihui/ncnn-assets/raw/master/20180413/8.jpg)
 ***
 
-mobilnet
+mobilenet
 
 ![](https://github.com/nihui/ncnn-assets/raw/master/20180413/9.jpg)
 

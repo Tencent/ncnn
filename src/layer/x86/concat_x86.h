@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Concat_x86 : virtual public Concat
+class Concat_x86 : public Concat
 {
 public:
     Concat_x86();

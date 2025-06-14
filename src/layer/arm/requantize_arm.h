@@ -20,7 +20,7 @@
 
 namespace ncnn {
 
-class Requantize_arm : virtual public Requantize
+class Requantize_arm : public Requantize
 {
 public:
     Requantize_arm();

@@ -14,8 +14,6 @@
 
 #include "lstm_arm.h"
 
-#include <math.h>
-
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
@@ -26,6 +24,8 @@
 #include "cpu.h"
 
 namespace ncnn {
+
+#include "lstm_int8.h"
 
 LSTM_arm::LSTM_arm()
 {
@@ -42,6 +42,13 @@ LSTM_arm::LSTM_arm()
 
 int LSTM_arm::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return create_pipeline_int8(opt);
+    }
+#endif
+
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage)
     {
@@ -323,24 +330,24 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
             float32x4x4_t _IFOG_4x4 = vld4q_f32(gates_data);
 
-            float32x4_t _I = sigmoid_ps(_IFOG_4x4.val[0]);
-            float32x4_t _F = sigmoid_ps(_IFOG_4x4.val[1]);
-            float32x4_t _O = sigmoid_ps(_IFOG_4x4.val[2]);
-            float32x4_t _G = tanh_ps(_IFOG_4x4.val[3]);
+            float32x4_t _lstm_I = sigmoid_ps(_IFOG_4x4.val[0]);
+            float32x4_t _lstm_F = sigmoid_ps(_IFOG_4x4.val[1]);
+            float32x4_t _lstm_O = sigmoid_ps(_IFOG_4x4.val[2]);
+            float32x4_t _lstm_G = tanh_ps(_IFOG_4x4.val[3]);
 
-            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_I, _G));
-            float32x4_t _H = vmulq_f32(_O, tanh_ps(_cell2));
+            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_lstm_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_lstm_I, _lstm_G));
+            float32x4_t _lstm_H = vmulq_f32(_lstm_O, tanh_ps(_cell2));
 
             vst1q_f32(cell_ptr + q, _cell2);
 
             if (num_output == hidden_size)
             {
-                vst1q_f32(hidden_ptr + q, _H);
-                vst1q_f32(output_data + q, _H);
+                vst1q_f32(hidden_ptr + q, _lstm_H);
+                vst1q_f32(output_data + q, _lstm_H);
             }
             else
             {
-                vst1q_f32(tmp_hidden_ptr + q, _H);
+                vst1q_f32(tmp_hidden_ptr + q, _lstm_H);
             }
         }
 #endif // __ARM_NEON
@@ -354,13 +361,13 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             float O = gates_data[2];
             float G = gates_data[3];
 
-            I = 1.f / (1.f + exp(-I));
-            F = 1.f / (1.f + exp(-F));
-            O = 1.f / (1.f + exp(-O));
-            G = tanh(G);
+            I = 1.f / (1.f + expf(-I));
+            F = 1.f / (1.f + expf(-F));
+            O = 1.f / (1.f + expf(-O));
+            G = tanhf(G);
 
             float cell2 = F * cell_ptr[q] + I * G;
-            float H = O * tanh(cell2);
+            float H = O * tanhf(cell2);
 
             cell_ptr[q] = cell2;
             if (num_output == hidden_size)
@@ -408,16 +415,18 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
 int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return forward_int8(bottom_blob, top_blob, opt);
+    }
+#endif
+
     int elembits = bottom_blob.elembits();
 
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
-    {
-        if (opt.use_fp16_arithmetic)
-            return forward_fp16sa(bottom_blob, top_blob, opt);
-        else
-            return forward_fp16s(bottom_blob, top_blob, opt);
-    }
+        return forward_fp16s(bottom_blob, top_blob, opt);
 #endif
 
 #if NCNN_BF16
@@ -462,16 +471,20 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
-        if (ret0 != 0)
-            return ret0;
+        {
+            int ret = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         hidden.fill(0.0f);
         cell.fill(0.0f);
 
-        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden, cell, opt);
-        if (ret1 != 0)
-            return ret1;
+        {
+            int ret = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden, cell, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -490,17 +503,19 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
 int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return forward_int8(bottom_blobs, top_blobs, opt);
+    }
+#endif
+
     const Mat& bottom_blob = bottom_blobs[0];
     int elembits = bottom_blob.elembits();
 
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
-    {
-        if (opt.use_fp16_arithmetic)
-            return forward_fp16sa(bottom_blobs, top_blobs, opt);
-        else
-            return forward_fp16s(bottom_blobs, top_blobs, opt);
-    }
+        return forward_fp16s(bottom_blobs, top_blobs, opt);
 #endif
 
 #if NCNN_BF16
@@ -557,15 +572,19 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         Mat hidden0 = hidden.row_range(0, 1);
         Mat cell0 = cell.row_range(0, 1);
-        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden0, cell0, opt);
-        if (ret0 != 0)
-            return ret0;
+        {
+            int ret = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden0, cell0, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         Mat hidden1 = hidden.row_range(1, 1);
         Mat cell1 = cell.row_range(1, 1);
-        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden1, cell1, opt);
-        if (ret1 != 0)
-            return ret1;
+        {
+            int ret = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden1, cell1, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -634,7 +653,7 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const unsigned short* weight_hc_IFOG = weight_hc.row<const unsigned short>(q);
 
 #if __ARM_NEON
-            float32x4_t _IFOG = float2bfloat(vld1_u16(bias_c_IFOG));
+            float32x4_t _IFOG = bfloat2float(vld1_u16(bias_c_IFOG));
             float32x4_t _sum1 = vdupq_n_f32(0.f);
             float32x4_t _sum2 = vdupq_n_f32(0.f);
             float32x4_t _sum3 = vdupq_n_f32(0.f);
@@ -649,12 +668,12 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 #if __ARM_NEON
             for (; i + 3 < size; i += 4)
             {
-                float32x4_t _xi = float2bfloat(vld1_u16(x + i));
+                float32x4_t _xi = bfloat2float(vld1_u16(x + i));
 
-                float32x4_t _weight_xc_IFOG_0 = float2bfloat(vld1_u16(weight_xc_IFOG));
-                float32x4_t _weight_xc_IFOG_1 = float2bfloat(vld1_u16(weight_xc_IFOG + 4));
-                float32x4_t _weight_xc_IFOG_2 = float2bfloat(vld1_u16(weight_xc_IFOG + 8));
-                float32x4_t _weight_xc_IFOG_3 = float2bfloat(vld1_u16(weight_xc_IFOG + 12));
+                float32x4_t _weight_xc_IFOG_0 = bfloat2float(vld1_u16(weight_xc_IFOG));
+                float32x4_t _weight_xc_IFOG_1 = bfloat2float(vld1_u16(weight_xc_IFOG + 4));
+                float32x4_t _weight_xc_IFOG_2 = bfloat2float(vld1_u16(weight_xc_IFOG + 8));
+                float32x4_t _weight_xc_IFOG_3 = bfloat2float(vld1_u16(weight_xc_IFOG + 12));
 
 #if __aarch64__
                 _IFOG = vfmaq_laneq_f32(_IFOG, _weight_xc_IFOG_0, _xi, 0);
@@ -676,8 +695,8 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 #if __ARM_NEON
                 unsigned short xi = x[i];
 
-                float32x4_t _xi = float2bfloat(vdup_n_u16(xi));
-                float32x4_t _weight_xc_IFOG = float2bfloat(vld1_u16(weight_xc_IFOG));
+                float32x4_t _xi = bfloat2float(vdup_n_u16(xi));
+                float32x4_t _weight_xc_IFOG = bfloat2float(vld1_u16(weight_xc_IFOG));
                 _IFOG = vmlaq_f32(_IFOG, _weight_xc_IFOG, _xi);
 #else
                 float xi = bfloat16_to_float32(x[i]);
@@ -697,10 +716,10 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             {
                 float32x4_t _h_cont = vld1q_f32((const float*)hidden_state + i);
 
-                float32x4_t _weight_hc_IFOG_0 = float2bfloat(vld1_u16(weight_hc_IFOG));
-                float32x4_t _weight_hc_IFOG_1 = float2bfloat(vld1_u16(weight_hc_IFOG + 4));
-                float32x4_t _weight_hc_IFOG_2 = float2bfloat(vld1_u16(weight_hc_IFOG + 8));
-                float32x4_t _weight_hc_IFOG_3 = float2bfloat(vld1_u16(weight_hc_IFOG + 12));
+                float32x4_t _weight_hc_IFOG_0 = bfloat2float(vld1_u16(weight_hc_IFOG));
+                float32x4_t _weight_hc_IFOG_1 = bfloat2float(vld1_u16(weight_hc_IFOG + 4));
+                float32x4_t _weight_hc_IFOG_2 = bfloat2float(vld1_u16(weight_hc_IFOG + 8));
+                float32x4_t _weight_hc_IFOG_3 = bfloat2float(vld1_u16(weight_hc_IFOG + 12));
 
 #if __aarch64__
                 _IFOG = vfmaq_laneq_f32(_IFOG, _weight_hc_IFOG_0, _h_cont, 0);
@@ -723,7 +742,7 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
 #if __ARM_NEON
                 float32x4_t _h_cont = vdupq_n_f32(h_cont);
-                float32x4_t _weight_hc_IFOG = float2bfloat(vld1_u16(weight_hc_IFOG));
+                float32x4_t _weight_hc_IFOG = bfloat2float(vld1_u16(weight_hc_IFOG));
                 _IFOG = vmlaq_f32(_IFOG, _weight_hc_IFOG, _h_cont);
 #else
                 I += bfloat16_to_float32(weight_hc_IFOG[0]) * h_cont;
@@ -778,24 +797,24 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
             float32x4x4_t _IFOG_4x4 = vld4q_f32(gates_data);
 
-            float32x4_t _I = sigmoid_ps(_IFOG_4x4.val[0]);
-            float32x4_t _F = sigmoid_ps(_IFOG_4x4.val[1]);
-            float32x4_t _O = sigmoid_ps(_IFOG_4x4.val[2]);
-            float32x4_t _G = tanh_ps(_IFOG_4x4.val[3]);
+            float32x4_t _lstm_I = sigmoid_ps(_IFOG_4x4.val[0]);
+            float32x4_t _lstm_F = sigmoid_ps(_IFOG_4x4.val[1]);
+            float32x4_t _lstm_O = sigmoid_ps(_IFOG_4x4.val[2]);
+            float32x4_t _lstm_G = tanh_ps(_IFOG_4x4.val[3]);
 
-            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_I, _G));
-            float32x4_t _H = vmulq_f32(_O, tanh_ps(_cell2));
+            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_lstm_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_lstm_I, _lstm_G));
+            float32x4_t _lstm_H = vmulq_f32(_lstm_O, tanh_ps(_cell2));
 
             vst1q_f32(cell_ptr + q, _cell2);
 
             if (num_output == hidden_size)
             {
-                vst1q_f32(hidden_ptr + q, _H);
-                vst1_u16(output_data + q, bfloat2float(_H));
+                vst1q_f32(hidden_ptr + q, _lstm_H);
+                vst1_u16(output_data + q, float2bfloat(_lstm_H));
             }
             else
             {
-                vst1q_f32(tmp_hidden_ptr + q, _H);
+                vst1q_f32(tmp_hidden_ptr + q, _lstm_H);
             }
         }
 #endif // __ARM_NEON
@@ -809,13 +828,13 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             float O = gates_data[2];
             float G = gates_data[3];
 
-            I = 1.f / (1.f + exp(-I));
-            F = 1.f / (1.f + exp(-F));
-            O = 1.f / (1.f + exp(-O));
-            G = tanh(G);
+            I = 1.f / (1.f + expf(-I));
+            F = 1.f / (1.f + expf(-F));
+            O = 1.f / (1.f + expf(-O));
+            G = tanhf(G);
 
             float cell2 = F * cell_ptr[q] + I * G;
-            float H = O * tanh(cell2);
+            float H = O * tanhf(cell2);
 
             cell_ptr[q] = cell2;
             if (num_output == hidden_size)
@@ -982,16 +1001,20 @@ int LSTM_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option&
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = lstm_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
-        if (ret0 != 0)
-            return ret0;
+        {
+            int ret = lstm_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         hidden.fill(0.f);
         cell.fill(0.f);
 
-        int ret1 = lstm_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden, cell, opt);
-        if (ret1 != 0)
-            return ret1;
+        {
+            int ret = lstm_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden, cell, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -1062,15 +1085,19 @@ int LSTM_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
         Mat hidden0 = hidden.row_range(0, 1);
         Mat cell0 = cell.row_range(0, 1);
-        int ret0 = lstm_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden0, cell0, opt);
-        if (ret0 != 0)
-            return ret0;
+        {
+            int ret = lstm_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden0, cell0, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         Mat hidden1 = hidden.row_range(1, 1);
         Mat cell1 = cell.row_range(1, 1);
-        int ret1 = lstm_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden1, cell1, opt);
-        if (ret1 != 0)
-            return ret1;
+        {
+            int ret = lstm_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden1, cell1, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -1093,5 +1120,347 @@ int LSTM_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     return 0;
 }
 #endif // NCNN_BF16
+
+#if NCNN_INT8
+int LSTM_arm::create_pipeline_int8(const Option& opt)
+{
+    // pack IFOG
+    const int num_directions = direction == 2 ? 2 : 1;
+    const int size = weight_data_size / num_directions / hidden_size / 4;
+
+    lstm_transform_weight_int8(weight_xc_data, weight_xc_data_int8_scales, weight_hc_data, weight_hc_data_int8_scales, bias_c_data, weight_data_tm, weight_data_tm_int8_descales, bias_c_data_packed, size, num_output, num_directions, hidden_size, opt);
+
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+        weight_xc_data_int8_scales.release();
+        weight_hc_data_int8_scales.release();
+    }
+
+    return 0;
+}
+
+void LSTM_arm::dynamic_quantize(const Mat& bottom_blob, int elemtype, Mat& bottom_blob_int8, Mat& bottom_blob_int8_descales, const Option& opt) const
+{
+    int size = bottom_blob.w;
+    int T = bottom_blob.h;
+
+    // dynamic quantize bottom_blob
+    bottom_blob_int8_descales.create(T, (size_t)4u, 1, opt.blob_allocator);
+
+    Mat bottom_blob_int8_scales(T, (size_t)4u, 1, opt.blob_allocator);
+
+    if (elemtype == 1)
+    {
+        // fp32
+        for (int t = 0; t < T; t++)
+        {
+            const float* x = bottom_blob.row(t);
+
+            float absmax = 0.f;
+            for (int i = 0; i < size; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(x[i]));
+            }
+
+            bottom_blob_int8_scales[t] = 127.f / absmax;
+            bottom_blob_int8_descales[t] = absmax / 127.f;
+        }
+    }
+    if (elemtype == 2)
+    {
+        // fp16
+        for (int t = 0; t < T; t++)
+        {
+            const unsigned short* x = bottom_blob.row<const unsigned short>(t);
+
+            float absmax = 0.f;
+            for (int i = 0; i < size; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(float16_to_float32(x[i])));
+            }
+
+            bottom_blob_int8_scales[t] = 127.f / absmax;
+            bottom_blob_int8_descales[t] = absmax / 127.f;
+        }
+    }
+    if (elemtype == 4)
+    {
+        // bf16
+        for (int t = 0; t < T; t++)
+        {
+            const unsigned short* x = bottom_blob.row<const unsigned short>(t);
+
+            float absmax = 0.f;
+            for (int i = 0; i < size; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(bfloat16_to_float32(x[i])));
+            }
+
+            bottom_blob_int8_scales[t] = 127.f / absmax;
+            bottom_blob_int8_descales[t] = absmax / 127.f;
+        }
+    }
+
+    quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt);
+}
+
+int LSTM_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int elemtype = 1; // fp32
+    {
+        int elembits = bottom_blob.elembits();
+
+        // clang-format off
+        // *INDENT-OFF*
+
+#if NCNN_ARM82
+        if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        {
+            elemtype = 2; // fp16
+        }
+        else
+#endif
+#if NCNN_BF16
+        if (opt.use_bf16_storage && elembits == 16)
+        {
+            elemtype = 4; // bf16
+        }
+        else
+#endif
+        {
+            // fp32
+        }
+
+        // *INDENT-ON*
+        // clang-format on
+    }
+
+    int T = bottom_blob.h;
+    size_t elemsize = bottom_blob.elemsize;
+
+    int num_directions = direction == 2 ? 2 : 1;
+
+    // initial hidden state
+    Mat hidden(num_output, 4u, opt.workspace_allocator);
+    if (hidden.empty())
+        return -100;
+    hidden.fill(0.f);
+
+    Mat cell(hidden_size, 4u, opt.workspace_allocator);
+    if (cell.empty())
+        return -100;
+    cell.fill(0.f);
+
+    top_blob.create(num_output * num_directions, T, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // dynamic quantize bottom_blob
+    Mat bottom_blob_int8;
+    Mat bottom_blob_int8_descales;
+    {
+        Option opt_quant = opt;
+        opt_quant.blob_allocator = opt.workspace_allocator;
+        opt_quant.use_packing_layout = false;
+        dynamic_quantize(bottom_blob, elemtype, bottom_blob_int8, bottom_blob_int8_descales, opt_quant);
+    }
+
+    // Uni directional
+    if (direction == 0 || direction == 1)
+    {
+        lstm_int8(bottom_blob_int8, bottom_blob_int8_descales, top_blob, elemtype, direction, weight_data_tm.channel(0), weight_data_tm_int8_descales.channel(0), bias_c_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
+    }
+
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, elemsize, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, elemsize, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        {
+            lstm_int8(bottom_blob_int8, bottom_blob_int8_descales, top_blob_forward, elemtype, 0, weight_data_tm.channel(0), weight_data_tm_int8_descales.channel(0), bias_c_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
+        }
+
+        hidden.fill(0.f);
+        cell.fill(0.0f);
+
+        {
+            lstm_int8(bottom_blob_int8, bottom_blob_int8_descales, top_blob_reverse, elemtype, 1, weight_data_tm.channel(1), weight_data_tm_int8_descales.channel(1), bias_c_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden, cell, opt);
+        }
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const unsigned char* pf = top_blob_forward.row<const unsigned char>(i);
+            const unsigned char* pr = top_blob_reverse.row<const unsigned char>(i);
+            unsigned char* ptr = top_blob.row<unsigned char>(i);
+
+            memcpy(ptr, pf, num_output * elemsize);
+            memcpy(ptr + num_output * elemsize, pr, num_output * elemsize);
+        }
+    }
+
+    return 0;
+}
+
+int LSTM_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+
+    int elemtype = 1; // fp32
+    {
+        int elembits = bottom_blob.elembits();
+
+        // clang-format off
+        // *INDENT-OFF*
+
+#if NCNN_ARM82
+        if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        {
+            elemtype = 2; // fp16
+        }
+        else
+#endif
+#if NCNN_BF16
+        if (opt.use_bf16_storage && elembits == 16)
+        {
+            elemtype = 4; // bf16
+        }
+        else
+#endif
+        {
+            // fp32
+        }
+
+        // *INDENT-ON*
+        // clang-format on
+    }
+
+    int T = bottom_blob.h;
+    size_t elemsize = bottom_blob.elemsize;
+    int num_directions = direction == 2 ? 2 : 1;
+
+    Mat hidden;
+    Mat cell;
+    Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 3)
+    {
+        if (elemtype == 1)
+        {
+            hidden = bottom_blobs[1].clone(hidden_cell_allocator);
+            cell = bottom_blobs[2].clone(hidden_cell_allocator);
+        }
+        if (elemtype == 2)
+        {
+            Option opt_cast = opt;
+            opt_cast.blob_allocator = hidden_cell_allocator;
+            cast_float16_to_float32(bottom_blobs[1], hidden, opt_cast);
+            cast_float16_to_float32(bottom_blobs[2], cell, opt_cast);
+        }
+        if (elemtype == 4)
+        {
+            Option opt_cast = opt;
+            opt_cast.blob_allocator = hidden_cell_allocator;
+            cast_bfloat16_to_float32(bottom_blobs[1], hidden, opt_cast);
+            cast_bfloat16_to_float32(bottom_blobs[2], cell, opt_cast);
+        }
+    }
+    else
+    {
+        hidden.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (hidden.empty())
+            return -100;
+        hidden.fill(0.f);
+
+        cell.create(hidden_size, num_directions, 4u, hidden_cell_allocator);
+        if (cell.empty())
+            return -100;
+        cell.fill(0.f);
+    }
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(num_output * num_directions, T, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // dynamic quantize bottom_blob
+    Mat bottom_blob_int8;
+    Mat bottom_blob_int8_descales;
+    {
+        Option opt_quant = opt;
+        opt_quant.blob_allocator = opt.workspace_allocator;
+        opt_quant.use_packing_layout = false;
+        dynamic_quantize(bottom_blob, elemtype, bottom_blob_int8, bottom_blob_int8_descales, opt_quant);
+    }
+
+    // Uni directional
+    if (direction == 0 || direction == 1)
+    {
+        lstm_int8(bottom_blob_int8, bottom_blob_int8_descales, top_blob, elemtype, direction, weight_data_tm.channel(0), weight_data_tm_int8_descales.channel(0), bias_c_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
+    }
+
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, elemsize, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, elemsize, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        Mat hidden0 = hidden.row_range(0, 1);
+        Mat cell0 = cell.row_range(0, 1);
+        {
+            lstm_int8(bottom_blob_int8, bottom_blob_int8_descales, top_blob_forward, elemtype, 0, weight_data_tm.channel(0), weight_data_tm_int8_descales.channel(0), bias_c_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden0, cell0, opt);
+        }
+
+        Mat hidden1 = hidden.row_range(1, 1);
+        Mat cell1 = cell.row_range(1, 1);
+        {
+            lstm_int8(bottom_blob_int8, bottom_blob_int8_descales, top_blob_reverse, elemtype, 1, weight_data_tm.channel(1), weight_data_tm_int8_descales.channel(1), bias_c_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden1, cell1, opt);
+        }
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const unsigned char* pf = top_blob_forward.row<const unsigned char>(i);
+            const unsigned char* pr = top_blob_reverse.row<const unsigned char>(i);
+            unsigned char* ptr = top_blob.row<unsigned char>(i);
+
+            memcpy(ptr, pf, num_output * elemsize);
+            memcpy(ptr + num_output * elemsize, pr, num_output * elemsize);
+        }
+    }
+
+    if (top_blobs.size() == 3)
+    {
+        if (elemtype == 1)
+        {
+            top_blobs[1] = hidden;
+            top_blobs[2] = cell;
+        }
+        if (elemtype == 2)
+        {
+            cast_float32_to_float16(hidden, top_blobs[1], opt);
+            cast_float32_to_float16(cell, top_blobs[2], opt);
+        }
+        if (elemtype == 4)
+        {
+            cast_float32_to_bfloat16(hidden, top_blobs[1], opt);
+            cast_float32_to_bfloat16(cell, top_blobs[2], opt);
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
 
 } // namespace ncnn

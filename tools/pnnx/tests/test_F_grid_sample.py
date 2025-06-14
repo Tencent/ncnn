@@ -21,6 +21,12 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, xg1, xg2, y, yg1, yg2):
+        # norm to -1 ~ 1
+        xg1 = xg1 * 2 - 1
+        xg2 = xg2 * 2 - 1
+        yg1 = yg1 * 2 - 1
+        yg2 = yg2 * 2 - 1
+
         x = F.grid_sample(x, xg1, mode='bilinear', padding_mode='zeros', align_corners=False)
         x = F.grid_sample(x, xg2, mode='bilinear', padding_mode='border', align_corners=False)
         x = F.grid_sample(x, xg1, mode='bilinear', padding_mode='reflection', align_corners=False)

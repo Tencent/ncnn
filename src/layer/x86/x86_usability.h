@@ -15,19 +15,140 @@
 #ifndef X86_USABILITY_H
 #define X86_USABILITY_H
 
-#include <math.h>
+#include <stdint.h>
 #if __SSE2__
 #include <emmintrin.h>
+#if __SSSE3__
+#include <tmmintrin.h>
+#if __SSE4_1__
+#include <smmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #if __XOP__
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #include <ammintrin.h>
 #else
 #include <x86intrin.h>
 #endif
 #endif
 #endif
+#endif
+#endif
+#endif // __SSE2__
+
+#if __SSE2__
+// fast integer division adopted from Agner Fog's subroutine library
+// only support x / d where x and d are [1~ UINT_MAX]
+class FastDivider_epu32
+{
+public:
+    NCNN_FORCEINLINE FastDivider_epu32(unsigned int d)
+    {
+        unsigned int m, sh1, sh2;
+        if (d == 1)
+        {
+            m = 1;
+            sh1 = 0;
+            sh2 = 0;
+        }
+        else
+        {
+            // sh = ceil(log2(d))
+            uint32_t sh = portable_ceil_log2(d);
+            uint32_t m0 = sh == 32 ? 0 : 1 << sh;
+
+            m = 1 + uint32_t((uint64_t(m0 - d) << 32) / d);
+            sh1 = 1;
+            sh2 = sh - 1;
+        }
+
+#if __AVX512F__
+        _multiplier = _mm512_set1_epi32(m);
+#elif __AVX2__
+        _multiplier = _mm256_set1_epi32(m);
+#else
+        _multiplier = _mm_set1_epi32(m);
+#endif
+        _shift1 = _mm_setr_epi32(sh1, 0, 0, 0);
+        _shift2 = _mm_setr_epi32(sh2, 0, 0, 0);
+    }
+
+#if __AVX2__
+#if __AVX512F__
+    NCNN_FORCEINLINE __m512i _mm512_comp_div_epu32(__m512i x) const
+    {
+        // xm = (x * multiplier) >> 32
+        __m512i xm_low = _mm512_srli_epi64(_mm512_mul_epu32(x, _multiplier), 32);
+        __m512i xm_high = _mm512_mul_epu32(_mm512_srli_epi64(x, 32), _multiplier);
+        __mmask16 mask = 0xAAAA; // 1010 1010 1010 1010
+        __m512i xm = _mm512_mask_blend_epi32(mask, xm_low, xm_high);
+        // (xm + (x - xm) >> 1) >> (sh - 1)
+        return _mm512_srl_epi32(_mm512_add_epi32(xm, _mm512_srl_epi32(_mm512_sub_epi32(x, xm), _shift1)), _shift2);
+    }
+#endif // __AVX512F__
+
+    NCNN_FORCEINLINE __m256i _mm256_comp_div_epu32(__m256i x) const
+    {
+        // xm = (x * multiplier) >> 32
+#if __AVX512F__
+        __m256i xm_low = _mm256_srli_epi64(_mm256_mul_epu32(x, _mm512_castsi512_si256(_multiplier)), 32);
+        __m256i xm_high = _mm256_mul_epu32(_mm256_srli_epi64(x, 32), _mm512_castsi512_si256(_multiplier));
+#else
+        __m256i xm_low = _mm256_srli_epi64(_mm256_mul_epu32(x, _multiplier), 32);
+        __m256i xm_high = _mm256_mul_epu32(_mm256_srli_epi64(x, 32), _multiplier);
+#endif
+        __m256i xm = _mm256_blend_epi16(xm_low, xm_high, _MM_SHUFFLE(3, 0, 3, 0));
+        // (xm + (x - xm) >> 1) >> (sh - 1)
+        return _mm256_srl_epi32(_mm256_add_epi32(xm, _mm256_srl_epi32(_mm256_sub_epi32(x, xm), _shift1)), _shift2);
+    }
+#endif // __AVX2__
+
+    NCNN_FORCEINLINE __m128i _mm_comp_div_epu32(__m128i x) const
+    {
+        // xm = (x * multiplier) >> 32
+#if __AVX512F__
+        __m128i xm_low = _mm_srli_epi64(_mm_mul_epu32(x, _mm512_castsi512_si128(_multiplier)), 32);
+        __m128i xm_high = _mm_mul_epu32(_mm_srli_epi64(x, 32), _mm512_castsi512_si128(_multiplier));
+#elif __AVX2__
+        __m128i xm_low = _mm_srli_epi64(_mm_mul_epu32(x, _mm256_castsi256_si128(_multiplier)), 32);
+        __m128i xm_high = _mm_mul_epu32(_mm_srli_epi64(x, 32), _mm256_castsi256_si128(_multiplier));
+#else
+        __m128i xm_low = _mm_srli_epi64(_mm_mul_epu32(x, _multiplier), 32);
+        __m128i xm_high = _mm_mul_epu32(_mm_srli_epi64(x, 32), _multiplier);
+#endif
+#if __SSE4_1__
+        __m128i xm = _mm_blend_epi16(xm_low, xm_high, _MM_SHUFFLE(3, 0, 3, 0));
+#else
+        __m128i mask = _mm_set_epi32(-1, 0, -1, 0);
+        __m128i xm = _mm_or_si128(xm_low, _mm_and_si128(xm_high, mask));
+#endif
+        // (xm + (x - xm) >> 1) >> (sh - 1)
+        return _mm_srl_epi32(_mm_add_epi32(xm, _mm_srl_epi32(_mm_sub_epi32(x, xm), _shift1)), _shift2);
+    }
+
+protected:
+    static int portable_ceil_log2(int d)
+    {
+#ifdef _MSC_VER
+        unsigned long index;
+        _BitScanReverse(&index, d - 1);
+        return index + 1;
+#else
+        return 32 - __builtin_clz(d - 1);
+#endif
+    }
+
+protected:
+#if __AVX512F__
+    __m512i _multiplier;
+#elif __AVX2__
+    __m256i _multiplier;
+#else
+    __m128i _multiplier;
+#endif
+    __m128i _shift1;
+    __m128i _shift2;
+};
 #endif // __SSE2__
 
 static NCNN_FORCEINLINE signed char float2int8(float v)
@@ -39,6 +160,118 @@ static NCNN_FORCEINLINE signed char float2int8(float v)
 }
 
 #if __SSE2__
+static NCNN_FORCEINLINE void transpose4x8_epi32(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3, __m128i& _r4, __m128i& _r5, __m128i& _r6, __m128i& _r7)
+{
+    __m128i _tmp0 = _mm_unpacklo_epi32(_r0, _r1);
+    __m128i _tmp1 = _mm_unpackhi_epi32(_r0, _r1);
+    __m128i _tmp2 = _mm_unpacklo_epi32(_r2, _r3);
+    __m128i _tmp3 = _mm_unpackhi_epi32(_r2, _r3);
+    __m128i _tmp4 = _mm_unpacklo_epi32(_r4, _r5);
+    __m128i _tmp5 = _mm_unpackhi_epi32(_r4, _r5);
+    __m128i _tmp6 = _mm_unpacklo_epi32(_r6, _r7);
+    __m128i _tmp7 = _mm_unpackhi_epi32(_r6, _r7);
+
+    _r0 = _mm_unpacklo_epi64(_tmp0, _tmp2);
+    _r1 = _mm_unpacklo_epi64(_tmp4, _tmp6);
+    _r2 = _mm_unpackhi_epi64(_tmp0, _tmp2);
+    _r3 = _mm_unpackhi_epi64(_tmp4, _tmp6);
+    _r4 = _mm_unpacklo_epi64(_tmp1, _tmp3);
+    _r5 = _mm_unpacklo_epi64(_tmp5, _tmp7);
+    _r6 = _mm_unpackhi_epi64(_tmp1, _tmp3);
+    _r7 = _mm_unpackhi_epi64(_tmp5, _tmp7);
+}
+
+static NCNN_FORCEINLINE void transpose4x4_epi32(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3)
+{
+    __m128i _tmp0 = _mm_unpacklo_epi32(_r0, _r1);
+    __m128i _tmp1 = _mm_unpackhi_epi32(_r0, _r1);
+    __m128i _tmp2 = _mm_unpacklo_epi32(_r2, _r3);
+    __m128i _tmp3 = _mm_unpackhi_epi32(_r2, _r3);
+
+    _r0 = _mm_unpacklo_epi64(_tmp0, _tmp2);
+    _r1 = _mm_unpackhi_epi64(_tmp0, _tmp2);
+    _r2 = _mm_unpacklo_epi64(_tmp1, _tmp3);
+    _r3 = _mm_unpackhi_epi64(_tmp1, _tmp3);
+}
+
+static NCNN_FORCEINLINE void transpose8x8_epi16(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3, __m128i& _r4, __m128i& _r5, __m128i& _r6, __m128i& _r7)
+{
+    __m128i _tmp0 = _mm_unpacklo_epi16(_r0, _r1);
+    __m128i _tmp1 = _mm_unpackhi_epi16(_r0, _r1);
+    __m128i _tmp2 = _mm_unpacklo_epi16(_r2, _r3);
+    __m128i _tmp3 = _mm_unpackhi_epi16(_r2, _r3);
+    __m128i _tmp4 = _mm_unpacklo_epi16(_r4, _r5);
+    __m128i _tmp5 = _mm_unpackhi_epi16(_r4, _r5);
+    __m128i _tmp6 = _mm_unpacklo_epi16(_r6, _r7);
+    __m128i _tmp7 = _mm_unpackhi_epi16(_r6, _r7);
+
+    __m128i _tmp8 = _mm_unpacklo_epi32(_tmp0, _tmp2);
+    __m128i _tmp9 = _mm_unpackhi_epi32(_tmp0, _tmp2);
+    __m128i _tmpa = _mm_unpacklo_epi32(_tmp1, _tmp3);
+    __m128i _tmpb = _mm_unpackhi_epi32(_tmp1, _tmp3);
+    __m128i _tmpc = _mm_unpacklo_epi32(_tmp4, _tmp6);
+    __m128i _tmpd = _mm_unpackhi_epi32(_tmp4, _tmp6);
+    __m128i _tmpe = _mm_unpacklo_epi32(_tmp5, _tmp7);
+    __m128i _tmpf = _mm_unpackhi_epi32(_tmp5, _tmp7);
+
+    _r0 = _mm_unpacklo_epi64(_tmp8, _tmpc);
+    _r1 = _mm_unpackhi_epi64(_tmp8, _tmpc);
+    _r2 = _mm_unpacklo_epi64(_tmp9, _tmpd);
+    _r3 = _mm_unpackhi_epi64(_tmp9, _tmpd);
+    _r4 = _mm_unpacklo_epi64(_tmpa, _tmpe);
+    _r5 = _mm_unpackhi_epi64(_tmpa, _tmpe);
+    _r6 = _mm_unpacklo_epi64(_tmpb, _tmpf);
+    _r7 = _mm_unpackhi_epi64(_tmpb, _tmpf);
+}
+
+static NCNN_FORCEINLINE void transpose8x4_epi16(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3)
+{
+    __m128i _tmp0 = _mm_unpacklo_epi16(_r0, _r1);
+    __m128i _tmp1 = _mm_unpackhi_epi16(_r0, _r1);
+    __m128i _tmp2 = _mm_unpacklo_epi16(_r2, _r3);
+    __m128i _tmp3 = _mm_unpackhi_epi16(_r2, _r3);
+
+    _r0 = _mm_unpacklo_epi32(_tmp0, _tmp2);
+    _r1 = _mm_unpackhi_epi32(_tmp0, _tmp2);
+    _r2 = _mm_unpacklo_epi32(_tmp1, _tmp3);
+    _r3 = _mm_unpackhi_epi32(_tmp1, _tmp3);
+}
+
+static NCNN_FORCEINLINE void transpose8x4_epi8(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3)
+{
+    __m128i _tmp0 = _mm_unpacklo_epi8(_r0, _r1);
+    __m128i _tmp1 = _mm_unpacklo_epi8(_r2, _r3);
+
+    _r0 = _mm_unpacklo_epi16(_tmp0, _tmp1);
+    _r1 = _mm_unpackhi_epi16(_tmp0, _tmp1);
+}
+
+static NCNN_FORCEINLINE void transpose16x4_epi8(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3)
+{
+    __m128i _tmp0 = _mm_unpacklo_epi8(_r0, _r1);
+    __m128i _tmp1 = _mm_unpackhi_epi8(_r0, _r1);
+    __m128i _tmp2 = _mm_unpacklo_epi8(_r2, _r3);
+    __m128i _tmp3 = _mm_unpackhi_epi8(_r2, _r3);
+
+    _r0 = _mm_unpacklo_epi16(_tmp0, _tmp2);
+    _r1 = _mm_unpackhi_epi16(_tmp0, _tmp2);
+    _r2 = _mm_unpacklo_epi16(_tmp1, _tmp3);
+    _r3 = _mm_unpackhi_epi16(_tmp1, _tmp3);
+}
+
+static NCNN_FORCEINLINE __m128i _mm_comp_mullo_epi32(__m128i a, __m128i b)
+{
+#if __SSE4_1__
+    return _mm_mullo_epi32(a, b);
+#else
+    __m128i m0 = _mm_mul_epu32(a, b);
+    __m128i m1 = _mm_mul_epu32(_mm_shuffle_epi32(a, _MM_SHUFFLE(2, 3, 0, 1)), _mm_shuffle_epi32(b, _MM_SHUFFLE(2, 3, 0, 1)));
+    __m128i m2 = _mm_unpacklo_epi32(m0, m1);
+    __m128i m3 = _mm_unpackhi_epi32(m0, m1);
+    return _mm_unpacklo_epi64(m2, m3);
+#endif
+}
+
 static NCNN_FORCEINLINE float _mm_reduce_add_ps(__m128 x128)
 {
     const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
@@ -154,88 +387,455 @@ static NCNN_FORCEINLINE __m128i float2int8_sse(const __m128& _v0, const __m128& 
     return _v8;
 }
 
-#ifndef __FMA__
-static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
+static NCNN_FORCEINLINE __m128 bfloat2float_sse(const __m128i& v0)
 {
-    return _mm_add_ps(_mm_mul_ps(_a, _b), _c);
+    __m128i _zero = _mm_setzero_si128();
+    __m128i _a = _mm_unpacklo_epi16(_zero, v0);
+    __m128 _v = _mm_castsi128_ps(_a);
+    return _v;
 }
-static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
+
+static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128& v1)
 {
-    return _mm_sub_ps(_c, _mm_mul_ps(_a, _b));
-}
+#if __AVX512BF16__
+    __m128i _v = (__m128i)_mm256_cvtneps_pbh(_mm256_insertf128_ps(_mm256_castps128_ps256(v0), v1, 1));
 #else
-static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
-{
-    return _mm_fmadd_ps(_a, _b, _c);
+    __m128i _a = _mm_castps_si128(v0);
+    __m128i _b = _mm_castps_si128(v1);
+#if __SSE4_1__
+    _a = _mm_srli_epi32(_a, 16);
+    _b = _mm_srli_epi32(_b, 16);
+    __m128i _v = _mm_packus_epi32(_a, _b);
+#else
+    _a = _mm_shufflelo_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
+    _b = _mm_shufflelo_epi16(_b, _MM_SHUFFLE(2, 0, 3, 1));
+    _a = _mm_shufflehi_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
+    _b = _mm_shufflehi_epi16(_b, _MM_SHUFFLE(2, 0, 3, 1));
+    __m128i _v = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(_a), _mm_castsi128_ps(_b), _MM_SHUFFLE(2, 0, 2, 0)));
+#endif
+#endif
+    return _v;
 }
-static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
+
+static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
+{
+#if __FMA__
+    return _mm_fmadd_ps(_a, _b, _c);
+#else
+    return _mm_add_ps(_mm_mul_ps(_a, _b), _c);
+#endif
+}
+
+static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
     // return -a * b + c
+#if __FMA__
     return _mm_fnmadd_ps(_a, _b, _c);
+#else
+    return _mm_sub_ps(_c, _mm_mul_ps(_a, _b));
+#endif
 }
-#endif // !__FMA__
+
+static NCNN_FORCEINLINE __m128 _mm_comp_fmsub_ps(const __m128& _a, const __m128& _b, const __m128& _c)
+{
+#if __FMA__
+    return _mm_fmsub_ps(_a, _b, _c);
+#else
+    return _mm_sub_ps(_mm_mul_ps(_a, _b), _c);
+#endif
+}
+
+static NCNN_FORCEINLINE __m128 _mm_comp_fnmsub_ps(const __m128& _a, const __m128& _b, const __m128& _c)
+{
+#if __FMA__
+    return _mm_fnmsub_ps(_a, _b, _c);
+#else
+    return _mm_sub_ps(_c, _mm_mul_ps(_mm_mul_ps(_a, _b), _mm_set1_ps(-1)));
+#endif
+}
+
+static NCNN_FORCEINLINE __m128i _mm_comp_dpwssd_epi32(__m128i src, __m128i a, __m128i b)
+{
+#if __AVX512VNNI__
+    return _mm_dpwssd_epi32(src, a, b);
+#elif __AVXVNNI__
+    return _mm_dpwssd_avx_epi32(src, a, b);
+#elif __XOP__
+    return _mm_maddd_epi16(a, b, src);
+#else
+    return _mm_add_epi32(src, _mm_madd_epi16(a, b));
+#endif
+}
 
 #if __AVX__
-#ifndef __FMA__
-static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
-    return _mm256_add_ps(_mm256_mul_ps(_a, _b), _c);
-}
-static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
-{
-    return _mm256_sub_ps(_c, _mm256_mul_ps(_a, _b));
-}
-#else
-static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
-{
+    // return a * b + c
+#if __FMA__
     return _mm256_fmadd_ps(_a, _b, _c);
+#else
+    return _mm256_add_ps(_mm256_mul_ps(_a, _b), _c);
+#endif
 }
-static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+
+static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     // return -a * b + c
+#if __FMA__
     return _mm256_fnmadd_ps(_a, _b, _c);
-}
+#else
+    return _mm256_sub_ps(_c, _mm256_mul_ps(_a, _b));
 #endif
+}
 
-static NCNN_FORCEINLINE __m256 _mm256_fmadd_1_ps(__m256 a, __m256 b, float c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fmsub_ps(const __m256& _a, const __m256& _b, const __m256& _c)
+{
+    // return a * b - c
+#if __FMA__
+    return _mm256_fmsub_ps(_a, _b, _c);
+#else
+    return _mm256_sub_ps(_mm256_mul_ps(_a, _b), _c);
+#endif
+}
+
+static NCNN_FORCEINLINE __m256 _mm256_comp_fnmsub_ps(const __m256& _a, const __m256& _b, const __m256& _c)
+{
+    // return -(a * b) - c
+#if __FMA__
+    return _mm256_fnmsub_ps(_a, _b, _c);
+#else
+    return _mm256_sub_ps(_c, _mm256_mul_ps(_mm256_mul_ps(_a, _b), _mm256_set1_ps(-1)));
+#endif
+}
+
+static NCNN_FORCEINLINE __m256 _mm256_fmadd_1_ps(const __m256& a, const __m256& b, float c)
 {
     return _mm256_comp_fmadd_ps(b, _mm256_set1_ps(c), a);
 }
 
-static NCNN_FORCEINLINE __m256 _mm256_fmrsub_1_ps(__m256 a, __m256 b, float c)
+static NCNN_FORCEINLINE __m256 _mm256_fmrsub_1_ps(const __m256& a, const __m256& b, float c)
 {
     // return a - b * c
     return _mm256_comp_fnmadd_ps(b, _mm256_set1_ps(c), a);
 }
-// From: https://stackoverflow.com/a/25627536
-static NCNN_FORCEINLINE void transpose8_ps(__m256& row0, __m256& row1, __m256& row2, __m256& row3, __m256& row4, __m256& row5, __m256& row6, __m256& row7)
+
+static NCNN_FORCEINLINE void transpose8x12_ps(__m256& _r0, __m256& _r1, __m256& _r2, __m256& _r3, __m256& _r4, __m256& _r5, __m256& _r6, __m256& _r7,
+        __m256& _r8, __m256& _r9, __m256& _ra, __m256& _rb)
 {
-    __m256 __t0, __t1, __t2, __t3, __t4, __t5, __t6, __t7;
-    __m256 __tt0, __tt1, __tt2, __tt3, __tt4, __tt5, __tt6, __tt7;
-    __t0 = _mm256_unpacklo_ps(row0, row1);
-    __t1 = _mm256_unpackhi_ps(row0, row1);
-    __t2 = _mm256_unpacklo_ps(row2, row3);
-    __t3 = _mm256_unpackhi_ps(row2, row3);
-    __t4 = _mm256_unpacklo_ps(row4, row5);
-    __t5 = _mm256_unpackhi_ps(row4, row5);
-    __t6 = _mm256_unpacklo_ps(row6, row7);
-    __t7 = _mm256_unpackhi_ps(row6, row7);
-    __tt0 = _mm256_shuffle_ps(__t0, __t2, _MM_SHUFFLE(1, 0, 1, 0));
-    __tt1 = _mm256_shuffle_ps(__t0, __t2, _MM_SHUFFLE(3, 2, 3, 2));
-    __tt2 = _mm256_shuffle_ps(__t1, __t3, _MM_SHUFFLE(1, 0, 1, 0));
-    __tt3 = _mm256_shuffle_ps(__t1, __t3, _MM_SHUFFLE(3, 2, 3, 2));
-    __tt4 = _mm256_shuffle_ps(__t4, __t6, _MM_SHUFFLE(1, 0, 1, 0));
-    __tt5 = _mm256_shuffle_ps(__t4, __t6, _MM_SHUFFLE(3, 2, 3, 2));
-    __tt6 = _mm256_shuffle_ps(__t5, __t7, _MM_SHUFFLE(1, 0, 1, 0));
-    __tt7 = _mm256_shuffle_ps(__t5, __t7, _MM_SHUFFLE(3, 2, 3, 2));
-    row0 = _mm256_permute2f128_ps(__tt0, __tt4, 0x20);
-    row1 = _mm256_permute2f128_ps(__tt1, __tt5, 0x20);
-    row2 = _mm256_permute2f128_ps(__tt2, __tt6, 0x20);
-    row3 = _mm256_permute2f128_ps(__tt3, __tt7, 0x20);
-    row4 = _mm256_permute2f128_ps(__tt0, __tt4, 0x31);
-    row5 = _mm256_permute2f128_ps(__tt1, __tt5, 0x31);
-    row6 = _mm256_permute2f128_ps(__tt2, __tt6, 0x31);
-    row7 = _mm256_permute2f128_ps(__tt3, __tt7, 0x31);
+    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
+    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
+    __m256 _tmp8 = _mm256_unpacklo_ps(_r8, _r9);
+    __m256 _tmp9 = _mm256_unpackhi_ps(_r8, _r9);
+    __m256 _tmpa = _mm256_unpacklo_ps(_ra, _rb);
+    __m256 _tmpb = _mm256_unpackhi_ps(_ra, _rb);
+
+    __m256 _tmpc = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpd = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpe = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpf = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpg = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmph = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpi = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpj = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpk = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpl = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpm = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpn = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _r0 = _mm256_permute2f128_ps(_tmpc, _tmpg, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_ps(_tmpk, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 2, 0, 0));
+    _r3 = _mm256_permute2f128_ps(_tmpe, _tmpi, _MM_SHUFFLE(0, 2, 0, 0));
+    _r4 = _mm256_permute2f128_ps(_tmpm, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
+    _r5 = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 2, 0, 0));
+    _r6 = _mm256_permute2f128_ps(_tmpc, _tmpg, _MM_SHUFFLE(0, 3, 0, 1));
+    _r7 = _mm256_permute2f128_ps(_tmpk, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
+    _r8 = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 3, 0, 1));
+    _r9 = _mm256_permute2f128_ps(_tmpe, _tmpi, _MM_SHUFFLE(0, 3, 0, 1));
+    _ra = _mm256_permute2f128_ps(_tmpm, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+    _rb = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x8_ps(__m256& _r0, __m256& _r1, __m256& _r2, __m256& _r3, __m256& _r4, __m256& _r5, __m256& _r6, __m256& _r7)
+{
+    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
+    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
+
+    __m256 _tmp8 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmp9 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpa = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpb = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpc = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpd = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpe = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpf = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _r0 = _mm256_permute2f128_ps(_tmp8, _tmpc, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_ps(_tmp9, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 2, 0, 0));
+    _r3 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
+    _r4 = _mm256_permute2f128_ps(_tmp8, _tmpc, _MM_SHUFFLE(0, 3, 0, 1));
+    _r5 = _mm256_permute2f128_ps(_tmp9, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
+    _r6 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
+    _r7 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x4_ps(__m256& _r0, __m256& _r1, __m256& _r2, __m256& _r3)
+{
+    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+
+    __m256 _tmp4 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmp5 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmp6 = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmp7 = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _r0 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
+    _r3 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x2_ps(__m256& _r0, __m256& _r1)
+{
+    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+
+    _r0 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose2x8_ps(__m256& _r0, __m256& _r1)
+{
+    __m256 _tmp0 = _mm256_permute2f128_ps(_r0, _r1, _MM_SHUFFLE(0, 2, 0, 0));
+    __m256 _tmp1 = _mm256_permute2f128_ps(_r0, _r1, _MM_SHUFFLE(0, 3, 0, 1));
+
+    _r0 = _mm256_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+    _r1 = _mm256_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+}
+
+static NCNN_FORCEINLINE void transpose3x8_ps(__m256& _r0, __m256& _r1, __m256& _r2)
+{
+    __m256 _tmp0 = _mm256_permute2f128_ps(_r0, _r1, _MM_SHUFFLE(0, 3, 0, 0));
+    __m256 _tmp1 = _mm256_permute2f128_ps(_r0, _r2, _MM_SHUFFLE(0, 2, 0, 1));
+    __m256 _tmp2 = _mm256_permute2f128_ps(_r1, _r2, _MM_SHUFFLE(0, 3, 0, 0));
+
+    __m256 _tmp4 = _mm256_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(1, 0, 2, 1));
+    __m256 _tmp5 = _mm256_shuffle_ps(_tmp1, _tmp2, _MM_SHUFFLE(2, 1, 3, 2));
+
+    _r0 = _mm256_shuffle_ps(_tmp0, _tmp5, _MM_SHUFFLE(2, 0, 3, 0));
+    _r1 = _mm256_shuffle_ps(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 2, 0));
+    _r2 = _mm256_shuffle_ps(_tmp4, _tmp2, _MM_SHUFFLE(3, 0, 3, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x6_ps(__m256& _r0, __m256& _r1, __m256& _r2, __m256& _r3, __m256& _r4, __m256& _r5)
+{
+    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+
+    __m256 _tmp6 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmp7 = _mm256_shuffle_ps(_tmp4, _tmp0, _MM_SHUFFLE(3, 2, 1, 0));
+    __m256 _tmp8 = _mm256_shuffle_ps(_tmp2, _tmp4, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmp9 = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpa = _mm256_shuffle_ps(_tmp5, _tmp1, _MM_SHUFFLE(3, 2, 1, 0));
+    __m256 _tmpb = _mm256_shuffle_ps(_tmp3, _tmp5, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _r0 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_ps(_tmp8, _tmp9, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2f128_ps(_tmpa, _tmpb, _MM_SHUFFLE(0, 2, 0, 0));
+    _r3 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
+    _r4 = _mm256_permute2f128_ps(_tmp8, _tmp9, _MM_SHUFFLE(0, 3, 0, 1));
+    _r5 = _mm256_permute2f128_ps(_tmpa, _tmpb, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x11_ps(__m256& _r0, __m256& _r1, __m256& _r2, __m256& _r3, __m256& _r4, __m256& _r5, __m256& _r6, __m256& _r7, __m256& _r8, __m256& _r9, __m256& _ra)
+{
+    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
+    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
+    __m256 _tmp8 = _mm256_unpacklo_ps(_r8, _r9);
+    __m256 _tmp9 = _mm256_unpackhi_ps(_r8, _r9);
+    __m256 _tmpa = _mm256_unpacklo_ps(_ra, _r0);
+    __m256 _tmpb = _mm256_shuffle_ps(_ra, _tmp1, _MM_SHUFFLE(3, 2, 1, 2));
+    __m256 _tmpc = _mm256_unpacklo_ps(_r1, _r2);
+    __m256 _tmpd = _mm256_unpackhi_ps(_r1, _r2);
+    __m256 _tmpe = _mm256_unpacklo_ps(_r3, _r4);
+    __m256 _tmpf = _mm256_unpackhi_ps(_r3, _r4);
+    __m256 _tmpg = _mm256_unpacklo_ps(_r5, _r6);
+    __m256 _tmph = _mm256_unpackhi_ps(_r5, _r6);
+    __m256 _tmpi = _mm256_unpacklo_ps(_r7, _r8);
+    __m256 _tmpj = _mm256_unpackhi_ps(_r7, _r8);
+    __m256 _tmpk = _mm256_unpacklo_ps(_r9, _ra);
+    __m256 _tmpl = _mm256_unpackhi_ps(_r9, _ra);
+
+    __m256 _tmpm = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpn = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpo = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(3, 0, 1, 0));
+    __m256 _tmpp = _mm256_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpq = _mm256_shuffle_ps(_tmpg, _tmpi, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpr = _mm256_shuffle_ps(_tmpk, _tmp1, _MM_SHUFFLE(1, 0, 3, 2));
+    __m256 _tmps = _mm256_shuffle_ps(_tmp3, _tmp5, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpt = _mm256_shuffle_ps(_tmp7, _tmp9, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpu = _mm256_shuffle_ps(_tmpb, _tmpd, _MM_SHUFFLE(3, 2, 2, 0));
+    __m256 _tmpv = _mm256_shuffle_ps(_tmpf, _tmph, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpw = _mm256_shuffle_ps(_tmpj, _tmpl, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _r0 = _mm256_permute2f128_ps(_tmpm, _tmpn, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_ps(_tmpo, _tmpp, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2f128_ps(_tmpq, _tmpr, _MM_SHUFFLE(0, 2, 0, 0));
+    _r3 = _mm256_permute2f128_ps(_tmps, _tmpt, _MM_SHUFFLE(0, 2, 0, 0));
+    _r4 = _mm256_permute2f128_ps(_tmpu, _tmpv, _MM_SHUFFLE(0, 2, 0, 0));
+    _r5 = _mm256_permute2f128_ps(_tmpw, _tmpm, _MM_SHUFFLE(0, 3, 0, 0));
+    _r6 = _mm256_permute2f128_ps(_tmpn, _tmpo, _MM_SHUFFLE(0, 3, 0, 1));
+    _r7 = _mm256_permute2f128_ps(_tmpp, _tmpq, _MM_SHUFFLE(0, 3, 0, 1));
+    _r8 = _mm256_permute2f128_ps(_tmpr, _tmps, _MM_SHUFFLE(0, 3, 0, 1));
+    _r9 = _mm256_permute2f128_ps(_tmpt, _tmpu, _MM_SHUFFLE(0, 3, 0, 1));
+    _ra = _mm256_permute2f128_ps(_tmpv, _tmpw, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static void transpose8x18_ps(__m256& _r0, __m256& _r1, __m256& _r2, __m256& _r3, __m256& _r4, __m256& _r5, __m256& _r6, __m256& _r7, __m256& _r8, __m256& _r9, __m256& _ra, __m256& _rb, __m256& _rc, __m256& _rd, __m256& _re, __m256& _rf, __m256& _rg, __m256& _rh)
+{
+    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
+    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
+    __m256 _tmp8 = _mm256_unpacklo_ps(_r8, _r9);
+    __m256 _tmp9 = _mm256_unpackhi_ps(_r8, _r9);
+    __m256 _tmpa = _mm256_unpacklo_ps(_ra, _rb);
+    __m256 _tmpb = _mm256_unpackhi_ps(_ra, _rb);
+    __m256 _tmpc = _mm256_unpacklo_ps(_rc, _rd);
+    __m256 _tmpd = _mm256_unpackhi_ps(_rc, _rd);
+    __m256 _tmpe = _mm256_unpacklo_ps(_re, _rf);
+    __m256 _tmpf = _mm256_unpackhi_ps(_re, _rf);
+    __m256 _tmpg = _mm256_unpacklo_ps(_rg, _rh);
+    __m256 _tmph = _mm256_unpackhi_ps(_rg, _rh);
+
+    __m256 _tmpi = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpj = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpk = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpl = _mm256_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpm = _mm256_shuffle_ps(_tmpg, _tmp0, _MM_SHUFFLE(3, 2, 1, 0));
+    __m256 _tmpn = _mm256_shuffle_ps(_tmp2, _tmp4, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpo = _mm256_shuffle_ps(_tmp6, _tmp8, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpp = _mm256_shuffle_ps(_tmpa, _tmpc, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpq = _mm256_shuffle_ps(_tmpe, _tmpg, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpr = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmps = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpt = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpu = _mm256_shuffle_ps(_tmpd, _tmpf, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpv = _mm256_shuffle_ps(_tmph, _tmp1, _MM_SHUFFLE(3, 2, 1, 0));
+    __m256 _tmpw = _mm256_shuffle_ps(_tmp3, _tmp5, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpx = _mm256_shuffle_ps(_tmp7, _tmp9, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpy = _mm256_shuffle_ps(_tmpb, _tmpd, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpz = _mm256_shuffle_ps(_tmpf, _tmph, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _r0 = _mm256_permute2f128_ps(_tmpi, _tmpj, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_ps(_tmpk, _tmpl, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2f128_ps(_tmpm, _tmpn, _MM_SHUFFLE(0, 2, 0, 0));
+    _r3 = _mm256_permute2f128_ps(_tmpo, _tmpp, _MM_SHUFFLE(0, 2, 0, 0));
+    _r4 = _mm256_permute2f128_ps(_tmpq, _tmpr, _MM_SHUFFLE(0, 2, 0, 0));
+    _r5 = _mm256_permute2f128_ps(_tmps, _tmpt, _MM_SHUFFLE(0, 2, 0, 0));
+    _r6 = _mm256_permute2f128_ps(_tmpu, _tmpv, _MM_SHUFFLE(0, 2, 0, 0));
+    _r7 = _mm256_permute2f128_ps(_tmpw, _tmpx, _MM_SHUFFLE(0, 2, 0, 0));
+    _r8 = _mm256_permute2f128_ps(_tmpy, _tmpz, _MM_SHUFFLE(0, 2, 0, 0));
+    _r9 = _mm256_permute2f128_ps(_tmpi, _tmpj, _MM_SHUFFLE(0, 3, 0, 1));
+    _ra = _mm256_permute2f128_ps(_tmpk, _tmpl, _MM_SHUFFLE(0, 3, 0, 1));
+    _rb = _mm256_permute2f128_ps(_tmpm, _tmpn, _MM_SHUFFLE(0, 3, 0, 1));
+    _rc = _mm256_permute2f128_ps(_tmpo, _tmpp, _MM_SHUFFLE(0, 3, 0, 1));
+    _rd = _mm256_permute2f128_ps(_tmpq, _tmpr, _MM_SHUFFLE(0, 3, 0, 1));
+    _re = _mm256_permute2f128_ps(_tmps, _tmpt, _MM_SHUFFLE(0, 3, 0, 1));
+    _rf = _mm256_permute2f128_ps(_tmpu, _tmpv, _MM_SHUFFLE(0, 3, 0, 1));
+    _rg = _mm256_permute2f128_ps(_tmpw, _tmpx, _MM_SHUFFLE(0, 3, 0, 1));
+    _rh = _mm256_permute2f128_ps(_tmpy, _tmpz, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x8_epi32(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3, __m256i& _r4, __m256i& _r5, __m256i& _r6, __m256i& _r7)
+{
+    __m256 _tmp0 = _mm256_unpacklo_ps(_mm256_castsi256_ps(_r0), _mm256_castsi256_ps(_r1));
+    __m256 _tmp1 = _mm256_unpackhi_ps(_mm256_castsi256_ps(_r0), _mm256_castsi256_ps(_r1));
+    __m256 _tmp2 = _mm256_unpacklo_ps(_mm256_castsi256_ps(_r2), _mm256_castsi256_ps(_r3));
+    __m256 _tmp3 = _mm256_unpackhi_ps(_mm256_castsi256_ps(_r2), _mm256_castsi256_ps(_r3));
+    __m256 _tmp4 = _mm256_unpacklo_ps(_mm256_castsi256_ps(_r4), _mm256_castsi256_ps(_r5));
+    __m256 _tmp5 = _mm256_unpackhi_ps(_mm256_castsi256_ps(_r4), _mm256_castsi256_ps(_r5));
+    __m256 _tmp6 = _mm256_unpacklo_ps(_mm256_castsi256_ps(_r6), _mm256_castsi256_ps(_r7));
+    __m256 _tmp7 = _mm256_unpackhi_ps(_mm256_castsi256_ps(_r6), _mm256_castsi256_ps(_r7));
+
+    __m256i _tmp8 = _mm256_castps_si256(_mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0)));
+    __m256i _tmp9 = _mm256_castps_si256(_mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2)));
+    __m256i _tmpa = _mm256_castps_si256(_mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0)));
+    __m256i _tmpb = _mm256_castps_si256(_mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2)));
+    __m256i _tmpc = _mm256_castps_si256(_mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0)));
+    __m256i _tmpd = _mm256_castps_si256(_mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2)));
+    __m256i _tmpe = _mm256_castps_si256(_mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0)));
+    __m256i _tmpf = _mm256_castps_si256(_mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2)));
+
+    _r0 = _mm256_permute2f128_si256(_tmp8, _tmpc, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_si256(_tmp9, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2f128_si256(_tmpa, _tmpe, _MM_SHUFFLE(0, 2, 0, 0));
+    _r3 = _mm256_permute2f128_si256(_tmpb, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
+    _r4 = _mm256_permute2f128_si256(_tmp8, _tmpc, _MM_SHUFFLE(0, 3, 0, 1));
+    _r5 = _mm256_permute2f128_si256(_tmp9, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
+    _r6 = _mm256_permute2f128_si256(_tmpa, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
+    _r7 = _mm256_permute2f128_si256(_tmpb, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x4_epi32(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3)
+{
+    __m256 _tmp0 = _mm256_unpacklo_ps(_mm256_castsi256_ps(_r0), _mm256_castsi256_ps(_r1));
+    __m256 _tmp1 = _mm256_unpackhi_ps(_mm256_castsi256_ps(_r0), _mm256_castsi256_ps(_r1));
+    __m256 _tmp2 = _mm256_unpacklo_ps(_mm256_castsi256_ps(_r2), _mm256_castsi256_ps(_r3));
+    __m256 _tmp3 = _mm256_unpackhi_ps(_mm256_castsi256_ps(_r2), _mm256_castsi256_ps(_r3));
+
+    __m256i _tmp4 = _mm256_castps_si256(_mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0)));
+    __m256i _tmp5 = _mm256_castps_si256(_mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2)));
+    __m256i _tmp6 = _mm256_castps_si256(_mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0)));
+    __m256i _tmp7 = _mm256_castps_si256(_mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2)));
+
+    _r0 = _mm256_permute2f128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2f128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
+    _r3 = _mm256_permute2f128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x2_epi32(__m256i& _r0, __m256i& _r1)
+{
+#if __AVX2__
+    __m256i _tmp0 = _mm256_unpacklo_epi32(_r0, _r1);
+    __m256i _tmp1 = _mm256_unpackhi_epi32(_r0, _r1);
+#else
+    __m256i _tmp0 = _mm256_castps_si256(_mm256_unpacklo_ps(_mm256_castsi256_ps(_r0), _mm256_castsi256_ps(_r1)));
+    __m256i _tmp1 = _mm256_castps_si256(_mm256_unpackhi_ps(_mm256_castsi256_ps(_r0), _mm256_castsi256_ps(_r1)));
+#endif
+
+    _r0 = _mm256_permute2f128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
 }
 
 static NCNN_FORCEINLINE __m256 HorizontalSums(__m256& v0, __m256& v1, __m256& v2, __m256& v3, __m256& v4, __m256& v5, __m256& v6, __m256& v7)
@@ -275,6 +875,20 @@ static NCNN_FORCEINLINE __m128 HorizontalSums(__m256& v0, __m256& v1, __m256& v2
                       _mm256_castps256_ps128(s0123));
 }
 
+static NCNN_FORCEINLINE __m256 combine4x2_ps(__m128 a, __m128 b)
+{
+    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
+}
+
+static NCNN_FORCEINLINE __m256i combine4x2_epi32(__m128i a, __m128i b)
+{
+#if __AVX2__
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(a), b, 1);
+#else
+    return _mm256_insertf128_si256(_mm256_castsi128_si256(a), b, 1);
+#endif
+}
+
 static NCNN_FORCEINLINE float _mm256_reduce_add_ps(__m256 x)
 {
     /* ( x3+x7, x2+x6, x1+x5, x0+x4 ) */
@@ -305,7 +919,10 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
     __m256 _v0_p5 = _mm256_or_ps(_p5, _sign);
     __m256 _v0_adj = _mm256_add_ps(_v0, _v0_p5);
     __m256i _v0_i = _mm256_cvttps_epi32(_v0_adj);
-
+#if __AVX512F__
+    __m128i _v8 = _mm256_cvtsepi32_epi8(_v0_i);
+    _v8 = _mm_max_epi8(_v8, _mm_set1_epi8(-127));
+#else // __AVX512F__
 #if __AVX2__
     __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v0_i);
     _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
@@ -322,6 +939,7 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
     _v01_s16low = _mm_max_epi16(_v01_s16low, _mm_set1_epi16(-127));
 
     __m128i _v8 = _mm_packs_epi16(_v01_s16low, _v01_s16low);
+#endif // __AVX512F__
 
 #if defined(__x86_64__) || defined(_M_X64)
     return _mm_cvtsi128_si64(_v8);
@@ -400,8 +1018,197 @@ static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps8(__m256& _sum,
     _mm256_comp_fmadd_ps4(_sum, _w4, _w5, _w6, _w7, _v4, _v5, _v6, _v7);
 }
 
+static NCNN_FORCEINLINE __m256 bfloat2float_avx(const __m128i& v0)
+{
+#if __AVX512BF16__
+    __m256 _v = _mm256_cvtpbh_ps((__m128bh)v0);
+#else
+    __m128i _zero = _mm_setzero_si128();
+    __m128i _a = _mm_unpacklo_epi16(_zero, v0);
+    __m128i _b = _mm_unpackhi_epi16(_zero, v0);
+    __m256 _v = _mm256_castsi256_ps(_mm256_insertf128_si256(_mm256_castsi128_si256(_a), _b, 1));
+#endif
+    return _v;
+}
+
+static NCNN_FORCEINLINE __m128i float2bfloat_avx(const __m256& v0)
+{
+#if __AVX512BF16__
+    __m128i _v = (__m128i)_mm256_cvtneps_pbh(v0);
+#else
+    __m256i _ab = _mm256_castps_si256(v0);
+#if __AVX2__
+    _ab = _mm256_srli_epi32(_ab, 16);
+    __m128i _a = _mm256_extractf128_si256(_ab, 0);
+    __m128i _b = _mm256_extractf128_si256(_ab, 1);
+#else
+    __m128i _a = _mm256_extractf128_si256(_ab, 0);
+    __m128i _b = _mm256_extractf128_si256(_ab, 1);
+    _a = _mm_srli_epi32(_a, 16);
+    _b = _mm_srli_epi32(_b, 16);
+#endif
+    __m128i _v = _mm_packus_epi32(_a, _b);
+#endif
+    return _v;
+}
+
+static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256& v1)
+{
+#if __AVX512BF16__
+    __m128i _v0 = (__m128i)_mm256_cvtneps_pbh(v0);
+    __m128i _v1 = (__m128i)_mm256_cvtneps_pbh(v1);
+    __m256i _v = _mm256_insertf128_si256(_mm256_castsi128_si256(_v0), _v1, 1);
+#else
+    __m256i _a = _mm256_castps_si256(v0);
+    __m256i _b = _mm256_castps_si256(v1);
+#if __AVX2__
+    _a = _mm256_srli_epi32(_a, 16);
+    _b = _mm256_srli_epi32(_b, 16);
+    __m256i _v = _mm256_packus_epi32(_a, _b);
+    _v = _mm256_permute4x64_epi64(_v, _MM_SHUFFLE(3, 1, 2, 0));
+#else
+    __m128i _a0 = _mm256_extractf128_si256(_a, 0);
+    __m128i _a1 = _mm256_extractf128_si256(_a, 1);
+    __m128i _b0 = _mm256_extractf128_si256(_b, 0);
+    __m128i _b1 = _mm256_extractf128_si256(_b, 1);
+    _a0 = _mm_srli_epi32(_a0, 16);
+    _a1 = _mm_srli_epi32(_a1, 16);
+    _b0 = _mm_srli_epi32(_b0, 16);
+    _b1 = _mm_srli_epi32(_b1, 16);
+    __m128i _v0 = _mm_packus_epi32(_a0, _a1);
+    __m128i _v1 = _mm_packus_epi32(_b0, _b1);
+    __m256i _v = _mm256_insertf128_si256(_mm256_castsi128_si256(_v0), _v1, 1);
+#endif
+#endif
+    return _v;
+}
+
+#if __AVX2__
+static NCNN_FORCEINLINE __m256i _mm256_comp_dpwssd_epi32(__m256i src, __m256i a, __m256i b)
+{
+#if __AVX512VNNI__
+    return _mm256_dpwssd_epi32(src, a, b);
+#elif __AVXVNNI__
+    return _mm256_dpwssd_avx_epi32(src, a, b);
+#else
+    return _mm256_add_epi32(src, _mm256_madd_epi16(a, b));
+#endif
+}
+
+#if __AVX512VNNI__ || __AVXVNNI__
+static NCNN_FORCEINLINE __m128i _mm_comp_dpbusd_epi32(__m128i src, __m128i a, __m128i b)
+{
+#if __AVX512VNNI__
+    return _mm_dpbusd_epi32(src, a, b);
+#else
+    return _mm_dpbusd_avx_epi32(src, a, b);
+#endif
+}
+
+static NCNN_FORCEINLINE __m256i _mm256_comp_dpbusd_epi32(__m256i src, __m256i a, __m256i b)
+{
+#if __AVX512VNNI__
+    return _mm256_dpbusd_epi32(src, a, b);
+#else
+    return _mm256_dpbusd_avx_epi32(src, a, b);
+#endif
+}
+#endif // __AVX512VNNI__ || __AVXVNNI__
+
+static NCNN_FORCEINLINE __m128i _mm_comp_cvtepi32_epi16(__m128i a)
+{
 #if __AVX512F__
-static NCNN_FORCEINLINE void transpose16_ps(__m512& _r0, __m512& _r1, __m512& _r2, __m512& _r3, __m512& _r4, __m512& _r5, __m512& _r6, __m512& _r7,
+    return _mm_cvtepi32_epi16(a);
+#else
+    __m128i _si = _mm_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, 0, 0, 0, 0, 0, 0, 0, 0);
+    return _mm_shuffle_epi8(a, _si);
+#endif
+}
+
+static NCNN_FORCEINLINE __m128i _mm256_comp_cvtepi32_epi16(__m256i a)
+{
+#if __AVX512F__
+    return _mm256_cvtepi32_epi16(a);
+#else
+    __m128i _si = _mm_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, 0, 0, 0, 0, 0, 0, 0, 0);
+    __m256i _t = _mm256_shuffle_epi8(a, combine4x2_epi32(_si, _si));
+    _t = _mm256_permute4x64_epi64(_t, _MM_SHUFFLE(3, 1, 2, 0));
+    return _mm256_castsi256_si128(_t);
+#endif
+}
+
+static NCNN_FORCEINLINE __m128i _mm_comp_cvtepi32_epi8(__m128i a)
+{
+#if __AVX512F__
+    return _mm_cvtepi32_epi8(a);
+#else
+    __m128i _si = _mm_setr_epi8(0, 4, 8, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    return _mm_shuffle_epi8(a, _si);
+#endif
+}
+
+static NCNN_FORCEINLINE __m128i _mm256_comp_cvtepi32_epi8(__m256i a)
+{
+#if __AVX512F__
+    return _mm256_cvtepi32_epi8(a);
+#else
+    __m128i _si = _mm_setr_epi8(0, 4, 8, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    __m256i _t = _mm256_shuffle_epi8(a, combine4x2_epi32(_si, _si));
+    _t = _mm256_permute4x64_epi64(_t, _MM_SHUFFLE(3, 1, 2, 0));
+    return _mm_shuffle_epi32(_mm256_castsi256_si128(_t), _MM_SHUFFLE(3, 1, 2, 0));
+#endif
+}
+
+static NCNN_FORCEINLINE void transpose16x8_epi16(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3, __m256i& _r4, __m256i& _r5, __m256i& _r6, __m256i& _r7)
+{
+    __m256i _tmp0 = _mm256_unpacklo_epi16(_r0, _r1);
+    __m256i _tmp1 = _mm256_unpackhi_epi16(_r0, _r1);
+    __m256i _tmp2 = _mm256_unpacklo_epi16(_r2, _r3);
+    __m256i _tmp3 = _mm256_unpackhi_epi16(_r2, _r3);
+    __m256i _tmp4 = _mm256_unpacklo_epi16(_r4, _r5);
+    __m256i _tmp5 = _mm256_unpackhi_epi16(_r4, _r5);
+    __m256i _tmp6 = _mm256_unpacklo_epi16(_r6, _r7);
+    __m256i _tmp7 = _mm256_unpackhi_epi16(_r6, _r7);
+
+    __m256i _tmpg = _mm256_unpacklo_epi32(_tmp0, _tmp2);
+    __m256i _tmph = _mm256_unpackhi_epi32(_tmp0, _tmp2);
+    __m256i _tmpi = _mm256_unpacklo_epi32(_tmp1, _tmp3);
+    __m256i _tmpj = _mm256_unpackhi_epi32(_tmp1, _tmp3);
+    __m256i _tmpk = _mm256_unpacklo_epi32(_tmp4, _tmp6);
+    __m256i _tmpl = _mm256_unpackhi_epi32(_tmp4, _tmp6);
+    __m256i _tmpm = _mm256_unpacklo_epi32(_tmp5, _tmp7);
+    __m256i _tmpn = _mm256_unpackhi_epi32(_tmp5, _tmp7);
+
+    _tmp0 = _mm256_unpacklo_epi64(_tmpg, _tmpk);
+    _tmp1 = _mm256_unpackhi_epi64(_tmpg, _tmpk);
+    _tmp2 = _mm256_unpacklo_epi64(_tmph, _tmpl);
+    _tmp3 = _mm256_unpackhi_epi64(_tmph, _tmpl);
+    _tmp4 = _mm256_unpacklo_epi64(_tmpi, _tmpm);
+    _tmp5 = _mm256_unpackhi_epi64(_tmpi, _tmpm);
+    _tmp6 = _mm256_unpacklo_epi64(_tmpj, _tmpn);
+    _tmp7 = _mm256_unpackhi_epi64(_tmpj, _tmpn);
+
+    _r0 = _mm256_permute2x128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2x128_si256(_tmp2, _tmp3, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2x128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
+    _r3 = _mm256_permute2x128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
+    _r4 = _mm256_permute2x128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
+    _r5 = _mm256_permute2x128_si256(_tmp2, _tmp3, _MM_SHUFFLE(0, 3, 0, 1));
+    _r6 = _mm256_permute2x128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
+    _r7 = _mm256_permute2x128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+#if __AVX512F__
+static NCNN_FORCEINLINE __m512i _mm512_comp_dpwssd_epi32(__m512i src, __m512i a, __m512i b)
+{
+#if __AVX512VNNI__
+    return _mm512_dpwssd_epi32(src, a, b);
+#else
+    return _mm512_add_epi32(src, _mm512_madd_epi16(a, b));
+#endif
+}
+
+static NCNN_FORCEINLINE void transpose16x16_ps(__m512& _r0, __m512& _r1, __m512& _r2, __m512& _r3, __m512& _r4, __m512& _r5, __m512& _r6, __m512& _r7,
         __m512& _r8, __m512& _r9, __m512& _ra, __m512& _rb, __m512& _rc, __m512& _rd, __m512& _re, __m512& _rf)
 {
     __m512 _tmp0 = _mm512_unpacklo_ps(_r0, _r1);
@@ -473,6 +1280,451 @@ static NCNN_FORCEINLINE void transpose16_ps(__m512& _r0, __m512& _r1, __m512& _r
     _rf = _mm512_shuffle_f32x4(_tmpe, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
 }
 
+static NCNN_FORCEINLINE void transpose16x12_ps(__m512& _r0, __m512& _r1, __m512& _r2, __m512& _r3, __m512& _r4, __m512& _r5, __m512& _r6, __m512& _r7,
+        __m512& _r8, __m512& _r9, __m512& _ra, __m512& _rb)
+{
+    __m512 _tmp0 = _mm512_unpacklo_ps(_r0, _r1);
+    __m512 _tmp1 = _mm512_unpackhi_ps(_r0, _r1);
+    __m512 _tmp2 = _mm512_unpacklo_ps(_r2, _r3);
+    __m512 _tmp3 = _mm512_unpackhi_ps(_r2, _r3);
+    __m512 _tmp4 = _mm512_unpacklo_ps(_r4, _r5);
+    __m512 _tmp5 = _mm512_unpackhi_ps(_r4, _r5);
+    __m512 _tmp6 = _mm512_unpacklo_ps(_r6, _r7);
+    __m512 _tmp7 = _mm512_unpackhi_ps(_r6, _r7);
+    __m512 _tmp8 = _mm512_unpacklo_ps(_r8, _r9);
+    __m512 _tmp9 = _mm512_unpackhi_ps(_r8, _r9);
+    __m512 _tmpa = _mm512_unpacklo_ps(_ra, _rb);
+    __m512 _tmpb = _mm512_unpackhi_ps(_ra, _rb);
+
+    __m512 _tmpc = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpd = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpe = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpf = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpg = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmph = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpi = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpj = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpk = _mm512_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpl = _mm512_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpm = _mm512_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpn = _mm512_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _tmp0 = _mm512_shuffle_f32x4(_tmpc, _tmpg, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp1 = _mm512_shuffle_f32x4(_tmpk, _tmpd, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp2 = _mm512_shuffle_f32x4(_tmph, _tmpl, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp3 = _mm512_shuffle_f32x4(_tmpe, _tmpi, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp4 = _mm512_shuffle_f32x4(_tmpm, _tmpf, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp5 = _mm512_shuffle_f32x4(_tmpj, _tmpn, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp6 = _mm512_shuffle_f32x4(_tmpc, _tmpg, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp7 = _mm512_shuffle_f32x4(_tmpk, _tmpd, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp8 = _mm512_shuffle_f32x4(_tmph, _tmpl, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp9 = _mm512_shuffle_f32x4(_tmpe, _tmpi, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpa = _mm512_shuffle_f32x4(_tmpm, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpb = _mm512_shuffle_f32x4(_tmpj, _tmpn, _MM_SHUFFLE(3, 1, 3, 1));
+
+    _r0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+    _r1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+    _r2 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+    _r3 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+    _r4 = _mm512_shuffle_f32x4(_tmp8, _tmp9, _MM_SHUFFLE(2, 0, 2, 0));
+    _r5 = _mm512_shuffle_f32x4(_tmpa, _tmpb, _MM_SHUFFLE(2, 0, 2, 0));
+    _r6 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+    _r7 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+    _r8 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+    _r9 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+    _ra = _mm512_shuffle_f32x4(_tmp8, _tmp9, _MM_SHUFFLE(3, 1, 3, 1));
+    _rb = _mm512_shuffle_f32x4(_tmpa, _tmpb, _MM_SHUFFLE(3, 1, 3, 1));
+}
+
+static NCNN_FORCEINLINE void transpose16x8_ps(__m512& _r0, __m512& _r1, __m512& _r2, __m512& _r3, __m512& _r4, __m512& _r5, __m512& _r6, __m512& _r7)
+{
+    __m512 _tmp0 = _mm512_unpacklo_ps(_r0, _r1);
+    __m512 _tmp1 = _mm512_unpackhi_ps(_r0, _r1);
+    __m512 _tmp2 = _mm512_unpacklo_ps(_r2, _r3);
+    __m512 _tmp3 = _mm512_unpackhi_ps(_r2, _r3);
+    __m512 _tmp4 = _mm512_unpacklo_ps(_r4, _r5);
+    __m512 _tmp5 = _mm512_unpackhi_ps(_r4, _r5);
+    __m512 _tmp6 = _mm512_unpacklo_ps(_r6, _r7);
+    __m512 _tmp7 = _mm512_unpackhi_ps(_r6, _r7);
+
+    __m512 _tmp8 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmp9 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpa = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpb = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpc = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpd = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpe = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpf = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _tmp0 = _mm512_shuffle_f32x4(_tmp8, _tmpc, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp1 = _mm512_shuffle_f32x4(_tmp9, _tmpd, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp2 = _mm512_shuffle_f32x4(_tmpa, _tmpe, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp3 = _mm512_shuffle_f32x4(_tmpb, _tmpf, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp4 = _mm512_shuffle_f32x4(_tmp8, _tmpc, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp5 = _mm512_shuffle_f32x4(_tmp9, _tmpd, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp6 = _mm512_shuffle_f32x4(_tmpa, _tmpe, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp7 = _mm512_shuffle_f32x4(_tmpb, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
+
+    _r0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+    _r1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+    _r2 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+    _r3 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+    _r4 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+    _r5 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+    _r6 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+    _r7 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+}
+
+static NCNN_FORCEINLINE void transpose16x4_ps(__m512& _r0, __m512& _r1, __m512& _r2, __m512& _r3)
+{
+    __m512 _tmp0 = _mm512_unpacklo_ps(_r0, _r1);
+    __m512 _tmp1 = _mm512_unpackhi_ps(_r0, _r1);
+    __m512 _tmp2 = _mm512_unpacklo_ps(_r2, _r3);
+    __m512 _tmp3 = _mm512_unpackhi_ps(_r2, _r3);
+
+    __m512 _tmp4 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmp5 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmp6 = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmp7 = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _tmp0 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp1 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp2 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp3 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+
+    _r0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+    _r1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+    _r2 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+    _r3 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+}
+
+static NCNN_FORCEINLINE void transpose16x2_ps(__m512& _r0, __m512& _r1)
+{
+    __m512 _tmp0 = _mm512_unpacklo_ps(_r0, _r1);
+    __m512 _tmp1 = _mm512_unpackhi_ps(_r0, _r1);
+
+    __m512 _tmp2 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+    __m512 _tmp3 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+
+    _r0 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+    _r1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x16_ps(__m256& _r0, __m256& _r1, __m256& _r2, __m256& _r3, __m256& _r4, __m256& _r5, __m256& _r6, __m256& _r7,
+        __m256& _r8, __m256& _r9, __m256& _ra, __m256& _rb, __m256& _rc, __m256& _rd, __m256& _re, __m256& _rf)
+{
+    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
+    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
+    __m256 _tmp8 = _mm256_unpacklo_ps(_r8, _r9);
+    __m256 _tmp9 = _mm256_unpackhi_ps(_r8, _r9);
+    __m256 _tmpa = _mm256_unpacklo_ps(_ra, _rb);
+    __m256 _tmpb = _mm256_unpackhi_ps(_ra, _rb);
+    __m256 _tmpc = _mm256_unpacklo_ps(_rc, _rd);
+    __m256 _tmpd = _mm256_unpackhi_ps(_rc, _rd);
+    __m256 _tmpe = _mm256_unpacklo_ps(_re, _rf);
+    __m256 _tmpf = _mm256_unpackhi_ps(_re, _rf);
+
+    __m256 _tmpg = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmph = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpi = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpj = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpk = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpl = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpm = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpn = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpo = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpp = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpq = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpr = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmps = _mm256_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpt = _mm256_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _tmpu = _mm256_shuffle_ps(_tmpd, _tmpf, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 _tmpv = _mm256_shuffle_ps(_tmpd, _tmpf, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _r0 = _mm256_permute2f128_ps(_tmpg, _tmpk, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_ps(_tmpo, _tmps, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 2, 0, 0));
+    _r3 = _mm256_permute2f128_ps(_tmpp, _tmpt, _MM_SHUFFLE(0, 2, 0, 0));
+    _r4 = _mm256_permute2f128_ps(_tmpi, _tmpm, _MM_SHUFFLE(0, 2, 0, 0));
+    _r5 = _mm256_permute2f128_ps(_tmpq, _tmpu, _MM_SHUFFLE(0, 2, 0, 0));
+    _r6 = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 2, 0, 0));
+    _r7 = _mm256_permute2f128_ps(_tmpr, _tmpv, _MM_SHUFFLE(0, 2, 0, 0));
+    _r8 = _mm256_permute2f128_ps(_tmpg, _tmpk, _MM_SHUFFLE(0, 3, 0, 1));
+    _r9 = _mm256_permute2f128_ps(_tmpo, _tmps, _MM_SHUFFLE(0, 3, 0, 1));
+    _ra = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 3, 0, 1));
+    _rb = _mm256_permute2f128_ps(_tmpp, _tmpt, _MM_SHUFFLE(0, 3, 0, 1));
+    _rc = _mm256_permute2f128_ps(_tmpi, _tmpm, _MM_SHUFFLE(0, 3, 0, 1));
+    _rd = _mm256_permute2f128_ps(_tmpq, _tmpu, _MM_SHUFFLE(0, 3, 0, 1));
+    _re = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 3, 0, 1));
+    _rf = _mm256_permute2f128_ps(_tmpr, _tmpv, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose16x16_epi32(__m512i& _r0, __m512i& _r1, __m512i& _r2, __m512i& _r3, __m512i& _r4, __m512i& _r5, __m512i& _r6, __m512i& _r7,
+        __m512i& _r8, __m512i& _r9, __m512i& _ra, __m512i& _rb, __m512i& _rc, __m512i& _rd, __m512i& _re, __m512i& _rf)
+{
+    __m512i _tmp0 = _mm512_unpacklo_epi32(_r0, _r1);
+    __m512i _tmp1 = _mm512_unpackhi_epi32(_r0, _r1);
+    __m512i _tmp2 = _mm512_unpacklo_epi32(_r2, _r3);
+    __m512i _tmp3 = _mm512_unpackhi_epi32(_r2, _r3);
+    __m512i _tmp4 = _mm512_unpacklo_epi32(_r4, _r5);
+    __m512i _tmp5 = _mm512_unpackhi_epi32(_r4, _r5);
+    __m512i _tmp6 = _mm512_unpacklo_epi32(_r6, _r7);
+    __m512i _tmp7 = _mm512_unpackhi_epi32(_r6, _r7);
+    __m512i _tmp8 = _mm512_unpacklo_epi32(_r8, _r9);
+    __m512i _tmp9 = _mm512_unpackhi_epi32(_r8, _r9);
+    __m512i _tmpa = _mm512_unpacklo_epi32(_ra, _rb);
+    __m512i _tmpb = _mm512_unpackhi_epi32(_ra, _rb);
+    __m512i _tmpc = _mm512_unpacklo_epi32(_rc, _rd);
+    __m512i _tmpd = _mm512_unpackhi_epi32(_rc, _rd);
+    __m512i _tmpe = _mm512_unpacklo_epi32(_re, _rf);
+    __m512i _tmpf = _mm512_unpackhi_epi32(_re, _rf);
+
+    __m512i _tmpg = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp0), _mm512_castsi512_ps(_tmp2), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmph = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp0), _mm512_castsi512_ps(_tmp2), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmpi = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp1), _mm512_castsi512_ps(_tmp3), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpj = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp1), _mm512_castsi512_ps(_tmp3), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmpk = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp4), _mm512_castsi512_ps(_tmp6), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpl = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp4), _mm512_castsi512_ps(_tmp6), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmpm = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp5), _mm512_castsi512_ps(_tmp7), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpn = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp5), _mm512_castsi512_ps(_tmp7), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmpo = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp8), _mm512_castsi512_ps(_tmpa), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpp = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp8), _mm512_castsi512_ps(_tmpa), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmpq = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp9), _mm512_castsi512_ps(_tmpb), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpr = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp9), _mm512_castsi512_ps(_tmpb), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmps = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmpc), _mm512_castsi512_ps(_tmpe), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpt = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmpc), _mm512_castsi512_ps(_tmpe), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmpu = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmpd), _mm512_castsi512_ps(_tmpf), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpv = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmpd), _mm512_castsi512_ps(_tmpf), _MM_SHUFFLE(3, 2, 3, 2)));
+
+    _tmp0 = _mm512_shuffle_i32x4(_tmpg, _tmpk, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp1 = _mm512_shuffle_i32x4(_tmpo, _tmps, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp2 = _mm512_shuffle_i32x4(_tmph, _tmpl, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp3 = _mm512_shuffle_i32x4(_tmpp, _tmpt, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp4 = _mm512_shuffle_i32x4(_tmpi, _tmpm, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp5 = _mm512_shuffle_i32x4(_tmpq, _tmpu, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp6 = _mm512_shuffle_i32x4(_tmpj, _tmpn, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp7 = _mm512_shuffle_i32x4(_tmpr, _tmpv, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp8 = _mm512_shuffle_i32x4(_tmpg, _tmpk, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp9 = _mm512_shuffle_i32x4(_tmpo, _tmps, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpa = _mm512_shuffle_i32x4(_tmph, _tmpl, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpb = _mm512_shuffle_i32x4(_tmpp, _tmpt, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpc = _mm512_shuffle_i32x4(_tmpi, _tmpm, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpd = _mm512_shuffle_i32x4(_tmpq, _tmpu, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpe = _mm512_shuffle_i32x4(_tmpj, _tmpn, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpf = _mm512_shuffle_i32x4(_tmpr, _tmpv, _MM_SHUFFLE(3, 1, 3, 1));
+
+    _r0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+    _r1 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+    _r2 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+    _r3 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+    _r4 = _mm512_shuffle_i32x4(_tmp8, _tmp9, _MM_SHUFFLE(2, 0, 2, 0));
+    _r5 = _mm512_shuffle_i32x4(_tmpa, _tmpb, _MM_SHUFFLE(2, 0, 2, 0));
+    _r6 = _mm512_shuffle_i32x4(_tmpc, _tmpd, _MM_SHUFFLE(2, 0, 2, 0));
+    _r7 = _mm512_shuffle_i32x4(_tmpe, _tmpf, _MM_SHUFFLE(2, 0, 2, 0));
+    _r8 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+    _r9 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+    _ra = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+    _rb = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+    _rc = _mm512_shuffle_i32x4(_tmp8, _tmp9, _MM_SHUFFLE(3, 1, 3, 1));
+    _rd = _mm512_shuffle_i32x4(_tmpa, _tmpb, _MM_SHUFFLE(3, 1, 3, 1));
+    _re = _mm512_shuffle_i32x4(_tmpc, _tmpd, _MM_SHUFFLE(3, 1, 3, 1));
+    _rf = _mm512_shuffle_i32x4(_tmpe, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
+}
+
+static NCNN_FORCEINLINE void transpose16x8_epi32(__m512i& _r0, __m512i& _r1, __m512i& _r2, __m512i& _r3, __m512i& _r4, __m512i& _r5, __m512i& _r6, __m512i& _r7)
+{
+    __m512i _tmp0 = _mm512_unpacklo_epi32(_r0, _r1);
+    __m512i _tmp1 = _mm512_unpackhi_epi32(_r0, _r1);
+    __m512i _tmp2 = _mm512_unpacklo_epi32(_r2, _r3);
+    __m512i _tmp3 = _mm512_unpackhi_epi32(_r2, _r3);
+    __m512i _tmp4 = _mm512_unpacklo_epi32(_r4, _r5);
+    __m512i _tmp5 = _mm512_unpackhi_epi32(_r4, _r5);
+    __m512i _tmp6 = _mm512_unpacklo_epi32(_r6, _r7);
+    __m512i _tmp7 = _mm512_unpackhi_epi32(_r6, _r7);
+
+    __m512i _tmp8 = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp0), _mm512_castsi512_ps(_tmp2), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmp9 = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp0), _mm512_castsi512_ps(_tmp2), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmpa = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp1), _mm512_castsi512_ps(_tmp3), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpb = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp1), _mm512_castsi512_ps(_tmp3), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmpc = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp4), _mm512_castsi512_ps(_tmp6), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpd = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp4), _mm512_castsi512_ps(_tmp6), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmpe = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp5), _mm512_castsi512_ps(_tmp7), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmpf = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp5), _mm512_castsi512_ps(_tmp7), _MM_SHUFFLE(3, 2, 3, 2)));
+
+    _tmp0 = _mm512_shuffle_i32x4(_tmp8, _tmpc, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp1 = _mm512_shuffle_i32x4(_tmp9, _tmpd, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp2 = _mm512_shuffle_i32x4(_tmpa, _tmpe, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp3 = _mm512_shuffle_i32x4(_tmpb, _tmpf, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp4 = _mm512_shuffle_i32x4(_tmp8, _tmpc, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp5 = _mm512_shuffle_i32x4(_tmp9, _tmpd, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp6 = _mm512_shuffle_i32x4(_tmpa, _tmpe, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp7 = _mm512_shuffle_i32x4(_tmpb, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
+
+    _r0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+    _r1 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+    _r2 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+    _r3 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+    _r4 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+    _r5 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+    _r6 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+    _r7 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+}
+
+static NCNN_FORCEINLINE void transpose16x4_epi32(__m512i& _r0, __m512i& _r1, __m512i& _r2, __m512i& _r3)
+{
+    __m512i _tmp0 = _mm512_unpacklo_epi32(_r0, _r1);
+    __m512i _tmp1 = _mm512_unpackhi_epi32(_r0, _r1);
+    __m512i _tmp2 = _mm512_unpacklo_epi32(_r2, _r3);
+    __m512i _tmp3 = _mm512_unpackhi_epi32(_r2, _r3);
+
+    __m512i _tmp4 = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp0), _mm512_castsi512_ps(_tmp2), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmp5 = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp0), _mm512_castsi512_ps(_tmp2), _MM_SHUFFLE(3, 2, 3, 2)));
+    __m512i _tmp6 = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp1), _mm512_castsi512_ps(_tmp3), _MM_SHUFFLE(1, 0, 1, 0)));
+    __m512i _tmp7 = _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(_tmp1), _mm512_castsi512_ps(_tmp3), _MM_SHUFFLE(3, 2, 3, 2)));
+
+    _tmp0 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp1 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp2 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp3 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+
+    _r0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+    _r1 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+    _r2 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+    _r3 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+}
+
+static NCNN_FORCEINLINE void transpose16x16_epi16(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3, __m256i& _r4, __m256i& _r5, __m256i& _r6, __m256i& _r7,
+        __m256i& _r8, __m256i& _r9, __m256i& _ra, __m256i& _rb, __m256i& _rc, __m256i& _rd, __m256i& _re, __m256i& _rf)
+{
+    __m256i _tmp0 = _mm256_unpacklo_epi16(_r0, _r1);
+    __m256i _tmp1 = _mm256_unpackhi_epi16(_r0, _r1);
+    __m256i _tmp2 = _mm256_unpacklo_epi16(_r2, _r3);
+    __m256i _tmp3 = _mm256_unpackhi_epi16(_r2, _r3);
+    __m256i _tmp4 = _mm256_unpacklo_epi16(_r4, _r5);
+    __m256i _tmp5 = _mm256_unpackhi_epi16(_r4, _r5);
+    __m256i _tmp6 = _mm256_unpacklo_epi16(_r6, _r7);
+    __m256i _tmp7 = _mm256_unpackhi_epi16(_r6, _r7);
+    __m256i _tmp8 = _mm256_unpacklo_epi16(_r8, _r9);
+    __m256i _tmp9 = _mm256_unpackhi_epi16(_r8, _r9);
+    __m256i _tmpa = _mm256_unpacklo_epi16(_ra, _rb);
+    __m256i _tmpb = _mm256_unpackhi_epi16(_ra, _rb);
+    __m256i _tmpc = _mm256_unpacklo_epi16(_rc, _rd);
+    __m256i _tmpd = _mm256_unpackhi_epi16(_rc, _rd);
+    __m256i _tmpe = _mm256_unpacklo_epi16(_re, _rf);
+    __m256i _tmpf = _mm256_unpackhi_epi16(_re, _rf);
+
+    __m256i _tmpg = _mm256_unpacklo_epi32(_tmp0, _tmp2);
+    __m256i _tmph = _mm256_unpackhi_epi32(_tmp0, _tmp2);
+    __m256i _tmpi = _mm256_unpacklo_epi32(_tmp1, _tmp3);
+    __m256i _tmpj = _mm256_unpackhi_epi32(_tmp1, _tmp3);
+    __m256i _tmpk = _mm256_unpacklo_epi32(_tmp4, _tmp6);
+    __m256i _tmpl = _mm256_unpackhi_epi32(_tmp4, _tmp6);
+    __m256i _tmpm = _mm256_unpacklo_epi32(_tmp5, _tmp7);
+    __m256i _tmpn = _mm256_unpackhi_epi32(_tmp5, _tmp7);
+    __m256i _tmpo = _mm256_unpacklo_epi32(_tmp8, _tmpa);
+    __m256i _tmpp = _mm256_unpackhi_epi32(_tmp8, _tmpa);
+    __m256i _tmpq = _mm256_unpacklo_epi32(_tmp9, _tmpb);
+    __m256i _tmpr = _mm256_unpackhi_epi32(_tmp9, _tmpb);
+    __m256i _tmps = _mm256_unpacklo_epi32(_tmpc, _tmpe);
+    __m256i _tmpt = _mm256_unpackhi_epi32(_tmpc, _tmpe);
+    __m256i _tmpu = _mm256_unpacklo_epi32(_tmpd, _tmpf);
+    __m256i _tmpv = _mm256_unpackhi_epi32(_tmpd, _tmpf);
+
+    _tmp0 = _mm256_unpacklo_epi64(_tmpg, _tmpk);
+    _tmp1 = _mm256_unpackhi_epi64(_tmpg, _tmpk);
+    _tmp2 = _mm256_unpacklo_epi64(_tmph, _tmpl);
+    _tmp3 = _mm256_unpackhi_epi64(_tmph, _tmpl);
+    _tmp4 = _mm256_unpacklo_epi64(_tmpi, _tmpm);
+    _tmp5 = _mm256_unpackhi_epi64(_tmpi, _tmpm);
+    _tmp6 = _mm256_unpacklo_epi64(_tmpj, _tmpn);
+    _tmp7 = _mm256_unpackhi_epi64(_tmpj, _tmpn);
+    _tmp8 = _mm256_unpacklo_epi64(_tmpo, _tmps);
+    _tmp9 = _mm256_unpackhi_epi64(_tmpo, _tmps);
+    _tmpa = _mm256_unpacklo_epi64(_tmpp, _tmpt);
+    _tmpb = _mm256_unpackhi_epi64(_tmpp, _tmpt);
+    _tmpc = _mm256_unpacklo_epi64(_tmpq, _tmpu);
+    _tmpd = _mm256_unpackhi_epi64(_tmpq, _tmpu);
+    _tmpe = _mm256_unpacklo_epi64(_tmpr, _tmpv);
+    _tmpf = _mm256_unpackhi_epi64(_tmpr, _tmpv);
+
+    _r0 = _mm256_permute2x128_si256(_tmp0, _tmp8, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2x128_si256(_tmp1, _tmp9, _MM_SHUFFLE(0, 2, 0, 0));
+    _r2 = _mm256_permute2x128_si256(_tmp2, _tmpa, _MM_SHUFFLE(0, 2, 0, 0));
+    _r3 = _mm256_permute2x128_si256(_tmp3, _tmpb, _MM_SHUFFLE(0, 2, 0, 0));
+    _r4 = _mm256_permute2x128_si256(_tmp4, _tmpc, _MM_SHUFFLE(0, 2, 0, 0));
+    _r5 = _mm256_permute2x128_si256(_tmp5, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
+    _r6 = _mm256_permute2x128_si256(_tmp6, _tmpe, _MM_SHUFFLE(0, 2, 0, 0));
+    _r7 = _mm256_permute2x128_si256(_tmp7, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
+    _r8 = _mm256_permute2x128_si256(_tmp0, _tmp8, _MM_SHUFFLE(0, 3, 0, 1));
+    _r9 = _mm256_permute2x128_si256(_tmp1, _tmp9, _MM_SHUFFLE(0, 3, 0, 1));
+    _ra = _mm256_permute2x128_si256(_tmp2, _tmpa, _MM_SHUFFLE(0, 3, 0, 1));
+    _rb = _mm256_permute2x128_si256(_tmp3, _tmpb, _MM_SHUFFLE(0, 3, 0, 1));
+    _rc = _mm256_permute2x128_si256(_tmp4, _tmpc, _MM_SHUFFLE(0, 3, 0, 1));
+    _rd = _mm256_permute2x128_si256(_tmp5, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
+    _re = _mm256_permute2x128_si256(_tmp6, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
+    _rf = _mm256_permute2x128_si256(_tmp7, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose8x16_epi16(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3, __m128i& _r4, __m128i& _r5, __m128i& _r6, __m128i& _r7, __m128i& _r8, __m128i& _r9, __m128i& _ra, __m128i& _rb, __m128i& _rc, __m128i& _rd, __m128i& _re, __m128i& _rf)
+{
+    __m128i _tmp0 = _mm_unpacklo_epi16(_r0, _r1);
+    __m128i _tmp1 = _mm_unpackhi_epi16(_r0, _r1);
+    __m128i _tmp2 = _mm_unpacklo_epi16(_r2, _r3);
+    __m128i _tmp3 = _mm_unpackhi_epi16(_r2, _r3);
+    __m128i _tmp4 = _mm_unpacklo_epi16(_r4, _r5);
+    __m128i _tmp5 = _mm_unpackhi_epi16(_r4, _r5);
+    __m128i _tmp6 = _mm_unpacklo_epi16(_r6, _r7);
+    __m128i _tmp7 = _mm_unpackhi_epi16(_r6, _r7);
+    __m128i _tmp8 = _mm_unpacklo_epi16(_r8, _r9);
+    __m128i _tmp9 = _mm_unpackhi_epi16(_r8, _r9);
+    __m128i _tmpa = _mm_unpacklo_epi16(_ra, _rb);
+    __m128i _tmpb = _mm_unpackhi_epi16(_ra, _rb);
+    __m128i _tmpc = _mm_unpacklo_epi16(_rc, _rd);
+    __m128i _tmpd = _mm_unpackhi_epi16(_rc, _rd);
+    __m128i _tmpe = _mm_unpacklo_epi16(_re, _rf);
+    __m128i _tmpf = _mm_unpackhi_epi16(_re, _rf);
+
+    __m128i _tmpg = _mm_unpacklo_epi32(_tmp0, _tmp2);
+    __m128i _tmph = _mm_unpackhi_epi32(_tmp0, _tmp2);
+    __m128i _tmpi = _mm_unpacklo_epi32(_tmp1, _tmp3);
+    __m128i _tmpj = _mm_unpackhi_epi32(_tmp1, _tmp3);
+    __m128i _tmpk = _mm_unpacklo_epi32(_tmp4, _tmp6);
+    __m128i _tmpl = _mm_unpackhi_epi32(_tmp4, _tmp6);
+    __m128i _tmpm = _mm_unpacklo_epi32(_tmp5, _tmp7);
+    __m128i _tmpn = _mm_unpackhi_epi32(_tmp5, _tmp7);
+    __m128i _tmpo = _mm_unpacklo_epi32(_tmp8, _tmpa);
+    __m128i _tmpp = _mm_unpackhi_epi32(_tmp8, _tmpa);
+    __m128i _tmpq = _mm_unpacklo_epi32(_tmp9, _tmpb);
+    __m128i _tmpr = _mm_unpackhi_epi32(_tmp9, _tmpb);
+    __m128i _tmps = _mm_unpacklo_epi32(_tmpc, _tmpe);
+    __m128i _tmpt = _mm_unpackhi_epi32(_tmpc, _tmpe);
+    __m128i _tmpu = _mm_unpacklo_epi32(_tmpd, _tmpf);
+    __m128i _tmpv = _mm_unpackhi_epi32(_tmpd, _tmpf);
+
+    _r0 = _mm_unpacklo_epi64(_tmpg, _tmpk);
+    _r1 = _mm_unpacklo_epi64(_tmpo, _tmps);
+    _r2 = _mm_unpackhi_epi64(_tmpg, _tmpk);
+    _r3 = _mm_unpackhi_epi64(_tmpo, _tmps);
+    _r4 = _mm_unpacklo_epi64(_tmph, _tmpl);
+    _r5 = _mm_unpacklo_epi64(_tmpp, _tmpt);
+    _r6 = _mm_unpackhi_epi64(_tmph, _tmpl);
+    _r7 = _mm_unpackhi_epi64(_tmpp, _tmpt);
+    _r8 = _mm_unpacklo_epi64(_tmpi, _tmpm);
+    _r9 = _mm_unpacklo_epi64(_tmpq, _tmpu);
+    _ra = _mm_unpackhi_epi64(_tmpi, _tmpm);
+    _rb = _mm_unpackhi_epi64(_tmpq, _tmpu);
+    _rc = _mm_unpacklo_epi64(_tmpj, _tmpn);
+    _rd = _mm_unpacklo_epi64(_tmpr, _tmpv);
+    _re = _mm_unpackhi_epi64(_tmpj, _tmpn);
+    _rf = _mm_unpackhi_epi64(_tmpr, _tmpv);
+}
+
 static NCNN_FORCEINLINE float _mm512_comp_reduce_add_ps(__m512 x)
 {
     const __m256 x256 = _mm256_add_ps(_mm512_castps512_ps256(x), _mm512_extractf32x8_ps(x, 1));
@@ -490,7 +1742,96 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
     const __m128 x32 = _mm_max_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     return _mm_cvtss_f32(x32);
 }
+
+static NCNN_FORCEINLINE __m512 combine8x2_ps(__m256 a, __m256 b)
+{
+    return _mm512_insertf32x8(_mm512_castps256_ps512(a), b, 1);
+}
+
+static NCNN_FORCEINLINE __m512 combine4x4_ps(__m128 a, __m128 b, __m128 c, __m128 d)
+{
+    __m256 ab = combine4x2_ps(a, b);
+    __m256 cd = combine4x2_ps(c, d);
+    return combine8x2_ps(ab, cd);
+}
+
+static NCNN_FORCEINLINE __m512i combine8x2_epi32(__m256i a, __m256i b)
+{
+    return _mm512_inserti32x8(_mm512_castsi256_si512(a), b, 1);
+}
+
+static NCNN_FORCEINLINE __m512i combine4x4_epi32(__m128i a, __m128i b, __m128i c, __m128i d)
+{
+    __m256i ab = combine4x2_epi32(a, b);
+    __m256i cd = combine4x2_epi32(c, d);
+    return combine8x2_epi32(ab, cd);
+}
+
+static NCNN_FORCEINLINE __m128i float2int8_avx512(const __m512& _v0)
+{
+    // _MM_FROUND_TO_NEAREST_INT round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m512 _p5 = _mm512_set1_ps(0.5f);
+    __m512 _signmask = _mm512_castsi512_ps(_mm512_set1_epi32(1 << 31));
+    __m512 _sign = _mm512_and_ps(_v0, _signmask);
+    __m512 _v0_p5 = _mm512_or_ps(_p5, _sign);
+    __m512 _v0_adj = _mm512_add_ps(_v0, _v0_p5);
+    __m512i _v0_i = _mm512_cvttps_epi32(_v0_adj);
+    __m128i _v8 = _mm512_cvtsepi32_epi8(_v0_i);
+    _v8 = _mm_max_epi8(_v8, _mm_set1_epi8(-127));
+    return _v8;
+}
+
+static NCNN_FORCEINLINE __m512 bfloat2float_avx512(const __m256i& v0)
+{
+#if __AVX512BF16__
+    __m512 _v = _mm512_cvtpbh_ps((__m256bh)v0);
+#else
+    __m256i _zero = _mm256_setzero_si256();
+    __m256i _a = _mm256_unpacklo_epi16(_zero, v0);
+    __m256i _b = _mm256_unpackhi_epi16(_zero, v0);
+    __m256i _c = _mm256_permute2x128_si256(_a, _b, _MM_SHUFFLE(0, 2, 0, 0));
+    __m256i _d = _mm256_permute2x128_si256(_a, _b, _MM_SHUFFLE(0, 3, 0, 1));
+    __m512 _v = _mm512_castsi512_ps(_mm512_inserti32x8(_mm512_castsi256_si512(_c), _d, 1));
+#endif
+    return _v;
+}
+
+static NCNN_FORCEINLINE __m256i float2bfloat_avx512(const __m512& v0)
+{
+#if __AVX512BF16__
+    __m256i _v = (__m256i)_mm512_cvtneps_pbh(v0);
+#else
+    __m512i _ab = _mm512_castps_si512(v0);
+    _ab = _mm512_srli_epi32(_ab, 16);
+    __m256i _a = _mm512_extracti32x8_epi32(_ab, 0);
+    __m256i _b = _mm512_extracti32x8_epi32(_ab, 1);
+    __m256i _v = _mm256_packus_epi32(_a, _b);
+    _v = _mm256_permute4x64_epi64(_v, _MM_SHUFFLE(3, 1, 2, 0));
+#endif
+    return _v;
+}
+
+static NCNN_FORCEINLINE __m512i float2bfloat_avx512(const __m512& v0, const __m512& v1)
+{
+#if __AVX512BF16__
+    __m256i _v0 = (__m256i)_mm512_cvtneps_pbh(v0);
+    __m256i _v1 = (__m256i)_mm512_cvtneps_pbh(v1);
+    __m512i _v = _mm512_inserti32x8(_mm512_castsi256_si512(_v0), _v1, 1);
+#else
+    __m512i _a = _mm512_castps_si512(v0);
+    __m512i _b = _mm512_castps_si512(v1);
+    _a = _mm512_srli_epi32(_a, 16);
+    _b = _mm512_srli_epi32(_b, 16);
+    __m512i _v = _mm512_packus_epi32(_a, _b);
+    _v = _mm512_permutex_epi64(_v, _MM_SHUFFLE(3, 1, 2, 0));
+    _v = _mm512_shuffle_i32x4(_v, _v, _MM_SHUFFLE(3, 1, 2, 0));
+#endif
+    return _v;
+}
+
 #endif // __AVX512F__
+#endif // __AVX2__
 #endif // __AVX__
 #endif // __SSE2__
 

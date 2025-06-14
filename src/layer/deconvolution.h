@@ -30,6 +30,8 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 protected:
     void cut_padding(const Mat& top_blob_bordered, Mat& top_blob, const Option& opt) const;
 
@@ -57,6 +59,8 @@ public:
     // 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid
     int activation_type;
     Mat activation_params;
+
+    int dynamic_weight;
 
     // model
     Mat weight_data;

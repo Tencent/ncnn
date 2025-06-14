@@ -15,16 +15,27 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
+
+def gelu_forward_0(x):
+    return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
+
+def gelu_forward_1(x):
+    return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.gelu(x)
         y = F.gelu(y)
-        z = F.gelu(z)
-        w = F.gelu(w)
+        z = gelu_forward_0(z)
+        w = gelu_forward_1(w)
         return x, y, z, w
 
 def test():
@@ -37,7 +48,7 @@ def test():
     z = torch.rand(1, 3, 12, 16)
     w = torch.rand(1, 5, 7, 9, 11)
 
-    a0, a1, a2, a3 = net(x, y, z, w)
+    a = net(x, y, z, w)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z, w))
@@ -49,9 +60,12 @@ def test():
 
     # pnnx inference
     import test_F_gelu_pnnx
-    b0, b1, b2, b3 = test_F_gelu_pnnx.test_inference()
+    b = test_F_gelu_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

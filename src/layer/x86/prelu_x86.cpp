@@ -81,7 +81,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 int i = remain_size_start + ii * 4;
                 __m128 _p128 = _mm_load_ps(ptr + i);
-                __m128 _slope128 = _mm_load_ps(slope + i);
+                __m128 _slope128 = _mm_loadu_ps(slope + i);
                 _mm_store_ps(ptr + i, prelu_sse(_p128, _slope128));
             }
             remain_size_start += nn_size * 4;
@@ -157,11 +157,11 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
 #if __SSE2__
-            __m128 _slope128 = num_slope > 1 && (elempack == 4) ? _mm_load_ps((const float*)slope_data + i * 4) : _mm_set1_ps(slope);
+            __m128 _slope128 = num_slope > 1 && (elempack == 4) ? _mm_loadu_ps((const float*)slope_data + i * 4) : _mm_set1_ps(slope);
 #if __AVX__
-            __m256 _slope256 = num_slope > 1 && (elempack == 8) ? _mm256_loadu_ps((const float*)slope_data + i * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_slope128), _slope128, 1);
+            __m256 _slope256 = num_slope > 1 && (elempack == 8) ? _mm256_loadu_ps((const float*)slope_data + i * 8) : combine4x2_ps(_slope128, _slope128);
 #if __AVX512F__
-            __m512 _slope512 = num_slope > 1 && (elempack == 16) ? _mm512_loadu_ps((const float*)slope_data + i * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_slope256), _slope256, 1);
+            __m512 _slope512 = num_slope > 1 && (elempack == 16) ? _mm512_loadu_ps((const float*)slope_data + i * 16) : combine8x2_ps(_slope256, _slope256);
 
             for (; j + 15 < size; j += 16)
             {
@@ -205,11 +205,11 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
 #if __SSE2__
-            __m128 _slope128 = num_slope > 1 && (elempack == 4) ? _mm_load_ps((const float*)slope_data + q * 4) : _mm_set1_ps(slope);
+            __m128 _slope128 = num_slope > 1 && (elempack == 4) ? _mm_loadu_ps((const float*)slope_data + q * 4) : _mm_set1_ps(slope);
 #if __AVX__
-            __m256 _slope256 = num_slope > 1 && (elempack == 8) ? _mm256_loadu_ps((const float*)slope_data + q * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_slope128), _slope128, 1);
+            __m256 _slope256 = num_slope > 1 && (elempack == 8) ? _mm256_loadu_ps((const float*)slope_data + q * 8) : combine4x2_ps(_slope128, _slope128);
 #if __AVX512F__
-            __m512 _slope512 = num_slope > 1 && (elempack == 16) ? _mm512_loadu_ps((const float*)slope_data + q * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_slope256), _slope256, 1);
+            __m512 _slope512 = num_slope > 1 && (elempack == 16) ? _mm512_loadu_ps((const float*)slope_data + q * 16) : combine8x2_ps(_slope256, _slope256);
 
             for (; i + 15 < size; i += 16)
             {

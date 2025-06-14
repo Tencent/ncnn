@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/batchnorm.h"
 #include "testutil.h"
 
 static int test_batchnorm(const ncnn::Mat& a, float eps)
@@ -35,7 +34,7 @@ static int test_batchnorm(const ncnn::Mat& a, float eps)
     // var must be positive
     Randomize(weights[2], 0.001f, 2.f);
 
-    int ret = test_layer<ncnn::BatchNorm>("BatchNorm", pd, weights, a);
+    int ret = test_layer("BatchNorm", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_batchnorm failed a.dims=%d a=(%d %d %d %d) eps=%f\n", a.dims, a.w, a.h, a.d, a.c, eps);

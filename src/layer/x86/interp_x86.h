@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Interp_x86 : virtual public Interp
+class Interp_x86 : public Interp
 {
 public:
     Interp_x86();

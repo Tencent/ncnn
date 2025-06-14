@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #define shape_constant_id_offset 0
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
@@ -34,13 +27,8 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-#endif
 layout (binding = 2) readonly buffer alpha_blob { sfpvec4 alpha_blob_data[]; };
 layout (binding = 3) readonly buffer xofs_blob { int xofs_blob_data[]; };
 layout (binding = 4) readonly buffer beta_blob { sfpvec4 beta_blob_data[]; };
@@ -74,19 +62,12 @@ void main()
     {
         int sx = xofs_blob_data[gx];
 
-#if NCNN_image_shader
-        afp b0 = image3d_ld1(bottom_blob, ivec3(sx - 1, gy, gz));
-        afp b1 = image3d_ld1(bottom_blob, ivec3(sx + 0, gy, gz));
-        afp b2 = image3d_ld1(bottom_blob, ivec3(sx + 1, gy, gz));
-        afp b3 = image3d_ld1(bottom_blob, ivec3(sx + 2, gy, gz));
-#else
         int v_offset_1 = gz * psc(cstep) + gy * psc(w) + sx;
 
         afp b0 = buffer_ld1(bottom_blob_data, v_offset_1 - 1);
         afp b1 = buffer_ld1(bottom_blob_data, v_offset_1 + 0);
         afp b2 = buffer_ld1(bottom_blob_data, v_offset_1 + 1);
         afp b3 = buffer_ld1(bottom_blob_data, v_offset_1 + 2);
-#endif
 
         afpvec4 alpha = buffer_ld4(alpha_blob_data, gx);
 
@@ -94,40 +75,15 @@ void main()
 
         afp v = dot(abcd, alpha);
 
-#if NCNN_image_shader
-        image3d_st1(top_blob, ivec3(gx, gy, gz), v);
-#else
         const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
         buffer_st1(top_blob_data, gi, v);
-#endif
         return;
     }
 
     int sx = xofs_blob_data[gx];
     int sy = yofs_blob_data[gy];
 
-#if NCNN_image_shader
-    afp a0 = image3d_ld1(bottom_blob, ivec3(sx - 1, sy - 1, gz));
-    afp a1 = image3d_ld1(bottom_blob, ivec3(sx + 0, sy - 1, gz));
-    afp a2 = image3d_ld1(bottom_blob, ivec3(sx + 1, sy - 1, gz));
-    afp a3 = image3d_ld1(bottom_blob, ivec3(sx + 2, sy - 1, gz));
-
-    afp b0 = image3d_ld1(bottom_blob, ivec3(sx - 1, sy + 0, gz));
-    afp b1 = image3d_ld1(bottom_blob, ivec3(sx + 0, sy + 0, gz));
-    afp b2 = image3d_ld1(bottom_blob, ivec3(sx + 1, sy + 0, gz));
-    afp b3 = image3d_ld1(bottom_blob, ivec3(sx + 2, sy + 0, gz));
-
-    afp c0 = image3d_ld1(bottom_blob, ivec3(sx - 1, sy + 1, gz));
-    afp c1 = image3d_ld1(bottom_blob, ivec3(sx + 0, sy + 1, gz));
-    afp c2 = image3d_ld1(bottom_blob, ivec3(sx + 1, sy + 1, gz));
-    afp c3 = image3d_ld1(bottom_blob, ivec3(sx + 2, sy + 1, gz));
-
-    afp d0 = image3d_ld1(bottom_blob, ivec3(sx - 1, sy + 2, gz));
-    afp d1 = image3d_ld1(bottom_blob, ivec3(sx + 0, sy + 2, gz));
-    afp d2 = image3d_ld1(bottom_blob, ivec3(sx + 1, sy + 2, gz));
-    afp d3 = image3d_ld1(bottom_blob, ivec3(sx + 2, sy + 2, gz));
-#else
     int v_offset_0 = gz * psc(cstep) + (sy - 1) * psc(w) + sx;
     int v_offset_1 = gz * psc(cstep) + (sy + 0) * psc(w) + sx;
     int v_offset_2 = gz * psc(cstep) + (sy + 1) * psc(w) + sx;
@@ -152,7 +108,6 @@ void main()
     afp d1 = buffer_ld1(bottom_blob_data, v_offset_3 + 0);
     afp d2 = buffer_ld1(bottom_blob_data, v_offset_3 + 1);
     afp d3 = buffer_ld1(bottom_blob_data, v_offset_3 + 2);
-#endif
 
     afpmat4 abcd0123 = afpmat4(
         a0, a1, a2, a3,
@@ -169,11 +124,7 @@ void main()
 
     afp v = dot(abcd, beta);
 
-#if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(gx, gy, gz), v);
-#else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st1(top_blob_data, gi, v);
-#endif
 }

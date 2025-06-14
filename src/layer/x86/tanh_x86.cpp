@@ -16,8 +16,6 @@
 
 #include "x86_activation.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 TanH_x86::TanH_x86()
@@ -42,8 +40,6 @@ int TanH_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
         for (; i + 15 < size; i += 16)
         {
@@ -52,7 +48,17 @@ int TanH_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             _mm512_storeu_ps(ptr, _p);
             ptr += 16;
         }
-#endif
+        if (i < size)
+        {
+            const unsigned int remain = size - i;
+            __mmask16 _mask = (__mmask16)((1u << remain) - 1);
+            __m512 _p = _mm512_maskz_loadu_ps(_mask, ptr);
+            _p = tanh_avx512(_p);
+            _mm512_mask_storeu_ps(ptr, _mask, _p);
+        }
+#else // __AVX512F__
+#if __SSE2__
+#if __AVX__
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
@@ -71,9 +77,10 @@ int TanH_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            *ptr = tanh(*ptr);
+            *ptr = tanhf(*ptr);
             ptr++;
         }
+#endif // __AVX512F__
     }
 
     return 0;

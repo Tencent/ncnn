@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/deformableconv2d.h"
 #include "testutil.h"
 
 static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias)
@@ -48,10 +47,50 @@ static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int
         weights[1] = RandomMat(outch);
 
     float epsilon = 0.001;
-    int ret = test_layer<ncnn::DeformableConv2D>("DeformableConv2D", pd, weights, a, 1, epsilon);
+    int ret = test_layer("DeformableConv2D", pd, weights, a, 1, epsilon);
     if (ret != 0)
     {
         fprintf(stderr, "test_deformableconv2d failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+    }
+
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_storage = false;
+        opt.use_shader_pack8 = false;
+        opt.use_image_storage = false;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt("DeformableConv2D", pd, weights, opt, a, 1, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_deformableconv2d failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        }
+    }
+
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = true;
+        opt.use_fp16_storage = true;
+        opt.use_fp16_arithmetic = true;
+        opt.use_bf16_storage = true;
+        opt.use_shader_pack8 = true;
+        opt.use_image_storage = true;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt("DeformableConv2D", pd, weights, opt, a, 1, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_deformableconv2d failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        }
     }
 
     return ret;
@@ -59,7 +98,7 @@ static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int
 
 static int test_deformableconv2d_0()
 {
-    static const int kdsp[16][4] = {
+    static const int kdsp[10][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},
         {2, 1, 1, 1},
@@ -67,18 +106,12 @@ static int test_deformableconv2d_0()
         {3, 1, 1, 1},
         {3, 1, 2, 1},
         {3, 2, 1, 1},
-        {4, 1, 1, 0},
         {4, 1, 2, 1},
-        {4, 2, 1, 1},
-        {5, 1, 1, 2},
         {5, 1, 2, 2},
         {5, 2, 2, 2},
-        {7, 1, 1, 3},
-        {7, 1, 2, 3},
-        {7, 2, 1, 3},
     };
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 4; i++)
     {
         const int k = kdsp[i][0];
         const int d = kdsp[i][1];

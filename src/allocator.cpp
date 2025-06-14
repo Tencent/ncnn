@@ -738,6 +738,16 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
         {
             // integrated gpu, prefer unified memory
             buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+            // on amd integrated gpu, there is a faster and larger device-only heap
+            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+            uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
+            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+            {
+                buffer_memory_type_index = device_local_memory_type_index;
+            }
         }
         else
         {
@@ -927,6 +937,11 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
     // find first spare space in image_memory_blocks
     for (int i = 0; i < image_memory_block_count; i++)
     {
+#if __APPLE__
+        // HACK moltenvk v1.2.3 is unhappy for image binding with offset  :(
+        break;
+#endif
+
         std::list<std::pair<size_t, size_t> >::iterator it = d->image_memory_budgets[i].begin();
         while (it != d->image_memory_budgets[i].end())
         {
@@ -992,6 +1007,16 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
         {
             // integrated gpu, prefer unified memory
             image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+            // on amd integrated gpu, there is a faster and larger device-only heap
+            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+            uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
+            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+            {
+                image_memory_type_index = device_local_memory_type_index;
+            }
         }
         else
         {
@@ -1005,6 +1030,12 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
     // create new block
     size_t new_block_size = std::max(d->block_size, aligned_size);
+
+#if __APPLE__
+    // HACK moltenvk v1.2.3 is unhappy for image binding with offset
+    // always ignore block size for smaller memory footprint :(
+    new_block_size = aligned_size;
+#endif
 
     // bind at memory offset
     ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
@@ -1295,6 +1326,16 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 {
                     // integrated gpu, prefer unified memory
                     buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+                    // on amd integrated gpu, there is a faster and larger device-only heap
+                    uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+                    uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
+                    uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+                    if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+                    {
+                        buffer_memory_type_index = device_local_memory_type_index;
+                    }
                 }
                 else
                 {
@@ -1344,6 +1385,16 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         {
             // integrated gpu, prefer unified memory
             buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+            // on amd integrated gpu, there is a faster and larger device-only heap
+            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+            uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
+            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+            {
+                buffer_memory_type_index = device_local_memory_type_index;
+            }
         }
         else
         {
@@ -1490,6 +1541,16 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
                 {
                     // integrated gpu, prefer unified memory
                     image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+                    // on amd integrated gpu, there is a faster and larger device-only heap
+                    uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+                    uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
+                    uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+                    if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+                    {
+                        image_memory_type_index = device_local_memory_type_index;
+                    }
                 }
                 else
                 {
@@ -1584,6 +1645,16 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         {
             // integrated gpu, prefer unified memory
             image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+            // on amd integrated gpu, there is a faster and larger device-only heap
+            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+            uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
+            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+            {
+                image_memory_type_index = device_local_memory_type_index;
+            }
         }
         else
         {
@@ -1879,6 +1950,7 @@ void VkWeightStagingAllocator::fastFree(VkImageMemory* /*ptr*/)
 {
 }
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, AHardwareBuffer* _hb)
     : VkAllocator(_vkdev), hb(_hb)
@@ -2117,6 +2189,7 @@ uint64_t VkAndroidHardwareBufferImageAllocator::external_format() const
     return bufferFormatProperties.externalFormat;
 }
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
 #endif // NCNN_VULKAN
 

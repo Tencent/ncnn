@@ -14,48 +14,39 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int axis = 0;
 
 #define shape_constant_id_offset 1
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
-layout (binding = 2) uniform unfp sampler3D max_workspace_3d;
-#else
 layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer max_workspace { sfp max_workspace_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
     int dims;
     int w;
     int h;
+    int d;
     int c;
     int cstep;
 
     int outdims;
     int outw;
     int outh;
+    int outd;
     int outc;
     int outcstep;
 } p;
@@ -66,46 +57,12 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+    if (gx >= psc(w) || gy >= psc(h) * psc(d) || gz >= psc(c))
         return;
 
     int positive_axis = axis < 0 ? psc(dims) + axis : axis;
-#if NCNN_image_shader
-    afp v;
-    afp max_value;
 
-    if (psc(dims) == 1) // positive_axis == 0
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, 0, 0));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(0, 0, 0));
-    }
-    else if (psc(dims) == 2 && positive_axis == 0)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, 0));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gx, 0, 0));
-    }
-    else if (psc(dims) == 2 && positive_axis == 1)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, 0));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gy, 0, 0));
-    }
-    else if (psc(dims) == 3 && positive_axis == 0)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gx, gy, 0));
-    }
-    else if (psc(dims) == 3 && positive_axis == 1)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gx, gz, 0));
-    }
-    else if (psc(dims) == 3 && positive_axis == 2)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gy, gz, 0));
-    }
-#else
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+    int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     afp v = buffer_ld1(bottom_top_blob_data, gi);
 
@@ -135,13 +92,32 @@ void main()
     {
         max_value = buffer_ld1(max_workspace_data, gz * psc(h) + gy);
     }
-#endif
+    else // if (psc(dims) == 4)
+    {
+        int yd = gy / psc(h);
+        int yh = gy % psc(h);
+
+        gi = gz * psc(cstep) + yd * psc(h) * psc(w) + yh * psc(w) + gx;
+
+        if (positive_axis == 0)
+        {
+            max_value = buffer_ld1(max_workspace_data, yd * psc(outcstep) + yh * psc(w) + gx);
+        }
+        if (positive_axis == 1)
+        {
+            max_value = buffer_ld1(max_workspace_data, gz * psc(outcstep) + yh * psc(w) + gx);
+        }
+        if (positive_axis == 2)
+        {
+            max_value = buffer_ld1(max_workspace_data, gz * psc(outcstep) + yd * psc(w) + gx);
+        }
+        if (positive_axis == 3)
+        {
+            max_value = buffer_ld1(max_workspace_data, gz * psc(outcstep) + yd * psc(h) + yh);
+        }
+    }
 
     v = exp(v - max_value);
 
-#if NCNN_image_shader
-    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);
-#else
     buffer_st1(bottom_top_blob_data, gi, v);
-#endif
 }

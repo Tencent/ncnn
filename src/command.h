@@ -21,8 +21,6 @@
 
 #include "mat.h"
 
-#include <vulkan/vulkan.h>
-
 namespace ncnn {
 
 class Pipeline;
@@ -41,15 +39,7 @@ public:
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt);
 
-    void record_upload(const Mat& src, VkImageMat& dst, const Option& opt);
-
     void record_download(const VkMat& src, Mat& dst, const Option& opt);
-
-    void record_download(const VkImageMat& src, Mat& dst, const Option& opt);
-
-    void record_buffer_to_image(const VkMat& src, VkImageMat& dst, const Option& opt);
-
-    void record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt);
 
     void record_clone(const Mat& src, VkMat& dst, const Option& opt);
 
@@ -82,8 +72,6 @@ public:
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
     void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkMat& dst);
-
-    void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkImageMat& dst);
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
 
@@ -117,8 +105,6 @@ public:
 
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten = true);
-
-    void record_upload(const Mat& src, VkImageMat& dst, const Option& opt);
 
     int submit_and_wait();
 

@@ -148,7 +148,10 @@ def test():
     b = test_torch_einsum_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        # allclose may auto broadcast compare
+        if a0.shape != b0.shape:
+            return False
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 

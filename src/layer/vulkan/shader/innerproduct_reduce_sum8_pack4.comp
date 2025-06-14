@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #extension GL_GOOGLE_include_directive: enable
 #include "vulkan_activation.comp"
 
@@ -35,15 +28,9 @@ layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 
 layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout (binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -66,36 +53,21 @@ void main()
 
     if (bias_term == 1)
     {
-#if NCNN_image_shader
-        sum = image3d_ld4(bias_blob, ivec3(gx, 0, 0));
-#else
         sum = buffer_ld4(bias_data, gx);
-#endif
     }
     else
     {
         sum = afpvec4(0.f);
     }
 
-#if NCNN_image_shader
-    for (int i = 0; i < psc(w); i++)
-    {
-        sum += image3d_ld4(bottom_blob, ivec3(i, gx, 0));
-    }
-#else
     int v_offset = gx * psc(w);
 
     for (int i = 0; i < psc(w); i++)
     {
         sum += buffer_ld4(bottom_blob_data, v_offset + i);
     }
-#endif
 
     sum = activation_afpvec4(sum, activation_type, activation_param_0, activation_param_1);
 
-#if NCNN_image_shader
-    image3d_st4(top_blob, ivec3(gx, 0, 0), sum);
-#else
     buffer_st4(top_blob_data, gx, sum);
-#endif
 }

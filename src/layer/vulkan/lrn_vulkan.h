@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class LRN_vulkan : virtual public LRN
+class LRN_vulkan : public LRN
 {
 public:
     LRN_vulkan();
@@ -29,7 +29,6 @@ public:
 
     using LRN::forward_inplace;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_lrn_square_pad;

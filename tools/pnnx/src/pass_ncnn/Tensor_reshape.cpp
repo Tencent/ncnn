@@ -45,11 +45,12 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& shape = captured_params.at("shape").ai;
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int batch_index = op->outputs[0]->params["__batch_index"].i;
 
         if (batch_index != 0 && batch_index != 233)
         {
-            fprintf(stderr, "reshape tensor with batch index %d is not supported yet!\n", batch_index);
+            if (op->outputs[0]->shape.empty() || op->outputs[0]->shape[batch_index] != 1)
+                fprintf(stderr, "reshape tensor with batch index %d is not supported yet!\n", batch_index);
         }
 
         // drop shape batch index

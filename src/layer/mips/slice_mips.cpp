@@ -30,6 +30,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     const int* slices_ptr = slices;
+    const int* indices_ptr = indices;
     int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
@@ -39,10 +40,27 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = 1;
@@ -74,10 +92,27 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = h - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? h + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((h - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = 1;
@@ -107,6 +142,8 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (elempack > out_elempack)
         {
             convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, opt);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         const float* ptr = bottom_blob_unpacked;
@@ -159,10 +196,27 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
             }
 
             Mat& top_blob = top_blobs[i];
@@ -189,20 +243,38 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 3 && positive_axis == 0)
+    if ((dims == 3 || dims == 4) && positive_axis == 0)
     {
         // slice dim channel
         int w = bottom_blob.w;
         int h = bottom_blob.h;
+        int d = bottom_blob.d;
         int channels = bottom_blob.c * elempack;
 
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (channels - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = channels - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? channels + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
+                }
             }
 
             int out_elempack = 1;
@@ -213,9 +285,11 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(w, h, slice / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, d, slice / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
+
+            top_blob.dims = dims;
 
             q += slice;
         }
@@ -232,6 +306,8 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (elempack > out_elempack)
         {
             convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, opt);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         int p = 0;
@@ -241,7 +317,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
             if (out_elempack == 1 && top_blob.elempack == 4)
             {
-                int size = top_blob.w * top_blob.h;
+                int size = top_blob.w * top_blob.h * top_blob.d;
 
                 for (int q = 0; q < top_blob.c; q++)
                 {
@@ -278,24 +354,174 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 3 && positive_axis == 1)
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
     {
         // slice dim height
         int w = bottom_blob.w;
         int h = bottom_blob.h;
+        int d = bottom_blob.d;
         int channels = bottom_blob.c;
 
         int q = 0;
         for (size_t i = 0; i < top_blobs.size(); i++)
         {
-            int slice = slices_ptr[i];
-            if (slice == -233)
+            int slice;
+            if (indices_ptr)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = h - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? h + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((h - q) / (top_blobs.size() - i));
+                }
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(w, slice, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create(w, slice, d, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            top_blob.dims = dims;
+
+            q += slice;
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < channels; p++)
+        {
+            const float* ptr = bottom_blob.channel(p);
+
+            for (int j = 0; j < d; j++)
+            {
+                for (size_t i = 0; i < top_blobs.size(); i++)
+                {
+                    Mat& top_blob = top_blobs[i];
+
+                    int size = top_blob.w * top_blob.h;
+
+                    float* outptr = top_blob.channel(p).depth(j);
+                    memcpy(outptr, ptr, size * elemsize);
+
+                    ptr += size * elempack;
+                }
+            }
+        }
+    }
+
+    if ((dims == 3 && positive_axis == 2) || (dims == 4 && positive_axis == 3))
+    {
+        // slice dim width
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int channels = bottom_blob.c;
+
+        int q = 0;
+        for (size_t i = 0; i < top_blobs.size(); i++)
+        {
+            int slice;
+            if (indices_ptr)
+            {
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = w - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? w + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+                }
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(slice, h, d, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            top_blob.dims = dims;
+
+            q += slice;
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < channels; p++)
+        {
+            const float* ptr = bottom_blob.channel(p);
+
+            for (int j = 0; j < d; j++)
+            {
+                for (int k = 0; k < h; k++)
+                {
+                    for (size_t i = 0; i < top_blobs.size(); i++)
+                    {
+                        Mat& top_blob = top_blobs[i];
+
+                        float* outptr = top_blob.channel(p).depth(j).row(k);
+                        memcpy(outptr, ptr, top_blob.w * elemsize);
+
+                        ptr += top_blob.w * elempack;
+                    }
+                }
+            }
+        }
+    }
+
+    if (dims == 4 && positive_axis == 1)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int channels = bottom_blob.c;
+
+        int q = 0;
+        for (size_t i = 0; i < top_blobs.size(); i++)
+        {
+            int slice;
+            if (indices_ptr)
+            {
+                if (i == top_blobs.size() - 1)
+                {
+                    slice = d - q;
+                }
+                else
+                {
+                    int indice = indices_ptr[i];
+                    int positive_indice = indice < 0 ? d + indice : indice;
+                    slice = positive_indice - q;
+                }
+            }
+            else
+            {
+                slice = slices_ptr[i];
+                if (slice == -233)
+                {
+                    slice = static_cast<int>((d - q) / (top_blobs.size() - i));
+                }
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(w, h, slice, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -311,56 +537,12 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             {
                 Mat& top_blob = top_blobs[i];
 
-                int size = top_blob.w * top_blob.h;
+                int size = top_blob.w * top_blob.h * top_blob.d;
 
                 float* outptr = top_blob.channel(p);
                 memcpy(outptr, ptr, size * elemsize);
 
                 ptr += size * elempack;
-            }
-        }
-    }
-
-    if (dims == 3 && positive_axis == 2)
-    {
-        // slice dim width
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-        int channels = bottom_blob.c;
-
-        int q = 0;
-        for (size_t i = 0; i < top_blobs.size(); i++)
-        {
-            int slice = slices_ptr[i];
-            if (slice == -233)
-            {
-                slice = (w - q) / (top_blobs.size() - i);
-            }
-
-            Mat& top_blob = top_blobs[i];
-            top_blob.create(slice, h, channels, elemsize, elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            q += slice;
-        }
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < channels; p++)
-        {
-            const float* ptr = bottom_blob.channel(p);
-
-            for (int j = 0; j < h; j++)
-            {
-                for (size_t i = 0; i < top_blobs.size(); i++)
-                {
-                    Mat& top_blob = top_blobs[i];
-
-                    float* outptr = top_blob.channel(p).row(j);
-                    memcpy(outptr, ptr, top_blob.w * elemsize);
-
-                    ptr += top_blob.w * elempack;
-                }
             }
         }
     }

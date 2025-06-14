@@ -21,7 +21,6 @@ namespace ncnn {
 DeepCopy_vulkan::DeepCopy_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     pipeline_deepcopy = 0;
     pipeline_deepcopy_pack4 = 0;
@@ -157,34 +156,6 @@ int DeepCopy_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComput
     constants[2].i = bottom_blob.h;
     constants[3].i = bottom_blob.c;
     constants[4].i = bottom_blob.cstep;
-
-    const Pipeline* pipeline = elempack == 8 ? pipeline_deepcopy_pack8
-                               : elempack == 4 ? pipeline_deepcopy_pack4
-                               : pipeline_deepcopy;
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-    return 0;
-}
-
-int DeepCopy_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    int elempack = bottom_blob.elempack;
-
-    top_blob.create_like(bottom_blob, opt.blob_vkallocator);
-    if (top_blob.empty())
-        return -100;
-
-    std::vector<VkImageMat> bindings(2);
-    bindings[0] = bottom_blob;
-    bindings[1] = top_blob;
-
-    std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = 0; //bottom_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_deepcopy_pack8
                                : elempack == 4 ? pipeline_deepcopy_pack4

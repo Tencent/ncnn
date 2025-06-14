@@ -19,10 +19,12 @@
 
 namespace ncnn {
 
-class DeconvolutionDepthWise_vulkan : virtual public DeconvolutionDepthWise
+class DeconvolutionDepthWise_vulkan : public DeconvolutionDepthWise
 {
 public:
     DeconvolutionDepthWise_vulkan();
+
+    virtual int load_param(const ParamDict& pd);
 
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
@@ -31,7 +33,6 @@ public:
 
     using DeconvolutionDepthWise::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Mat weight_data_packed;
@@ -39,9 +40,6 @@ public:
 
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
-
-    VkImageMat weight_data_gpu_image;
-    VkImageMat bias_data_gpu_image;
 
     ncnn::Layer* crop;
     ncnn::Layer* output_crop;

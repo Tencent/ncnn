@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class TanH_vulkan : virtual public TanH
+class TanH_vulkan : public TanH
 {
 public:
     TanH_vulkan();
@@ -29,7 +29,6 @@ public:
 
     using TanH::forward_inplace;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_tanh;

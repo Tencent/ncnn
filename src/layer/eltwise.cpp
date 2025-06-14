@@ -35,8 +35,9 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
-    int size = w * h;
+    int size = w * h * d;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create_like(bottom_blob, opt.blob_allocator);

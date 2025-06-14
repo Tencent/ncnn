@@ -39,7 +39,7 @@ Most of these systems are android with version lower than 8.1.
 
 In the beginning, I had no GPGPU programming experience, and I had to learn one.
 
-vulkan is considered more portable and well supported by venders and the cross-platform low-overhead graphics api. As a contrast, cuda is only available on nvidia device, metal is only available on macos and ios, while loading opencl library is banned in android 7.0+ and does not work on ios.
+vulkan is considered more portable and well supported by vendors and the cross-platform low-overhead graphics api. As a contrast, cuda is only available on nvidia device, metal is only available on macos and ios, while loading opencl library is banned in android 7.0+ and does not work on ios.
 
 ### I got errors like "vkCreateComputePipelines failed -1000012000" or random stalls or crashes
 
@@ -87,7 +87,7 @@ It is common that your model runs slower on gpu than cpu on arm devices like mob
 
 ### vulkan device not found / extra high cpu utility while vulkan is enabled on nvidia gpu
 
-There are severel reasons could lead to this outcome. First please check your driver status with `nvidia-smi`. If you have correctly installed your driver, you should see something like this:
+There are several reasons could lead to this outcome. First please check your driver status with `nvidia-smi`. If you have correctly installed your driver, you should see something like this:
 
 ```bash
 $ nvidia-smi

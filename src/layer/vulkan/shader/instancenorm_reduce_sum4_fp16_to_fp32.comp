@@ -14,20 +14,8 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_top_blob;
-layout (binding = 1, r32f) writeonly uniform highp image3D sum_blob;
-#else
 layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 layout (binding = 1) writeonly buffer sum_blob { float sum_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -53,46 +41,6 @@ void main()
 
     float sum;
 
-#if NCNN_image_shader
-    int sx = gx * 2;
-    int sy = gy * 2;
-
-    if (sy == p.h - 1)
-    {
-        if (sx == p.w - 1)
-        {
-            float v0 = texelFetch(bottom_top_blob, ivec3(sx, sy, gz), 0).r;
-
-            sum = v0;
-        }
-        else
-        {
-            float v0 = texelFetch(bottom_top_blob, ivec3(sx, sy, gz), 0).r;
-            float v1 = texelFetch(bottom_top_blob, ivec3(sx + 1, sy, gz), 0).r;
-
-            sum = v0 + v1;
-        }
-    }
-    else
-    {
-        if (sx == p.w - 1)
-        {
-            float v0 = texelFetch(bottom_top_blob, ivec3(sx, sy, gz), 0).r;
-            float v2 = texelFetch(bottom_top_blob, ivec3(sx, sy + 1, gz), 0).r;
-
-            sum = v0 + v2;
-        }
-        else
-        {
-            float v0 = texelFetch(bottom_top_blob, ivec3(sx, sy, gz), 0).r;
-            float v1 = texelFetch(bottom_top_blob, ivec3(sx + 1, sy, gz), 0).r;
-            float v2 = texelFetch(bottom_top_blob, ivec3(sx, sy + 1, gz), 0).r;
-            float v3 = texelFetch(bottom_top_blob, ivec3(sx + 1, sy + 1, gz), 0).r;
-
-            sum = v0 + v1 + v2 + v3;
-        }
-    }
-#else
     int sx = gx * 4;
 
     int v_offset = gz * p.cstep + sx;
@@ -127,13 +75,8 @@ void main()
 
         sum = v0 + v1 + v2 + v3;
     }
-#endif
 
-#if NCNN_image_shader
-    imageStore(sum_blob, ivec3(gx, gy, gz), vec4(sum));
-#else
     int gi = gz * p.outcstep + gx;
 
     sum_blob_data[gi] = sum;
-#endif
 }

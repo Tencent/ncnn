@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #extension GL_GOOGLE_include_directive: enable
 #include "vulkan_activation.comp"
 
@@ -40,15 +33,9 @@ layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
 layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 6) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D top_tm_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer top_tm_blob { sfp top_tm_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 2) readonly buffer bias_blob { sfp bias_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -73,46 +60,6 @@ void main()
         return;
 
     // load 36
-#if NCNN_image_shader
-    int sx = gy * psc(block_x) + gx;
-
-    afp v00 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 0));
-    afp v01 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 1));
-    afp v02 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 2));
-    afp v03 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 3));
-    afp v04 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 4));
-    afp v05 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 5));
-    afp v10 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 6));
-    afp v11 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 7));
-    afp v12 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 8));
-    afp v13 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 9));
-    afp v14 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 10));
-    afp v15 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 11));
-    afp v20 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 12));
-    afp v21 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 13));
-    afp v22 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 14));
-    afp v23 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 15));
-    afp v24 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 16));
-    afp v25 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 17));
-    afp v30 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 18));
-    afp v31 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 19));
-    afp v32 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 20));
-    afp v33 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 21));
-    afp v34 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 22));
-    afp v35 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 23));
-    afp v40 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 24));
-    afp v41 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 25));
-    afp v42 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 26));
-    afp v43 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 27));
-    afp v44 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 28));
-    afp v45 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 29));
-    afp v50 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 30));
-    afp v51 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 31));
-    afp v52 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 32));
-    afp v53 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 33));
-    afp v54 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 34));
-    afp v55 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 35));
-#else
     int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
 
     afp v00 = buffer_ld1(top_tm_blob_data, v_tm_offset + 0 * psc(cstep));
@@ -151,76 +98,71 @@ void main()
     afp v53 = buffer_ld1(top_tm_blob_data, v_tm_offset + 33 * psc(cstep));
     afp v54 = buffer_ld1(top_tm_blob_data, v_tm_offset + 34 * psc(cstep));
     afp v55 = buffer_ld1(top_tm_blob_data, v_tm_offset + 35 * psc(cstep));
-#endif
+
+#define sq2 1.41421356237
+#define sq2_m2 1.41421356237*2
+#define sq2_d2 1.41421356237/2
+#define sq2_d4 1.41421356237/4
 
     // const float otm[4][6] = {
-    //     {1.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f},
-    //     {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.0f},
-    //     {0.0f, 1.0f,  1.0f, 4.0f,  4.0f, 0.0f},
-    //     {0.0f, 1.0f, -1.0f, 8.0f, -8.0f, 1.0f}
+    //     {1.0f, 1.0f,   1.0f,  1.0f,  1.0f,   0.0f},
+    //     {0.0f, sq2/2, -sq2/2, sq2,   -sq2,   0.0f},
+    //     {0.0f, 0.5f,   0.5f,  2.0f,  2.0f,   0.0f},
+    //     {0.0f, sq2/4, -sq2/4, sq2*2, -sq2*2, 1.0f}
     // };
 
-    // 0 = r00 + (r01 + r02) + (r03 + r04)
-    // 1 =       (r01 - r02) + (r03 - r04) * 2
-    // 2 =       (r01 + r02) + (r03 + r04) * 4
-    // 3 = r05 + (r01 - r02) + (r03 - r04) * 8
-
     // implicit transpose
-    afp m00 = v00 + (v01 + v02) + (v03 + v04);
-    afp m01 = v10 + (v11 + v12) + (v13 + v14);
-    afp m02 = v20 + (v21 + v22) + (v23 + v24);
-    afp m03 = v30 + (v31 + v32) + (v33 + v34);
-    afp m04 = v40 + (v41 + v42) + (v43 + v44);
-    afp m05 = v50 + (v51 + v52) + (v53 + v54);
+    afp m00 = v00 + v01 + v02 + v03 + v04;
+    afp m01 = v10 + v11 + v12 + v13 + v14;
+    afp m02 = v20 + v21 + v22 + v23 + v24;
+    afp m03 = v30 + v31 + v32 + v33 + v34;
+    afp m04 = v40 + v41 + v42 + v43 + v44;
+    afp m05 = v50 + v51 + v52 + v53 + v54;
 
-    afp m10 = (v01 - v02) + (v03 - v04) * afp(2);
-    afp m11 = (v11 - v12) + (v13 - v14) * afp(2);
-    afp m12 = (v21 - v22) + (v23 - v24) * afp(2);
-    afp m13 = (v31 - v32) + (v33 - v34) * afp(2);
-    afp m14 = (v41 - v42) + (v43 - v44) * afp(2);
-    afp m15 = (v51 - v52) + (v53 - v54) * afp(2);
+    afp m10 = (v01 - v02) * afp(sq2_d2) + (v03 - v04) * afp(sq2);
+    afp m11 = (v11 - v12) * afp(sq2_d2) + (v13 - v14) * afp(sq2);
+    afp m12 = (v21 - v22) * afp(sq2_d2) + (v23 - v24) * afp(sq2);
+    afp m13 = (v31 - v32) * afp(sq2_d2) + (v33 - v34) * afp(sq2);
+    afp m14 = (v41 - v42) * afp(sq2_d2) + (v43 - v44) * afp(sq2);
+    afp m15 = (v51 - v52) * afp(sq2_d2) + (v53 - v54) * afp(sq2);
 
-    afp m20 = (v01 + v02) + (v03 + v04) * afp(4);
-    afp m21 = (v11 + v12) + (v13 + v14) * afp(4);
-    afp m22 = (v21 + v22) + (v23 + v24) * afp(4);
-    afp m23 = (v31 + v32) + (v33 + v34) * afp(4);
-    afp m24 = (v41 + v42) + (v43 + v44) * afp(4);
-    afp m25 = (v51 + v52) + (v53 + v54) * afp(4);
+    afp m20 = (v01 + v02) * afp(0.5) + (v03 + v04) * afp(2);
+    afp m21 = (v11 + v12) * afp(0.5) + (v13 + v14) * afp(2);
+    afp m22 = (v21 + v22) * afp(0.5) + (v23 + v24) * afp(2);
+    afp m23 = (v31 + v32) * afp(0.5) + (v33 + v34) * afp(2);
+    afp m24 = (v41 + v42) * afp(0.5) + (v43 + v44) * afp(2);
+    afp m25 = (v51 + v52) * afp(0.5) + (v53 + v54) * afp(2);
 
-    afp m30 = v05 + (v01 - v02) + (v03 - v04) * afp(8);
-    afp m31 = v15 + (v11 - v12) + (v13 - v14) * afp(8);
-    afp m32 = v25 + (v21 - v22) + (v23 - v24) * afp(8);
-    afp m33 = v35 + (v31 - v32) + (v33 - v34) * afp(8);
-    afp m34 = v45 + (v41 - v42) + (v43 - v44) * afp(8);
-    afp m35 = v55 + (v51 - v52) + (v53 - v54) * afp(8);
+    afp m30 = v05 + (v01 - v02) * afp(sq2_d4) + (v03 - v04) * afp(sq2_m2);
+    afp m31 = v15 + (v11 - v12) * afp(sq2_d4) + (v13 - v14) * afp(sq2_m2);
+    afp m32 = v25 + (v21 - v22) * afp(sq2_d4) + (v23 - v24) * afp(sq2_m2);
+    afp m33 = v35 + (v31 - v32) * afp(sq2_d4) + (v33 - v34) * afp(sq2_m2);
+    afp m34 = v45 + (v41 - v42) * afp(sq2_d4) + (v43 - v44) * afp(sq2_m2);
+    afp m35 = v55 + (v51 - v52) * afp(sq2_d4) + (v53 - v54) * afp(sq2_m2);
 
-    v00 = m00 + (m01 + m02) + (m03 + m04);
-    v10 = m10 + (m11 + m12) + (m13 + m14);
-    v20 = m20 + (m21 + m22) + (m23 + m24);
-    v30 = m30 + (m31 + m32) + (m33 + m34);
+    v00 = m00 + m01 + m02 + m03 + m04;
+    v10 = m10 + m11 + m12 + m13 + m14;
+    v20 = m20 + m21 + m22 + m23 + m24;
+    v30 = m30 + m31 + m32 + m33 + m34;
 
-    v01 = (m01 - m02) + (m03 - m04) * afp(2);
-    v11 = (m11 - m12) + (m13 - m14) * afp(2);
-    v21 = (m21 - m22) + (m23 - m24) * afp(2);
-    v31 = (m31 - m32) + (m33 - m34) * afp(2);
+    v01 = (m01 - m02) * afp(sq2_d2) + (m03 - m04) * afp(sq2);
+    v11 = (m11 - m12) * afp(sq2_d2) + (m13 - m14) * afp(sq2);
+    v21 = (m21 - m22) * afp(sq2_d2) + (m23 - m24) * afp(sq2);
+    v31 = (m31 - m32) * afp(sq2_d2) + (m33 - m34) * afp(sq2);
 
-    v02 = (m01 + m02) + (m03 + m04) * afp(4);
-    v12 = (m11 + m12) + (m13 + m14) * afp(4);
-    v22 = (m21 + m22) + (m23 + m24) * afp(4);
-    v32 = (m31 + m32) + (m33 + m34) * afp(4);
+    v02 = (m01 + m02) * afp(0.5) + (m03 + m04) * afp(2);
+    v12 = (m11 + m12) * afp(0.5) + (m13 + m14) * afp(2);
+    v22 = (m21 + m22) * afp(0.5) + (m23 + m24) * afp(2);
+    v32 = (m31 + m32) * afp(0.5) + (m33 + m34) * afp(2);
 
-    v03 = m05 + (m01 - m02) + (m03 - m04) * afp(8);
-    v13 = m15 + (m11 - m12) + (m13 - m14) * afp(8);
-    v23 = m25 + (m21 - m22) + (m23 - m24) * afp(8);
-    v33 = m35 + (m31 - m32) + (m33 - m34) * afp(8);
+    v03 = m05 + (m01 - m02) * afp(sq2_d4) + (m03 - m04) * afp(sq2_m2);
+    v13 = m15 + (m11 - m12) * afp(sq2_d4) + (m13 - m14) * afp(sq2_m2);
+    v23 = m25 + (m21 - m22) * afp(sq2_d4) + (m23 - m24) * afp(sq2_m2);
+    v33 = m35 + (m31 - m32) * afp(sq2_d4) + (m33 - m34) * afp(sq2_m2);
 
     if (bias_term == 1)
     {
-#if NCNN_image_shader
-        const afp bias_value = image3d_ld1(bias_blob, ivec3(gz, 0, 0));
-#else
         const afp bias_value = buffer_ld1(bias_data, gz);
-#endif
 
         v00 = bias_value + v00;
         v01 = bias_value + v01;
@@ -261,24 +203,6 @@ void main()
     int x = gx * 4;
     int y = gy * 4;
 
-#if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(x, y, gz), v00);
-    image3d_st1(top_blob, ivec3(x + 1, y, gz), v01);
-    image3d_st1(top_blob, ivec3(x + 2, y, gz), v02);
-    image3d_st1(top_blob, ivec3(x + 3, y, gz), v03);
-    image3d_st1(top_blob, ivec3(x, y + 1, gz), v10);
-    image3d_st1(top_blob, ivec3(x + 1, y + 1, gz), v11);
-    image3d_st1(top_blob, ivec3(x + 2, y + 1, gz), v12);
-    image3d_st1(top_blob, ivec3(x + 3, y + 1, gz), v13);
-    image3d_st1(top_blob, ivec3(x, y + 2, gz), v20);
-    image3d_st1(top_blob, ivec3(x + 1, y + 2, gz), v21);
-    image3d_st1(top_blob, ivec3(x + 2, y + 2, gz), v22);
-    image3d_st1(top_blob, ivec3(x + 3, y + 2, gz), v23);
-    image3d_st1(top_blob, ivec3(x, y + 3, gz), v30);
-    image3d_st1(top_blob, ivec3(x + 1, y + 3, gz), v31);
-    image3d_st1(top_blob, ivec3(x + 2, y + 3, gz), v32);
-    image3d_st1(top_blob, ivec3(x + 3, y + 3, gz), v33);
-#else
     ivec4 v_offset = gz * psc(outcstep) + y * psc(outw) + x + ivec4(0, 1, 2, 3) * psc(outw);
 
     buffer_st1(top_blob_data, v_offset.r + 0, v00);
@@ -297,5 +221,4 @@ void main()
     if (y + 3 < psc(outh) && x + 1 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 1, v31);
     if (y + 3 < psc(outh) && x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 2, v32);
     if (y + 3 < psc(outh) && x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 3, v33);
-#endif
 }

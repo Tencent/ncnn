@@ -20,12 +20,14 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y):
+    def forward(self, x, y, z):
         x0 = torch.unsqueeze(x, 0)
         x1 = torch.unsqueeze(x, 1)
         y0 = torch.unsqueeze(y, 1)
         y1 = torch.unsqueeze(y, -1)
-        return x0, x1, y0, y1
+        z0 = torch.unsqueeze(z, 0)
+        z1 = torch.unsqueeze(z, -2)
+        return x0, x1, y0, y1, z0, z1
 
 def test():
     net = Model()
@@ -34,16 +36,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(16)
     y = torch.rand(9, 11)
+    z = torch.rand(4, 6, 7)
 
-    a = net(x, y)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, z))
     mod.save("test_torch_unsqueeze.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_unsqueeze.pt inputshape=[16],[9,11]")
+    os.system("../../src/pnnx test_torch_unsqueeze.pt inputshape=[16],[9,11],[4,6,7]")
 
     # ncnn inference
     import test_torch_unsqueeze_ncnn

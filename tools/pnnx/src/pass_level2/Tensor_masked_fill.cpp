@@ -26,7 +26,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 mask
 pnnx.Input              input_2     0 1 value
-aten::masked_fill       op_1        3 1 input mask value out
+aten::masked_fill       op_0        3 1 input mask value out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -37,6 +37,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_masked_fill, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_masked_fill, 70)
 
 } // namespace pnnx

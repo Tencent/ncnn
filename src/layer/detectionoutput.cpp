@@ -14,8 +14,6 @@
 
 #include "detectionoutput.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 DetectionOutput::DetectionOutput()
@@ -189,8 +187,8 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
         float bbox_cx = var[0] * loc[0] * pb_w + pb_cx;
         float bbox_cy = var[1] * loc[1] * pb_h + pb_cy;
-        float bbox_w = static_cast<float>(exp(var[2] * loc[2]) * pb_w);
-        float bbox_h = static_cast<float>(exp(var[3] * loc[3]) * pb_h);
+        float bbox_w = expf(var[2] * loc[2]) * pb_w;
+        float bbox_h = expf(var[3] * loc[3]) * pb_h;
 
         bbox[0] = bbox_cx - bbox_w * 0.5f;
         bbox[1] = bbox_cy - bbox_h * 0.5f;

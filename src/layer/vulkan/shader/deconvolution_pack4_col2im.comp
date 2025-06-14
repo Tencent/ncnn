@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #extension GL_GOOGLE_include_directive: enable
 #include "vulkan_activation.comp"
 
@@ -44,15 +37,9 @@ layout (constant_id = shape_constant_id_offset + 3) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D col_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer col_blob { sfpvec4 col_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout (binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -78,11 +65,7 @@ void main()
 
     if (bias_term == 1)
     {
-#if NCNN_image_shader
-        sum = image3d_ld4(bias_blob, ivec3(gz, 0, 0));
-#else
         sum = buffer_ld4(bias_data, gz);
-#endif
     }
     else
     {
@@ -112,24 +95,16 @@ void main()
                 h_k /= dilation_h;
                 w_k /= dilation_w;
 
-#if NCNN_image_shader
-                sum += image3d_ld4(col_blob, ivec3(sy * psc(w) + sx, gz * maxk + h_k * kernel_w + w_k, 0));
-#else
                 const int gi = (gz * maxk + h_k * kernel_w + w_k) * psc(w) * psc(h) + sy * psc(w) + sx;
 
                 sum += buffer_ld4(col_blob_data, gi);
-#endif
             }
         }
     }
 
     sum = activation_afpvec4(sum, activation_type, activation_param_0, activation_param_1);
 
-#if NCNN_image_shader
-    image3d_st4(top_blob, ivec3(gx, gy, gz), sum);
-#else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st4(top_blob_data, gi, sum);
-#endif
 }

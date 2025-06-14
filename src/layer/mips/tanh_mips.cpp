@@ -19,8 +19,6 @@
 #include "msa_mathfun.h"
 #endif // __mips_msa
 
-#include <math.h>
-
 namespace ncnn {
 
 TanH_mips::TanH_mips()
@@ -58,7 +56,7 @@ int TanH_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __mips_msa
         for (; i < size; i++)
         {
-            *ptr = tanh(*ptr);
+            *ptr = tanhf(*ptr);
             ptr++;
         }
     }

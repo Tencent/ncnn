@@ -12,29 +12,20 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
 void innerproduct_pack4_fp16s_neon_asimdfhm(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_fp16s_neon_asimdfhm(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_transform_kernel_fp16s_neon_asimdfhm(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_FP16_FML
 void innerproduct_pack4_fp16s_neon_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_fp16s_neon_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_transform_kernel_fp16s_neon_asimdhp(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !__aarch64__ && !(__ARM_FP & 2)
-void innerproduct_pack4_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
-void innerproduct_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
-void innerproduct_transform_kernel_fp16s_neon_vfpv4(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
-#endif
 
 static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
-#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdfhm())
     {
@@ -43,24 +34,14 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdhp())
     {
         innerproduct_pack4_fp16s_neon_asimdhp(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
         return;
     }
 #endif
-#endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !__aarch64__ && !(__ARM_FP & 2)
-    if (ncnn::cpu_support_arm_vfpv4())
-    {
-        innerproduct_pack4_fp16s_neon_vfpv4(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
-        return;
-    }
-#endif
-
-#if (__ARM_FP & 2)
     const int num_input = bottom_blob.w * bottom_blob.elempack;
     const int num_output = top_blob.w;
 
@@ -89,6 +70,7 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
 #endif
 
         int i = 0;
+#if NCNN_GNU_INLINE_ASM
         for (; i + 7 < num_input; i += 8)
         {
 #if __aarch64__
@@ -229,6 +211,7 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9");
 #endif // __aarch64__
         }
+#endif // NCNN_GNU_INLINE_ASM
         for (; i + 3 < num_input; i += 4)
         {
 #if __ARM_FEATURE_FP16_FML
@@ -303,20 +286,10 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
         vst1q_f32(outptr + p * 4, _sum0);
 #endif
     }
-#else  // (__ARM_FP & 2)
-    (void)bottom_blob;
-    (void)top_blob;
-    (void)weight_data_fp16;
-    (void)bias_data;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif // (__ARM_FP & 2)
 }
 
 static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
-#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdfhm())
     {
@@ -325,24 +298,14 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdhp())
     {
         innerproduct_fp16s_neon_asimdhp(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
         return;
     }
 #endif
-#endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-    if (ncnn::cpu_support_arm_vfpv4())
-    {
-        innerproduct_fp16s_neon_vfpv4(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
-        return;
-    }
-#endif
-
-#if (__ARM_FP & 2)
     const int num_input = bottom_blob.w * bottom_blob.elempack;
     const int num_output = top_blob.w;
 
@@ -543,20 +506,10 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
         outptr[p] = sum;
 #endif
     }
-#else  // (__ARM_FP & 2)
-    (void)bottom_blob;
-    (void)top_blob;
-    (void)weight_data_fp16;
-    (void)bias_data;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif // (__ARM_FP & 2)
 }
 
 static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
 {
-#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdfhm())
     {
@@ -565,24 +518,14 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdhp())
     {
         innerproduct_transform_kernel_fp16s_neon_asimdhp(weight_data, weight_data_tm, num_input, num_output, opt);
         return;
     }
 #endif
-#endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-    if (ncnn::cpu_support_arm_vfpv4())
-    {
-        innerproduct_transform_kernel_fp16s_neon_vfpv4(weight_data, weight_data_tm, num_input, num_output, opt);
-        return;
-    }
-#endif
-
-#if (__ARM_FP & 2)
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
@@ -616,6 +559,7 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
             const float* k7 = weight_data_r2.row(q + 7);
 
             int p = 0;
+#if NCNN_GNU_INLINE_ASM
             for (; p + 7 < num_input; p += 8)
             {
                 // transpose 8x8
@@ -677,6 +621,7 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
                     "8"(g0)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
             }
+#endif // NCNN_GNU_INLINE_ASM
             for (; p < num_input; p++)
             {
                 g0[0] = float32_to_float16(*k0++);
@@ -741,11 +686,4 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
         ncnn::cast_float32_to_float16(weight_data_r2, weight_data_tm, opt);
     }
-#else  // (__ARM_FP & 2)
-    (void)weight_data;
-    (void)weight_data_tm;
-    (void)num_input;
-    (void)num_output;
-    (void)opt;
-#endif // (__ARM_FP & 2)
 }

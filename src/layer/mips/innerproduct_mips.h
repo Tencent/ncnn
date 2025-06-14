@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_mips : virtual public InnerProduct
+class InnerProduct_mips : public InnerProduct
 {
 public:
     InnerProduct_mips();

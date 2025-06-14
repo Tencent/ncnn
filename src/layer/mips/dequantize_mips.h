@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Dequantize_mips : virtual public Dequantize
+class Dequantize_mips : public Dequantize
 {
 public:
     Dequantize_mips();

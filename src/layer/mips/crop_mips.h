@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Crop_mips : virtual public Crop
+class Crop_mips : public Crop
 {
 public:
     Crop_mips();

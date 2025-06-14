@@ -32,15 +32,15 @@ class Model(nn.Module):
 
     def forward(self, x, y):
         x0, h0 = self.rnn_0_0(x)
-        x1, h1 = self.rnn_0_1(x0)
+        x1, _ = self.rnn_0_1(x0)
         x2, h2 = self.rnn_0_2(x1)
         x3, h3 = self.rnn_0_3(x1, h2)
 
         y0, h4 = self.rnn_1_0(y)
-        y1, h5 = self.rnn_1_1(y0)
+        y1, _ = self.rnn_1_1(y0)
         y2, h6 = self.rnn_1_2(y1)
         y3, h7 = self.rnn_1_3(y1, h6)
-        return x2, x3, h0, h1, h2, h3, y2, y3, h4, h5, h6, h7
+        return x2, x3, h0, h2, h3, y2, y3, h4, h6, h7
 
 def test():
     net = Model()

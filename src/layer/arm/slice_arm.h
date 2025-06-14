@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Slice_arm : virtual public Slice
+class Slice_arm : public Slice
 {
 public:
     Slice_arm();

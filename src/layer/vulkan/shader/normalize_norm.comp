@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int across_spatial = 0;
 layout (constant_id = 1) const int across_channel = 0;
 layout (constant_id = 2) const int channel_shared = 0;
@@ -34,16 +27,9 @@ layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D coeffs_blob;
-layout (binding = 3) uniform unfp sampler3D scale_blob;
-#else
 layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
 layout (binding = 2) readonly buffer scale_blob { sfp scale_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -63,41 +49,25 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-#if NCNN_image_shader
-    afp v = image3d_ld1(bottom_blob, ivec3(gx, gy, gz));
-#else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     afp v = buffer_ld1(bottom_top_blob_data, gi);
-#endif
 
     afp a;
 
     if (across_spatial == 1 && across_channel == 1)
     {
-#if NCNN_image_shader
-        a = image3d_ld1(coeffs_blob, ivec3(0, 0, 0));
-#else
         a = buffer_ld1(coeffs_blob_data, 0);
-#endif
     }
 
     if (across_spatial == 1 && across_channel == 0)
     {
-#if NCNN_image_shader
-        a = image3d_ld1(coeffs_blob, ivec3(gz, 0, 0));
-#else
         a = buffer_ld1(coeffs_blob_data, gz);
-#endif
     }
 
     if (across_spatial == 0 && across_channel == 1)
     {
-#if NCNN_image_shader
-        a = image3d_ld1(coeffs_blob, ivec3(gy * psc(w) + gx, 0, 0));
-#else
         a = buffer_ld1(coeffs_blob_data, gy * psc(w) + gx);
-#endif
     }
 
     v = v * a;
@@ -110,17 +80,9 @@ void main()
         }
         else
         {
-#if NCNN_image_shader
-            v = v * image3d_ld1(scale_blob, ivec3(gz, 0, 0));
-#else
             v = v * buffer_ld1(scale_blob_data, gz);
-#endif
         }
     }
 
-#if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(gx, gy, gz), v);
-#else
     buffer_st1(bottom_top_blob_data, gi, v);
-#endif
 }

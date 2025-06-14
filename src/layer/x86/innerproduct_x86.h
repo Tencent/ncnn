@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_x86 : virtual public InnerProduct
+class InnerProduct_x86 : public InnerProduct
 {
 public:
     InnerProduct_x86();
@@ -30,7 +30,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-#if NCNN_F16C
+#if NCNN_F16C && __AVX__
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif

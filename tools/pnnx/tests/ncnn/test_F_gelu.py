@@ -15,16 +15,25 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.gelu(x)
         y = F.gelu(y)
         z = F.gelu(z)
-        return x, y, z
+        if version.parse(torch.__version__) < version.parse('1.12'):
+            w = F.gelu(w)
+        else:
+            w = F.gelu(w, approximate='tanh')
+        return x, y, z, w
 
 def test():
     net = Model()
@@ -34,16 +43,17 @@ def test():
     x = torch.rand(16)
     y = torch.rand(2, 16)
     z = torch.rand(3, 12, 16)
+    w = torch.rand(5, 7, 9, 11)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_F_gelu.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_gelu.pt inputshape=[16],[2,16],[3,12,16]")
+    os.system("../../src/pnnx test_F_gelu.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
 
     # ncnn inference
     import test_F_gelu_ncnn

@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const float alpha = 0;
 
 #define shape_constant_id_offset 1
@@ -30,12 +23,7 @@ layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
-#else
 layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -55,19 +43,11 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-#if NCNN_image_shader
-    afp v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-#else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     afp v = buffer_ld1(bottom_top_blob_data, gi);
-#endif
 
     v = v > afp(0.0f) ? v : afp(alpha * (exp(v) - 1.0f));
 
-#if NCNN_image_shader
-    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);
-#else
     buffer_st1(bottom_top_blob_data, gi, v);
-#endif
 }

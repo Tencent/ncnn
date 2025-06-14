@@ -58,12 +58,12 @@ public:
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
-    // register custom layer by layer type name
+    // register custom layer or overwrite built-in layer by layer type name
     // return 0 if success
     int register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
     virtual int custom_layer_to_index(const char* type);
 #endif // NCNN_STRING
-    // register custom layer by layer type
+    // register custom layer or overwrite built-in layer by layer type
     // return 0 if success
     int register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
 
@@ -149,8 +149,10 @@ protected:
     int find_blob_index_by_name(const char* name) const;
     int find_layer_index_by_name(const char* name) const;
     virtual Layer* create_custom_layer(const char* type);
+    virtual Layer* create_overwrite_builtin_layer(const char* type);
 #endif // NCNN_STRING
     virtual Layer* create_custom_layer(int index);
+    virtual Layer* create_overwrite_builtin_layer(int typeindex);
 
 private:
     Net(const Net&);
@@ -180,9 +182,8 @@ public:
     // enabled by default
     void set_light_mode(bool enable);
 
-    // set thread count for this extractor
-    // this will overwrite the global setting
-    // default count is system depended
+    // deprecated, no-op
+    // instead, set net.opt.num_threads before net.load_param()
     void set_num_threads(int num_threads);
 
     // set blob memory allocator
@@ -192,6 +193,8 @@ public:
     void set_workspace_allocator(Allocator* allocator);
 
 #if NCNN_VULKAN
+    // deprecated, no-op
+    // instead, set net.opt.use_vulkan_compute before net.load_param()
     void set_vulkan_compute(bool enable);
 
     void set_blob_vkallocator(VkAllocator* allocator);
@@ -232,14 +235,6 @@ public:
     // get result by blob name
     // return 0 if success
     int extract(const char* blob_name, VkMat& feat, VkCompute& cmd);
-
-    // set input by blob name
-    // return 0 if success
-    int input(const char* blob_name, const VkImageMat& in);
-
-    // get result by blob name
-    // return 0 if success
-    int extract(const char* blob_name, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_STRING
 
     // set input by blob index
@@ -249,14 +244,6 @@ public:
     // get result by blob index
     // return 0 if success
     int extract(int blob_index, VkMat& feat, VkCompute& cmd);
-
-    // set input by blob index
-    // return 0 if success
-    int input(int blob_index, const VkImageMat& in);
-
-    // get result by blob index
-    // return 0 if success
-    int extract(int blob_index, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_VULKAN
 
 protected:

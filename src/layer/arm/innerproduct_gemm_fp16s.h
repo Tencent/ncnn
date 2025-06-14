@@ -12,23 +12,16 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
 void innerproduct_gemm_fp16s_neon_asimdfhm(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_FP16_FML
 void innerproduct_gemm_fp16s_neon_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
-#endif
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-void innerproduct_gemm_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
 static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
-#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdfhm())
     {
@@ -37,24 +30,14 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdhp())
     {
         innerproduct_gemm_fp16s_neon_asimdhp(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
         return;
     }
 #endif
-#endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-    if (ncnn::cpu_support_arm_vfpv4())
-    {
-        innerproduct_gemm_fp16s_neon_vfpv4(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
-        return;
-    }
-#endif
-
-#if (__ARM_FP & 2)
     const int num_input = bottom_blob.w;
     const int elempack = bottom_blob.elempack;
     const int num_output = top_blob.w;
@@ -468,13 +451,4 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
             }
         }
     }
-#else  // (__ARM_FP & 2)
-    (void)bottom_blob;
-    (void)top_blob;
-    (void)weight_data_fp16;
-    (void)bias_data;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif // (__ARM_FP & 2)
 }

@@ -14,8 +14,6 @@
 
 #include "dropout.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Dropout::Dropout()

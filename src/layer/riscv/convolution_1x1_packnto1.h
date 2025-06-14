@@ -28,7 +28,7 @@ static void conv1x1s1_sgemm_packnto1_rvv(const Mat& bottom_blob, Mat& top_blob, 
 static void conv1x1s2_sgemm_packnto1_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -53,8 +53,8 @@ static void conv1x1s2_sgemm_packnto1_rvv(const Mat& bottom_blob, Mat& top_blob, 
         {
             for (int j = 0; j < outw; j++)
             {
-                vfloat32m1_t _val = vle32_v_f32m1(r0, vl);
-                vse32_v_f32m1(outptr, _val, vl);
+                vfloat32m1_t _val = __riscv_vle32_v_f32m1(r0, vl);
+                __riscv_vse32_v_f32m1(outptr, _val, vl);
 
                 r0 += packn * 2;
                 outptr += packn;

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Dropout_x86 : virtual public Dropout
+class Dropout_x86 : public Dropout
 {
 public:
     Dropout_x86();

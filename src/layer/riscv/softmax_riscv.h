@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Softmax_riscv : virtual public Softmax
+class Softmax_riscv : public Softmax
 {
 public:
     Softmax_riscv();

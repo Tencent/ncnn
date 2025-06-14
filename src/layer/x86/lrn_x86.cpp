@@ -18,8 +18,6 @@
 #include "avx_mathfun.h"
 #endif // __AVX__
 
-#include <math.h>
-
 namespace ncnn {
 
 int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -130,7 +128,7 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __AVX__
             for (; i < size; i++)
             {
-                *ptr = *ptr * pow(bias + alpha_div_size * *ssptr, -beta);
+                *ptr = *ptr * powf(bias + alpha_div_size * *ssptr, -beta);
 
                 ssptr++;
                 ptr++;
@@ -199,7 +197,7 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         ss += val;
                     }
 
-                    ptr[j] = ptr[j] * pow(bias + alpha_div_size * ss, -beta);
+                    ptr[j] = ptr[j] * powf(bias + alpha_div_size * ss, -beta);
                 }
 
                 ptr += outw;

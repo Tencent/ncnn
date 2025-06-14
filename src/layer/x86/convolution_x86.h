@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Convolution_x86 : virtual public Convolution
+class Convolution_x86 : public Convolution
 {
 public:
     Convolution_x86();
@@ -41,6 +41,7 @@ protected:
 public:
     Layer* activation;
 
+    int nT;
     Mat weight_data_tm;
     Mat weight_sgemm_data;
     Mat weight_winograd23_data;

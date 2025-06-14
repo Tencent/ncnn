@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class AbsVal_vulkan : virtual public AbsVal
+class AbsVal_vulkan : public AbsVal
 {
 public:
     AbsVal_vulkan();
@@ -29,7 +29,6 @@ public:
 
     using AbsVal::forward_inplace;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_absval;

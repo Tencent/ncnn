@@ -14,14 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int ndim = 0;
 
 #define shape_constant_id_offset 1
@@ -39,17 +31,12 @@ layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
 layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-#else
 #if NCNN_fp16_packed
 layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 #endif
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -107,16 +94,11 @@ void main()
     ivec4 z4;
     ivec4 zz4;
 
-#if NCNN_image_shader
-    ivec4 lane4;
-    ivec4 lane4_1;
-#else
     ivec4 v_offset;
     ivec4 vv_offset;
 #if NCNN_fp16_packed
     ivec4 lane2;
     ivec4 lane4;
-#endif
 #endif
 
     if (psc(dims) == 1)
@@ -128,12 +110,6 @@ void main()
         yy4 = ivec4(0);
         xx4 = ii4;
 
-#if NCNN_image_shader
-        lane4 = x4 % 4;
-        lane4_1 = xx4 % 4;
-        x4 = x4 / 4;
-        xx4 = xx4 / 4;
-#else
 #if NCNN_fp16_packed
         v_offset = i4 / 2;
         lane2 = i4 % 2;
@@ -142,7 +118,6 @@ void main()
 #else
         v_offset = i4;
         vv_offset = ii4;
-#endif
 #endif
     }
     else if (psc(dims) == 2)
@@ -154,12 +129,6 @@ void main()
         yy4 = ii4 / psc(w);
         xx4 = ii4 % psc(w);
 
-#if NCNN_image_shader
-        lane4 = y4 % 4;
-        lane4_1 = yy4 % 4;
-        y4 = y4 / 4;
-        yy4 = yy4 / 4;
-#else
 #if NCNN_fp16_packed
         v_offset = ((y4 / 4) * psc(w) + x4) * 2 + (y4 % 4) / 2;
         lane2 = y4 % 2;
@@ -168,7 +137,6 @@ void main()
 #else
         v_offset = ((y4 / 4) * psc(w) + x4) * 4 + y4 % 4;
         vv_offset = ((yy4 / 4) * psc(w) + xx4) * 4 + yy4 % 4;
-#endif
 #endif
     }
     else if (psc(dims) == 3)
@@ -182,12 +150,6 @@ void main()
         yy4 = ii4 % size / psc(w);
         xx4 = ii4 % size % psc(w);
 
-#if NCNN_image_shader
-        lane4 = z4 % 4;
-        lane4_1 = zz4 % 4;
-        z4 = z4 / 4;
-        zz4 = zz4 / 4;
-#else
 #if NCNN_fp16_packed
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
         lane2 = z4 % 2;
@@ -196,7 +158,6 @@ void main()
 #else
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
         vv_offset = ((zz4 / 4) * psc(cstep) + yy4 * psc(w) + xx4) * 4 + zz4 % 4;
-#endif
 #endif
     }
     else // if (psc(dims) == 4)
@@ -216,12 +177,6 @@ void main()
         y4 = yd4 * psc(h) + yh4;
         yy4 = yyd4 * psc(h) + yyh4;
 
-#if NCNN_image_shader
-        lane4 = z4 % 4;
-        lane4_1 = zz4 % 4;
-        z4 = z4 / 4;
-        zz4 = zz4 / 4;
-#else
 #if NCNN_fp16_packed
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
         lane2 = z4 % 2;
@@ -231,33 +186,8 @@ void main()
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
         vv_offset = ((zz4 / 4) * psc(cstep) + yy4 * psc(w) + xx4) * 4 + zz4 % 4;
 #endif
-#endif
     }
 
-#if NCNN_image_shader
-    afpvec4 v0 = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r, z4.r));
-    afpvec4 v1 = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g, z4.g));
-    afpvec4 v2 = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b, z4.b));
-    afpvec4 v3 = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a, z4.a));
-    afpvec4 v4 = image3d_ld4(bottom_blob_3d, ivec3(xx4.r, yy4.r, zz4.r));
-    afpvec4 v5 = image3d_ld4(bottom_blob_3d, ivec3(xx4.g, yy4.g, zz4.g));
-    afpvec4 v6 = image3d_ld4(bottom_blob_3d, ivec3(xx4.b, yy4.b, zz4.b));
-    afpvec4 v7 = image3d_ld4(bottom_blob_3d, ivec3(xx4.a, yy4.a, zz4.a));
-
-    afpvec8 v;
-    v[0].r = v0[lane4.r];
-    v[0].g = v1[lane4.g];
-    v[0].b = v2[lane4.b];
-    v[0].a = v3[lane4.a];
-    v[1].r = v4[lane4_1.r];
-    v[1].g = v5[lane4_1.g];
-    v[1].b = v6[lane4_1.b];
-    v[1].a = v7[lane4_1.a];
-
-    if (ndim == 1) image3d_st8(top_blob_3d, ivec3(gx, 0, 0), v);
-    if (ndim == 2) image3d_st8(top_blob_3d, ivec3(gx, gy, 0), v);
-    if (ndim == 3 || ndim == 4) image3d_st8(top_blob_3d, ivec3(gx, gy, gz), v);
-#else
     int gi;
     if (ndim == 1) gi = gx;
     if (ndim == 2) gi = gy * psc(outw) + gx;
@@ -279,6 +209,5 @@ void main()
     buffer_st8(top_blob_data, gi, v);
 #else
     buffer_cp1to8(top_blob_data, gi, bottom_blob_data, v_offset, vv_offset);
-#endif
 #endif
 }

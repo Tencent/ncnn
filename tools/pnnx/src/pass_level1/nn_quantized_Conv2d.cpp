@@ -12,9 +12,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level1.h"
+#include "fuse_module_pass.h"
 
-#include "../utils.h"
+#include <torch/script.h>
+#include <torch/csrc/jit/api/module.h>
+#include <torch/csrc/jit/passes/quantization/helper.h>
 
 namespace pnnx {
 
@@ -31,11 +33,13 @@ public:
         return "nn.quantized.Conv2d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& _mod) const
     {
+        const auto& mod = _mod.mod;
+
         //         graph->dump();
 
-        const torch::jit::Node* quantized_convolution = find_node_by_kind(graph, "quantized::conv2d");
+        const TorchNodeProxy* quantized_convolution = graph.find_node_by_kind("quantized::conv2d");
 
         //         for (auto aa : quantized_convolution->schema().arguments())
         //         {
@@ -113,11 +117,13 @@ public:
         return "nn.intrinsic.quantized.ConvReLU2d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& _mod) const
     {
+        const auto& mod = _mod.mod;
+
         //         graph->dump();
 
-        const torch::jit::Node* quantized_convolution = find_node_by_kind(graph, "quantized::conv2d_relu");
+        const TorchNodeProxy* quantized_convolution = graph.find_node_by_kind("quantized::conv2d_relu");
 
         //         for (auto aa : quantized_convolution->schema().arguments())
         //         {

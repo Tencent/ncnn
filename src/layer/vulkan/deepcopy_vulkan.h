@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class DeepCopy_vulkan : virtual public DeepCopy
+class DeepCopy_vulkan : public DeepCopy
 {
 public:
     DeepCopy_vulkan();
@@ -29,7 +29,6 @@ public:
 
     using DeepCopy::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_deepcopy;

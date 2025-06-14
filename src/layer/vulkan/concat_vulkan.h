@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Concat_vulkan : virtual public Concat
+class Concat_vulkan : public Concat
 {
 public:
     Concat_vulkan();
@@ -29,7 +29,6 @@ public:
 
     using Concat::forward;
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_concat[2];

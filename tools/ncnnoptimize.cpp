@@ -1993,7 +1993,7 @@ int NetOptimize::fuse_binaryop_eltwise()
 
         fprintf(stderr, "fuse_binaryop_eltwise %s %s %s\n", binaryop0->name.c_str(), binaryop1->name.c_str(), binaryop->name.c_str());
 
-        ncnn::Eltwise* eltwise = (ncnn::Eltwise*)ncnn::create_layer("Eltwise");
+        ncnn::Eltwise* eltwise = (ncnn::Eltwise*)ncnn::create_layer_cpu("Eltwise");
 
         eltwise->type = "Eltwise";
         eltwise->name = binaryop->name;
@@ -2357,7 +2357,10 @@ int NetOptimize::eliminate_reshape_after_global_pooling()
             continue;
 
         ncnn::Reshape* reshape = (ncnn::Reshape*)layers[j];
-        if (reshape->h != -233 || reshape->c != -233 || reshape->permute != 0)
+        if (reshape->h != -233 || reshape->c != -233)
+            continue;
+
+        if (!reshape->shape_expr.empty())
             continue;
 
         fprintf(stderr, "eliminate_reshape_after_global_pooling %s %s\n", pooling->name.c_str(), reshape->name.c_str());
@@ -2465,7 +2468,10 @@ int NetOptimize::eliminate_reshape_before_binaryop()
             continue;
 
         ncnn::Reshape* reshape = (ncnn::Reshape*)layers[i];
-        if (reshape->w != 1 || reshape->h != 1 || reshape->permute != 0)
+        if (reshape->w != 1 || reshape->h != 1)
+            continue;
+
+        if (!reshape->shape_expr.empty())
             continue;
 
         // Reshape - BinaryOp
@@ -2554,7 +2560,7 @@ int NetOptimize::replace_reduction_with_global_pooling()
 
         fprintf(stderr, "replace_reduction_with_global_pooling %s %s\n", reduction1->name.c_str(), reduction2->name.c_str());
 
-        ncnn::Pooling* pooling = (ncnn::Pooling*)ncnn::create_layer("Pooling");
+        ncnn::Pooling* pooling = (ncnn::Pooling*)ncnn::create_layer_cpu("Pooling");
 
         pooling->type = "Pooling";
         pooling->name = reduction2->name;
@@ -2593,7 +2599,7 @@ int NetOptimize::replace_prelu_with_leaky_relu()
 
         fprintf(stderr, "replace_prelu_with_leaky_relu %s\n", prelu->name.c_str());
 
-        ncnn::ReLU* relu = (ncnn::ReLU*)ncnn::create_layer("ReLU");
+        ncnn::ReLU* relu = (ncnn::ReLU*)ncnn::create_layer_cpu("ReLU");
 
         relu->type = "ReLU";
         relu->name = prelu->name;
@@ -2647,7 +2653,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
 
         fprintf(stderr, "replace_convolution_with_innerproduct_after_global_pooling %s %s\n", pooling->name.c_str(), convolution->name.c_str());
 
-        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)ncnn::create_layer("InnerProduct");
+        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)ncnn::create_layer_cpu("InnerProduct");
 
         innerproduct->type = "InnerProduct";
         innerproduct->name = convolution->name;
@@ -2715,7 +2721,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
 
             fprintf(stderr, "replace_convolution_with_innerproduct_after_innerproduct %s %s\n", innerproduct->name.c_str(), convolution->name.c_str());
 
-            ncnn::InnerProduct* innerproduct2 = (ncnn::InnerProduct*)ncnn::create_layer("InnerProduct");
+            ncnn::InnerProduct* innerproduct2 = (ncnn::InnerProduct*)ncnn::create_layer_cpu("InnerProduct");
 
             innerproduct2->type = "InnerProduct";
             innerproduct2->name = convolution->name;

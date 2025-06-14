@@ -17,7 +17,6 @@ import numpy as np
 import cv2
 import ncnn
 from .model_store import get_model_file
-from ..utils.objects import Detect_Object
 from ..utils.functional import sigmoid, nms
 
 

@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #define FLT_MAX 3.402823466e+38
 
 layout (constant_id = 0) const int pooling_type = 0;
@@ -38,13 +31,8 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -84,17 +72,6 @@ void main()
     {
         res = afpvec4(-FLT_MAX);
 
-#if NCNN_image_shader
-
-        for (int y = 0; y < kernel_h; y++)
-        {
-            for (int x = 0; x < kernel_w; x++)
-            {
-                afpvec4 v = image3d_ld4(bottom_blob, ivec3(sx + x, sy + y, gz));
-                res = max(res, v);
-            }
-        }
-#else
         int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
 
         for (int y = 0; y < kernel_h; y++)
@@ -107,21 +84,11 @@ void main()
 
             v_offset += psc(w);
         }
-#endif
     }
     else if (pooling_type == 1)
     {
         vec4 res_fp32 = vec4(0.f);  // force accumulation in fp32
 
-#if NCNN_image_shader
-        for (int y = 0; y < kernel_h; y++)
-        {
-            for (int x = 0; x < kernel_w; x++)
-            {
-                res_fp32 += image3d_ld4(bottom_blob, ivec3(sx + x, sy + y, gz));
-            }
-        }
-#else
         int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
 
         for (int y = 0; y < kernel_h; y++)
@@ -133,17 +100,12 @@ void main()
 
             v_offset += psc(w);
         }
-#endif
 
         res_fp32 /= float(kernel_h * kernel_w);
         res = afpvec4(res_fp32);  // cast to fp16 if possible
     }
 
-#if NCNN_image_shader
-    image3d_st4(top_blob, ivec3(gx, gy, gz), res);
-#else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st4(top_blob_data, gi, res);
-#endif
 }

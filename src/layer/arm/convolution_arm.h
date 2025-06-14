@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Convolution_arm : virtual public Convolution
+class Convolution_arm : public Convolution
 {
 public:
     Convolution_arm();
@@ -49,6 +49,8 @@ protected:
 
 public:
     Layer* activation;
+
+    int nT;
 
     Mat weight_data_tm;
     Mat weight_3x3s2_data;

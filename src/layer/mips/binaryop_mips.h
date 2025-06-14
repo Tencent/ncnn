@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BinaryOp_mips : virtual public BinaryOp
+class BinaryOp_mips : public BinaryOp
 {
 public:
     BinaryOp_mips();

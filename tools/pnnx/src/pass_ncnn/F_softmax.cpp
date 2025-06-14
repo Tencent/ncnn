@@ -45,11 +45,6 @@ pnnx.Output             output      1 0 out
     {
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
-        int input_rank = op->inputs[0]->shape.size();
-
-        if (batch_index >= 0 && batch_index < input_rank)
-            input_rank -= 1;
-
         int axis = captured_params.at("dim").i;
         if (axis == batch_index)
         {
@@ -58,7 +53,10 @@ pnnx.Output             output      1 0 out
         }
 
         if (axis < 0)
+        {
+            int input_rank = op->inputs[0]->shape.size();
             axis = input_rank + axis;
+        }
 
         if (axis > batch_index)
             axis -= 1;

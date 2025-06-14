@@ -268,11 +268,11 @@ static void resize_bicubic_image_pack16(const Mat& src, Mat& dst, float* alpha, 
             __m512 _rows1 = _mm512_load_ps(rows1p);
             __m512 _rows2 = _mm512_load_ps(rows2p);
             __m512 _rows3 = _mm512_load_ps(rows3p);
-            __m512 _D = _mm512_mul_ps(_rows0, _b0);
-            _D = _mm512_fmadd_ps(_rows1, _b1, _D);
-            _D = _mm512_fmadd_ps(_rows2, _b2, _D);
-            _D = _mm512_fmadd_ps(_rows3, _b3, _D);
-            _mm512_store_ps(Dp, _D);
+            __m512 _Dp = _mm512_mul_ps(_rows0, _b0);
+            _Dp = _mm512_fmadd_ps(_rows1, _b1, _Dp);
+            _Dp = _mm512_fmadd_ps(_rows2, _b2, _Dp);
+            _Dp = _mm512_fmadd_ps(_rows3, _b3, _Dp);
+            _mm512_store_ps(Dp, _Dp);
 
             Dp += 16;
             rows0p += 16;

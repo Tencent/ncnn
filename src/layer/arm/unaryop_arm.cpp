@@ -14,7 +14,8 @@
 
 #include "unaryop_arm.h"
 
-#include <math.h>
+// #include <fenv.h>
+#include <float.h>
 
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -94,7 +95,7 @@ struct unary_op_abs
 {
     float func(const float& x) const
     {
-        return (float)fabs(x);
+        return (float)fabsf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -122,13 +123,13 @@ struct unary_op_floor
 {
     float func(const float& x) const
     {
-        return (float)floor(x);
+        return (float)floorf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
 #if __aarch64__
-        return vcvtq_f32_s32(vcvtmq_s32_f32(x));
+        return vrndmq_f32(x);
 #else  // __aarch64__
         int32x4_t _xi = vcvtq_s32_f32(x);
         uint32x4_t _mask = vcgtq_f32(vcvtq_f32_s32(_xi), x);
@@ -142,13 +143,13 @@ struct unary_op_ceil
 {
     float func(const float& x) const
     {
-        return (float)ceil(x);
+        return (float)ceilf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
 #if __aarch64__
-        return vcvtq_f32_s32(vcvtpq_s32_f32(x));
+        return vrndpq_f32(x);
 #else  // __aarch64__
         int32x4_t _xi = vcvtq_s32_f32(x);
         uint32x4_t _mask = vcgtq_f32(x, vcvtq_f32_s32(_xi));
@@ -176,7 +177,7 @@ struct unary_op_sqrt
 {
     float func(const float& x) const
     {
-        return (float)sqrt(x);
+        return (float)sqrtf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -197,7 +198,7 @@ struct unary_op_rsqrt
 {
     float func(const float& x) const
     {
-        return (float)(1.f / sqrt(x));
+        return (float)(1.f / sqrtf(x));
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -214,7 +215,7 @@ struct unary_op_exp
 {
     float func(const float& x) const
     {
-        return (float)exp(x);
+        return (float)expf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -228,7 +229,7 @@ struct unary_op_log
 {
     float func(const float& x) const
     {
-        return (float)log(x);
+        return (float)logf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -242,7 +243,7 @@ struct unary_op_sin
 {
     float func(const float& x) const
     {
-        return (float)sin(x);
+        return (float)sinf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -256,7 +257,7 @@ struct unary_op_cos
 {
     float func(const float& x) const
     {
-        return (float)cos(x);
+        return (float)cosf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -270,7 +271,7 @@ struct unary_op_tan
 {
     float func(const float& x) const
     {
-        return (float)tan(x);
+        return (float)tanf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -284,7 +285,7 @@ struct unary_op_asin
 {
     float func(const float& x) const
     {
-        return (float)asin(x);
+        return (float)asinf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -298,7 +299,7 @@ struct unary_op_acos
 {
     float func(const float& x) const
     {
-        return (float)acos(x);
+        return (float)acosf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -312,7 +313,7 @@ struct unary_op_atan
 {
     float func(const float& x) const
     {
-        return (float)atan(x);
+        return (float)atanf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
@@ -320,10 +321,10 @@ struct unary_op_atan
         // TODO neon optimize
         float tmp[4];
         vst1q_f32(tmp, x);
-        tmp[0] = atan(tmp[0]);
-        tmp[1] = atan(tmp[1]);
-        tmp[2] = atan(tmp[2]);
-        tmp[3] = atan(tmp[3]);
+        tmp[0] = atanf(tmp[0]);
+        tmp[1] = atanf(tmp[1]);
+        tmp[2] = atanf(tmp[2]);
+        tmp[3] = atanf(tmp[3]);
         return vld1q_f32(tmp);
     }
 #endif // __ARM_NEON
@@ -350,12 +351,122 @@ struct unary_op_tanh
 {
     float func(const float& x) const
     {
-        return (float)tanh(x);
+        return (float)tanhf(x);
     }
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
         return tanh_ps(x);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_log10
+{
+    float func(const float& x) const
+    {
+        return (float)log10f(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return vmulq_f32(log_ps(x), vdupq_n_f32(0.434294481903));
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_round
+{
+    float func(const float& x) const
+    {
+        // round to nearest even
+#if NCNN_GNU_INLINE_ASM && __ARM_NEON
+        // return (x + 12582912.f) - 12582912.f;
+        float y;
+        const float magic = 12582912.f;
+#if __aarch64__
+        asm volatile(
+            "fadd   %s0, %s1, %s2   \n"
+            "fsub   %s0, %s0, %s2   \n"
+            : "=w"(y)
+            : "w"(x), "w"(magic)
+            :);
+#else
+        asm volatile(
+            "vadd.f32   %0, %1, %2  \n"
+            "vsub.f32   %0, %0, %2  \n"
+            : "=t"(y)
+            : "t"(x), "t"(magic)
+            :);
+#endif
+        return y;
+#else
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        float y = nearbyintf(x);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return y;
+#endif
+    }
+#if __ARM_NEON
+#if __aarch64__
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return vrndnq_f32(x);
+    }
+#else
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+#if NCNN_GNU_INLINE_ASM
+        float32x4_t y;
+        float32x4_t _magic = vdupq_n_f32(12582912.f); // 1.5 * 2^23
+        asm volatile(
+            "vadd.f32   %q0, %q1, %q2   \n"
+            "vsub.f32   %q0, %q0, %q2   \n"
+            : "=w"(y)
+            : "w"(x), "w"(_magic)
+            :);
+        return y;
+#else
+        float tmp[4];
+        vst1q_f32(tmp, x);
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        tmp[0] = nearbyintf(tmp[0]);
+        tmp[1] = nearbyintf(tmp[1]);
+        tmp[2] = nearbyintf(tmp[2]);
+        tmp[3] = nearbyintf(tmp[3]);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        float32x4_t y = vld1q_f32(tmp);
+        return y;
+#endif
+    }
+#endif
+#endif // __ARM_NEON
+};
+
+struct unary_op_trunc
+{
+    float func(const float& x) const
+    {
+        return (float)truncf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+#if __aarch64__
+        return vrndq_f32(x);
+#else
+        return vcvtq_f32_s32(vcvtq_s32_f32(x));
+#endif
     }
 #endif // __ARM_NEON
 };
@@ -429,6 +540,15 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (op_type == Operation_TANH)
         return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
 
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
     return 0;
 }
 
@@ -457,16 +577,16 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
         {
             uint16x8_t _p01 = vld1q_u16(ptr);
             uint16x8_t _p23 = vld1q_u16(ptr + 8);
-            float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
-            float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
-            float32x4_t _p2 = float2bfloat(vget_low_u16(_p23));
-            float32x4_t _p3 = float2bfloat(vget_high_u16(_p23));
+            float32x4_t _p0 = bfloat2float(vget_low_u16(_p01));
+            float32x4_t _p1 = bfloat2float(vget_high_u16(_p01));
+            float32x4_t _p2 = bfloat2float(vget_low_u16(_p23));
+            float32x4_t _p3 = bfloat2float(vget_high_u16(_p23));
             _p0 = op.func_pack4(_p0);
             _p1 = op.func_pack4(_p1);
             _p2 = op.func_pack4(_p2);
             _p3 = op.func_pack4(_p3);
-            _p01 = vcombine_u16(bfloat2float(_p0), bfloat2float(_p1));
-            _p23 = vcombine_u16(bfloat2float(_p2), bfloat2float(_p3));
+            _p01 = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+            _p23 = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
             vst1q_u16(ptr, _p01);
             vst1q_u16(ptr + 8, _p23);
             ptr += 16;
@@ -475,19 +595,19 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
         for (; i + 7 < size; i += 8)
         {
             uint16x8_t _p = vld1q_u16(ptr);
-            float32x4_t _p0 = float2bfloat(vget_low_u16(_p));
-            float32x4_t _p1 = float2bfloat(vget_high_u16(_p));
+            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
             _p0 = op.func_pack4(_p0);
             _p1 = op.func_pack4(_p1);
-            _p = vcombine_u16(bfloat2float(_p0), bfloat2float(_p1));
+            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
             vst1q_u16(ptr, _p);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _p = float2bfloat(vld1_u16(ptr));
+            float32x4_t _p = bfloat2float(vld1_u16(ptr));
             _p = op.func_pack4(_p);
-            vst1_u16(ptr, bfloat2float(_p));
+            vst1_u16(ptr, float2bfloat(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON
@@ -555,6 +675,15 @@ int UnaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_TANH)
         return unary_op_inplace_bf16s<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace_bf16s<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace_bf16s<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }

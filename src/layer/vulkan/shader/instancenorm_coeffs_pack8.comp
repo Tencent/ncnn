@@ -14,31 +14,15 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const float eps = 0;
 layout (constant_id = 1) const int affine = 0;
 layout (constant_id = 2) const int w = 0;
 
-#if NCNN_image_shader
-layout (binding = 0, imfmtc4) writeonly uniform unfp image3D coeffs_blob;
-layout (binding = 1) uniform highp sampler3D mean_blob;
-layout (binding = 2) uniform highp sampler3D var_blob;
-layout (binding = 3) uniform unfp sampler3D gamma_blob;
-layout (binding = 4) uniform unfp sampler3D beta_blob;
-#else
 layout (binding = 0) writeonly buffer coeffs_blob { sfpvec8 coeffs_blob_data[]; };
 layout (binding = 1) readonly buffer mean_blob { mat2x4 mean_data[]; };
 layout (binding = 2) readonly buffer var_blob { mat2x4 var_data[]; };
 layout (binding = 3) readonly buffer gamma_blob { sfpvec8 gamma_data[]; };
 layout (binding = 4) readonly buffer beta_blob { sfpvec8 beta_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -54,13 +38,8 @@ void main()
     if (gx >= psc(w) || gy >= 1 || gz >= 1)
         return;
 
-#if NCNN_image_shader
-    mat2x4 mean = mat2x4(texelFetch(mean_blob, ivec3(gx * 2, 0, 0), 0), texelFetch(mean_blob, ivec3(gx * 2 + 1, 0, 0), 0));
-    mat2x4 var = mat2x4(texelFetch(var_blob, ivec3(gx * 2, 0, 0), 0), texelFetch(var_blob, ivec3(gx * 2 + 1, 0, 0), 0));
-#else
     mat2x4 mean = mean_data[gx];
     mat2x4 var = var_data[gx];
-#endif
 
     mat2x4 a;
     mat2x4 b;
@@ -73,13 +52,8 @@ void main()
     }
     else
     {
-#if NCNN_image_shader
-        mat2x4 gamma = mat2x4(image3d_ld8(gamma_blob, ivec3(gx, 0, 0)));
-        mat2x4 beta = mat2x4(image3d_ld8(beta_blob, ivec3(gx, 0, 0)));
-#else
         mat2x4 gamma = mat2x4(buffer_ld8(gamma_data, gx));
         mat2x4 beta = mat2x4(buffer_ld8(beta_data, gx));
-#endif
 
         a[0] = gamma[0] / (sqrt(var[0] + eps));
         a[1] = gamma[1] / (sqrt(var[1] + eps));
@@ -87,13 +61,6 @@ void main()
         b[1] = - mean[1] * a[1] + beta[1];
     }
 
-#if NCNN_image_shader
-    imageStore(coeffs_blob, ivec3((gx*2) * 2, 0, 0), a[0]);
-    imageStore(coeffs_blob, ivec3((gx*2) * 2 + 1, 0, 0), a[1]);
-    imageStore(coeffs_blob, ivec3((gx*2 +1) * 2, 0, 0), b[0]);
-    imageStore(coeffs_blob, ivec3((gx*2 +1) * 2 + 1, 0, 0), b[1]);
-#else
     buffer_st8(coeffs_blob_data, gx*2, afpvec8(a));
     buffer_st8(coeffs_blob_data, gx*2 +1, afpvec8(b));
-#endif
 }

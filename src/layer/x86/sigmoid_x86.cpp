@@ -26,8 +26,6 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-#include <math.h>
-
 namespace ncnn {
 
 Sigmoid_x86::Sigmoid_x86()
@@ -52,8 +50,6 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
         __m512 _one_avx512 = _mm512_set1_ps(1.f);
         __m512 _zero_avx512 = _mm512_setzero_ps();
@@ -64,7 +60,17 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             _mm512_storeu_ps(ptr, _p);
             ptr += 16;
         }
-#endif // __AVX512F__
+        if (i < size)
+        {
+            const unsigned int remain = size - i;
+            __mmask16 _mask = (__mmask16)((1u << remain) - 1);
+            __m512 _p = _mm512_maskz_loadu_ps(_mask, ptr);
+            _p = _mm512_div_ps(_one_avx512, _mm512_add_ps(_one_avx512, exp512_ps(_mm512_sub_ps(_zero_avx512, _p))));
+            _mm512_mask_storeu_ps(ptr, _mask, _p);
+        }
+#else // __AVX512F__
+#if __SSE2__
+#if __AVX__
         __m256 _one_avx = _mm256_set1_ps(1.f);
         __m256 _zero_avx = _mm256_setzero_ps();
         for (; i + 7 < size; i += 8)
@@ -87,9 +93,10 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            *ptr = 1.f / (1.f + exp(-*ptr));
+            *ptr = 1.f / (1.f + expf(-*ptr));
             ptr++;
         }
+#endif // __AVX512F__
     }
 
     return 0;

@@ -738,4 +738,420 @@ static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
     return exp_ps(_mm_mul_ps(b, log_ps(a)));
 }
 
+static NCNN_FORCEINLINE __m128 ceil_ps(__m128 x)
+{
+#if __SSE4_1__
+    return _mm_ceil_ps(x);
+#endif // __SSE4_1__
+
+    // Use negative zero as the sign bit mask.
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+
+    // The smallest float number that have no fractional part. (2^23)
+    const __m128 magic_smallest_no_fraction = _mm_set_ps1(8388608.0f);
+
+    // absolute = abs(x);
+    __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
+
+    // negative_mask = magic_negative_zero && x;
+    __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
+
+    // no_fraction = (magic_smallest_no_fraction < absolute);
+    __m128 no_fraction = _mm_cmplt_ps(magic_smallest_no_fraction, absolute);
+
+    // truncated = static_cast<float>(static_cast<uint32_t>(absolute));
+    __m128 truncated = _mm_cvtepi32_ps(_mm_cvttps_epi32(absolute));
+
+    // truncated_with_sign = (truncated || negative_mask);
+    __m128 truncated_with_sign = _mm_or_ps(truncated, negative_mask);
+
+    // positive_fix = ((x > -0.0f) && (x > truncated_with_sign) ? -1.0f : 0.0f);
+    __m128 positive_fix = _mm_and_ps(
+                              _mm_and_ps(
+                                  _mm_cmpgt_ps(x, magic_negative_zero),
+                                  _mm_cmpgt_ps(x, truncated_with_sign)),
+                              _mm_set_ps1(-1.0f));
+
+    // fixed_result = truncated_with_sign - positive_fix;
+    __m128 fixed_result = _mm_sub_ps(truncated_with_sign, positive_fix);
+
+    // return ((x && no_fraction) || (!no_fraction && fixed_result));
+    return _mm_or_ps(
+               _mm_and_ps(x, no_fraction),
+               _mm_andnot_ps(no_fraction, fixed_result));
+}
+
+static NCNN_FORCEINLINE __m128 floor_ps(__m128 x)
+{
+#if __SSE4_1__
+    return _mm_floor_ps(x);
+#endif // __SSE4_1__
+
+    // Use negative zero as the sign bit mask.
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+
+    // The smallest float number that have no fractional part. (2^23)
+    const __m128 magic_smallest_no_fraction = _mm_set_ps1(8388608.0f);
+
+    // absolute = abs(x);
+    __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
+
+    // negative_mask = magic_negative_zero && x;
+    __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
+
+    // no_fraction = (magic_smallest_no_fraction < absolute);
+    __m128 no_fraction = _mm_cmplt_ps(magic_smallest_no_fraction, absolute);
+
+    // truncated = static_cast<float>(static_cast<uint32_t>(absolute));
+    __m128 truncated = _mm_cvtepi32_ps(_mm_cvttps_epi32(absolute));
+
+    // truncated_with_sign = (truncated || negative_mask);
+    __m128 truncated_with_sign = _mm_or_ps(truncated, negative_mask);
+
+    // negative_fix = ((x < truncated_with_sign) ? 1.0f : 0.0f);
+    __m128 negative_fix = _mm_and_ps(
+                              _mm_cmplt_ps(x, truncated_with_sign),
+                              _mm_set_ps1(1.0f));
+
+    // fixed_result = truncated_with_sign - negative_fix;
+    __m128 fixed_result = _mm_sub_ps(truncated_with_sign, negative_fix);
+
+    // return ((x && no_fraction) || (!no_fraction && fixed_result));
+    return _mm_or_ps(
+               _mm_and_ps(x, no_fraction),
+               _mm_andnot_ps(no_fraction, fixed_result));
+}
+
+static NCNN_FORCEINLINE __m128 asin_ps(__m128 x)
+{
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_half_one = _mm_set_ps1(0.5f);
+    const __m128 magic_one = _mm_set_ps1(1.0f);
+    const __m128 magic_a4 = _mm_set_ps1(0.023994016f);
+    const __m128 magic_a5 = _mm_set_ps1(0.042417344f);
+    const __m128 magic_a2 = _mm_set_ps1(0.07494697f);
+    const __m128 magic_a3 = _mm_set_ps1(0.045520633f);
+    const __m128 magic_a0 = _mm_set_ps1(1.0f);
+    const __m128 magic_a1 = _mm_set_ps1(0.166667819f);
+    const __m128 magic_half_pi = _mm_set_ps1(1.5707964f);
+    const __m128 magic_three = _mm_set_ps1(3.0f);
+
+    // negative_mask = magic_negative_zero && x;
+    __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
+
+    // absolute = abs(x);
+    __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
+
+    // Reference: https://en.wikipedia.org/wiki/Small-angle_approximation
+
+    // is_small_input = (absolute <= 0.5f);
+    __m128 is_small_input = _mm_cmple_ps(absolute, magic_half_one);
+
+    // is_big_input = (is_small_input ? 0.0f : 1.0f);
+    __m128 is_big_input = _mm_andnot_ps(is_small_input, magic_one);
+
+    // big_input_approx = sqrt(0.5f * (1 - absolute));
+    __m128 big_input_approx = _mm_sqrt_ps(_mm_mul_ps(
+            magic_half_one,
+            _mm_sub_ps(magic_one, absolute)));
+
+    // input_approx = (is_small_input ? absolute : big_input_approx);
+    __m128 input_approx = _mm_or_ps(
+                              _mm_and_ps(is_small_input, absolute),
+                              _mm_andnot_ps(is_small_input, big_input_approx));
+
+    // square_of_input_approx = input_approx * input_approx;
+    __m128 square_of_input_approx = _mm_mul_ps(input_approx, input_approx);
+
+    // fourth_power_of_input_approx =
+    //     square_of_input_approx * square_of_input_approx;
+    __m128 fourth_power_of_input_approx = _mm_mul_ps(
+            square_of_input_approx, square_of_input_approx);
+
+    // TODO: Need more explanations.
+    // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
+    // x2 = ((fourth_power_of_input_approx * magic_a5) + magic_a3);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a0);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
+    // output_approx = ((square_of_input_approx * x4) + x3);
+    __m128 output_approx = _mm_comp_fmadd_ps(
+                               square_of_input_approx,
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
+
+    // TODO: Need more explanations.
+    // x1 = ((0.5 * PI) * is_big_input);
+    // x2 = (output_approx * input_approx);
+    // x3 = (-(3.0f * is_big_input) + 1.0f);
+    // final_approx = ((x2 * x3) + x1);
+    __m128 final_approx = _mm_comp_fmadd_ps(
+                              _mm_mul_ps(output_approx, input_approx),
+                              _mm_comp_fnmadd_ps(magic_three, is_big_input, magic_one),
+                              _mm_mul_ps(magic_half_pi, is_big_input));
+
+    // return (final_approx || negative_mask);
+    return _mm_or_ps(final_approx, negative_mask);
+}
+
+static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
+{
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_zero = _mm_set_ps1(0.0f);
+    const __m128 magic_half_one = _mm_set_ps1(0.5f);
+    const __m128 magic_one = _mm_set_ps1(1.0f);
+    const __m128 magic_a4 = _mm_set_ps1(0.023994016f);
+    const __m128 magic_a5 = _mm_set_ps1(0.042417344f);
+    const __m128 magic_a2 = _mm_set_ps1(0.07494697f);
+    const __m128 magic_a3 = _mm_set_ps1(0.045520633f);
+    const __m128 magic_a0 = _mm_set_ps1(1.0f);
+    const __m128 magic_a1 = _mm_set_ps1(0.166667819f);
+    const __m128 magic_half_pi = _mm_set_ps1(1.5707964f);
+    const __m128 magic_pi = _mm_set_ps1(3.1415927f);
+
+    // negative_mask = magic_negative_zero && x;
+    __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
+
+    // absolute = abs(x);
+    __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
+
+    // Reference: https://en.wikipedia.org/wiki/Small-angle_approximation
+
+    // is_small_input = (absolute <= 0.5f);
+    __m128 is_small_input = _mm_cmple_ps(absolute, magic_half_one);
+
+    // big_input_approx = sqrt(0.5f * (1 - absolute));
+    __m128 big_input_approx = _mm_sqrt_ps(_mm_mul_ps(
+            magic_half_one,
+            _mm_sub_ps(magic_one, absolute)));
+
+    // input_approx = (is_small_input ? absolute : big_input_approx);
+    __m128 input_approx = _mm_or_ps(
+                              _mm_and_ps(is_small_input, absolute),
+                              _mm_andnot_ps(is_small_input, big_input_approx));
+
+    // square_of_input_approx = input_approx * input_approx;
+    __m128 square_of_input_approx = _mm_mul_ps(input_approx, input_approx);
+
+    // fourth_power_of_input_approx =
+    //     square_of_input_approx * square_of_input_approx;
+    __m128 fourth_power_of_input_approx = _mm_mul_ps(
+            square_of_input_approx, square_of_input_approx);
+
+    // TODO: Need more explanations.
+    // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
+    // x2 = ((fourth_power_of_input_approx * magic_a5) + magic_a3);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a0);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
+    // output_approx = ((square_of_input_approx * x4) + x3);
+    __m128 output_approx = _mm_comp_fmadd_ps(
+                               square_of_input_approx,
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
+
+    // TODO: Need more explanations.
+    // x1 = (output_approx * input_approx);
+    __m128 x1 = _mm_mul_ps(output_approx, input_approx);
+
+    // TODO: Need more explanations.
+    // small_final_approx = ((0.5 * PI) - (x1 | negative_mask));
+    __m128 small_final_approx = _mm_sub_ps(
+                                    magic_half_pi,
+                                    _mm_or_ps(x1, negative_mask));
+
+    // TODO: Need more explanations.
+    // big_final_approx = (((x < 0.0f) & PI) + ((x1 * 2) | negative_mask));
+    __m128 big_final_approx = _mm_add_ps(
+                                  _mm_and_ps(_mm_cmplt_ps(x, magic_zero), magic_pi),
+                                  _mm_or_ps(_mm_add_ps(x1, x1), negative_mask));
+
+    // return (is_small_input ? small_final_approx : big_final_approx);
+    return _mm_or_ps(
+               _mm_and_ps(is_small_input, small_final_approx),
+               _mm_andnot_ps(is_small_input, big_final_approx));
+}
+
+static NCNN_FORCEINLINE __m128 atan_ps(__m128 x)
+{
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_one = _mm_set_ps1(1.0f);
+    const __m128 magic_negative_one = _mm_set_ps1(-1.0f);
+    const __m128 magic_half_pi = _mm_set_ps1(1.5707964f);
+    const __m128 magic_a0 = _mm_set_ps1(1.0f);
+    const __m128 magic_a1 = _mm_set_ps1(-0.33333072f);
+    const __m128 magic_a2 = _mm_set_ps1(0.1999262f);
+    const __m128 magic_a3 = _mm_set_ps1(-0.14203644f);
+    const __m128 magic_a4 = _mm_set_ps1(0.10640934f);
+    const __m128 magic_a5 = _mm_set_ps1(-0.07504295f);
+    const __m128 magic_a6 = _mm_set_ps1(0.04269152f);
+    const __m128 magic_a7 = _mm_set_ps1(-0.01606863f);
+    const __m128 magic_a8 = _mm_set_ps1(0.0028498897f);
+
+    // negative_mask = magic_negative_zero && x;
+    __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
+
+    // absolute = abs(x);
+    __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
+
+    // Reference: https://en.wikipedia.org/wiki/Small-angle_approximation
+
+    // is_small_input = (1.0f < absolute);
+    __m128 is_small_input = _mm_cmplt_ps(magic_one, absolute);
+
+    // x1 = (is_small_input ? -1.0f : absolute);
+    // x2 = (is_small_input ? absolute : 1.0f)
+    // input_approx = x1 / x2;
+    __m128 input_approx = _mm_div_ps(
+                              _mm_or_ps(
+                                  _mm_and_ps(is_small_input, magic_negative_one),
+                                  _mm_andnot_ps(is_small_input, absolute)),
+                              _mm_or_ps(
+                                  _mm_and_ps(is_small_input, absolute),
+                                  _mm_andnot_ps(is_small_input, magic_one)));
+
+    // square_of_input_approx = input_approx * input_approx;
+    __m128 square_of_input_approx = _mm_mul_ps(input_approx, input_approx);
+
+    // fourth_power_of_input_approx =
+    //     square_of_input_approx * square_of_input_approx;
+    __m128 fourth_power_of_input_approx = _mm_mul_ps(
+            square_of_input_approx, square_of_input_approx);
+
+    // TODO: Need more explanations.
+    // x1 = ((fourth_power_of_input_approx * magic_a7) + magic_a5);
+    // x2 = ((fourth_power_of_input_approx * magic_a8) + magic_a6);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a3);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a4);
+    // x5 = ((fourth_power_of_input_approx * x3) + magic_a1);
+    // x6 = ((fourth_power_of_input_approx * x4) + magic_a2);
+    // x7 = ((fourth_power_of_input_approx * x6) + magic_a0);
+    // output_approx = ((square_of_input_approx * x5) + x7);
+    __m128 output_approx = _mm_comp_fmadd_ps(
+                               square_of_input_approx,
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm_comp_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           magic_a7,
+                                           magic_a5),
+                                       magic_a3),
+                                   magic_a1),
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm_comp_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           _mm_comp_fmadd_ps(
+                                                   fourth_power_of_input_approx,
+                                                   magic_a8,
+                                                   magic_a6),
+                                           magic_a4),
+                                       magic_a2),
+                                   magic_a0));
+
+    // TODO: Need more explanations.
+    // x1 = (output_approx * input_approx);
+    // if (is_small_input) x1 += (0.5 * PI);
+    // return (negative_mask ? -x1 : x1);
+    return _mm_or_ps(
+               _mm_add_ps(
+                   _mm_mul_ps(output_approx, input_approx),
+                   _mm_and_ps(is_small_input, magic_half_pi)),
+               negative_mask);
+}
+
+static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
+{
+    // Reference: https://mazzo.li/posts/vectorized-atan2.html
+
+    const __m128 magic_zero = _mm_set_ps1(0.0f);
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_pi = _mm_set_ps1(3.1415927f);
+    const __m128 magic_half_pi = _mm_set_ps1(1.5707964f);
+
+    // not_equal_zero_x = (x != 0.0f);
+    __m128 not_equal_zero_x = _mm_cmpneq_ps(x, magic_zero);
+
+    // not_equal_zero_y = (y != 0.0f);
+    __m128 not_equal_zero_y = _mm_cmpneq_ps(y, magic_zero);
+
+    // normal_mode = ((x != 0.0f) & (y != 0.0f));
+    __m128 normal_mode = _mm_and_ps(not_equal_zero_x, not_equal_zero_y);
+
+    // negative_mask_x = magic_negative_zero && x;
+    __m128 negative_mask_x = _mm_and_ps(magic_negative_zero, x);
+
+    // negative_mask_y = magic_negative_zero && y;
+    __m128 negative_mask_y = _mm_and_ps(magic_negative_zero, y);
+
+    // pi_additions = ((x < 0.0f) ? ((y < 0.0f) ? -PI : PI) : 0.0f);
+    __m128 pi_additions = _mm_and_ps(
+                              _mm_cmplt_ps(x, magic_zero),
+                              _mm_or_ps(
+                                  _mm_and_ps(
+                                      _mm_cmplt_ps(y, magic_zero),
+                                      magic_negative_zero),
+                                  magic_pi));
+
+    // normal_result = (atan(y / x) + pi_additions);
+    __m128 normal_result = _mm_add_ps(
+                               atan_ps(_mm_div_ps(y, x)),
+                               pi_additions);
+
+    // negative_mask_full_x = ((negative_mask_x | PI) < 0.0f);
+    __m128 negative_mask_full_x = _mm_cmplt_ps(
+                                      _mm_or_ps(negative_mask_x, magic_pi),
+                                      magic_zero);
+
+    // x1 = (negative_mask_y ? -(0.5 * PI) : (0.5 * PI));
+    // x2 = (negative_mask_full_x ? PI : 0.0f);
+    // special_result = ((y != 0.0f) ? x1 : x2);
+    __m128 special_result = _mm_or_ps(
+                                _mm_and_ps(
+                                    not_equal_zero_y,
+                                    _mm_or_ps(negative_mask_y, magic_half_pi)),
+                                _mm_andnot_ps(
+                                    not_equal_zero_y,
+                                    _mm_or_ps(
+                                        _mm_and_ps(negative_mask_full_x, magic_pi),
+                                        _mm_andnot_ps(negative_mask_full_x, magic_zero))));
+
+    // return (normal_mode ? normal_result : special_result);
+    return _mm_or_ps(
+               _mm_and_ps(normal_mode, normal_result),
+               _mm_andnot_ps(normal_mode, special_result));
+}
+
+static NCNN_FORCEINLINE __m128 abs_ps(__m128 x)
+{
+    const __m128 abs_mask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
+    return _mm_and_ps(abs_mask, x);
+}
+
 #endif // SSE_MATHFUN_H

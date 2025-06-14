@@ -14,13 +14,13 @@
 - ## How to download the full source code？
 
    git clone --recursive https://github.com/Tencent/ncnn/
-   
+
    or
-   
+
    download [ncnn-xxxxx-full-source.zip](https://github.com/Tencent/ncnn/releases)
 
 - ## How to cross-compile？How to set the cmake toolchain？
-  
+
    See https://github.com/Tencent/ncnn/wiki/how-to-build
 
 - ## The submodules were not downloaded! Please update submodules with "git submodule update --init" and try again
@@ -28,7 +28,7 @@
    As above, download the full source code. Or follow the prompts to execute: git submodule update --init
 
 - ## Could NOT find Protobuf (missing: Protobuf_INCLUDE_DIR)
-  
+
    sudo apt-get install libprotobuf-dev protobuf-compiler
 
 - ## Could NOT find CUDA (missing: CUDA_TOOLKIT_ROOT_DIR CUDA_INCLUDE_DIRS CUDA_CUDART_LIBRARY)
@@ -45,36 +45,19 @@
 
    set(ncnn_DIR { the dir ncnnConfig.cmake exist})
 
-- ## Vulkan not found, 
-
-   - cmake requires version >= 3.10, otherwise there is no FindVulkan.cmake
-
-   - android-api >= 24
-
-   - macos has to run the install script first
-
-- ## How to install vulkan sdk
-
-    - See https://www.vulkan.org/tools#download-these-essential-development-tools
-    - But There was a frequent problem that the project need glslang lib in ncnn not official vulkan
-
 - ## xxx.lib not found（be specified by system/compiler）
 
    undefined reference to __kmpc_for_static_init_4 __kmpc_for_static_fini __kmpc_fork_call ...
 
    Need to link openmp
 
-   undefined reference to vkEnumerateInstanceExtensionProperties vkGetInstanceProcAddr vkQueueSubmit ...
-
-   need vulkan-1.lib
-
    undefined reference to glslang::InitializeProcess() glslang::TShader::TShader(EShLanguage) ...
 
-   need glslang.lib OGLCompiler.lib SPIRV.lib OSDependent.lib
+   need glslang.lib glslang-default-resource-limits.lib
 
    undefined reference to AAssetManager_fromJava AAssetManager_open AAsset_seek ...
 
-   Add android to find_library and target_like_libraries 
+   Add android to find_library and target_like_libraries
 
    find_package(ncnn)
 
@@ -239,7 +222,7 @@ Fully customizable op, first change to one that can export (e.g. concat slice), 
 - ## find_blob_index_by_name data / output / ... failed
 
    layer name vs blob name
-   
+
    param.bin use xxx.id.h enum
 
 - ## parse magic failed
@@ -255,14 +238,14 @@ Fully customizable op, first change to one that can export (e.g. concat slice), 
    Make sure that your param file starts with the magic number 7767517.
 
    you may find more info on use-ncnn-with-alexnet
-   
+
    When adding the softmax layer yourself, you need to add 1=1
 
 - ## set_vulkan_compute failed, network use_vulkan_compute disabled
 
    Set net.opt.use_vulkan_compute = true before load_param / load_model;
 
-- ## How to exexcite multiple blob inputs, multiple blob outputs？
+- ## How to execute multiple blob inputs, multiple blob outputs？
    Multiple execute `ex.input()` and `ex.extract()` like following
     ```
     ex.input("data1", in_1);
@@ -287,7 +270,7 @@ Fully customizable op, first change to one that can export (e.g. concat slice), 
    First of all, you need to manage the memory you request yourself, at this point ncnn::Mat will not automatically free up the float data you pass over to it
    ``` c++
    std::vector<float> testData(60, 1.0); // use std::vector<float> to manage memory requests and releases yourself
-   ncnn::Mat in1(60, (void*)testData.data()).reshape(4, 5, 3); // just pass the pointer to the float data as a void*, and even specify the dimension (up says it's best to use reshape to solve the channel gap)
+   ncnn::Mat in1 = ncnn::Mat(60, (void*)testData.data()).reshape(4, 5, 3); // just pass the pointer to the float data as a void*, and even specify the dimension (up says it's best to use reshape to solve the channel gap)
    float* a = new float[60]; // New a piece of memory yourself, you need to release it later
    ncnn::Mat in2 = ncnn::Mat(60, (void*)a).reshape(4, 5, 3).clone(); // use the same method as above, clone() to transfer data owner
    ```

@@ -35,7 +35,7 @@ def test():
     x = torch.rand(1, 16)
     y = torch.rand(3, 1)
     z = torch.rand(5, 1, 11)
-    w = torch.rand(5, 9, 1)
+    w = torch.rand(5, 9, 1, 33)
 
     a = net(x, y, z, w)
 
@@ -45,7 +45,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_squeeze.pt inputshape=[1,16],[3,1],[5,1,11],[5,9,1]")
+    os.system("../../src/pnnx test_torch_squeeze.pt inputshape=[1,16],[3,1],[5,1,11],[5,9,1,33]")
 
     # ncnn inference
     import test_torch_squeeze_ncnn

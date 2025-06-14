@@ -22,21 +22,24 @@ static void conv3x3s1_winograd43_transform_input_rvv(const Mat& bottom_blob, Mat
     const int h_tiles = (h - 2) / 4;
     const int tiles = w_tiles * h_tiles;
 
+    const float sq2 = 1.41421356237;
+    const float sq2_d2 = 1.41421356237 / 2;
+
     // const float itm[6][6] = {
-    //     {4.0f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f},
-    //     {0.0f,-4.0f, -4.0f, 1.0f, 1.0f, 0.0f},
-    //     {0.0f, 4.0f, -4.0f,-1.0f, 1.0f, 0.0f},
-    //     {0.0f,-2.0f, -1.0f, 2.0f, 1.0f, 0.0f},
-    //     {0.0f, 2.0f, -1.0f,-2.0f, 1.0f, 0.0f},
-    //     {0.0f, 4.0f,  0.0f,-5.0f, 0.0f, 1.0f}
+    //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
+    //     {0.0f, -sq2,   -2.0f,  sq2/2, 1.0f, 0.0f},
+    //     {0.0f,  sq2,   -2.0f, -sq2/2, 1.0f, 0.0f},
+    //     {0.0f, -sq2/2, -0.5f,  sq2,   1.0f, 0.0f},
+    //     {0.0f,  sq2/2, -0.5f, -sq2,   1.0f, 0.0f},
+    //     {0.0f,  1.0f,   0.0f,  -2.5f, 0.0f, 1.0f}
     // };
 
-    // 0 =  4 * r00 - 5 * r02 + r04
-    // 1 = -4 * (r01 + r02) + r04 + r03
-    // 2 =  4 * (r01 - r02) + r04 - r03
-    // 3 = -2 * (r01 - r03) + r04 - r02
-    // 4 =  2 * (r01 - r03) + r04 - r02
-    // 5 =  4 * r01 - 5 * r03 + r05
+    // 0 =  r00 - 2.5f * r02 + r04
+    // 1 = -(sq2 * r01 - sq2_d2 * r03) + (r04 - 2 * r02)
+    // 2 =  (sq2 * r01 - sq2_d2 * r03) + (r04 - 2 * r02)
+    // 3 = -(sq2_d2 * r01 - sq2 * r03) + (r04 - 0.5f * r02)
+    // 4 =  (sq2_d2 * r01 - sq2 * r03) + (r04 - 0.5f * r02)
+    // 5 =  r01 - 2.5f * r03 + r05
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < inch; q++)
@@ -62,19 +65,17 @@ static void conv3x3s1_winograd43_transform_input_rvv(const Mat& bottom_blob, Mat
                     float r04 = r0[4];
                     float r05 = r0[5];
 
-                    float tmp0m = 4 * r00 - 5 * r02 + r04;
-                    float tmp1m = -4 * (r01 + r02) + r04 + r03;
-                    float tmp2m = 4 * (r01 - r02) + r04 - r03;
-                    float tmp3m = -2 * (r01 - r03) + r04 - r02;
-                    float tmp4m = 2 * (r01 - r03) + r04 - r02;
-                    float tmp5m = 4 * r01 - 5 * r03 + r05;
+                    float tmp01a = sq2 * r01 - sq2_d2 * r03;
+                    float tmp01b = r04 - 2 * r02;
+                    float tmp23a = sq2_d2 * r01 - sq2 * r03;
+                    float tmp23b = r04 - 0.5f * r02;
 
-                    tmp[0][m] = tmp0m;
-                    tmp[1][m] = tmp1m;
-                    tmp[2][m] = tmp2m;
-                    tmp[3][m] = tmp3m;
-                    tmp[4][m] = tmp4m;
-                    tmp[5][m] = tmp5m;
+                    tmp[0][m] = r00 - 2.5f * r02 + r04;
+                    tmp[1][m] = tmp01b - tmp01a;
+                    tmp[2][m] = tmp01b + tmp01a;
+                    tmp[3][m] = tmp23b - tmp23a;
+                    tmp[4][m] = tmp23b + tmp23a;
+                    tmp[5][m] = r01 - 2.5f * r03 + r05;
 
                     r0 += w;
                 }
@@ -88,26 +89,24 @@ static void conv3x3s1_winograd43_transform_input_rvv(const Mat& bottom_blob, Mat
 
                 for (int m = 0; m < 6; m++)
                 {
-                    float tmp00 = tmp[m][0];
-                    float tmp01 = tmp[m][1];
-                    float tmp02 = tmp[m][2];
-                    float tmp03 = tmp[m][3];
-                    float tmp04 = tmp[m][4];
-                    float tmp05 = tmp[m][5];
+                    float r00 = tmp[m][0];
+                    float r01 = tmp[m][1];
+                    float r02 = tmp[m][2];
+                    float r03 = tmp[m][3];
+                    float r04 = tmp[m][4];
+                    float r05 = tmp[m][5];
 
-                    float r0tm0 = 4 * tmp00 - 5 * tmp02 + tmp04;
-                    float r0tm1 = -4 * (tmp01 + tmp02) + tmp04 + tmp03;
-                    float r0tm2 = 4 * (tmp01 - tmp02) + tmp04 - tmp03;
-                    float r0tm3 = -2 * (tmp01 - tmp03) + tmp04 - tmp02;
-                    float r0tm4 = 2 * (tmp01 - tmp03) + tmp04 - tmp02;
-                    float r0tm5 = 4 * tmp01 - 5 * tmp03 + tmp05;
+                    float tmp01a = sq2 * r01 - sq2_d2 * r03;
+                    float tmp01b = r04 - 2 * r02;
+                    float tmp23a = sq2_d2 * r01 - sq2 * r03;
+                    float tmp23b = r04 - 0.5f * r02;
 
-                    r0_tm_0[0] = r0tm0;
-                    r0_tm_1[0] = r0tm1;
-                    r0_tm_2[0] = r0tm2;
-                    r0_tm_3[0] = r0tm3;
-                    r0_tm_4[0] = r0tm4;
-                    r0_tm_5[0] = r0tm5;
+                    r0_tm_0[0] = r00 - 2.5f * r02 + r04;
+                    r0_tm_1[0] = tmp01b - tmp01a;
+                    r0_tm_2[0] = tmp01b + tmp01a;
+                    r0_tm_3[0] = tmp23b - tmp23a;
+                    r0_tm_4[0] = tmp23b + tmp23a;
+                    r0_tm_5[0] = r01 - 2.5f * r03 + r05;
 
                     r0_tm_0 += tiles * 6;
                     r0_tm_1 += tiles * 6;
@@ -133,17 +132,22 @@ static void conv3x3s1_winograd43_transform_output_rvv(const Mat& top_blob_tm, Ma
 
     const float* biasptr = bias;
 
+    const float sq2 = 1.41421356237;
+    const float sq2_m2 = 1.41421356237 * 2;
+    const float sq2_d2 = 1.41421356237 / 2;
+    const float sq2_d4 = 1.41421356237 / 4;
+
     // const float otm[4][6] = {
-    //     {1.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f},
-    //     {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.0f},
-    //     {0.0f, 1.0f,  1.0f, 4.0f,  4.0f, 0.0f},
-    //     {0.0f, 1.0f, -1.0f, 8.0f, -8.0f, 1.0f}
+    //     {1.0f, 1.0f,   1.0f,  1.0f,  1.0f,   0.0f},
+    //     {0.0f, sq2/2, -sq2/2, sq2,   -sq2,   0.0f},
+    //     {0.0f, 0.5f,   0.5f,  2.0f,  2.0f,   0.0f},
+    //     {0.0f, sq2/4, -sq2/4, sq2*2, -sq2*2, 1.0f}
     // };
 
     // 0 = r00 + (r01 + r02) + (r03 + r04)
-    // 1 =       (r01 - r02) + (r03 - r04) * 2
-    // 2 =       (r01 + r02) + (r03 + r04) * 4
-    // 3 = r05 + (r01 - r02) + (r03 - r04) * 8
+    // 1 =       (r01 - r02) * sq2_d2 + (r03 - r04) * sq2
+    // 2 =       (r01 + r02) * 0.5f + (r03 + r04) * 2
+    // 3 = r05 + (r01 - r02) * sq2_d4 + (r03 - r04) * sq2_m2
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
@@ -171,28 +175,22 @@ static void conv3x3s1_winograd43_transform_output_rvv(const Mat& top_blob_tm, Ma
 
                 for (int m = 0; m < 6; m++)
                 {
-                    float out0tm0 = output0_tm_0[0];
-                    float out0tm1 = output0_tm_1[0];
-                    float out0tm2 = output0_tm_2[0];
-                    float out0tm3 = output0_tm_3[0];
-                    float out0tm4 = output0_tm_4[0];
-                    float out0tm5 = output0_tm_5[0];
+                    float r00 = output0_tm_0[0];
+                    float r01 = output0_tm_1[0];
+                    float r02 = output0_tm_2[0];
+                    float r03 = output0_tm_3[0];
+                    float r04 = output0_tm_4[0];
+                    float r05 = output0_tm_5[0];
 
-                    float tmp02a = out0tm1 + out0tm2;
-                    float tmp13a = out0tm1 - out0tm2;
+                    float tmp02a = r01 + r02;
+                    float tmp02b = r03 + r04;
+                    float tmp13a = r01 - r02;
+                    float tmp13b = r03 - r04;
 
-                    float tmp02b = out0tm3 + out0tm4;
-                    float tmp13b = out0tm3 - out0tm4;
-
-                    float tmp0m = out0tm0 + tmp02a + tmp02b;
-                    float tmp1m = tmp13a + tmp13b * 2;
-                    float tmp2m = tmp02a + tmp02b * 4;
-                    float tmp3m = out0tm5 + tmp13a + tmp13b * 8;
-
-                    tmp[0][m] = tmp0m;
-                    tmp[1][m] = tmp1m;
-                    tmp[2][m] = tmp2m;
-                    tmp[3][m] = tmp3m;
+                    tmp[0][m] = r00 + tmp02a + tmp02b;
+                    tmp[1][m] = tmp13a * sq2_d2 + tmp13b * sq2;
+                    tmp[2][m] = tmp02a * 0.5f + tmp02b * 2;
+                    tmp[3][m] = r05 + tmp13a * sq2_d4 + tmp13b * sq2_m2;
 
                     output0_tm_0 += tiles * 6;
                     output0_tm_1 += tiles * 6;
@@ -204,23 +202,22 @@ static void conv3x3s1_winograd43_transform_output_rvv(const Mat& top_blob_tm, Ma
 
                 for (int m = 0; m < 4; m++)
                 {
-                    float tmp00 = tmp[m][0];
-                    float tmp01 = tmp[m][1];
-                    float tmp02 = tmp[m][2];
-                    float tmp03 = tmp[m][3];
-                    float tmp04 = tmp[m][4];
-                    float tmp05 = tmp[m][5];
+                    float r00 = tmp[m][0];
+                    float r01 = tmp[m][1];
+                    float r02 = tmp[m][2];
+                    float r03 = tmp[m][3];
+                    float r04 = tmp[m][4];
+                    float r05 = tmp[m][5];
 
-                    float tmp02a = tmp01 + tmp02;
-                    float tmp13a = tmp01 - tmp02;
+                    float tmp02a = r01 + r02;
+                    float tmp02b = r03 + r04;
+                    float tmp13a = r01 - r02;
+                    float tmp13b = r03 - r04;
 
-                    float tmp02b = tmp03 + tmp04;
-                    float tmp13b = tmp03 - tmp04;
-
-                    float out00 = bias0 + tmp00 + tmp02a + tmp02b;
-                    float out01 = bias0 + tmp13a + tmp13b * 2;
-                    float out02 = bias0 + tmp02a + tmp02b * 4;
-                    float out03 = bias0 + tmp05 + tmp13a + tmp13b * 8;
+                    float out00 = bias0 + r00 + tmp02a + tmp02b;
+                    float out01 = bias0 + tmp13a * sq2_d2 + tmp13b * sq2;
+                    float out02 = bias0 + tmp02a * 0.5f + tmp02b * 2;
+                    float out03 = bias0 + r05 + tmp13a * sq2_d4 + tmp13b * sq2_m2;
 
                     output0[0] = out00;
                     output0[1] = out01;

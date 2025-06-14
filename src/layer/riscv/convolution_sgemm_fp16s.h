@@ -16,7 +16,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 #endif
 
     // Mat bottom_im2col(size, maxk, inch, 2u, 1, opt.workspace_allocator);
@@ -52,7 +52,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
 
                 for (int k = 0; k < maxk; k++)
                 {
-                    vse16_v_f16m1(tmpptr, vle16_v_f16m1(img0, vl), vl);
+                    __riscv_vse16_v_f16m1(tmpptr, __riscv_vle16_v_f16m1(img0, vl), vl);
                     img0 += size;
                     tmpptr += packn;
                 }
@@ -131,38 +131,38 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
 
             int nn = inch * maxk; // inch always > 0
 
-            vfloat16m1_t _sum0 = vfmv_v_f_f16m1(biasptr[0], vl);
-            vfloat16m1_t _sum1 = vfmv_v_f_f16m1(biasptr[1], vl);
-            vfloat16m1_t _sum2 = vfmv_v_f_f16m1(biasptr[2], vl);
-            vfloat16m1_t _sum3 = vfmv_v_f_f16m1(biasptr[3], vl);
-            vfloat16m1_t _sum4 = vfmv_v_f_f16m1(biasptr[4], vl);
-            vfloat16m1_t _sum5 = vfmv_v_f_f16m1(biasptr[5], vl);
-            vfloat16m1_t _sum6 = vfmv_v_f_f16m1(biasptr[6], vl);
-            vfloat16m1_t _sum7 = vfmv_v_f_f16m1(biasptr[7], vl);
+            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(biasptr[0], vl);
+            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(biasptr[1], vl);
+            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1(biasptr[2], vl);
+            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1(biasptr[3], vl);
+            vfloat16m1_t _sum4 = __riscv_vfmv_v_f_f16m1(biasptr[4], vl);
+            vfloat16m1_t _sum5 = __riscv_vfmv_v_f_f16m1(biasptr[5], vl);
+            vfloat16m1_t _sum6 = __riscv_vfmv_v_f_f16m1(biasptr[6], vl);
+            vfloat16m1_t _sum7 = __riscv_vfmv_v_f_f16m1(biasptr[7], vl);
 
             for (int q = 0; q < nn; q++)
             {
-                vfloat16m1_t _val = vle16_v_f16m1(tmpptr, vl);
-                _sum0 = vfmacc_vf_f16m1(_sum0, kptr[0], _val, vl);
-                _sum1 = vfmacc_vf_f16m1(_sum1, kptr[1], _val, vl);
-                _sum2 = vfmacc_vf_f16m1(_sum2, kptr[2], _val, vl);
-                _sum3 = vfmacc_vf_f16m1(_sum3, kptr[3], _val, vl);
-                _sum4 = vfmacc_vf_f16m1(_sum4, kptr[4], _val, vl);
-                _sum5 = vfmacc_vf_f16m1(_sum5, kptr[5], _val, vl);
-                _sum6 = vfmacc_vf_f16m1(_sum6, kptr[6], _val, vl);
-                _sum7 = vfmacc_vf_f16m1(_sum7, kptr[7], _val, vl);
+                vfloat16m1_t _val = __riscv_vle16_v_f16m1(tmpptr, vl);
+                _sum0 = __riscv_vfmacc_vf_f16m1(_sum0, kptr[0], _val, vl);
+                _sum1 = __riscv_vfmacc_vf_f16m1(_sum1, kptr[1], _val, vl);
+                _sum2 = __riscv_vfmacc_vf_f16m1(_sum2, kptr[2], _val, vl);
+                _sum3 = __riscv_vfmacc_vf_f16m1(_sum3, kptr[3], _val, vl);
+                _sum4 = __riscv_vfmacc_vf_f16m1(_sum4, kptr[4], _val, vl);
+                _sum5 = __riscv_vfmacc_vf_f16m1(_sum5, kptr[5], _val, vl);
+                _sum6 = __riscv_vfmacc_vf_f16m1(_sum6, kptr[6], _val, vl);
+                _sum7 = __riscv_vfmacc_vf_f16m1(_sum7, kptr[7], _val, vl);
                 tmpptr += packn;
                 kptr += 8;
             }
 
-            vse16_v_f16m1(outptr0, _sum0, vl);
-            vse16_v_f16m1(outptr1, _sum1, vl);
-            vse16_v_f16m1(outptr2, _sum2, vl);
-            vse16_v_f16m1(outptr3, _sum3, vl);
-            vse16_v_f16m1(outptr4, _sum4, vl);
-            vse16_v_f16m1(outptr5, _sum5, vl);
-            vse16_v_f16m1(outptr6, _sum6, vl);
-            vse16_v_f16m1(outptr7, _sum7, vl);
+            __riscv_vse16_v_f16m1(outptr0, _sum0, vl);
+            __riscv_vse16_v_f16m1(outptr1, _sum1, vl);
+            __riscv_vse16_v_f16m1(outptr2, _sum2, vl);
+            __riscv_vse16_v_f16m1(outptr3, _sum3, vl);
+            __riscv_vse16_v_f16m1(outptr4, _sum4, vl);
+            __riscv_vse16_v_f16m1(outptr5, _sum5, vl);
+            __riscv_vse16_v_f16m1(outptr6, _sum6, vl);
+            __riscv_vse16_v_f16m1(outptr7, _sum7, vl);
 
             outptr0 += packn;
             outptr1 += packn;
@@ -246,26 +246,26 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
 
             int nn = inch * maxk; // inch always > 0
 
-            vfloat16m1_t _sum0 = vfmv_v_f_f16m1(biasptr[0], vl);
-            vfloat16m1_t _sum1 = vfmv_v_f_f16m1(biasptr[1], vl);
-            vfloat16m1_t _sum2 = vfmv_v_f_f16m1(biasptr[2], vl);
-            vfloat16m1_t _sum3 = vfmv_v_f_f16m1(biasptr[3], vl);
+            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(biasptr[0], vl);
+            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(biasptr[1], vl);
+            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1(biasptr[2], vl);
+            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1(biasptr[3], vl);
 
             for (int q = 0; q < nn; q++)
             {
-                vfloat16m1_t _val = vle16_v_f16m1(tmpptr, vl);
-                _sum0 = vfmacc_vf_f16m1(_sum0, kptr[0], _val, vl);
-                _sum1 = vfmacc_vf_f16m1(_sum1, kptr[1], _val, vl);
-                _sum2 = vfmacc_vf_f16m1(_sum2, kptr[2], _val, vl);
-                _sum3 = vfmacc_vf_f16m1(_sum3, kptr[3], _val, vl);
+                vfloat16m1_t _val = __riscv_vle16_v_f16m1(tmpptr, vl);
+                _sum0 = __riscv_vfmacc_vf_f16m1(_sum0, kptr[0], _val, vl);
+                _sum1 = __riscv_vfmacc_vf_f16m1(_sum1, kptr[1], _val, vl);
+                _sum2 = __riscv_vfmacc_vf_f16m1(_sum2, kptr[2], _val, vl);
+                _sum3 = __riscv_vfmacc_vf_f16m1(_sum3, kptr[3], _val, vl);
                 tmpptr += packn;
                 kptr += 4;
             }
 
-            vse16_v_f16m1(outptr0, _sum0, vl);
-            vse16_v_f16m1(outptr1, _sum1, vl);
-            vse16_v_f16m1(outptr2, _sum2, vl);
-            vse16_v_f16m1(outptr3, _sum3, vl);
+            __riscv_vse16_v_f16m1(outptr0, _sum0, vl);
+            __riscv_vse16_v_f16m1(outptr1, _sum1, vl);
+            __riscv_vse16_v_f16m1(outptr2, _sum2, vl);
+            __riscv_vse16_v_f16m1(outptr3, _sum3, vl);
 
             outptr0 += packn;
             outptr1 += packn;
@@ -323,16 +323,16 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
 
             int nn = inch * maxk; // inch always > 0
 
-            vfloat16m1_t _sum0 = vfmv_v_f_f16m1(bias0, vl);
+            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(bias0, vl);
 
             for (int q = 0; q < nn; q++)
             {
-                _sum0 = vfmacc_vf_f16m1(_sum0, kptr[0], vle16_v_f16m1(tmpptr, vl), vl);
+                _sum0 = __riscv_vfmacc_vf_f16m1(_sum0, kptr[0], __riscv_vle16_v_f16m1(tmpptr, vl), vl);
                 tmpptr += packn;
                 kptr++;
             }
 
-            vse16_v_f16m1(outptr0, _sum0, vl);
+            __riscv_vse16_v_f16m1(outptr0, _sum0, vl);
 
             outptr0 += packn;
         }

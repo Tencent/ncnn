@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int bugihfa = 0;
 
 #define shape_constant_id_offset 1
@@ -38,13 +31,8 @@ layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
 layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -81,26 +69,18 @@ void main()
     {
         int x = gx + p.woffset;
 
-#if NCNN_image_shader
-        image3d_cp1(top_blob, ivec3(gx, 0, 0), bottom_blob, ivec3(x, 0, 0));
-#else
         buffer_cp1(top_blob_data, gx, bottom_blob_data, x);
-#endif
     }
     else if (psc(dims) == 2)
     {
         int x = gx + p.woffset;
         int y = gy + p.hoffset;
 
-#if NCNN_image_shader
-        image3d_cp1(top_blob, ivec3(gx, gy, 0), bottom_blob, ivec3(x, y, 0));
-#else
         const int gi = gy * psc(outw) + gx;
 
         int v_offset = y * psc(w) + x;
 
         buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
     }
     else if (psc(dims) == 3)
     {
@@ -108,15 +88,11 @@ void main()
         int y = gy + p.hoffset;
         int z = gz + p.coffset;
 
-#if NCNN_image_shader
-        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
-#else
         const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
         int v_offset = z * psc(cstep) + y * psc(w) + x;
 
         buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
     }
     else // if (psc(dims) == 4)
     {
@@ -127,14 +103,10 @@ void main()
         int y = (yd + p.doffset) * psc(h) + (yh + p.hoffset);
         int z = gz + p.coffset;
 
-#if NCNN_image_shader
-        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
-#else
         const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
         int v_offset = z * psc(cstep) + y * psc(w) + x;
 
         buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
     }
 }

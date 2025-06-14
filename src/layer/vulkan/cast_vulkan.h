@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Cast_vulkan : virtual public Cast
+class Cast_vulkan : public Cast
 {
 public:
     Cast_vulkan();
@@ -29,7 +29,6 @@ public:
 
     using Cast::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_cast_fp32_to_fp16;

@@ -19,8 +19,6 @@
 #include "msa_mathfun.h"
 #endif // __mips_msa
 
-#include <math.h>
-
 namespace ncnn {
 
 Swish_mips::Swish_mips()
@@ -59,7 +57,7 @@ int Swish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __mips_msa
         for (; i < size; i++)
         {
-            *ptr = *ptr / (1.f + exp(-*ptr));
+            *ptr = *ptr / (1.f + expf(-*ptr));
             ptr++;
         }
     }

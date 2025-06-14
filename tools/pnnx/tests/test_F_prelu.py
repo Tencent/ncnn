@@ -26,6 +26,10 @@ class Model(nn.Module):
         self.w7 = nn.Parameter(torch.rand(1))
 
     def forward(self, x, y, z, w, w0, w1, w2, w3):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.prelu(x, w0)
         x = F.prelu(x, self.w4)
         y = F.prelu(y, w1)

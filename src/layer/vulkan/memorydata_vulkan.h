@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class MemoryData_vulkan : virtual public MemoryData
+class MemoryData_vulkan : public MemoryData
 {
 public:
     MemoryData_vulkan();
@@ -30,11 +30,9 @@ public:
 
     using MemoryData::forward;
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
 public:
     VkMat data_gpu;
-    VkImageMat data_gpu_image;
 };
 
 } // namespace ncnn

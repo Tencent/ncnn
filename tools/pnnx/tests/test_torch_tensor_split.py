@@ -22,10 +22,16 @@ class Model(nn.Module):
 
     def forward(self, x, y, z, w):
         x0, x1, x2 = torch.tensor_split(x, (12, 13))
-        y0, y1, y2 = torch.tensor_split(y, 3, dim=1)
+        y0, y1 = torch.tensor_split(y, 2, dim=0)
+        y2, y3, y4 = torch.tensor_split(y, 3, dim=1)
         z0, z1 = torch.tensor_split(z, (3,), dim=0)
-        w0, w1, w2, w3, w4 = torch.tensor_split(w, (1, 3, 7, 17), dim=3)
-        return x0, x1, x2, y0, y1, y2, z0, z1, w0, w1, w2, w3, w4
+        z2, z3 = torch.tensor_split(z, (1,), dim=1)
+        z4, z5, z6 = torch.tensor_split(z, 3, dim=2)
+        w0, w1, w2 = torch.tensor_split(w, (2, 4), dim=0)
+        w3, w4 = torch.tensor_split(w, 2, dim=1)
+        w5, w6, w7 = torch.tensor_split(w, (1, 5), dim=2)
+        w8, w9, wa, wb, wc = torch.tensor_split(w, (1, 3, 7, 17), dim=3)
+        return x0, x1, x2, y0, y1, y2, y3, y4, z0, z1, z2, z3, z4, z5, z6, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wa, wb, wc
 
 def test():
     net = Model()

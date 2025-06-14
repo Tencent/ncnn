@@ -14,26 +14,13 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int across_spatial = 0;
 layout (constant_id = 1) const int across_channel = 0;
 layout (constant_id = 2) const float eps = 0.f;
 layout (constant_id = 3) const int eps_mode = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform highp sampler3D sqsum_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D coeffs_blob;
-#else
 layout (binding = 0) readonly buffer sqsum_blob { mat2x4 sqsum_blob_data[]; };
 layout (binding = 1) writeonly buffer coeffs_blob { sfpvec8 coeffs_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -52,13 +39,9 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-#if NCNN_image_shader
-    mat2x4 sqsum_8 = mat2x4(texelFetch(sqsum_blob, ivec3(gx * 2, gy, gz), 0), texelFetch(sqsum_blob, ivec3(gx * 2 + 1, gy, gz), 0));
-#else
     int v_offset = gz * p.cstep + gx;
 
     mat2x4 sqsum_8 = sqsum_blob_data[v_offset];
-#endif
 
     if (across_channel == 0)
     {
@@ -84,15 +67,9 @@ void main()
             a[1] = afp(1.f) / sqrt(max(sqsum[1], afp(eps)));
         }
 
-#if NCNN_image_shader
-        int gi = gz * p.w * p.h + gy * p.w + gx;
-
-        image3d_st8(coeffs_blob, ivec3(gi, 0, 0), a);
-#else
         int gi = gz * p.w + gx;
 
         buffer_st8(coeffs_blob_data, gi, a);
-#endif
     }
 
     if (across_channel == 1)
@@ -120,14 +97,8 @@ void main()
 
         afpvec8 a8 = afpvec8(afpvec4(a), afpvec4(a));
 
-#if NCNN_image_shader
-        int gi = gz * p.w * p.h + gy * p.w + gx;
-
-        image3d_st8(coeffs_blob, ivec3(gi, 0, 0), a8);
-#else
         int gi = gz * p.w + gx;
 
         buffer_st8(coeffs_blob_data, gi, a8);
-#endif
     }
 }

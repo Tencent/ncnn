@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class DeformableConv2D_x86 : virtual public DeformableConv2D
+class DeformableConv2D_x86 : public DeformableConv2D
 {
 public:
     DeformableConv2D_x86();
@@ -33,7 +33,8 @@ public:
     Layer* activation;
 
     Mat weight_data_tm;
-    Mat weight_sgemm_data;
+
+    Layer* gemm;
 };
 
 } // namespace ncnn

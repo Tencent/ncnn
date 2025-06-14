@@ -14,14 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #define shape_constant_id_offset 0
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
@@ -35,13 +27,8 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, rgba32f) writeonly uniform highp image3D top_blob_3d;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { mat2x4 top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -67,13 +54,9 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-#if NCNN_image_shader
-    image3d_cp8(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gx, gy, gz));
-#else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     const int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
 
     top_blob_data[gi] = mat2x4(buffer_ld8(bottom_blob_data, v_offset));
-#endif
 }

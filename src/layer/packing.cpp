@@ -79,7 +79,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         {
             top_blob = bottom_blob;
             top_blob.w = w * elempack;
-            top_blob.cstep = (size_t)w * elempack;
+            top_blob.cstep = bottom_blob.cstep * elempack;
             top_blob.elemsize = elemsize / elempack;
             top_blob.elempack = out_elempack;
             return 0;

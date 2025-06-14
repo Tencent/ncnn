@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BinaryOp_arm : virtual public BinaryOp
+class BinaryOp_arm : public BinaryOp
 {
 public:
     BinaryOp_arm();

@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int stride = 0;
 layout (constant_id = 1) const int mode = 0;
 
@@ -37,13 +30,8 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -86,19 +74,9 @@ void main()
     ivec4 y4 = gy * stride + zi4 / stride;
     ivec4 x4 = gx * stride + zi4 % stride;
 
-#if NCNN_image_shader
-    afpvec4 v;
-    v.r = image3d_ld1(bottom_blob, ivec3(x4.r, y4.r, z4.r));
-    v.g = image3d_ld1(bottom_blob, ivec3(x4.g, y4.g, z4.g));
-    v.b = image3d_ld1(bottom_blob, ivec3(x4.b, y4.b, z4.b));
-    v.a = image3d_ld1(bottom_blob, ivec3(x4.a, y4.a, z4.a));
-
-    image3d_st4(top_blob, ivec3(gx, gy, gz), v);
-#else
     ivec4 v_offset = z4 * psc(cstep) + y4 * psc(w) + x4;
 
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
 }

@@ -14,29 +14,15 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #define shape_constant_id_offset 0
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 
 layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int outh = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D weight_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec8 weight_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -60,17 +46,6 @@ void main()
 
     afp sum = afp(0.f);
 
-#if NCNN_image_shader
-    for (int i = start; i < end; i++)
-    {
-        afpvec8 v = image3d_ld8(bottom_blob, ivec3(i, 0, 0));
-
-        afpvec8 k = image3d_ld8(weight_blob, ivec3(i, gy, 0));
-
-        // sum += dot(v, k);
-        sum += dot(v[0], k[0]) + dot(v[1], k[1]);
-    }
-#else
     int w_offset = gy * psc(w);
 
     for (int i = start; i < end; i++)
@@ -82,12 +57,7 @@ void main()
         // sum += dot(v, k);
         sum += dot(v[0], k[0]) + dot(v[1], k[1]);
     }
-#endif
 
-#if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(gx, gy, 0), sum);
-#else
     const int gi = gy * psc(outw) + gx;
     buffer_st1(top_blob_data, gi, sum);
-#endif
 }

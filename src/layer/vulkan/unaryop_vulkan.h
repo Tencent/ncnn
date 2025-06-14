@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class UnaryOp_vulkan : virtual public UnaryOp
+class UnaryOp_vulkan : public UnaryOp
 {
 public:
     UnaryOp_vulkan();
@@ -29,7 +29,6 @@ public:
 
     using UnaryOp::forward_inplace;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_unaryop;

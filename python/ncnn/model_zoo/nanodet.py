@@ -12,13 +12,11 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 
-import time
 import numpy as np
 import ncnn
 from .model_store import get_model_file
 from ..utils.objects import Detect_Object
 from ..utils.functional import *
-import cv2
 
 
 class NanoDet:
