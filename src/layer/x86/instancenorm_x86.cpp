@@ -175,7 +175,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = _mm_loadu_ps(ptr);
-            _p = _mm_comp_fmadd_ps(_p, _va, _vb); // Fused Multiply-Add
+            _p = _mm_comp_fmadd_ps(_p, _va, _vb);
             _mm_storeu_ps(ptr, _p);
             ptr += 4;
         }
