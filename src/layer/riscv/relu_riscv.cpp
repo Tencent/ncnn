@@ -29,7 +29,7 @@ ReLU_riscv::ReLU_riscv()
 #endif
 #if NCNN_ZFH
 #if __riscv_vector
-    support_fp16_storage = cpu_support_riscv_zvfh() || cpu_support_riscv_xtheadvector();
+    support_fp16_storage = cpu_support_riscv_zvfh();
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif

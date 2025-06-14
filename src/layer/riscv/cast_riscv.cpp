@@ -92,7 +92,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     if (type_from == 1 && type_to == 2)
     {
 #if __riscv_vector
-        if (cpu_support_riscv_zvfh() || cpu_support_riscv_xtheadvector())
+        if (cpu_support_riscv_zvfh())
 #else
         if (cpu_support_riscv_zfh())
 #endif
@@ -105,7 +105,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     if (type_from == 2 && type_to == 1)
     {
 #if __riscv_vector
-        if (cpu_support_riscv_zvfh() || cpu_support_riscv_xtheadvector())
+        if (cpu_support_riscv_zvfh())
 #else
         if (cpu_support_riscv_zfh())
 #endif
