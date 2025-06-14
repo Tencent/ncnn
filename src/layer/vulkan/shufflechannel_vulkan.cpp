@@ -21,7 +21,6 @@ namespace ncnn {
 ShuffleChannel_vulkan::ShuffleChannel_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     pipeline_shufflechannel = 0;
     pipeline_shufflechannel_pack4 = 0;
@@ -153,44 +152,6 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
-    constants[10].i = reverse ? channels * elempack / group : group;
-
-    const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8
-                               : elempack == 4 ? pipeline_shufflechannel_pack4
-                               : pipeline_shufflechannel;
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-    return 0;
-}
-
-int ShuffleChannel_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator);
-    if (top_blob.empty())
-        return -100;
-
-    std::vector<VkImageMat> bindings(2);
-    bindings[0] = bottom_blob;
-    bindings[1] = top_blob;
-
-    std::vector<vk_constant_type> constants(11);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = 0; //bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = 0; //top_blob.cstep;
     constants[10].i = reverse ? channels * elempack / group : group;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8

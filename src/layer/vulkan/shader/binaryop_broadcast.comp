@@ -38,15 +38,9 @@ layout (constant_id = shape_constant_id_offset + 15) const int outd = 0;
 layout (constant_id = shape_constant_id_offset + 16) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 17) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D a_blob_3d;
-layout (binding = 1) uniform unfp sampler3D b_blob_3d;
-layout (binding = 2, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
-#else
 layout (binding = 0) readonly buffer a_blob { sfp a_blob_data[]; };
 layout (binding = 1) readonly buffer b_blob { sfp b_blob_data[]; };
 layout (binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -162,16 +156,11 @@ void main()
         }
     }
 
-#if NCNN_image_shader
-    afp v1 = image3d_ld1(a_blob_3d, ivec3(ax, ay, az));
-    afp v2 = image3d_ld1(b_blob_3d, ivec3(bx, by, bz));
-#else
     int ai = az * psc(acstep) + ay * psc(aw) + ax;
     int bi = bz * psc(bcstep) + by * psc(bw) + bx;
 
     afp v1 = buffer_ld1(a_blob_data, ai);
     afp v2 = buffer_ld1(b_blob_data, bi);
-#endif
 
     afp res;
 
@@ -193,10 +182,6 @@ void main()
     if (op_type == 11) res = atan(v2, v1);
 #endif
 
-#if NCNN_image_shader
-    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), res);
-#else
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
     buffer_st1(top_blob_data, gi, res);
-#endif
 }

@@ -31,15 +31,9 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D per_channel_pad_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout (binding = 2) readonly buffer per_channel_pad_blob { sfpvec4 per_channel_pad_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -79,17 +73,6 @@ void main()
         {
             // nvidia driver crash when using load and store pair  :(
             // copy is the workaround  --- nihui
-#if NCNN_image_shader
-            if (x >= 0 && x < psc(w) * 2)
-            {
-                image3d_cp4(top_blob, ivec3(gx, 0, 0), bottom_blob, ivec3(x, 0, 0));
-            }
-            else
-            {
-                v = afpvec4(value);
-                image3d_st4(top_blob, ivec3(gx, 0, 0), v);
-            }
-#else
             if (x >= 0 && x < psc(w) * 2)
             {
                 buffer_cp4(top_blob_data, gx, bottom_blob_data, x);
@@ -101,26 +84,9 @@ void main()
                 buffer_st4(top_blob_data, gx, v);
                 // buffer_st4(top_blob_data, gx, afpvec4(value));
             }
-#endif
         }
         if (type == 1)
         {
-#if NCNN_image_shader
-            if (x < 0)
-            {
-                v = afpvec4(image3d_ld4(bottom_blob, ivec3(0, 0, 0)).r);
-            }
-            else if (x >= psc(w) * 2)
-            {
-                v = afpvec4(image3d_ld4(bottom_blob, ivec3(psc(w) * 2 - 1, 0, 0)).a);
-            }
-            else
-            {
-                v = image3d_ld4(bottom_blob, ivec3((x / 2) * 2 + x % 2, 0, 0));
-            }
-
-            image3d_st4(top_blob, ivec3(gx, 0, 0), v);
-#else
             if (x < 0)
             {
                 v = afpvec4(buffer_ld4(bottom_blob_data, 0).r);
@@ -135,32 +101,9 @@ void main()
             }
 
             buffer_st4(top_blob_data, gx, v);
-#endif
         }
         if (type == 2)
         {
-#if NCNN_image_shader
-            if (x < 0)
-            {
-                ivec2 x01 = -x + ivec2(1, 0);
-                afpvec4 v0 = image3d_ld4(bottom_blob, ivec3((x01.x / 2) * 2 + x01.x % 2, 0, 0));
-                afpvec4 v1 = image3d_ld4(bottom_blob, ivec3((x01.y / 2) * 2 + x01.y % 2, 0, 0));
-                v = afpvec4(v1.r, v0.a, v0.b, v0.g);
-            }
-            else if (x >= psc(w) * 2)
-            {
-                ivec2 x01 = psc(w) * 2 - x + psc(w) * 2 - 1 - ivec2(1, 0);
-                afpvec4 v0 = image3d_ld4(bottom_blob, ivec3((x01.x / 2) * 2 + x01.x % 2, 0, 0));
-                afpvec4 v1 = image3d_ld4(bottom_blob, ivec3((x01.y / 2) * 2 + x01.y % 2, 0, 0));
-                v = afpvec4(v1.b, v1.g, v1.r, v0.a);
-            }
-            else
-            {
-                v = image3d_ld4(bottom_blob, ivec3((x / 2) * 2 + x % 2, 0, 0));
-            }
-
-            image3d_st4(top_blob, ivec3(gx, 0, 0), v);
-#else
             if (x < 0)
             {
                 ivec2 x01 = -x + ivec2(1, 0);
@@ -181,7 +124,6 @@ void main()
             }
 
             buffer_st4(top_blob_data, gx, v);
-#endif
         }
     }
     else if (psc(dims) == 2)
@@ -191,18 +133,6 @@ void main()
 
         if (type == 0)
         {
-#if NCNN_image_shader
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) * 2)
-            {
-                v = image3d_ld4(bottom_blob, ivec3(x * 2 + y % 2, y / 2, 0));
-            }
-            else
-            {
-                v = afpvec4(value);
-            }
-
-            image3d_st4(top_blob, ivec3(gx, gy, 0), v);
-#else
             if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) * 2)
             {
                 v = buffer_ld4(bottom_blob_data, (y / 2) * psc(w) * 2 + x * 2 + y % 2);
@@ -215,28 +145,11 @@ void main()
             const int gi = gy * psc(outw) + gx;
 
             buffer_st4(top_blob_data, gi, v);
-#endif
         }
         if (type == 1)
         {
             x = clamp(x, 0, psc(w) * 2 - 1);
 
-#if NCNN_image_shader
-            if (y < 0)
-            {
-                v = afpvec4(image3d_ld4(bottom_blob, ivec3(x * 2, 0, 0)).r);
-            }
-            else if (y >= psc(h) * 2)
-            {
-                v = afpvec4(image3d_ld4(bottom_blob, ivec3(x * 2 + 1, psc(h) * 2 - 1, 0)).a);
-            }
-            else
-            {
-                v = image3d_ld4(bottom_blob, ivec3(x * 2 + y % 2, y / 2, 0));
-            }
-
-            image3d_st4(top_blob, ivec3(gx, gy, 0), v);
-#else
             if (y < 0)
             {
                 v = afpvec4(buffer_ld4(bottom_blob_data, x * 2).r);
@@ -253,7 +166,6 @@ void main()
             const int gi = gy * psc(outw) + gx;
 
             buffer_st4(top_blob_data, gi, v);
-#endif
         }
         if (type == 2)
         {
@@ -263,28 +175,6 @@ void main()
             x = (p.w * 2 - 1) - abs(x - (p.w * 2 - 1));
 //             x = (psc(w) * 2 - 1) - abs(x - (psc(w) * 2 - 1));
 
-#if NCNN_image_shader
-            if (y < 0)
-            {
-                ivec2 y01 = -y + ivec2(1, 0);
-                afpvec4 v0 = image3d_ld4(bottom_blob, ivec3(x * 2 + y01.x % 2, y01.x / 2, 0));
-                afpvec4 v1 = image3d_ld4(bottom_blob, ivec3(x * 2 + y01.y % 2, y01.y / 2, 0));
-                v = afpvec4(v1.r, v0.a, v0.b, v0.g);
-            }
-            else if (y >= psc(h) * 2)
-            {
-                ivec2 y01 = psc(h) * 2 - y + psc(h) * 2 - 1 - ivec2(1, 0);
-                afpvec4 v0 = image3d_ld4(bottom_blob, ivec3(x * 2 + y01.x % 2, y01.x / 2, 0));
-                afpvec4 v1 = image3d_ld4(bottom_blob, ivec3(x * 2 + y01.y % 2, y01.y / 2, 0));
-                v = afpvec4(v1.b, v1.g, v1.r, v0.a);
-            }
-            else
-            {
-                v = image3d_ld4(bottom_blob, ivec3(x * 2 + y % 2, y / 2, 0));
-            }
-
-            image3d_st4(top_blob, ivec3(gx, gy, 0), v);
-#else
             if (y < 0)
             {
                 ivec2 y01 = -y + ivec2(1, 0);
@@ -307,7 +197,6 @@ void main()
             const int gi = gy * psc(outw) + gx;
 
             buffer_st4(top_blob_data, gi, v);
-#endif
         }
     }
     else // if (psc(dims) == 3)
@@ -318,18 +207,6 @@ void main()
 
         if (type == 0)
         {
-#if NCNN_image_shader
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) && z >= 0 && z < psc(c) * 2)
-            {
-                v = image3d_ld4(bottom_blob, ivec3(x * 2 + z % 2, y, z / 2));
-            }
-            else
-            {
-                v = per_channel_pad == 1 ? image3d_ld4(per_channel_pad_blob, ivec3(gz, 0, 0)) : afpvec4(value);
-            }
-
-            image3d_st4(top_blob, ivec3(gx, gy, gz), v);
-#else
             if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) && z >= 0 && z < psc(c) * 2)
             {
                 v = buffer_ld4(bottom_blob_data, ((z / 2) * psc(cstep) + y * psc(w)) * 2 + x * 2 + z % 2);
@@ -342,29 +219,12 @@ void main()
             const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
             buffer_st4(top_blob_data, gi, v);
-#endif
         }
         if (type == 1)
         {
             x = clamp(x, 0, psc(w) * 2 - 1);
             y = clamp(y, 0, psc(h) * 2 - 1);
 
-#if NCNN_image_shader
-            if (z < 0)
-            {
-                v = afpvec4(image3d_ld4(bottom_blob, ivec3(x * 2, y, 0)).r);
-            }
-            else if (z >= psc(c) * 2)
-            {
-                v = afpvec4(image3d_ld4(bottom_blob, ivec3(x * 2 + 1, y, psc(c) * 2 - 1)).a);
-            }
-            else
-            {
-                v = image3d_ld4(bottom_blob, ivec3(x * 2 + z % 2, y, z / 2));
-            }
-
-            image3d_st4(top_blob, ivec3(gx, gy, gz), v);
-#else
             if (z < 0)
             {
                 v = afpvec4(buffer_ld4(bottom_blob_data, y * psc(w) * 2 + x * 2).r);
@@ -381,7 +241,6 @@ void main()
             const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
             buffer_st4(top_blob_data, gi, v);
-#endif
         }
         if (type == 2)
         {
@@ -394,28 +253,6 @@ void main()
 //             x = (psc(w) * 2 - 1) - abs(x - (psc(w) * 2 - 1));
 //             y = (psc(h) * 2 - 1) - abs(y - (psc(h) * 2 - 1));
 
-#if NCNN_image_shader
-            if (z < 0)
-            {
-                ivec2 z01 = -z + ivec2(1, 0);
-                afpvec4 v0 = image3d_ld4(bottom_blob, ivec3(x * 2 + z01.x % 2, y, z01.x / 2));
-                afpvec4 v1 = image3d_ld4(bottom_blob, ivec3(x * 2 + z01.y % 2, y, z01.y / 2));
-                v = afpvec4(v1.r, v0.a, v0.b, v0.g);
-            }
-            else if (z >= psc(c) * 2)
-            {
-                ivec2 z01 = psc(c) * 2 - z + psc(c) * 2 - 1 - ivec2(1, 0);
-                afpvec4 v0 = image3d_ld4(bottom_blob, ivec3(x * 2 + z01.x % 2, y, z01.x / 2));
-                afpvec4 v1 = image3d_ld4(bottom_blob, ivec3(x * 2 + z01.y % 2, y, z01.y / 2));
-                v = afpvec4(v1.b, v1.g, v1.r, v0.a);
-            }
-            else
-            {
-                v = image3d_ld4(bottom_blob, ivec3(x * 2 + z % 2, y, z / 2));
-            }
-
-            image3d_st4(top_blob, ivec3(gx, gy, gz), v);
-#else
             if (z < 0)
             {
                 ivec2 z01 = -y + ivec2(1, 0);
@@ -438,7 +275,6 @@ void main()
             const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
             buffer_st4(top_blob_data, gi, v);
-#endif
         }
     }
 }

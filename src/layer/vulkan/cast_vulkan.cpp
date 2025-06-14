@@ -21,7 +21,6 @@ namespace ncnn {
 Cast_vulkan::Cast_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     pipeline_cast_fp32_to_fp16 = 0;
     pipeline_cast_fp32_to_fp16_pack4 = 0;
@@ -274,109 +273,6 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     constants[7].i = top_blob.h * top_blob.d;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
-
-    const Pipeline* pipeline = 0;
-
-    if (type_from == 1 && type_to == 2)
-    {
-        pipeline = elempack == 8 ? pipeline_cast_fp32_to_fp16_pack8
-                   : elempack == 4 ? pipeline_cast_fp32_to_fp16_pack4
-                   : pipeline_cast_fp32_to_fp16;
-    }
-    if (type_from == 2 && type_to == 1)
-    {
-        pipeline = elempack == 8 ? pipeline_cast_fp16_to_fp32_pack8
-                   : elempack == 4 ? pipeline_cast_fp16_to_fp32_pack4
-                   : pipeline_cast_fp16_to_fp32;
-    }
-
-    // TODO more cast type
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-    return 0;
-}
-
-int Cast_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    if (type_from == type_to)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    size_t out_elemsize = elemsize;
-    if (type_to == 1)
-    {
-        // float32
-        out_elemsize = 4 * elempack;
-    }
-    else if (type_to == 2)
-    {
-        // float16
-        out_elemsize = 2 * elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (elempack == 8) out_elemsize = 8 * 2u;
-            if (elempack == 4) out_elemsize = 4 * 2u;
-            if (elempack == 1) out_elemsize = 4u;
-        }
-
-        if (!opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            // fallback to fp32  :(
-            out_elemsize = 4 * elempack;
-        }
-    }
-    else if (type_to == 3)
-    {
-        // int8
-        out_elemsize = elempack;
-    }
-
-    if (dims == 1)
-    {
-        top_blob.create(w, out_elemsize, elempack, opt.blob_vkallocator);
-    }
-    else if (dims == 2)
-    {
-        top_blob.create(w, h, out_elemsize, elempack, opt.blob_vkallocator);
-    }
-    else if (dims == 3)
-    {
-        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_vkallocator);
-    }
-    else if (dims == 4)
-    {
-        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_vkallocator);
-    }
-    if (top_blob.empty())
-        return -100;
-
-    std::vector<VkImageMat> bindings(2);
-    bindings[0] = bottom_blob;
-    bindings[1] = top_blob;
-
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h * bottom_blob.d;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = 0; //bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h * top_blob.d;
-    constants[8].i = top_blob.c;
-    constants[9].i = 0; //top_blob.cstep;
 
     const Pipeline* pipeline = 0;
 

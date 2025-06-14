@@ -31,11 +31,9 @@ public:
 
     using Normalize::forward_inplace;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     VkMat scale_data_gpu;
-    VkImageMat scale_data_gpu_image;
 
     Pipeline* pipeline_normalize_reduce_sum4_fp16_to_fp32;
     Pipeline* pipeline_normalize_reduce_sum4_fp32[2];
