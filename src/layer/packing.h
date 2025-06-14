@@ -37,6 +37,9 @@ public:
     // 1 = fp32
     // 2 = fp16p
     // 3 = fp16s
+    // 4 = int32
+    // 5 = int8p
+    // 6 = int8s
     int cast_type_from;
     int cast_type_to;
 
