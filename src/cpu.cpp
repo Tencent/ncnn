@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 
 #ifdef _OPENMP
 #if NCNN_SIMPLEOMP
@@ -2127,6 +2128,91 @@ static int detect_cpu_is_arm_a53_a55()
 #endif // __aarch64__
 #endif // defined __ANDROID__ || defined __linux__
 
+static int get_isa_env(const char* isa_flags)
+{
+    const char* isa = getenv("NCNN_ISA");
+
+    if (!isa || strlen(isa) == 0)
+    {
+        return 0;
+    }
+
+    char* isa_copy = strdup(isa);
+
+    if (!isa_copy)
+    {
+        return 0;
+    }
+
+    char* token = strtok(isa_copy, " ,");
+
+    while (token != NULL)
+    {
+        if (strcmp(token + 1, isa_flags) == 0)
+        {
+            if (token[0] == '+')
+            {
+                fprintf(stderr, "warning: %s enabled via environment variable!\n", isa_flags);
+                return 0;
+            }
+            if (token[0] == '-')
+            {
+                fprintf(stderr, "warning: %s disabled via environment variable!\n", isa_flags);
+                return 1;
+            }
+        }
+        token = strtok(NULL, " ,");
+    }
+
+    free(isa_copy);
+    return 0;
+}
+
+#if (__aarch64__ || __arm__)
+static int is_cpu_arm_cpuid_disabled = get_isa_env("cpuid");
+static int is_cpu_arm_asimdhp_disabled = get_isa_env("asimdhp");
+static int is_cpu_arm_asimddp_disabled = get_isa_env("asimddp");
+static int is_cpu_arm_asimdfhm_disabled = get_isa_env("asimdfhm");
+static int is_cpu_arm_bf16_disabled = get_isa_env("bf16");
+static int is_cpu_arm_i8mm_disabled = get_isa_env("i8mm");
+static int is_cpu_arm_sve_disabled = get_isa_env("sve");
+static int is_cpu_arm_sve2_disabled = get_isa_env("sve2");
+static int is_cpu_arm_svebf16_disabled = get_isa_env("svebf16");
+static int is_cpu_arm_svei8mm_disabled = get_isa_env("svei8mm");
+static int is_cpu_arm_svef32mm_disabled = get_isa_env("svef32mm");
+static int is_cpu_arm_edsp_disabled = get_isa_env("edsp");
+static int is_cpu_arm_vfpv4_disabled = get_isa_env("vfpv4");
+static int is_cpu_arm_neon_disabled = get_isa_env("neon");
+#endif
+
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+static int is_cpu_x86_avx_disabled = get_isa_env("avx");
+static int is_cpu_x86_fma_disabled = get_isa_env("fma");
+static int is_cpu_x86_xop_disabled = get_isa_env("xop");
+static int is_cpu_x86_f16c_disabled = get_isa_env("f16c");
+static int is_cpu_x86_avx2_disabled = get_isa_env("avx2");
+static int is_cpu_x86_avx_vnni_disabled = get_isa_env("avx_vnni");
+static int is_cpu_x86_avx512_disabled = get_isa_env("avx512");
+static int is_cpu_x86_avx512_vnni_disabled = get_isa_env("avx512_vnni");
+static int is_cpu_x86_avx512_bf16_disabled = get_isa_env("avx512_bf16");
+static int is_cpu_x86_avx512_fp16_disabled = get_isa_env("avx512_fp16");
+#endif
+
+#if __loongarch64
+static int is_cpu_loongarch_lsx_disabled = get_isa_env("lsx");
+static int is_cpu_loongarch_lasx_disabled = get_isa_env("lasx");
+#endif
+
+#if __mips__
+static int is_cpu_mips_msa_disabled = get_isa_env("msa");
+static int is_cpu_loongson_mmi_disabled = get_isa_env("mmi");
+#endif
+
+#if __riscv
+static int is_cpu_riscv_v_disabled = get_isa_env("rvv");
+static int is_cpu_riscv_zfh_disabled = get_isa_env("zfh");
+#endif
+
 // the initialization
 static void initialize_global_cpu_info()
 {
@@ -2388,6 +2474,8 @@ int cpu_support_arm_edsp()
 {
     try_initialize_global_cpu_info();
 #if __arm__ && !__aarch64__
+    if (is_cpu_arm_edsp_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_edsp;
 #elif defined __ANDROID__ || defined __linux__
@@ -2408,6 +2496,8 @@ int cpu_support_arm_neon()
 #if __aarch64__
     return 1;
 #elif __arm__
+    if (is_cpu_arm_neon_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_neon;
 #elif defined __ANDROID__ || defined __linux__
@@ -2428,6 +2518,8 @@ int cpu_support_arm_vfpv4()
 #if __aarch64__
     return 1;
 #elif __arm__
+    if (is_cpu_arm_vfpv4_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_vfpv4;
 #elif defined __ANDROID__ || defined __linux__
@@ -2446,6 +2538,8 @@ int cpu_support_arm_asimdhp()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_asimdhp_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_asimdhp;
 #elif defined __ANDROID__ || defined __linux__
@@ -2464,6 +2558,8 @@ int cpu_support_arm_cpuid()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_cpuid_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_cpuid;
 #elif defined __ANDROID__ || defined __linux__
@@ -2482,6 +2578,8 @@ int cpu_support_arm_asimddp()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_asimddp_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_asimddp;
 #elif defined __ANDROID__ || defined __linux__
@@ -2500,6 +2598,8 @@ int cpu_support_arm_asimdfhm()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_asimdfhm_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_asimdfhm;
 #elif defined __ANDROID__ || defined __linux__
@@ -2518,6 +2618,8 @@ int cpu_support_arm_bf16()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_bf16_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_bf16;
 #elif defined __ANDROID__ || defined __linux__
@@ -2536,6 +2638,8 @@ int cpu_support_arm_i8mm()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_i8mm_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_i8mm;
 #elif defined __ANDROID__ || defined __linux__
@@ -2554,6 +2658,8 @@ int cpu_support_arm_sve()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_sve_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_sve;
 #elif defined __ANDROID__ || defined __linux__
@@ -2572,6 +2678,8 @@ int cpu_support_arm_sve2()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_sve2_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_sve2;
 #elif defined __ANDROID__ || defined __linux__
@@ -2590,6 +2698,8 @@ int cpu_support_arm_svebf16()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_svebf16_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_svebf16;
 #elif defined __ANDROID__ || defined __linux__
@@ -2608,6 +2718,8 @@ int cpu_support_arm_svei8mm()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_svei8mm_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_svei8mm;
 #elif defined __ANDROID__ || defined __linux__
@@ -2626,6 +2738,8 @@ int cpu_support_arm_svef32mm()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
+    if (is_cpu_arm_svef32mm_disabled)
+        return 0;
 #if defined _WIN32
     return g_cpu_support_arm_svef32mm;
 #elif defined __ANDROID__ || defined __linux__
@@ -2644,7 +2758,7 @@ int cpu_support_x86_avx()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx;
+    return g_cpu_support_x86_avx && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2654,7 +2768,7 @@ int cpu_support_x86_fma()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_fma;
+    return g_cpu_support_x86_fma && !is_cpu_x86_fma_disabled && !is_cpu_x86_avx2_disabled && !is_cpu_x86_avx_disabled;
 #else
     return 0;
 #endif
@@ -2664,7 +2778,7 @@ int cpu_support_x86_xop()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_xop;
+    return g_cpu_support_x86_xop && !is_cpu_x86_xop_disabled;
 #else
     return 0;
 #endif
@@ -2674,7 +2788,7 @@ int cpu_support_x86_f16c()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_f16c;
+    return g_cpu_support_x86_f16c && !is_cpu_x86_f16c_disabled;
 #else
     return 0;
 #endif
@@ -2684,7 +2798,7 @@ int cpu_support_x86_avx2()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx2;
+    return g_cpu_support_x86_avx2 && !is_cpu_x86_avx2_disabled && !is_cpu_x86_avx_disabled;
 #else
     return 0;
 #endif
@@ -2694,7 +2808,7 @@ int cpu_support_x86_avx_vnni()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx_vnni;
+    return g_cpu_support_x86_avx_vnni && !is_cpu_x86_avx_vnni_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2734,7 +2848,7 @@ int cpu_support_x86_avx512()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512;
+    return g_cpu_support_x86_avx512 && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2744,7 +2858,7 @@ int cpu_support_x86_avx512_vnni()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512_vnni;
+    return g_cpu_support_x86_avx512_vnni && !is_cpu_x86_avx512_vnni_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2754,7 +2868,7 @@ int cpu_support_x86_avx512_bf16()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512_bf16;
+    return g_cpu_support_x86_avx512_bf16 && !is_cpu_x86_avx512_bf16_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2764,7 +2878,7 @@ int cpu_support_x86_avx512_fp16()
 {
     try_initialize_global_cpu_info();
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-    return g_cpu_support_x86_avx512_fp16;
+    return g_cpu_support_x86_avx512_fp16 && !is_cpu_x86_avx512_fp16_disabled && !is_cpu_x86_avx512_disabled && !is_cpu_x86_avx_disabled && !is_cpu_x86_avx2_disabled;
 #else
     return 0;
 #endif
@@ -2775,7 +2889,7 @@ int cpu_support_mips_msa()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __mips__
-    return g_hwcaps & HWCAP_MIPS_MSA;
+    return (g_hwcaps & HWCAP_MIPS_MSA) && !is_cpu_mips_msa_disabled;
 #else
     return 0;
 #endif
@@ -2789,7 +2903,7 @@ int cpu_support_loongarch_lsx()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __loongarch64
-    return g_hwcaps & HWCAP_LOONGARCH_LSX;
+    return (g_hwcaps & HWCAP_LOONGARCH_LSX) && !is_cpu_loongarch_lsx_disabled;
 #else
     return 0;
 #endif
@@ -2803,7 +2917,7 @@ int cpu_support_loongarch_lasx()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __loongarch64
-    return g_hwcaps & HWCAP_LOONGARCH_LASX;
+    return (g_hwcaps & HWCAP_LOONGARCH_LASX) && !is_cpu_loongarch_lasx_disabled && !is_cpu_loongarch_lsx_disabled;
 #else
     return 0;
 #endif
@@ -2817,7 +2931,7 @@ int cpu_support_loongson_mmi()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __mips__
-    return g_hwcaps & HWCAP_LOONGSON_MMI;
+    return (g_hwcaps & HWCAP_LOONGSON_MMI) && !is_cpu_loongson_mmi_disabled;
 #else
     return 0;
 #endif
@@ -2831,7 +2945,7 @@ int cpu_support_riscv_v()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    return g_hwcaps & COMPAT_HWCAP_ISA_V;
+    return (g_hwcaps & COMPAT_HWCAP_ISA_V) && !is_cpu_riscv_v_disabled;
 #else
     return 0;
 #endif
@@ -2847,7 +2961,7 @@ int cpu_support_riscv_zfh()
 #if __riscv
     // v + f does not imply zfh, but how to discover zfh properly ?
     // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
-    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+    return (g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F) && !is_cpu_riscv_zfh_disabled;
 #else
     return 0;
 #endif
