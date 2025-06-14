@@ -30,7 +30,7 @@ Swish_riscv::Swish_riscv()
 #endif // __riscv_vector
 #if NCNN_ZFH
 #if __riscv_vector
-    support_fp16_storage = cpu_support_riscv_zvfh();
+    support_fp16_storage = cpu_support_riscv_zvfh() || cpu_support_riscv_xtheadvector();
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif

@@ -40,7 +40,7 @@ ConvolutionDepthWise_riscv::ConvolutionDepthWise_riscv()
 #endif // __riscv_vector
 #if NCNN_ZFH
 #if __riscv_vector
-    support_fp16_storage = cpu_support_riscv_zvfh();
+    support_fp16_storage = cpu_support_riscv_zvfh() || cpu_support_riscv_xtheadvector();
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
@@ -571,14 +571,14 @@ int ConvolutionDepthWise_riscv::forward(const std::vector<Mat>& bottom_blobs, st
     if (weight_data_flattened.empty())
         return -100;
 
-#if NCNN_RVV
-    if (opt.use_fp16_storage && cpu_support_riscv_zvfh() && weight_data_flattened.elembits() == 16)
+#if NCNN_ZFH
+    if (opt.use_fp16_storage && support_fp16_storage && weight_data_flattened.elembits() == 16)
     {
         Mat weight_data_flattened_fp32;
         cast_float16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
         weight_data_flattened = weight_data_flattened_fp32;
     }
-#endif // NCNN_RVV
+#endif // NCNN_ZFH
 
     // weight_data_flattened as pack1
     weight_data_flattened.w *= weight_data_flattened.elempack;
@@ -593,14 +593,14 @@ int ConvolutionDepthWise_riscv::forward(const std::vector<Mat>& bottom_blobs, st
         if (bias_data_flattened.empty())
             return -100;
 
-#if NCNN_RVV
-        if (opt.use_fp16_storage && cpu_support_riscv_zvfh() && bias_data_flattened.elembits() == 16)
+#if NCNN_ZFH
+        if (opt.use_fp16_storage && support_fp16_storage && bias_data_flattened.elembits() == 16)
         {
             Mat bias_data_flattened_fp32;
             cast_float16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
             bias_data_flattened = bias_data_flattened_fp32;
         }
-#endif // NCNN_RVV
+#endif // NCNN_ZFH
 
         // bias_data_flattened as pack1
         bias_data_flattened.w *= bias_data_flattened.elempack;

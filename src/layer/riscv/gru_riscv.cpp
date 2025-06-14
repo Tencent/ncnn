@@ -212,7 +212,7 @@ GRU_riscv::GRU_riscv()
 {
 #if NCNN_ZFH
 #if __riscv_vector
-    support_fp16_storage = cpu_support_riscv_zvfh();
+    support_fp16_storage = cpu_support_riscv_zvfh() || cpu_support_riscv_xtheadvector();
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
