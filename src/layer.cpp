@@ -139,46 +139,12 @@ int Layer::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, co
     return forward_inplace(top_blob, cmd, opt);
 }
 
-int Layer::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
-{
-    if (!support_inplace)
-        return -1;
-
-    top_blobs.resize(bottom_blobs.size());
-    for (int i = 0; i < (int)top_blobs.size(); i++)
-    {
-        cmd.record_clone(bottom_blobs[i], top_blobs[i], opt);
-    }
-
-    return forward_inplace(top_blobs, cmd, opt);
-}
-
-int Layer::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    if (!support_inplace)
-        return -1;
-
-    cmd.record_clone(bottom_blob, top_blob, opt);
-
-    return forward_inplace(top_blob, cmd, opt);
-}
-
 int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
 int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
-{
-    return -1;
-}
-
-int Layer::forward_inplace(std::vector<VkImageMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
-{
-    return -1;
-}
-
-int Layer::forward_inplace(VkImageMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
@@ -431,32 +397,12 @@ public:
         return layer_vulkan ? layer_vulkan->forward(bottom_blob, top_blob, cmd, opt) : -1;
     }
 
-    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
-    {
-        return layer_vulkan ? layer_vulkan->forward(bottom_blobs, top_blobs, cmd, opt) : -1;
-    }
-
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-    {
-        return layer_vulkan ? layer_vulkan->forward(bottom_blob, top_blob, cmd, opt) : -1;
-    }
-
     virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
     {
         return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt) : -1;
     }
 
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
-    {
-        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt) : -1;
-    }
-
-    virtual int forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
-    {
-        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt) : -1;
-    }
-
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
     {
         return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt) : -1;
     }

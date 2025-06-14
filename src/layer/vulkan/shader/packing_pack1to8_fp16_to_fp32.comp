@@ -32,10 +32,6 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob_fp32 { mat2x4 top_blob_fp32_data[]; };
-#if NCNN_image_shader
-layout (binding = 2) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 3, rgba32f) writeonly uniform highp image3D top_blob_3d_fp32;
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -81,21 +77,6 @@ void main()
             v[1].b = buffer_ld1(bottom_blob_data, vv_offset.b);
             v[1].a = buffer_ld1(bottom_blob_data, vv_offset.a);
         }
-#if NCNN_image_shader
-        if (storage_type_from == 1)
-        {
-            int x4 = gx * 8;
-
-            v[0].r = image3d_ld1(bottom_blob_3d, ivec3(x4 + 0, 0, 0));
-            v[0].g = image3d_ld1(bottom_blob_3d, ivec3(x4 + 1, 0, 0));
-            v[0].b = image3d_ld1(bottom_blob_3d, ivec3(x4 + 2, 0, 0));
-            v[0].a = image3d_ld1(bottom_blob_3d, ivec3(x4 + 3, 0, 0));
-            v[1].r = image3d_ld1(bottom_blob_3d, ivec3(x4 + 4, 0, 0));
-            v[1].g = image3d_ld1(bottom_blob_3d, ivec3(x4 + 5, 0, 0));
-            v[1].b = image3d_ld1(bottom_blob_3d, ivec3(x4 + 6, 0, 0));
-            v[1].a = image3d_ld1(bottom_blob_3d, ivec3(x4 + 7, 0, 0));
-        }
-#endif
 
         if (storage_type_to == 0)
         {
@@ -103,13 +84,6 @@ void main()
 
             top_blob_fp32_data[gi] = mat2x4(vec4(v[0]), vec4(v[1]));
         }
-#if NCNN_image_shader
-        if (storage_type_to == 1)
-        {
-            imageStore(top_blob_3d_fp32, ivec3(gx * 2, 0, 0), v[0]);
-            imageStore(top_blob_3d_fp32, ivec3(gx * 2 + 1, 0, 0), v[1]);
-        }
-#endif
     }
     else if (psc(dims) == 2)
     {
@@ -129,21 +103,6 @@ void main()
             v[1].b = buffer_ld1(bottom_blob_data, vv_offset.b);
             v[1].a = buffer_ld1(bottom_blob_data, vv_offset.a);
         }
-#if NCNN_image_shader
-        if (storage_type_from == 1)
-        {
-            int y4 = gy * 8;
-
-            v[0].r = image3d_ld1(bottom_blob_3d, ivec3(gx, y4 + 0, 0));
-            v[0].g = image3d_ld1(bottom_blob_3d, ivec3(gx, y4 + 1, 0));
-            v[0].b = image3d_ld1(bottom_blob_3d, ivec3(gx, y4 + 2, 0));
-            v[0].a = image3d_ld1(bottom_blob_3d, ivec3(gx, y4 + 3, 0));
-            v[1].r = image3d_ld1(bottom_blob_3d, ivec3(gx, y4 + 4, 0));
-            v[1].g = image3d_ld1(bottom_blob_3d, ivec3(gx, y4 + 5, 0));
-            v[1].b = image3d_ld1(bottom_blob_3d, ivec3(gx, y4 + 6, 0));
-            v[1].a = image3d_ld1(bottom_blob_3d, ivec3(gx, y4 + 7, 0));
-        }
-#endif
 
         if (storage_type_to == 0)
         {
@@ -151,13 +110,6 @@ void main()
 
             top_blob_fp32_data[gi] = mat2x4(vec4(v[0]), vec4(v[1]));
         }
-#if NCNN_image_shader
-        if (storage_type_to == 1)
-        {
-            imageStore(top_blob_3d_fp32, ivec3(gx * 2, gy, 0), v[0]);
-            imageStore(top_blob_3d_fp32, ivec3(gx * 2 + 1, gy, 0), v[1]);
-        }
-#endif
     }
     else // if (psc(dims) == 3)
     {
@@ -177,21 +129,6 @@ void main()
             v[1].b = buffer_ld1(bottom_blob_data, vv_offset.b);
             v[1].a = buffer_ld1(bottom_blob_data, vv_offset.a);
         }
-#if NCNN_image_shader
-        if (storage_type_from == 1)
-        {
-            int z4 = gz * 8;
-
-            v[0].r = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4 + 0));
-            v[0].g = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4 + 1));
-            v[0].b = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4 + 2));
-            v[0].a = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4 + 3));
-            v[1].r = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4 + 4));
-            v[1].g = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4 + 5));
-            v[1].b = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4 + 6));
-            v[1].a = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4 + 7));
-        }
-#endif
 
         if (storage_type_to == 0)
         {
@@ -199,12 +136,5 @@ void main()
 
             top_blob_fp32_data[gi] = mat2x4(vec4(v[0]), vec4(v[1]));
         }
-#if NCNN_image_shader
-        if (storage_type_to == 1)
-        {
-            imageStore(top_blob_3d_fp32, ivec3(gx * 2, gy, gz), v[0]);
-            imageStore(top_blob_3d_fp32, ivec3(gx * 2 + 1, gy, gz), v[1]);
-        }
-#endif
     }
 }

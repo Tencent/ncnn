@@ -27,15 +27,9 @@ layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
 layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D col_blob;
-layout (binding = 2) uniform unfp sampler3D weight_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer col_blob { sfpvec4 col_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -68,27 +62,6 @@ void main()
     afpvec4 sum2 = afpvec4(0.f);
     afpvec4 sum3 = afpvec4(0.f);
 
-#if NCNN_image_shader
-    ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
-
-    ivec4 sy4 = gx4 / psc(w);
-    ivec4 sx4 = gx4 % psc(w);
-
-    for (int z = 0; z < psc(c); z++)
-    {
-        afp v0 = image3d_ld1(bottom_blob, ivec3(sx4.r, sy4.r, z));
-        afp v1 = image3d_ld1(bottom_blob, ivec3(sx4.g, sy4.g, z));
-        afp v2 = image3d_ld1(bottom_blob, ivec3(sx4.b, sy4.b, z));
-        afp v3 = image3d_ld1(bottom_blob, ivec3(sx4.a, sy4.a, z));
-
-        afpvec4 k = image3d_ld4(weight_blob, ivec3(z, gy, 0));
-
-        sum0 += v0 * k;
-        sum1 += v1 * k;
-        sum2 += v2 * k;
-        sum3 += v3 * k;
-    }
-#else
     int v_offset = gx;
     int w_offset = gy * psc(c);
 
@@ -194,24 +167,16 @@ void main()
         w_offset += 1;
     }
 #endif
-#endif
 
 #if NCNN_shader_local_memory
     if (gx >= psc(outw) || gy >= psc(outh))
         return;
 #endif
 
-#if NCNN_image_shader
-    image3d_st4(col_blob, ivec3(gx4.r, gy, 0), sum0);
-    image3d_st4(col_blob, ivec3(gx4.g, gy, 0), sum1);
-    image3d_st4(col_blob, ivec3(gx4.b, gy, 0), sum2);
-    image3d_st4(col_blob, ivec3(gx4.a, gy, 0), sum3);
-#else
     const int gi = gy * psc(outw) + gx;
 
     buffer_st4(col_blob_data, gi, sum0);
     if (gx + 1 < psc(outw)) buffer_st4(col_blob_data, gi + 1, sum1);
     if (gx + 2 < psc(outw)) buffer_st4(col_blob_data, gi + 2, sum2);
     if (gx + 3 < psc(outw)) buffer_st4(col_blob_data, gi + 3, sum3);
-#endif
 }

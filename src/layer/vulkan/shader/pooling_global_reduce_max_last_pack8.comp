@@ -21,13 +21,8 @@ layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -52,18 +47,10 @@ void main()
 
     for (int i = 0; i < psc(w); i++)
     {
-#if NCNN_image_shader
-        afpvec8 v = image3d_ld8(bottom_blob, ivec3(i, 0, gz));
-#else
         afpvec8 v = buffer_ld8(bottom_blob_data, v_offset + i);
-#endif
         res[0] = max(res[0], v[0]);
         res[1] = max(res[1], v[1]);
     }
 
-#if NCNN_image_shader
-    image3d_st8(top_blob, ivec3(gz, 0, 0), res);
-#else
     buffer_st8(top_blob_data, gz, res);
-#endif
 }

@@ -33,15 +33,9 @@ layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
 layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D per_channel_pad_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout (binding = 2) readonly buffer per_channel_pad_blob { sfpvec4 per_channel_pad_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -87,29 +81,17 @@ void main()
         {
             if (x >= 0 && x < psc(w) && yh >= 0 && yh < psc(h) && yd >= 0 && yd < psc(d) && z >= 0 && z < psc(c))
             {
-#if NCNN_image_shader
-                image3d_cp4(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
-#else
                 int v_offset = z * psc(cstep) + y * psc(w) + x;
                 buffer_cp4(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
             }
             else if (per_channel_pad == 1)
             {
-#if NCNN_image_shader
-                image3d_cp4(top_blob, ivec3(gx, gy, gz), per_channel_pad_blob, ivec3(gz, 0, 0));
-#else
                 buffer_cp4(top_blob_data, gi, per_channel_pad_blob_data, gz);
-#endif
             }
             else
             {
                 afpvec4 v = afpvec4(value);
-#if NCNN_image_shader
-                image3d_st4(top_blob, ivec3(gx, gy, gz), v);
-#else
                 buffer_st4(top_blob_data, gi, v);
-#endif
             }
         }
         // TODO implement type 1 and 2

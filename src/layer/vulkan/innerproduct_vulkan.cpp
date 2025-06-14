@@ -22,7 +22,6 @@ namespace ncnn {
 InnerProduct_vulkan::InnerProduct_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     flatten = 0;
 
@@ -100,20 +99,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
 
         Mat shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
         Mat out_shape_packed = Mat(out_shape.w, out_shape.h / elempack, (void*)0, elemsize, elempack);
-
-        // check blob shape
-        if (!vkdev->shape_support_image_storage(shape) || !vkdev->shape_support_image_storage(out_shape))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-
-        // check blob shape
-        if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
 
         std::vector<vk_specialization_type> specializations(4 + 10);
         specializations[0].i = bias_term;
@@ -193,32 +178,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     Mat out_shape_packed;
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_flatten_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
-    // check weight shape
-    Mat weight_data_packed(num_input / in_elempack, num_output / out_elempack, (void*)0, (size_t)4 * in_elempack * out_elempack, in_elempack * out_elempack);
-    if (!vkdev->shape_support_image_storage(weight_data_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
-    if (shape.dims == 0)
-    {
-        // check weight shape
-        Mat weight_data_packed(num_input, num_output, (void*)0, (size_t)4u, 1);
-        if (!vkdev->shape_support_image_storage(weight_data_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
-    }
-
     {
         flatten = ncnn::create_layer_vulkan(ncnn::LayerType::Flatten);
         flatten->vkdev = vkdev;
@@ -239,11 +198,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     {
         Mat out_sum8_shape((num_input / in_elempack + 7) / 8, num_output, (void*)0);
         Mat out_sum8_shape_packed = Mat(out_sum8_shape.w, out_sum8_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-        if (!vkdev->shape_support_image_storage(out_sum8_shape_packed))
-        {
-            support_image_storage = false;
-            opt.use_image_storage = false;
-        }
 
         // sum8
         {
@@ -410,27 +364,13 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
 
 int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    if (support_image_storage && opt.use_image_storage)
-    {
-        cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
-    }
-    else
-    {
-        cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
-    }
+    cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
     weight_data_packed.release();
 
     if (bias_term)
     {
-        if (support_image_storage && opt.use_image_storage)
-        {
-            cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
-        }
-        else
-        {
-            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-        }
+        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
 
         bias_data_packed.release();
     }
@@ -591,166 +531,6 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
-
-        cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
-    }
-
-    return 0;
-}
-
-int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    const int num_input = weight_data_size / num_output;
-
-    int in_elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
-    {
-        // gemm
-        int h = bottom_blob.h;
-        size_t elemsize = bottom_blob.elemsize;
-        int elempack = bottom_blob.elempack;
-
-        // unpacking
-        VkImageMat bottom_blob_unpacked = bottom_blob;
-        if (elempack > 1)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
-
-            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, 1, cmd, opt_pack1);
-        }
-
-        top_blob.create(num_output, h, elemsize, elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        VkImageMat top_blob_unpacked = top_blob;
-        if (elempack > 1)
-        {
-            top_blob_unpacked.create(num_output, h * elempack, bottom_blob_unpacked.elemsize, 1, opt.workspace_vkallocator);
-            if (top_blob_unpacked.empty())
-                return -100;
-        }
-
-        std::vector<VkImageMat> bindings(4);
-        bindings[0] = bottom_blob_unpacked;
-        bindings[1] = top_blob_unpacked;
-        bindings[2] = weight_data_gpu_image;
-        bindings[3] = bias_data_gpu_image;
-
-        std::vector<vk_constant_type> constants(10);
-        constants[0].i = bottom_blob_unpacked.dims;
-        constants[1].i = bottom_blob_unpacked.w;
-        constants[2].i = bottom_blob_unpacked.h;
-        constants[3].i = bottom_blob_unpacked.c;
-        constants[4].i = 0; //bottom_blob_unpacked.cstep;
-        constants[5].i = top_blob_unpacked.dims;
-        constants[6].i = top_blob_unpacked.w;
-        constants[7].i = top_blob_unpacked.h;
-        constants[8].i = top_blob_unpacked.c;
-        constants[9].i = 0; //top_blob_unpacked.cstep;
-
-        VkImageMat dispatcher;
-        dispatcher.w = top_blob_unpacked.w / out_elempack;
-        dispatcher.h = top_blob_unpacked.h;
-        dispatcher.c = 1;
-
-        cmd.record_pipeline(pipeline_innerproduct_gemm, bindings, constants, dispatcher);
-
-        // packing
-        if (elempack > 1)
-        {
-            vkdev->convert_packing(top_blob_unpacked, top_blob, elempack, cmd, opt);
-        }
-
-        return 0;
-    }
-
-    // flatten
-    VkImageMat bottom_blob_flattened = bottom_blob;
-    {
-        Option opt_flatten = opt;
-        opt_flatten.blob_vkallocator = opt.workspace_vkallocator;
-
-        flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
-    }
-
-    size_t elemsize = bottom_blob_flattened.elemsize;
-    size_t out_elemsize = elemsize / in_elempack * out_elempack;
-
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-
-    if (num_input / in_elempack >= 32)
-    {
-        // sum8
-        VkImageMat top_blob_sum8;
-        {
-            top_blob_sum8.create((num_input / in_elempack + 7) / 8, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-            if (top_blob_sum8.empty())
-                return -100;
-
-            std::vector<VkImageMat> bindings(3);
-            bindings[0] = bottom_blob_flattened;
-            bindings[1] = top_blob_sum8;
-            bindings[2] = weight_data_gpu_image;
-
-            std::vector<vk_constant_type> constants(3);
-            constants[0].i = bottom_blob_flattened.w;
-            constants[1].i = top_blob_sum8.w;
-            constants[2].i = top_blob_sum8.h;
-
-            cmd.record_pipeline(pipeline_innerproduct_sum8, bindings, constants, top_blob_sum8);
-        }
-
-        // reduce sum8
-        {
-            top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-            if (top_blob.empty())
-                return -100;
-
-            std::vector<VkImageMat> bindings(3);
-            bindings[0] = top_blob_sum8;
-            bindings[1] = top_blob;
-            bindings[2] = bias_data_gpu_image;
-
-            std::vector<vk_constant_type> constants(3);
-            constants[0].i = top_blob_sum8.w;
-            constants[1].i = top_blob_sum8.h;
-            constants[2].i = top_blob.w;
-
-            cmd.record_pipeline(pipeline_innerproduct_reduce_sum8, bindings, constants, top_blob);
-        }
-    }
-    else
-    {
-        top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkImageMat> bindings(4);
-        bindings[0] = bottom_blob_flattened;
-        bindings[1] = top_blob;
-        bindings[2] = weight_data_gpu_image;
-        bindings[3] = bias_data_gpu_image;
-
-        std::vector<vk_constant_type> constants(10);
-        constants[0].i = bottom_blob_flattened.dims;
-        constants[1].i = bottom_blob_flattened.w;
-        constants[2].i = bottom_blob_flattened.h;
-        constants[3].i = bottom_blob_flattened.c;
-        constants[4].i = 0; //bottom_blob_flattened.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = 0; //top_blob.cstep;
 
         cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
     }

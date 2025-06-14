@@ -35,17 +35,10 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D weight_blob;
-layout (binding = 3) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfpvec8 bias_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -75,46 +68,13 @@ void main()
 
     if (bias_term == 1)
     {
-#if NCNN_image_shader
-        sum = image3d_ld8(bias_blob, ivec3(gx, 0, 0));
-#else
         sum = buffer_ld8(bias_data, gx);
-#endif
     }
     else
     {
         sum = afpvec8(afpvec4(0.f), afpvec4(0.f));
     }
 
-#if NCNN_image_shader
-    for (int i = 0; i < psc(w) / 4; i++)
-    {
-        afpvec4 v;
-        v.r = image3d_ld1(bottom_blob, ivec3(i * 4 + 0, gy, 0));
-        v.g = image3d_ld1(bottom_blob, ivec3(i * 4 + 1, gy, 0));
-        v.b = image3d_ld1(bottom_blob, ivec3(i * 4 + 2, gy, 0));
-        v.a = image3d_ld1(bottom_blob, ivec3(i * 4 + 3, gy, 0));
-
-        afpvec4 k0 = image3d_ld4(weight_blob, ivec3(i * 8 + 0, gx, 0));
-        afpvec4 k1 = image3d_ld4(weight_blob, ivec3(i * 8 + 1, gx, 0));
-        afpvec4 k2 = image3d_ld4(weight_blob, ivec3(i * 8 + 2, gx, 0));
-        afpvec4 k3 = image3d_ld4(weight_blob, ivec3(i * 8 + 3, gx, 0));
-        afpvec4 k4 = image3d_ld4(weight_blob, ivec3(i * 8 + 4, gx, 0));
-        afpvec4 k5 = image3d_ld4(weight_blob, ivec3(i * 8 + 5, gx, 0));
-        afpvec4 k6 = image3d_ld4(weight_blob, ivec3(i * 8 + 6, gx, 0));
-        afpvec4 k7 = image3d_ld4(weight_blob, ivec3(i * 8 + 7, gx, 0));
-
-        // sum += v * k;
-        sum[0].r += dot(v, k0);
-        sum[0].g += dot(v, k1);
-        sum[0].b += dot(v, k2);
-        sum[0].a += dot(v, k3);
-        sum[1].r += dot(v, k4);
-        sum[1].g += dot(v, k5);
-        sum[1].b += dot(v, k6);
-        sum[1].a += dot(v, k7);
-    }
-#else
     int v_offset = gy * psc(w);
     int w_offset = gx * psc(w) / 4;
 
@@ -145,20 +105,9 @@ void main()
         sum[1].b += dot(v, k6);
         sum[1].a += dot(v, k7);
     }
-#endif
 
     sum = activation_afpvec8(sum, activation_type, activation_param_0, activation_param_1);
 
-#if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(gx * 8 + 0, gy, 0), sum[0].r);
-    image3d_st1(top_blob, ivec3(gx * 8 + 1, gy, 0), sum[0].g);
-    image3d_st1(top_blob, ivec3(gx * 8 + 2, gy, 0), sum[0].b);
-    image3d_st1(top_blob, ivec3(gx * 8 + 3, gy, 0), sum[0].a);
-    image3d_st1(top_blob, ivec3(gx * 8 + 4, gy, 0), sum[1].r);
-    image3d_st1(top_blob, ivec3(gx * 8 + 5, gy, 0), sum[1].g);
-    image3d_st1(top_blob, ivec3(gx * 8 + 6, gy, 0), sum[1].b);
-    image3d_st1(top_blob, ivec3(gx * 8 + 7, gy, 0), sum[1].a);
-#else
     const int gi = gy * psc(outw) + gx * 8;
     buffer_st1(top_blob_data, gi + 0, sum[0].r);
     buffer_st1(top_blob_data, gi + 1, sum[0].g);
@@ -168,5 +117,4 @@ void main()
     buffer_st1(top_blob_data, gi + 5, sum[1].g);
     buffer_st1(top_blob_data, gi + 6, sum[1].b);
     buffer_st1(top_blob_data, gi + 7, sum[1].a);
-#endif
 }

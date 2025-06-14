@@ -19,13 +19,8 @@ layout (constant_id = 1) const int across_channel = 0;
 layout (constant_id = 2) const float eps = 0.f;
 layout (constant_id = 3) const int eps_mode = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform highp sampler3D sqsum_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D coeffs_blob;
-#else
 layout (binding = 0) readonly buffer sqsum_blob { float sqsum_blob_data[]; };
 layout (binding = 1) writeonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -44,13 +39,9 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-#if NCNN_image_shader
-    afp sqsum = afp(texelFetch(sqsum_blob, ivec3(gx, gy, gz), 0).r);
-#else
     int v_offset = gz * p.cstep + gx;
 
     afp sqsum = afp(sqsum_blob_data[v_offset]);
-#endif
 
     afp a;
 
@@ -69,13 +60,7 @@ void main()
         a = afp(1.f) / sqrt(max(sqsum, afp(eps)));
     }
 
-#if NCNN_image_shader
-    int gi = gz * p.w * p.h + gy * p.w + gx;
-
-    image3d_st1(coeffs_blob, ivec3(gi, 0, 0), a);
-#else
     int gi = gz * p.w + gx;
 
     buffer_st1(coeffs_blob_data, gi, a);
-#endif
 }

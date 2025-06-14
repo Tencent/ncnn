@@ -373,245 +373,6 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 
     return 0;
 }
-
-int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const
-{
-    const Layer* layer = layers[layer_index];
-
-    //     NCNN_LOGE("forward_layer %d %d %s", layer->support_vulkan, layer_index, layer->name.c_str());
-
-    bool cmd_submit_and_wait = false;
-    bool image_allocation_failed = false;
-
-IMAGE_ALLOCATION_FAILED:
-
-    if (image_allocation_failed)
-    {
-#if NCNN_STRING
-        NCNN_LOGE("forward_layer %d %s image allocation failed, fallback to cpu", layer_index, layer->name.c_str());
-#else
-        NCNN_LOGE("forward_layer %d image allocation failed, fallback to cpu", layer_index);
-#endif
-    }
-
-    // load bottom blobs
-    for (size_t i = 0; i < layer->bottoms.size(); i++)
-    {
-        int bottom_blob_index = layer->bottoms[i];
-
-        if (blob_mats_gpu_image[bottom_blob_index].dims == 0 && blob_mats_gpu[bottom_blob_index].dims == 0 && blob_mats[bottom_blob_index].dims == 0)
-        {
-            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, blob_mats_gpu_image, cmd, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        if (layer->support_vulkan && !image_allocation_failed)
-        {
-            if (layer->support_image_storage)
-            {
-                if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
-                {
-                    if (blob_mats_gpu[bottom_blob_index].dims == 0)
-                    {
-                        // host to image
-                        cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu_image[bottom_blob_index], opt);
-
-                        if (blob_mats_gpu_image[bottom_blob_index].empty())
-                        {
-                            image_allocation_failed = true;
-                            goto IMAGE_ALLOCATION_FAILED;
-                        }
-
-                        if (opt.lightmode)
-                        {
-                            // delete after taken in light mode
-                            blob_mats[bottom_blob_index].release();
-                        }
-                    }
-                    else
-                    {
-                        // buffer to image
-                        cmd.record_buffer_to_image(blob_mats_gpu[bottom_blob_index], blob_mats_gpu_image[bottom_blob_index], opt);
-
-                        if (blob_mats_gpu_image[bottom_blob_index].empty())
-                        {
-                            image_allocation_failed = true;
-                            goto IMAGE_ALLOCATION_FAILED;
-                        }
-
-                        if (opt.lightmode)
-                        {
-                            // delete after taken in light mode
-                            blob_mats_gpu[bottom_blob_index].release();
-                        }
-                    }
-                }
-            }
-            else
-            {
-                if (blob_mats_gpu[bottom_blob_index].dims == 0)
-                {
-                    if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
-                    {
-                        // host to buffer
-                        cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu[bottom_blob_index], opt);
-
-                        if (opt.lightmode)
-                        {
-                            // delete after taken in light mode
-                            blob_mats[bottom_blob_index].release();
-                        }
-                    }
-                    else
-                    {
-                        // image to buffer
-                        cmd.record_image_to_buffer(blob_mats_gpu_image[bottom_blob_index], blob_mats_gpu[bottom_blob_index], opt);
-
-                        if (opt.lightmode)
-                        {
-                            // delete after taken in light mode
-                            blob_mats_gpu_image[bottom_blob_index].release();
-                        }
-                    }
-                }
-            }
-        }
-        else
-        {
-            if (blob_mats[bottom_blob_index].dims == 0)
-            {
-                if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
-                {
-                    // buffer to host
-                    cmd.record_download(blob_mats_gpu[bottom_blob_index], blob_mats[bottom_blob_index], opt);
-
-                    if (opt.lightmode)
-                    {
-                        // delete after taken in light mode
-                        blob_mats_gpu[bottom_blob_index].release();
-                    }
-
-                    cmd_submit_and_wait = true;
-                }
-                else
-                {
-                    // image to host
-                    cmd.record_download(blob_mats_gpu_image[bottom_blob_index], blob_mats[bottom_blob_index], opt);
-
-                    if (opt.lightmode)
-                    {
-                        // delete after taken in light mode
-                        blob_mats_gpu_image[bottom_blob_index].release();
-                    }
-
-                    cmd_submit_and_wait = true;
-                }
-            }
-        }
-    }
-
-    int ret;
-    if (cmd_submit_and_wait)
-    {
-        ret = cmd.submit_and_wait();
-
-#if NCNN_BENCHMARK
-        std::vector<uint64_t> results(layer_index * 2);
-        cmd.get_query_pool_results(0, layer_index * 2, results);
-        for (int i = 0; i < layer_index; i++)
-        {
-            uint64_t start = results[i * 2];
-            uint64_t end = results[i * 2 + 1];
-            if (start == 0 || end == 0)
-                continue;
-
-            double duration_us = (end - start) * vkdev->info.timestamp_period() / 1000;
-            NCNN_LOGE("%-24s %-30s %8.2lfus    |", layers[i]->type.c_str(), layers[i]->name.c_str(), duration_us);
-        }
-#endif // NCNN_BENCHMARK
-
-        cmd.reset();
-
-        if (ret != 0)
-            return ret;
-    }
-
-    if (layer->support_vulkan && !image_allocation_failed)
-    {
-#if NCNN_BENCHMARK
-        cmd.record_write_timestamp(layer_index * 2);
-#endif
-        if (layer->support_image_storage)
-        {
-            if (layer->featmask)
-            {
-                ret = do_forward_layer(layer, blob_mats_gpu_image, cmd, get_masked_option(opt, layer->featmask));
-            }
-            else
-            {
-                ret = do_forward_layer(layer, blob_mats_gpu_image, cmd, opt);
-            }
-            if (ret == -100)
-            {
-                image_allocation_failed = true;
-                goto IMAGE_ALLOCATION_FAILED;
-            }
-        }
-        else
-        {
-            if (layer->featmask)
-            {
-                ret = do_forward_layer(layer, blob_mats_gpu, cmd, get_masked_option(opt, layer->featmask));
-            }
-            else
-            {
-                ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
-            }
-        }
-#if NCNN_BENCHMARK
-        cmd.record_write_timestamp(layer_index * 2 + 1);
-#endif
-    }
-    else
-    {
-#if NCNN_BENCHMARK
-        double start = get_current_time();
-        Mat bottom_blob;
-        if (layer->one_blob_only)
-        {
-            int bottom_blob_index = layer->bottoms[0];
-            bottom_blob = blob_mats[bottom_blob_index].shape();
-        }
-#endif
-        if (layer->featmask)
-        {
-            ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
-        }
-        else
-        {
-            ret = do_forward_layer(layer, blob_mats, opt);
-        }
-#if NCNN_BENCHMARK
-        double end = get_current_time();
-        if (layer->one_blob_only)
-        {
-            int top_blob_index = layer->tops[0];
-            benchmark(layer, bottom_blob, blob_mats[top_blob_index], start, end);
-        }
-        else
-        {
-            benchmark(layer, start, end);
-        }
-#endif
-    }
-    if (ret != 0)
-        return ret;
-
-    //     NCNN_LOGE("forward_layer %d %d %s done", layer->support_vulkan, layer_index, layer->name.c_str());
-
-    return 0;
-}
 #endif // NCNN_VULKAN
 
 int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const
@@ -1052,131 +813,6 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
 
                 // delete after taken in light mode
                 blob_mats_gpu[bottom_blob_index].release();
-            }
-        }
-    }
-
-    return 0;
-}
-
-int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const
-{
-    if (layer->one_blob_only)
-    {
-        // load bottom blob
-        int bottom_blob_index = layer->bottoms[0];
-        int top_blob_index = layer->tops[0];
-
-        VkImageMat& bottom_blob_ref = blob_mats_gpu_image[bottom_blob_index];
-        VkImageMat bottom_blob;
-
-        if (opt.lightmode)
-        {
-            // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
-            {
-                cmd.record_clone(bottom_blob_ref, bottom_blob, opt);
-                //                         NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blob.buffer(), bottom_blob.buffer_offset());
-            }
-        }
-        if (bottom_blob.dims == 0)
-        {
-            bottom_blob = bottom_blob_ref;
-        }
-
-        // forward
-        if (opt.lightmode && layer->support_inplace)
-        {
-            VkImageMat& bottom_top_blob = bottom_blob;
-            int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blob
-            blob_mats_gpu_image[top_blob_index] = bottom_top_blob;
-        }
-        else
-        {
-            VkImageMat top_blob;
-            int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blob
-            blob_mats_gpu_image[top_blob_index] = top_blob;
-        }
-
-        if (opt.lightmode)
-        {
-            // delete after taken in light mode
-            blob_mats_gpu_image[bottom_blob_index].release();
-        }
-    }
-    else
-    {
-        // load bottom blobs
-        std::vector<VkImageMat> bottom_blobs(layer->bottoms.size());
-        for (size_t i = 0; i < layer->bottoms.size(); i++)
-        {
-            int bottom_blob_index = layer->bottoms[i];
-
-            VkImageMat& bottom_blob_ref = blob_mats_gpu_image[bottom_blob_index];
-
-            if (opt.lightmode)
-            {
-                // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
-                {
-                    cmd.record_clone(bottom_blob_ref, bottom_blobs[i], opt);
-                    //                             NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset());
-                }
-            }
-            if (bottom_blobs[i].dims == 0)
-            {
-                bottom_blobs[i] = bottom_blob_ref;
-            }
-        }
-
-        // forward
-        if (opt.lightmode && layer->support_inplace)
-        {
-            std::vector<VkImageMat>& bottom_top_blobs = bottom_blobs;
-            int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i = 0; i < layer->tops.size(); i++)
-            {
-                int top_blob_index = layer->tops[i];
-
-                blob_mats_gpu_image[top_blob_index] = bottom_top_blobs[i];
-            }
-        }
-        else
-        {
-            std::vector<VkImageMat> top_blobs(layer->tops.size());
-            int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i = 0; i < layer->tops.size(); i++)
-            {
-                int top_blob_index = layer->tops[i];
-
-                blob_mats_gpu_image[top_blob_index] = top_blobs[i];
-            }
-        }
-
-        if (opt.lightmode)
-        {
-            for (size_t i = 0; i < layer->bottoms.size(); i++)
-            {
-                int bottom_blob_index = layer->bottoms[i];
-
-                // delete after taken in light mode
-                blob_mats_gpu_image[bottom_blob_index].release();
             }
         }
     }
@@ -2453,7 +2089,6 @@ public:
     VkAllocator* local_staging_vkallocator;
 
     std::vector<VkMat> blob_mats_gpu;
-    std::vector<VkImageMat> blob_mats_gpu_image;
 #endif // NCNN_VULKAN
 };
 
@@ -2470,7 +2105,6 @@ Extractor::Extractor(const Net* _net, size_t blob_count)
         d->local_staging_vkallocator = 0;
 
         d->blob_mats_gpu.resize(blob_count);
-        d->blob_mats_gpu_image.resize(blob_count);
     }
 #endif // NCNN_VULKAN
 }
@@ -2494,7 +2128,6 @@ Extractor::Extractor(const Extractor& rhs)
     d->local_staging_vkallocator = 0;
 
     d->blob_mats_gpu = rhs.d->blob_mats_gpu;
-    d->blob_mats_gpu_image = rhs.d->blob_mats_gpu_image;
 #endif // NCNN_VULKAN
 }
 
@@ -2512,7 +2145,6 @@ Extractor& Extractor::operator=(const Extractor& rhs)
     d->local_staging_vkallocator = 0;
 
     d->blob_mats_gpu = rhs.d->blob_mats_gpu;
-    d->blob_mats_gpu_image = rhs.d->blob_mats_gpu_image;
 #endif // NCNN_VULKAN
 
     return *this;
@@ -2526,7 +2158,6 @@ void Extractor::clear()
     if (d->opt.use_vulkan_compute)
     {
         d->blob_mats_gpu.clear();
-        d->blob_mats_gpu_image.clear();
 
         if (d->local_blob_vkallocator)
         {
@@ -2688,60 +2319,29 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             cmd.create_query_pool(d->net->layers().size() * 2);
 #endif // NCNN_BENCHMARK
 
-            // TODO vkimagemat for adreno
-            if (d->opt.use_image_storage)
+            VkMat feat_gpu;
+            ret = extract(blob_index, feat_gpu, cmd);
+
+            if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
             {
-                VkImageMat feat_gpu;
-                ret = extract(blob_index, feat_gpu, cmd);
+                cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
 
-                if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
-                {
-                    cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
-
-                    ret = cmd.submit_and_wait();
+                ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                    std::vector<uint64_t> results(d->net->layers().size() * 2);
-                    cmd.get_query_pool_results(0, d->net->layers().size() * 2, results);
-                    for (size_t i = 0; i < d->net->layers().size(); i++)
-                    {
-                        uint64_t start = results[i * 2];
-                        uint64_t end = results[i * 2 + 1];
-                        if (start == 0 || end == 0)
-                            continue;
-
-                        double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
-                        NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
-                    }
-#endif // NCNN_BENCHMARK
-                }
-            }
-            else
-            {
-                VkMat feat_gpu;
-                ret = extract(blob_index, feat_gpu, cmd);
-
-                if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
+                std::vector<uint64_t> results(d->net->layers().size() * 2);
+                cmd.get_query_pool_results(0, d->net->layers().size() * 2, results);
+                for (size_t i = 0; i < d->net->layers().size(); i++)
                 {
-                    cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
+                    uint64_t start = results[i * 2];
+                    uint64_t end = results[i * 2 + 1];
+                    if (start == 0 || end == 0)
+                        continue;
 
-                    ret = cmd.submit_and_wait();
-
-#if NCNN_BENCHMARK
-                    std::vector<uint64_t> results(d->net->layers().size() * 2);
-                    cmd.get_query_pool_results(0, d->net->layers().size() * 2, results);
-                    for (size_t i = 0; i < d->net->layers().size(); i++)
-                    {
-                        uint64_t start = results[i * 2];
-                        uint64_t end = results[i * 2 + 1];
-                        if (start == 0 || end == 0)
-                            continue;
-
-                        double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
-                        NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
-                    }
-#endif // NCNN_BENCHMARK
+                    double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
+                    NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
                 }
+#endif // NCNN_BENCHMARK
             }
         }
         else
@@ -2881,42 +2481,6 @@ int Extractor::extract(const char* blob_name, VkMat& feat, VkCompute& cmd)
 
     return extract(blob_index, feat, cmd);
 }
-
-int Extractor::input(const char* blob_name, const VkImageMat& in)
-{
-    int blob_index = d->net->find_blob_index_by_name(blob_name);
-    if (blob_index == -1)
-    {
-        NCNN_LOGE("Try");
-        const std::vector<const char*>& input_names = d->net->input_names();
-        for (size_t i = 0; i < input_names.size(); i++)
-        {
-            NCNN_LOGE("    ex.input(\"%s\", in%d);", input_names[i], (int)i);
-        }
-
-        return -1;
-    }
-
-    return input(blob_index, in);
-}
-
-int Extractor::extract(const char* blob_name, VkImageMat& feat, VkCompute& cmd)
-{
-    int blob_index = d->net->find_blob_index_by_name(blob_name);
-    if (blob_index == -1)
-    {
-        NCNN_LOGE("Try");
-        const std::vector<const char*>& output_names = d->net->output_names();
-        for (size_t i = 0; i < output_names.size(); i++)
-        {
-            NCNN_LOGE("    ex.extract(\"%s\", out%d);", output_names[i], (int)i);
-        }
-
-        return -1;
-    }
-
-    return extract(blob_index, feat, cmd);
-}
 #endif // NCNN_STRING
 
 int Extractor::input(int blob_index, const VkMat& in)
@@ -2944,12 +2508,7 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
 
     if (d->blob_mats_gpu[blob_index].dims == 0)
     {
-        if (d->blob_mats_gpu_image[blob_index].dims != 0)
-        {
-            // image to buffer
-            cmd.record_image_to_buffer(d->blob_mats_gpu_image[blob_index], d->blob_mats_gpu[blob_index], d->opt);
-        }
-        else if (d->blob_mats[blob_index].dims != 0)
+        if (d->blob_mats[blob_index].dims != 0)
         {
             // host to buffer
             cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu[blob_index], d->opt);
@@ -2962,62 +2521,6 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
     }
 
     feat = d->blob_mats_gpu[blob_index];
-
-    set_kmp_blocktime(old_blocktime);
-    set_flush_denormals(old_flush_denormals);
-
-    return ret;
-}
-
-int Extractor::input(int blob_index, const VkImageMat& in)
-{
-    if (blob_index < 0 || blob_index >= (int)d->blob_mats.size())
-        return -1;
-
-    d->blob_mats_gpu_image[blob_index] = in;
-
-    return 0;
-}
-
-int Extractor::extract(int blob_index, VkImageMat& feat, VkCompute& cmd)
-{
-    if (blob_index < 0 || blob_index >= (int)d->blob_mats.size())
-        return -1;
-
-    int old_blocktime = get_kmp_blocktime();
-    set_kmp_blocktime(d->opt.openmp_blocktime);
-
-    int old_flush_denormals = get_flush_denormals();
-    set_flush_denormals(d->opt.flush_denormals);
-
-    int ret = 0;
-
-    if (d->blob_mats_gpu_image[blob_index].dims == 0)
-    {
-        if (d->blob_mats_gpu[blob_index].dims != 0)
-        {
-            // buffer to image
-            cmd.record_buffer_to_image(d->blob_mats_gpu[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
-        }
-        else if (d->blob_mats[blob_index].dims != 0)
-        {
-            // host to image
-            cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
-        }
-        else
-        {
-            int layer_index = d->net->blobs()[blob_index].producer;
-            ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, d->blob_mats_gpu_image, cmd, d->opt);
-        }
-    }
-
-    feat = d->blob_mats_gpu_image[blob_index];
-
-    if (feat.empty())
-    {
-        NCNN_LOGE("extract %d image allocation failed", blob_index);
-        ret = -100;
-    }
 
     set_kmp_blocktime(old_blocktime);
     set_flush_denormals(old_flush_denormals);
