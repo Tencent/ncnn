@@ -892,6 +892,13 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
         if (elempack == 4) format = VK_FORMAT_R16G16B16A16_SFLOAT;
         if (elempack == 8) format = VK_FORMAT_R16G16B16A16_SFLOAT;
     }
+    if (elemsize / elempack == 1)
+    {
+        // int8
+        if (elempack == 1) format = VK_FORMAT_R8_SINT;
+        if (elempack == 4) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 8) format = VK_FORMAT_R8G8B8A8_SINT;
+    }
 
     // resolve image width height depth
     int width = w;
@@ -1467,6 +1474,16 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         if (elempack == 16) format = VK_FORMAT_R16G16B16A16_SFLOAT;
         if (elempack == 32) format = VK_FORMAT_R16G16B16A16_SFLOAT;
         if (elempack == 64) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    }
+    if (elemsize / elempack == 1)
+    {
+        // int8
+        if (elempack == 1) format = VK_FORMAT_R8_SINT;
+        if (elempack == 4) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 8) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 16) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 32) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 64) format = VK_FORMAT_R8G8B8A8_SINT;
     }
 
     // resolve image width height depth

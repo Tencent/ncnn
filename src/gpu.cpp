@@ -3029,10 +3029,10 @@ public:
     PipelineCache* pipeline_cache;
 
     // utility operator
-    // from fp32-b/i | fp16p-b/i | fp16s-b/i
-    // to fp32-b/i | fp16p-b/i | fp16s-b/i
+    // from fp32-b/i | fp16p-b/i | fp16s-b/i | int32-b/i | int8p-b/i | int8s-b/i
+    // to fp32-b/i | fp16p-b/i | fp16s-b/i | int32-b/i | int8p-b/i | int8s-b/i
     // to pack1 | pack4 | pack8
-    mutable ncnn::Packing_vulkan* uop_packing[3][3][3];
+    mutable ncnn::Packing_vulkan* uop_packing[6][6][3];
     mutable Mutex uop_lock;
 
     // device is valid and sucessfully initialized
@@ -3109,11 +3109,19 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
         return 0;
     }
 
+    if ((cast_type_from_index == 4 && cast_type_to_index == 5) || (cast_type_from_index == 5 && cast_type_to_index == 4))
+    {
+        NCNN_LOGE("no int8p to/from int8s conversion");
+        return 0;
+    }
+
     // create uop
     Option opt;
     opt.use_image_storage = (storage_type_from == 1 || storage_type_to == 1);
     opt.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
     opt.use_fp16_storage = (cast_type_from_index == 2 || cast_type_to_index == 2);
+    opt.use_int8_packed = (cast_type_from_index == 4 || cast_type_to_index == 4);
+    opt.use_int8_storage = (cast_type_from_index == 5 || cast_type_to_index == 5);
 
     if (!vkdev->info.support_fp16_packed() && opt.use_fp16_packed)
     {
@@ -3124,6 +3132,18 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
     if (!vkdev->info.support_fp16_storage() && opt.use_fp16_storage)
     {
         NCNN_LOGE("cannot create uop with use_fp16_storage if not support_fp16_storage");
+        return 0;
+    }
+
+    if (!vkdev->info.support_int8_packed() && opt.use_int8_packed)
+    {
+        NCNN_LOGE("cannot create uop with use_int8_packed if not support_int8_packed");
+        return 0;
+    }
+
+    if (!vkdev->info.support_int8_storage() && opt.use_int8_storage)
+    {
+        NCNN_LOGE("cannot create uop with use_int8_storage if not support_int8_storage");
         return 0;
     }
 
@@ -3150,7 +3170,7 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
 
     ncnn::ParamDict pd;
     pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4 : 8); // out_elempack
-    pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16p 3=fp16s
+    pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16p 3=fp16s 4=int32 5=int8p 6=int8s
     pd.set(3, cast_type_to_index + 1);
     pd.set(4, storage_type_from); // 0=buffer 1=image
     pd.set(5, storage_type_to);
@@ -3176,8 +3196,8 @@ void VulkanDevicePrivate::destroy_utility_operator()
 
     opt.use_image_storage = false;
 
-    // from fp32-b/i | fp16p-b/i | fp16s-b/i
-    // to fp32-b/i | fp16p-b/i | fp16s-b/i
+    // from fp32-b/i | fp16p-b/i | fp16s-b/i | int32-b/i | int8p-b/i | int8s-b/i
+    // to fp32-b/i | fp16p-b/i | fp16s-b/i | int32-b/i | int8p-b/i | int8s-b/i
     for (int j0 = 0; j0 < 3; j0++)
     {
         for (int j1 = 0; j1 < 3; j1++)
@@ -3188,13 +3208,27 @@ void VulkanDevicePrivate::destroy_utility_operator()
                 continue;
             }
 
+            if ((j0 == 4 && j1 == 5) || (j0 == 5 && j1 == 4))
+            {
+                // no int8p to/from int8s conversion
+                continue;
+            }
+
             opt.use_fp16_packed = (j0 == 1 || j1 == 1);
             opt.use_fp16_storage = (j0 == 2 || j1 == 2);
+            opt.use_int8_packed = (j0 == 4 || j1 == 4);
+            opt.use_int8_storage = (j0 == 5 || j1 == 5);
 
             if (!vkdev->info.support_fp16_packed() && opt.use_fp16_packed)
                 continue;
 
             if (!vkdev->info.support_fp16_storage() && opt.use_fp16_storage)
+                continue;
+
+            if (!vkdev->info.support_int8_packed() && opt.use_int8_packed)
+                continue;
+
+            if (!vkdev->info.support_int8_storage() && opt.use_int8_storage)
                 continue;
 
             // to pack1 | pack4 | pack8
@@ -4215,6 +4249,23 @@ bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
             return false;
         }
     }
+    else // if (src.elembits() == 8)
+    {
+        cast_type_to_index = opt.use_int8_storage ? 5 : opt.use_int8_packed ? 4 : 3;
+
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_int8_storage())
+        {
+            cast_type_from_index = 5;
+        }
+        else // if (info.support_int8_packed())
+        {
+            cast_type_from_index = 4;
+        }
+    }
 
     return true;
 }
@@ -4235,6 +4286,23 @@ uint32_t VulkanDevice::get_heap_budget() const
         // 70% for 4G+
         // 50% for 4G-
         return device_local_heap_size >= 4000 ? device_local_heap_size * 0.7 : device_local_heap_size * 0.5;
+    }
+    else // if (src.elembits() == 8)
+    {
+        cast_type_to_index = opt.use_int8_storage ? 5 : opt.use_int8_packed ? 4 : 3;
+
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_int8_storage())
+        {
+            cast_type_from_index = 5;
+        }
+        else // if (info.support_int8_packed())
+        {
+            cast_type_from_index = 4;
+        }
     }
 
     VkPhysicalDeviceMemoryBudgetPropertiesEXT memoryBudgetProperties;
@@ -4264,7 +4332,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     {
         cast_type_from_index = 0;
     }
-    else // if (src.elembits() == 16)
+    else if (src.elembits() == 16)
     {
         if (cast_type_to_index != 0)
         {
@@ -4277,6 +4345,23 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
         else // if (info.support_fp16_packed())
         {
             cast_type_from_index = 1;
+        }
+    }
+    else // if (src.elembits() == 8)
+    {
+        cast_type_to_index = opt.use_int8_storage ? 5 : opt.use_int8_packed ? 4 : 3;
+
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_int8_storage())
+        {
+            cast_type_from_index = 5;
+        }
+        else // if (info.support_int8_packed())
+        {
+            cast_type_from_index = 4;
         }
     }
 
@@ -4808,6 +4893,58 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_cp8to4(buf,i2,sbuf,si)", "{mat2x4 _v=sbuf[si]; buf[i2.r]=_v[0];buf[i2.g]=_v[1];}");
         custom_defines.append("sfp2afpmat4(v)", "v");
         custom_defines.append("afp2sfpmat4(v)", "v");
+    }
+
+    if (opt.use_int8_storage)
+    {
+        custom_defines.push_back(std::make_pair("sint", "int8_t"));
+        custom_defines.push_back(std::make_pair("sintvec4", "i8vec4"));
+    }
+    else if (opt.use_int8_packed)
+    {
+        custom_defines.push_back(std::make_pair("sint", "float"));
+        custom_defines.push_back(std::make_pair("sintvec4", "uint"));
+        custom_defines.push_back(std::make_pair("sintvec8", "uvec2"));
+    }
+    else
+    {
+        custom_defines.push_back(std::make_pair("sint", "float"));
+        custom_defines.push_back(std::make_pair("sintvec4", "vec4"));
+    }
+
+    if (1) // opt.use_int8_arithmetic
+    {
+        // i8 extended to i32 for all integer arithmetic
+        custom_defines.push_back(std::make_pair("aint", "int"));
+        custom_defines.push_back(std::make_pair("aintvec4", "ivec4"));
+    }
+
+    if (opt.use_int8_storage)
+    {
+        custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(buf[i])"));
+        custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=int8_t(v);}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(buf[i])"));
+        custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=i8vec4(v);}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(buf[i].abcd),ivec4(buf[i].efgh))"));
+        custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].abcd=i8vec4(v.abcd);buf[i].efgh=i8vec4(v.efgh);}"));
+    }
+    else if (opt.use_int8_packed)
+    {
+        custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(round(buf[i]))"));
+        custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(int(buf[i]&255)-127, int((buf[i]>>8)&255)-127, int((buf[i]>>16)&255)-127, int((buf[i]>>24)&255)-127)"));
+        custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=uint(((v.r+127)) | ((v.g+127)<<8) | ((v.b+127)<<16) | ((v.a+127)<<24));}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(int(buf[i].x&255)-127, int((buf[i].x>>8)&255)-127, int((buf[i].x>>16)&255)-127, int((buf[i].x>>24)&255)-127),ivec4(int(buf[i].y&255)-127, int((buf[i].y>>8)&255)-127, int((buf[i].y>>16)&255)-127, int((buf[i].y>>24)&255)-127))"));
+        custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].x=uint(((v.abcd.r+127)) | ((v.abcd.g+127)<<8) | ((v.abcd.b+127)<<16) | ((v.abcd.a+127)<<24));buf[i].y=uint(((v.efgh.r+127)) | ((v.efgh.g+127)<<8) | ((v.efgh.b+127)<<16) | ((v.efgh.a+127)<<24));}"));
+    }
+    else
+    {
+        custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(round(buf[i]))"));
+        custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(round(buf[i]))"));
+        custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=vec4(v);}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(round(buf[i].abcd)), ivec4(round(buf[i].efgh)))"));
+        custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].abcd=vec4(v.abcd);buf[i].efgh=vec4(v.efgh);}"));
     }
 
     if (opt.use_image_storage)
