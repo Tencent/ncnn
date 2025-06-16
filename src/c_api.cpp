@@ -1130,11 +1130,6 @@ int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer)
     return ((const Layer*)layer->pthis)->support_fp16_storage;
 }
 
-int ncnn_layer_get_support_image_storage(const ncnn_layer_t layer)
-{
-    return ((const Layer*)layer->pthis)->support_image_storage;
-}
-
 void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable)
 {
     ((Layer*)layer->pthis)->one_blob_only = enable;
@@ -1163,11 +1158,6 @@ void ncnn_layer_set_support_bf16_storage(ncnn_layer_t layer, int enable)
 void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable)
 {
     ((Layer*)layer->pthis)->support_fp16_storage = enable;
-}
-
-void ncnn_layer_set_support_image_storage(ncnn_layer_t layer, int enable)
-{
-    ((Layer*)layer->pthis)->support_image_storage = enable;
 }
 
 int ncnn_layer_get_bottom_count(const ncnn_layer_t layer)
@@ -1264,7 +1254,6 @@ static ::ncnn::Layer* __Layer_c_api_layer_creator(void* userdata)
 
     layer->support_bf16_storage = ncnn_layer_get_support_bf16_storage(layer0);
     layer->support_fp16_storage = ncnn_layer_get_support_fp16_storage(layer0);
-    layer->support_image_storage = ncnn_layer_get_support_image_storage(layer0);
 
     return layer;
 }

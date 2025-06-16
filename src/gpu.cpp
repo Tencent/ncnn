@@ -3111,7 +3111,6 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
 
     // create uop
     Option opt;
-    opt.use_image_storage = (storage_type_from == 1 || storage_type_to == 1);
     opt.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
     opt.use_fp16_storage = (cast_type_from_index == 2 || cast_type_to_index == 2);
 
@@ -3173,8 +3172,6 @@ void VulkanDevicePrivate::destroy_utility_operator()
     opt.use_cooperative_matrix = false;
     opt.pipeline_cache = 0;
     opt.vulkan_device_index = vkdev->info.device_index();
-
-    opt.use_image_storage = false;
 
     // from fp32-b/i | fp16p-b/i | fp16s-b/i
     // to fp32-b/i | fp16p-b/i | fp16s-b/i
@@ -4250,12 +4247,8 @@ uint32_t VulkanDevice::get_heap_budget() const
     return memoryBudgetProperties.heapBudget[buffer_heap_index] / 1024 / 1024;
 }
 
-void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& _opt) const
+void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    // buffer2buffer uop is created with use_image_storage disabled
-    Option opt = _opt;
-    opt.use_image_storage = false;
-
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
@@ -4810,179 +4803,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("afp2sfpmat4(v)", "v");
     }
 
-    if (opt.use_image_storage)
-    {
-        if (opt.use_fp16_storage)
-        {
-            custom_defines.append("imfmtc1", "r16f");
-            custom_defines.append("imfmtc4", "rgba16f");
-            custom_defines.append("unfp", "mediump");
-        }
-        else if (opt.use_fp16_packed)
-        {
-            custom_defines.append("imfmtc1", "r32f");
-            custom_defines.append("imfmtc4", "rgba16f");
-            custom_defines.append("unfp", "mediump");
-        }
-        else
-        {
-            custom_defines.append("imfmtc1", "r32f");
-            custom_defines.append("imfmtc4", "rgba32f");
-            custom_defines.append("unfp", "highp");
-        }
-
-        if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
-        {
-            custom_defines.append("image1d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)");
-            custom_defines.append("image2d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)");
-            custom_defines.append("image3d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)");
-            custom_defines.append("image1d_st1(img,p,v)", "{vec4 _v;_v.r=float(v);imageStore(img,p,_v);}");
-            custom_defines.append("image2d_st1(img,p,v)", "{vec4 _v;_v.r=float(v);imageStore(img,p,_v);}");
-            custom_defines.append("image3d_st1(img,p,v)", "{vec4 _v;_v.r=float(v);imageStore(img,p,_v);}");
-            custom_defines.append("image1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld4(tex,p)", "f16vec4(texelFetch(tex,p,0))");
-            custom_defines.append("image2d_ld4(tex,p)", "f16vec4(texelFetch(tex,p,0))");
-            custom_defines.append("image3d_ld4(tex,p)", "f16vec4(texelFetch(tex,p,0))");
-            custom_defines.append("image1d_st4(img,p,v)", "{imageStore(img,p,vec4(v));}");
-            custom_defines.append("image2d_st4(img,p,v)", "{imageStore(img,p,vec4(v));}");
-            custom_defines.append("image3d_st4(img,p,v)", "{imageStore(img,p,vec4(v));}");
-            custom_defines.append("image1d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld8(tex,p)", "f16mat2x4(texelFetch(tex,(p)*2,0),texelFetch(tex,(p)*2+1,0))");
-            custom_defines.append("image2d_ld8(tex,p)", "f16mat2x4(texelFetch(tex,ivec2(p.x*2,p.y),0),texelFetch(tex,ivec2(p.x*2+1,p.y),0))");
-            custom_defines.append("image3d_ld8(tex,p)", "f16mat2x4(texelFetch(tex,ivec3(p.x*2,p.y,p.z),0),texelFetch(tex,ivec3(p.x*2+1,p.y,p.z),0))");
-            custom_defines.append("image1d_st8(img,p,v)", "{imageStore(img,(p)*2,vec4(v[0]));imageStore(img,(p)*2+1,vec4(v[1]));}");
-            custom_defines.append("image2d_st8(img,p,v)", "{imageStore(img,ivec2(p.x*2,p.y),vec4(v[0]));imageStore(img,ivec2(p.x*2+1,p.y),vec4(v[1]));}");
-            custom_defines.append("image3d_st8(img,p,v)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),vec4(v[0]));imageStore(img,ivec3(p.x*2+1,p.y,p.z),vec4(v[1]));}");
-            custom_defines.append("image1d_cp8(img,p,tex,sp)", "{imageStore(img,(p)*2,texelFetch(tex,sp*2,0));imageStore(img,(p)*2+1,texelFetch(tex,sp*2+1,0));}");
-            custom_defines.append("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}");
-            custom_defines.append("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}");
-        }
-        else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
-        {
-            custom_defines.append("image1d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)");
-            custom_defines.append("image2d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)");
-            custom_defines.append("image3d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)");
-            custom_defines.append("image1d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image2d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image3d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld4(tex,p)", "f16vec4(texelFetch(tex,p,0))");
-            custom_defines.append("image2d_ld4(tex,p)", "f16vec4(texelFetch(tex,p,0))");
-            custom_defines.append("image3d_ld4(tex,p)", "f16vec4(texelFetch(tex,p,0))");
-            custom_defines.append("image1d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image2d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image3d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image1d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld8(tex,p)", "f16mat2x4(texelFetch(tex,(p)*2,0),texelFetch(tex,(p)*2+1,0))");
-            custom_defines.append("image2d_ld8(tex,p)", "f16mat2x4(texelFetch(tex,ivec2(p.x*2,p.y),0),texelFetch(tex,ivec2(p.x*2+1,p.y),0))");
-            custom_defines.append("image3d_ld8(tex,p)", "f16mat2x4(texelFetch(tex,ivec3(p.x*2,p.y,p.z),0),texelFetch(tex,ivec3(p.x*2+1,p.y,p.z),0))");
-            custom_defines.append("image1d_st8(img,p,v)", "{imageStore(img,(p)*2,v[0]);imageStore(img,(p)*2+1,v[1]);}");
-            custom_defines.append("image2d_st8(img,p,v)", "{imageStore(img,ivec2(p.x*2,p.y),v[0]);imageStore(img,ivec2(p.x*2+1,p.y),v[1]);}");
-            custom_defines.append("image3d_st8(img,p,v)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),v[0]);imageStore(img,ivec3(p.x*2+1,p.y,p.z),v[1]);}");
-            custom_defines.append("image1d_cp8(img,p,tex,sp)", "{imageStore(img,(p)*2,texelFetch(tex,sp*2,0));imageStore(img,(p)*2+1,texelFetch(tex,sp*2+1,0));}");
-            custom_defines.append("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}");
-            custom_defines.append("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}");
-        }
-        else if (opt.use_fp16_storage)
-        {
-            custom_defines.append("image1d_ld1(tex,p)", "texelFetch(tex,p,0).r");
-            custom_defines.append("image2d_ld1(tex,p)", "texelFetch(tex,p,0).r");
-            custom_defines.append("image3d_ld1(tex,p)", "texelFetch(tex,p,0).r");
-            custom_defines.append("image1d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image2d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image3d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld4(tex,p)", "texelFetch(tex,p,0)");
-            custom_defines.append("image2d_ld4(tex,p)", "texelFetch(tex,p,0)");
-            custom_defines.append("image3d_ld4(tex,p)", "texelFetch(tex,p,0)");
-            custom_defines.append("image1d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image2d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image3d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image1d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld8(tex,p)", "mat2x4(texelFetch(tex,(p)*2,0),texelFetch(tex,(p)*2+1,0))");
-            custom_defines.append("image2d_ld8(tex,p)", "mat2x4(texelFetch(tex,ivec2(p.x*2,p.y),0),texelFetch(tex,ivec2(p.x*2+1,p.y),0))");
-            custom_defines.append("image3d_ld8(tex,p)", "mat2x4(texelFetch(tex,ivec3(p.x*2,p.y,p.z),0),texelFetch(tex,ivec3(p.x*2+1,p.y,p.z),0))");
-            custom_defines.append("image1d_st8(img,p,v)", "{imageStore(img,(p)*2,v[0]);imageStore(img,(p)*2+1,v[1]);}");
-            custom_defines.append("image2d_st8(img,p,v)", "{imageStore(img,ivec2(p.x*2,p.y),v[0]);imageStore(img,ivec2(p.x*2+1,p.y),v[1]);}");
-            custom_defines.append("image3d_st8(img,p,v)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),v[0]);imageStore(img,ivec3(p.x*2+1,p.y,p.z),v[1]);}");
-            custom_defines.append("image1d_cp8(img,p,tex,sp)", "{imageStore(img,(p)*2,texelFetch(tex,sp*2,0));imageStore(img,(p)*2+1,texelFetch(tex,sp*2+1,0));}");
-            custom_defines.append("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}");
-            custom_defines.append("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}");
-        }
-        else if (opt.use_fp16_packed)
-        {
-            custom_defines.append("image1d_ld1(tex,p)", "texelFetch(tex,p,0).r");
-            custom_defines.append("image2d_ld1(tex,p)", "texelFetch(tex,p,0).r");
-            custom_defines.append("image3d_ld1(tex,p)", "texelFetch(tex,p,0).r");
-            custom_defines.append("image1d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image2d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image3d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld4(tex,p)", "texelFetch(tex,p,0)");
-            custom_defines.append("image2d_ld4(tex,p)", "texelFetch(tex,p,0)");
-            custom_defines.append("image3d_ld4(tex,p)", "texelFetch(tex,p,0)");
-            custom_defines.append("image1d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image2d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image3d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image1d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld8(tex,p)", "mat2x4(texelFetch(tex,(p)*2,0),texelFetch(tex,(p)*2+1,0))");
-            custom_defines.append("image2d_ld8(tex,p)", "mat2x4(texelFetch(tex,ivec2(p.x*2,p.y),0),texelFetch(tex,ivec2(p.x*2+1,p.y),0))");
-            custom_defines.append("image3d_ld8(tex,p)", "mat2x4(texelFetch(tex,ivec3(p.x*2,p.y,p.z),0),texelFetch(tex,ivec3(p.x*2+1,p.y,p.z),0))");
-            custom_defines.append("image1d_st8(img,p,v)", "{imageStore(img,(p)*2,v[0]);imageStore(img,(p)*2+1,v[1]);}");
-            custom_defines.append("image2d_st8(img,p,v)", "{imageStore(img,ivec2(p.x*2,p.y),v[0]);imageStore(img,ivec2(p.x*2+1,p.y),v[1]);}");
-            custom_defines.append("image3d_st8(img,p,v)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),v[0]);imageStore(img,ivec3(p.x*2+1,p.y,p.z),v[1]);}");
-            custom_defines.append("image1d_cp8(img,p,tex,sp)", "{imageStore(img,(p)*2,texelFetch(tex,sp*2,0));imageStore(img,(p)*2+1,texelFetch(tex,sp*2+1,0));}");
-            custom_defines.append("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}");
-            custom_defines.append("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}");
-        }
-        else
-        {
-            custom_defines.append("image1d_ld1(tex,p)", "texelFetch(tex,p,0).r");
-            custom_defines.append("image2d_ld1(tex,p)", "texelFetch(tex,p,0).r");
-            custom_defines.append("image3d_ld1(tex,p)", "texelFetch(tex,p,0).r");
-            custom_defines.append("image1d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image2d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image3d_st1(img,p,v)", "{vec4 _v;_v.r=v;imageStore(img,p,_v);}");
-            custom_defines.append("image1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld4(tex,p)", "texelFetch(tex,p,0)");
-            custom_defines.append("image2d_ld4(tex,p)", "texelFetch(tex,p,0)");
-            custom_defines.append("image3d_ld4(tex,p)", "texelFetch(tex,p,0)");
-            custom_defines.append("image1d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image2d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image3d_st4(img,p,v)", "{imageStore(img,p,v);}");
-            custom_defines.append("image1d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image2d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image3d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}");
-            custom_defines.append("image1d_ld8(tex,p)", "mat2x4(texelFetch(tex,(p)*2,0),texelFetch(tex,(p)*2+1,0))");
-            custom_defines.append("image2d_ld8(tex,p)", "mat2x4(texelFetch(tex,ivec2(p.x*2,p.y),0),texelFetch(tex,ivec2(p.x*2+1,p.y),0))");
-            custom_defines.append("image3d_ld8(tex,p)", "mat2x4(texelFetch(tex,ivec3(p.x*2,p.y,p.z),0),texelFetch(tex,ivec3(p.x*2+1,p.y,p.z),0))");
-            custom_defines.append("image1d_st8(img,p,v)", "{imageStore(img,(p)*2,v[0]);imageStore(img,(p)*2+1,v[1]);}");
-            custom_defines.append("image2d_st8(img,p,v)", "{imageStore(img,ivec2(p.x*2,p.y),v[0]);imageStore(img,ivec2(p.x*2+1,p.y),v[1]);}");
-            custom_defines.append("image3d_st8(img,p,v)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),v[0]);imageStore(img,ivec3(p.x*2+1,p.y,p.z),v[1]);}");
-            custom_defines.append("image1d_cp8(img,p,tex,sp)", "{imageStore(img,(p)*2,texelFetch(tex,sp*2,0));imageStore(img,(p)*2+1,texelFetch(tex,sp*2+1,0));}");
-            custom_defines.append("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}");
-            custom_defines.append("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}");
-        }
-    }
-
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
 
     if (opt.use_fp16_storage)
@@ -5021,11 +4841,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_int8_arithmetic)
     {
         custom_defines.append("NCNN_int8_arithmetic", 1);
-    }
-
-    if (opt.use_image_storage)
-    {
-        custom_defines.append("NCNN_image_shader", 1);
     }
 
     if (opt.use_shader_local_memory)

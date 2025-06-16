@@ -57,8 +57,8 @@ Option::Option()
     vulkan_device_index = -1;
     use_reserved_1 = false;
 
-    use_image_storage = false;
     use_tensor_storage = false;
+    use_reserved_1p = false;
 
     use_reserved_2 = false;
 

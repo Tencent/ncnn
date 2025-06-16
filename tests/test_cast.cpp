@@ -162,7 +162,6 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
-    opt.use_image_storage = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -278,7 +277,6 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = true;
-    opt.use_image_storage = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 

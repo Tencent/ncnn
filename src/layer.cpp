@@ -32,9 +32,9 @@ Layer::Layer()
     support_bf16_storage = false;
     support_fp16_storage = false;
     support_int8_storage = false;
-    support_image_storage = false;
     support_tensor_storage = false;
 
+    support_reserved_000 = false;
     support_reserved_00 = false;
 
     featmask = 0;
@@ -251,14 +251,12 @@ public:
         support_int8_storage = layer_cpu->support_int8_storage;
 
         support_vulkan = 0;
-        support_image_storage = 0;
         support_tensor_storage = 0;
 
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
             support_vulkan = layer_vulkan->support_vulkan;
-            support_image_storage = layer_vulkan->support_image_storage;
             support_tensor_storage = layer_vulkan->support_tensor_storage;
         }
 #endif
