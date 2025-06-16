@@ -40,15 +40,10 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
     else
     {

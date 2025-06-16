@@ -363,7 +363,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     if (src.elemsize == src.elempack * 4u)
     {
         // cpu cast to fp16 (discrete gpu)
-        if (vkdev->info.type() == 0 && (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0)))
+        if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
         {
             ncnn::cast_float32_to_float16(src, src_fp16, opt);
         }
@@ -507,7 +507,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
     {
-        if (vkdev->info.type() == 0 && (opt.use_fp16_storage || (opt.use_fp16_packed && dst_fp16.elempack % 4 == 0)))
+        if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
         {
             int dims = dst_fp16.dims;
             if (dims == 1)
@@ -2484,7 +2484,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     // NOTE keep the hack here ?
     if (src.elembits() == 32)
     {
-        if (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0))
+        if (opt.use_fp16_storage || opt.use_fp16_packed)
         {
             Mat src_fp16;
             cast_float32_to_float16(src, src_fp16, opt);

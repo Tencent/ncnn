@@ -128,7 +128,7 @@ void main()
 
                 const int v_offset = sz * psc(cstep) + (sys4[ly] + ky * dilation_h) * psc(w) + sxs4[ly] + kx * dilation_w;
 
-                tmp_v[lx][z4][ly] = sfp2lfp(bottom_blob_data[v_offset]);
+                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_blob_data, v_offset));
             }
         }
 
@@ -178,7 +178,7 @@ void main()
 
                 const int v_offset = sz * psc(cstep) + (sys4[ly] + ky * dilation_h) * psc(w) + sxs4[ly] + kx * dilation_w;
 
-                tmp_v[lx][z4][ly] = sfp2lfp(bottom_blob_data[v_offset]);
+                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_blob_data, v_offset));
             }
         }
 

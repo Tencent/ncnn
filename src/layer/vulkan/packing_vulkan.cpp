@@ -41,15 +41,9 @@ int Packing_vulkan::create_pipeline(const Option& _opt)
     size_t out_elemsize;
     if (cast_type_to == 0)
     {
-        if (opt.use_fp16_storage)
+        if (opt.use_fp16_storage || opt.use_fp16_packed)
         {
             out_elemsize = out_elempack * 2u;
-        }
-        else if (opt.use_fp16_packed)
-        {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
         }
         else
         {
@@ -248,7 +242,7 @@ int Packing_vulkan::destroy_pipeline(const Option& /*opt*/)
 int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int elempack = bottom_blob.elempack;
-    //     NCNN_LOGE("Packing_vulkan b2b %d %d   %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
+    // NCNN_LOGE("Packing_vulkan b2b %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to);
 
     if (elempack == out_elempack && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
     {
@@ -286,15 +280,9 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     size_t out_elemsize;
     if (cast_type_to == 0)
     {
-        if (opt.use_fp16_storage)
+        if (opt.use_fp16_storage || opt.use_fp16_packed)
         {
             out_elemsize = out_elempack * 2u;
-        }
-        else if (opt.use_fp16_packed)
-        {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
         }
         else
         {
@@ -305,13 +293,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         out_elemsize = out_elempack * 4u;
     }
-    else if (cast_type_to == 2)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-    else // if (cast_type_to == 3)
+    else // if (cast_type_to == 2 || cast_type_to == 3)
     {
         out_elemsize = out_elempack * 2u;
     }

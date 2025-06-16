@@ -75,7 +75,7 @@ void main()
         {
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
-                tmp_v[lx][z4][ly] = sfp2lfp(bottom_tm_blob_data[v_offset + z4 * psc(outw) + ly]);
+                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_tm_blob_data, v_offset + z4 * psc(outw) + ly));
             }
         }
 
@@ -118,7 +118,7 @@ void main()
         {
             for (int z4 = 0; z4 < remain; z4++)
             {
-                tmp_v[lx][z4][ly] = sfp2lfp(bottom_tm_blob_data[v_offset + z4 * psc(outw) + ly]);
+                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_tm_blob_data, v_offset + z4 * psc(outw) + ly));
             }
         }
 

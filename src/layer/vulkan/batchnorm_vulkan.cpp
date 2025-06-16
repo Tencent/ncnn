@@ -34,13 +34,9 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         elemsize = elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
     }
     else
     {

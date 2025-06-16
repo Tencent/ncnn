@@ -2547,7 +2547,7 @@ int create_gpu_instance(const char* driver_path)
     {
         VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         createInfo.pfnUserCallback = debugCallback;
         createInfo.pUserData = 0;
@@ -4592,7 +4592,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     }
     else if (opt.use_fp16_packed)
     {
-        custom_defines.append("sfp", "float");
+        custom_defines.append("sfp", "uint");
         custom_defines.append("sfpvec2", "uint");
         custom_defines.append("sfpvec4", "uvec2");
         custom_defines.append("sfpvec8", "uvec4");
@@ -4718,23 +4718,41 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     }
     else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
     {
-        custom_defines.append("buffer_ld1(buf,i)", "float16_t(buf[i])");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=float(v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(packFloat2x16(f16vec2(sbuf[si4.r],sbuf[si4.g])),packFloat2x16(f16vec2(sbuf[si4.b],sbuf[si4.a])));}");
-        custom_defines.append("buffer_cp1to8(buf,i,sbuf,si4,sii4)", "{buf[i]=uvec4(packFloat2x16(f16vec2(sbuf[si4.r],sbuf[si4.g])),packFloat2x16(f16vec2(sbuf[si4.b],sbuf[si4.a])),packFloat2x16(f16vec2(sbuf[sii4.r],sbuf[sii4.g])),packFloat2x16(f16vec2(sbuf[sii4.b],sbuf[sii4.a])));}");
+        // custom_defines.append("buffer_ld1(buf,i)", "float16_t(buf[i])");
+        custom_defines.append("buffer_ld1(buf,i)", "float16_t(unpackHalf2x16(buf[(i)/2])[(i)%2])");
+        // custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=float(v);}");
+        custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+        // custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+
+        // custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(packFloat2x16(f16vec2(sbuf[si4.r],sbuf[si4.g])),packFloat2x16(f16vec2(sbuf[si4.b],sbuf[si4.a])));}");
+
+        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
+
+        // custom_defines.append("buffer_cp1to8(buf,i,sbuf,si4,sii4)", "{buf[i]=uvec4(packFloat2x16(f16vec2(sbuf[si4.r],sbuf[si4.g])),packFloat2x16(f16vec2(sbuf[si4.b],sbuf[si4.a])),packFloat2x16(f16vec2(sbuf[sii4.r],sbuf[sii4.g])),packFloat2x16(f16vec2(sbuf[sii4.b],sbuf[sii4.a])));}");
+
+        custom_defines.append("buffer_cp1to8(buf,i,sbuf,si4,sii4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _sii4d2=uvec4(sii4)/2;uvec4 _si4m2=uvec4(si4)%2;uvec4 _sii4m2=uvec4(sii4)%2; buf[i]=uvec4(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_sii4d2.r])[_sii4m2.r],unpackHalf2x16(sbuf[_sii4d2.g])[_sii4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_sii4d2.b])[_sii4m2.b],unpackHalf2x16(sbuf[_sii4d2.a])[_sii4m2.a])));}");
+
         custom_defines.append("buffer_ld2(buf,i)", "unpackFloat2x16(buf[i])");
         custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packFloat2x16(v)}");
         custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
         custom_defines.append("buffer_ld4(buf,i)", "f16vec4(unpackFloat2x16(buf[i].x),unpackFloat2x16(buf[i].y))");
         custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba));}");
         custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; f16vec2 _v0=unpackFloat2x16(_v.x);f16vec2 _v1=unpackFloat2x16(_v.y); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g;}");
+
+        // custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; f16vec2 _v0=unpackFloat2x16(_v.x);f16vec2 _v1=unpackFloat2x16(_v.y); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g;}");
+
+        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
+
         custom_defines.append("buffer_cp4to8(buf,i,sbuf,si2)", "{buf[i]=uvec4(sbuf[si2.r],sbuf[si2.g]);}");
         custom_defines.append("buffer_ld8(buf,i)", "f16mat2x4(f16vec4(unpackFloat2x16(buf[i].r),unpackFloat2x16(buf[i].g)),f16vec4(unpackFloat2x16(buf[i].b),unpackFloat2x16(buf[i].a)))");
         custom_defines.append("buffer_st8(buf,i,v)", "{buf[i]=uvec4(uvec2(packFloat2x16(v[0].rg),packFloat2x16(v[0].ba)),uvec2(packFloat2x16(v[1].rg),packFloat2x16(v[1].ba)));}");
         custom_defines.append("buffer_cp8(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{uvec4 _v=sbuf[si]; f16vec2 _v0=unpackFloat2x16(_v.r);f16vec2 _v1=unpackFloat2x16(_v.g);f16vec2 _v2=unpackFloat2x16(_v.b);f16vec2 _v3=unpackFloat2x16(_v.a); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g; buf[ii4.r]=_v2.r;buf[ii4.g]=_v2.g;buf[ii4.b]=_v3.r;buf[ii4.a]=_v3.g;}");
+
+        // custom_defines.append("buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{uvec4 _v=sbuf[si]; f16vec2 _v0=unpackFloat2x16(_v.r);f16vec2 _v1=unpackFloat2x16(_v.g);f16vec2 _v2=unpackFloat2x16(_v.b);f16vec2 _v3=unpackFloat2x16(_v.a); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g; buf[ii4.r]=_v2.r;buf[ii4.g]=_v2.g;buf[ii4.b]=_v3.r;buf[ii4.a]=_v3.g;}");
+
+        custom_defines.append("buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{uvec4 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.r);vec2 _v1=unpackHalf2x16(_v.g);vec2 _v2=unpackHalf2x16(_v.b);vec2 _v3=unpackHalf2x16(_v.a);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);buffer_st1(buf,ii4.r,_v2.r);buffer_st1(buf,ii4.g,_v2.g);buffer_st1(buf,ii4.b,_v3.r);buffer_st1(buf,ii4.a,_v3.g);}");
+
         custom_defines.append("buffer_cp8to4(buf,i2,sbuf,si)", "{uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}");
     }
     else if (opt.use_fp16_storage)
@@ -4760,23 +4778,41 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     }
     else if (opt.use_fp16_packed)
     {
-        custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(packHalf2x16(vec2(sbuf[si4.r],sbuf[si4.g])),packHalf2x16(vec2(sbuf[si4.b],sbuf[si4.a])));}");
-        custom_defines.append("buffer_cp1to8(buf,i,sbuf,si4,sii4)", "{buf[i]=uvec4(packHalf2x16(vec2(sbuf[si4.r],sbuf[si4.g])),packHalf2x16(vec2(sbuf[si4.b],sbuf[si4.a])),packHalf2x16(vec2(sbuf[sii4.r],sbuf[sii4.g])),packHalf2x16(vec2(sbuf[sii4.b],sbuf[sii4.a])));}");
+        // custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
+        custom_defines.append("buffer_ld1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
+        // custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
+        custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+        // custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+
+        // custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(packHalf2x16(vec2(sbuf[si4.r],sbuf[si4.g])),packHalf2x16(vec2(sbuf[si4.b],sbuf[si4.a])));}");
+
+        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
+
+        // custom_defines.append("buffer_cp1to8(buf,i,sbuf,si4,sii4)", "{buf[i]=uvec4(packHalf2x16(vec2(sbuf[si4.r],sbuf[si4.g])),packHalf2x16(vec2(sbuf[si4.b],sbuf[si4.a])),packHalf2x16(vec2(sbuf[sii4.r],sbuf[sii4.g])),packHalf2x16(vec2(sbuf[sii4.b],sbuf[sii4.a])));}");
+
+        custom_defines.append("buffer_cp1to8(buf,i,sbuf,si4,sii4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _sii4d2=uvec4(sii4)/2;uvec4 _si4m2=uvec4(si4)%2;uvec4 _sii4m2=uvec4(sii4)%2; buf[i]=uvec4(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_sii4d2.r])[_sii4m2.r],unpackHalf2x16(sbuf[_sii4d2.g])[_sii4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_sii4d2.b])[_sii4m2.b],unpackHalf2x16(sbuf[_sii4d2.a])[_sii4m2.a])));}");
+
         custom_defines.append("buffer_ld2(buf,i)", "unpackHalf2x16(buf[i])");
         custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packHalf2x16(v)}");
         custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
         custom_defines.append("buffer_ld4(buf,i)", "vec4(unpackHalf2x16(buf[i].x),unpackHalf2x16(buf[i].y))");
         custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba));}");
         custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g;}");
+
+        // custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g;}");
+
+        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
+
         custom_defines.append("buffer_cp4to8(buf,i,sbuf,si2)", "{buf[i]=uvec4(sbuf[si2.r],sbuf[si2.g]);}");
         custom_defines.append("buffer_ld8(buf,i)", "mat2x4(vec4(unpackHalf2x16(buf[i].r),unpackHalf2x16(buf[i].g)),vec4(unpackHalf2x16(buf[i].b),unpackHalf2x16(buf[i].a)))");
         custom_defines.append("buffer_st8(buf,i,v)", "{buf[i]=uvec4(uvec2(packHalf2x16(v[0].rg),packHalf2x16(v[0].ba)),uvec2(packHalf2x16(v[1].rg),packHalf2x16(v[1].ba)));}");
         custom_defines.append("buffer_cp8(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{uvec4 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.r);vec2 _v1=unpackHalf2x16(_v.g);vec2 _v2=unpackHalf2x16(_v.b);vec2 _v3=unpackHalf2x16(_v.a); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g; buf[ii4.r]=_v2.r;buf[ii4.g]=_v2.g;buf[ii4.b]=_v3.r;buf[ii4.a]=_v3.g;}");
+
+        // custom_defines.append("buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{uvec4 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.r);vec2 _v1=unpackHalf2x16(_v.g);vec2 _v2=unpackHalf2x16(_v.b);vec2 _v3=unpackHalf2x16(_v.a); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g; buf[ii4.r]=_v2.r;buf[ii4.g]=_v2.g;buf[ii4.b]=_v3.r;buf[ii4.a]=_v3.g;}");
+
+        custom_defines.append("buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{uvec4 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.r);vec2 _v1=unpackHalf2x16(_v.g);vec2 _v2=unpackHalf2x16(_v.b);vec2 _v3=unpackHalf2x16(_v.a);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);buffer_st1(buf,ii4.r,_v2.r);buffer_st1(buf,ii4.g,_v2.g);buffer_st1(buf,ii4.b,_v3.r);buffer_st1(buf,ii4.a,_v3.g);}");
+
         custom_defines.append("buffer_cp8to4(buf,i2,sbuf,si)", "{uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}");
     }
     else
@@ -5502,10 +5538,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             NCNN_LOGE("%s", s.getInfoDebugLog());
 
             // for (int i = 0; i < 4; i++)
-            // {
-            //     std::string s(comp_datas[i], comp_data_sizes[i]);
-            //     NCNN_LOGE("%s", s.c_str());
-            // }
+            {
+                int i = 3;
+                std::string s(comp_datas[i], comp_data_sizes[i]);
+                NCNN_LOGE("%s", s.c_str());
+            }
 
             compile_success = false;
         }

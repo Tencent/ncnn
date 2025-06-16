@@ -252,13 +252,6 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-
     top_blob.create(outw, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
