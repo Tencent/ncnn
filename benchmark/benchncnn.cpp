@@ -381,7 +381,6 @@ int main(int argc, char** argv)
     opt.use_int8_arithmetic = true;
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = false;
-    opt.use_image_storage = false;
 
     fprintf(stderr, "loop_count = %d\n", g_loop_count);
     fprintf(stderr, "num_threads = %d\n", num_threads);

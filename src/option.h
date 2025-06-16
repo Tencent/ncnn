@@ -118,10 +118,9 @@ public:
 
     bool use_reserved_1;
 
-    // turn on for adreno
-    bool use_image_storage;
     bool use_tensor_storage;
 
+    bool use_reserved_1p;
     bool use_reserved_2;
 
     // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)

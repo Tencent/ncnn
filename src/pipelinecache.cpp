@@ -150,7 +150,7 @@ PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(int _shader_t
     shader_type_index = _shader_type_index;
 
     // encode opt
-    opt_bits = opt.use_image_storage << 7
+    opt_bits = 0 << 7
                | opt.use_fp16_packed << 6
                | opt.use_fp16_storage << 5
                | opt.use_fp16_arithmetic << 4

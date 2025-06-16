@@ -240,7 +240,6 @@ static int test_packing_gpu_buffer(const ncnn::Mat& a, int in_elempack, int out_
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = true;
-    opt.use_image_storage = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
