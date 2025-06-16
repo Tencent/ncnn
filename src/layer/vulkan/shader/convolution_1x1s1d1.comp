@@ -33,13 +33,8 @@ layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
 
-#if NCNN_fp16_packed
-layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-#endif
 layout (binding = 2) readonly buffer weight_blob { sfp weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfp bias_data[]; };
 
@@ -80,11 +75,7 @@ void main()
 
     for (int z = 0; z < psc(c); z++)
     {
-#if NCNN_fp16_packed
-        sum += afp(weight_data[w_offset]) * afpvec4(bottom_blob_data[v_offset]);
-#else
         sum += buffer_ld1(weight_data, w_offset) * buffer_ld4(bottom_blob_data, v_offset);
-#endif
 
         w_offset += 1;
         v_offset += psc(cstep) / 4;
@@ -94,9 +85,5 @@ void main()
 
     const int gi = gy * psc(outcstep) / 4 + gx;
 
-#if NCNN_fp16_packed
-    top_blob_data[gi] = sum;
-#else
     buffer_st4(top_blob_data, gi, sum);
-#endif
 }

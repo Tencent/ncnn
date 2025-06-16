@@ -4719,12 +4719,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
     {
         // custom_defines.append("buffer_ld1(buf,i)", "float16_t(buf[i])");
-        custom_defines.append("buffer_ld1(buf,i)", "float16_t(unpackHalf2x16(buf[i/2])[i%2])");
+        custom_defines.append("buffer_ld1(buf,i)", "float16_t(unpackHalf2x16(buf[(i)/2])[(i)%2])");
         // custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=float(v);}");
-        custom_defines.append("buffer_st1(buf,i,v)", "{float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[i/2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[i%2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[i/2],_old_v,_new_v)!=_old_v);}");
+        custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
         // custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        // custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{float _vs=unpackHalf2x16(sbuf[i/2])[i%2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[i/2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[i%2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[i/2],_old_v,_new_v)!=_old_v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{afp _v=buffer_ld1(sbuf,si);buffer_st1(buf,i,_v);}");
+        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
 
         // custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(packFloat2x16(f16vec2(sbuf[si4.r],sbuf[si4.g])),packFloat2x16(f16vec2(sbuf[si4.b],sbuf[si4.a])));}");
 
@@ -4780,11 +4779,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     else if (opt.use_fp16_packed)
     {
         // custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_ld1(buf,i)", "unpackHalf2x16(buf[i/2])[i%2]");
+        custom_defines.append("buffer_ld1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
         // custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_st1(buf,i,v)", "{uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[i/2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[i%2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[i/2],_old_v,_new_v)!=_old_v);}");
+        custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
         // custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{afp _v=buffer_ld1(sbuf,si);buffer_st1(buf,i,_v);}");
+        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
 
         // custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(packHalf2x16(vec2(sbuf[si4.r],sbuf[si4.g])),packHalf2x16(vec2(sbuf[si4.b],sbuf[si4.a])));}");
 

@@ -783,8 +783,6 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 pipeline = pipeline_concat_pack8to1[b % 2];
             }
 
-            NCNN_LOGE("pipeline %d %d", bottom_blob.elempack, elempack);
-
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             coffset += bottom_blob.c * bottom_blob.elempack / elempack;
