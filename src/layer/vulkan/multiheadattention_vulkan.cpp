@@ -372,13 +372,6 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         int MB_elempack = (M * B) % 4 == 0 ? 4 : 1;
         size_t M_elemsize = q_affine.elemsize / q_affine.elempack * M_elempack;
 
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (M_elempack == 8) M_elemsize = 8 * 2u;
-            if (M_elempack == 4) M_elemsize = 4 * 2u;
-            if (M_elempack == 1) M_elemsize = 4u;
-        }
-
         if (K_elempack < q_affine.elempack)
         {
             VkMat tmp;
@@ -484,13 +477,6 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         int N_elempack = N % 4 == 0 ? 4 : 1;
         int NB_elempack = (N * B) % 4 == 0 ? 4 : 1;
         size_t N_elemsize = v_affine.elemsize / v_affine.elempack * N_elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (N_elempack == 8) N_elemsize = 8 * 2u;
-            if (N_elempack == 4) N_elemsize = 4 * 2u;
-            if (N_elempack == 1) N_elemsize = 4u;
-        }
 
         if (M_elempack < qk_cross.elempack)
         {
