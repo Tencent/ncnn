@@ -207,7 +207,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     ncnn::convert_packing(a, a4, 4, opt);
 
     ncnn::Mat a4_fp16;
-    if (type_from == 2 && a4.elempack == 4)
+    if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
     }
@@ -324,7 +324,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
         ncnn::convert_packing(a, a4, 4, opt);
 
     ncnn::Mat a4_fp16;
-    if (type_from == 2 && (a4.elempack == 4 || a4.elempack == 8))
+    if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
     }
