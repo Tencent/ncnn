@@ -50,6 +50,8 @@ void main()
         return;
     }
 
+    const uint gi2 = gy * psc(stride) + gx;
+
     afpvec4 v;
     if (cast_type_from == 1)
     {
@@ -57,14 +59,12 @@ void main()
     }
     else
     {
-        v = buffer_ld4(bottom_blob_data, gi);
+        v = buffer_ld4(bottom_blob_data, gi2);
     }
-
-    const uint gi2 = gy * psc(stride) + gx;
 
     if (cast_type_to == 1)
     {
-        top_blob_fp32_data[gi2] = vec4(v);
+        top_blob_fp32_data[gi] = vec4(v);
     }
     else
     {
