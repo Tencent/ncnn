@@ -3028,8 +3028,8 @@ public:
     PipelineCache* pipeline_cache;
 
     // utility operator
-    // from fp32-b/i | fp16-b/i
-    // to fp32-b/i | fp16-b/i
+    // from fp32 | fp16
+    // to fp32 | fp16
     // to pack1 | pack4 | pack8
     mutable ncnn::Layer* uop_packing[2][2][3];
     mutable Mutex uop_lock;
@@ -3154,10 +3154,10 @@ void VulkanDevicePrivate::destroy_utility_operator()
     opt.pipeline_cache = 0;
     opt.vulkan_device_index = vkdev->info.device_index();
 
-    // from fp32-b/i | fp16-b/i
-    // to fp32-b/i | fp16-b/i
+    // from fp32 | fp16
     for (int j0 = 0; j0 < 2; j0++)
     {
+        // to fp32 | fp16
         for (int j1 = 0; j1 < 2; j1++)
         {
             bool use_fp16 = (j0 == 1 || j1 == 1);
