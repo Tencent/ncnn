@@ -3161,8 +3161,10 @@ void VulkanDevicePrivate::destroy_utility_operator()
     {
         for (int j1 = 0; j1 < 2; j1++)
         {
-            opt.use_fp16_packed = (j0 == 1 || j1 == 1);
-            opt.use_fp16_storage = (j0 == 1 || j1 == 1);
+            bool use_fp16 = (j0 == 1 || j1 == 1);
+
+            opt.use_fp16_packed = use_fp16;
+            opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
 
             // to pack1 | pack4 | pack8
             for (int k = 0; k < 3; k++)
