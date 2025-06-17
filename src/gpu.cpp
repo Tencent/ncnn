@@ -31,7 +31,6 @@
 
 #include "command.h"
 #include "layer.h"
-#include "layer/vulkan/packing_vulkan.h"
 #include "layer_type.h"
 #include "mat.h"
 #include "pipelinecache.h"
@@ -2989,7 +2988,7 @@ public:
     void destroy_dummy_buffer_image();
 
     // utility operator
-    const ncnn::Packing_vulkan* get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
+    const ncnn::Layer* get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
     void destroy_utility_operator();
 
     VkDevice device;
@@ -3029,10 +3028,10 @@ public:
     PipelineCache* pipeline_cache;
 
     // utility operator
-    // from fp32-b/i | fp16p-b/i | fp16s-b/i
-    // to fp32-b/i | fp16p-b/i | fp16s-b/i
+    // from fp32 | fp16
+    // to fp32 | fp16
     // to pack1 | pack4 | pack8
-    mutable ncnn::Packing_vulkan* uop_packing[3][3][3];
+    mutable ncnn::Layer* uop_packing[2][2][3];
     mutable Mutex uop_lock;
 
     // device is valid and sucessfully initialized
@@ -3095,36 +3094,20 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
     }
 }
 
-const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
+const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
 {
     MutexLockGuard lock(uop_lock);
 
-    const ncnn::Packing_vulkan* cached_uop = uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    const ncnn::Layer* cached_uop = uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index];
     if (cached_uop)
         return cached_uop;
 
-    if ((cast_type_from_index == 1 && cast_type_to_index == 2) || (cast_type_from_index == 2 && cast_type_to_index == 1))
-    {
-        NCNN_LOGE("no fp16p to/from fp16s conversion");
-        return 0;
-    }
+    bool use_fp16 = (cast_type_from_index == 1 || cast_type_to_index == 1);
 
     // create uop
     Option opt;
-    opt.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
-    opt.use_fp16_storage = (cast_type_from_index == 2 || cast_type_to_index == 2);
-
-    if (!vkdev->info.support_fp16_packed() && opt.use_fp16_packed)
-    {
-        NCNN_LOGE("cannot create uop with use_fp16_packed if not support_fp16_packed");
-        return 0;
-    }
-
-    if (!vkdev->info.support_fp16_storage() && opt.use_fp16_storage)
-    {
-        NCNN_LOGE("cannot create uop with use_fp16_storage if not support_fp16_storage");
-        return 0;
-    }
+    opt.use_fp16_packed = use_fp16; // fp16p is always supported
+    opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
 
     // fp16/int8 arithmetic are not necessary for packing
     // and may conflict with storage options
@@ -3144,15 +3127,13 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
 
     opt.vulkan_device_index = vkdev->info.device_index();
 
-    ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
+    ncnn::Layer* uop = ncnn::create_layer_vulkan(LayerType::Packing);
     uop->vkdev = vkdev;
 
     ncnn::ParamDict pd;
     pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4 : 8); // out_elempack
-    pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16p 3=fp16s
+    pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16
     pd.set(3, cast_type_to_index + 1);
-    pd.set(4, storage_type_from); // 0=buffer 1=image
-    pd.set(5, storage_type_to);
 
     uop->load_param(pd);
 
@@ -3173,26 +3154,16 @@ void VulkanDevicePrivate::destroy_utility_operator()
     opt.pipeline_cache = 0;
     opt.vulkan_device_index = vkdev->info.device_index();
 
-    // from fp32-b/i | fp16p-b/i | fp16s-b/i
-    // to fp32-b/i | fp16p-b/i | fp16s-b/i
-    for (int j0 = 0; j0 < 3; j0++)
+    // from fp32 | fp16
+    for (int j0 = 0; j0 < 2; j0++)
     {
-        for (int j1 = 0; j1 < 3; j1++)
+        // to fp32 | fp16
+        for (int j1 = 0; j1 < 2; j1++)
         {
-            if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
-            {
-                // no fp16p to/from fp16s conversion
-                continue;
-            }
+            bool use_fp16 = (j0 == 1 || j1 == 1);
 
-            opt.use_fp16_packed = (j0 == 1 || j1 == 1);
-            opt.use_fp16_storage = (j0 == 2 || j1 == 2);
-
-            if (!vkdev->info.support_fp16_packed() && opt.use_fp16_packed)
-                continue;
-
-            if (!vkdev->info.support_fp16_storage() && opt.use_fp16_storage)
-                continue;
+            opt.use_fp16_packed = use_fp16;
+            opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
 
             // to pack1 | pack4 | pack8
             for (int k = 0; k < 3; k++)
@@ -4249,7 +4220,11 @@ uint32_t VulkanDevice::get_heap_budget() const
 
 void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    convert_packing(src, dst, dst_elempack, 0, cmd, opt);
+}
+
+void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const
+{
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
@@ -4259,24 +4234,19 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     }
     else // if (src.elembits() == 16)
     {
-        if (cast_type_to_index != 0)
-        {
-            cast_type_from_index = cast_type_to_index;
-        }
-        else if (info.support_fp16_storage())
-        {
-            cast_type_from_index = 2;
-        }
-        else // if (info.support_fp16_packed())
-        {
-            cast_type_from_index = 1;
-        }
+        cast_type_from_index = 1;
     }
+
+    int cast_type_to_index = cast_type_to ? cast_type_to - 1 : cast_type_from_index;
 
     // NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = d->get_utility_operator(0, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
-    uop->forward(src, dst, cmd, opt);
+    Option opt2 = opt;
+    opt2.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
+    opt2.use_fp16_storage = (cast_type_from_index == 1 || cast_type_to_index == 1) && info.support_fp16_storage();
+
+    const ncnn::Layer* uop = d->get_utility_operator(cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    uop->forward(src, dst, cmd, opt2);
 }
 
 int VulkanDevice::init_device_extension()

@@ -357,7 +357,7 @@ VkCompute::~VkCompute()
 
 void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 {
-    //     NCNN_LOGE("record_upload buffer");
+    // NCNN_LOGE("record_upload buffer");
 
     Mat src_fp16;
     if (src.elemsize == src.elempack * 4u)
@@ -410,12 +410,20 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
     // gpu cast to fp16 on the fly (integrated gpu)
-    vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
+    int cast_type_to = 0;
+    if (vkdev->info.type() != 0)
+    {
+        if (opt.use_fp16_storage || opt.use_fp16_packed)
+            cast_type_to = 2;
+        else
+            cast_type_to = 1;
+    }
+    vkdev->convert_packing(dst_staging, dst, dst_elempack, cast_type_to, *this, opt);
 }
 
 void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 {
-    //     NCNN_LOGE("record_download buffer");
+    // NCNN_LOGE("record_download buffer");
 
     // resolve dst_elempack
     int dims = src.dims;
@@ -432,18 +440,18 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
     // gpu cast to fp32 on the fly (integrated gpu)
     Option opt_staging = opt;
-    if (vkdev->info.type() != 0)
-    {
-        opt_staging.use_fp16_packed = false;
-        opt_staging.use_fp16_storage = false;
-    }
     if (!opt_staging.blob_vkallocator->mappable)
     {
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
     }
+    int cast_type_to = 0;
+    if (vkdev->info.type() != 0)
+    {
+        cast_type_to = 1;
+    }
 
     VkMat dst_staging;
-    vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
+    vkdev->convert_packing(src, dst_staging, dst_elempack, cast_type_to, *this, opt_staging);
 
     // barrier device any @ compute to host-read @ compute
     if (dst_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
