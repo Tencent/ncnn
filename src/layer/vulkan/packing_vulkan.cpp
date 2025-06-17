@@ -38,173 +38,61 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
     const int dims = shape.dims;
 
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
     const int local_size_x = vkdev->info.subgroup_size();
 
-    if (out_elempack == 1)
+    if (shape.dims == 0 || elempack == out_elempack)
     {
-        // pack1
+        std::vector<vk_specialization_type> specializations(1);
+        specializations[0].u32 = out_shape.total() / 4;
+
+        pipeline_packing = new Pipeline(vkdev);
+        pipeline_packing->set_optimal_local_size_xyz(local_size_x, 1, 1);
+
+        if (cast_type_from == cast_type_to)
         {
-            std::vector<vk_specialization_type> specializations(1);
-            specializations[0].u32 = out_shape.total() / 4;
-
-            pipeline_packing = new Pipeline(vkdev);
-            pipeline_packing->set_optimal_local_size_xyz(local_size_x, 1, 1);
-
-            if (cast_type_from == cast_type_to)
-            {
-                pipeline_packing->create(LayerShaderType::packing, opt, specializations);
-            }
-            else if (cast_type_from == 1)
-            {
-                pipeline_packing->create(LayerShaderType::packing_fp32_to_fp16, opt, specializations);
-            }
-            else if (cast_type_to == 1)
-            {
-                pipeline_packing->create(LayerShaderType::packing_fp16_to_fp32, opt, specializations);
-            }
+            pipeline_packing->create(LayerShaderType::packing, opt, specializations);
         }
-
-        // pack4to1
+        else if (cast_type_from == 1)
         {
-            size_t n0 = 0;
-            size_t n1 = 0;
-            size_t stride = 0;
-            if (dims == 1)
-            {
-                n0 = 1;
-                n1 = shape.w;
-                stride = 1;
-            }
-            if (dims == 2)
-            {
-                n0 = shape.w;
-                n1 = shape.h;
-                stride = out_shape.w;
-            }
-            if (dims == 3 || dims == 4)
-            {
-                n0 = shape.cstep;
-                n1 = shape.c;
-                stride = out_shape.cstep;
-            }
-
-            std::vector<vk_specialization_type> specializations(3);
-            specializations[0].u32 = n0;
-            specializations[1].u32 = n1 / 4;
-            specializations[2].u32 = stride;
-
-            pipeline_packing_pack4to1 = new Pipeline(vkdev);
-            pipeline_packing_pack4to1->set_optimal_local_size_xyz(local_size_x, 1, 1);
-
-            if (cast_type_from == cast_type_to)
-            {
-                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1, opt, specializations);
-            }
-            else if (cast_type_from == 1)
-            {
-                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_fp32_to_fp16, opt, specializations);
-            }
-            else if (cast_type_to == 1)
-            {
-                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_fp16_to_fp32, opt, specializations);
-            }
+            pipeline_packing->create(LayerShaderType::packing_fp32_to_fp16, opt, specializations);
         }
-
-        // pack8to1
+        else if (cast_type_to == 1)
         {
-            size_t n0 = 0;
-            size_t n1 = 0;
-            size_t stride = 0;
-            if (dims == 1)
-            {
-                n0 = 1;
-                n1 = shape.w;
-                stride = 1;
-            }
-            if (dims == 2)
-            {
-                n0 = shape.w;
-                n1 = shape.h;
-                stride = out_shape.w;
-            }
-            if (dims == 3 || dims == 4)
-            {
-                n0 = shape.cstep;
-                n1 = shape.c;
-                stride = out_shape.cstep;
-            }
-
-            std::vector<vk_specialization_type> specializations(3);
-            specializations[0].u32 = n0;
-            specializations[1].u32 = n1 / 8;
-            specializations[2].u32 = stride;
-
-            pipeline_packing_pack8to1 = new Pipeline(vkdev);
-            pipeline_packing_pack8to1->set_optimal_local_size_xyz(local_size_x, 1, 1);
-
-            if (cast_type_from == cast_type_to)
-            {
-                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1, opt, specializations);
-            }
-            else if (cast_type_from == 1)
-            {
-                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_fp32_to_fp16, opt, specializations);
-            }
-            else if (cast_type_to == 1)
-            {
-                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_fp16_to_fp32, opt, specializations);
-            }
+            pipeline_packing->create(LayerShaderType::packing_fp16_to_fp32, opt, specializations);
         }
     }
-
-    if (out_elempack == 4)
+    if (shape.dims == 0 || elempack < out_elempack)
     {
-        // pack4
+        size_t n0 = 0;
+        size_t n1 = 0;
+        size_t stride = 0;
+        if (dims == 1)
         {
-            std::vector<vk_specialization_type> specializations(1);
-            specializations[0].u32 = out_shape.total() / 4;
-
-            pipeline_packing = new Pipeline(vkdev);
-            pipeline_packing->set_optimal_local_size_xyz(local_size_x, 1, 1);
-
-            if (cast_type_from == cast_type_to)
-            {
-                pipeline_packing->create(LayerShaderType::packing, opt, specializations);
-            }
-            else if (cast_type_from == 1)
-            {
-                pipeline_packing->create(LayerShaderType::packing_fp32_to_fp16, opt, specializations);
-            }
-            else if (cast_type_to == 1)
-            {
-                pipeline_packing->create(LayerShaderType::packing_fp16_to_fp32, opt, specializations);
-            }
+            n0 = 1;
+            n1 = out_shape.w;
+            stride = 1;
+        }
+        if (dims == 2)
+        {
+            n0 = out_shape.w;
+            n1 = out_shape.h;
+            stride = shape.w;
+        }
+        if (dims == 3 || dims == 4)
+        {
+            n0 = out_shape.cstep;
+            n1 = out_shape.c;
+            stride = shape.cstep;
         }
 
-        // pack1to4
+        if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
         {
-            size_t n0 = 0;
-            size_t n1 = 0;
-            size_t stride = 0;
-            if (dims == 1)
-            {
-                n0 = 1;
-                n1 = out_shape.w;
-                stride = 1;
-            }
-            if (dims == 2)
-            {
-                n0 = out_shape.w;
-                n1 = out_shape.h;
-                stride = shape.w;
-            }
-            if (dims == 3 || dims == 4)
-            {
-                n0 = out_shape.cstep;
-                n1 = out_shape.c;
-                stride = shape.cstep;
-            }
-
+            // pack1to4
             std::vector<vk_specialization_type> specializations(3);
             specializations[0].u32 = n0;
             specializations[1].u32 = n1 / 4;
@@ -227,101 +115,9 @@ int Packing_vulkan::create_pipeline(const Option& opt)
             }
         }
 
-        // pack8to4
+        if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
         {
-            size_t n0 = 0;
-            size_t n1 = 0;
-            size_t stride = 0;
-            if (dims == 1)
-            {
-                n0 = 1;
-                n1 = shape.w;
-                stride = 1;
-            }
-            if (dims == 2)
-            {
-                n0 = shape.w;
-                n1 = shape.h;
-                stride = out_shape.w;
-            }
-            if (dims == 3 || dims == 4)
-            {
-                n0 = shape.cstep;
-                n1 = shape.c;
-                stride = out_shape.cstep;
-            }
-
-            std::vector<vk_specialization_type> specializations(3);
-            specializations[0].u32 = n0;
-            specializations[1].u32 = n1 / 2;
-            specializations[2].u32 = stride;
-
-            pipeline_packing_pack8to4 = new Pipeline(vkdev);
-            pipeline_packing_pack8to4->set_optimal_local_size_xyz(local_size_x, 1, 1);
-
-            if (cast_type_from == cast_type_to)
-            {
-                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4, opt, specializations);
-            }
-            else if (cast_type_from == 1)
-            {
-                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_fp32_to_fp16, opt, specializations);
-            }
-            else if (cast_type_to == 1)
-            {
-                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_fp16_to_fp32, opt, specializations);
-            }
-        }
-    }
-
-    if (out_elempack == 8)
-    {
-        // pack8
-        {
-            std::vector<vk_specialization_type> specializations(1);
-            specializations[0].u32 = out_shape.total() / 4;
-
-            pipeline_packing = new Pipeline(vkdev);
-            pipeline_packing->set_optimal_local_size_xyz(local_size_x, 1, 1);
-
-            if (cast_type_from == cast_type_to)
-            {
-                pipeline_packing->create(LayerShaderType::packing, opt, specializations);
-            }
-            else if (cast_type_from == 1)
-            {
-                pipeline_packing->create(LayerShaderType::packing_fp32_to_fp16, opt, specializations);
-            }
-            else if (cast_type_to == 1)
-            {
-                pipeline_packing->create(LayerShaderType::packing_fp16_to_fp32, opt, specializations);
-            }
-        }
-
-        // pack1to8
-        {
-            size_t n0 = 0;
-            size_t n1 = 0;
-            size_t stride = 0;
-            if (dims == 1)
-            {
-                n0 = 1;
-                n1 = out_shape.w;
-                stride = 1;
-            }
-            if (dims == 2)
-            {
-                n0 = out_shape.w;
-                n1 = out_shape.h;
-                stride = shape.w;
-            }
-            if (dims == 3 || dims == 4)
-            {
-                n0 = out_shape.cstep;
-                n1 = out_shape.c;
-                stride = shape.cstep;
-            }
-
+            // pack1to8
             std::vector<vk_specialization_type> specializations(3);
             specializations[0].u32 = n0;
             specializations[1].u32 = n1 / 8;
@@ -344,30 +140,9 @@ int Packing_vulkan::create_pipeline(const Option& opt)
             }
         }
 
-        // pack4to8
+        if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
         {
-            size_t n0 = 0;
-            size_t n1 = 0;
-            size_t stride = 0;
-            if (dims == 1)
-            {
-                n0 = 1;
-                n1 = out_shape.w;
-                stride = 1;
-            }
-            if (dims == 2)
-            {
-                n0 = out_shape.w;
-                n1 = out_shape.h;
-                stride = shape.w;
-            }
-            if (dims == 3 || dims == 4)
-            {
-                n0 = out_shape.cstep;
-                n1 = out_shape.c;
-                stride = shape.cstep;
-            }
-
+            // pack4to8
             std::vector<vk_specialization_type> specializations(3);
             specializations[0].u32 = n0;
             specializations[1].u32 = n1 / 2;
@@ -387,6 +162,105 @@ int Packing_vulkan::create_pipeline(const Option& opt)
             else if (cast_type_to == 1)
             {
                 pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8_fp16_to_fp32, opt, specializations);
+            }
+        }
+    }
+    if (shape.dims == 0 || elempack > out_elempack)
+    {
+        size_t n0 = 0;
+        size_t n1 = 0;
+        size_t stride = 0;
+        if (dims == 1)
+        {
+            n0 = 1;
+            n1 = shape.w;
+            stride = 1;
+        }
+        if (dims == 2)
+        {
+            n0 = shape.w;
+            n1 = shape.h;
+            stride = out_shape.w;
+        }
+        if (dims == 3 || dims == 4)
+        {
+            n0 = shape.cstep;
+            n1 = shape.c;
+            stride = out_shape.cstep;
+        }
+
+        if (shape.dims == 0 || (elempack == 4 && out_elempack == 1))
+        {
+            // pack4to1
+            std::vector<vk_specialization_type> specializations(3);
+            specializations[0].u32 = n0;
+            specializations[1].u32 = n1 / 4;
+            specializations[2].u32 = stride;
+
+            pipeline_packing_pack4to1 = new Pipeline(vkdev);
+            pipeline_packing_pack4to1->set_optimal_local_size_xyz(local_size_x, 1, 1);
+
+            if (cast_type_from == cast_type_to)
+            {
+                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1, opt, specializations);
+            }
+            else if (cast_type_from == 1)
+            {
+                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_fp32_to_fp16, opt, specializations);
+            }
+            else if (cast_type_to == 1)
+            {
+                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_fp16_to_fp32, opt, specializations);
+            }
+        }
+
+        if (shape.dims == 0 || (elempack == 8 && out_elempack == 1))
+        {
+            // pack8to1
+            std::vector<vk_specialization_type> specializations(3);
+            specializations[0].u32 = n0;
+            specializations[1].u32 = n1 / 8;
+            specializations[2].u32 = stride;
+
+            pipeline_packing_pack8to1 = new Pipeline(vkdev);
+            pipeline_packing_pack8to1->set_optimal_local_size_xyz(local_size_x, 1, 1);
+
+            if (cast_type_from == cast_type_to)
+            {
+                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1, opt, specializations);
+            }
+            else if (cast_type_from == 1)
+            {
+                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_fp32_to_fp16, opt, specializations);
+            }
+            else if (cast_type_to == 1)
+            {
+                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_fp16_to_fp32, opt, specializations);
+            }
+        }
+
+        if (shape.dims == 0 || (elempack == 8 && out_elempack == 4))
+        {
+            // pack8to4
+            std::vector<vk_specialization_type> specializations(3);
+            specializations[0].u32 = n0;
+            specializations[1].u32 = n1 / 2;
+            specializations[2].u32 = stride;
+
+            pipeline_packing_pack8to4 = new Pipeline(vkdev);
+            pipeline_packing_pack8to4->set_optimal_local_size_xyz(local_size_x, 1, 1);
+
+            if (cast_type_from == cast_type_to)
+            {
+                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4, opt, specializations);
+            }
+            else if (cast_type_from == 1)
+            {
+                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_fp32_to_fp16, opt, specializations);
+            }
+            else if (cast_type_to == 1)
+            {
+                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_fp16_to_fp32, opt, specializations);
             }
         }
     }
@@ -473,7 +347,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         out_elemsize = out_elempack * 4u;
     }
-    else // if (cast_type_to == 2 || cast_type_to == 3)
+    else // if (cast_type_to == 2)
     {
         out_elemsize = out_elempack * 2u;
     }

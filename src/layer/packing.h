@@ -35,8 +35,7 @@ public:
     // element type
     // 0 = auto
     // 1 = fp32
-    // 2 = fp16p
-    // 3 = fp16s
+    // 2 = fp16
     int cast_type_from;
     int cast_type_to;
 };
