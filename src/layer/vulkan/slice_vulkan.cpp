@@ -72,13 +72,9 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     }
 
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
     else
     {
@@ -273,13 +269,6 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (opt.use_fp16_packed && !opt.use_fp16_storage)
-            {
-                if (out_elempack == 8) out_elemsize = 8 * 2u;
-                if (out_elempack == 4) out_elemsize = 4 * 2u;
-                if (out_elempack == 1) out_elemsize = 4u;
-            }
-
             VkMat& top_blob = top_blobs[i];
             top_blob.create(slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
             if (top_blob.empty())
@@ -392,13 +381,6 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (opt.use_fp16_packed && !opt.use_fp16_storage)
-            {
-                if (out_elempack == 8) out_elemsize = 8 * 2u;
-                if (out_elempack == 4) out_elemsize = 4 * 2u;
-                if (out_elempack == 1) out_elemsize = 4u;
-            }
 
             VkMat& top_blob = top_blobs[i];
             top_blob.create(w, slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
@@ -589,13 +571,6 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (opt.use_fp16_packed && !opt.use_fp16_storage)
-            {
-                if (out_elempack == 8) out_elemsize = 8 * 2u;
-                if (out_elempack == 4) out_elemsize = 4 * 2u;
-                if (out_elempack == 1) out_elemsize = 4u;
-            }
 
             VkMat& top_blob = top_blobs[i];
             top_blob.create(w, h, slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
@@ -864,13 +839,6 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (opt.use_fp16_packed && !opt.use_fp16_storage)
-            {
-                if (out_elempack == 8) out_elemsize = 8 * 2u;
-                if (out_elempack == 4) out_elemsize = 4 * 2u;
-                if (out_elempack == 1) out_elemsize = 4u;
-            }
 
             VkMat& top_blob = top_blobs[i];
             top_blob.create(w, h, d, slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);

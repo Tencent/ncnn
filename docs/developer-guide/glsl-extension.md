@@ -132,7 +132,7 @@ layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 
 |storage type|fp32|fp16p|fp16s|
 |---|---|---|---|
-|sfp|float|float|float16_t|
+|sfp|float|uint|float16_t|
 |sfpvec2|vec2|uint|f16vec2|
 |sfpvec4|vec4|uvec2|f16vec4|
 |sfpvec8|mat2x4|uvec4|f16mat2x4|
@@ -457,5 +457,4 @@ layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; }
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
-|NCNN_image_shader|opt.use_image_storage|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|

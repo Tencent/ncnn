@@ -47,15 +47,10 @@ int Cast_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
     else
     {
@@ -219,13 +214,6 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     {
         // float16
         out_elemsize = 2 * elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (elempack == 8) out_elemsize = 8 * 2u;
-            if (elempack == 4) out_elemsize = 4 * 2u;
-            if (elempack == 1) out_elemsize = 4u;
-        }
 
         if (!opt.use_fp16_packed && !opt.use_fp16_storage)
         {

@@ -155,15 +155,10 @@ int Crop_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
     else
     {
@@ -187,13 +182,9 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     if ((one_blob_only || (!starts_expr.empty() && !ends_expr.empty())) && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
     {
         size_t offset_elemsize;
-        if (opt.use_fp16_storage)
+        if (opt.use_fp16_storage || opt.use_fp16_packed)
         {
             offset_elemsize = offset_elempack * 2u;
-        }
-        else if (opt.use_fp16_packed)
-        {
-            offset_elemsize = offset_elempack == 1 ? 4u : offset_elempack * 2u;
         }
         else
         {
@@ -425,13 +416,6 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-
     // unpacking
     VkMat bottom_blob_unpacked = bottom_blob;
     if (elempack == out_elempack && elempack > offset_elempack)
@@ -619,13 +603,6 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     offset_elempack = std::min(offset_elempack, elempack);
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
 
     // unpacking
     VkMat bottom_blob_unpacked = bottom_blob;

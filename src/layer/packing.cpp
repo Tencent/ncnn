@@ -30,9 +30,6 @@ int Packing::load_param(const ParamDict& pd)
     cast_type_from = pd.get(2, 0);
     cast_type_to = pd.get(3, 0);
 
-    storage_type_from = pd.get(4, 0);
-    storage_type_to = pd.get(5, 0);
-
     return 0;
 }
 
