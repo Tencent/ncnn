@@ -14,17 +14,23 @@
 
 #version 450
 
-layout (constant_id = 0) const uint n0 = 0;
-layout (constant_id = 1) const uint n1 = 0;
-layout (constant_id = 2) const uint stride = 0;
+layout (constant_id = 0) const int cast_type_from = 0;
+layout (constant_id = 1) const int cast_type_to = 1;
+
+#define shape_constant_id_offset 2
+layout (constant_id = shape_constant_id_offset + 0) const uint n = 0;
+layout (constant_id = shape_constant_id_offset + 1) const uint c = 0;
+layout (constant_id = shape_constant_id_offset + 2) const uint stride = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
+layout (binding = 1) readonly buffer bottom_blob_fp32 { vec4 bottom_blob_fp32_data[]; };
+layout (binding = 2) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
+layout (binding = 3) writeonly buffer top_blob_fp32 { mat2x4 top_blob_fp32_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    uint n0;
-    uint n1;
+    uint n;
+    uint c;
     uint stride;
 } p;
 
@@ -33,12 +39,37 @@ void main()
     const uint gx = gl_GlobalInvocationID.x;
     const uint gy = gl_GlobalInvocationID.y;
 
-    if (gx >= psc(n0) || gy >= psc(n1))
+    if (gx >= psc(n) || gy >= psc(c))
         return;
 
     const uvec2 gi2 = (gy * 2 + uvec2(0, 1)) * psc(stride) + gx;
 
-    const uint gi = gy * psc(n0) + gx;
+    const uint gi = gy * psc(n) + gx;
 
-    buffer_cp4to8(top_blob_data, gi, bottom_blob_data, gi2);
+    if (cast_type_from == cast_type_to)
+    {
+        buffer_cp4to8(top_blob_data, gi, bottom_blob_data, gi2);
+        return;
+    }
+
+    afpvec8 v;
+    if (cast_type_from == 1)
+    {
+        v[0] = afpvec4(bottom_blob_fp32_data[gi2.r]);
+        v[1] = afpvec4(bottom_blob_fp32_data[gi2.g]);
+    }
+    else
+    {
+        v[0] = buffer_ld4(bottom_blob_data, gi2.r);
+        v[1] = buffer_ld4(bottom_blob_data, gi2.g);
+    }
+
+    if (cast_type_to == 1)
+    {
+        top_blob_fp32_data[gi] = mat2x4(vec4(v[0]), vec4(v[1]));
+    }
+    else
+    {
+        buffer_st8(top_blob_data, gi, v);
+    }
 }

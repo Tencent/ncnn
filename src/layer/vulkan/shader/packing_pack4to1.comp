@@ -14,17 +14,23 @@
 
 #version 450
 
-layout (constant_id = 0) const uint n0 = 0;
-layout (constant_id = 1) const uint n1 = 0;
-layout (constant_id = 2) const uint stride = 0;
+layout (constant_id = 0) const int cast_type_from = 0;
+layout (constant_id = 1) const int cast_type_to = 1;
+
+#define shape_constant_id_offset 2
+layout (constant_id = shape_constant_id_offset + 0) const uint n = 0;
+layout (constant_id = shape_constant_id_offset + 1) const uint c = 0;
+layout (constant_id = shape_constant_id_offset + 2) const uint stride = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 1) readonly buffer bottom_blob_fp32 { vec4 bottom_blob_fp32_data[]; };
+layout (binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 3) writeonly buffer top_blob_fp32 { float top_blob_fp32_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    uint n0;
-    uint n1;
+    uint n;
+    uint c;
     uint stride;
 } p;
 
@@ -33,12 +39,42 @@ void main()
     const uint gx = gl_GlobalInvocationID.x;
     const uint gy = gl_GlobalInvocationID.y;
 
-    if (gx >= psc(n0) || gy >= psc(n1))
+    if (gx >= psc(n) || gy >= psc(c))
         return;
 
-    const uint gi = gy * psc(n0) + gx;
+    const uint gi = gy * psc(n) + gx;
 
     const uvec4 gi4 = (gy * 4 + uvec4(0, 1, 2, 3)) * psc(stride) + gx;
 
-    buffer_cp4to1(top_blob_data, gi4, bottom_blob_data, gi);
+    if (cast_type_from == cast_type_to)
+    {
+        buffer_cp4to1(top_blob_data, gi4, bottom_blob_data, gi);
+        return;
+    }
+
+    afpvec4 v;
+    if (cast_type_from == 1)
+    {
+        v = afpvec4(bottom_blob_fp32_data[gi]);
+    }
+    else
+    {
+        v = buffer_ld4(bottom_blob_data, gi);
+    }
+
+    if (cast_type_to == 1)
+    {
+        vec4 vf = vec4(v);
+        top_blob_fp32_data[gi4.r] = vf.r;
+        top_blob_fp32_data[gi4.g] = vf.g;
+        top_blob_fp32_data[gi4.b] = vf.b;
+        top_blob_fp32_data[gi4.a] = vf.a;
+    }
+    else
+    {
+        buffer_st1(top_blob_data, gi4.r, v.r);
+        buffer_st1(top_blob_data, gi4.g, v.g);
+        buffer_st1(top_blob_data, gi4.b, v.b);
+        buffer_st1(top_blob_data, gi4.a, v.a);
+    }
 }
