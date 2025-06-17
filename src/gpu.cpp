@@ -2989,7 +2989,7 @@ public:
     void destroy_dummy_buffer_image();
 
     // utility operator
-    const ncnn::Packing_vulkan* get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
+    const ncnn::Packing_vulkan* get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
     void destroy_utility_operator();
 
     VkDevice device;
@@ -3095,7 +3095,7 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
     }
 }
 
-const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
+const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
 {
     MutexLockGuard lock(uop_lock);
 
@@ -3151,8 +3151,6 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storag
     pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4 : 8); // out_elempack
     pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16p 3=fp16s
     pd.set(3, cast_type_to_index + 1);
-    pd.set(4, storage_type_from); // 0=buffer 1=image
-    pd.set(5, storage_type_to);
 
     uop->load_param(pd);
 
@@ -4275,7 +4273,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
     // NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = d->get_utility_operator(0, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    const ncnn::Packing_vulkan* uop = d->get_utility_operator(cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
 

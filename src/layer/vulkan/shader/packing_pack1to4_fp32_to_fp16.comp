@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2025 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -14,112 +14,37 @@
 
 #version 450
 
-layout (constant_id = 0) const int storage_type_from = 0;
-layout (constant_id = 1) const int storage_type_to = 0;
+layout (constant_id = 0) const uint n0 = 0;
+layout (constant_id = 1) const uint n1 = 0;
+layout (constant_id = 2) const uint stride = 0;
 
-#define shape_constant_id_offset 2
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
-
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
-
-layout (binding = 0) readonly buffer bottom_blob_fp32 { float bottom_blob_fp32_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
-    int w;
-    int h;
-    int c;
-    int cstep;
-
-    int outdims;
-    int outw;
-    int outh;
-    int outc;
-    int outcstep;
+    uint n0;
+    uint n1;
+    uint stride;
 } p;
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    const uint gx = gl_GlobalInvocationID.x;
+    const uint gy = gl_GlobalInvocationID.y;
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(n0) || gy >= psc(n1))
         return;
 
-    afpvec4 v;
+    const uvec4 gi4 = (gy * 4 + uvec4(0, 1, 2, 3)) * psc(stride) + gx;
 
-    if (psc(dims) == 1)
-    {
-        if (storage_type_from == 0)
-        {
-            ivec4 x4 = ivec4(gx * 4) + ivec4(0, 1, 2, 3);
+    vec4 v;
+    v.r = bottom_blob_data[gi4.r];
+    v.g = bottom_blob_data[gi4.g];
+    v.b = bottom_blob_data[gi4.b];
+    v.a = bottom_blob_data[gi4.a];
 
-            ivec4 v_offset = x4;
+    const uint gi = gy * psc(n0) + gx;
 
-            v.r = afp(bottom_blob_fp32_data[v_offset.r]);
-            v.g = afp(bottom_blob_fp32_data[v_offset.g]);
-            v.b = afp(bottom_blob_fp32_data[v_offset.b]);
-            v.a = afp(bottom_blob_fp32_data[v_offset.a]);
-        }
-
-        if (storage_type_to == 0)
-        {
-            int gi = gx;
-
-            buffer_st4(top_blob_data, gi, v);
-        }
-    }
-    else if (psc(dims) == 2)
-    {
-        if (storage_type_from == 0)
-        {
-            ivec4 y4 = ivec4(gy * 4) + ivec4(0, 1, 2, 3);
-
-            ivec4 v_offset = y4 * psc(w) + gx;
-
-            v.r = afp(bottom_blob_fp32_data[v_offset.r]);
-            v.g = afp(bottom_blob_fp32_data[v_offset.g]);
-            v.b = afp(bottom_blob_fp32_data[v_offset.b]);
-            v.a = afp(bottom_blob_fp32_data[v_offset.a]);
-        }
-
-        if (storage_type_to == 0)
-        {
-            int gi = gy * psc(outw) + gx;
-
-            buffer_st4(top_blob_data, gi, v);
-        }
-    }
-    else // if (psc(dims) == 3)
-    {
-        if (storage_type_from == 0)
-        {
-            ivec4 z4 = ivec4(gz * 4) + ivec4(0, 1, 2, 3);
-
-            ivec4 v_offset = z4 * psc(cstep) + ivec4(gy * psc(w) + gx);
-
-            v.r = afp(bottom_blob_fp32_data[v_offset.r]);
-            v.g = afp(bottom_blob_fp32_data[v_offset.g]);
-            v.b = afp(bottom_blob_fp32_data[v_offset.b]);
-            v.a = afp(bottom_blob_fp32_data[v_offset.a]);
-        }
-
-        if (storage_type_to == 0)
-        {
-            int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
-
-            buffer_st4(top_blob_data, gi, v);
-        }
-    }
+    buffer_st4(top_blob_data, gi, afpvec4(v));
 }

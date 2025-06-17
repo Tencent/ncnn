@@ -357,7 +357,7 @@ VkCompute::~VkCompute()
 
 void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 {
-    //     NCNN_LOGE("record_upload buffer");
+    // NCNN_LOGE("record_upload buffer");
 
     Mat src_fp16;
     if (src.elemsize == src.elempack * 4u)
@@ -415,7 +415,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
 void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 {
-    //     NCNN_LOGE("record_download buffer");
+    // NCNN_LOGE("record_download buffer");
 
     // resolve dst_elempack
     int dims = src.dims;

@@ -39,12 +39,6 @@ public:
     // 3 = fp16s
     int cast_type_from;
     int cast_type_to;
-
-    // storage type
-    // 0 = buffer
-    // 1 = image
-    int storage_type_from;
-    int storage_type_to;
 };
 
 } // namespace ncnn
