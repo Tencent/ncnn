@@ -31,7 +31,6 @@
 
 #include "command.h"
 #include "layer.h"
-#include "layer/vulkan/packing_vulkan.h"
 #include "layer_type.h"
 #include "mat.h"
 #include "pipelinecache.h"
@@ -2989,7 +2988,7 @@ public:
     void destroy_dummy_buffer_image();
 
     // utility operator
-    const ncnn::Packing_vulkan* get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
+    const ncnn::Layer* get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
     void destroy_utility_operator();
 
     VkDevice device;
@@ -3032,7 +3031,7 @@ public:
     // from fp32-b/i | fp16-b/i
     // to fp32-b/i | fp16-b/i
     // to pack1 | pack4 | pack8
-    mutable ncnn::Packing_vulkan* uop_packing[2][2][3];
+    mutable ncnn::Layer* uop_packing[2][2][3];
     mutable Mutex uop_lock;
 
     // device is valid and sucessfully initialized
@@ -3095,11 +3094,11 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
     }
 }
 
-const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
+const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
 {
     MutexLockGuard lock(uop_lock);
 
-    const ncnn::Packing_vulkan* cached_uop = uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    const ncnn::Layer* cached_uop = uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index];
     if (cached_uop)
         return cached_uop;
 
@@ -3128,7 +3127,7 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int cast_t
 
     opt.vulkan_device_index = vkdev->info.device_index();
 
-    ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
+    ncnn::Layer* uop = ncnn::create_layer_vulkan(LayerType::Packing);
     uop->vkdev = vkdev;
 
     ncnn::ParamDict pd;
@@ -4242,8 +4241,12 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
     // NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = d->get_utility_operator(cast_type_from_index, cast_type_to_index, packing_type_to_index);
-    uop->forward(src, dst, cmd, opt);
+    Option opt2 = opt;
+    opt2.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
+    opt2.use_fp16_storage = (cast_type_from_index == 1 || cast_type_to_index == 1) && info.support_fp16_storage();
+
+    const ncnn::Layer* uop = d->get_utility_operator(cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    uop->forward(src, dst, cmd, opt2);
 }
 
 int VulkanDevice::init_device_extension()

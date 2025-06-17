@@ -413,17 +413,10 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     int cast_type_to = 0;
     if (vkdev->info.type() != 0)
     {
-        if (dst_staging.elemsize == dst_staging.elempack * 4u)
-        {
-            if (opt.use_fp16_storage || opt.use_fp16_packed)
-                cast_type_to = 2;
-            else
-                cast_type_to = 1;
-        }
+        if (opt.use_fp16_storage || opt.use_fp16_packed)
+            cast_type_to = 2;
         else
-        {
             cast_type_to = 1;
-        }
     }
     vkdev->convert_packing(dst_staging, dst, dst_elempack, cast_type_to, *this, opt);
 }
@@ -454,17 +447,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     int cast_type_to = 0;
     if (vkdev->info.type() != 0)
     {
-        if (src.elemsize == src.elempack * 2u)
-        {
-            if (opt.use_fp16_storage || opt.use_fp16_packed)
-                cast_type_to = 2;
-            else
-                cast_type_to = 1;
-        }
-        else
-        {
-            cast_type_to = 1;
-        }
+        cast_type_to = 1;
     }
 
     VkMat dst_staging;

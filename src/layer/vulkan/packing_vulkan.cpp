@@ -47,8 +47,44 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
     if (shape.dims == 0 || elempack == out_elempack)
     {
-        std::vector<vk_specialization_type> specializations(1);
-        specializations[0].u32 = out_shape.total() / 4;
+        size_t n0 = 0;
+        size_t n1 = 0;
+        size_t stride = 0;
+        if (cast_type_from == 1)
+        {
+            if (dims == 1 || dims == 2)
+            {
+                n0 = shape.cstep;
+                n1 = 1;
+                stride = out_shape.cstep;
+            }
+            if (dims == 3 || dims == 4)
+            {
+                n0 = shape.cstep;
+                n1 = shape.c;
+                stride = out_shape.cstep;
+            }
+        }
+        else // if (cast_type_to == 1)
+        {
+            if (dims == 1 || dims == 2)
+            {
+                n0 = out_shape.cstep;
+                n1 = 1;
+                stride = shape.cstep;
+            }
+            if (dims == 3 || dims == 4)
+            {
+                n0 = out_shape.cstep;
+                n1 = out_shape.c;
+                stride = shape.cstep;
+            }
+        }
+
+        std::vector<vk_specialization_type> specializations(3);
+        specializations[0].u32 = n0 / 4;
+        specializations[1].u32 = n1;
+        specializations[2].u32 = stride / 4;
 
         pipeline_packing = new Pipeline(vkdev);
         pipeline_packing->set_optimal_local_size_xyz(local_size_x, 1, 1);
@@ -404,14 +440,48 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (elempack == out_elempack)
     {
-        const size_t n = top_blob.total() * top_blob.elempack / 4;
+        size_t n0 = 0;
+        size_t n1 = 0;
+        size_t stride = 0;
+        if (cast_type_from == 1)
+        {
+            if (dims == 1 || dims == 2)
+            {
+                n0 = bottom_blob.cstep * elempack;
+                n1 = 1;
+                stride = top_blob.cstep * out_elempack;
+            }
+            if (dims == 3 || dims == 4)
+            {
+                n0 = bottom_blob.cstep * elempack;
+                n1 = bottom_blob.c;
+                stride = top_blob.cstep * out_elempack;
+            }
+        }
+        else // if (cast_type_to == 1)
+        {
+            if (dims == 1 || dims == 2)
+            {
+                n0 = top_blob.cstep * out_elempack;
+                n1 = 1;
+                stride = bottom_blob.cstep * elempack;
+            }
+            if (dims == 3 || dims == 4)
+            {
+                n0 = top_blob.cstep * out_elempack;
+                n1 = top_blob.c;
+                stride = bottom_blob.cstep * elempack;
+            }
+        }
 
-        std::vector<vk_constant_type> constants(1);
-        constants[0].u32 = n;
+        std::vector<vk_constant_type> constants(3);
+        constants[0].u32 = n0 / 4;
+        constants[1].u32 = n1;
+        constants[2].u32 = stride / 4;
 
         VkMat dispatcher;
-        dispatcher.w = n;
-        dispatcher.h = 1;
+        dispatcher.w = n0 / 4;
+        dispatcher.h = n1;
         dispatcher.c = 1;
 
         cmd.record_pipeline(pipeline_packing, buffer_bindings, constants, dispatcher);
