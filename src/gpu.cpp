@@ -3107,8 +3107,8 @@ const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int cast_t
 
     // create uop
     Option opt;
-    opt.use_fp16_packed = use_fp16;
-    opt.use_fp16_storage = use_fp16;
+    opt.use_fp16_packed = use_fp16; // fp16p is always supported
+    opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
 
     // fp16/int8 arithmetic are not necessary for packing
     // and may conflict with storage options
