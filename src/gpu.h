@@ -256,11 +256,9 @@ public:
 
     // runtime
     uint32_t compute_queue_family_index() const;
-    uint32_t graphics_queue_family_index() const;
     uint32_t transfer_queue_family_index() const;
 
     uint32_t compute_queue_count() const;
-    uint32_t graphics_queue_count() const;
     uint32_t transfer_queue_count() const;
 
     // property
