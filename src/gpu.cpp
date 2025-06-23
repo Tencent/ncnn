@@ -4823,55 +4823,62 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     if (opt.use_int8_storage)
     {
-        custom_defines.push_back(std::make_pair("sint", "int8_t"));
-        custom_defines.push_back(std::make_pair("sintvec4", "i8vec4"));
+        custom_defines.append(std::make_pair("sint8", "int8_t");
+        custom_defines.append(std::make_pair("sint8vec4", "int");
+        // custom_defines.append(std::make_pair("sint8vec8", "ivec2"));
     }
     else if (opt.use_int8_packed)
     {
-        custom_defines.push_back(std::make_pair("sint", "int"));
-        custom_defines.push_back(std::make_pair("sintvec4", "uint"));
-        custom_defines.push_back(std::make_pair("sintvec8", "uvec2"));
+        custom_defines.append(std::make_pair("sint8", "int");
+        custom_defines.append(std::make_pair("sint8vec4", "int");
+        // custom_defines.append(std::make_pair("sint8vec8", "ivec2"));
     }
     else
     {
-        custom_defines.push_back(std::make_pair("sint", "int"));
-        custom_defines.push_back(std::make_pair("sintvec4", "ivec4"));
+        custom_defines.append(std::make_pair("sint8", "int");
+        custom_defines.append(std::make_pair("sint8vec4", "int");
+        // custom_defines.append(std::make_pair("sint8vec8", "ivec2"));
     }
 
-    if (1) // opt.use_int8_arithmetic
-    {
-        // i8 extended to i32 for all integer arithmetic
-        custom_defines.push_back(std::make_pair("aint", "int"));
-        custom_defines.push_back(std::make_pair("aintvec4", "ivec4"));
-    }
+    // if (opt.use_int8_arithmetic)
+    // {
+    //     custom_defines.append(std::make_pair("aint8", "int8_t"));
+    //     custom_defines.append(std::make_pair("aint8vec4", "i8vec4"));
+    // }
+    custom_defines.append("aint8", "int");
+    custom_defines.append("aint8vec4", "ivec4");
 
-    if (opt.use_int8_storage)
-    {
-        custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(buf[i])"));
-        custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=int8_t(v);}"));
-        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(buf[i])"));
-        custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=i8vec4(v);}"));
-        custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(buf[i].abcd),ivec4(buf[i].efgh))"));
-        custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].abcd=i8vec4(v.abcd);buf[i].efgh=i8vec4(v.efgh);}"));
-    }
-    else if (opt.use_int8_packed)
-    {
-        custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(round(buf[i]))"));
-        custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
-        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(int(buf[i]&255)-127, int((buf[i]>>8)&255)-127, int((buf[i]>>16)&255)-127, int((buf[i]>>24)&255)-127)"));
-        custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=uint(((v.r+127)) | ((v.g+127)<<8) | ((v.b+127)<<16) | ((v.a+127)<<24));}"));
-        custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(int(buf[i].x&255)-127, int((buf[i].x>>8)&255)-127, int((buf[i].x>>16)&255)-127, int((buf[i].x>>24)&255)-127),ivec4(int(buf[i].y&255)-127, int((buf[i].y>>8)&255)-127, int((buf[i].y>>16)&255)-127, int((buf[i].y>>24)&255)-127))"));
-        custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].x=uint(((v.abcd.r+127)) | ((v.abcd.g+127)<<8) | ((v.abcd.b+127)<<16) | ((v.abcd.a+127)<<24));buf[i].y=uint(((v.efgh.r+127)) | ((v.efgh.g+127)<<8) | ((v.efgh.b+127)<<16) | ((v.efgh.a+127)<<24));}"));
-    }
-    else
-    {
-        custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(round(buf[i]))"));
-        custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
-        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(round(buf[i]))"));
-        custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=vec4(v);}"));
-        custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(round(buf[i].abcd)), ivec4(round(buf[i].efgh)))"));
-        custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].abcd=vec4(v.abcd);buf[i].efgh=vec4(v.efgh);}"));
-    }
+    custom_defines.append("i8buffer_ld4(buf,i)", "ivec4(((buf[i]) << 24) >> 24,((buf[i]) << 16) >> 24,((buf[i]) << 8) >> 24,(buf[i]) >> 24)");
+    custom_defines.append("i8buffer_st4(buf,i,v)", "{uint _pv = (uint(v.x) & 0xFFu) |((uint(v.y) & 0xFFu) << 8) |((uint(v.z) & 0xFFu) << 16) |((uint(v.w) & 0xFFu) << 24); buf[i]=_pv;}");
+    custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+
+    // if (opt.use_int8_storage)
+    // {
+    //     // custom_defines.push_back(std::make_pair("i8buffer_ld1(buf,i)", "int(buf[i])"));
+    //     // custom_defines.push_back(std::make_pair("i8buffer_st1(buf,i,v)", "{buf[i]=int8_t(v);}"));
+    //     custom_defines.push_back(std::make_pair("i8buffer_ld4(buf,i)", "ivec4(buf[i])"));
+    //     custom_defines.push_back(std::make_pair("i8buffer_st4(buf,i,v)", "{buf[i]=i8vec4(v);}"));
+    //     // custom_defines.push_back(std::make_pair("i8buffer_ld8(buf,i)", "aintvec8(ivec4(buf[i].abcd),ivec4(buf[i].efgh))"));
+    //     // custom_defines.push_back(std::make_pair("i8buffer_st8(buf,i,v)", "{buf[i].abcd=i8vec4(v.abcd);buf[i].efgh=i8vec4(v.efgh);}"));
+    // }
+    // else if (opt.use_int8_packed)
+    // {
+    //     custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(round(buf[i]))"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(int(buf[i]&255)-127, int((buf[i]>>8)&255)-127, int((buf[i]>>16)&255)-127, int((buf[i]>>24)&255)-127)"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=uint(((v.r+127)) | ((v.g+127)<<8) | ((v.b+127)<<16) | ((v.a+127)<<24));}"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(int(buf[i].x&255)-127, int((buf[i].x>>8)&255)-127, int((buf[i].x>>16)&255)-127, int((buf[i].x>>24)&255)-127),ivec4(int(buf[i].y&255)-127, int((buf[i].y>>8)&255)-127, int((buf[i].y>>16)&255)-127, int((buf[i].y>>24)&255)-127))"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].x=uint(((v.abcd.r+127)) | ((v.abcd.g+127)<<8) | ((v.abcd.b+127)<<16) | ((v.abcd.a+127)<<24));buf[i].y=uint(((v.efgh.r+127)) | ((v.efgh.g+127)<<8) | ((v.efgh.b+127)<<16) | ((v.efgh.a+127)<<24));}"));
+    // }
+    // else
+    // {
+    //     custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(round(buf[i]))"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(round(buf[i]))"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=vec4(v);}"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(round(buf[i].abcd)), ivec4(round(buf[i].efgh)))"));
+    //     custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].abcd=vec4(v.abcd);buf[i].efgh=vec4(v.efgh);}"));
+    // }
 
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
 

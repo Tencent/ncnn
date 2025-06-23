@@ -332,7 +332,11 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         out_elemsize = out_elempack * 4u;
     }
-    else // if (cast_type_to == 2)
+    else if (cast_type_to == 2)
+    {
+        out_elemsize = out_elempack * 2u;
+    }
+    else // if (cast_type_to == 3)
     {
         out_elemsize = out_elempack * 1u;
     }
