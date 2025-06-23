@@ -4851,7 +4851,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("unpackInt4x8(v)", "ivec4((v<<24)>>24,(v<<16)>>24,(v<<8)>>24,v>>24)");
     custom_defines.append("packInt4x8(v)", "int((uint(v.r)&0xFFu)|((uint(v.g)&0xFFu)<<8)|((uint(v.b)&0xFFu)<<16)|((uint(v.a)&0xFFu)<<24))");
 
-        // custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+    // custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
 
     if (opt.use_int8_storage)
     {
@@ -4866,7 +4866,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         // custom_defines.append("i8buffer_cp1to8(buf,i,sbuf,si4,sii4)", "{uvec4 _si4d4=uvec4(si4)/4;uvec4 _sii4d4=uvec4(sii4)/4;uvec4 _si4m4=uvec4(si4)%4;uvec4 _sii4m4=uvec4(sii4)%4;buf[i]=ivec2(packInt4x8(ivec4(unpackInt4x8(sbuf[_si4d4.r])[_si4m4.r],unpackInt4x8(sbuf[_si4d4.g])[_si4m4.g],unpackInt4x8(sbuf[_si4d4.b])[_si4m4.b],unpackInt4x8(sbuf[_si4d4.a])[_si4m4.a])),packInt4x8(ivec4(unpackInt4x8(sbuf[_sii4d4.r])[_sii4m4.r],unpackInt4x8(sbuf[_sii4d4.g])[_sii4m4.g],unpackInt4x8(sbuf[_sii4d4.b])[_sii4m4.b],unpackInt4x8(sbuf[_sii4d4.a])[_sii4m4.a])));}");
 
         // custom_defines.append("i8buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{ivec8 _v=sbuf[si]; ivec4 _v0=unpackInt4x8(_v.abcd);ivec4 _v1=unpackInt4x8(_v.efgh);i8buffer_st1(buf,i4.r,_v0.r);i8buffer_st1(buf,i4.g,_v0.g);i8buffer_st1(buf,i4.b,_v0.b);i8buffer_st1(buf,i4.a,_v0.a);i8buffer_st1(buf,ii4.r,_v1.r);i8buffer_st1(buf,ii4.g,_v1.g);i8buffer_st1(buf,ii4.b,_v1.b);i8buffer_st1(buf,ii4.a,_v1.a);}");
-
     }
 
     custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
