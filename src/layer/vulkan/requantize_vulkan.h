@@ -31,15 +31,11 @@ public:
 
     using Requantize::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     VkMat scale_in_data_gpu;
     VkMat scale_out_data_gpu;
     VkMat bias_data_gpu;
-    VkImageMat scale_in_data_gpu_image;
-    VkImageMat scale_out_data_gpu_image;
-    VkImageMat bias_data_gpu_image;
 
     Pipeline* pipeline_requantize;
     Pipeline* pipeline_requantize_pack4;

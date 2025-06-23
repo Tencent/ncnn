@@ -4189,23 +4189,6 @@ bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
             return false;
         }
     }
-    else // if (src.elembits() == 8)
-    {
-        cast_type_to_index = opt.use_int8_storage ? 5 : opt.use_int8_packed ? 4 : 3;
-
-        if (cast_type_to_index != 0)
-        {
-            cast_type_from_index = cast_type_to_index;
-        }
-        else if (info.support_int8_storage())
-        {
-            cast_type_from_index = 5;
-        }
-        else // if (info.support_int8_packed())
-        {
-            cast_type_from_index = 4;
-        }
-    }
 
     return true;
 }
@@ -4226,23 +4209,6 @@ uint32_t VulkanDevice::get_heap_budget() const
         // 70% for 4G+
         // 50% for 4G-
         return device_local_heap_size >= 4000 ? device_local_heap_size * 0.7 : device_local_heap_size * 0.5;
-    }
-    else // if (src.elembits() == 8)
-    {
-        cast_type_to_index = opt.use_int8_storage ? 5 : opt.use_int8_packed ? 4 : 3;
-
-        if (cast_type_to_index != 0)
-        {
-            cast_type_from_index = cast_type_to_index;
-        }
-        else if (info.support_int8_storage())
-        {
-            cast_type_from_index = 5;
-        }
-        else // if (info.support_int8_packed())
-        {
-            cast_type_from_index = 4;
-        }
     }
 
     VkPhysicalDeviceMemoryBudgetPropertiesEXT memoryBudgetProperties;
@@ -4278,20 +4244,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     }
     else // if (src.elembits() == 8)
     {
-        cast_type_to_index = opt.use_int8_storage ? 5 : opt.use_int8_packed ? 4 : 3;
-
-        if (cast_type_to_index != 0)
-        {
-            cast_type_from_index = cast_type_to_index;
-        }
-        else if (info.support_int8_storage())
-        {
-            cast_type_from_index = 5;
-        }
-        else // if (info.support_int8_packed())
-        {
-            cast_type_from_index = 4;
-        }
+        cast_type_from_index = 2;
     }
 
     int cast_type_to_index = cast_type_to ? cast_type_to - 1 : cast_type_from_index;
@@ -4301,6 +4254,8 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     Option opt2 = opt;
     opt2.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
     opt2.use_fp16_storage = (cast_type_from_index == 1 || cast_type_to_index == 1) && info.support_fp16_storage();
+    opt2.use_int8_packed = (cast_type_from_index == 2 || cast_type_to_index == 2);
+    opt2.use_int8_storage = (cast_type_from_index == 2 || cast_type_to_index == 2) && info.support_int8_storage();
 
     const ncnn::Layer* uop = d->get_utility_operator(cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt2);

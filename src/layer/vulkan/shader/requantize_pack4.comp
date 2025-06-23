@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 #if NCNN_int8_storage
 #extension GL_EXT_shader_8bit_storage: require
 #endif
@@ -54,19 +47,11 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform iunfp isampler3D bottom_blob_3d;
-layout (binding = 1, iimfmtc4) writeonly uniform iunfp iimage3d top_blob_3d;
-layout (binding = 2) uniform unfp sampler3D scale_in_blob;
-layout (binding = 3) uniform unfp sampler3D scale_out_blob;
-layout (binding = 4) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { ivec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sintvec4 top_blob_data[]; };
 layout (binding = 2) readonly buffer scale_in_blob { sfpvec4 scale_in_blob_data[]; };
 layout (binding = 3) readonly buffer scale_out_blob { sfpvec4 scale_out_blob_data[]; };
 layout (binding = 4) readonly buffer bias_blob { sfpvec4 bias_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -92,13 +77,9 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-#if NCNN_image_shader
-    ivec4 v = iimage3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
-#else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     ivec4 v = bottom_blob_data[gi];
-#endif
 
     afpvec4 scale_in;
 
@@ -111,11 +92,7 @@ void main()
         const ivec3 gxyz = ivec3(gx, gy, gz);
         const int abi = gxyz[psc(dims) - 1];
 
-#if NCNN_image_shader
-        scale_in = image3d_ld4(scale_in_blob, ivec3(abi, 0, 0));
-#else
         scale_in = buffer_ld4(scale_in_blob_data, abi);
-#endif
     }
 
     afpvec4 v_fp;
@@ -133,11 +110,7 @@ void main()
         const ivec3 gxyz = ivec3(gx, gy, gz);
         const int abi = gxyz[psc(dims) - 1];
 
-#if NCNN_image_shader
-        afpvec4 bias = image3d_ld4(bias_blob, ivec3(abi, 0, 0));
-#else
         afpvec4 bias = buffer_ld4(bias_blob_data, abi);
-#endif
         v_fp = afpvec4(v) * scale_in + bias;
     }
 
@@ -154,20 +127,12 @@ void main()
         const ivec3 gxyz = ivec3(gx, gy, gz);
         const int abi = gxyz[psc(dims) - 1];
 
-#if NCNN_image_shader
-        scale_out = image3d_ld4(scale_out_blob, ivec3(abi, 0, 0));
-#else
         scale_out = buffer_ld4(scale_out_blob_data, abi);
-#endif
     }
 
     aintvec4 v_int = aintvec4(round(clamp(v_fp * scale_out, afp(-127.f), afp(127.f))));
 
-#if NCNN_image_shader
-    iimage3d_st4(top_blob_3d, ivec3(gx, gy, gz), v_int);
-#else
     const int outgi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     ibuffer_st4(top_blob_data, outgi, v_int);
-#endif
 }

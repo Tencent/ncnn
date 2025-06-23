@@ -14,13 +14,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (constant_id = 0) const int scale_data_size = 0;
 layout (constant_id = 1) const float scale_value = 1.f;
 layout (constant_id = 2) const int bias_data_size = 0;
@@ -39,17 +32,10 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform iunfp isampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
-layout (binding = 2) uniform unfp sampler3D scale_blob;
-layout (binding = 3) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { int bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 2) readonly buffer scale_blob { sfp scale_blob_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfp bias_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -75,13 +61,9 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-#if NCNN_image_shader
-    int v = iimage3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-#else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     int v = bottom_blob_data[gi];
-#endif
 
     afp scale;
 
@@ -94,11 +76,7 @@ void main()
         const ivec3 gxyz = ivec3(gx, gy, gz);
         const int abi = gxyz[psc(dims) - 1];
 
-#if NCNN_image_shader
-        scale = image3d_ld1(scale_blob, ivec3(abi, 0, 0));
-#else
         scale = buffer_ld1(scale_blob_data, abi);
-#endif
     }
 
     afp v_fp;
@@ -116,20 +94,12 @@ void main()
         const ivec3 gxyz = ivec3(gx, gy, gz);
         const int abi = gxyz[psc(dims) - 1];
 
-#if NCNN_image_shader
-        afp bias = image3d_ld1(bias_blob, ivec3(abi, 0, 0));
-#else
         afp bias = buffer_ld1(bias_blob_data, abi);
-#endif
 
         v_fp = afp(v) * scale + bias;
     }
 
-#if NCNN_image_shader
-    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v_fp);
-#else
     const int outgi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st1(top_blob_data, outgi, v_fp);
-#endif
 }
