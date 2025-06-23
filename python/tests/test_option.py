@@ -113,11 +113,6 @@ def test_option():
     opt.use_subgroup_ops = False
     assert opt.use_subgroup_ops == False
 
-    opt.use_image_storage = True
-    assert opt.use_image_storage == True
-    opt.use_image_storage = False
-    assert opt.use_image_storage == False
-
     opt.use_tensor_storage = True
     assert opt.use_tensor_storage == True
     opt.use_tensor_storage = False

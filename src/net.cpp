@@ -53,7 +53,6 @@ public:
 
 #if NCNN_VULKAN
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
     int convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const;
@@ -61,7 +60,6 @@ public:
     int do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats, const Option& opt) const;
 #if NCNN_VULKAN
     int do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
-    int do_forward_layer(const Layer* layer, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
     void update_input_output_indexes();
@@ -121,7 +119,6 @@ static Option get_masked_option(const Option& opt, int featmask)
     opt1.use_int8_storage = opt1.use_int8_storage && !(featmask & (1 << 3));
     opt1.use_int8_arithmetic = opt1.use_int8_arithmetic && !(featmask & (1 << 3));
     opt1.use_vulkan_compute = opt1.use_vulkan_compute && !(featmask & (1 << 4));
-    opt1.use_image_storage = opt1.use_image_storage && !(featmask & (1 << 4));
     opt1.use_tensor_storage = opt1.use_tensor_storage && !(featmask & (1 << 4));
     opt1.use_sgemm_convolution = opt1.use_sgemm_convolution && !(featmask & (1 << 5));
     opt1.use_winograd_convolution = opt1.use_winograd_convolution && !(featmask & (1 << 6));
@@ -1040,14 +1037,6 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
-        if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
-
-        if (opt.use_image_storage && !d->vkdev->info.support_fp16_image())
-        {
-            opt.use_fp16_storage = false;
-            opt.use_fp16_uniform = false;
-        }
-
         // enable local memory optimization on discrete gpu only
         if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
 
@@ -1223,12 +1212,6 @@ int Net::load_param(const DataReader& dr)
         }
 
         Option opt1 = get_masked_option(opt, layer->featmask);
-#if NCNN_VULKAN
-        if (opt1.use_vulkan_compute)
-        {
-            if (!layer->support_image_storage) opt1.use_image_storage = false;
-        }
-#endif // NCNN_VULKAN
 
         if (layer_support_vulkan && (!layer->support_vulkan || !opt1.use_vulkan_compute))
         {
@@ -1352,14 +1335,6 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
-
-        if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
-
-        if (opt.use_image_storage && !d->vkdev->info.support_fp16_image())
-        {
-            opt.use_fp16_storage = false;
-            opt.use_fp16_uniform = false;
-        }
 
         // enable local memory optimization on discrete gpu only
         if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
@@ -1519,12 +1494,6 @@ int Net::load_param_bin(const DataReader& dr)
         }
 
         Option opt1 = get_masked_option(opt, layer->featmask);
-#if NCNN_VULKAN
-        if (opt1.use_vulkan_compute)
-        {
-            if (!layer->support_image_storage) opt1.use_image_storage = false;
-        }
-#endif // NCNN_VULKAN
 
         if (layer_support_vulkan && (!layer->support_vulkan || !opt1.use_vulkan_compute))
         {
@@ -1828,12 +1797,6 @@ void Net::clear()
         Layer* layer = d->layers[i];
 
         Option opt1 = get_masked_option(opt, layer->featmask);
-#if NCNN_VULKAN
-        if (!layer->support_image_storage)
-        {
-            opt1.use_image_storage = false;
-        }
-#endif // NCNN_VULKAN
 
         int dret = layer->destroy_pipeline(opt1);
         if (dret != 0)

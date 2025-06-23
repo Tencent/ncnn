@@ -58,14 +58,14 @@ void main()
         {
             if (sx == p.w - 1)
             {
-                float v0 = sfp2float(bottom_top_blob_data[v_offset0.r]);
+                float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.r));
 
                 sqsum = v0 * v0;
             }
             else
             {
-                float v0 = sfp2float(bottom_top_blob_data[v_offset0.r]);
-                float v1 = sfp2float(bottom_top_blob_data[v_offset0.g]);
+                float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.r));
+                float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.g));
 
                 sqsum = v0 * v0 + v1 * v1;
             }
@@ -74,17 +74,17 @@ void main()
         {
             if (sx == p.w - 1)
             {
-                float v0 = sfp2float(bottom_top_blob_data[v_offset0.r]);
-                float v2 = sfp2float(bottom_top_blob_data[v_offset1.r]);
+                float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.r));
+                float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset1.r));
 
                 sqsum = v0 * v0 + v2 * v2;
             }
             else
             {
-                float v0 = sfp2float(bottom_top_blob_data[v_offset0.r]);
-                float v1 = sfp2float(bottom_top_blob_data[v_offset0.g]);
-                float v2 = sfp2float(bottom_top_blob_data[v_offset1.r]);
-                float v3 = sfp2float(bottom_top_blob_data[v_offset1.g]);
+                float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.r));
+                float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.g));
+                float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset1.r));
+                float v3 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset1.g));
 
                 sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
             }
@@ -100,31 +100,31 @@ void main()
 
         if (sx == p.w - 1)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
 
             sqsum = v0 * v0;
         }
         else if (sx == p.w - 2)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
 
             sqsum = v0 * v0 + v1 * v1;
         }
         else if (sx == p.w - 3)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
-            float v2 = sfp2float(bottom_top_blob_data[v_offset.b]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
+            float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.b));
 
             sqsum = v0 * v0 + v1 * v1 + v2 * v2;
         }
         else
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
-            float v2 = sfp2float(bottom_top_blob_data[v_offset.b]);
-            float v3 = sfp2float(bottom_top_blob_data[v_offset.a]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
+            float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.b));
+            float v3 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.a));
 
             sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
         }
@@ -139,31 +139,31 @@ void main()
 
         if (sz == p.c - 1)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
 
             sqsum = v0 * v0;
         }
         else if (sz == p.c - 2)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
 
             sqsum = v0 * v0 + v1 * v1;
         }
         else if (sz == p.c - 3)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
-            float v2 = sfp2float(bottom_top_blob_data[v_offset.b]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
+            float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.b));
 
             sqsum = v0 * v0 + v1 * v1 + v2 * v2;
         }
         else
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
-            float v2 = sfp2float(bottom_top_blob_data[v_offset.b]);
-            float v3 = sfp2float(bottom_top_blob_data[v_offset.a]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
+            float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.b));
+            float v3 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.a));
 
             sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
         }

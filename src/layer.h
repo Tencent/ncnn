@@ -74,11 +74,10 @@ public:
     // accept int8
     bool support_int8_storage;
 
-    // shader image storage
-    bool support_image_storage;
-
     // shader tensor storage
     bool support_tensor_storage;
+
+    bool support_reserved_000;
 
     bool support_reserved_00;
 

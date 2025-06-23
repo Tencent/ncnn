@@ -610,6 +610,7 @@ union vk_constant_type
 {
     int i;
     float f;
+    uint32_t u32;
 };
 #endif // NCNN_VULKAN
 

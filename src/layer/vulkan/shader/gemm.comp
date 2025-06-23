@@ -124,27 +124,27 @@ void main()
             if (transA == 1)
             {
                 const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
-                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + 1]);
+                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
             }
             else
             {
                 const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
-                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + p.A_hstep]);
+                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
             }
 
             if (transB == 1)
             {
                 const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
-                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + p.B_hstep]);
+                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
             }
             else
             {
                 const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
-                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + 1]);
+                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
             }
         }
 
@@ -176,14 +176,14 @@ void main()
             if (transA == 1)
             {
                 const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
-                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + 1]);
+                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
             }
             else
             {
                 const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
-                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + p.A_hstep]);
+                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
             }
         }
 
@@ -192,14 +192,14 @@ void main()
             if (transB == 1)
             {
                 const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
-                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + p.B_hstep]);
+                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
             }
             else
             {
                 const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
-                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + 1]);
+                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
             }
         }
 

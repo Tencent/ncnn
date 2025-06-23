@@ -46,15 +46,10 @@ int Flatten_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
     else
     {
@@ -187,14 +182,7 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int out_elempack = opt.use_shader_pack8 && total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-
-    if (dims == 2 && elempack == 1 && !(opt.use_fp16_packed && !opt.use_fp16_storage && out_elempack != 1))
+    if (dims == 2 && elempack == 1)
     {
         top_blob = bottom_blob;
         top_blob.dims = 1;

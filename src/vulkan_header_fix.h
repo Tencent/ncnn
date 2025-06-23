@@ -1625,8 +1625,8 @@ typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDime
 #ifndef VK_EXT_shader_float8
 #define VK_EXT_shader_float8                                         1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT (VkStructureType)1000567000
-#define VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT                            (VkComponentTypeKHR)1000567000
-#define VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT                            (VkComponentTypeKHR)1000567001
+#define VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT                            (VkComponentTypeKHR)1000491002
+#define VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT                            (VkComponentTypeKHR)1000491003
 typedef struct VkPhysicalDeviceShaderFloat8FeaturesEXT
 {
     VkStructureType sType;

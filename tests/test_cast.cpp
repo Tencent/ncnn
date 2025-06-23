@@ -162,7 +162,6 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
-    opt.use_image_storage = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -208,7 +207,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     ncnn::convert_packing(a, a4, 4, opt);
 
     ncnn::Mat a4_fp16;
-    if (type_from == 2 && a4.elempack == 4)
+    if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
     }
@@ -278,7 +277,6 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = true;
-    opt.use_image_storage = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -326,7 +324,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
         ncnn::convert_packing(a, a4, 4, opt);
 
     ncnn::Mat a4_fp16;
-    if (type_from == 2 && (a4.elempack == 4 || a4.elempack == 8))
+    if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
     }
