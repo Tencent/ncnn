@@ -3103,13 +3103,13 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
         return cached_uop;
 
     bool use_fp16 = (cast_type_from_index == 1 || cast_type_to_index == 1);
-    bool use_int8 = (cast_type_from_index == 2 || cast_type_to_index == 2);
+    bool use_int8 = (cast_type_from_index == 3 || cast_type_to_index == 3);
 
     // create uop
     Option opt;
     opt.use_fp16_packed = use_fp16; // fp16p is always supported
     opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
-    opt.use_int8_packed = use_int8;
+    opt.use_int8_packed = use_int8; // int8p is always supported
     opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
 
     // fp16/int8 arithmetic are not necessary for packing
@@ -3164,7 +3164,7 @@ void VulkanDevicePrivate::destroy_utility_operator()
         for (int j1 = 0; j1 < 3; j1++)
         {
             bool use_fp16 = (j0 == 1 || j1 == 1);
-            bool use_int8 = (j0 == 2 || j1 == 2);
+            bool use_int8 = (j0 == 3 || j1 == 3);
 
             opt.use_fp16_packed = use_fp16;
             opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
@@ -4254,8 +4254,8 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     Option opt2 = opt;
     opt2.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
     opt2.use_fp16_storage = (cast_type_from_index == 1 || cast_type_to_index == 1) && info.support_fp16_storage();
-    opt2.use_int8_packed = (cast_type_from_index == 2 || cast_type_to_index == 2);
-    opt2.use_int8_storage = (cast_type_from_index == 2 || cast_type_to_index == 2) && info.support_int8_storage();
+    opt2.use_int8_packed = (cast_type_from_index == 3 || cast_type_to_index == 3);
+    opt2.use_int8_storage = (cast_type_from_index == 3 || cast_type_to_index == 3) && info.support_int8_storage();
 
     const ncnn::Layer* uop = d->get_utility_operator(cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt2);
@@ -4823,34 +4823,58 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     if (opt.use_int8_storage)
     {
-        custom_defines.append(std::make_pair("sint8", "int8_t");
-        custom_defines.append(std::make_pair("sint8vec4", "int");
-        // custom_defines.append(std::make_pair("sint8vec8", "ivec2"));
+        custom_defines.append("sint8", "int8_t");
+        custom_defines.append("sint8vec4", "int");
+        custom_defines.append("sint8vec8", "ivec2");
     }
     else if (opt.use_int8_packed)
     {
-        custom_defines.append(std::make_pair("sint8", "int");
-        custom_defines.append(std::make_pair("sint8vec4", "int");
-        // custom_defines.append(std::make_pair("sint8vec8", "ivec2"));
+        custom_defines.append("sint8", "int");
+        custom_defines.append("sint8vec4", "int");
+        custom_defines.append("sint8vec8", "ivec2");
     }
     else
     {
-        custom_defines.append(std::make_pair("sint8", "int");
-        custom_defines.append(std::make_pair("sint8vec4", "int");
-        // custom_defines.append(std::make_pair("sint8vec8", "ivec2"));
+        custom_defines.append("sint8", "int");
+        custom_defines.append("sint8vec4", "int");
+        custom_defines.append("sint8vec8", "ivec2");
     }
 
     // if (opt.use_int8_arithmetic)
     // {
-    //     custom_defines.append(std::make_pair("aint8", "int8_t"));
-    //     custom_defines.append(std::make_pair("aint8vec4", "i8vec4"));
+    //     custom_defines.append("aint8", "int8_t"));
+    //     custom_defines.append("aint8vec4", "i8vec4"));
     // }
     custom_defines.append("aint8", "int");
     custom_defines.append("aint8vec4", "ivec4");
 
-    custom_defines.append("i8buffer_ld4(buf,i)", "ivec4(((buf[i]) << 24) >> 24,((buf[i]) << 16) >> 24,((buf[i]) << 8) >> 24,(buf[i]) >> 24)");
-    custom_defines.append("i8buffer_st4(buf,i,v)", "{uint _pv = (uint(v.x) & 0xFFu) |((uint(v.y) & 0xFFu) << 8) |((uint(v.z) & 0xFFu) << 16) |((uint(v.w) & 0xFFu) << 24); buf[i]=_pv;}");
+    custom_defines.append("unpackInt4x8(v)", "ivec4((v<<24)>>24,(v<<16)>>24,(v<<8)>>24,v>>24)");
+    custom_defines.append("packInt4x8(v)", "int((uint(v.r)&0xFFu)|((uint(v.g)&0xFFu)<<8)|((uint(v.b)&0xFFu)<<16)|((uint(v.a)&0xFFu)<<24))");
+
+        // custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+
+    if (opt.use_int8_storage)
+    {
+        custom_defines.append("i8buffer_ld1(buf,i)", "int(buf[i])");
+        custom_defines.append("i8buffer_st1(buf,i,v)", "{buf[i]=v;}");
+    }
+    else
+    {
+        custom_defines.append("i8buffer_ld1(buf,i)", "int(((buf[(i)/4]) << (24-((i)%4)*8)) >> 24)");
+        custom_defines.append("i8buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id4=_i/4;uint _im4=_i%4;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id4],0,0);ivec4 _v=unpackInt4x8(_old_v);_v[_im4]=_vs;_new_v=packInt4x8(_v);} while(atomicCompSwap(buf[_id4],_old_v,_new_v)!=_old_v);}");
+
+        // custom_defines.append("i8buffer_cp1to8(buf,i,sbuf,si4,sii4)", "{uvec4 _si4d4=uvec4(si4)/4;uvec4 _sii4d4=uvec4(sii4)/4;uvec4 _si4m4=uvec4(si4)%4;uvec4 _sii4m4=uvec4(sii4)%4;buf[i]=ivec2(packInt4x8(ivec4(unpackInt4x8(sbuf[_si4d4.r])[_si4m4.r],unpackInt4x8(sbuf[_si4d4.g])[_si4m4.g],unpackInt4x8(sbuf[_si4d4.b])[_si4m4.b],unpackInt4x8(sbuf[_si4d4.a])[_si4m4.a])),packInt4x8(ivec4(unpackInt4x8(sbuf[_sii4d4.r])[_sii4m4.r],unpackInt4x8(sbuf[_sii4d4.g])[_sii4m4.g],unpackInt4x8(sbuf[_sii4d4.b])[_sii4m4.b],unpackInt4x8(sbuf[_sii4d4.a])[_sii4m4.a])));}");
+
+        // custom_defines.append("i8buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{ivec8 _v=sbuf[si]; ivec4 _v0=unpackInt4x8(_v.abcd);ivec4 _v1=unpackInt4x8(_v.efgh);i8buffer_st1(buf,i4.r,_v0.r);i8buffer_st1(buf,i4.g,_v0.g);i8buffer_st1(buf,i4.b,_v0.b);i8buffer_st1(buf,i4.a,_v0.a);i8buffer_st1(buf,ii4.r,_v1.r);i8buffer_st1(buf,ii4.g,_v1.g);i8buffer_st1(buf,ii4.b,_v1.b);i8buffer_st1(buf,ii4.a,_v1.a);}");
+
+    }
+
+    custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
+    custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=packInt4x8(v);}");
     custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+
+    custom_defines.append("i8buffer_ld8(buf,i)", "ivec8(unpackInt4x8(buf[i].r),unpackInt4x8(buf[i].g))");
+    custom_defines.append("i8buffer_st8(buf,i,v)", "{buf[i].r=packInt4x8(v.abcd);buf[i].g=packInt4x8(v.efgh);}");
 
     // if (opt.use_int8_storage)
     // {
@@ -5497,6 +5521,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_float16: require\n";
     }
+    custom_exts += "struct ivec8 { ivec4 abcd; ivec4 efgh; };\n";
+    if (opt.use_int8_storage)
+    {
+        custom_exts += "#extension GL_EXT_shader_8bit_storage: require\n";
+    }
+    if (opt.use_int8_arithmetic)
+    {
+        custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int8: require\n";
+    }
 #if ENABLE_VALIDATION_LAYER
     {
         custom_exts += "#extension GL_EXT_debug_printf : require\n";
@@ -5581,8 +5614,23 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             // for (int i = 0; i < 4; i++)
             {
                 int i = 3;
-                std::string s(comp_datas[i], comp_data_sizes[i]);
-                NCNN_LOGE("%s", s.c_str());
+                // std::string s(comp_datas[i], comp_data_sizes[i]);
+                // NCNN_LOGE("%s", s.c_str());
+
+                const char* p = comp_datas[i];
+                const char* line_end;
+                int line_number = 1;
+
+                while ((line_end = strchr(p, '\n')) != NULL)
+                {
+                    NCNN_LOGE("%d:\t%.*s", line_number++, (int)(line_end - p), p);
+                    p = line_end + 1;
+                }
+
+                if (*p != '\0')
+                {
+                    NCNN_LOGE("%d:\t%s", line_number, p);
+                }
             }
 
             compile_success = false;

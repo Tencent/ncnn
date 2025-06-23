@@ -36,7 +36,8 @@ public:
     // 0 = auto
     // 1 = fp32
     // 2 = fp16
-    // 3 = int8
+    // 3 = int32
+    // 4 = int8
     int cast_type_from;
     int cast_type_to;
 };
