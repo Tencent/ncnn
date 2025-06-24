@@ -205,7 +205,6 @@ static int warmup_gpu_pipecache()
         return -1;
     }
 
-
     if (net.vulkan_device()->save_pipeline_cache("./sigmoid_pipecache.bin") != 0)
     {
         fprintf(stderr, "warmup_gpu_pipecache failed to save pipeline cache\n");

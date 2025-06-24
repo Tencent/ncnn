@@ -3433,14 +3433,14 @@ VulkanDevice::VulkanDevice(int device_index)
     {
         VkPipelineCacheCreateInfo pipelineCacheCreateInfo{};
         pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-        pipelineCacheCreateInfo.initialDataSize = 0;       // zeros for empty cache
+        pipelineCacheCreateInfo.initialDataSize = 0; // zeros for empty cache
         pipelineCacheCreateInfo.pInitialData = nullptr;
 
         ret = vkCreatePipelineCache(d->device, &pipelineCacheCreateInfo, nullptr, &d->vk_pipeline_cache);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreatePipelineCache failed %d", ret);
-            return ;
+            return;
         }
     }
 
