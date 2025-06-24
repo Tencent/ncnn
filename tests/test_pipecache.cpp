@@ -205,7 +205,6 @@ static int test_layer_gpu_pipecache()
         return -1;
     }
 
-
     if (net.vulkan_device()->save_pipeline_cache("./pipecache.bin") != 0)
     {
         fprintf(stderr, "test_layer_gpu_pipecache failed to save pipeline cache\n");
