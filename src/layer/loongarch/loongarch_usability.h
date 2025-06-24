@@ -34,10 +34,16 @@ typedef union
 
 } // namespace ncnn
 
-#if __loongarch_sx || __loongarch_asx
+#if __loongarch_sx
 /* declare some loongarch constants with union */
 #define _LOONGARCH_FLOAT_CONST(Name, Val) \
     static const ncnn::FloatInt Name = {.f = Val}
+#endif
+
+#if __loongarch_asx
+/* declare some loongarch constants with union */
+#define _LOONGARCH_FLOAT_CONST_PS256(Name, Val) \
+    static const ncnn::FloatInt _ps256_##Name = {.f = Val}
 #endif
 
 #if __loongarch_sx
