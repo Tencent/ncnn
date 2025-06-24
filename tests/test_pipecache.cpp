@@ -1,0 +1,315 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2025 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#include "datareader.h"
+#include "gpu.h"
+#include "mat.h"
+#include "net.h"
+#include "testutil.h"
+
+#include <ctime>
+
+class DataReaderFromEmpty : public ncnn::DataReader
+{
+public:
+    virtual int scan(const char* format, void* p) const
+    {
+        return 0;
+    }
+    virtual size_t read(void* buf, size_t size) const
+    {
+        memset(buf, 0, size);
+        return size;
+    }
+};
+
+static const char* mobilenet_v3_param = R"delimiter(
+7767517
+145 163
+Input                    data                     0 1 data -23330=4,3,224,224,3 0=224 1=224 2=3
+Convolution              313                      1 1 data 313 -23330=4,3,112,112,16 0=16 1=3 3=2 4=1 5=1 6=432
+Split                    splitncnn_0              1 2 313 313_splitncnn_0 313_splitncnn_1 -23330=8,3,112,112,16,3,112,112,16
+HardSigmoid              319                      1 1 313_splitncnn_1 319 -23330=4,3,112,112,16
+BinaryOp                 320                      2 1 313_splitncnn_0 319 320 -23330=4,3,112,112,16 0=2
+Split                    splitncnn_1              1 2 320 320_splitncnn_0 320_splitncnn_1 -23330=8,3,112,112,16,3,112,112,16
+ConvolutionDepthWise     321                      1 1 320_splitncnn_1 323 -23330=4,3,112,112,16 0=16 1=3 4=1 5=1 6=144 7=16 9=1
+Convolution              324                      1 1 323 324 -23330=4,3,112,112,16 0=16 1=1 5=1 6=256
+BinaryOp                 326                      2 1 320_splitncnn_0 324 326 -23330=4,3,112,112,16
+Convolution              327                      1 1 326 329 -23330=4,3,112,112,64 0=64 1=1 5=1 6=1024 9=1
+ConvolutionDepthWise     330                      1 1 329 332 -23330=4,3,56,56,64 0=64 1=3 3=2 4=1 5=1 6=576 7=64 9=1
+Convolution              333                      1 1 332 333 -23330=4,3,56,56,24 0=24 1=1 5=1 6=1536
+Split                    splitncnn_2              1 2 333 333_splitncnn_0 333_splitncnn_1 -23330=8,3,56,56,24,3,56,56,24
+Convolution              335                      1 1 333_splitncnn_1 337 -23330=4,3,56,56,72 0=72 1=1 5=1 6=1728 9=1
+ConvolutionDepthWise     338                      1 1 337 340 -23330=4,3,56,56,72 0=72 1=3 4=1 5=1 6=648 7=72 9=1
+Convolution              341                      1 1 340 341 -23330=4,3,56,56,24 0=24 1=1 5=1 6=1728
+BinaryOp                 343                      2 1 333_splitncnn_0 341 343 -23330=4,3,56,56,24
+Convolution              344                      1 1 343 346 -23330=4,3,56,56,72 0=72 1=1 5=1 6=1728 9=1
+ConvolutionDepthWise     347                      1 1 346 347 -23330=4,3,28,28,72 0=72 1=5 3=2 4=2 5=1 6=1800 7=72
+Split                    splitncnn_3              1 2 347 347_splitncnn_0 347_splitncnn_1 -23330=8,3,28,28,72,3,28,28,72
+Pooling                  355                      1 1 347_splitncnn_1 359 -23330=4,1,72,1,1 0=1 4=1
+InnerProduct             360                      1 1 359 361 -23330=4,1,18,1,1 0=18 1=1 2=1296 9=1
+InnerProduct             362                      1 1 361 362 -23330=4,1,72,1,1 0=72 1=1 2=1296
+HardSigmoid              367                      1 1 362 367 -23330=4,1,72,1,1
+BinaryOp                 376                      2 1 347_splitncnn_0 367 376 -23330=4,3,28,28,72 0=2
+ReLU                     377                      1 1 376 377 -23330=4,3,28,28,72
+Convolution              378                      1 1 377 378 -23330=4,3,28,28,40 0=40 1=1 5=1 6=2880
+Split                    splitncnn_4              1 2 378 378_splitncnn_0 378_splitncnn_1 -23330=8,3,28,28,40,3,28,28,40
+Convolution              380                      1 1 378_splitncnn_1 382 -23330=4,3,28,28,120 0=120 1=1 5=1 6=4800 9=1
+ConvolutionDepthWise     383                      1 1 382 383 -23330=4,3,28,28,120 0=120 1=5 4=2 5=1 6=3000 7=120
+Split                    splitncnn_5              1 2 383 383_splitncnn_0 383_splitncnn_1 -23330=8,3,28,28,120,3,28,28,120
+Pooling                  391                      1 1 383_splitncnn_1 395 -23330=4,1,120,1,1 0=1 4=1
+InnerProduct             396                      1 1 395 397 -23330=4,1,30,1,1 0=30 1=1 2=3600 9=1
+InnerProduct             398                      1 1 397 398 -23330=4,1,120,1,1 0=120 1=1 2=3600
+HardSigmoid              403                      1 1 398 403 -23330=4,1,120,1,1
+BinaryOp                 412                      2 1 383_splitncnn_0 403 412 -23330=4,3,28,28,120 0=2
+ReLU                     413                      1 1 412 413 -23330=4,3,28,28,120
+Convolution              414                      1 1 413 414 -23330=4,3,28,28,40 0=40 1=1 5=1 6=4800
+BinaryOp                 416                      2 1 378_splitncnn_0 414 416 -23330=4,3,28,28,40
+Split                    splitncnn_6              1 2 416 416_splitncnn_0 416_splitncnn_1 -23330=8,3,28,28,40,3,28,28,40
+Convolution              417                      1 1 416_splitncnn_1 419 -23330=4,3,28,28,120 0=120 1=1 5=1 6=4800 9=1
+ConvolutionDepthWise     420                      1 1 419 420 -23330=4,3,28,28,120 0=120 1=5 4=2 5=1 6=3000 7=120
+Split                    splitncnn_7              1 2 420 420_splitncnn_0 420_splitncnn_1 -23330=8,3,28,28,120,3,28,28,120
+Pooling                  428                      1 1 420_splitncnn_1 432 -23330=4,1,120,1,1 0=1 4=1
+InnerProduct             433                      1 1 432 434 -23330=4,1,30,1,1 0=30 1=1 2=3600 9=1
+InnerProduct             435                      1 1 434 435 -23330=4,1,120,1,1 0=120 1=1 2=3600
+HardSigmoid              440                      1 1 435 440 -23330=4,1,120,1,1
+BinaryOp                 449                      2 1 420_splitncnn_0 440 449 -23330=4,3,28,28,120 0=2
+ReLU                     450                      1 1 449 450 -23330=4,3,28,28,120
+Convolution              451                      1 1 450 451 -23330=4,3,28,28,40 0=40 1=1 5=1 6=4800
+BinaryOp                 453                      2 1 416_splitncnn_0 451 453 -23330=4,3,28,28,40
+Convolution              454                      1 1 453 454 -23330=4,3,28,28,240 0=240 1=1 5=1 6=9600
+HardSwish                461                      1 1 454 461 -23330=4,3,28,28,240
+ConvolutionDepthWise     462                      1 1 461 462 -23330=4,3,14,14,240 0=240 1=3 3=2 4=1 5=1 6=2160 7=240
+HardSwish                469                      1 1 462 469 -23330=4,3,14,14,240
+Convolution              470                      1 1 469 470 -23330=4,3,14,14,80 0=80 1=1 5=1 6=19200
+Split                    splitncnn_8              1 2 470 470_splitncnn_0 470_splitncnn_1 -23330=8,3,14,14,80,3,14,14,80
+Convolution              472                      1 1 470_splitncnn_1 472 -23330=4,3,14,14,200 0=200 1=1 5=1 6=16000
+HardSwish                479                      1 1 472 479 -23330=4,3,14,14,200
+ConvolutionDepthWise     480                      1 1 479 480 -23330=4,3,14,14,200 0=200 1=3 4=1 5=1 6=1800 7=200
+HardSwish                487                      1 1 480 487 -23330=4,3,14,14,200
+Convolution              488                      1 1 487 488 -23330=4,3,14,14,80 0=80 1=1 5=1 6=16000
+BinaryOp                 490                      2 1 470_splitncnn_0 488 490 -23330=4,3,14,14,80
+Split                    splitncnn_9              1 2 490 490_splitncnn_0 490_splitncnn_1 -23330=8,3,14,14,80,3,14,14,80
+Convolution              491                      1 1 490_splitncnn_1 491 -23330=4,3,14,14,184 0=184 1=1 5=1 6=14720
+HardSwish                498                      1 1 491 498 -23330=4,3,14,14,184
+ConvolutionDepthWise     499                      1 1 498 499 -23330=4,3,14,14,184 0=184 1=3 4=1 5=1 6=1656 7=184
+HardSwish                506                      1 1 499 506 -23330=4,3,14,14,184
+Convolution              507                      1 1 506 507 -23330=4,3,14,14,80 0=80 1=1 5=1 6=14720
+BinaryOp                 509                      2 1 490_splitncnn_0 507 509 -23330=4,3,14,14,80
+Split                    splitncnn_10             1 2 509 509_splitncnn_0 509_splitncnn_1 -23330=8,3,14,14,80,3,14,14,80
+Convolution              510                      1 1 509_splitncnn_1 510 -23330=4,3,14,14,184 0=184 1=1 5=1 6=14720
+HardSwish                517                      1 1 510 517 -23330=4,3,14,14,184
+ConvolutionDepthWise     518                      1 1 517 518 -23330=4,3,14,14,184 0=184 1=3 4=1 5=1 6=1656 7=184
+HardSwish                525                      1 1 518 525 -23330=4,3,14,14,184
+Convolution              526                      1 1 525 526 -23330=4,3,14,14,80 0=80 1=1 5=1 6=14720
+BinaryOp                 528                      2 1 509_splitncnn_0 526 528 -23330=4,3,14,14,80
+Convolution              529                      1 1 528 529 -23330=4,3,14,14,480 0=480 1=1 5=1 6=38400
+HardSwish                536                      1 1 529 536 -23330=4,3,14,14,480
+ConvolutionDepthWise     537                      1 1 536 537 -23330=4,3,14,14,480 0=480 1=3 4=1 5=1 6=4320 7=480
+Split                    splitncnn_11             1 2 537 537_splitncnn_0 537_splitncnn_1 -23330=8,3,14,14,480,3,14,14,480
+Pooling                  545                      1 1 537_splitncnn_1 549 -23330=4,1,480,1,1 0=1 4=1
+InnerProduct             550                      1 1 549 551 -23330=4,1,120,1,1 0=120 1=1 2=57600 9=1
+InnerProduct             552                      1 1 551 552 -23330=4,1,480,1,1 0=480 1=1 2=57600
+HardSigmoid              557                      1 1 552 557 -23330=4,1,480,1,1
+BinaryOp                 566                      2 1 537_splitncnn_0 557 566 -23330=4,3,14,14,480 0=2
+HardSwish                572                      1 1 566 572 -23330=4,3,14,14,480
+Convolution              573                      1 1 572 573 -23330=4,3,14,14,112 0=112 1=1 5=1 6=53760
+Split                    splitncnn_12             1 2 573 573_splitncnn_0 573_splitncnn_1 -23330=8,3,14,14,112,3,14,14,112
+Convolution              575                      1 1 573_splitncnn_1 575 -23330=4,3,14,14,672 0=672 1=1 5=1 6=75264
+HardSwish                582                      1 1 575 582 -23330=4,3,14,14,672
+ConvolutionDepthWise     583                      1 1 582 583 -23330=4,3,14,14,672 0=672 1=3 4=1 5=1 6=6048 7=672
+Split                    splitncnn_13             1 2 583 583_splitncnn_0 583_splitncnn_1 -23330=8,3,14,14,672,3,14,14,672
+Pooling                  591                      1 1 583_splitncnn_1 595 -23330=4,1,672,1,1 0=1 4=1
+InnerProduct             596                      1 1 595 597 -23330=4,1,168,1,1 0=168 1=1 2=112896 9=1
+InnerProduct             598                      1 1 597 598 -23330=4,1,672,1,1 0=672 1=1 2=112896
+HardSigmoid              603                      1 1 598 603 -23330=4,1,672,1,1
+BinaryOp                 612                      2 1 583_splitncnn_0 603 612 -23330=4,3,14,14,672 0=2
+HardSwish                618                      1 1 612 618 -23330=4,3,14,14,672
+Convolution              619                      1 1 618 619 -23330=4,3,14,14,112 0=112 1=1 5=1 6=75264
+BinaryOp                 621                      2 1 573_splitncnn_0 619 621 -23330=4,3,14,14,112
+Convolution              622                      1 1 621 622 -23330=4,3,14,14,672 0=672 1=1 5=1 6=75264
+HardSwish                629                      1 1 622 629 -23330=4,3,14,14,672
+ConvolutionDepthWise     630                      1 1 629 630 -23330=4,3,14,14,672 0=672 1=5 4=2 5=1 6=16800 7=672
+Split                    splitncnn_14             1 2 630 630_splitncnn_0 630_splitncnn_1 -23330=8,3,14,14,672,3,14,14,672
+Pooling                  638                      1 1 630_splitncnn_1 642 -23330=4,1,672,1,1 0=1 4=1
+InnerProduct             643                      1 1 642 644 -23330=4,1,168,1,1 0=168 1=1 2=112896 9=1
+InnerProduct             645                      1 1 644 645 -23330=4,1,672,1,1 0=672 1=1 2=112896
+HardSigmoid              650                      1 1 645 650 -23330=4,1,672,1,1
+BinaryOp                 659                      2 1 630_splitncnn_0 650 659 -23330=4,3,14,14,672 0=2
+HardSwish                665                      1 1 659 665 -23330=4,3,14,14,672
+Convolution              666                      1 1 665 666 -23330=4,3,14,14,160 0=160 1=1 5=1 6=107520
+Convolution              668                      1 1 666 668 -23330=4,3,14,14,672 0=672 1=1 5=1 6=107520
+HardSwish                675                      1 1 668 675 -23330=4,3,14,14,672
+ConvolutionDepthWise     676                      1 1 675 676 -23330=4,3,7,7,672 0=672 1=5 3=2 4=2 5=1 6=16800 7=672
+Split                    splitncnn_15             1 2 676 676_splitncnn_0 676_splitncnn_1 -23330=8,3,7,7,672,3,7,7,672
+Pooling                  684                      1 1 676_splitncnn_1 688 -23330=4,1,672,1,1 0=1 4=1
+InnerProduct             689                      1 1 688 690 -23330=4,1,168,1,1 0=168 1=1 2=112896 9=1
+InnerProduct             691                      1 1 690 691 -23330=4,1,672,1,1 0=672 1=1 2=112896
+HardSigmoid              696                      1 1 691 696 -23330=4,1,672,1,1
+BinaryOp                 705                      2 1 676_splitncnn_0 696 705 -23330=4,3,7,7,672 0=2
+HardSwish                711                      1 1 705 711 -23330=4,3,7,7,672
+Convolution              712                      1 1 711 712 -23330=4,3,7,7,160 0=160 1=1 5=1 6=107520
+Split                    splitncnn_16             1 2 712 712_splitncnn_0 712_splitncnn_1 -23330=8,3,7,7,160,3,7,7,160
+Convolution              714                      1 1 712_splitncnn_1 714 -23330=4,3,7,7,960 0=960 1=1 5=1 6=153600
+HardSwish                721                      1 1 714 721 -23330=4,3,7,7,960
+ConvolutionDepthWise     722                      1 1 721 722 -23330=4,3,7,7,960 0=960 1=5 4=2 5=1 6=24000 7=960
+Split                    splitncnn_17             1 2 722 722_splitncnn_0 722_splitncnn_1 -23330=8,3,7,7,960,3,7,7,960
+Pooling                  730                      1 1 722_splitncnn_1 734 -23330=4,1,960,1,1 0=1 4=1
+InnerProduct             735                      1 1 734 736 -23330=4,1,240,1,1 0=240 1=1 2=230400 9=1
+InnerProduct             737                      1 1 736 737 -23330=4,1,960,1,1 0=960 1=1 2=230400
+HardSigmoid              742                      1 1 737 742 -23330=4,1,960,1,1
+BinaryOp                 751                      2 1 722_splitncnn_0 742 751 -23330=4,3,7,7,960 0=2
+HardSwish                757                      1 1 751 757 -23330=4,3,7,7,960
+Convolution              758                      1 1 757 758 -23330=4,3,7,7,160 0=160 1=1 5=1 6=153600
+BinaryOp                 760                      2 1 712_splitncnn_0 758 760 -23330=4,3,7,7,160
+Convolution              761                      1 1 760 761 -23330=4,3,7,7,960 0=960 1=1 5=1 6=153600
+HardSwish                768                      1 1 761 768 -23330=4,3,7,7,960
+Pooling                  769                      1 1 768 769 -23330=4,1,960,1,1 0=1 4=1
+HardSwish                775                      1 1 769 775 -23330=4,1,960,1,1
+Reshape                  783                      1 1 775 783 -23330=4,1,960,1,1 0=-1
+InnerProduct             784                      1 1 783 784 -23330=4,1,1280,1,1 0=1280 1=1 2=1228800
+HardSwish                790                      1 1 784 790 -23330=4,1,1280,1,1
+InnerProduct             791                      1 1 790 791 -23330=4,1,1000,1,1 0=1000 1=1 2=1280000
+Softmax                  prob                     1 1 791 output -23330=4,1,1000,1,1
+)delimiter";
+
+
+static int test_layer_gpu_pipecache()
+{
+    ncnn::Net net;
+    net.opt.use_vulkan_compute = true;
+
+    net.load_param_mem("7767517\n2 2\nInput    input0    0   1   input0\nSigmoid  sigmoid0  1   1   input0    output0");
+    net.load_model((unsigned char*)""); // for create pipe
+
+    ncnn::Mat input0 = RandomMat(224, 224);
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("input0", input0);
+    ncnn::Mat output0;
+    ex.extract("output0", output0);
+    if (output0.empty())
+    {
+        fprintf(stderr, "test_layer_gpu_pipecache failed\n");
+        return -1;
+    }
+
+
+    if (net.vulkan_device()->save_pipeline_cache("./pipecache.bin") != 0)
+    {
+        fprintf(stderr, "test_layer_gpu_pipecache failed to save pipeline cache\n");
+    }
+    fprintf(stdout, "test_layer_gpu_pipecache passed\n");
+
+    ncnn::Net net2;
+    net2.opt.use_vulkan_compute = true;
+    net2.load_param_mem("7767517\n2 2\nInput    input0    0   1   input0\nSigmoid  sigmoid0  1   1   input0    output0");
+    if (net2.vulkan_device()->load_pipeline_cache("./pipecache.bin") != 0)
+    {
+        fprintf(stderr, "test_layer_gpu_pipecache failed toload pipeline cache\n");
+        return -1;
+    }
+    net2.load_model((unsigned char*)""); // for create pipe
+    ncnn::Extractor ex2 = net2.create_extractor();
+
+    ncnn::Mat output0_2;
+    ex2.input("input0", input0);
+    ex2.extract("output0", output0_2);
+
+    if (output0_2.empty())
+    {
+        fprintf(stderr, "test_layer_gpu_pipecache failed to extract output after loading pipeline cache\n");
+        return -1;
+    }
+    if (CompareMat(output0, output0_2, 0.001) != 0)
+    {
+        fprintf(stderr, "test_layer_gpu_pipecache output mismatch after loading pipeline cache\n");
+        return -1;
+    }
+    fprintf(stdout, "test_layer_gpu_pipecache passed after loading pipeline cache\n");
+    return 0;
+}
+
+static int benchmark_layer_gpu_pipecache()
+{
+    ncnn::Net net;
+    net.opt.use_vulkan_compute = true;
+
+    DataReaderFromEmpty dr;
+
+    clock_t st = clock();
+
+    net.load_param_mem(mobilenet_v3_param);
+    net.load_model(dr);
+
+    fprintf(stdout, "benchmark_layer_gpu_pipecache passed, time = %.3f ms\n", (clock() - st) * 1000.f / CLOCKS_PER_SEC);
+
+    ncnn::Mat input = RandomMat(224, 224, 3);
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input);
+    ncnn::Mat output;
+    ex.extract("output", output);
+    if (output.empty())
+    {
+        fprintf(stderr, "benchmark_layer_gpu_pipecache failed\n");
+        return -1;
+    }
+
+    std::vector<unsigned char> buf;
+    net.vulkan_device()->save_pipeline_cache(buf);
+    if (buf.empty())
+    {
+        fprintf(stderr, "benchmark_layer_gpu_pipecache failed to save pipeline cache\n");
+        return -1;
+    }
+    fprintf(stdout, "benchmark_layer_gpu_pipecache passed, pipeline cache size = %zu bytes\n", buf.size());
+
+    ncnn::Net net2;
+    net2.opt.use_vulkan_compute = true;
+
+    st = clock();
+
+    net2.load_param_mem(mobilenet_v3_param);
+    if (net2.vulkan_device()->load_pipeline_cache(buf) != 0)
+    {
+        fprintf(stderr, "benchmark_layer_gpu_pipecache failed to load pipeline cache\n");
+        return -1;
+    }
+    net2.load_model(dr);
+
+    fprintf(stdout, "benchmark_layer_gpu_pipecache passed after loading pipeline cache, time = %.3f ms\n", (clock() - st) * 1000.f / CLOCKS_PER_SEC);
+
+    ncnn::Extractor ex2 = net2.create_extractor();
+    ex2.input("data", input);
+    ncnn::Mat output2;
+    ex2.extract("output", output2);
+    if (output2.empty())
+    {
+        fprintf(stderr, "benchmark_layer_gpu_pipecache failed to extract output after loading pipeline cache\n");
+        return -1;
+    }
+    if (CompareMat(output, output2, 0.001) != 0)
+    {
+        fprintf(stderr, "benchmark_layer_gpu_pipecache output mismatch after loading pipeline cache\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int main()
+{
+    test_layer_gpu_pipecache();
+    benchmark_layer_gpu_pipecache();
+}

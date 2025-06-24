@@ -3026,6 +3026,7 @@ public:
 
     // device-wide pipeline cache
     PipelineCache* pipeline_cache;
+    VkPipelineCache vk_pipeline_cache; // vk_pipeline_cache is cache for create pipe, pipeline_cache is a cache for avoid repeat pipe
 
     // utility operator
     // from fp32 | fp16
@@ -3045,6 +3046,7 @@ VulkanDevicePrivate::VulkanDevicePrivate(VulkanDevice* _vkdev)
     texelfetch_sampler = 0;
     dummy_allocator = 0;
     pipeline_cache = 0;
+    vk_pipeline_cache = 0;
     valid = false;
     memset(uop_packing, 0, sizeof(uop_packing));
 }
@@ -3428,6 +3430,19 @@ VulkanDevice::VulkanDevice(int device_index)
     }
 
     d->pipeline_cache = new PipelineCache(this);
+    {
+        VkPipelineCacheCreateInfo pipelineCacheCreateInfo{};
+        pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+        pipelineCacheCreateInfo.initialDataSize = 0;       // zeros for empty cache
+        pipelineCacheCreateInfo.pInitialData = nullptr;
+
+        ret = vkCreatePipelineCache(d->device, &pipelineCacheCreateInfo, nullptr, &d->vk_pipeline_cache);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkCreatePipelineCache failed %d", ret);
+            return ;
+        }
+    }
 
     d->valid = true;
 }
@@ -3457,6 +3472,11 @@ VulkanDevice::~VulkanDevice()
     if (d->pipeline_cache)
     {
         delete d->pipeline_cache;
+    }
+
+    if (d->vk_pipeline_cache)
+    {
+        vkDestroyPipelineCache(d->device, d->vk_pipeline_cache, 0);
     }
 
     if (d->device)
@@ -3775,7 +3795,7 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     computePipelineCreateInfo.basePipelineHandle = 0;
     computePipelineCreateInfo.basePipelineIndex = 0;
 
-    VkResult ret = vkCreateComputePipelines(d->device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
+    VkResult ret = vkCreateComputePipelines(d->device, d->vk_pipeline_cache, 1, &computePipelineCreateInfo, 0, pipeline);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateComputePipelines failed %d", ret);
@@ -3784,6 +3804,136 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
 
     return 0;
 }
+
+int VulkanDevice::load_pipeline_cache(const std::vector<unsigned char>& buf) const
+{
+    vkDestroyPipelineCache(d->device, d->vk_pipeline_cache, 0);
+
+    VkPipelineCacheCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+    createInfo.initialDataSize = buf.size();
+    createInfo.pInitialData = buf.data();
+
+    if (vkCreatePipelineCache(d->device, &createInfo, nullptr, &d->vk_pipeline_cache) != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreatePipelineCache failed");
+        return -1;
+    }
+    return 0;
+}
+
+int VulkanDevice::save_pipeline_cache(std::vector<unsigned char>& buf) const
+{
+    size_t size = 0;
+    vkGetPipelineCacheData(d->device, d->vk_pipeline_cache, &size, 0);
+    if (size == 0)
+    {
+        return 0; // empty cache
+    }
+
+    buf.resize(size);
+    vkGetPipelineCacheData(d->device, d->vk_pipeline_cache, &size, buf.data());
+    if (size != buf.size())
+    {
+        NCNN_LOGE("vkGetPipelineCacheData failed %d", size);
+        return -1;
+    }
+
+    return 0;
+}
+
+#ifdef NCNN_STDIO
+int VulkanDevice::load_pipeline_cache(FILE* fp) const
+{
+    if (!fp)
+    {
+        NCNN_LOGE("load_pipeline_cache failed, invalid file pointer");
+        return -1;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    size_t size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    std::vector<unsigned char> buf(size);
+    size_t read_size = fread(buf.data(), 1, size, fp);
+    if (read_size != size)
+    {
+        NCNN_LOGE("load_pipeline_cache failed %d", read_size);
+        return -1;
+    }
+
+    return load_pipeline_cache(buf);
+}
+
+int VulkanDevice::load_pipeline_cache(const char* filename) const
+{
+    if (!filename)
+    {
+        NCNN_LOGE("load_pipeline_cache failed, invalid filename");
+        return -1;
+    }
+
+    FILE* fp = fopen(filename, "rb");
+    if (!fp)
+    {
+        NCNN_LOGE("load_pipeline_cache failed, cannot open file %s", filename);
+        return -1;
+    }
+
+    int ret = load_pipeline_cache(fp);
+    fclose(fp);
+
+    return ret;
+}
+
+int VulkanDevice::save_pipeline_cache(FILE* fp) const
+{
+    if (!fp)
+    {
+        NCNN_LOGE("save_pipeline_cache failed, invalid file pointer");
+        return -1;
+    }
+
+    std::vector<unsigned char> buf;
+    int ret = save_pipeline_cache(buf);
+    if (ret != 0)
+    {
+        return ret;
+    }
+
+    size_t write_size = fwrite(buf.data(), 1, buf.size(), fp);
+    if (write_size != buf.size())
+    {
+        NCNN_LOGE("save_pipeline_cache failed %d", write_size);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VulkanDevice::save_pipeline_cache(const char* filename) const
+{
+    if (!filename)
+    {
+        NCNN_LOGE("save_pipeline_cache failed, invalid filename");
+        return -1;
+    }
+
+    FILE* fp = fopen(filename, "wb");
+    if (!fp)
+    {
+        NCNN_LOGE("save_pipeline_cache failed, cannot open file %s", filename);
+        return -1;
+    }
+
+    int ret = save_pipeline_cache(fp);
+    fclose(fp);
+
+    return ret;
+}
+
+#endif // NCNN_STDIO
 
 int VulkanDevice::create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const
 {
