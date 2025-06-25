@@ -37,7 +37,7 @@
 
 // There is known issue that vkDestroyDebugUtilsMessengerEXT crash on exit when vulkan validation layer enabled
 // upstream fix https://github.com/KhronosGroup/Vulkan-Loader/pull/539
-#define ENABLE_VALIDATION_LAYER 0
+#define ENABLE_VALIDATION_LAYER 1
 
 namespace ncnn {
 
@@ -3028,10 +3028,14 @@ public:
     PipelineCache* pipeline_cache;
 
     // utility operator
-    // from fp32 | fp16 | int8
-    // to fp32 | fp16 | int8
+    // from fp32 | fp16
+    // to fp32 | fp16
     // to pack1 | pack4 | pack8
-    mutable ncnn::Layer* uop_packing[3][3][3];
+    mutable ncnn::Layer* uop_packing[2][2][3];
+    // from int8
+    // to int8
+    // to pack1 | pack4 | pack8
+    mutable ncnn::Layer* uop_packing_int8[3];
     mutable Mutex uop_lock;
 
     // device is valid and sucessfully initialized
@@ -3047,6 +3051,7 @@ VulkanDevicePrivate::VulkanDevicePrivate(VulkanDevice* _vkdev)
     pipeline_cache = 0;
     valid = false;
     memset(uop_packing, 0, sizeof(uop_packing));
+    memset(uop_packing_int8, 0, sizeof(uop_packing_int8));
 }
 
 int VulkanDevicePrivate::create_dummy_buffer_image()
@@ -3096,14 +3101,22 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
 
 const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
 {
-    MutexLockGuard lock(uop_lock);
-
-    const ncnn::Layer* cached_uop = uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index];
-    if (cached_uop)
-        return cached_uop;
-
     bool use_fp16 = (cast_type_from_index == 1 || cast_type_to_index == 1);
     bool use_int8 = (cast_type_from_index == 3 || cast_type_to_index == 3);
+
+    MutexLockGuard lock(uop_lock);
+
+    const ncnn::Layer* cached_uop = 0;
+    if (use_int8)
+    {
+        cached_uop = uop_packing_int8[packing_type_to_index];
+    }
+    else
+    {
+        cached_uop = uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    }
+    if (cached_uop)
+        return cached_uop;
 
     // create uop
     Option opt;
@@ -3142,7 +3155,14 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
 
     uop->create_pipeline(opt);
 
-    uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index] = uop;
+    if (use_int8)
+    {
+        uop_packing_int8[packing_type_to_index] = uop;
+    }
+    else
+    {
+        uop_packing[cast_type_from_index][cast_type_to_index][packing_type_to_index] = uop;
+    }
 
     return uop;
 }
@@ -3157,19 +3177,18 @@ void VulkanDevicePrivate::destroy_utility_operator()
     opt.pipeline_cache = 0;
     opt.vulkan_device_index = vkdev->info.device_index();
 
-    // from fp32 | fp16 | int8
-    for (int j0 = 0; j0 < 3; j0++)
+    // from fp32 | fp16
+    for (int j0 = 0; j0 < 2; j0++)
     {
-        // to fp32 | fp16 | int8
-        for (int j1 = 0; j1 < 3; j1++)
+        // to fp32 | fp16
+        for (int j1 = 0; j1 < 2; j1++)
         {
             bool use_fp16 = (j0 == 1 || j1 == 1);
-            bool use_int8 = (j0 == 3 || j1 == 3);
 
             opt.use_fp16_packed = use_fp16;
             opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
-            opt.use_int8_packed = use_int8;
-            opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+            opt.use_int8_packed = false;
+            opt.use_int8_storage = false;
 
             // to pack1 | pack4 | pack8
             for (int k = 0; k < 3; k++)
@@ -3187,6 +3206,33 @@ void VulkanDevicePrivate::destroy_utility_operator()
 
                 uop_packing[j0][j1][k] = 0;
             }
+        }
+    }
+
+    // int8
+    {
+        bool use_int8 = true;
+
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_int8_packed = use_int8;
+        opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+
+        // to pack1 | pack4 | pack8
+        for (int k = 0; k < 3; k++)
+        {
+            // enable pack8 for pack8to1/pack8to4
+            opt.use_shader_pack8 = true;
+
+            ncnn::Layer* uop = uop_packing_int8[k];
+            if (!uop)
+                continue;
+
+            uop->destroy_pipeline(opt);
+
+            delete uop;
+
+            uop_packing_int8[k] = 0;
         }
     }
 }
@@ -4244,7 +4290,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     }
     else // if (src.elembits() == 8)
     {
-        cast_type_from_index = 2;
+        cast_type_from_index = 3;
     }
 
     int cast_type_to_index = cast_type_to ? cast_type_to - 1 : cast_type_from_index;
@@ -4824,21 +4870,18 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_int8_storage)
     {
         custom_defines.append("sint8", "int8_t");
-        custom_defines.append("sint8vec4", "int");
-        custom_defines.append("sint8vec8", "ivec2");
     }
     else if (opt.use_int8_packed)
     {
         custom_defines.append("sint8", "int");
-        custom_defines.append("sint8vec4", "int");
-        custom_defines.append("sint8vec8", "ivec2");
     }
     else
     {
         custom_defines.append("sint8", "int");
-        custom_defines.append("sint8vec4", "int");
-        custom_defines.append("sint8vec8", "ivec2");
     }
+
+    custom_defines.append("sint8vec4", "int");
+    custom_defines.append("sint8vec8", "ivec2");
 
     // if (opt.use_int8_arithmetic)
     // {
@@ -4856,7 +4899,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_int8_storage)
     {
         custom_defines.append("i8buffer_ld1(buf,i)", "int(buf[i])");
-        custom_defines.append("i8buffer_st1(buf,i,v)", "{buf[i]=v;}");
+        custom_defines.append("i8buffer_st1(buf,i,v)", "{buf[i]=int8_t(v);}");
     }
     else
     {
@@ -4874,7 +4917,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
 
     custom_defines.append("i8buffer_ld8(buf,i)", "ivec8(unpackInt4x8(buf[i].r),unpackInt4x8(buf[i].g))");
-    custom_defines.append("i8buffer_st8(buf,i,v)", "{buf[i].r=packInt4x8(v.abcd);buf[i].g=packInt4x8(v.efgh);}");
+    custom_defines.append("i8buffer_st8(buf,i,v)", "{buf[i]=ivec2(packInt4x8(v.abcd),packInt4x8(v.efgh));}");
 
     // if (opt.use_int8_storage)
     // {
