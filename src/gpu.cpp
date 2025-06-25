@@ -4883,32 +4883,23 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("sint8vec4", "int");
     custom_defines.append("sint8vec8", "ivec2");
 
-    // if (opt.use_int8_arithmetic)
-    // {
-    //     custom_defines.append("aint8", "int8_t"));
-    //     custom_defines.append("aint8vec4", "i8vec4"));
-    // }
     custom_defines.append("aint8", "int");
     custom_defines.append("aint8vec4", "ivec4");
 
     custom_defines.append("unpackInt4x8(v)", "ivec4((v<<24)>>24,(v<<16)>>24,(v<<8)>>24,v>>24)");
     custom_defines.append("packInt4x8(v)", "int((uint(v.r)&0xFFu)|((uint(v.g)&0xFFu)<<8)|((uint(v.b)&0xFFu)<<16)|((uint(v.a)&0xFFu)<<24))");
 
-    // custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-
     if (opt.use_int8_storage)
     {
         custom_defines.append("i8buffer_ld1(buf,i)", "int(buf[i])");
         custom_defines.append("i8buffer_st1(buf,i,v)", "{buf[i]=int8_t(v);}");
+        custom_defines.append("i8buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
     }
     else
     {
-        custom_defines.append("i8buffer_ld1(buf,i)", "int(((buf[(i)/4]) << (24-((i)%4)*8)) >> 24)");
+        custom_defines.append("i8buffer_ld1(buf,i)", "int(((buf[(i)/4])<<(24-((i)%4)*8))>>24)");
         custom_defines.append("i8buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id4=_i/4;uint _im4=_i%4;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id4],0,0);ivec4 _v=unpackInt4x8(_old_v);_v[_im4]=_vs;_new_v=packInt4x8(_v);} while(atomicCompSwap(buf[_id4],_old_v,_new_v)!=_old_v);}");
-
-        // custom_defines.append("i8buffer_cp1to8(buf,i,sbuf,si4,sii4)", "{uvec4 _si4d4=uvec4(si4)/4;uvec4 _sii4d4=uvec4(sii4)/4;uvec4 _si4m4=uvec4(si4)%4;uvec4 _sii4m4=uvec4(sii4)%4;buf[i]=ivec2(packInt4x8(ivec4(unpackInt4x8(sbuf[_si4d4.r])[_si4m4.r],unpackInt4x8(sbuf[_si4d4.g])[_si4m4.g],unpackInt4x8(sbuf[_si4d4.b])[_si4m4.b],unpackInt4x8(sbuf[_si4d4.a])[_si4m4.a])),packInt4x8(ivec4(unpackInt4x8(sbuf[_sii4d4.r])[_sii4m4.r],unpackInt4x8(sbuf[_sii4d4.g])[_sii4m4.g],unpackInt4x8(sbuf[_sii4d4.b])[_sii4m4.b],unpackInt4x8(sbuf[_sii4d4.a])[_sii4m4.a])));}");
-
-        // custom_defines.append("i8buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{ivec8 _v=sbuf[si]; ivec4 _v0=unpackInt4x8(_v.abcd);ivec4 _v1=unpackInt4x8(_v.efgh);i8buffer_st1(buf,i4.r,_v0.r);i8buffer_st1(buf,i4.g,_v0.g);i8buffer_st1(buf,i4.b,_v0.b);i8buffer_st1(buf,i4.a,_v0.a);i8buffer_st1(buf,ii4.r,_v1.r);i8buffer_st1(buf,ii4.g,_v1.g);i8buffer_st1(buf,ii4.b,_v1.b);i8buffer_st1(buf,ii4.a,_v1.a);}");
+        custom_defines.append("i8buffer_cp1(buf,i,sbuf,si)", "{int _v=i8buffer_ld1(sbuf,si);i8buffer_st1(buf,i,_v);}");
     }
 
     custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
@@ -4917,34 +4908,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     custom_defines.append("i8buffer_ld8(buf,i)", "ivec8(unpackInt4x8(buf[i].r),unpackInt4x8(buf[i].g))");
     custom_defines.append("i8buffer_st8(buf,i,v)", "{buf[i]=ivec2(packInt4x8(v.abcd),packInt4x8(v.efgh));}");
-
-    // if (opt.use_int8_storage)
-    // {
-    //     // custom_defines.push_back(std::make_pair("i8buffer_ld1(buf,i)", "int(buf[i])"));
-    //     // custom_defines.push_back(std::make_pair("i8buffer_st1(buf,i,v)", "{buf[i]=int8_t(v);}"));
-    //     custom_defines.push_back(std::make_pair("i8buffer_ld4(buf,i)", "ivec4(buf[i])"));
-    //     custom_defines.push_back(std::make_pair("i8buffer_st4(buf,i,v)", "{buf[i]=i8vec4(v);}"));
-    //     // custom_defines.push_back(std::make_pair("i8buffer_ld8(buf,i)", "aintvec8(ivec4(buf[i].abcd),ivec4(buf[i].efgh))"));
-    //     // custom_defines.push_back(std::make_pair("i8buffer_st8(buf,i,v)", "{buf[i].abcd=i8vec4(v.abcd);buf[i].efgh=i8vec4(v.efgh);}"));
-    // }
-    // else if (opt.use_int8_packed)
-    // {
-    //     custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(round(buf[i]))"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(int(buf[i]&255)-127, int((buf[i]>>8)&255)-127, int((buf[i]>>16)&255)-127, int((buf[i]>>24)&255)-127)"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=uint(((v.r+127)) | ((v.g+127)<<8) | ((v.b+127)<<16) | ((v.a+127)<<24));}"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(int(buf[i].x&255)-127, int((buf[i].x>>8)&255)-127, int((buf[i].x>>16)&255)-127, int((buf[i].x>>24)&255)-127),ivec4(int(buf[i].y&255)-127, int((buf[i].y>>8)&255)-127, int((buf[i].y>>16)&255)-127, int((buf[i].y>>24)&255)-127))"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].x=uint(((v.abcd.r+127)) | ((v.abcd.g+127)<<8) | ((v.abcd.b+127)<<16) | ((v.abcd.a+127)<<24));buf[i].y=uint(((v.efgh.r+127)) | ((v.efgh.g+127)<<8) | ((v.efgh.b+127)<<16) | ((v.efgh.a+127)<<24));}"));
-    // }
-    // else
-    // {
-    //     custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(round(buf[i]))"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(round(buf[i]))"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=vec4(v);}"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(round(buf[i].abcd)), ivec4(round(buf[i].efgh)))"));
-    //     custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].abcd=vec4(v.abcd);buf[i].efgh=vec4(v.efgh);}"));
-    // }
+    custom_defines.append("i8buffer_cp8(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
 
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
 
