@@ -40,6 +40,7 @@ int Quantize_vulkan::create_pipeline(const Option& opt)
     if (dims == 3 || dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
+    const size_t out_elemsize = elempack * 1u;
     if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         elemsize = elempack * 2u;
@@ -48,8 +49,6 @@ int Quantize_vulkan::create_pipeline(const Option& opt)
     {
         elemsize = elempack * 4u;
     }
-
-    const size_t out_elemsize = elempack * 1u;
 
     Mat shape_packed;
     if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);

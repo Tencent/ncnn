@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2025 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -20,17 +20,9 @@ layout (constant_id = 2) const int bias_data_size = 0;
 layout (constant_id = 3) const float bias_value = 0.f;
 
 #define shape_constant_id_offset 4
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
-
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 0) const uint c = 0;
+layout (constant_id = shape_constant_id_offset + 1) const uint in_stride = 0;
+layout (constant_id = shape_constant_id_offset + 2) const uint out_stride = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { ivec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
@@ -39,66 +31,50 @@ layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
-    int w;
-    int h;
-    int c;
-    int cstep;
-
-    int outdims;
-    int outw;
-    int outh;
-    int outc;
-    int outcstep;
+    uint c;
+    uint in_stride;
+    uint out_stride;
 } p;
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    const uint gi = gl_GlobalInvocationID.x;
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gi >= psc(in_stride) * psc(c))
         return;
 
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+    const uint gy = gi / psc(in_stride);
+    const uint gx = gi % psc(in_stride);
 
     ivec4 v = bottom_blob_data[gi];
 
     afpvec4 scale;
-
     if (scale_data_size == 1)
     {
         scale = afpvec4(scale_value);
     }
     else
     {
-        const ivec3 gxyz = ivec3(gx, gy, gz);
-        const int abi = gxyz[psc(dims) - 1];
-
-        scale = buffer_ld4(scale_blob_data, abi);
+        scale = buffer_ld4(scale_blob_data, gy);
     }
 
-    afpvec4 v_fp;
-
+    afpvec4 bias;
     if (bias_data_size == 0)
     {
-        v_fp = afpvec4(v) * scale;
+        bias = afpvec4(0.f);
     }
     else if (bias_data_size == 1)
     {
-        v_fp = afpvec4(v) * scale + afpvec4(bias_value);
+        bias = afpvec4(bias_value);
     }
     else
     {
-        const ivec3 gxyz = ivec3(gx, gy, gz);
-        const int abi = gxyz[psc(dims) - 1];
-
-        afpvec4 bias = buffer_ld4(bias_blob_data, abi);
-        v_fp = afpvec4(v) * scale + bias;
+        bias = buffer_ld4(bias_blob_data, gy);
     }
 
-    const int outgi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    afpvec4 v_fp = afpvec4(v) * scale + bias;
+
+    const uint outgi = gy * psc(out_stride) + gx;
 
     buffer_st4(top_blob_data, outgi, v_fp);
 }

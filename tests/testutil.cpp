@@ -759,7 +759,33 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             std::vector<ncnn::VkMat> a_gpu(a.size());
             for (size_t i = 0; i < a_gpu.size(); i++)
             {
-                cmd.record_upload(a[i], a_gpu[i], opt);
+                ncnn::Option opt_upload = opt;
+                if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+                {
+                    // resolve dst_elempack
+                    int dims = a[i].dims;
+                    int elemcount = 0;
+                    if (dims == 1) elemcount = a[i].elempack * a[i].w;
+                    if (dims == 2) elemcount = a[i].elempack * a[i].h;
+                    if (dims == 3 || dims == 4) elemcount = a[i].elempack * a[i].c;
+
+                    const int dst_elempack = (opt.use_shader_pack8 && elemcount % 8 == 0) ? 8 : elemcount % 4 == 0 ? 4 : 1;
+
+                    ncnn::Mat a4;
+                    ncnn::convert_packing(a[i], a4, dst_elempack, opt);
+
+                    ncnn::Option opt_upload = opt;
+                    opt_upload.use_fp16_packed = false;
+                    opt_upload.use_fp16_storage = false;
+                    opt_upload.use_int8_packed = false;
+                    opt_upload.use_int8_storage = false;
+
+                    cmd.record_clone(a4, a_gpu[i], opt_upload);
+                }
+                else
+                {
+                    cmd.record_upload(a[i], a_gpu[i], opt);
+                }
             }
 
             std::vector<ncnn::VkMat> d_gpu(top_blob_count);
@@ -1082,7 +1108,33 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         {
             // upload
             ncnn::VkMat a_gpu;
-            cmd.record_upload(a, a_gpu, opt);
+
+            if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+            {
+                // resolve dst_elempack
+                int dims = a.dims;
+                int elemcount = 0;
+                if (dims == 1) elemcount = a.elempack * a.w;
+                if (dims == 2) elemcount = a.elempack * a.h;
+                if (dims == 3 || dims == 4) elemcount = a.elempack * a.c;
+
+                const int dst_elempack = (opt.use_shader_pack8 && elemcount % 8 == 0) ? 8 : elemcount % 4 == 0 ? 4 : 1;
+
+                ncnn::Mat a4;
+                ncnn::convert_packing(a, a4, dst_elempack, opt);
+
+                ncnn::Option opt_upload = opt;
+                opt_upload.use_fp16_packed = false;
+                opt_upload.use_fp16_storage = false;
+                opt_upload.use_int8_packed = false;
+                opt_upload.use_int8_storage = false;
+
+                cmd.record_clone(a4, a_gpu, opt_upload);
+            }
+            else
+            {
+                cmd.record_upload(a, a_gpu, opt);
+            }
 
             ncnn::VkMat d_gpu;
             if (op->support_inplace)
