@@ -759,7 +759,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             std::vector<ncnn::VkMat> a_gpu(a.size());
             for (size_t i = 0; i < a_gpu.size(); i++)
             {
-                ncnn::Option opt_upload = opt;
                 if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
                 {
                     // resolve dst_elempack

@@ -78,7 +78,7 @@ void main()
     }
     else
     {
-        afpvec8 bias = buffer_ld8(bias_blob_data, gy);
+        bias = buffer_ld8(bias_blob_data, gy);
     }
 
     afpvec8 v_fp;
