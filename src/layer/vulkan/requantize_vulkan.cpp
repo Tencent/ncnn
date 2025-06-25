@@ -27,50 +27,61 @@ Requantize_vulkan::Requantize_vulkan()
     pipeline_requantize_pack8 = 0;
 }
 
-int Requantize_vulkan::create_pipeline(const Option& _opt)
+int Requantize_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
+    const int dims = shape.dims;
+
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (dims == 3 || dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+    if (dims == 3 || dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
-    size_t elemsize = elempack * 4u;
-    size_t out_elemsize;
-    if (opt.use_int8_storage)
-    {
-        out_elemsize = out_elempack * 1u;
-    }
-    else if (opt.use_int8_packed)
-    {
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 1u;
-    }
-    else
-    {
-        out_elemsize = out_elempack * 4u;
-    }
+    const size_t elemsize = elempack * 4u;
+    const size_t out_elemsize = out_elempack * 1u;
 
     Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
 
     Mat out_shape_packed;
-    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    std::vector<vk_specialization_type> specializations(9 + 10);
+    size_t c = 0;
+    size_t in_stride = 0;
+    size_t out_stride = 0;
+    if (dims == 1)
+    {
+        c = 1;
+        in_stride = shape_packed.w;
+        out_stride = out_shape_packed.w;
+    }
+    if (dims == 2)
+    {
+        c = shape_packed.h;
+        in_stride = shape_packed.w;
+        out_stride = out_shape_packed.w;
+    }
+    if (dims == 3 || dims == 4)
+    {
+        c = shape_packed.c;
+        in_stride = shape_packed.cstep;
+        out_stride = out_shape_packed.cstep;
+    }
+
+    std::vector<vk_specialization_type> specializations(9 + 3);
     specializations[0].i = scale_in_data_size;
     specializations[1].f = scale_in_data_size == 1 ? scale_in_data[0] : 1.f;
     specializations[2].i = scale_out_data_size;
@@ -80,48 +91,17 @@ int Requantize_vulkan::create_pipeline(const Option& _opt)
     specializations[6].i = activation_type;
     specializations[7].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[8].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-    specializations[9 + 0].i = shape_packed.dims;
-    specializations[9 + 1].i = shape_packed.w;
-    specializations[9 + 2].i = shape_packed.h * shape_packed.d;
-    specializations[9 + 3].i = shape_packed.c;
-    specializations[9 + 4].i = shape_packed.cstep;
-    specializations[9 + 5].i = out_shape_packed.dims;
-    specializations[9 + 6].i = out_shape_packed.w;
-    specializations[9 + 7].i = out_shape_packed.h * out_shape_packed.d;
-    specializations[9 + 8].i = out_shape_packed.c;
-    specializations[9 + 9].i = out_shape_packed.cstep;
+    specializations[9 + 0].u32 = c;
+    specializations[9 + 1].u32 = in_stride;
+    specializations[9 + 2].u32 = out_stride;
 
-    Mat local_size_xyz;
-    if (shape_packed.dims == 1)
-    {
-        local_size_xyz.w = std::min(64, shape_packed.w);
-        local_size_xyz.h = 1;
-        local_size_xyz.c = 1;
-    }
-    if (shape_packed.dims == 2)
-    {
-        local_size_xyz.w = std::min(8, shape_packed.w);
-        local_size_xyz.h = std::min(8, shape_packed.h);
-        local_size_xyz.c = 1;
-    }
-    if (shape_packed.dims == 3)
-    {
-        local_size_xyz.w = std::min(4, shape_packed.w);
-        local_size_xyz.h = std::min(4, shape_packed.h);
-        local_size_xyz.c = std::min(4, shape_packed.c);
-    }
-    if (shape_packed.dims == 4)
-    {
-        local_size_xyz.w = std::min(4, shape_packed.w);
-        local_size_xyz.h = std::min(4, shape_packed.h * shape_packed.d);
-        local_size_xyz.c = std::min(4, shape_packed.c);
-    }
+    const int local_size_x = vkdev->info.subgroup_size();
 
     // pack1
     if (shape.dims == 0 || elempack == 1)
     {
         pipeline_requantize = new Pipeline(vkdev);
-        pipeline_requantize->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_requantize->set_optimal_local_size_xyz(local_size_x, 1, 1);
         pipeline_requantize->create(LayerShaderType::requantize, opt, specializations);
     }
 
@@ -129,7 +109,7 @@ int Requantize_vulkan::create_pipeline(const Option& _opt)
     if (shape.dims == 0 || elempack == 4)
     {
         pipeline_requantize_pack4 = new Pipeline(vkdev);
-        pipeline_requantize_pack4->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_requantize_pack4->set_optimal_local_size_xyz(local_size_x, 1, 1);
         pipeline_requantize_pack4->create(LayerShaderType::requantize_pack4, opt, specializations);
     }
 
@@ -137,7 +117,7 @@ int Requantize_vulkan::create_pipeline(const Option& _opt)
     if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
     {
         pipeline_requantize_pack8 = new Pipeline(vkdev);
-        pipeline_requantize_pack8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_requantize_pack8->set_optimal_local_size_xyz(local_size_x, 1, 1);
         pipeline_requantize_pack8->create(LayerShaderType::requantize_pack8, opt, specializations);
     }
 
@@ -162,32 +142,17 @@ int Requantize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (scale_in_data_size > 1)
     {
-        int elempack = opt.use_shader_pack8 && scale_in_data_size % 8 == 0 ? 8 : scale_in_data_size % 4 == 0 ? 4 : 1;
-
-        Mat scale_in_data_packed;
-        convert_packing(scale_in_data, scale_in_data_packed, elempack, opt);
-
-        cmd.record_upload(scale_in_data_packed, scale_in_data_gpu, opt);
+        cmd.record_upload(scale_in_data, scale_in_data_gpu, opt);
     }
 
     if (scale_out_data_size > 1)
     {
-        int elempack = opt.use_shader_pack8 && scale_out_data_size % 8 == 0 ? 8 : scale_out_data_size % 4 == 0 ? 4 : 1;
-
-        Mat scale_out_data_packed;
-        convert_packing(scale_out_data, scale_out_data_packed, elempack, opt);
-
-        cmd.record_upload(scale_out_data_packed, scale_out_data_gpu, opt);
+        cmd.record_upload(scale_out_data, scale_out_data_gpu, opt);
     }
 
     if (bias_data_size > 1)
     {
-        int elempack = opt.use_shader_pack8 && bias_data_size % 8 == 0 ? 8 : bias_data_size % 4 == 0 ? 4 : 1;
-
-        Mat bias_data_packed;
-        convert_packing(bias_data, bias_data_packed, elempack, opt);
-
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
     }
 
     return 0;
@@ -195,28 +160,14 @@ int Requantize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Requantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int dims = bottom_blob.dims;
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    int elempack = bottom_blob.elempack;
+    const int dims = bottom_blob.dims;
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+    const int elempack = bottom_blob.elempack;
 
     size_t out_elemsize = 1u * elempack;
-
-    if (opt.use_int8_storage)
-    {
-        out_elemsize = 1u * elempack;
-    }
-    else if (opt.use_int8_packed)
-    {
-        if (elempack == 8) out_elemsize = 8 * 1u;
-        if (elempack == 4) out_elemsize = 4 * 1u;
-        if (elempack == 1) out_elemsize = 4u;
-    }
-    else
-    {
-        out_elemsize = 4u * elempack;
-    }
 
     if (dims == 1)
         top_blob.create(w, out_elemsize, elempack, opt.blob_vkallocator);
@@ -224,8 +175,32 @@ int Requantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComp
         top_blob.create(w, h, out_elemsize, elempack, opt.blob_vkallocator);
     if (dims == 3)
         top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_vkallocator);
+    if (dims == 4)
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
+
+    size_t c = 0;
+    size_t in_stride = 0;
+    size_t out_stride = 0;
+    if (dims == 1)
+    {
+        c = 1;
+        in_stride = bottom_blob.w;
+        out_stride = top_blob.w;
+    }
+    if (dims == 2)
+    {
+        c = bottom_blob.h;
+        in_stride = bottom_blob.w;
+        out_stride = top_blob.w;
+    }
+    if (dims == 3 || dims == 4)
+    {
+        c = bottom_blob.c;
+        in_stride = bottom_blob.cstep;
+        out_stride = top_blob.cstep;
+    }
 
     std::vector<VkMat> bindings(5);
     bindings[0] = bottom_blob;
@@ -234,23 +209,21 @@ int Requantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComp
     bindings[3] = scale_out_data_gpu;
     bindings[4] = bias_data_gpu;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h * bottom_blob.d;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h * top_blob.d;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
+    std::vector<vk_constant_type> constants(3);
+    constants[0].u32 = c;
+    constants[1].u32 = in_stride;
+    constants[2].u32 = out_stride;
+
+    VkMat dispatcher;
+    dispatcher.w = in_stride * c;
+    dispatcher.h = 1;
+    dispatcher.c = 1;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_requantize_pack8
                                : elempack == 4 ? pipeline_requantize_pack4
                                : pipeline_requantize;
 
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
     return 0;
 }
