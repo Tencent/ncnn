@@ -4297,6 +4297,17 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
     // NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
+    if ((cast_type_from_index == 0 || cast_type_from_index == 1) && (cast_type_to_index == 2 || cast_type_to_index == 3))
+    {
+        NCNN_LOGE("convert_packing from fp32/fp16 to int32/int8 is not supported");
+        return;
+    }
+    if ((cast_type_from_index == 2 || cast_type_from_index == 3) && (cast_type_to_index == 0 || cast_type_to_index == 1))
+    {
+        NCNN_LOGE("convert_packing from int32/int8 to fp32/fp16 is not supported");
+        return;
+    }
+
     Option opt2 = opt;
     opt2.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
     opt2.use_fp16_storage = (cast_type_from_index == 1 || cast_type_to_index == 1) && info.support_fp16_storage();
@@ -5617,13 +5628,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             NCNN_LOGE("%s", s.getInfoLog());
             NCNN_LOGE("%s", s.getInfoDebugLog());
 
-            // for (int i = 0; i < 4; i++)
+            // print as line_number: code
             {
-                int i = 3;
-                // std::string s(comp_datas[i], comp_data_sizes[i]);
-                // NCNN_LOGE("%s", s.c_str());
-
-                const char* p = comp_datas[i];
+                const char* p = comp_datas[3];
                 const char* line_end;
                 int line_number = 1;
 
