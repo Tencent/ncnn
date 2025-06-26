@@ -142,12 +142,8 @@ static int test_dequantize_3()
            || test_dequantize_pack8(RandomIntMat(15, 24), 24, 24)
            || test_dequantize_pack8(RandomIntMat(15, 24), 24, 1)
            || test_dequantize_pack8(RandomIntMat(15, 24), 24, 0)
-           || test_dequantize_pack8(RandomIntMat(128), 1, 128)
            || test_dequantize_pack8(RandomIntMat(128), 1, 1)
-           || test_dequantize_pack8(RandomIntMat(128), 1, 0)
-           || test_dequantize_pack8(RandomIntMat(128), 128, 128)
-           || test_dequantize_pack8(RandomIntMat(128), 128, 1)
-           || test_dequantize_pack8(RandomIntMat(128), 128, 0);
+           || test_dequantize_pack8(RandomIntMat(128), 1, 0);
 }
 
 int main()

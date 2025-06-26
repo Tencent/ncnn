@@ -58,7 +58,7 @@ jobs:
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
+        sudo apt-get install autoconf automake autotools-dev ninja-build build-essential pkg-config libglib2.0-dev libpixman-1-dev zlib1g-dev python3
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
