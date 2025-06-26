@@ -450,6 +450,11 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         cast_type_to = 1;
     }
 
+    if (src.elemsize == src.elempack * 1u)
+    {
+        cast_type_to = 4;
+    }
+
     VkMat dst_staging;
     vkdev->convert_packing(src, dst_staging, dst_elempack, cast_type_to, *this, opt_staging);
 

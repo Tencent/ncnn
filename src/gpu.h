@@ -465,7 +465,7 @@ public:
 
     // utility operator
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
-    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16
+    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const;
 
     // VK_KHR_bind_memory2

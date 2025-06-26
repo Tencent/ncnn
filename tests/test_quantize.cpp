@@ -24,7 +24,7 @@ static int test_quantize(const ncnn::Mat& a, float scale_low, float scale_high)
     }
     else
     {
-        if (a.dims == 1) scale_data.create(a.w);
+        if (a.dims == 1) scale_data.create(1);
         if (a.dims == 2) scale_data.create(a.h);
         if (a.dims == 3) scale_data.create(a.c);
         Randomize(scale_data, scale_low, scale_high);
