@@ -980,6 +980,32 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
         pipeline_convolution_gemm->create(shader_type_index, opt, specializations);
     }
+    else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 4 != 0 && num_output % 4 != 0)
+    {
+        std::vector<vk_specialization_type> specializations(9 + 5);
+        specializations[0].i = bias_term;
+        specializations[1].i = activation_type;
+        specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+        specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+        specializations[4].i = 16;
+        specializations[5].i = 16;
+        specializations[6].i = 16;
+        specializations[7].i = 1;
+        specializations[8].i = 1;
+        specializations[9 + 0].i = shape_bordered_packed.w * shape_bordered_packed.h;
+        specializations[9 + 1].i = shape_bordered_packed.c;
+        specializations[9 + 2].i = shape_bordered_packed.cstep;
+        specializations[9 + 3].i = out_shape_packed.c;
+        specializations[9 + 4].i = out_shape_packed.cstep;
+
+        pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
+
+        // FIXME hardcode
+        pipeline_convolution_1x1s1d1->set_subgroup_size(64);
+        pipeline_convolution_1x1s1d1->set_local_size_xyz(64, 1, 1);
+
+        pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt, specializations);
+    }
     else if (is_conv1x1s1d1)
     {
         bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
@@ -1591,6 +1617,38 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         }
 
         cmd.record_pipeline(pipeline_convolution_gemm, bindings, constants, dispatcher);
+
+        return 0;
+    }
+    else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 4 != 0 && num_output % 4 != 0)
+    {
+        top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(4);
+        bindings[0] = bottom_blob_bordered;
+        bindings[1] = top_blob;
+        bindings[2] = weight_data_gpu;
+        bindings[3] = bias_data_gpu;
+
+        std::vector<vk_constant_type> constants(5);
+        constants[0].i = bottom_blob_bordered.w * bottom_blob_bordered.h;
+        constants[1].i = bottom_blob_bordered.c;
+        constants[2].i = bottom_blob_bordered.cstep;
+        constants[3].i = top_blob.c;
+        constants[4].i = top_blob.cstep;
+
+        // FIXME hardcode
+        int blocks_x = (top_blob.w * top_blob.h + 16 - 1) / 16;
+        int blocks_y = (top_blob.c + 16 - 1) / 16;
+
+        VkMat dispatcher;
+        dispatcher.w = (blocks_x * blocks_y) * 64; // FIXME hardcode
+        dispatcher.h = 1;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
 
         return 0;
     }
