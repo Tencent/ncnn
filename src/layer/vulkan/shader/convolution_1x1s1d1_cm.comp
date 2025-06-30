@@ -67,13 +67,13 @@ layout (push_constant) uniform parameter
 // #define UNROLL_K 4
 
 // MxK
-shared uvec2 tmp_v[UNROLL_M][M * K / 4];
+shared uvec2 tmp_k[UNROLL_M][M * K / 4];
 
 // KxN
-shared uvec2 tmp_k[UNROLL_N][K * N / 4];
+shared uvec2 tmp_v[UNROLL_N][K * N / 4];
 
 // MxN
-shared uvec2 tmp_o[UNROLL_N][UNROLL_M][M * N / 4];
+shared uvec2 tmp_o[UNROLL_M][UNROLL_N][M * N / 4];
 
 void main()
 {
@@ -83,55 +83,55 @@ void main()
     const uint li = gl_LocalInvocationID.x;
 
 
-    // v = (0 ... w)/M  *  (0 ... c)/K
+    // w = (0 ... w)/M  *  (0 ... c)/K
 
-    // w = (0 ... c)/K  *  (0 ... outc)/N
+    // v = (0 ... c)/K  *  (0 ... outc)/N
 
     // gi = (0 ... w)/M  *  (0 ... outc)/N
 
     // li = 0 1 2 3 .... 31
 
-    const int mm = (psc(w) + (M * UNROLL_M) - 1) / (M * UNROLL_M);
-    const int nn = (psc(outc) + (N * UNROLL_N) - 1) / (N * UNROLL_N);
+    const int mm = (psc(outc) + (M * UNROLL_M) - 1) / (M * UNROLL_M);
+    const int nn = (psc(w) + (N * UNROLL_N) - 1) / (N * UNROLL_N);
     const int kk = (psc(c) + K - 1) / K;
 
     if (gi >= mm * nn)
         return;
 
-    const uint ni = (gi / mm) * (N * UNROLL_N);
-    const uint mi = (gi % mm) * (M * UNROLL_M);
+    const uint mi = (gi / nn) * (M * UNROLL_M);
+    const uint ni = (gi % nn) * (N * UNROLL_N);
 
 #if ncnn_VK_KHR_cooperative_matrix
-    coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[UNROLL_N][UNROLL_M];
+    coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[UNROLL_M][UNROLL_N];
 #elif ncnn_VK_NV_cooperative_matrix
 #if NCNN_fp16_arithmetic
-    fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum[UNROLL_N][UNROLL_M];
+    fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum[UNROLL_M][UNROLL_N];
 #else
-    fcoopmatNV<32, gl_ScopeSubgroup, M, N> sum[UNROLL_N][UNROLL_M];
+    fcoopmatNV<32, gl_ScopeSubgroup, M, N> sum[UNROLL_M][UNROLL_N];
 #endif
 #endif
 
     if (bias_term == 1)
     {
-        for (int zn = 0; zn < UNROLL_N; zn++)
+        for (int zm = 0; zm < UNROLL_M; zm++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> bias;
-            coopMatLoad(bias, bias_data, ni + zn * N, 0, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(bias, bias_data, mi + zm * M, 0, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
             fcoopmatNV<16, gl_ScopeSubgroup, M, N> bias;
-            coopMatLoadNV(bias, bias_data, ni + zn * N, 0, false);
+            coopMatLoadNV(bias, bias_data, mi + zm * M, 0, true);
 #endif
 
-            for (int zm = 0; zm < UNROLL_M; zm++)
+            for (int zn = 0; zn < UNROLL_N; zn++)
             {
 #if NCNN_fp16_arithmetic
-                sum[zn][zm] = bias;
+                sum[zm][zn] = bias;
 #else
 #if ncnn_VK_KHR_cooperative_matrix
-                sum[zn][zm] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(bias);
+                sum[zm][zn] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(bias);
 #elif ncnn_VK_NV_cooperative_matrix
-                sum[zn][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(bias);
+                sum[zm][zn] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(bias);
 #endif
 #endif
             }
@@ -139,17 +139,17 @@ void main()
     }
     else
     {
-        for (int zn = 0; zn < UNROLL_N; zn++)
+        for (int zm = 0; zm < UNROLL_M; zm++)
         {
-            for (int zm = 0; zm < UNROLL_M; zm++)
+            for (int zn = 0; zn < UNROLL_N; zn++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                sum[zn][zm] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
+                sum[zm][zn] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
 #elif ncnn_VK_NV_cooperative_matrix
 #if NCNN_fp16_arithmetic
-                sum[zn][zm] = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(0.f);
+                sum[zm][zn] = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(0.f);
 #else
-                sum[zn][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(0.f);
+                sum[zm][zn] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(0.f);
 #endif
 #endif
             }
@@ -174,19 +174,22 @@ void main()
         {
 
         // load MxK
-        for (int i = 0; i < M * K; i++)
+        for (int i = 0; i < M; i++)
         {
-            const uint gm = mi + zm * M + i / K;
-            const uint gk = ki + i % K;
+        for (int j = 0; j < K; j++)
+        {
+            const uint gm = mi + zm * M + i;
+            const uint gk = ki + j;
 
-            afp v = (gk < psc(c) && gm < psc(w)) ? buffer_ld1(bottom_blob_data, gk * psc(cstep) + gm) : afp(0.f);
+            afp v = (gm < psc(outc) && gk < psc(c)) ? buffer_ld1(weight_data, gm * psc(c) + gk) : afp(0.f);
 
             // TODO optimize me
             {
-                vec2 v2 = unpackHalf2x16(tmp_v[zm][i / 4][(i % 4) / 2]);
-                v2[i % 2] = v;
-                tmp_v[zm][i / 4][(i % 4) / 2] = packHalf2x16(v2);
+                vec2 v2 = unpackHalf2x16(tmp_k[zm][(i * K + j) / 4][((i * K + j) % 4) / 2]);
+                v2[(i * K + j) % 2] = v;
+                tmp_k[zm][(i * K + j) / 4][((i * K + j) % 4) / 2] = packHalf2x16(v2);
             }
+        }
         }
 
         }
@@ -201,19 +204,22 @@ void main()
         {
 
         // load KxN
-        for (int i = 0; i < K * N; i++)
+        for (int i = 0; i < K; i++)
         {
-            const uint gk = ki + i / N;
-            const uint gn = ni + zn * N + i % N;
+        for (int j = 0; j < N; j++)
+        {
+            const uint gk = ki + i;
+            const uint gn = ni + zn * N + j;
 
-            afp v = (gn < psc(outc) && gk < psc(c)) ? buffer_ld1(weight_data, gn * psc(c) + gk) : afp(0.f);
+            afp v = (gk < psc(c) && gn < psc(w)) ? buffer_ld1(bottom_blob_data, gk * psc(cstep) + gn) : afp(0.f);
 
             // TODO optimize me
             {
-                vec2 v2 = unpackHalf2x16(tmp_k[zn][i / 4][(i % 4) / 2]);
-                v2[i % 2] = v;
-                tmp_k[zn][i / 4][(i % 4) / 2] = packHalf2x16(v2);
+                vec2 v2 = unpackHalf2x16(tmp_v[zn][(i * N + j) / 4][((i * N + j) % 4) / 2]);
+                v2[(i * N + j) % 2] = v;
+                tmp_v[zn][(i * N + j) / 4][((i * N + j) % 4) / 2] = packHalf2x16(v2);
             }
+        }
         }
 
         }
@@ -233,30 +239,30 @@ void main()
         for (int zm = 0; zm < UNROLL_M; zm++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
-            coopMatLoad(A[zm], tmp_v[zm], 0, K / 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(A[zm], tmp_k[zm], 0, K / 4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-            coopMatLoadNV(A[zm], tmp_v[zm], 0, K / 4, false);
+            coopMatLoadNV(A[zm], tmp_k[zm], 0, K / 4, false);
 #endif
         }
 
         for (int zn = 0; zn < UNROLL_N; zn++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
-            coopMatLoad(B[zn], tmp_k[zn], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B[zn], tmp_v[zn], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-            coopMatLoadNV(B[zn], tmp_k[zn], 0, N / 4, false);
+            coopMatLoadNV(B[zn], tmp_v[zn], 0, N / 4, false);
 #endif
         }
 
-        // sum += v * k
-        for (int zn = 0; zn < UNROLL_N; zn++)
+        // sum += k * v
+        for (int zm = 0; zm < UNROLL_M; zm++)
         {
-            for (int zm = 0; zm < UNROLL_M; zm++)
+            for (int zn = 0; zn < UNROLL_N; zn++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                sum[zm][zn] = coopMatMulAdd(A[zm], B[zn], sum[zm][zn]);
 #elif ncnn_VK_NV_cooperative_matrix
-                sum[zn][zm] = coopMatMulAddNV(A[zm], B[zn], sum[zn][zm]);
+                sum[zm][zn] = coopMatMulAddNV(A[zm], B[zn], sum[zm][zn]);
 #endif
             }
         }
@@ -264,23 +270,23 @@ void main()
         barrier();
     }
 
-    for (int zn = 0; zn < UNROLL_N; zn++)
+    for (int zm = 0; zm < UNROLL_M; zm++)
     {
-        for (int zm = 0; zm < UNROLL_M; zm++)
+        for (int zn = 0; zn < UNROLL_N; zn++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
 #if NCNN_fp16_arithmetic
-            coopMatStore(sum[zn][zm], tmp_o[zn][zm], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatStore(sum[zm][zn], tmp_o[zm][zn], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
 #else
-            coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
-            coopMatStore(sum_fp16, tmp_o[zn][zm], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zm][zn]);
+            coopMatStore(sum_fp16, tmp_o[zm][zn], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
 #endif
 #elif ncnn_VK_NV_cooperative_matrix
 #if NCNN_fp16_arithmetic
-            coopMatStoreNV(sum[zn][zm], tmp_o[zn][zm], 0, N / 4, false);
+            coopMatStoreNV(sum[zm][zn], tmp_o[zm][zn], 0, N / 4, false);
 #else
-            fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zn][zm]);
-            coopMatStoreNV(sum_fp16, tmp_o[zn][zm], 0, N / 4, false);
+            fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zm][zn]);
+            coopMatStoreNV(sum_fp16, tmp_o[zm][zn], 0, N / 4, false);
 #endif
 #endif
         }
@@ -297,27 +303,30 @@ void main()
     //  |   |
     //  +---+
 
-    for (int zn = 0; zn < UNROLL_N; zn++)
+    for (int zm = 0; zm < UNROLL_M; zm++)
     {
-        for (int zm = 0; zm < UNROLL_M; zm++)
+        for (int zn = 0; zn < UNROLL_N; zn++)
         {
 
             // store MxN
-            for (int i = 0; i < M * N; i++)
+            for (int i = 0; i < M; i++)
             {
-                const uint gm = mi + zm * M + i / N;
-                const uint gn = ni + zn * N + i % N;
+            for (int j = 0; j < N; j++)
+            {
+                const uint gm = mi + zm * M + i;
+                const uint gn = ni + zn * N + j;
 
-                if (gn < psc(outc) && gm < psc(w))
+                if (gm < psc(outc) && gn < psc(w))
                 {
                     // TODO optimize me
 
-                    afp v = afp(unpackHalf2x16(tmp_o[zn][zm][i / 4][(i % 4) / 2])[i % 2]);
+                    afp v = afp(unpackHalf2x16(tmp_o[zm][zn][(i * N + j) / 4][((i * N + j) % 4) / 2])[(i * N + j) % 2]);
 
                     v = activation_afp(v, activation_type, activation_param_0, activation_param_1);
 
-                    buffer_st1(top_blob_data, gn * psc(outcstep) + gm, v);
+                    buffer_st1(top_blob_data, gm * psc(outcstep) + gn, v);
                 }
+            }
             }
 
         }
