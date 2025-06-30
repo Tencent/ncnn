@@ -982,14 +982,19 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 4 != 0 && num_output % 4 != 0)
     {
+        int coopmat_M, coopmat_N, coopmat_K;
+        vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+
+        // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
+
         std::vector<vk_specialization_type> specializations(9 + 5);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4].i = 16;
-        specializations[5].i = 16;
-        specializations[6].i = 16;
+        specializations[4].i = coopmat_M;
+        specializations[5].i = coopmat_N;
+        specializations[6].i = coopmat_K;
         specializations[7].i = 1;
         specializations[8].i = 1;
         specializations[9 + 0].i = shape_bordered_packed.w * shape_bordered_packed.h;
@@ -999,11 +1004,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         specializations[9 + 4].i = out_shape_packed.cstep;
 
         pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-
-        // FIXME hardcode
-        pipeline_convolution_1x1s1d1->set_subgroup_size(64);
-        pipeline_convolution_1x1s1d1->set_local_size_xyz(64, 1, 1);
-
+        pipeline_convolution_1x1s1d1->set_local_size_xyz(vkdev->info.subgroup_size(), 1, 1);
         pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt, specializations);
     }
     else if (is_conv1x1s1d1)
@@ -1641,12 +1642,16 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         constants[3].i = top_blob.c;
         constants[4].i = top_blob.cstep;
 
-        // FIXME hardcode
-        int blocks_x = (top_blob.w * top_blob.h + 16 - 1) / 16;
-        int blocks_y = (top_blob.c + 16 - 1) / 16;
+        int coopmat_M, coopmat_N, coopmat_K;
+        vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, channels * elempack, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+
+        // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
+
+        int blocks_x = (top_blob.w * top_blob.h + coopmat_M - 1) / coopmat_M;
+        int blocks_y = (top_blob.c + coopmat_N - 1) / coopmat_N;
 
         VkMat dispatcher;
-        dispatcher.w = (blocks_x * blocks_y) * 64; // FIXME hardcode
+        dispatcher.w = (blocks_x * blocks_y) * vkdev->info.subgroup_size();
         dispatcher.h = 1;
         dispatcher.c = 1;
 
