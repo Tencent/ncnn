@@ -987,7 +987,13 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
         // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-        std::vector<vk_specialization_type> specializations(9 + 5);
+        // fprintf(stderr, "coopmat_MNK = %d %d %d => %d %d %d\n", 1024, num_output, num_input, coopmat_M, coopmat_N, coopmat_K);
+
+        // FIXME hardcode
+        int UNROLL_M = 2;
+        int UNROLL_N = 2;
+
+        std::vector<vk_specialization_type> specializations(11 + 5);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -995,13 +1001,15 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         specializations[4].i = coopmat_M;
         specializations[5].i = coopmat_N;
         specializations[6].i = coopmat_K;
-        specializations[7].i = 1;
-        specializations[8].i = 1;
-        specializations[9 + 0].i = shape_bordered_packed.w * shape_bordered_packed.h;
-        specializations[9 + 1].i = shape_bordered_packed.c;
-        specializations[9 + 2].i = shape_bordered_packed.cstep;
-        specializations[9 + 3].i = out_shape_packed.c;
-        specializations[9 + 4].i = out_shape_packed.cstep;
+        specializations[7].i = UNROLL_M;
+        specializations[8].i = UNROLL_N;
+        specializations[9].i = 1;
+        specializations[10].i = 1;
+        specializations[11 + 0].i = shape_bordered_packed.w * shape_bordered_packed.h;
+        specializations[11 + 1].i = shape_bordered_packed.c;
+        specializations[11 + 2].i = shape_bordered_packed.cstep;
+        specializations[11 + 3].i = out_shape_packed.c;
+        specializations[11 + 4].i = out_shape_packed.cstep;
 
         pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
         pipeline_convolution_1x1s1d1->set_local_size_xyz(vkdev->info.subgroup_size(), 1, 1);
@@ -1647,8 +1655,14 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-        int blocks_x = (top_blob.w * top_blob.h + coopmat_M - 1) / coopmat_M;
-        int blocks_y = (top_blob.c + coopmat_N - 1) / coopmat_N;
+        // fprintf(stderr, "coopmat_MNK = %d %d %d => %d %d %d\n", 1024, num_output, channels * elempack, coopmat_M, coopmat_N, coopmat_K);
+
+        // FIXME hardcode
+        int UNROLL_M = 2;
+        int UNROLL_N = 2;
+
+        int blocks_x = (top_blob.w * top_blob.h + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
+        int blocks_y = (top_blob.c + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
 
         VkMat dispatcher;
         dispatcher.w = (blocks_x * blocks_y) * vkdev->info.subgroup_size();
