@@ -2042,8 +2042,8 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
             const VkCooperativeMatrixPropertiesKHR& cmp = d->queryCooperativeMatrixSubProperties[i];
 
             if (cmp.AType == type && cmp.BType == type
-                && cmp.CType == acctype && cmp.ResultType == acctype
-                && cmp.scope == scope)
+                    && cmp.CType == acctype && cmp.ResultType == acctype
+                    && cmp.scope == scope)
             {
                 mnk_properties.push_back(cmp);
             }
@@ -2056,8 +2056,8 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
             const VkCooperativeMatrixPropertiesNV& cmp = d->queryCooperativeMatrixSubPropertiesNV[i];
 
             if (cmp.AType == (VkComponentTypeNV)type && cmp.BType == (VkComponentTypeNV)type
-                && cmp.CType == (VkComponentTypeNV)acctype && cmp.DType == (VkComponentTypeNV)acctype
-                && cmp.scope == (VkScopeNV)scope)
+                    && cmp.CType == (VkComponentTypeNV)acctype && cmp.DType == (VkComponentTypeNV)acctype
+                    && cmp.scope == (VkScopeNV)scope)
             {
                 VkCooperativeMatrixPropertiesKHR cmp_khr;
                 cmp_khr.MSize = cmp.MSize;
