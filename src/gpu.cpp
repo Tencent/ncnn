@@ -16,6 +16,7 @@
 
 #if NCNN_VULKAN
 
+#include <float.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2023,6 +2024,73 @@ const std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV>& GpuInfo::q
 const std::vector<VkCooperativeVectorPropertiesNV>& GpuInfo::queryCooperativeVectorSubPropertiesNV() const
 {
     return d->queryCooperativeVectorSubPropertiesNV;
+}
+
+void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K) const
+{
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+
+    // collect mnk candidates
+    std::vector<VkCooperativeMatrixPropertiesKHR> mnk_properties;
+
+    if (d->support_VK_KHR_cooperative_matrix && d->queryCooperativeMatrixFeatures.cooperativeMatrix)
+    {
+        for (size_t i = 0; i < d->queryCooperativeMatrixSubProperties.size(); i++)
+        {
+            const VkCooperativeMatrixPropertiesKHR& cmp = d->queryCooperativeMatrixSubProperties[i];
+
+            if (cmp.AType == type && cmp.BType == type
+                && cmp.CType == acctype && cmp.ResultType == acctype
+                && cmp.scope == scope)
+            {
+                mnk_properties.push_back(cmp);
+            }
+        }
+    }
+    else if (d->support_VK_NV_cooperative_matrix && d->queryCooperativeMatrixFeaturesNV.cooperativeMatrix)
+    {
+        for (size_t i = 0; i < d->queryCooperativeMatrixSubPropertiesNV.size(); i++)
+        {
+            const VkCooperativeMatrixPropertiesNV& cmp = d->queryCooperativeMatrixSubPropertiesNV[i];
+
+            if (cmp.AType == (VkComponentTypeNV)type && cmp.BType == (VkComponentTypeNV)type
+                && cmp.CType == (VkComponentTypeNV)acctype && cmp.DType == (VkComponentTypeNV)acctype
+                && cmp.scope == (VkScopeNV)scope)
+            {
+                VkCooperativeMatrixPropertiesKHR cmp_khr;
+                cmp_khr.MSize = cmp.MSize;
+                cmp_khr.NSize = cmp.NSize;
+                cmp_khr.KSize = cmp.KSize;
+
+                mnk_properties.push_back(cmp_khr);
+            }
+        }
+    }
+
+    if (mnk_properties.empty())
+        return;
+
+    // find the optimal, prefer the first mnk tuple with same cost
+    double min_cost = DBL_MAX;
+    for (size_t i = 0; i < mnk_properties.size(); i++)
+    {
+        const VkCooperativeMatrixPropertiesKHR& cmp = mnk_properties[i];
+
+        const int M_pad = (M + cmp.MSize - 1) / cmp.MSize * cmp.MSize;
+        const int N_pad = (N + cmp.NSize - 1) / cmp.NSize * cmp.NSize;
+        const int K_pad = (K + cmp.KSize - 1) / cmp.KSize * cmp.KSize;
+
+        double cost = M_pad * N_pad * K_pad - M * N * K;
+        if (cost < min_cost)
+        {
+            min_cost = cost;
+            coopmat_M = cmp.MSize;
+            coopmat_N = cmp.NSize;
+            coopmat_K = cmp.KSize;
+        }
+    }
 }
 
 static int init_instance_core()
