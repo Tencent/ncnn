@@ -177,7 +177,7 @@ void main()
                         const uint gk = ki + i;
                         const uint gm = mi + zm * M + j * 4;
 
-                        uvec2 v = gk < inch ? bottom_blob_data[(gk * psc(cstep) + gm) / 4] : uvec2(0);
+                        uvec2 v = gk < inch && gm < psc(size) ? bottom_blob_data[(gk * psc(cstep) + gm) / 4] : uvec2(0);
 
                         tmp_v[zm][i * Md4 + j] = v;
                     }
@@ -208,7 +208,7 @@ void main()
                         const uint gm = mi + zm * M + i;
                         const uint gk = ki / 4 + j;
 
-                        uvec2 v = gk < inch / 4 ? bottom_blob_data[gk * psc(cstep) + gm] : uvec2(0);
+                        uvec2 v = gk < inch / 4 && gm < psc(size) ? bottom_blob_data[gk * psc(cstep) + gm] : uvec2(0);
 
                         tmp_v[zm][i * Kd4 + j] = v;
                     }
@@ -242,7 +242,7 @@ void main()
                     const uint gk = ki + i;
                     const uint gn = ni + zn * N + j * 4;
 
-                    uvec2 v = gk < inch ? weight_data[(gk * outch_p4d4 + gn) / 4] : uvec2(0);
+                    uvec2 v = gn < outch && gk < inch ? weight_data[(gk * outch_p4d4 + gn) / 4] : uvec2(0);
 
                     tmp_k[zn][i * Nd4 + j] = v;
                 }
