@@ -14,8 +14,10 @@
 
 #version 450
 
-#extension GL_GOOGLE_include_directive: enable
+#extension GL_GOOGLE_include_directive: require
 #include "vulkan_activation.comp"
+
+#extension GL_EXT_control_flow_attributes: require
 
 #extension GL_KHR_memory_scope_semantics: require
 #extension GL_EXT_shader_explicit_arithmetic_types: require
@@ -75,9 +77,6 @@ shared uvec2 tmp_o[UNROLL_M][UNROLL_N][M * N / 4];
 
 void main()
 {
-//     const int elempack = inch % 4 == 0 ? 4 : 1;
-//     const int out_elempack = outch % 4 == 0 ? 4 : 1;
-
     // FIXME hardcode
 //     const uint gi = gl_GlobalInvocationID.x / 64;
     const uint gi = gl_WorkGroupID.x;
@@ -114,7 +113,7 @@ void main()
 
     if (bias_term == 1)
     {
-        for (int zm = 0; zm < UNROLL_M; zm++)
+        [[unroll]] for (int zm = 0; zm < UNROLL_M; zm++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> bias;
@@ -124,7 +123,7 @@ void main()
             coopMatLoadNV(bias, bias_data, (mi + zm * M) / 4, 0, true);
 #endif
 
-            for (int zn = 0; zn < UNROLL_N; zn++)
+            [[unroll]] for (int zn = 0; zn < UNROLL_N; zn++)
             {
 #if NCNN_fp16_arithmetic
                 sum[zm][zn] = bias;
@@ -140,9 +139,9 @@ void main()
     }
     else
     {
-        for (int zm = 0; zm < UNROLL_M; zm++)
+        [[unroll]] for (int zm = 0; zm < UNROLL_M; zm++)
         {
-            for (int zn = 0; zn < UNROLL_N; zn++)
+            [[unroll]] for (int zn = 0; zn < UNROLL_N; zn++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
                 sum[zm][zn] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
@@ -171,7 +170,7 @@ void main()
         //  |   |
         //  +---+
 
-        for (int zm = 0; zm < UNROLL_M; zm++)
+        [[unroll]] for (int zm = 0; zm < UNROLL_M; zm++)
         {
 
         // load MxK
@@ -210,7 +209,7 @@ void main()
         //  |   |
         //  +---+
 
-        for (int zn = 0; zn < UNROLL_N; zn++)
+        [[unroll]] for (int zn = 0; zn < UNROLL_N; zn++)
         {
 
             if (elempack == 1)
@@ -298,7 +297,7 @@ void main()
         fcoopmatNV<16, gl_ScopeSubgroup, K, N> B[UNROLL_N];
 #endif
 
-        for (int zm = 0; zm < UNROLL_M; zm++)
+        [[unroll]] for (int zm = 0; zm < UNROLL_M; zm++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
             coopMatLoad(A[zm], tmp_k[zm], 0, K / 4, gl_CooperativeMatrixLayoutRowMajor);
@@ -307,7 +306,7 @@ void main()
 #endif
         }
 
-        for (int zn = 0; zn < UNROLL_N; zn++)
+        [[unroll]] for (int zn = 0; zn < UNROLL_N; zn++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
             coopMatLoad(B[zn], tmp_v[zn], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
@@ -317,9 +316,9 @@ void main()
         }
 
         // sum += k * v
-        for (int zm = 0; zm < UNROLL_M; zm++)
+        [[unroll]] for (int zm = 0; zm < UNROLL_M; zm++)
         {
-            for (int zn = 0; zn < UNROLL_N; zn++)
+            [[unroll]] for (int zn = 0; zn < UNROLL_N; zn++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
                 sum[zm][zn] = coopMatMulAdd(A[zm], B[zn], sum[zm][zn]);
@@ -332,9 +331,9 @@ void main()
         barrier();
     }
 
-    for (int zm = 0; zm < UNROLL_M; zm++)
+    [[unroll]] for (int zm = 0; zm < UNROLL_M; zm++)
     {
-        for (int zn = 0; zn < UNROLL_N; zn++)
+        [[unroll]] for (int zn = 0; zn < UNROLL_N; zn++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
 #if NCNN_fp16_arithmetic
@@ -365,9 +364,9 @@ void main()
     //  |   |
     //  +---+
 
-    for (int zm = 0; zm < UNROLL_M; zm++)
+    [[unroll]] for (int zm = 0; zm < UNROLL_M; zm++)
     {
-        for (int zn = 0; zn < UNROLL_N; zn++)
+        [[unroll]] for (int zn = 0; zn < UNROLL_N; zn++)
         {
 
             if (out_elempack == 1)
