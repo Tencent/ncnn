@@ -123,16 +123,20 @@ void main()
             coopMatLoadNV(bias, bias_data, (mi + zm * M) / 4, 0, true);
 #endif
 
+#if !NCNN_fp16_arithmetic
+#if ncnn_VK_KHR_cooperative_matrix
+            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> bias_fp32 = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(bias);
+#elif ncnn_VK_NV_cooperative_matrix
+            fcoopmatNV<32, gl_ScopeSubgroup, M, N> bias_fp32 = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(bias);
+#endif
+#endif
+
             [[unroll]] for (int zn = 0; zn < UNROLL_N; zn++)
             {
 #if NCNN_fp16_arithmetic
                 sum[zm][zn] = bias;
 #else
-#if ncnn_VK_KHR_cooperative_matrix
-                sum[zm][zn] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(bias);
-#elif ncnn_VK_NV_cooperative_matrix
-                sum[zm][zn] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(bias);
-#endif
+                sum[zm][zn] = bias_fp32;
 #endif
             }
         }
@@ -172,34 +176,26 @@ void main()
 
         [[unroll]] for (int zm = 0; zm < UNROLL_M; zm++)
         {
+            const int Kd4 = K / 4;
+            const int inch_p4d4 = (inch + 3) / 4 * 4;
 
-        // load MxK
-        for (int i = 0; i < M; i++)
-        {
-        for (int j = 0; j + 3 < K; j += 4)
-//         for (int j = 0; j < K; j++)
-        {
-            const uint gm = mi + zm * M + i;
-            const uint gk = ki + j;
+            // load MxK
+            for (int i = 0; i < M; i++)
+            {
+                for (int j = 0; j < Kd4; j++)
+                {
+                    const uint gm = mi + zm * M + i;
+                    const uint gk = ki + j * 4;
 
-//             afp v = (gm < outch && gk < inch) ? buffer_ld1(weight_data, gm * inch + gk) : afp(0.f);
+                    afpvec4 v = gm < outch ? buffer_ld4(weight_data, (gm * inch_p4d4 + gk) / 4) : afpvec4(0.f);
 
-            afpvec4 v = gm < outch ? buffer_ld4(weight_data, (gm * ((inch + 3) / 4 * 4) + gk) / 4) : afpvec4(0.f);
+                    uvec4 gk4 = gk + uvec4(0, 1, 2, 3);
+                    bvec4 gk4ltinch = lessThan(gk4, uvec4(inch));
+                    v = mix(afpvec4(0.f), v, gk4ltinch);
 
-            uvec4 gk4 = gk + uvec4(0, 1, 2, 3);
-            bvec4 gk4ltinch = lessThan(gk4, uvec4(inch));
-            v = mix(afpvec4(0.f), v, gk4ltinch);
-
-            tmp_k[zm][(i * K + j) / 4] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
-
-//             // TODO optimize me
-//             {
-//                 vec2 v2 = unpackHalf2x16(tmp_k[zm][(i * K + j) / 4][((i * K + j) % 4) / 2]);
-//                 v2[(i * K + j) % 2] = v;
-//                 tmp_k[zm][(i * K + j) / 4][((i * K + j) % 4) / 2] = packHalf2x16(v2);
-//             }
-        }
-        }
+                    tmp_k[zm][i * Kd4 + j] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
+                }
+            }
 
         }
 
@@ -214,72 +210,57 @@ void main()
 
             if (elempack == 1)
             {
+                const int Nd4 = N / 4;
 
                 // load KxN
                 for (int i = 0; i < K; i++)
                 {
-        //         for (int j = 0; j < N; j++)
-                for (int j = 0; j + 3 < N; j += 4)
-                {
-                    const uint gk = ki + i;
-                    const uint gn = ni + zn * N + j;
+                    for (int j = 0; j < Nd4; j++)
+                    {
+                        const uint gk = ki + i;
+                        const uint gn = ni + zn * N + j * 4;
 
-        //             afp v = (gk < psc(c) && gn < psc(size)) ? buffer_ld1(bottom_blob_data, gk * psc(cstep) + gn) : afp(0.f);
+                        afpvec4 v = gk < inch ? buffer_ld4(bottom_blob_data, (gk * psc(cstep) + gn) / 4) : afpvec4(0.f);
 
-                    afpvec4 v = gk < inch ? buffer_ld4(bottom_blob_data, (gk * psc(cstep) + gn) / 4) : afpvec4(0.f);
+                        uvec4 gn4 = gn + uvec4(0, 1, 2, 3);
+                        bvec4 gn4ltsize = lessThan(gn4, uvec4(psc(size)));
+                        v = mix(afpvec4(0.f), v, gn4ltsize);
 
-                    uvec4 gn4 = gn + uvec4(0, 1, 2, 3);
-                    bvec4 gn4ltsize = lessThan(gn4, uvec4(psc(size)));
-                    v = mix(afpvec4(0.f), v, gn4ltsize);
-
-                    tmp_v[zn][(i * N + j) / 4] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
-
-        //             // TODO optimize me
-        //             {
-        //                 vec2 v2 = unpackHalf2x16(tmp_v[zn][(i * N + j) / 4][((i * N + j) % 4) / 2]);
-        //                 v2[(i * N + j) % 2] = v;
-        //                 tmp_v[zn][(i * N + j) / 4][((i * N + j) % 4) / 2] = packHalf2x16(v2);
-        //             }
-                }
+                        tmp_v[zn][i * Nd4 + j] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
+                    }
                 }
 
             }
             if (elempack == 4)
             {
+                const int Kd4 = K / 4;
+                const int Nd4 = N / 4;
 
                 // load KxN
-                for (int i = 0; i + 3 < K; i += 4)
+                for (int i = 0; i < Kd4; i++)
                 {
-                for (int j = 0; j + 3 < N; j += 4)
-                {
-                    const uint gk = (ki + i) / 4;
-                    const uint gn = ni + zn * N + j;
+                    for (int j = 0; j < Nd4; j++)
+                    {
+                        const uint gk = ki / 4 + i;
+                        const uint gn = ni + zn * N + j * 4;
 
-                    afpvec4 v0 = gk < inch / 4 ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn) : afpvec4(0.f);
-                    afpvec4 v1 = gk < inch / 4 && gn + 1 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 1) : afpvec4(0.f);
-                    afpvec4 v2 = gk < inch / 4 && gn + 2 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 2) : afpvec4(0.f);
-                    afpvec4 v3 = gk < inch / 4 && gn + 3 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 3) : afpvec4(0.f);
+                        afpvec4 v0 = gk < inch / 4 ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn) : afpvec4(0.f);
+                        afpvec4 v1 = gk < inch / 4 && gn + 1 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 1) : afpvec4(0.f);
+                        afpvec4 v2 = gk < inch / 4 && gn + 2 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 2) : afpvec4(0.f);
+                        afpvec4 v3 = gk < inch / 4 && gn + 3 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 3) : afpvec4(0.f);
 
-                    // transpose
-                    afpvec4 tv0 = afpvec4(v0.r, v1.r, v2.r, v3.r);
-                    afpvec4 tv1 = afpvec4(v0.g, v1.g, v2.g, v3.g);
-                    afpvec4 tv2 = afpvec4(v0.b, v1.b, v2.b, v3.b);
-                    afpvec4 tv3 = afpvec4(v0.a, v1.a, v2.a, v3.a);
+                        // transpose
+                        afpvec4 tv0 = afpvec4(v0.r, v1.r, v2.r, v3.r);
+                        afpvec4 tv1 = afpvec4(v0.g, v1.g, v2.g, v3.g);
+                        afpvec4 tv2 = afpvec4(v0.b, v1.b, v2.b, v3.b);
+                        afpvec4 tv3 = afpvec4(v0.a, v1.a, v2.a, v3.a);
 
-                    tmp_v[zn][(i * N + j) / 4] = uvec2(packHalf2x16(tv0.rg), packHalf2x16(tv0.ba));
-                    tmp_v[zn][((i + 1) * N + j) / 4] = uvec2(packHalf2x16(tv1.rg), packHalf2x16(tv1.ba));
-                    tmp_v[zn][((i + 2) * N + j) / 4] = uvec2(packHalf2x16(tv2.rg), packHalf2x16(tv2.ba));
-                    tmp_v[zn][((i + 3) * N + j) / 4] = uvec2(packHalf2x16(tv3.rg), packHalf2x16(tv3.ba));
-
-        //             // TODO optimize me
-        //             {
-        //                 vec2 v2 = unpackHalf2x16(tmp_v[zn][(i * N + j) / 4][((i * N + j) % 4) / 2]);
-        //                 v2[(i * N + j) % 2] = v;
-        //                 tmp_v[zn][(i * N + j) / 4][((i * N + j) % 4) / 2] = packHalf2x16(v2);
-        //             }
+                        tmp_v[zn][i * 4 * Nd4 + j] = uvec2(packHalf2x16(tv0.rg), packHalf2x16(tv0.ba));
+                        tmp_v[zn][(i * 4 + 1) * Nd4 + j] = uvec2(packHalf2x16(tv1.rg), packHalf2x16(tv1.ba));
+                        tmp_v[zn][(i * 4 + 2) * Nd4 + j] = uvec2(packHalf2x16(tv2.rg), packHalf2x16(tv2.ba));
+                        tmp_v[zn][(i * 4 + 3) * Nd4 + j] = uvec2(packHalf2x16(tv3.rg), packHalf2x16(tv3.ba));
+                    }
                 }
-                }
-
 
             }
 
@@ -371,33 +352,25 @@ void main()
 
             if (out_elempack == 1)
             {
+                const int Nd4 = N / 4;
 
                 // store MxN
                 for (int i = 0; i < M; i++)
                 {
-    //             for (int j = 0; j < N; j++)
-                for (int j = 0; j + 3 < N; j += 4)
+                for (int j = 0; j < Nd4; j++)
                 {
                     const uint gm = mi + zm * M + i;
-                    const uint gn = ni + zn * N + j;
+                    const uint gn = ni + zn * N + j * 4;
 
                     if (gm < outch && gn < psc(size))
                     {
-                        uvec2 sum = tmp_o[zm][zn][(i * N + j) / 4];
+                        uvec2 sum = tmp_o[zm][zn][i * Nd4 + j];
 
                         afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
 
                         v = activation_afpvec4(v, activation_type, activation_param_0, activation_param_1);
 
                         buffer_st4(top_blob_data, (gm * psc(outcstep) + gn) / 4, v);
-
-                        // TODO optimize me
-
-    //                     afp v = afp(unpackHalf2x16(tmp_o[zm][zn][(i * N + j) / 4][((i * N + j) % 4) / 2])[(i * N + j) % 2]);
-
-    //                     v = activation_afp(v, activation_type, activation_param_0, activation_param_1);
-
-    //                     buffer_st1(top_blob_data, gm * psc(outcstep) + gn, v);
                     }
                 }
                 }
@@ -405,55 +378,46 @@ void main()
             }
             if (out_elempack == 4)
             {
+                const int Md4 = M / 4;
+                const int Nd4 = N / 4;
 
                 // store MxN
-                for (int i = 0; i + 3 < M; i += 4)
+                for (int i = 0; i < Md4; i++)
                 {
-//                 for (int j = 0; j < N; j++)
-                for (int j = 0; j + 3 < N; j += 4)
-                {
-                    const uint gm = (mi + zm * M + i) / 4;
-                    const uint gn = ni + zn * N + j;
-
-                    if (gm < outch / 4 && gn < psc(size))
+                    for (int j = 0; j < Nd4; j++)
                     {
-                        uvec2 sum0 = tmp_o[zm][zn][(i * N + j) / 4];
-                        uvec2 sum1 = tmp_o[zm][zn][((i + 1) * N + j) / 4];
-                        uvec2 sum2 = tmp_o[zm][zn][((i + 2) * N + j) / 4];
-                        uvec2 sum3 = tmp_o[zm][zn][((i + 3) * N + j) / 4];
+                        const uint gm = (mi + zm * M) / 4 + i;
+                        const uint gn = ni + zn * N + j * 4;
 
-                        afpvec4 v0 = afpvec4(unpackHalf2x16(sum0.r), unpackHalf2x16(sum0.g));
-                        afpvec4 v1 = afpvec4(unpackHalf2x16(sum1.r), unpackHalf2x16(sum1.g));
-                        afpvec4 v2 = afpvec4(unpackHalf2x16(sum2.r), unpackHalf2x16(sum2.g));
-                        afpvec4 v3 = afpvec4(unpackHalf2x16(sum3.r), unpackHalf2x16(sum3.g));
+                        if (gm < outch / 4 && gn < psc(size))
+                        {
+                            uvec2 sum0 = tmp_o[zm][zn][i * 4 * Nd4 + j];
+                            uvec2 sum1 = tmp_o[zm][zn][(i * 4 + 1) * Nd4 + j];
+                            uvec2 sum2 = tmp_o[zm][zn][(i * 4 + 2) * Nd4 + j];
+                            uvec2 sum3 = tmp_o[zm][zn][(i * 4 + 3) * Nd4 + j];
 
-                        v0 = activation_afpvec4(v0, activation_type, activation_param_0, activation_param_1);
-                        v1 = activation_afpvec4(v1, activation_type, activation_param_0, activation_param_1);
-                        v2 = activation_afpvec4(v2, activation_type, activation_param_0, activation_param_1);
-                        v3 = activation_afpvec4(v3, activation_type, activation_param_0, activation_param_1);
+                            afpvec4 v0 = afpvec4(unpackHalf2x16(sum0.r), unpackHalf2x16(sum0.g));
+                            afpvec4 v1 = afpvec4(unpackHalf2x16(sum1.r), unpackHalf2x16(sum1.g));
+                            afpvec4 v2 = afpvec4(unpackHalf2x16(sum2.r), unpackHalf2x16(sum2.g));
+                            afpvec4 v3 = afpvec4(unpackHalf2x16(sum3.r), unpackHalf2x16(sum3.g));
 
-                        // transpose4x4
-                        afpvec4 tv0 = afpvec4(v0.r, v1.r, v2.r, v3.r);
-                        afpvec4 tv1 = afpvec4(v0.g, v1.g, v2.g, v3.g);
-                        afpvec4 tv2 = afpvec4(v0.b, v1.b, v2.b, v3.b);
-                        afpvec4 tv3 = afpvec4(v0.a, v1.a, v2.a, v3.a);
+                            v0 = activation_afpvec4(v0, activation_type, activation_param_0, activation_param_1);
+                            v1 = activation_afpvec4(v1, activation_type, activation_param_0, activation_param_1);
+                            v2 = activation_afpvec4(v2, activation_type, activation_param_0, activation_param_1);
+                            v3 = activation_afpvec4(v3, activation_type, activation_param_0, activation_param_1);
 
-//                         tv0 = afpvec4(mi);
+                            // transpose4x4
+                            afpvec4 tv0 = afpvec4(v0.r, v1.r, v2.r, v3.r);
+                            afpvec4 tv1 = afpvec4(v0.g, v1.g, v2.g, v3.g);
+                            afpvec4 tv2 = afpvec4(v0.b, v1.b, v2.b, v3.b);
+                            afpvec4 tv3 = afpvec4(v0.a, v1.a, v2.a, v3.a);
 
-                        buffer_st4(top_blob_data, gm * psc(outcstep) + gn, tv0);
-                        if (gn + 1 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 1, tv1);
-                        if (gn + 2 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 2, tv2);
-                        if (gn + 3 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 3, tv3);
-
-                        // TODO optimize me
-
-    //                     afp v = afp(unpackHalf2x16(tmp_o[zm][zn][(i * N + j) / 4][((i * N + j) % 4) / 2])[(i * N + j) % 2]);
-
-    //                     v = activation_afp(v, activation_type, activation_param_0, activation_param_1);
-
-    //                     buffer_st1(top_blob_data, gm * psc(outcstep) + gn, v);
+                            buffer_st4(top_blob_data, gm * psc(outcstep) + gn, tv0);
+                            if (gn + 1 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 1, tv1);
+                            if (gn + 2 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 2, tv2);
+                            if (gn + 3 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 3, tv3);
+                        }
                     }
-                }
                 }
 
             }
