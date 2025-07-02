@@ -798,12 +798,16 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage)
         {
             // inch - outch
-            // inch(pad4) - outch
+            // outch(pad4) - inch
 
-            weight_data_packed.create((num_input + 3) / 4 * 4, num_output);
-            for (int q = 0; q < num_output; q++)
+            weight_data_packed.create((num_output + 3) / 4 * 4, num_input);
+            for (int i = 0; i < num_input; i++)
             {
-                memcpy(weight_data_packed.row(q), (const float*)weight_data + q * num_input, num_input * sizeof(float));
+                float* p = weight_data_packed.row(i);
+                for (int j = 0; j < num_output; j++)
+                {
+                    p[j] = weight_data[j * num_input + i];
+                }
             }
         }
         else
@@ -994,14 +998,14 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage)
     {
         int coopmat_M, coopmat_N, coopmat_K;
-        vkdev->info.get_optimal_cooperative_matrix_mnk(num_output, 1024, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+        vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
 
         // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
         // fprintf(stderr, "coopmat_MNK = %d %d %d => %d %d %d\n", 1024, num_output, num_input, coopmat_M, coopmat_N, coopmat_K);
 
-        int UNROLL_M = std::min((num_output + coopmat_M - 1) / coopmat_M, 2);
-        int UNROLL_N = 2; // FIXME hardcode
+        int UNROLL_M = 2; // FIXME hardcode
+        int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
 
         // NCNN_LOGE("hah  %d %d   cp  %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
 
@@ -1659,19 +1663,19 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         constants[2].i = top_blob.cstep;
 
         int coopmat_M, coopmat_N, coopmat_K;
-        vkdev->info.get_optimal_cooperative_matrix_mnk(num_output, 1024, channels * elempack, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+        vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, channels * elempack, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
 
         // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
         // fprintf(stderr, "coopmat_MNK = %d %d %d => %d %d %d\n", 1024, num_output, channels * elempack, coopmat_M, coopmat_N, coopmat_K);
 
-        int UNROLL_M = std::min((num_output + coopmat_M - 1) / coopmat_M, 2);
-        int UNROLL_N = 2; // FIXME hardcode
+        int UNROLL_M = 2; // FIXME hardcode
+        int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
 
         // NCNN_LOGE("hah  %d %d   %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
 
-        int blocks_x = (top_blob.w * top_blob.h + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
-        int blocks_y = (num_output + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
+        int blocks_x = (top_blob.w * top_blob.h + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
+        int blocks_y = (num_output + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
 
         VkMat dispatcher;
         dispatcher.w = (blocks_x * blocks_y) * vkdev->info.subgroup_size();
