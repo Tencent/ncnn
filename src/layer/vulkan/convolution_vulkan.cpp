@@ -797,7 +797,14 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
         else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage)
         {
-            weight_data_packed = weight_data;
+            // inch - outch
+            // inch(pad4) - outch
+
+            weight_data_packed.create((num_input + 3) / 4 * 4, num_output);
+            for (int q = 0; q < num_output; q++)
+            {
+                memcpy(weight_data_packed.row(q), (const float*)weight_data + q * num_input, num_input * sizeof(float));
+            }
         }
         else
         {
@@ -993,11 +1000,10 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
         // fprintf(stderr, "coopmat_MNK = %d %d %d => %d %d %d\n", 1024, num_output, num_input, coopmat_M, coopmat_N, coopmat_K);
 
-        NCNN_LOGE("hah  %d %d   cp", elempack, out_elempack);
+        int UNROLL_M = std::min((num_output + coopmat_M - 1) / coopmat_M, 2);
+        int UNROLL_N = 2;// FIXME hardcode
 
-        // FIXME hardcode
-        int UNROLL_M = 2;
-        int UNROLL_N = 2;
+        NCNN_LOGE("hah  %d %d   cp  %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
 
         std::vector<vk_specialization_type> specializations(13 + 3);
         specializations[0].i = bias_term;
@@ -1637,8 +1643,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     }
     else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage)
     {
-        NCNN_LOGE("hah  %d %d", elempack, out_elempack);
-
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
@@ -1661,9 +1665,10 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         // fprintf(stderr, "coopmat_MNK = %d %d %d => %d %d %d\n", 1024, num_output, channels * elempack, coopmat_M, coopmat_N, coopmat_K);
 
-        // FIXME hardcode
-        int UNROLL_M = 2;
-        int UNROLL_N = 2;
+        int UNROLL_M = std::min((num_output + coopmat_M - 1) / coopmat_M, 2);
+        int UNROLL_N = 2; // FIXME hardcode
+
+        NCNN_LOGE("hah  %d %d   %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
 
         int blocks_x = (top_blob.w * top_blob.h + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
         int blocks_y = (num_output + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);

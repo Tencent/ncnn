@@ -44,18 +44,18 @@ layout (constant_id = 11) const int elempack = 1;
 layout (constant_id = 12) const int out_elempack = 1;
 
 #define shape_constant_id_offset 13
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 0) const int size = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { sfp weight_data[]; };
-layout (binding = 3) readonly buffer bias_blob { sfp bias_data[]; };
+layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int w;
+    int size;
     int cstep;
     int outcstep;
 } p;
@@ -84,16 +84,16 @@ void main()
     const uint li = gl_LocalInvocationID.x;
 
 
-    // w = (0 ... w)/M  *  (0 ... c)/K
+    // size = (0 ... size)/M  *  (0 ... c)/K
 
     // v = (0 ... c)/K  *  (0 ... outc)/N
 
-    // gi = (0 ... w)/M  *  (0 ... outc)/N
+    // gi = (0 ... size)/M  *  (0 ... outc)/N
 
     // li = 0 1 2 3 .... 31
 
     const int mm = (outch + (M * UNROLL_M) - 1) / (M * UNROLL_M);
-    const int nn = (psc(w) + (N * UNROLL_N) - 1) / (N * UNROLL_N);
+    const int nn = (psc(size) + (N * UNROLL_N) - 1) / (N * UNROLL_N);
     const int kk = (inch + K - 1) / K;
 
     if (gi >= mm * nn)
@@ -118,10 +118,10 @@ void main()
         {
 #if ncnn_VK_KHR_cooperative_matrix
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> bias;
-            coopMatLoad(bias, bias_data, mi + zm * M, 0, gl_CooperativeMatrixLayoutColumnMajor);
+            coopMatLoad(bias, bias_data, (mi + zm * M) / 4, 0, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
             fcoopmatNV<16, gl_ScopeSubgroup, M, N> bias;
-            coopMatLoadNV(bias, bias_data, mi + zm * M, 0, true);
+            coopMatLoadNV(bias, bias_data, (mi + zm * M) / 4, 0, true);
 #endif
 
             for (int zn = 0; zn < UNROLL_N; zn++)
@@ -177,19 +177,28 @@ void main()
         // load MxK
         for (int i = 0; i < M; i++)
         {
-        for (int j = 0; j < K; j++)
+        for (int j = 0; j + 3 < K; j += 4)
+//         for (int j = 0; j < K; j++)
         {
             const uint gm = mi + zm * M + i;
             const uint gk = ki + j;
 
-            afp v = (gm < outch && gk < inch) ? buffer_ld1(weight_data, gm * inch + gk) : afp(0.f);
+//             afp v = (gm < outch && gk < inch) ? buffer_ld1(weight_data, gm * inch + gk) : afp(0.f);
 
-            // TODO optimize me
-            {
-                vec2 v2 = unpackHalf2x16(tmp_k[zm][(i * K + j) / 4][((i * K + j) % 4) / 2]);
-                v2[(i * K + j) % 2] = v;
-                tmp_k[zm][(i * K + j) / 4][((i * K + j) % 4) / 2] = packHalf2x16(v2);
-            }
+            afpvec4 v = gm < outch ? buffer_ld4(weight_data, (gm * ((inch + 3) / 4 * 4) + gk) / 4) : afpvec4(0.f);
+
+            uvec4 gk4 = gk + uvec4(0, 1, 2, 3);
+            bvec4 gk4ltinch = lessThan(gk4, uvec4(inch));
+            v = mix(afpvec4(0.f), v, gk4ltinch);
+
+            tmp_k[zm][(i * K + j) / 4] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
+
+//             // TODO optimize me
+//             {
+//                 vec2 v2 = unpackHalf2x16(tmp_k[zm][(i * K + j) / 4][((i * K + j) % 4) / 2]);
+//                 v2[(i * K + j) % 2] = v;
+//                 tmp_k[zm][(i * K + j) / 4][((i * K + j) % 4) / 2] = packHalf2x16(v2);
+//             }
         }
         }
 
@@ -216,13 +225,13 @@ void main()
                     const uint gk = ki + i;
                     const uint gn = ni + zn * N + j;
 
-        //             afp v = (gk < psc(c) && gn < psc(w)) ? buffer_ld1(bottom_blob_data, gk * psc(cstep) + gn) : afp(0.f);
+        //             afp v = (gk < psc(c) && gn < psc(size)) ? buffer_ld1(bottom_blob_data, gk * psc(cstep) + gn) : afp(0.f);
 
                     afpvec4 v = gk < inch ? buffer_ld4(bottom_blob_data, (gk * psc(cstep) + gn) / 4) : afpvec4(0.f);
 
                     uvec4 gn4 = gn + uvec4(0, 1, 2, 3);
-                    bvec4 gn4ltw = lessThan(gn4, uvec4(psc(w)));
-                    v = mix(afpvec4(0.f), v, gn4ltw);
+                    bvec4 gn4ltsize = lessThan(gn4, uvec4(psc(size)));
+                    v = mix(afpvec4(0.f), v, gn4ltsize);
 
                     tmp_v[zn][(i * N + j) / 4] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
 
@@ -248,9 +257,9 @@ void main()
                     const uint gn = ni + zn * N + j;
 
                     afpvec4 v0 = gk < inch / 4 ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn) : afpvec4(0.f);
-                    afpvec4 v1 = gk < inch / 4 && gn + 1 < psc(w) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 1) : afpvec4(0.f);
-                    afpvec4 v2 = gk < inch / 4 && gn + 2 < psc(w) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 2) : afpvec4(0.f);
-                    afpvec4 v3 = gk < inch / 4 && gn + 3 < psc(w) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 3) : afpvec4(0.f);
+                    afpvec4 v1 = gk < inch / 4 && gn + 1 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 1) : afpvec4(0.f);
+                    afpvec4 v2 = gk < inch / 4 && gn + 2 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 2) : afpvec4(0.f);
+                    afpvec4 v3 = gk < inch / 4 && gn + 3 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 3) : afpvec4(0.f);
 
                     // transpose
                     afpvec4 tv0 = afpvec4(v0.r, v1.r, v2.r, v3.r);
@@ -373,7 +382,7 @@ void main()
                     const uint gm = mi + zm * M + i;
                     const uint gn = ni + zn * N + j;
 
-                    if (gm < outch && gn < psc(w))
+                    if (gm < outch && gn < psc(size))
                     {
                         uvec2 sum = tmp_o[zm][zn][(i * N + j) / 4];
 
@@ -407,7 +416,7 @@ void main()
                     const uint gm = (mi + zm * M + i) / 4;
                     const uint gn = ni + zn * N + j;
 
-                    if (gm < outch / 4 && gn < psc(w))
+                    if (gm < outch / 4 && gn < psc(size))
                     {
                         uvec2 sum0 = tmp_o[zm][zn][(i * N + j) / 4];
                         uvec2 sum1 = tmp_o[zm][zn][((i + 1) * N + j) / 4];
@@ -433,9 +442,9 @@ void main()
 //                         tv0 = afpvec4(mi);
 
                         buffer_st4(top_blob_data, gm * psc(outcstep) + gn, tv0);
-                        if (gn + 1 < psc(w)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 1, tv1);
-                        if (gn + 2 < psc(w)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 2, tv2);
-                        if (gn + 3 < psc(w)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 3, tv3);
+                        if (gn + 1 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 1, tv1);
+                        if (gn + 2 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 2, tv2);
+                        if (gn + 3 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 3, tv3);
 
                         // TODO optimize me
 
