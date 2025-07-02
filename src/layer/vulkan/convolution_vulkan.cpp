@@ -1003,22 +1003,22 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         int UNROLL_M = std::min((num_output + coopmat_M - 1) / coopmat_M, 2);
         int UNROLL_N = 2; // FIXME hardcode
 
-        NCNN_LOGE("hah  %d %d   cp  %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
+        // NCNN_LOGE("hah  %d %d   cp  %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
 
         std::vector<vk_specialization_type> specializations(13 + 3);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4].i = coopmat_M;
-        specializations[5].i = coopmat_N;
-        specializations[6].i = coopmat_K;
-        specializations[7].i = UNROLL_M;
-        specializations[8].i = UNROLL_N;
-        specializations[9].i = num_input;
-        specializations[10].i = num_output;
-        specializations[11].i = elempack;
-        specializations[12].i = out_elempack;
+        specializations[4].u32 = coopmat_M;
+        specializations[5].u32 = coopmat_N;
+        specializations[6].u32 = coopmat_K;
+        specializations[7].u32 = UNROLL_M;
+        specializations[8].u32 = UNROLL_N;
+        specializations[9].u32 = num_input;
+        specializations[10].u32 = num_output;
+        specializations[11].u32 = elempack;
+        specializations[12].u32 = out_elempack;
         specializations[13 + 0].i = shape_bordered_packed.w * shape_bordered_packed.h;
         specializations[13 + 1].i = shape_bordered_packed.cstep;
         specializations[13 + 2].i = out_shape_packed.cstep;
@@ -1668,7 +1668,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         int UNROLL_M = std::min((num_output + coopmat_M - 1) / coopmat_M, 2);
         int UNROLL_N = 2; // FIXME hardcode
 
-        NCNN_LOGE("hah  %d %d   %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
+        // NCNN_LOGE("hah  %d %d   %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
 
         int blocks_x = (top_blob.w * top_blob.h + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
         int blocks_y = (num_output + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
