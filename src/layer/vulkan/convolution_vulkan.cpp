@@ -1001,7 +1001,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         // fprintf(stderr, "coopmat_MNK = %d %d %d => %d %d %d\n", 1024, num_output, num_input, coopmat_M, coopmat_N, coopmat_K);
 
         int UNROLL_M = std::min((num_output + coopmat_M - 1) / coopmat_M, 2);
-        int UNROLL_N = 2;// FIXME hardcode
+        int UNROLL_N = 2; // FIXME hardcode
 
         NCNN_LOGE("hah  %d %d   cp  %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
 
