@@ -47,10 +47,10 @@ layout (constant_id = shape_constant_id_offset + 0) const int size = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { uvec2 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
-layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+layout (binding = 2) readonly buffer weight_blob { uvec2 weight_data[]; };
+layout (binding = 3) readonly buffer bias_blob { uvec2 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -79,6 +79,10 @@ void main()
 
     if (gi >= mm * nn)
         return;
+
+    // assert gl_WorkGroupSize.x == gl_SubgroupSize
+    // but neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
+    const uint subgroup_size = ncnn_subgroupSize;
 
     const uint mi = (gi / nn) * (M * UNROLL_M);
     const uint ni = (gi % nn) * (N * UNROLL_N);
@@ -157,10 +161,10 @@ void main()
             const uint Kd4 = K / 4;
             const uint inch_p4d4 = (inch + 3) / 4 * 4;
 
-            const uint UNROLL_M_M_Kd4_d_localsize = (UNROLL_M * M * Kd4 + gl_WorkGroupSize.x - 1) / gl_WorkGroupSize.x;
+            const uint UNROLL_M_M_Kd4_d_localsize = (UNROLL_M * M * Kd4 + subgroup_size - 1) / subgroup_size;
             [[unroll]] for (uint q = 0; q < UNROLL_M_M_Kd4_d_localsize; q++)
             {
-                const uint liq = li + q * gl_WorkGroupSize.x;
+                const uint liq = li + q * subgroup_size;
 
                 const uint zm = liq / (M * Kd4);
                 const uint ij = liq % (M * Kd4);
@@ -172,33 +176,37 @@ void main()
                     const uint gm = mi + zm * M + i;
                     const uint gk = ki + j * 4;
 
-                    afpvec4 v = gm < outch ? buffer_ld4(weight_data, (gm * inch_p4d4 + gk) / 4) : afpvec4(0.f);
+                    uvec2 v = gm < outch ? weight_data[(gm * inch_p4d4 + gk) / 4] : uvec2(0);
 
                     uvec4 gk4 = gk + uvec4(0, 1, 2, 3);
                     bvec4 gk4ltinch = lessThan(gk4, uvec4(inch));
-                    v = mix(afpvec4(0.f), v, gk4ltinch);
+//                     v = mix(uvec2(0), v, gk4ltinch);
 
-                    tmp_k[zm][i * Kd4 + j] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
+                    uint maskX = (uint(gk4ltinch[0]) * 0xFFFFu) | ((uint(gk4ltinch[1]) * 0xFFFFu) << 16);
+                    uint maskY = (uint(gk4ltinch[2]) * 0xFFFFu) | ((uint(gk4ltinch[3]) * 0xFFFFu) << 16);
+                    v = v & uvec2(maskX, maskY);
+
+                    tmp_k[zm][i * Kd4 + j] = v;
                 }
             }
         }
 
         // load bottom_blob
         {
-            //  +-N-+
-            //  |   |
-            //  K   |
-            //  |   |
-            //  +---+
-
             if (elempack == 1)
             {
+                //  +-N-+
+                //  |   |
+                //  K   |
+                //  |   |
+                //  +---+
+
                 const uint Nd4 = N / 4;
 
-                const uint UNROLL_N_K_Nd4_d_localsize = (UNROLL_N * K * Nd4 + gl_WorkGroupSize.x - 1) / gl_WorkGroupSize.x;
+                const uint UNROLL_N_K_Nd4_d_localsize = (UNROLL_N * K * Nd4 + subgroup_size - 1) / subgroup_size;
                 [[unroll]] for (uint q = 0; q < UNROLL_N_K_Nd4_d_localsize; q++)
                 {
-                    const uint liq = li + q * gl_WorkGroupSize.x;
+                    const uint liq = li + q * subgroup_size;
 
                     const uint zn = liq / (K * Nd4);
                     const uint ij = liq % (K * Nd4);
@@ -210,51 +218,48 @@ void main()
                         const uint gk = ki + i;
                         const uint gn = ni + zn * N + j * 4;
 
-                        afpvec4 v = gk < inch ? buffer_ld4(bottom_blob_data, (gk * psc(cstep) + gn) / 4) : afpvec4(0.f);
+                        uvec2 v = gk < inch ? bottom_blob_data[(gk * psc(cstep) + gn) / 4] : uvec2(0);
 
                         uvec4 gn4 = gn + uvec4(0, 1, 2, 3);
                         bvec4 gn4ltsize = lessThan(gn4, uvec4(psc(size)));
-                        v = mix(afpvec4(0.f), v, gn4ltsize);
+//                         v = mix(afpvec4(0.f), v, gn4ltsize);
 
-                        tmp_v[zn][i * Nd4 + j] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
+                        uint maskX = (uint(gn4ltsize[0]) * 0xFFFFu) | ((uint(gn4ltsize[1]) * 0xFFFFu) << 16);
+                        uint maskY = (uint(gn4ltsize[2]) * 0xFFFFu) | ((uint(gn4ltsize[3]) * 0xFFFFu) << 16);
+                        v = v & uvec2(maskX, maskY);
+
+                        tmp_v[zn][i * Nd4 + j] = v;
                     }
                 }
             }
-            if (elempack == 4)
+            else // if (elempack == 4)
             {
+                //  +-K-+
+                //  |   |
+                //  N   |
+                //  |   |
+                //  +---+
+
                 const uint Kd4 = K / 4;
-                const uint Nd4 = N / 4;
 
-                const uint UNROLL_N_Kd4_Nd4_d_localsize = (UNROLL_N * Kd4 * Nd4 + gl_WorkGroupSize.x - 1) / gl_WorkGroupSize.x;
-                [[unroll]] for (uint q = 0; q < UNROLL_N_Kd4_Nd4_d_localsize; q++)
+                const uint UNROLL_N_N_Kd4_d_localsize = (UNROLL_N * N * Kd4 + subgroup_size - 1) / subgroup_size;
+                [[unroll]] for (uint q = 0; q < UNROLL_N_N_Kd4_d_localsize; q++)
                 {
-                    const uint liq = li + q * gl_WorkGroupSize.x;
+                    const uint liq = li + q * subgroup_size;
 
-                    const uint zn = liq / (Kd4 * Nd4);
-                    const uint ij = liq % (Kd4 * Nd4);
-                    const uint i = ij / Nd4;
-                    const uint j = ij % Nd4;
+                    const uint zn = liq / (N * Kd4);
+                    const uint ij = liq % (N * Kd4);
+                    const uint i = ij / Kd4;
+                    const uint j = ij % Kd4;
 
-                    if (zn < UNROLL_N && i < Kd4)
+                    if (zn < UNROLL_N && i < N)
                     {
-                        const uint gk = ki / 4 + i;
-                        const uint gn = ni + zn * N + j * 4;
+                        const uint gn = ni + zn * N + i;
+                        const uint gk = ki / 4 + j;
 
-                        afpvec4 v0 = gk < inch / 4 ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn) : afpvec4(0.f);
-                        afpvec4 v1 = gk < inch / 4 && gn + 1 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 1) : afpvec4(0.f);
-                        afpvec4 v2 = gk < inch / 4 && gn + 2 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 2) : afpvec4(0.f);
-                        afpvec4 v3 = gk < inch / 4 && gn + 3 < psc(size) ? buffer_ld4(bottom_blob_data, gk * psc(cstep) + gn + 3) : afpvec4(0.f);
+                        uvec2 v = gk < inch / 4 ? bottom_blob_data[gk * psc(cstep) + gn] : uvec2(0);
 
-                        // transpose
-                        afpvec4 tv0 = afpvec4(v0.r, v1.r, v2.r, v3.r);
-                        afpvec4 tv1 = afpvec4(v0.g, v1.g, v2.g, v3.g);
-                        afpvec4 tv2 = afpvec4(v0.b, v1.b, v2.b, v3.b);
-                        afpvec4 tv3 = afpvec4(v0.a, v1.a, v2.a, v3.a);
-
-                        tmp_v[zn][i * 4 * Nd4 + j] = uvec2(packHalf2x16(tv0.rg), packHalf2x16(tv0.ba));
-                        tmp_v[zn][(i * 4 + 1) * Nd4 + j] = uvec2(packHalf2x16(tv1.rg), packHalf2x16(tv1.ba));
-                        tmp_v[zn][(i * 4 + 2) * Nd4 + j] = uvec2(packHalf2x16(tv2.rg), packHalf2x16(tv2.ba));
-                        tmp_v[zn][(i * 4 + 3) * Nd4 + j] = uvec2(packHalf2x16(tv3.rg), packHalf2x16(tv3.ba));
+                        tmp_v[zn][i * Kd4 + j] = v;
                     }
                 }
             }
@@ -281,10 +286,13 @@ void main()
 
         [[unroll]] for (uint zn = 0; zn < UNROLL_N; zn++)
         {
+            const uint B_stride = elempack == 1 ? N / 4 : K / 4;
 #if ncnn_VK_KHR_cooperative_matrix
-            coopMatLoad(B[zn], tmp_v[zn], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
+            const int B_layout = elempack == 1 ? gl_CooperativeMatrixLayoutRowMajor : gl_CooperativeMatrixLayoutColumnMajor;
+            coopMatLoad(B[zn], tmp_v[zn], 0, B_stride, B_layout);
 #elif ncnn_VK_NV_cooperative_matrix
-            coopMatLoadNV(B[zn], tmp_v[zn], 0, N / 4, false);
+            const bool B_colmajor = elempack == 1 ? false : true;
+            coopMatLoadNV(B[zn], tmp_v[zn], 0, B_stride, B_colmajor);
 #endif
         }
 
@@ -308,19 +316,22 @@ void main()
     {
         [[unroll]] for (uint zn = 0; zn < UNROLL_N; zn++)
         {
+            const uint sum_stride = out_elempack == 1 ? N / 4 : M / 4;
 #if ncnn_VK_KHR_cooperative_matrix
+            const int sum_layout = out_elempack == 1 ? gl_CooperativeMatrixLayoutRowMajor : gl_CooperativeMatrixLayoutColumnMajor;
 #if NCNN_fp16_arithmetic
-            coopMatStore(sum[zm][zn], tmp_o[zm][zn], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatStore(sum[zm][zn], tmp_o[zm][zn], 0, sum_stride, sum_layout);
 #else
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zm][zn]);
-            coopMatStore(sum_fp16, tmp_o[zm][zn], 0, N / 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatStore(sum_fp16, tmp_o[zm][zn], 0, sum_stride, sum_layout);
 #endif
 #elif ncnn_VK_NV_cooperative_matrix
+            const bool sum_colmajor = out_elempack == 1 ? false : true;
 #if NCNN_fp16_arithmetic
-            coopMatStoreNV(sum[zm][zn], tmp_o[zm][zn], 0, N / 4, false);
+            coopMatStoreNV(sum[zm][zn], tmp_o[zm][zn], 0, sum_stride, sum_colmajor);
 #else
             fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zm][zn]);
-            coopMatStoreNV(sum_fp16, tmp_o[zm][zn], 0, N / 4, false);
+            coopMatStoreNV(sum_fp16, tmp_o[zm][zn], 0, sum_stride, sum_colmajor);
 #endif
 #endif
         }
@@ -330,20 +341,20 @@ void main()
 
     // store top_blob
     {
-        //  +-N-+
-        //  |   |
-        //  M   |
-        //  |   |
-        //  +---+
-
         if (out_elempack == 1)
         {
+            //  +-N-+
+            //  |   |
+            //  M   |
+            //  |   |
+            //  +---+
+
             const uint Nd4 = N / 4;
 
-            const uint UNROLL_MN_M_Nd4_d_localsize = (UNROLL_M * UNROLL_N * M * Nd4 + gl_WorkGroupSize.x - 1) / gl_WorkGroupSize.x;
+            const uint UNROLL_MN_M_Nd4_d_localsize = (UNROLL_M * UNROLL_N * M * Nd4 + subgroup_size - 1) / subgroup_size;
             [[unroll]] for (uint q = 0; q < UNROLL_MN_M_Nd4_d_localsize; q++)
             {
-                const uint liq = li + q * gl_WorkGroupSize.x;
+                const uint liq = li + q * subgroup_size;
 
                 const uint zm = liq / (UNROLL_N * M * Nd4);
                 const uint znij = liq % (UNROLL_N * M * Nd4);
@@ -367,53 +378,40 @@ void main()
                 }
             }
         }
-        if (out_elempack == 4)
+        else // if (out_elempack == 4)
         {
+            //  +-M-+
+            //  |   |
+            //  N   |
+            //  |   |
+            //  +---+
+
             const uint Md4 = M / 4;
-            const uint Nd4 = N / 4;
 
-            const uint UNROLL_MN_Md4_Nd4_d_localsize = (UNROLL_M * UNROLL_N * Md4 * Nd4 + gl_WorkGroupSize.x - 1) / gl_WorkGroupSize.x;
-            [[unroll]] for (uint q = 0; q < UNROLL_MN_Md4_Nd4_d_localsize; q++)
+            const uint UNROLL_MN_N_Md4_d_localsize = (UNROLL_M * UNROLL_N * N * Md4 + subgroup_size - 1) / subgroup_size;
+            [[unroll]] for (uint q = 0; q < UNROLL_MN_N_Md4_d_localsize; q++)
             {
-                const uint liq = li + q * gl_WorkGroupSize.x;
+                const uint liq = li + q * subgroup_size;
 
-                const uint zm = liq / (UNROLL_N * Md4 * Nd4);
-                const uint znij = liq % (UNROLL_N * Md4 * Nd4);
-                const uint zn = znij / (Md4 * Nd4);
-                const uint ij = znij % (Md4 * Nd4);
-                const uint i = ij / Nd4;
-                const uint j = ij % Nd4;
+                const uint zm = liq / (UNROLL_N * N * Md4);
+                const uint znij = liq % (UNROLL_N * N * Md4);
+                const uint zn = znij / (N * Md4);
+                const uint ij = znij % (N * Md4);
+                const uint i = ij / Md4;
+                const uint j = ij % Md4;
 
-                const uint gm = (mi + zm * M) / 4 + i;
-                const uint gn = ni + zn * N + j * 4;
+                const uint gn = ni + zn * N + i;
+                const uint gm = (mi + zm * M) / 4 + j;
 
-                if (zm < UNROLL_M && zn < UNROLL_N && i < Md4 && gm < outch / 4 && gn < psc(size))
+                if (zm < UNROLL_M && zn < UNROLL_N && i < N && gm < outch / 4 && gn < psc(size))
                 {
-                    uvec2 sum0 = tmp_o[zm][zn][i * 4 * Nd4 + j];
-                    uvec2 sum1 = tmp_o[zm][zn][(i * 4 + 1) * Nd4 + j];
-                    uvec2 sum2 = tmp_o[zm][zn][(i * 4 + 2) * Nd4 + j];
-                    uvec2 sum3 = tmp_o[zm][zn][(i * 4 + 3) * Nd4 + j];
+                    uvec2 sum = tmp_o[zm][zn][i * Md4 + j];
 
-                    afpvec4 v0 = afpvec4(unpackHalf2x16(sum0.r), unpackHalf2x16(sum0.g));
-                    afpvec4 v1 = afpvec4(unpackHalf2x16(sum1.r), unpackHalf2x16(sum1.g));
-                    afpvec4 v2 = afpvec4(unpackHalf2x16(sum2.r), unpackHalf2x16(sum2.g));
-                    afpvec4 v3 = afpvec4(unpackHalf2x16(sum3.r), unpackHalf2x16(sum3.g));
+                    afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
 
-                    v0 = activation_afpvec4(v0, activation_type, activation_param_0, activation_param_1);
-                    v1 = activation_afpvec4(v1, activation_type, activation_param_0, activation_param_1);
-                    v2 = activation_afpvec4(v2, activation_type, activation_param_0, activation_param_1);
-                    v3 = activation_afpvec4(v3, activation_type, activation_param_0, activation_param_1);
+                    v = activation_afpvec4(v, activation_type, activation_param_0, activation_param_1);
 
-                    // transpose4x4
-                    afpvec4 tv0 = afpvec4(v0.r, v1.r, v2.r, v3.r);
-                    afpvec4 tv1 = afpvec4(v0.g, v1.g, v2.g, v3.g);
-                    afpvec4 tv2 = afpvec4(v0.b, v1.b, v2.b, v3.b);
-                    afpvec4 tv3 = afpvec4(v0.a, v1.a, v2.a, v3.a);
-
-                    buffer_st4(top_blob_data, gm * psc(outcstep) + gn, tv0);
-                    if (gn + 1 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 1, tv1);
-                    if (gn + 2 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 2, tv2);
-                    if (gn + 3 < psc(size)) buffer_st4(top_blob_data, gm * psc(outcstep) + gn + 3, tv3);
+                    buffer_st4(top_blob_data, gm * psc(outcstep) + gn, v);
                 }
             }
         }
