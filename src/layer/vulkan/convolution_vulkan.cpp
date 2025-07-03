@@ -1027,8 +1027,11 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         specializations[13 + 1].i = shape_bordered_packed.cstep;
         specializations[13 + 2].i = out_shape_packed.cstep;
 
+        const int subgroup_size = vkdev->info.subgroup_size();
+
         pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-        pipeline_convolution_1x1s1d1->set_local_size_xyz(vkdev->info.subgroup_size(), 1, 1);
+        pipeline_convolution_1x1s1d1->set_subgroup_size(subgroup_size);
+        pipeline_convolution_1x1s1d1->set_local_size_xyz(subgroup_size, 1, 1);
         pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt, specializations);
     }
     else if (is_conv1x1s1d1)
@@ -1677,8 +1680,10 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         int blocks_x = (top_blob.w * top_blob.h + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
         int blocks_y = (num_output + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
 
+        const int subgroup_size = vkdev->info.subgroup_size();
+
         VkMat dispatcher;
-        dispatcher.w = (blocks_x * blocks_y) * vkdev->info.subgroup_size();
+        dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_M * UNROLL_N);
         dispatcher.h = 1;
         dispatcher.c = 1;
 
