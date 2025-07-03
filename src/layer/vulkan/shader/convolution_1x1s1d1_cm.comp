@@ -43,9 +43,9 @@ layout (constant_id = 11) const uint elempack = 1;
 layout (constant_id = 12) const uint out_elempack = 1;
 
 #define shape_constant_id_offset 13
-layout (constant_id = shape_constant_id_offset + 0) const int size = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 0) const uint size = 0;
+layout (constant_id = shape_constant_id_offset + 1) const uint cstep = 0;
+layout (constant_id = shape_constant_id_offset + 2) const uint outcstep = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { uvec2 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { uvec2 top_blob_data[]; };
@@ -54,9 +54,9 @@ layout (binding = 3) readonly buffer bias_blob { uvec2 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int size;
-    int cstep;
-    int outcstep;
+    uint size;
+    uint cstep;
+    uint outcstep;
 } p;
 
 // FIXME hardcode
@@ -86,15 +86,22 @@ void main()
     const uint nn = (outch + (N * UNROLL_N) - 1) / (N * UNROLL_N);
     const uint kk = (inch + K - 1) / K;
 
-    if (gi >= mm * nn)
-        return;
+    const uint Md4 = M / 4;
+    const uint Nd4 = N / 4;
+    const uint Kd4 = K / 4;
 
     // assert gl_WorkGroupSize.x == gl_SubgroupSize
     // but neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
     const uint local_size = ncnn_subgroupSize;
 
-    const uint ni = (gi / mm) * (N * UNROLL_N);
-    const uint mi = (gi % mm) * (M * UNROLL_M);
+//     const uint ni = (gi / mm) * (N * UNROLL_N);
+//     const uint mi = (gi % mm) * (M * UNROLL_M);
+
+    const uint mi = (gi / nn) * (M * UNROLL_M);
+    const uint ni = (gi % nn) * (N * UNROLL_N);
+
+    if (gi / nn >= mm)
+        return;
 
 #if ncnn_VK_KHR_cooperative_matrix
     coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[UNROLL_N][UNROLL_M];
@@ -168,7 +175,6 @@ void main()
                 //  |   |
                 //  +---+
 
-                const uint Md4 = M / 4;
                 const uint cstepd4 = psc(cstep) / 4;
 
                 // access pattern, inner to outer
@@ -205,7 +211,6 @@ void main()
                 //  |   |
                 //  +---+
 
-                const uint Kd4 = K / 4;
                 const uint inchd4 = inch / 4;
 
                 // access pattern, inner to outer
@@ -244,7 +249,6 @@ void main()
             //  |   |
             //  +---+
 
-            const uint Nd4 = N / 4;
             const uint outch_p4d4 = (outch + 3) / 4;
 
             // access pattern, inner to outer
@@ -288,22 +292,22 @@ void main()
         {
             [[unroll]] for (uint zm = 0; zm < UNROLL_M; zm++)
             {
-                const uint A_stride = elempack == 1 ? M / 4 : K / 4;
+                const uint A_stride = elempack == 1 ? Md4 : Kd4;
 #if ncnn_VK_KHR_cooperative_matrix
                 const int A_layout = elempack == 1 ? gl_CooperativeMatrixLayoutColumnMajor : gl_CooperativeMatrixLayoutRowMajor;
-                coopMatLoad(A[zm], tmp_v, (zk * UNROLL_M + zm) * M * K / 4, A_stride, A_layout);
+                coopMatLoad(A[zm], tmp_v, (zk * UNROLL_M + zm) * M * Kd4, A_stride, A_layout);
 #elif ncnn_VK_NV_cooperative_matrix
                 const bool A_colmajor = elempack == 1 ? true : false;
-                coopMatLoadNV(A[zm], tmp_v, (zk * UNROLL_M + zm) * M * K / 4, A_stride, A_colmajor);
+                coopMatLoadNV(A[zm], tmp_v, (zk * UNROLL_M + zm) * M * Kd4, A_stride, A_colmajor);
 #endif
             }
 
             [[unroll]] for (uint zn = 0; zn < UNROLL_N; zn++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                coopMatLoad(B[zn], tmp_k, (zk * UNROLL_N + zn) * K * N / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
+                coopMatLoad(B[zn], tmp_k, (zk * UNROLL_N + zn) * K * Nd4, Nd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                coopMatLoadNV(B[zn], tmp_k, (zk * UNROLL_N + zn) * K * N / 4, N / 4, false);
+                coopMatLoadNV(B[zn], tmp_k, (zk * UNROLL_N + zn) * K * Nd4, Nd4, false);
 #endif
             }
 
@@ -338,7 +342,6 @@ void main()
                 //  |   |
                 //  +---+
 
-                const uint Md4 = M / 4;
                 const uint cstepd4 = psc(cstep) / 4;
 
                 // access pattern, inner to outer
@@ -373,7 +376,6 @@ void main()
                 //  |   |
                 //  +---+
 
-                const uint Kd4 = K / 4;
                 const uint inchd4 = inch / 4;
 
                 // access pattern, inner to outer
@@ -410,7 +412,6 @@ void main()
             //  |   |
             //  +---+
 
-            const uint Nd4 = N / 4;
             const uint outch_p4d4 = (outch + 3) / 4;
 
             // access pattern, inner to outer
@@ -450,22 +451,22 @@ void main()
 
         [[unroll]] for (uint zm = 0; zm < UNROLL_M; zm++)
         {
-            const uint A_stride = elempack == 1 ? M / 4 : K / 4;
+            const uint A_stride = elempack == 1 ? Md4 : Kd4;
 #if ncnn_VK_KHR_cooperative_matrix
             const int A_layout = elempack == 1 ? gl_CooperativeMatrixLayoutColumnMajor : gl_CooperativeMatrixLayoutRowMajor;
-            coopMatLoad(A[zm], tmp_v, zm * M * K / 4, A_stride, A_layout);
+            coopMatLoad(A[zm], tmp_v, zm * M * Kd4, A_stride, A_layout);
 #elif ncnn_VK_NV_cooperative_matrix
             const bool A_colmajor = elempack == 1 ? true : false;
-            coopMatLoadNV(A[zm], tmp_v, zm * M * K / 4, A_stride, A_colmajor);
+            coopMatLoadNV(A[zm], tmp_v, zm * M * Kd4, A_stride, A_colmajor);
 #endif
         }
 
         [[unroll]] for (uint zn = 0; zn < UNROLL_N; zn++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
-            coopMatLoad(B[zn], tmp_k, zn * K * N / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B[zn], tmp_k, zn * K * Nd4, Nd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-            coopMatLoadNV(B[zn], tmp_k, zn * K * N / 4, N / 4, false);
+            coopMatLoadNV(B[zn], tmp_k, zn * K * Nd4, Nd4, false);
 #endif
         }
 
@@ -489,22 +490,22 @@ void main()
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_M; zm++)
         {
-            const uint sum_stride = out_elempack == 1 ? M / 4 : N / 4;
+            const uint sum_stride = out_elempack == 1 ? Md4 : Nd4;
 #if ncnn_VK_KHR_cooperative_matrix
             const int sum_layout = out_elempack == 1 ? gl_CooperativeMatrixLayoutColumnMajor : gl_CooperativeMatrixLayoutRowMajor;
 #if NCNN_fp16_arithmetic
-            coopMatStore(sum[zn][zm], tmp_v, (zn * UNROLL_M + zm) * M * N / 4, sum_stride, sum_layout);
+            coopMatStore(sum[zn][zm], tmp_v, (zn * UNROLL_M + zm) * M * Nd4, sum_stride, sum_layout);
 #else
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
-            coopMatStore(sum_fp16, tmp_v, (zn * UNROLL_M + zm) * M * N / 4, sum_stride, sum_layout);
+            coopMatStore(sum_fp16, tmp_v, (zn * UNROLL_M + zm) * M * Nd4, sum_stride, sum_layout);
 #endif
 #elif ncnn_VK_NV_cooperative_matrix
             const bool sum_colmajor = out_elempack == 1 ? true : false;
 #if NCNN_fp16_arithmetic
-            coopMatStoreNV(sum[zn][zm], tmp_v, (zn * UNROLL_M + zm) * M * N / 4, sum_stride, sum_colmajor);
+            coopMatStoreNV(sum[zn][zm], tmp_v, (zn * UNROLL_M + zm) * M * Nd4, sum_stride, sum_colmajor);
 #else
             fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zn][zm]);
-            coopMatStoreNV(sum_fp16, tmp_v, (zn * UNROLL_M + zm) * M * N / 4, sum_stride, sum_colmajor);
+            coopMatStoreNV(sum_fp16, tmp_v, (zn * UNROLL_M + zm) * M * Nd4, sum_stride, sum_colmajor);
 #endif
 #endif
         }
@@ -522,7 +523,6 @@ void main()
             //  |   |
             //  +---+
 
-            const uint Md4 = M / 4;
             const uint outcstepd4 = psc(outcstep) / 4;
 
             // access pattern, inner to outer
@@ -570,7 +570,6 @@ void main()
             //  |   |
             //  +---+
 
-            const uint Nd4 = N / 4;
             const uint outchd4 = outch / 4;
 
             // access pattern, inner to outer

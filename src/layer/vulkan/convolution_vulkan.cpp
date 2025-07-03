@@ -1023,9 +1023,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         specializations[10].u32 = num_output;
         specializations[11].u32 = elempack;
         specializations[12].u32 = out_elempack;
-        specializations[13 + 0].i = shape_bordered_packed.w * shape_bordered_packed.h;
-        specializations[13 + 1].i = shape_bordered_packed.cstep;
-        specializations[13 + 2].i = out_shape_packed.cstep;
+        specializations[13 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
+        specializations[13 + 1].u32 = shape_bordered_packed.cstep;
+        specializations[13 + 2].u32 = out_shape_packed.cstep;
 
         const int subgroup_size = vkdev->info.subgroup_size();
 
@@ -1661,9 +1661,9 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         bindings[3] = bias_data_gpu;
 
         std::vector<vk_constant_type> constants(3);
-        constants[0].i = bottom_blob_bordered.w * bottom_blob_bordered.h;
-        constants[1].i = bottom_blob_bordered.cstep;
-        constants[2].i = top_blob.cstep;
+        constants[0].u32 = bottom_blob_bordered.w * bottom_blob_bordered.h;
+        constants[1].u32 = bottom_blob_bordered.cstep;
+        constants[2].u32 = top_blob.cstep;
 
         int coopmat_M, coopmat_N, coopmat_K;
         vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, channels * elempack, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
