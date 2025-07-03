@@ -37,12 +37,13 @@ layout (constant_id = 5) const uint N = 1;
 layout (constant_id = 6) const uint K = 1;
 layout (constant_id = 7) const uint UNROLL_M = 1;
 layout (constant_id = 8) const uint UNROLL_N = 1;
-layout (constant_id = 9) const uint inch = 1;
-layout (constant_id = 10) const uint outch = 1;
-layout (constant_id = 11) const uint elempack = 1;
-layout (constant_id = 12) const uint out_elempack = 1;
+layout (constant_id = 9) const uint UNROLL_K = 1;
+layout (constant_id = 10) const uint inch = 1;
+layout (constant_id = 11) const uint outch = 1;
+layout (constant_id = 12) const uint elempack = 1;
+layout (constant_id = 13) const uint out_elempack = 1;
 
-#define shape_constant_id_offset 13
+#define shape_constant_id_offset 14
 layout (constant_id = shape_constant_id_offset + 0) const uint size = 0;
 layout (constant_id = shape_constant_id_offset + 1) const uint cstep = 0;
 layout (constant_id = shape_constant_id_offset + 2) const uint outcstep = 0;
@@ -59,23 +60,9 @@ layout (push_constant) uniform parameter
     uint outcstep;
 } p;
 
-// FIXME hardcode
-#define UNROLL_K 2
-
-// shared uvec2 tmp[UNROLL_K * UNROLL_M * M * K + UNROLL_K * UNROLL_N * K * N > UNROLL_N * UNROLL_M * M * N ? UNROLL_K * UNROLL_M * M * K / 4 + UNROLL_K * UNROLL_N * K * N / 4 : UNROLL_N * UNROLL_M * M * N / 4];
-
 shared uvec2 tmp_v[UNROLL_K * K > UNROLL_N * N ? UNROLL_K * UNROLL_M * M * K / 4 : UNROLL_N * UNROLL_M * M * N / 4];
 
 shared uvec2 tmp_k[UNROLL_K * UNROLL_N * K * N / 4];
-
-// // MxK
-// shared uvec2 tmp_v[UNROLL_K][UNROLL_M][M * K / 4];
-//
-// // KxN
-// shared uvec2 tmp_k[UNROLL_K][UNROLL_N][K * N / 4];
-//
-// // MxN
-// shared uvec2 tmp_o[UNROLL_N][UNROLL_M][M * N / 4];
 
 void main()
 {
@@ -93,9 +80,6 @@ void main()
     // assert gl_WorkGroupSize.x == gl_SubgroupSize
     // but neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
     const uint local_size = ncnn_subgroupSize;
-
-//     const uint ni = (gi / mm) * (N * UNROLL_N);
-//     const uint mi = (gi % mm) * (M * UNROLL_M);
 
     const uint mi = (gi / nn) * (M * UNROLL_M);
     const uint ni = (gi % nn) * (N * UNROLL_N);

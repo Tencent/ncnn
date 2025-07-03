@@ -1002,14 +1002,11 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
         // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-        // fprintf(stderr, "coopmat_MNK = %d %d %d => %d %d %d\n", 1024, num_output, num_input, coopmat_M, coopmat_N, coopmat_K);
+        const int UNROLL_M = 2; // FIXME hardcode
+        const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+        const int UNROLL_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
-        int UNROLL_M = 2; // FIXME hardcode
-        int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-
-        // NCNN_LOGE("hah  %d %d   cp  %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
-
-        std::vector<vk_specialization_type> specializations(13 + 3);
+        std::vector<vk_specialization_type> specializations(14 + 3);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -1019,13 +1016,14 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         specializations[6].u32 = coopmat_K;
         specializations[7].u32 = UNROLL_M;
         specializations[8].u32 = UNROLL_N;
-        specializations[9].u32 = num_input;
-        specializations[10].u32 = num_output;
-        specializations[11].u32 = elempack;
-        specializations[12].u32 = out_elempack;
-        specializations[13 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
-        specializations[13 + 1].u32 = shape_bordered_packed.cstep;
-        specializations[13 + 2].u32 = out_shape_packed.cstep;
+        specializations[9].u32 = UNROLL_K;
+        specializations[10].u32 = num_input;
+        specializations[11].u32 = num_output;
+        specializations[12].u32 = elempack;
+        specializations[13].u32 = out_elempack;
+        specializations[14 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
+        specializations[14 + 1].u32 = shape_bordered_packed.cstep;
+        specializations[14 + 2].u32 = out_shape_packed.cstep;
 
         const int subgroup_size = vkdev->info.subgroup_size();
 
@@ -1670,15 +1668,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-        // fprintf(stderr, "coopmat_MNK = %d %d %d => %d %d %d\n", 1024, num_output, channels * elempack, coopmat_M, coopmat_N, coopmat_K);
+        const int UNROLL_M = 2; // FIXME hardcode
+        const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
 
-        int UNROLL_M = 2; // FIXME hardcode
-        int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-
-        // NCNN_LOGE("hah  %d %d   %d %d", elempack, out_elempack, UNROLL_M, UNROLL_N);
-
-        int blocks_x = (top_blob.w * top_blob.h + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
-        int blocks_y = (num_output + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
+        const int blocks_x = (top_blob.w * top_blob.h + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
+        const int blocks_y = (num_output + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
 
         const int subgroup_size = vkdev->info.subgroup_size();
 
