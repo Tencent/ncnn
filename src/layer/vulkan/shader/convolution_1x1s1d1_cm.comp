@@ -488,24 +488,43 @@ void main()
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_M; zm++)
         {
-            const uint sum_stride = out_elempack == 1 ? Md4 : Nd4;
+            if (out_elempack == 1)
+            {
 #if ncnn_VK_KHR_cooperative_matrix
-            const int sum_layout = out_elempack == 1 ? gl_CooperativeMatrixLayoutColumnMajor : gl_CooperativeMatrixLayoutRowMajor;
 #if NCNN_fp16_arithmetic
-            coopMatStore(sum[zn][zm], tmp_v, (zn * UNROLL_M + zm) * M * Nd4, sum_stride, sum_layout);
+                coopMatStore(sum[zn][zm], tmp_v, zn * (Md4 * UNROLL_M * N) + zm * Md4, Md4 * UNROLL_M, gl_CooperativeMatrixLayoutColumnMajor);
 #else
-            coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
-            coopMatStore(sum_fp16, tmp_v, (zn * UNROLL_M + zm) * M * Nd4, sum_stride, sum_layout);
+                coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
+                coopMatStore(sum_fp16, tmp_v, zn * (Md4 * UNROLL_M * N) + zm * Md4, Md4 * UNROLL_M, gl_CooperativeMatrixLayoutColumnMajor);
 #endif
 #elif ncnn_VK_NV_cooperative_matrix
-            const bool sum_colmajor = out_elempack == 1 ? true : false;
 #if NCNN_fp16_arithmetic
-            coopMatStoreNV(sum[zn][zm], tmp_v, (zn * UNROLL_M + zm) * M * Nd4, sum_stride, sum_colmajor);
+                coopMatStoreNV(sum[zn][zm], tmp_v, zn * (Md4 * UNROLL_M * N) + zm * Md4, Md4 * UNROLL_M, true);
 #else
-            fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zn][zm]);
-            coopMatStoreNV(sum_fp16, tmp_v, (zn * UNROLL_M + zm) * M * Nd4, sum_stride, sum_colmajor);
+                fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zn][zm]);
+                coopMatStoreNV(sum_fp16, tmp_v, zn * (Md4 * UNROLL_M * N) + zm * Md4, Md4 * UNROLL_M, true);
 #endif
 #endif
+            }
+            else // if (out_elempack == 4)
+            {
+#if ncnn_VK_KHR_cooperative_matrix
+#if NCNN_fp16_arithmetic
+                coopMatStore(sum[zn][zm], tmp_v, zm * (Nd4 * UNROLL_N * M) + zn * Nd4, Nd4 * UNROLL_N, gl_CooperativeMatrixLayoutRowMajor);
+#else
+                coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
+                coopMatStore(sum_fp16, tmp_v, zm * (Nd4 * UNROLL_N * M) + zn * Nd4, Nd4 * UNROLL_N, gl_CooperativeMatrixLayoutRowMajor);
+#endif
+#elif ncnn_VK_NV_cooperative_matrix
+#if NCNN_fp16_arithmetic
+                coopMatStoreNV(sum[zn][zm], tmp_v, zm * (Nd4 * UNROLL_N * M) + zn * Nd4, Nd4 * UNROLL_N, false);
+#else
+                fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zn][zm]);
+                coopMatStoreNV(sum_fp16, tmp_v, zm * (Nd4 * UNROLL_N * M) + zn * Nd4, Nd4 * UNROLL_N, false);
+#endif
+#endif
+            }
+
         }
     }
 
@@ -515,11 +534,15 @@ void main()
     {
         if (out_elempack == 1)
         {
-            //  +-M-+
-            //  |   |
-            //  N   |
-            //  |   |
-            //  +---+
+            //  +-M-+-UM+
+            //  |   |   |
+            //  N       |
+            //  |   |   |
+            //  +- -+- -+
+            //  |   |   |
+            //  UN      |
+            //  |   |   |
+            //  +---+---+
 
             const uint outcstepd4 = psc(outcstep) / 4;
 
@@ -531,19 +554,15 @@ void main()
             {
                 const uint liq = li + q * local_size;
 
-                const uint zn = liq / (Md4 * UNROLL_M * N);
-                const uint zmij = liq % (Md4 * UNROLL_M * N);
-                const uint i = zmij / (Md4 * UNROLL_M);
-                const uint zmj = zmij % (Md4 * UNROLL_M);
-                const uint zm = zmj / Md4;
-                const uint j = zmj % Md4;
+                const uint i = liq / (Md4 * UNROLL_M);
+                const uint j = liq % (Md4 * UNROLL_M);
 
-                const uint gn = ni + zn * N + i;
-                const uint gm = (mi + zm * M) / 4 + j;
+                const uint gn = ni + i;
+                const uint gm = mi / 4 + j;
 
-                if (zn < UNROLL_N && gn < outch && gm < outcstepd4)
+                if (i < N * UNROLL_N && gn < outch && gm < outcstepd4)
                 {
-                    uvec2 sum = tmp_v[((zn * UNROLL_M + zm) * N + i) * Md4 + j];
+                    uvec2 sum = tmp_v[i * (Md4 * UNROLL_M) + j];
 
                     if (activation_type == 0)
                     {
@@ -562,11 +581,15 @@ void main()
         }
         else // if (out_elempack == 4)
         {
-            //  +-N-+
-            //  |   |
-            //  M   |
-            //  |   |
-            //  +---+
+            //  +-N-+-UN+
+            //  |   |   |
+            //  M       |
+            //  |   |   |
+            //  +- -+- -+
+            //  |   |   |
+            //  UM      |
+            //  |   |   |
+            //  +---+---+
 
             const uint outchd4 = outch / 4;
 
@@ -578,20 +601,15 @@ void main()
             {
                 const uint liq = li + q * local_size;
 
-                const uint zn = liq / (M * UNROLL_M * Nd4);
-                const uint zmij = liq % (M * UNROLL_M * Nd4);
-                const uint j = zmij / (M * UNROLL_M);
-                const uint zmi = zmij % (M * UNROLL_M);
-//                 const uint zm = zmi / M;
-//                 const uint i = zmi % M;
+                const uint j = liq / (M * UNROLL_M);
+                const uint i = liq % (M * UNROLL_M);
 
-                const uint gn = (ni + zn * N) / 4 + j;
-//                 const uint gm = mi + zm * M + i;
-                const uint gm = mi + zmi;
+                const uint gn = ni / 4 + j;
+                const uint gm = mi + i;
 
-                if (zn < UNROLL_N && gn < outchd4 && gm < psc(outcstep))
+                if (j < Nd4 * UNROLL_N && gn < outchd4 && gm < psc(outcstep))
                 {
-                    uvec2 sum = tmp_v[(zn * UNROLL_M * M + zmi) * Nd4 + j];
+                    uvec2 sum = tmp_v[i * (Nd4 * UNROLL_N) + j];
 
                     if (activation_type == 0)
                     {
