@@ -153,11 +153,15 @@ void main()
         {
             if (elempack == 1)
             {
-                //  +-M-+
-                //  |   |
-                //  K   |
-                //  |   |
-                //  +---+
+                //  +-M-+-UM+
+                //  |   |   |
+                //  K       |
+                //  |   |   |
+                //  +- -+- -+
+                //  |   |   |
+                //  UK      |
+                //  |   |   |
+                //  +---+---+
 
                 const uint cstepd4 = psc(cstep) / 4;
 
@@ -169,31 +173,31 @@ void main()
                 {
                     const uint liq = li + q * local_size;
 
-                    const uint zk = liq / (Md4 * UNROLL_M * K);
-                    const uint zmij = liq % (Md4 * UNROLL_M * K);
-                    const uint i = zmij / (Md4 * UNROLL_M);
-                    const uint zmj = zmij % (Md4 * UNROLL_M);
-                    const uint zm = zmj / Md4;
-                    const uint j = zmj % Md4;
+                    const uint i = liq / (Md4 * UNROLL_M);
+                    const uint j = liq % (Md4 * UNROLL_M);
 
-                    if (zk < UNROLL_K)
+                    if (i < K * UNROLL_K)
                     {
-                        const uint gk = (k + zk) * K + i;
-                        const uint gm = (mi + zm * M) / 4 + j;
+                        const uint gk = k * K + i;
+                        const uint gm = mi / 4 + j;
 
                         uvec2 v = gk < inch && gm < cstepd4 ? bottom_blob_data[gk * cstepd4 + gm] : uvec2(0);
 
-                        tmp_v[((zk * UNROLL_M + zm) * K + i) * Md4 + j] = v;
+                        tmp_v[i * (Md4 * UNROLL_M) + j] = v;
                     }
                 }
             }
             else // if (elempack == 4)
             {
-                //  +-K-+
-                //  |   |
-                //  M   |
-                //  |   |
-                //  +---+
+                //  +-K-+-UK+
+                //  |   |   |
+                //  M       |
+                //  |   |   |
+                //  +- -+- -+
+                //  |   |   |
+                //  UM      |
+                //  |   |   |
+                //  +---+---+
 
                 const uint inchd4 = inch / 4;
 
@@ -205,21 +209,17 @@ void main()
                 {
                     const uint liq = li + q * local_size;
 
-                    const uint zk = liq / (M * UNROLL_M * Kd4);
-                    const uint zmij = liq % (M * UNROLL_M * Kd4);
-                    const uint j = zmij / (M * UNROLL_M);
-                    const uint zmi = zmij % (M * UNROLL_M);
-                    const uint zm = zmi / M;
-                    const uint i = zmi % M;
+                    const uint j = liq / (M * UNROLL_M);
+                    const uint i = liq % (M * UNROLL_M);
 
-                    if (zk < UNROLL_K)
+                    if (j < Kd4 * UNROLL_K)
                     {
-                        const uint gk = (k + zk) * Kd4 + j;
-                        const uint gm = mi + zm * M + i;
+                        const uint gk = k * Kd4 + j;
+                        const uint gm = mi + i;
 
                         uvec2 v = gk < inchd4 && gm < psc(cstep) ? bottom_blob_data[gk * psc(cstep) + gm] : uvec2(0);
 
-                        tmp_v[((zk * UNROLL_M + zm) * M + i) * Kd4 + j] = v;
+                        tmp_v[i * (Kd4 * UNROLL_K) + j] = v;
                     }
                 }
             }
@@ -227,11 +227,15 @@ void main()
 
         // load weight
         {
-            //  +-N-+
-            //  |   |
-            //  K   |
-            //  |   |
-            //  +---+
+            //  +-N-+-UN+
+            //  |   |   |
+            //  K       |
+            //  |   |   |
+            //  +- -+- -+
+            //  |   |   |
+            //  UK      |
+            //  |   |   |
+            //  +---+---+
 
             const uint outch_p4d4 = (outch + 3) / 4;
 
@@ -243,21 +247,17 @@ void main()
             {
                 const uint liq = li + q * local_size;
 
-                const uint zk = liq / (Nd4 * UNROLL_N * K);
-                const uint znij = liq % (Nd4 * UNROLL_N * K);
-                const uint i = znij / (Nd4 * UNROLL_N);
-                const uint znj = znij % (Nd4 * UNROLL_N);
-                const uint zn = znj / Nd4;
-                const uint j = znj % Nd4;
+                const uint i = liq / (Nd4 * UNROLL_N);
+                const uint j = liq % (Nd4 * UNROLL_N);
 
-                if (zk < UNROLL_K)
+                if (i < K * UNROLL_K)
                 {
-                    const uint gk = (k + zk) * K + i;
-                    const uint gn = (ni + zn * N) / 4 + j;
+                    const uint gk = k * K + i;
+                    const uint gn = ni / 4 + j;
 
                     uvec2 v = gn < outch_p4d4 && gk < inch ? weight_data[gk * outch_p4d4 + gn] : uvec2(0);
 
-                    tmp_k[((zk * UNROLL_N + zn) * K + i) * Nd4 + j] = v;
+                    tmp_k[i * (Nd4 * UNROLL_N) + j] = v;
                 }
             }
         }
@@ -276,22 +276,30 @@ void main()
         {
             [[unroll]] for (uint zm = 0; zm < UNROLL_M; zm++)
             {
-                const uint A_stride = elempack == 1 ? Md4 : Kd4;
+                if (elempack == 1)
+                {
 #if ncnn_VK_KHR_cooperative_matrix
-                const int A_layout = elempack == 1 ? gl_CooperativeMatrixLayoutColumnMajor : gl_CooperativeMatrixLayoutRowMajor;
-                coopMatLoad(A[zm], tmp_v, (zk * UNROLL_M + zm) * M * Kd4, A_stride, A_layout);
+                    coopMatLoad(A[zm], tmp_v, zk * (Md4 * UNROLL_M * K) + zm * Md4, Md4 * UNROLL_M, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                const bool A_colmajor = elempack == 1 ? true : false;
-                coopMatLoadNV(A[zm], tmp_v, (zk * UNROLL_M + zm) * M * Kd4, A_stride, A_colmajor);
+                    coopMatLoadNV(A[zm], tmp_v, zk * (Md4 * UNROLL_M * K) + zm * Md4, Md4 * UNROLL_M, true);
 #endif
+                }
+                else // if (elempack == 4)
+                {
+#if ncnn_VK_KHR_cooperative_matrix
+                    coopMatLoad(A[zm], tmp_v, zm * (Kd4 * UNROLL_K * M) + zk * Kd4, Kd4 * UNROLL_K, gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+                    coopMatLoadNV(A[zm], tmp_v, zm * (Kd4 * UNROLL_K * M) + zk * Kd4, Kd4 * UNROLL_K, false);
+#endif
+                }
             }
 
             [[unroll]] for (uint zn = 0; zn < UNROLL_N; zn++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                coopMatLoad(B[zn], tmp_k, (zk * UNROLL_N + zn) * K * Nd4, Nd4, gl_CooperativeMatrixLayoutRowMajor);
+                coopMatLoad(B[zn], tmp_k, zk * (Nd4 * UNROLL_N * K) + zn * Nd4, Nd4 * UNROLL_N, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                coopMatLoadNV(B[zn], tmp_k, (zk * UNROLL_N + zn) * K * Nd4, Nd4, false);
+                coopMatLoadNV(B[zn], tmp_k, zk * (Nd4 * UNROLL_N * K) + zn * Nd4, Nd4 * UNROLL_N, false);
 #endif
             }
 
@@ -320,11 +328,11 @@ void main()
         {
             if (elempack == 1)
             {
-                //  +-M-+
-                //  |   |
-                //  K   |
-                //  |   |
-                //  +---+
+                //  +-M-+-UM+
+                //  |   |   |
+                //  K       |
+                //  |   |   |
+                //  +---+---+
 
                 const uint cstepd4 = psc(cstep) / 4;
 
@@ -337,18 +345,16 @@ void main()
                     const uint liq = li + q * local_size;
 
                     const uint i = liq / (Md4 * UNROLL_M);
-                    const uint zmj = liq % (Md4 * UNROLL_M);
-                    const uint zm = zmj / Md4;
-                    const uint j = zmj % Md4;
+                    const uint j = liq % (Md4 * UNROLL_M);
 
-                    if (zm < UNROLL_M)
+                    if (i < K)
                     {
                         const uint gk = ki + i;
-                        const uint gm = (mi + zm * M) / 4 + j;
+                        const uint gm = mi / 4 + j;
 
                         uvec2 v = gk < inch && gm < cstepd4 ? bottom_blob_data[gk * cstepd4 + gm] : uvec2(0);
 
-                        tmp_v[(zm * K + i) * Md4 + j] = v;
+                        tmp_v[i * (Md4 * UNROLL_M) + j] = v;
                     }
                 }
             }
@@ -357,6 +363,10 @@ void main()
                 //  +-K-+
                 //  |   |
                 //  M   |
+                //  |   |
+                //  +- -+
+                //  |   |
+                //  UM  |
                 //  |   |
                 //  +---+
 
@@ -371,18 +381,16 @@ void main()
                     const uint liq = li + q * local_size;
 
                     const uint j = liq / (M * UNROLL_M);
-                    const uint zmi = liq % (M * UNROLL_M);
-                    const uint zm = zmi / M;
-                    const uint i = zmi % M;
+                    const uint i = liq % (M * UNROLL_M);
 
-                    if (zm < UNROLL_M)
+                    if (j < Kd4)
                     {
-                        const uint gm = mi + zm * M + i;
+                        const uint gm = mi + i;
                         const uint gk = ki / 4 + j;
 
                         uvec2 v = gk < inchd4 && gm < psc(cstep) ? bottom_blob_data[gk * psc(cstep) + gm] : uvec2(0);
 
-                        tmp_v[(zm * M + i) * Kd4 + j] = v;
+                        tmp_v[i * Kd4 + j] = v;
                     }
                 }
             }
@@ -390,11 +398,11 @@ void main()
 
         // load weight
         {
-            //  +-N-+
-            //  |   |
-            //  K   |
-            //  |   |
-            //  +---+
+            //  +-N-+-UN+
+            //  |   |   |
+            //  K       |
+            //  |   |   |
+            //  +---+---+
 
             const uint outch_p4d4 = (outch + 3) / 4;
 
@@ -407,18 +415,16 @@ void main()
                 const uint liq = li + q * local_size;
 
                 const uint i = liq / (Nd4 * UNROLL_N);
-                const uint znj = liq % (Nd4 * UNROLL_N);
-                const uint zn = znj / Nd4;
-                const uint j = znj % Nd4;
+                const uint j = liq % (Nd4 * UNROLL_N);
 
-                if (zn < UNROLL_N)
+                if (i < K)
                 {
                     const uint gk = ki + i;
-                    const uint gn = (ni + zn * N) / 4 + j;
+                    const uint gn = ni / 4 + j;
 
                     uvec2 v = gn < outch_p4d4 && gk < inch ? weight_data[gk * outch_p4d4 + gn] : uvec2(0);
 
-                    tmp_k[(zn * K + i) * Nd4 + j] = v;
+                    tmp_k[i * (Nd4 * UNROLL_N) + j] = v;
                 }
             }
         }
@@ -435,22 +441,30 @@ void main()
 
         [[unroll]] for (uint zm = 0; zm < UNROLL_M; zm++)
         {
-            const uint A_stride = elempack == 1 ? Md4 : Kd4;
+            if (elempack == 1)
+            {
 #if ncnn_VK_KHR_cooperative_matrix
-            const int A_layout = elempack == 1 ? gl_CooperativeMatrixLayoutColumnMajor : gl_CooperativeMatrixLayoutRowMajor;
-            coopMatLoad(A[zm], tmp_v, zm * M * Kd4, A_stride, A_layout);
+                coopMatLoad(A[zm], tmp_v, zm * Md4, Md4 * UNROLL_M, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-            const bool A_colmajor = elempack == 1 ? true : false;
-            coopMatLoadNV(A[zm], tmp_v, zm * M * Kd4, A_stride, A_colmajor);
+                coopMatLoadNV(A[zm], tmp_v, zm * Md4, Md4 * UNROLL_M, true);
 #endif
+            }
+            else // if (elempack == 4)
+            {
+#if ncnn_VK_KHR_cooperative_matrix
+                coopMatLoad(A[zm], tmp_v, zm * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+                coopMatLoadNV(A[zm], tmp_v, zm * (Kd4 * M), Kd4, false);
+#endif
+            }
         }
 
         [[unroll]] for (uint zn = 0; zn < UNROLL_N; zn++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
-            coopMatLoad(B[zn], tmp_k, zn * K * Nd4, Nd4, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B[zn], tmp_k, zn * Nd4, Nd4 * UNROLL_N, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-            coopMatLoadNV(B[zn], tmp_k, zn * K * Nd4, Nd4, false);
+            coopMatLoadNV(B[zn], tmp_k, zn * Nd4, Nd4 * UNROLL_N, false);
 #endif
         }
 
@@ -568,15 +582,16 @@ void main()
                 const uint zmij = liq % (M * UNROLL_M * Nd4);
                 const uint j = zmij / (M * UNROLL_M);
                 const uint zmi = zmij % (M * UNROLL_M);
-                const uint zm = zmi / M;
-                const uint i = zmi % M;
+//                 const uint zm = zmi / M;
+//                 const uint i = zmi % M;
 
                 const uint gn = (ni + zn * N) / 4 + j;
-                const uint gm = mi + zm * M + i;
+//                 const uint gm = mi + zm * M + i;
+                const uint gm = mi + zmi;
 
                 if (zn < UNROLL_N && gn < outchd4 && gm < psc(outcstep))
                 {
-                    uvec2 sum = tmp_v[((zn * UNROLL_M + zm) * M + i) * Nd4 + j];
+                    uvec2 sum = tmp_v[(zn * UNROLL_M * M + zmi) * Nd4 + j];
 
                     if (activation_type == 0)
                     {
