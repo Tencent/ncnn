@@ -1683,7 +1683,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         const int subgroup_size = vkdev->info.subgroup_size();
 
         VkMat dispatcher;
-        dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_M * UNROLL_N);
+        dispatcher.w = (blocks_x * blocks_y) * subgroup_size;
         dispatcher.h = 1;
         dispatcher.c = 1;
 
