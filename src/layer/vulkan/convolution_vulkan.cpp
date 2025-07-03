@@ -1034,14 +1034,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1)
     {
-        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
-        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
-        if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
-        {
-            use_cooperative_matrix_16_8_8 = false;
-            use_cooperative_matrix_16_16_16 = false;
-        }
-
         std::vector<vk_specialization_type> specializations(4 + 8);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
@@ -1067,27 +1059,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_1x1s1d1;
         if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_1x1s1d1;
 
-        if (use_cooperative_matrix_16_8_8)
-        {
-            shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1_cm_16_8_8;
-        }
-        else if (use_cooperative_matrix_16_16_16)
-        {
-            shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1_cm_16_16_16;
-        }
-
         pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-        if (use_cooperative_matrix_16_8_8)
-        {
-            pipeline_convolution_1x1s1d1->set_subgroup_size(32);
-            pipeline_convolution_1x1s1d1->set_local_size_xyz(32, 1, 1); // 16_8_8
-        }
-        else if (use_cooperative_matrix_16_16_16)
-        {
-            pipeline_convolution_1x1s1d1->set_subgroup_size(32);
-            pipeline_convolution_1x1s1d1->set_local_size_xyz(32, 1, 1); // 16_16_16
-        }
-        else if (opt.use_shader_local_memory)
+        if (opt.use_shader_local_memory)
         {
             pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 8, 1);
         }
@@ -1687,14 +1660,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     }
     if (is_conv1x1s1d1)
     {
-        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 8 == 0 && num_output % 8 == 0;
-        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 16 == 0 && num_output % 16 == 0;
-        if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
-        {
-            use_cooperative_matrix_16_8_8 = false;
-            use_cooperative_matrix_16_16_16 = false;
-        }
-
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
@@ -1719,19 +1684,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
         dispatcher.h = top_blob.c;
         dispatcher.c = 1;
-
-        if (use_cooperative_matrix_16_8_8)
-        {
-            dispatcher.w = ((top_blob.w * top_blob.h + 15) / 16 + 1) / 2 * 32;
-            dispatcher.h = ((top_blob.c + 1) / 2 + 3) / 4;
-            dispatcher.c = 1;
-        }
-        else if (use_cooperative_matrix_16_16_16)
-        {
-            dispatcher.w = ((top_blob.w * top_blob.h + 15) / 16 + 1) / 2 * 32;
-            dispatcher.h = ((top_blob.c + 3) / 4 + 1) / 2;
-            dispatcher.c = 1;
-        }
 
         cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
 
