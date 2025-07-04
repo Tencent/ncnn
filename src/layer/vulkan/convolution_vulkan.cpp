@@ -695,211 +695,262 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
         }
     }
-    else
+    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input >= 16 && num_output >= 16)
     {
-        // src = kw-kh-inch-outch
-        // dst = pa-pb-kw-kh-inch/pa-outch/pb
-        if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input >= 16 && num_output >= 16)
+        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
+        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
+        if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
         {
-            bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
-            bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
-            if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
+            use_cooperative_matrix_16_8_8 = false;
+            use_cooperative_matrix_16_16_16 = false;
+        }
+
+        if (use_cooperative_matrix_16_8_8)
+        {
+            // dst = 8b-8a-maxk-inch/8a-outch/8b
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            weight_data_packed.create(maxk * num_input / 8, num_output / 8, (size_t)4 * 8 * 8, 8 * 8);
+
+            for (int q = 0; q + 7 < num_output; q += 8)
             {
-                use_cooperative_matrix_16_8_8 = false;
-                use_cooperative_matrix_16_16_16 = false;
-            }
+                float* g00 = weight_data_packed.row(q / 8);
 
-            if (use_cooperative_matrix_16_8_8)
-            {
-                // dst = 8b-8a-maxk-inch/8a-outch/8b
-                Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-                weight_data_packed.create(maxk * num_input / 8, num_output / 8, (size_t)4 * 8 * 8, 8 * 8);
-
-                for (int q = 0; q + 7 < num_output; q += 8)
+                for (int p = 0; p + 7 < num_input; p += 8)
                 {
-                    float* g00 = weight_data_packed.row(q / 8);
-
-                    for (int p = 0; p + 7 < num_input; p += 8)
+                    for (int k = 0; k < maxk; k++)
                     {
-                        for (int k = 0; k < maxk; k++)
+                        for (int i = 0; i < 8; i++)
                         {
-                            for (int i = 0; i < 8; i++)
+                            for (int j = 0; j < 8; j++)
                             {
-                                for (int j = 0; j < 8; j++)
-                                {
-                                    const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-                                    g00[0] = k00[k];
-                                    g00++;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else if (use_cooperative_matrix_16_16_16)
-            {
-                // dst = 16b-16a-maxk-inch/16a-outch/16b
-                Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-                weight_data_packed.create(maxk * num_input / 16, num_output / 16, (size_t)4 * 16 * 16, 16 * 16);
-
-                for (int q = 0; q + 15 < num_output; q += 16)
-                {
-                    float* g00 = weight_data_packed.row(q / 16);
-
-                    for (int p = 0; p + 15 < num_input; p += 16)
-                    {
-                        for (int k = 0; k < maxk; k++)
-                        {
-                            for (int i = 0; i < 16; i++)
-                            {
-                                for (int j = 0; j < 16; j++)
-                                {
-                                    const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-                                    g00[0] = k00[k];
-                                    g00++;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else
-            {
-                Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-                weight_data_packed.create(maxk * num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
-
-                for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
-                {
-                    float* g00 = weight_data_packed.row(q / out_elempack);
-
-                    for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
-                    {
-                        for (int k = 0; k < maxk; k++)
-                        {
-                            for (int i = 0; i < out_elempack; i++)
-                            {
-                                const Mat k0 = weight_data_r2.channel(q + i);
-
-                                for (int j = 0; j < elempack; j++)
-                                {
-                                    const float* k00 = k0.row(p + j);
-                                    g00[0] = k00[k];
-                                    g00++;
-                                }
+                                const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                                g00[0] = k00[k];
+                                g00++;
                             }
                         }
                     }
                 }
             }
         }
-        else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage)
+        else if (use_cooperative_matrix_16_16_16)
         {
-            // inch - outch
-            // outch(pad4) - inch
+            // dst = 16b-16a-maxk-inch/16a-outch/16b
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-            weight_data_packed.create((num_output + 3) / 4 * 4, num_input);
-            for (int i = 0; i < num_input; i++)
+            weight_data_packed.create(maxk * num_input / 16, num_output / 16, (size_t)4 * 16 * 16, 16 * 16);
+
+            for (int q = 0; q + 15 < num_output; q += 16)
             {
-                float* p = weight_data_packed.row(i);
-                for (int j = 0; j < num_output; j++)
+                float* g00 = weight_data_packed.row(q / 16);
+
+                for (int p = 0; p + 15 < num_input; p += 16)
                 {
-                    p[j] = weight_data[j * num_input + i];
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < 16; i++)
+                        {
+                            for (int j = 0; j < 16; j++)
+                            {
+                                const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                                g00[0] = k00[k];
+                                g00++;
+                            }
+                        }
+                    }
                 }
             }
         }
         else
         {
-            bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && is_conv1x1s1d1 && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
-            bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && is_conv1x1s1d1 && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
-            if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            weight_data_packed.create(maxk * num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+
+            for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
             {
-                use_cooperative_matrix_16_8_8 = false;
-                use_cooperative_matrix_16_16_16 = false;
-            }
+                float* g00 = weight_data_packed.row(q / out_elempack);
 
-            if (use_cooperative_matrix_16_8_8)
-            {
-                // dst = 8b-8a-inch/8a-outch/8b
-                Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-                weight_data_packed.create(maxk, num_input / 8, num_output / 8, (size_t)4 * 8 * 8, 8 * 8);
-
-                for (int q = 0; q + 7 < num_output; q += 8)
+                for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
                 {
-                    float* g00 = weight_data_packed.channel(q / 8);
-
-                    for (int p = 0; p + 7 < num_input; p += 8)
+                    for (int k = 0; k < maxk; k++)
                     {
-                        for (int k = 0; k < maxk; k++)
+                        for (int i = 0; i < out_elempack; i++)
                         {
-                            for (int i = 0; i < 8; i++)
+                            const Mat k0 = weight_data_r2.channel(q + i);
+
+                            for (int j = 0; j < elempack; j++)
                             {
-                                for (int j = 0; j < 8; j++)
-                                {
-                                    const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-                                    g00[0] = k00[k];
-                                    g00++;
-                                }
+                                const float* k00 = k0.row(p + j);
+                                g00[0] = k00[k];
+                                g00++;
                             }
                         }
                     }
                 }
             }
-            else if (use_cooperative_matrix_16_16_16)
+        }
+    }
+    else if (is_conv1x1s1d1)
+    {
+        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
+
+        if (use_cooperative_matrix)
+        {
+            int coopmat_M, coopmat_N, coopmat_K;
+            vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+
+            // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
+
+            const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+
+            // fallback to packed path if padding cost is too much
+            const int num_output_padded = (num_output + coopmat_N * UNROLL_N - 1) / (coopmat_N * UNROLL_N) * (coopmat_N * UNROLL_N);
+            const int num_input_padded = (num_input + coopmat_K * UNROLL_K - 1) / (coopmat_K * UNROLL_K) * (coopmat_K * UNROLL_K);
+            if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
             {
-                // dst = 16b-16a-inch/16a-outch/16b
-                Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+                use_cooperative_matrix = false;
+            }
 
-                weight_data_packed.create(maxk, num_input / 16, num_output / 16, (size_t)4 * 16 * 16, 16 * 16);
+            if (use_cooperative_matrix)
+            {
+                // inch - outch
+                // outch(pad4) - inch
 
-                for (int q = 0; q + 15 < num_output; q += 16)
+                weight_data_packed.create((num_output + 3) / 4 * 4, num_input);
+                for (int i = 0; i < num_input; i++)
                 {
-                    float* g00 = weight_data_packed.channel(q / 16);
-
-                    for (int p = 0; p + 15 < num_input; p += 16)
+                    float* p = weight_data_packed.row(i);
+                    for (int j = 0; j < num_output; j++)
                     {
-                        for (int k = 0; k < maxk; k++)
+                        p[j] = weight_data[j * num_input + i];
+                    }
+                }
+            }
+        }
+
+        if (!use_cooperative_matrix)
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+
+            for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+            {
+                float* g00 = weight_data_packed.channel(q / out_elempack);
+
+                for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < out_elempack; i++)
                         {
-                            for (int i = 0; i < 16; i++)
+                            const Mat k0 = weight_data_r2.channel(q + i);
+
+                            for (int j = 0; j < elempack; j++)
                             {
-                                for (int j = 0; j < 16; j++)
-                                {
-                                    const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-                                    g00[0] = k00[k];
-                                    g00++;
-                                }
+                                const float* k00 = k0.row(p + j);
+                                g00[0] = k00[k];
+                                g00++;
                             }
                         }
                     }
                 }
             }
-            else
+        }
+    }
+    else
+    {
+        // src = kw-kh-inch-outch
+        // dst = pa-pb-kw-kh-inch/pa-outch/pb
+        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && is_conv1x1s1d1 && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
+        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && is_conv1x1s1d1 && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
+        if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
+        {
+            use_cooperative_matrix_16_8_8 = false;
+            use_cooperative_matrix_16_16_16 = false;
+        }
+
+        if (use_cooperative_matrix_16_8_8)
+        {
+            // dst = 8b-8a-inch/8a-outch/8b
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            weight_data_packed.create(maxk, num_input / 8, num_output / 8, (size_t)4 * 8 * 8, 8 * 8);
+
+            for (int q = 0; q + 7 < num_output; q += 8)
             {
-                Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+                float* g00 = weight_data_packed.channel(q / 8);
 
-                weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
-
-                for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+                for (int p = 0; p + 7 < num_input; p += 8)
                 {
-                    float* g00 = weight_data_packed.channel(q / out_elempack);
-
-                    for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                    for (int k = 0; k < maxk; k++)
                     {
-                        for (int k = 0; k < maxk; k++)
+                        for (int i = 0; i < 8; i++)
                         {
-                            for (int i = 0; i < out_elempack; i++)
+                            for (int j = 0; j < 8; j++)
                             {
-                                const Mat k0 = weight_data_r2.channel(q + i);
+                                const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                                g00[0] = k00[k];
+                                g00++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (use_cooperative_matrix_16_16_16)
+        {
+            // dst = 16b-16a-inch/16a-outch/16b
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-                                for (int j = 0; j < elempack; j++)
-                                {
-                                    const float* k00 = k0.row(p + j);
-                                    g00[0] = k00[k];
-                                    g00++;
-                                }
+            weight_data_packed.create(maxk, num_input / 16, num_output / 16, (size_t)4 * 16 * 16, 16 * 16);
+
+            for (int q = 0; q + 15 < num_output; q += 16)
+            {
+                float* g00 = weight_data_packed.channel(q / 16);
+
+                for (int p = 0; p + 15 < num_input; p += 16)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < 16; i++)
+                        {
+                            for (int j = 0; j < 16; j++)
+                            {
+                                const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                                g00[0] = k00[k];
+                                g00++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+
+            for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+            {
+                float* g00 = weight_data_packed.channel(q / out_elempack);
+
+                for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < out_elempack; i++)
+                        {
+                            const Mat k0 = weight_data_r2.channel(q + i);
+
+                            for (int j = 0; j < elempack; j++)
+                            {
+                                const float* k00 = k0.row(p + j);
+                                g00[0] = k00[k];
+                                g00++;
                             }
                         }
                     }
@@ -995,80 +1046,97 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
         pipeline_convolution_gemm->create(shader_type_index, opt, specializations);
     }
-    else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage)
-    {
-        int coopmat_M, coopmat_N, coopmat_K;
-        vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
-
-        // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
-
-        const int UNROLL_M = 2; // FIXME hardcode
-        const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-        const int UNROLL_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
-
-        std::vector<vk_specialization_type> specializations(14 + 3);
-        specializations[0].i = bias_term;
-        specializations[1].i = activation_type;
-        specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
-        specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4].u32 = coopmat_M;
-        specializations[5].u32 = coopmat_N;
-        specializations[6].u32 = coopmat_K;
-        specializations[7].u32 = UNROLL_M;
-        specializations[8].u32 = UNROLL_N;
-        specializations[9].u32 = UNROLL_K;
-        specializations[10].u32 = num_input;
-        specializations[11].u32 = num_output;
-        specializations[12].u32 = elempack;
-        specializations[13].u32 = out_elempack;
-        specializations[14 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
-        specializations[14 + 1].u32 = shape_bordered_packed.cstep;
-        specializations[14 + 2].u32 = out_shape_packed.cstep;
-
-        const int subgroup_size = vkdev->info.subgroup_size();
-
-        pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-        pipeline_convolution_1x1s1d1->set_subgroup_size(subgroup_size);
-        pipeline_convolution_1x1s1d1->set_local_size_xyz(subgroup_size, 1, 1);
-        pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt, specializations);
-    }
     else if (is_conv1x1s1d1)
     {
-        std::vector<vk_specialization_type> specializations(4 + 8);
-        specializations[0].i = bias_term;
-        specializations[1].i = activation_type;
-        specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
-        specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4 + 0].i = shape_bordered_packed.w;
-        specializations[4 + 1].i = shape_bordered_packed.h;
-        specializations[4 + 2].i = shape_bordered_packed.c;
-        specializations[4 + 3].i = shape_bordered_packed.cstep;
-        specializations[4 + 4].i = out_shape_packed.w;
-        specializations[4 + 5].i = out_shape_packed.h;
-        specializations[4 + 6].i = out_shape_packed.c;
-        specializations[4 + 7].i = out_shape_packed.cstep;
+        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
 
-        int shader_type_index = -1;
-        if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_1x1s1d1;
-        if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1;
-        if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_1x1s1d1;
-        if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_1x1s1d1;
-        if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_1x1s1d1;
-        if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_1x1s1d1;
-        if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_1x1s1d1;
-        if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_1x1s1d1;
-        if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_1x1s1d1;
+        if (use_cooperative_matrix)
+        {
+            int coopmat_M, coopmat_N, coopmat_K;
+            vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
 
-        pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-        if (opt.use_shader_local_memory)
-        {
-            pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 8, 1);
+            // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
+
+            const int UNROLL_M = 2; // FIXME hardcode
+            const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+
+            // fallback to packed path if padding cost is too much
+            const int num_output_padded = (num_output + coopmat_N * UNROLL_N - 1) / (coopmat_N * UNROLL_N) * (coopmat_N * UNROLL_N);
+            const int num_input_padded = (num_input + coopmat_K * UNROLL_K - 1) / (coopmat_K * UNROLL_K) * (coopmat_K * UNROLL_K);
+            if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
+            {
+                use_cooperative_matrix = false;
+            }
+
+            if (use_cooperative_matrix)
+            {
+                std::vector<vk_specialization_type> specializations(14 + 3);
+                specializations[0].i = bias_term;
+                specializations[1].i = activation_type;
+                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+                specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+                specializations[4].u32 = coopmat_M;
+                specializations[5].u32 = coopmat_N;
+                specializations[6].u32 = coopmat_K;
+                specializations[7].u32 = UNROLL_M;
+                specializations[8].u32 = UNROLL_N;
+                specializations[9].u32 = UNROLL_K;
+                specializations[10].u32 = num_input;
+                specializations[11].u32 = num_output;
+                specializations[12].u32 = elempack;
+                specializations[13].u32 = out_elempack;
+                specializations[14 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
+                specializations[14 + 1].u32 = shape_bordered_packed.cstep;
+                specializations[14 + 2].u32 = out_shape_packed.cstep;
+
+                const int subgroup_size = vkdev->info.subgroup_size();
+
+                pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
+                pipeline_convolution_1x1s1d1->set_subgroup_size(subgroup_size);
+                pipeline_convolution_1x1s1d1->set_local_size_xyz(subgroup_size, 1, 1);
+                pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt, specializations);
+            }
         }
-        else
+
+        if (!use_cooperative_matrix)
         {
-            pipeline_convolution_1x1s1d1->set_local_size_xyz(8, std::min(8, num_output / out_elempack), 1);
+            std::vector<vk_specialization_type> specializations(4 + 8);
+            specializations[0].i = bias_term;
+            specializations[1].i = activation_type;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations[4 + 0].i = shape_bordered_packed.w;
+            specializations[4 + 1].i = shape_bordered_packed.h;
+            specializations[4 + 2].i = shape_bordered_packed.c;
+            specializations[4 + 3].i = shape_bordered_packed.cstep;
+            specializations[4 + 4].i = out_shape_packed.w;
+            specializations[4 + 5].i = out_shape_packed.h;
+            specializations[4 + 6].i = out_shape_packed.c;
+            specializations[4 + 7].i = out_shape_packed.cstep;
+
+            int shader_type_index = -1;
+            if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_1x1s1d1;
+            if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1;
+            if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_1x1s1d1;
+            if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_1x1s1d1;
+            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_1x1s1d1;
+            if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_1x1s1d1;
+            if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_1x1s1d1;
+            if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_1x1s1d1;
+            if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_1x1s1d1;
+
+            pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
+            if (opt.use_shader_local_memory)
+            {
+                pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 8, 1);
+            }
+            else
+            {
+                pipeline_convolution_1x1s1d1->set_local_size_xyz(8, std::min(8, num_output / out_elempack), 1);
+            }
+            pipeline_convolution_1x1s1d1->create(shader_type_index, opt, specializations);
         }
-        pipeline_convolution_1x1s1d1->create(shader_type_index, opt, specializations);
     }
     else
     {
@@ -1619,73 +1687,87 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         return 0;
     }
-    else if (is_conv1x1s1d1 && vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage)
+    else if (is_conv1x1s1d1)
     {
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
-        std::vector<VkMat> bindings(4);
-        bindings[0] = bottom_blob_bordered;
-        bindings[1] = top_blob;
-        bindings[2] = weight_data_gpu;
-        bindings[3] = bias_data_gpu;
+        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
 
-        std::vector<vk_constant_type> constants(3);
-        constants[0].u32 = bottom_blob_bordered.w * bottom_blob_bordered.h;
-        constants[1].u32 = bottom_blob_bordered.cstep;
-        constants[2].u32 = top_blob.cstep;
+        if (use_cooperative_matrix)
+        {
+            const int num_input = channels * elempack;
 
-        int coopmat_M, coopmat_N, coopmat_K;
-        vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, channels * elempack, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+            int coopmat_M, coopmat_N, coopmat_K;
+            vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
 
-        // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
+            // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-        const int UNROLL_M = 2; // FIXME hardcode
-        const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_M = 2; // FIXME hardcode
+            const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
-        const int blocks_x = (top_blob.w * top_blob.h + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
-        const int blocks_y = (num_output + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
+            // fallback to packed path if padding cost is too much
+            const int num_output_padded = (num_output + coopmat_N * UNROLL_N - 1) / (coopmat_N * UNROLL_N) * (coopmat_N * UNROLL_N);
+            const int num_input_padded = (num_input + coopmat_K * UNROLL_K - 1) / (coopmat_K * UNROLL_K) * (coopmat_K * UNROLL_K);
+            if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
+            {
+                use_cooperative_matrix = false;
+            }
 
-        const int subgroup_size = vkdev->info.subgroup_size();
+            if (use_cooperative_matrix)
+            {
+                std::vector<VkMat> bindings(4);
+                bindings[0] = bottom_blob_bordered;
+                bindings[1] = top_blob;
+                bindings[2] = weight_data_gpu;
+                bindings[3] = bias_data_gpu;
 
-        VkMat dispatcher;
-        dispatcher.w = (blocks_x * blocks_y) * subgroup_size;
-        dispatcher.h = 1;
-        dispatcher.c = 1;
+                std::vector<vk_constant_type> constants(3);
+                constants[0].u32 = bottom_blob_bordered.w * bottom_blob_bordered.h;
+                constants[1].u32 = bottom_blob_bordered.cstep;
+                constants[2].u32 = top_blob.cstep;
 
-        cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
+                const int blocks_x = (top_blob.w * top_blob.h + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
+                const int blocks_y = (num_output + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
 
-        return 0;
-    }
-    if (is_conv1x1s1d1)
-    {
-        top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
+                const int subgroup_size = vkdev->info.subgroup_size();
 
-        std::vector<VkMat> bindings(4);
-        bindings[0] = bottom_blob_bordered;
-        bindings[1] = top_blob;
-        bindings[2] = weight_data_gpu;
-        bindings[3] = bias_data_gpu;
+                VkMat dispatcher;
+                dispatcher.w = (blocks_x * blocks_y) * subgroup_size;
+                dispatcher.h = 1;
+                dispatcher.c = 1;
 
-        std::vector<vk_constant_type> constants(8);
-        constants[0].i = bottom_blob_bordered.w;
-        constants[1].i = bottom_blob_bordered.h;
-        constants[2].i = bottom_blob_bordered.c;
-        constants[3].i = bottom_blob_bordered.cstep;
-        constants[4].i = top_blob.w;
-        constants[5].i = top_blob.h;
-        constants[6].i = top_blob.c;
-        constants[7].i = top_blob.cstep;
+                cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
+            }
+        }
 
-        VkMat dispatcher;
-        dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
-        dispatcher.h = top_blob.c;
-        dispatcher.c = 1;
+        if (!use_cooperative_matrix)
+        {
+            std::vector<VkMat> bindings(4);
+            bindings[0] = bottom_blob_bordered;
+            bindings[1] = top_blob;
+            bindings[2] = weight_data_gpu;
+            bindings[3] = bias_data_gpu;
 
-        cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
+            std::vector<vk_constant_type> constants(8);
+            constants[0].i = bottom_blob_bordered.w;
+            constants[1].i = bottom_blob_bordered.h;
+            constants[2].i = bottom_blob_bordered.c;
+            constants[3].i = bottom_blob_bordered.cstep;
+            constants[4].i = top_blob.w;
+            constants[5].i = top_blob.h;
+            constants[6].i = top_blob.c;
+            constants[7].i = top_blob.cstep;
+
+            VkMat dispatcher;
+            dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
+            dispatcher.h = top_blob.c;
+            dispatcher.c = 1;
+
+            cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
+        }
 
         return 0;
     }
