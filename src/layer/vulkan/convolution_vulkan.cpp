@@ -802,8 +802,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-            const int UNROLL_SG_N = 2;//std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_SG_K = 1;//std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            const int UNROLL_SG_N = 2; //std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
             // fallback to packed path if padding cost is too much
             // const int num_output_padded = (num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N) * (coopmat_N * UNROLL_SG_N);
@@ -1058,8 +1058,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
             const int UNROLL_SG_M = 2; // FIXME hardcode
-            const int UNROLL_SG_N = 2;//std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_SG_K = 1;//std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            const int UNROLL_SG_N = 2; //std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
             const int UNROLL_WG_M = 2; // FIXME hardcode
             const int UNROLL_WG_N = 2; // FIXME hardcode
@@ -1714,8 +1714,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
             const int UNROLL_SG_M = 2; // FIXME hardcode
-            const int UNROLL_SG_N = 2;//std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_SG_K = 1;//std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            const int UNROLL_SG_N = 2; //std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
             const int UNROLL_WG_M = 2; // FIXME hardcode
             const int UNROLL_WG_N = 2; // FIXME hardcode
