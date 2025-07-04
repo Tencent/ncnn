@@ -802,16 +802,16 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-            const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            const int UNROLL_SG_N = 2;//std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_SG_K = 1;//std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
             // fallback to packed path if padding cost is too much
-            const int num_output_padded = (num_output + coopmat_N * UNROLL_N - 1) / (coopmat_N * UNROLL_N) * (coopmat_N * UNROLL_N);
-            const int num_input_padded = (num_input + coopmat_K * UNROLL_K - 1) / (coopmat_K * UNROLL_K) * (coopmat_K * UNROLL_K);
-            if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
-            {
-                use_cooperative_matrix = false;
-            }
+            // const int num_output_padded = (num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N) * (coopmat_N * UNROLL_SG_N);
+            // const int num_input_padded = (num_input + coopmat_K * UNROLL_SG_K - 1) / (coopmat_K * UNROLL_SG_K) * (coopmat_K * UNROLL_SG_K);
+            // if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
+            // {
+            //     // use_cooperative_matrix = false;
+            // }
 
             if (use_cooperative_matrix)
             {
@@ -1057,21 +1057,28 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-            const int UNROLL_M = 2; // FIXME hardcode
-            const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            const int UNROLL_SG_M = 2; // FIXME hardcode
+            const int UNROLL_SG_N = 2;//std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_SG_K = 1;//std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+
+            const int UNROLL_WG_M = 2; // FIXME hardcode
+            const int UNROLL_WG_N = 2; // FIXME hardcode
+
+            // const int _M
 
             // fallback to packed path if padding cost is too much
-            const int num_output_padded = (num_output + coopmat_N * UNROLL_N - 1) / (coopmat_N * UNROLL_N) * (coopmat_N * UNROLL_N);
-            const int num_input_padded = (num_input + coopmat_K * UNROLL_K - 1) / (coopmat_K * UNROLL_K) * (coopmat_K * UNROLL_K);
-            if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
-            {
-                use_cooperative_matrix = false;
-            }
+            // const int num_output_padded = (num_output + coopmat_N - 1) / coopmat_N * coopmat_N;
+            // const int num_input_padded = (num_input + coopmat_K - 1) / coopmat_K * coopmat_K;
+            // if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
+            // {
+            //     // use_cooperative_matrix = false;
+            // }
+
+            NCNN_LOGE("coopmat_MNK = %d %d %d", coopmat_M, coopmat_N, coopmat_K);
 
             if (use_cooperative_matrix)
             {
-                std::vector<vk_specialization_type> specializations(14 + 3);
+                std::vector<vk_specialization_type> specializations(16 + 3);
                 specializations[0].i = bias_term;
                 specializations[1].i = activation_type;
                 specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -1079,22 +1086,24 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 specializations[4].u32 = coopmat_M;
                 specializations[5].u32 = coopmat_N;
                 specializations[6].u32 = coopmat_K;
-                specializations[7].u32 = UNROLL_M;
-                specializations[8].u32 = UNROLL_N;
-                specializations[9].u32 = UNROLL_K;
-                specializations[10].u32 = num_input;
-                specializations[11].u32 = num_output;
-                specializations[12].u32 = elempack;
-                specializations[13].u32 = out_elempack;
-                specializations[14 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
-                specializations[14 + 1].u32 = shape_bordered_packed.cstep;
-                specializations[14 + 2].u32 = out_shape_packed.cstep;
+                specializations[7].u32 = UNROLL_SG_M;
+                specializations[8].u32 = UNROLL_SG_N;
+                specializations[9].u32 = UNROLL_SG_K;
+                specializations[10].u32 = UNROLL_WG_M;
+                specializations[11].u32 = UNROLL_WG_N;
+                specializations[12].u32 = num_input;
+                specializations[13].u32 = num_output;
+                specializations[14].u32 = elempack;
+                specializations[15].u32 = out_elempack;
+                specializations[16 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
+                specializations[16 + 1].u32 = shape_bordered_packed.cstep;
+                specializations[16 + 2].u32 = out_shape_packed.cstep;
 
                 const int subgroup_size = vkdev->info.subgroup_size();
 
                 pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
                 pipeline_convolution_1x1s1d1->set_subgroup_size(subgroup_size);
-                pipeline_convolution_1x1s1d1->set_local_size_xyz(subgroup_size, 1, 1);
+                pipeline_convolution_1x1s1d1->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
                 pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt, specializations);
             }
         }
@@ -1704,17 +1713,20 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-            const int UNROLL_M = 2; // FIXME hardcode
-            const int UNROLL_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            const int UNROLL_SG_M = 2; // FIXME hardcode
+            const int UNROLL_SG_N = 2;//std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_SG_K = 1;//std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+
+            const int UNROLL_WG_M = 2; // FIXME hardcode
+            const int UNROLL_WG_N = 2; // FIXME hardcode
 
             // fallback to packed path if padding cost is too much
-            const int num_output_padded = (num_output + coopmat_N * UNROLL_N - 1) / (coopmat_N * UNROLL_N) * (coopmat_N * UNROLL_N);
-            const int num_input_padded = (num_input + coopmat_K * UNROLL_K - 1) / (coopmat_K * UNROLL_K) * (coopmat_K * UNROLL_K);
-            if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
-            {
-                use_cooperative_matrix = false;
-            }
+            // const int num_output_padded = (num_output + coopmat_N - 1) / coopmat_N * coopmat_N;
+            // const int num_input_padded = (num_input + coopmat_K - 1) / coopmat_K * coopmat_K;
+            // if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
+            // {
+            //     // use_cooperative_matrix = false;
+            // }
 
             if (use_cooperative_matrix)
             {
@@ -1729,13 +1741,13 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 constants[1].u32 = bottom_blob_bordered.cstep;
                 constants[2].u32 = top_blob.cstep;
 
-                const int blocks_x = (top_blob.w * top_blob.h + (coopmat_M * UNROLL_M) - 1) / (coopmat_M * UNROLL_M);
-                const int blocks_y = (num_output + (coopmat_N * UNROLL_N) - 1) / (coopmat_N * UNROLL_N);
+                const int blocks_x = (top_blob.w * top_blob.h + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+                const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
                 const int subgroup_size = vkdev->info.subgroup_size();
 
                 VkMat dispatcher;
-                dispatcher.w = (blocks_x * blocks_y) * subgroup_size;
+                dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
                 dispatcher.h = 1;
                 dispatcher.c = 1;
 
