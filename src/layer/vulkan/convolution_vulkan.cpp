@@ -825,7 +825,10 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     for (int j = 0; j < num_output; j++)
                     {
                         p[j] = weight_data[j * num_input + i];
+
+                        // fprintf(stderr, "%f ", p[j]);
                     }
+                    // fprintf(stderr, "\n");
                 }
             }
         }
@@ -1074,7 +1077,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             //     // use_cooperative_matrix = false;
             // }
 
-            NCNN_LOGE("coopmat_MNK = %d %d %d", coopmat_M, coopmat_N, coopmat_K);
+            // NCNN_LOGE("coopmat_MNK = %d %d %d", coopmat_M, coopmat_N, coopmat_K);
 
             if (use_cooperative_matrix)
             {
@@ -1096,8 +1099,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 specializations[14].u32 = elempack;
                 specializations[15].u32 = out_elempack;
                 specializations[16 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
-                specializations[16 + 1].u32 = shape_bordered_packed.cstep;
-                specializations[16 + 2].u32 = out_shape_packed.cstep;
+                specializations[16 + 1].u32 = 0;//shape_bordered_packed.cstep;
+                specializations[16 + 2].u32 = 0;//out_shape_packed.cstep;
 
                 const int subgroup_size = vkdev->info.subgroup_size();
 
