@@ -808,10 +808,10 @@ void main()
 //                 const uint wm = j / (Md4 * UNROLL_SG_M);
 //                 const uint zm = (j % (Md4 * UNROLL_SG_M)) / Md4;
 
-                const uint wn = liq / (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N);
-                const uint wm = (liq % (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N)) / (Md4 * UNROLL_SG_M * UNROLL_SG_N * N);
-                const uint zn = ((liq % (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N)) % (Md4 * UNROLL_SG_M * UNROLL_SG_N * N)) / (Md4 * UNROLL_SG_M * N);
-                const uint zm = (((liq % (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N)) % (Md4 * UNROLL_SG_M * UNROLL_SG_N * N)) % (Md4 * UNROLL_SG_M * N)) / (Md4 * N);
+//                 const uint wn = liq / (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N);
+//                 const uint wm = (liq % (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N)) / (Md4 * UNROLL_SG_M * UNROLL_SG_N * N);
+//                 const uint zn = ((liq % (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N)) % (Md4 * UNROLL_SG_M * UNROLL_SG_N * N)) / (Md4 * UNROLL_SG_M * N);
+//                 const uint zm = (((liq % (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N)) % (Md4 * UNROLL_SG_M * UNROLL_SG_N * N)) % (Md4 * UNROLL_SG_M * N)) / (Md4 * N);
 
 //                 const uint i2 = ((((liq % (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N)) % (Md4 * UNROLL_SG_M * UNROLL_SG_N * N)) % (Md4 * UNROLL_SG_M * N)) % (Md4 * N)) / Md4;
 //                 const uint j2 = ((((liq % (Md4 * UNROLL_SG_M * UNROLL_WG_M * N * UNROLL_SG_N)) % (Md4 * UNROLL_SG_M * UNROLL_SG_N * N)) % (Md4 * UNROLL_SG_M * N)) % (Md4 * N)) % Md4;
@@ -832,11 +832,11 @@ void main()
 
                     uvec2 sum = tmp_o[(((i / N) * (UNROLL_SG_M * UNROLL_WG_M) + (j / Md4)) * N + (i % N)) * Md4 + (j % Md4)];
 
-//                     if (activation_type == 0)
-//                     {
-//                         top_blob_data[gn * outcstepd4 + gm] = sum;
-//                     }
-//                     else
+                    if (activation_type == 0)
+                    {
+                        top_blob_data[gn * outcstepd4 + gm] = sum;
+                    }
+                    else
                     {
                         afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
 
@@ -916,13 +916,13 @@ void main()
                 if (j < Nd4 * UNROLL_SG_N * UNROLL_WG_N && gn < outchd4 && gm < psc(outcstep))
                 {
 //                     uvec2 sum = tmp_o[(((i / M) * (UNROLL_SG_N * UNROLL_WG_N) + (j / Nd4)) * M + (i % M)) * Nd4 + (j % Nd4)];
-            uvec2 sum = tmp_o[(((j / Nd4) * (UNROLL_WG_M * UNROLL_SG_N) + (i / M)) * M + (i % M)) * Nd4 + (j % Nd4)];
+                    uvec2 sum = tmp_o[(((j / Nd4) * (UNROLL_WG_M * UNROLL_SG_N) + (i / M)) * M + (i % M)) * Nd4 + (j % Nd4)];
 
-//                     if (activation_type == 0)
-//                     {
-//                         top_blob_data[gn * psc(outcstep) + gm] = sum;
-//                     }
-//                     else
+                    if (activation_type == 0)
+                    {
+                        top_blob_data[gn * psc(outcstep) + gm] = sum;
+                    }
+                    else
                     {
                         afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
 
