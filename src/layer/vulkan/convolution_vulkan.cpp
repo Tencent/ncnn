@@ -802,8 +802,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-            const int UNROLL_SG_N = 2; //std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            const int UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
             // fallback to packed path if padding cost is too much
             // const int num_output_padded = (num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N) * (coopmat_N * UNROLL_SG_N);
@@ -1061,11 +1061,11 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
             const int UNROLL_SG_M = 2; // FIXME hardcode
-            const int UNROLL_SG_N = 2; //std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            const int UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
             const int UNROLL_WG_M = 2; // FIXME hardcode
-            const int UNROLL_WG_N = 2; // FIXME hardcode
+            const int UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
             // const int _M
 
@@ -1705,23 +1705,23 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         if (top_blob.empty())
             return -100;
 
+        const int num_input = channels * elempack;
+
         bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
 
         if (use_cooperative_matrix)
         {
-            const int num_input = channels * elempack;
-
             int coopmat_M, coopmat_N, coopmat_K;
             vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
             const int UNROLL_SG_M = 2; // FIXME hardcode
-            const int UNROLL_SG_N = 2; //std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            const int UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            const int UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
             const int UNROLL_WG_M = 2; // FIXME hardcode
-            const int UNROLL_WG_N = 2; // FIXME hardcode
+            const int UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
             // fallback to packed path if padding cost is too much
             // const int num_output_padded = (num_output + coopmat_N - 1) / coopmat_N * coopmat_N;
