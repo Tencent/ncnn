@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
 
@@ -759,7 +748,32 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             std::vector<ncnn::VkMat> a_gpu(a.size());
             for (size_t i = 0; i < a_gpu.size(); i++)
             {
-                cmd.record_upload(a[i], a_gpu[i], opt);
+                if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+                {
+                    // resolve dst_elempack
+                    int dims = a[i].dims;
+                    int elemcount = 0;
+                    if (dims == 1) elemcount = a[i].elempack * a[i].w;
+                    if (dims == 2) elemcount = a[i].elempack * a[i].h;
+                    if (dims == 3 || dims == 4) elemcount = a[i].elempack * a[i].c;
+
+                    const int dst_elempack = (opt.use_shader_pack8 && elemcount % 8 == 0) ? 8 : elemcount % 4 == 0 ? 4 : 1;
+
+                    ncnn::Mat a4;
+                    ncnn::convert_packing(a[i], a4, dst_elempack, opt);
+
+                    ncnn::Option opt_upload = opt;
+                    opt_upload.use_fp16_packed = false;
+                    opt_upload.use_fp16_storage = false;
+                    opt_upload.use_int8_packed = false;
+                    opt_upload.use_int8_storage = false;
+
+                    cmd.record_clone(a4, a_gpu[i], opt_upload);
+                }
+                else
+                {
+                    cmd.record_upload(a[i], a_gpu[i], opt);
+                }
             }
 
             std::vector<ncnn::VkMat> d_gpu(top_blob_count);
@@ -1082,7 +1096,33 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         {
             // upload
             ncnn::VkMat a_gpu;
-            cmd.record_upload(a, a_gpu, opt);
+
+            if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+            {
+                // resolve dst_elempack
+                int dims = a.dims;
+                int elemcount = 0;
+                if (dims == 1) elemcount = a.elempack * a.w;
+                if (dims == 2) elemcount = a.elempack * a.h;
+                if (dims == 3 || dims == 4) elemcount = a.elempack * a.c;
+
+                const int dst_elempack = (opt.use_shader_pack8 && elemcount % 8 == 0) ? 8 : elemcount % 4 == 0 ? 4 : 1;
+
+                ncnn::Mat a4;
+                ncnn::convert_packing(a, a4, dst_elempack, opt);
+
+                ncnn::Option opt_upload = opt;
+                opt_upload.use_fp16_packed = false;
+                opt_upload.use_fp16_storage = false;
+                opt_upload.use_int8_packed = false;
+                opt_upload.use_int8_storage = false;
+
+                cmd.record_clone(a4, a_gpu, opt_upload);
+            }
+            else
+            {
+                cmd.record_upload(a, a_gpu, opt);
+            }
 
             ncnn::VkMat d_gpu;
             if (op->support_inplace)
