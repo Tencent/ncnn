@@ -358,7 +358,7 @@ static inline __m128 cos_ps(__m128 x)
     return y;
 }
 
-static inline void sincos_ps(__m128 x, __m128 * s, __m128 * c)
+static inline void sincos_ps(__m128 x, __m128* s, __m128* c)
 {
     __m128 y;
     __m128i swap_sign_bit_cos, swap_sign_bit_sin, poly_mask, sign_bit_sin, sign_bit_cos;
