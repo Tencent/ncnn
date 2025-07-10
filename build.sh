@@ -112,6 +112,14 @@ make -j4
 make install
 popd
 
+##### linux of anykav500 (AK39V33X) toolchain with neon and openmp
+mkdir -p build-anykav500-linux
+pushd build-anykav500-linux
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/anykav500.toolchain.cmake ..
+make -j4
+make install
+popd
+
 ##### linux for aarch64-linux-gnu toolchain
 mkdir -p build-aarch64-linux-gnu
 pushd build-aarch64-linux-gnu
