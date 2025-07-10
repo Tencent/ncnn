@@ -1258,12 +1258,16 @@ NCNN_FORCEINLINE const Mat Mat::channel(int _c) const
 
 NCNN_FORCEINLINE Mat Mat::depth(int z)
 {
-    return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    Mat m(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * h;
+    return m;
 }
 
 NCNN_FORCEINLINE const Mat Mat::depth(int z) const
 {
-    return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    Mat m(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * h;
+    return m;
 }
 
 NCNN_FORCEINLINE float* Mat::row(int y)
@@ -1318,22 +1322,30 @@ NCNN_FORCEINLINE const Mat Mat::depth_range(int z, int depths) const
 
 NCNN_FORCEINLINE Mat Mat::row_range(int y, int rows)
 {
-    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    Mat m(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * rows;
+    return m;
 }
 
 NCNN_FORCEINLINE const Mat Mat::row_range(int y, int rows) const
 {
-    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    Mat m(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * rows;
+    return m;
 }
 
 NCNN_FORCEINLINE Mat Mat::range(int x, int n)
 {
-    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    Mat m(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)n;
+    return m;
 }
 
 NCNN_FORCEINLINE const Mat Mat::range(int x, int n) const
 {
-    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    Mat m(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)n;
+    return m;
 }
 
 template<typename T>
