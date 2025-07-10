@@ -1627,7 +1627,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         DWORD bufferSize = 0;
         glpie(RelationProcessorCore, nullptr, &bufferSize);
         std::vector<BYTE> buffer(bufferSize);
-        if (!glpie(RelationProcessorCore,(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
+        if (!glpie(RelationProcessorCore, (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
         {
             NCNN_LOGE("GetLogicalProcessorInformationEx failed");
             return;
