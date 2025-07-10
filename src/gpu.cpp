@@ -5369,7 +5369,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 #if ENABLE_VALIDATION_LAYER
         if (info.support_VK_KHR_shader_non_semantic_info())
         {
-            device_defines.append("enable_validataion_layer", VK_TRUE);
+            device_defines.append("enable_validation_layer", VK_TRUE);
             custom_defines.append("NCNN_LOGE", "debugPrintfEXT");
         }
 #endif
