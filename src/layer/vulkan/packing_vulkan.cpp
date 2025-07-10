@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "packing_vulkan.h"
 
@@ -44,6 +33,8 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     const int local_size_x = vkdev->info.subgroup_size();
+
+    bool use_int8_shader = cast_type_from == 4 || cast_type_to == 4;
 
     std::vector<vk_specialization_type> specializations(2 + 3);
     specializations[0].i = cast_type_from;
@@ -91,7 +82,14 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
         pipeline_packing = new Pipeline(vkdev);
         pipeline_packing->set_optimal_local_size_xyz(local_size_x, 1, 1);
-        pipeline_packing->create(LayerShaderType::packing, opt, specializations);
+        if (use_int8_shader)
+        {
+            pipeline_packing->create(LayerShaderType::packing_int8, opt, specializations);
+        }
+        else
+        {
+            pipeline_packing->create(LayerShaderType::packing, opt, specializations);
+        }
     }
     if (shape.dims == 0 || elempack < out_elempack)
     {
@@ -126,7 +124,14 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
             pipeline_packing_pack1to4 = new Pipeline(vkdev);
             pipeline_packing_pack1to4->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4, opt, specializations);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4, opt, specializations);
+            }
         }
 
         if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
@@ -138,7 +143,14 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
             pipeline_packing_pack1to8 = new Pipeline(vkdev);
             pipeline_packing_pack1to8->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8, opt, specializations);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8, opt, specializations);
+            }
         }
 
         if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
@@ -150,7 +162,14 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
             pipeline_packing_pack4to8 = new Pipeline(vkdev);
             pipeline_packing_pack4to8->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8, opt, specializations);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8, opt, specializations);
+            }
         }
     }
     if (shape.dims == 0 || elempack > out_elempack)
@@ -186,7 +205,14 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
             pipeline_packing_pack4to1 = new Pipeline(vkdev);
             pipeline_packing_pack4to1->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1, opt, specializations);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1, opt, specializations);
+            }
         }
 
         if (shape.dims == 0 || (elempack == 8 && out_elempack == 1))
@@ -198,7 +224,14 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
             pipeline_packing_pack8to1 = new Pipeline(vkdev);
             pipeline_packing_pack8to1->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1, opt, specializations);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1, opt, specializations);
+            }
         }
 
         if (shape.dims == 0 || (elempack == 8 && out_elempack == 4))
@@ -210,7 +243,14 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
             pipeline_packing_pack8to4 = new Pipeline(vkdev);
             pipeline_packing_pack8to4->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4, opt, specializations);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4, opt, specializations);
+            }
         }
     }
 
@@ -296,9 +336,13 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         out_elemsize = out_elempack * 4u;
     }
-    else // if (cast_type_to == 2)
+    else if (cast_type_to == 2)
     {
         out_elemsize = out_elempack * 2u;
+    }
+    else // if (cast_type_to == 3)
+    {
+        out_elemsize = out_elempack * 1u;
     }
 
     if (dims == 1)

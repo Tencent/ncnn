@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "net.h"
 
@@ -1043,6 +1032,9 @@ int Net::load_param(const DataReader& dr)
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
 
+        // int8a makes no sense when int8 storage disabled
+        if (!opt.use_int8_packed && !opt.use_int8_storage) opt.use_int8_arithmetic = false;
+
         // fp16 uniform makes no sense when fp16 arithmetic disabled
         if (!opt.use_fp16_arithmetic) opt.use_fp16_uniform = false;
     }
@@ -1338,6 +1330,9 @@ int Net::load_param_bin(const DataReader& dr)
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
+
+        // int8a makes no sense when int8 storage disabled
+        if (!opt.use_int8_packed && !opt.use_int8_storage) opt.use_int8_arithmetic = false;
 
         // fp16 uniform makes no sense when fp16 arithmetic disabled
         if (!opt.use_fp16_arithmetic) opt.use_fp16_uniform = false;
