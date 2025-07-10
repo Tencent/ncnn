@@ -19,6 +19,7 @@ git submodule update --init
 - [Build for macOS](#build-for-macos)
 - [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
 - [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
+- [Build for AnyCloud platform with cross-compiling](#build-for-AnyCloud-platform-with-cross-compiling)
 - [Build for Android](#build-for-android)
 - [Build for iOS on macOS with xcode](#build-for-ios-on-macos-with-xcode)
 - [Build for WebAssembly](#build-for-webassembly)
@@ -349,7 +350,8 @@ make -j$(nproc)
 ***
 
 ### Build for Hisilicon platform with cross-compiling
-Download and install Hisilicon SDK. The toolchain should be in `/opt/hisi-linux/x86-arm`
+Download and install Hisilicon SDK. The toolchain should be in `/opt/hisi-linux/x86-arm` 
+new version of Hisilicon toolchain should be in `/opt/linux/x86-arm/` 
 
 ```shell
 cd <ncnn-root-dir>
@@ -361,6 +363,24 @@ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/hisiv300.toolchain.cmake ..
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/hisiv500.toolchain.cmake ..
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix100.toolchain.cmake ..
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix200.toolchain.cmake ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix210.toolchain.cmake ..
+
+make -j$(nproc)
+make install
+```
+
+***
+
+### Build for AnyCloud platform with cross-compiling
+Download and install AnyCloud SDK. And load env to set toolchain can access in shell
+
+```shell
+cd <ncnn-root-dir>
+mkdir -p build
+cd build
+
+# Choose one cmake toolchain file depends on your target platform
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/anykav500.toolchain.cmake ..
 
 make -j$(nproc)
 make install
