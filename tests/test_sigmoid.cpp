@@ -39,7 +39,8 @@ static int test_sigmoid_2()
     return 0
            || test_sigmoid(RandomMat(15, 24))
            || test_sigmoid(RandomMat(17, 12))
-           || test_sigmoid(RandomMat(19, 15));
+           || test_sigmoid(RandomMat(19, 15))
+           || test_sigmoid(RandomMat(17, 17));
 }
 
 static int test_sigmoid_3()
@@ -47,7 +48,8 @@ static int test_sigmoid_3()
     return 0
            || test_sigmoid(RandomMat(128))
            || test_sigmoid(RandomMat(124))
-           || test_sigmoid(RandomMat(127));
+           || test_sigmoid(RandomMat(127))
+           || test_sigmoid(RandomMat(17));
 }
 
 int main()
