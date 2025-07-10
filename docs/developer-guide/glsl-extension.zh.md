@@ -76,13 +76,6 @@ NCNN_EXPORT int compile_spirv_module(int shader_type_index, const Option& opt, s
 static const char my_glsl_data[] = R"(
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
 layout (binding = 1) writeonly buffer b_blob { sfpvec4 b_blob_data[]; };
 
@@ -139,7 +132,7 @@ layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 
 |存储类型|fp32|fp16p|fp16s|
 |---|---|---|---|
-|sfp|float|float|float16_t|
+|sfp|float|uint|float16_t|
 |sfpvec2|vec2|uint|f16vec2|
 |sfpvec4|vec4|uvec2|f16vec4|
 |sfpvec8|mat2x4|uvec4|f16mat2x4|
@@ -336,17 +329,114 @@ void main()
 #endif
 ```
 
-# 条件宏定义与option的关系
+ncnn 在新版本中添加了额外的宏定义，可能与现在的 glsl 代码冲突或引起混淆。为了实现  ncnn 的跨版本兼容性，可以根据  `ncnn_glsl_version` 宏的版本号在新旧代码之间进行切换 。
+
+```c
+#if ncnn_glsl_version >= 1
+// 使用自版本 1 起引入的设备宏
+#endif
+```
+
+ncnn 额外定义了大多数 vulcan 设备相关功能作为宏，我们可以用来区分不同的平台、设备扩展、功能和属性。
+
+### 扩展宏定义
+
+当设备支持某个扩展时，`ncnn_<extension_name>` 被定义为扩展版本
+
+```c
+void main()
+{
+#if ncnn_VK_KHR_16bit_storage
+    // 支持 VK_KHR_16bit_storage 设备的代码
+#endif
+
+#if ncnn_VK_KHR_sampler_ycbcr_conversion >= 10
+    // 支持 VK_KHR_sampler_ycbcr_conversion 且版本 >=10 的代码
+#endif
+}
+```
+
+### 设备特性和属性宏
+
+ncnn 会查询设备特性和属性，然后将它们定义为宏。
+
+宏名称为 `ncnn_<feature_name>` 或 `ncnn_<property_name>`
+
+当设备支持 `shaderInt64` 时，`GL_EXT_shader_explicit_arithmetic_types_int64` 扩展会自动启用，无需显式代码指示。
+
+```c
+void main()
+{
+#if ncnn_robustBufferAccess
+    // 支持 robustBufferAccess 特性的设备代码
+#endif
+
+#if ncnn_vendorID == 4318
+    // 供应商特定代码，4318 是 nvidia 显卡
+#endif
+
+#if ncnn_subgroupSize == 32
+    // 为 subgroup_size == 32 优化的代码路径
+#endif
+
+    // 使用宏定义
+    uint size; // 来自先前例程的动态值
+    if (size < ncnn_subgroupSize)
+    {
+#if ncnn_supportedOperations & 4
+        // subgroup 支持算术运算
+#endif
+
+#if ncnn_subgroup_arithmetic
+        // 检查 subgroup 算术运算的简写形式
+#endif
+    }
+}
+```
+
+### 验证层宏定义
+
+当启用 vulkan 验证层时，ncnn 会定义一些额外的便捷宏
+
+* `ncnn_enable_validation_layer`
+* `NCNN_LOGE`
+
+目前，你必须将 `src/gpu.cpp` 开头的 `ENABLE_VALIDATION_LAYER` 定义修改为 `1` 才能启用这些宏。
+
+`GL_EXT_debug_printf` 扩展会自动启用，无需在代码中显式指定。
+
+```c
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+
+#if ncnn_enable_validation_layer
+    NCNN_LOGE("gx = %d\n", gx);
+#endif
+}
+```
+
+在运行时，`NCNN_LOGE` 将打印出 `gx` 的值
+
+### 选项宏
 
 仅当用户启用某些选项时才启用 GLSL 扩展
 
+`GL_EXT_shader_16bit_storage` 扩展会在设备支持 16 位存储且用户开启了 `opt.use_fp16_storage` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_shader_explicit_arithmetic_types_float16` 扩展会在设备支持 16 位算术运算且用户开启了 `opt.use_fp16_arithmetic` 选项时，自动启用，无需显式代码指示。
+
 ```c
+void main()
+{
 #if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
+    // 用户启用 fp16 存储选项，且设备支持 fp16 存储
 #endif
+
 #if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+    // 用户启用 fp16 算术选项，且设备支持 fp16 算术运算
 #endif
+}
 ```
 
 声明图像或缓冲区的描述符绑定

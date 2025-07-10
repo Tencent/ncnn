@@ -398,7 +398,7 @@ void main()
 
 ncnn will define some additional convenient macros when the vulkan validation layer enabled
 
-* `ncnn_enable_validataion_layer`
+* `ncnn_enable_validation_layer`
 * `NCNN_LOGE`
 
 currently, you have to modify the `ENABLE_VALIDATION_LAYER` definition at the beginning of `src/gpu.cpp` to `1` to enable these macros.
@@ -410,7 +410,7 @@ void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
 
-#if ncnn_enable_validataion_layer
+#if ncnn_enable_validation_layer
     NCNN_LOGE("gx = %d\n", gx);
 #endif
 }
