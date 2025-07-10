@@ -782,7 +782,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1)
     {
-        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
+        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
@@ -794,35 +794,115 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             const int UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
             const int UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
-            // fallback to packed path if padding cost is too much
-            // const int num_output_padded = (num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N) * (coopmat_N * UNROLL_SG_N);
-            // const int num_input_padded = (num_input + coopmat_K * UNROLL_SG_K - 1) / (coopmat_K * UNROLL_SG_K) * (coopmat_K * UNROLL_SG_K);
-            // if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
-            // {
-            //     // use_cooperative_matrix = false;
-            // }
+            const int UNROLL_WG_M = 2; // FIXME hardcode
+            const int UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
-            if (use_cooperative_matrix)
+            //        +-N-+
+            //        K   |
+            //        +SG_UN
+            //        |   |
+            //     ^  +---+
+            //     |  |   |
+            //   SG_UK+- -+
+            //     |  |   |
+            //   ^ v  +---+
+            //   |    |   |
+            //   |    +- -+
+            //   |    |   |
+            // WG_UN  +---+
+            //   |    |   |
+            //   |    +- -+
+            //   |    |   |
+            //   v    +---+
+
+            //      +-N-+
+            //      K   |
+            //      +SG_UN
+            //      |   |
+            //   ^  +---+
+            //   |  |   |
+            // WG_UN+- -+
+            //   |  |   |
+            //   v  +---+
+
+            const int blocks_n = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+            // const int blocks_k = (num_input + coopmat_K * UNROLL_SG_K - 1) / (coopmat_K * UNROLL_SG_K);
+            const int kk = (num_input + coopmat_K - 1) / coopmat_K;
+
+            // UNROLL_SG_K
+
+            weight_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n);
+            for (int bn = 0; bn < blocks_n; bn++)
             {
-                // inch - outch
-                // outch(pad4) - inch
+                float* p = weight_data_packed.row(bn);
 
-                weight_data_packed.create((num_output + 3) / 4 * 4, num_input);
-                for (int i = 0; i < num_input; i++)
+                int k = 0;
+                for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
                 {
-                    float* p = weight_data_packed.row(i);
-                    for (int j = 0; j < num_output; j++)
-                    {
-                        p[j] = weight_data[j * num_input + i];
+                    // const int ki = k * coopmat_K;
 
-                        // fprintf(stderr, "%f ", p[j]);
+                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                    {
+                        for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                        {
+                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                            {
+                                for (int i = 0; i < coopmat_K; i++)
+                                {
+                                    for (int j = 0; j < coopmat_N; j++)
+                                    {
+                                        const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                        const int gki = (k + zk) * coopmat_K + i;
+
+                                        if (gni < num_output && gki < num_input)
+                                        {
+                                            *p++ = weight_data[gni * num_input + gki];
+                                        }
+                                        else
+                                        {
+                                            *p++ = 0.f;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                    // fprintf(stderr, "\n");
+                }
+                for (; k < kk; k++)
+                {
+                    // const int ki = k * coopmat_K;
+
+                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                    {
+                        // for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                        {
+                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                            {
+                                for (int i = 0; i < coopmat_K; i++)
+                                {
+                                    for (int j = 0; j < coopmat_N; j++)
+                                    {
+                                        const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                        // const int gki = (k + zk) * coopmat_K + i;
+                                        const int gki = k * coopmat_K + i;
+
+                                        if (gni < num_output && gki < num_input)
+                                        {
+                                            *p++ = weight_data[gni * num_input + gki];
+                                        }
+                                        else
+                                        {
+                                            *p++ = 0.f;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
-
-        if (!use_cooperative_matrix)
+        else
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
@@ -1040,7 +1120,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1)
     {
-        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
+        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
@@ -1056,51 +1136,37 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             const int UNROLL_WG_M = 2; // FIXME hardcode
             const int UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
-            // const int _M
-
-            // fallback to packed path if padding cost is too much
-            // const int num_output_padded = (num_output + coopmat_N - 1) / coopmat_N * coopmat_N;
-            // const int num_input_padded = (num_input + coopmat_K - 1) / coopmat_K * coopmat_K;
-            // if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
-            // {
-            //     // use_cooperative_matrix = false;
-            // }
-
             // NCNN_LOGE("coopmat_MNK = %d %d %d", coopmat_M, coopmat_N, coopmat_K);
 
-            if (use_cooperative_matrix)
-            {
-                std::vector<vk_specialization_type> specializations(16 + 3);
-                specializations[0].i = bias_term;
-                specializations[1].i = activation_type;
-                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
-                specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-                specializations[4].u32 = coopmat_M;
-                specializations[5].u32 = coopmat_N;
-                specializations[6].u32 = coopmat_K;
-                specializations[7].u32 = UNROLL_SG_M;
-                specializations[8].u32 = UNROLL_SG_N;
-                specializations[9].u32 = UNROLL_SG_K;
-                specializations[10].u32 = UNROLL_WG_M;
-                specializations[11].u32 = UNROLL_WG_N;
-                specializations[12].u32 = num_input;
-                specializations[13].u32 = num_output;
-                specializations[14].u32 = elempack;
-                specializations[15].u32 = out_elempack;
-                specializations[16 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
-                specializations[16 + 1].u32 = 0; //shape_bordered_packed.cstep;
-                specializations[16 + 2].u32 = 0; //out_shape_packed.cstep;
+            std::vector<vk_specialization_type> specializations(16 + 3);
+            specializations[0].i = bias_term;
+            specializations[1].i = activation_type;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations[4].u32 = coopmat_M;
+            specializations[5].u32 = coopmat_N;
+            specializations[6].u32 = coopmat_K;
+            specializations[7].u32 = UNROLL_SG_M;
+            specializations[8].u32 = UNROLL_SG_N;
+            specializations[9].u32 = UNROLL_SG_K;
+            specializations[10].u32 = UNROLL_WG_M;
+            specializations[11].u32 = UNROLL_WG_N;
+            specializations[12].u32 = num_input;
+            specializations[13].u32 = num_output;
+            specializations[14].u32 = elempack;
+            specializations[15].u32 = out_elempack;
+            specializations[16 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
+            specializations[16 + 1].u32 = 0; //shape_bordered_packed.cstep;
+            specializations[16 + 2].u32 = 0; //out_shape_packed.cstep;
 
-                const int subgroup_size = vkdev->info.subgroup_size();
+            const int subgroup_size = vkdev->info.subgroup_size();
 
-                pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-                pipeline_convolution_1x1s1d1->set_subgroup_size(subgroup_size);
-                pipeline_convolution_1x1s1d1->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-                pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt, specializations);
-            }
+            pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
+            pipeline_convolution_1x1s1d1->set_subgroup_size(subgroup_size);
+            pipeline_convolution_1x1s1d1->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt, specializations);
         }
-
-        if (!use_cooperative_matrix)
+        else
         {
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
@@ -1696,7 +1762,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         const int num_input = channels * elempack;
 
-        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
+        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
@@ -1712,42 +1778,30 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             const int UNROLL_WG_M = 2; // FIXME hardcode
             const int UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
-            // fallback to packed path if padding cost is too much
-            // const int num_output_padded = (num_output + coopmat_N - 1) / coopmat_N * coopmat_N;
-            // const int num_input_padded = (num_input + coopmat_K - 1) / coopmat_K * coopmat_K;
-            // if (num_input * num_output / (float)(num_input_padded * num_output_padded) < 0.6)
-            // {
-            //     // use_cooperative_matrix = false;
-            // }
+            std::vector<VkMat> bindings(4);
+            bindings[0] = bottom_blob_bordered;
+            bindings[1] = top_blob;
+            bindings[2] = weight_data_gpu;
+            bindings[3] = bias_data_gpu;
 
-            if (use_cooperative_matrix)
-            {
-                std::vector<VkMat> bindings(4);
-                bindings[0] = bottom_blob_bordered;
-                bindings[1] = top_blob;
-                bindings[2] = weight_data_gpu;
-                bindings[3] = bias_data_gpu;
+            std::vector<vk_constant_type> constants(3);
+            constants[0].u32 = bottom_blob_bordered.w * bottom_blob_bordered.h;
+            constants[1].u32 = bottom_blob_bordered.cstep;
+            constants[2].u32 = top_blob.cstep;
 
-                std::vector<vk_constant_type> constants(3);
-                constants[0].u32 = bottom_blob_bordered.w * bottom_blob_bordered.h;
-                constants[1].u32 = bottom_blob_bordered.cstep;
-                constants[2].u32 = top_blob.cstep;
+            const int blocks_x = (top_blob.w * top_blob.h + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+            const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-                const int blocks_x = (top_blob.w * top_blob.h + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
-                const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+            const int subgroup_size = vkdev->info.subgroup_size();
 
-                const int subgroup_size = vkdev->info.subgroup_size();
+            VkMat dispatcher;
+            dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+            dispatcher.h = 1;
+            dispatcher.c = 1;
 
-                VkMat dispatcher;
-                dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
-                dispatcher.h = 1;
-                dispatcher.c = 1;
-
-                cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
-            }
+            cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
         }
-
-        if (!use_cooperative_matrix)
+        else
         {
             std::vector<VkMat> bindings(4);
             bindings[0] = bottom_blob_bordered;
