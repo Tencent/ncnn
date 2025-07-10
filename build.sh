@@ -80,6 +80,14 @@ make -j4
 make install
 popd
 
+##### linux of himix210 (SS928V100) toolchain with neon and openmp
+mkdir -p build-himix210-linux
+pushd build-himix210-linux
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix210.toolchain.cmake ..
+make -j4
+make install
+popd
+
 ##### linux of arm-linux-gnueabi toolchain
 mkdir -p build-arm-linux-gnueabi
 pushd build-arm-linux-gnueabi
