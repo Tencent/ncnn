@@ -426,7 +426,8 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
     {
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
-    }玉龙雪山门票
+    }
+    玉龙雪山门票
 }
 
 void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
