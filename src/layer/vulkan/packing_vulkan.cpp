@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "packing_vulkan.h"
 
@@ -21,11 +10,8 @@ namespace ncnn {
 Packing_vulkan::Packing_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     pipeline_packing = 0;
-    pipeline_packing_pack4 = 0;
-    pipeline_packing_pack8 = 0;
     pipeline_packing_pack1to4 = 0;
     pipeline_packing_pack4to1 = 0;
     pipeline_packing_pack1to8 = 0;
@@ -34,187 +20,237 @@ Packing_vulkan::Packing_vulkan()
     pipeline_packing_pack8to1 = 0;
 }
 
-int Packing_vulkan::create_pipeline(const Option& _opt)
+int Packing_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    size_t out_elemsize;
-    if (cast_type_to == 0)
+    const int dims = shape.dims;
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    const int local_size_x = vkdev->info.subgroup_size();
+
+    bool use_int8_shader = cast_type_from == 4 || cast_type_to == 4;
+
+    std::vector<vk_specialization_type> specializations(2 + 3);
+    specializations[0].i = cast_type_from;
+    specializations[1].i = cast_type_to;
+
+    if (shape.dims == 0 || elempack == out_elempack)
     {
-        if (opt.use_fp16_storage)
+        size_t n = 0;
+        size_t c = 0;
+        size_t stride = 0;
+        if (cast_type_from == 1)
         {
-            out_elemsize = out_elempack * 2u;
+            if (dims == 1 || dims == 2)
+            {
+                n = shape.cstep;
+                c = 1;
+                stride = out_shape.cstep;
+            }
+            if (dims == 3 || dims == 4)
+            {
+                n = shape.cstep;
+                c = shape.c;
+                stride = out_shape.cstep;
+            }
         }
-        else if (opt.use_fp16_packed)
+        else // if (cast_type_to == 1)
         {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
+            if (dims == 1 || dims == 2)
+            {
+                n = out_shape.cstep;
+                c = 1;
+                stride = shape.cstep;
+            }
+            if (dims == 3 || dims == 4)
+            {
+                n = out_shape.cstep;
+                c = out_shape.c;
+                stride = shape.cstep;
+            }
+        }
+
+        specializations[2 + 0].u32 = n / 4;
+        specializations[2 + 1].u32 = c;
+        specializations[2 + 2].u32 = stride / 4;
+
+        pipeline_packing = new Pipeline(vkdev);
+        pipeline_packing->set_optimal_local_size_xyz(local_size_x, 1, 1);
+        if (use_int8_shader)
+        {
+            pipeline_packing->create(LayerShaderType::packing_int8, opt, specializations);
         }
         else
         {
-            out_elemsize = out_elempack * 4u;
-        }
-    }
-    else if (cast_type_to == 1)
-    {
-        out_elemsize = out_elempack * 4u;
-    }
-    else if (cast_type_to == 2)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-    else // if (cast_type_to == 3)
-    {
-        out_elemsize = out_elempack * 2u;
-    }
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
-    // check blob shape
-    if (!vkdev->shape_support_image_storage(out_shape_packed))
-    {
-        support_image_storage = false;
-        opt.use_image_storage = false;
-    }
-
-    std::vector<vk_specialization_type> specializations(2 + 10);
-    specializations[0].i = storage_type_from;
-    specializations[1].i = storage_type_to;
-    specializations[2 + 0].i = 0; // FIXME shape elempack may be dynamic
-    specializations[2 + 1].i = 0;
-    specializations[2 + 2].i = 0;
-    specializations[2 + 3].i = 0;
-    specializations[2 + 4].i = 0;
-    specializations[2 + 5].i = out_shape_packed.dims;
-    specializations[2 + 6].i = out_shape_packed.w;
-    specializations[2 + 7].i = out_shape_packed.h * out_shape_packed.d;
-    specializations[2 + 8].i = out_shape_packed.c;
-    specializations[2 + 9].i = out_shape_packed.cstep;
-
-    Mat local_size_xyz; // TODO more precise group size guessed from out_shape_packed
-    if (out_shape_packed.dims == 1)
-    {
-        local_size_xyz.w = 64;
-        local_size_xyz.h = 1;
-        local_size_xyz.c = 1;
-    }
-    if (out_shape_packed.dims == 2)
-    {
-        local_size_xyz.w = 8;
-        local_size_xyz.h = 8;
-        local_size_xyz.c = 1;
-    }
-    if (out_shape_packed.dims == 3)
-    {
-        local_size_xyz.w = 4;
-        local_size_xyz.h = 4;
-        local_size_xyz.c = 4;
-    }
-    if (out_shape_packed.dims == 4)
-    {
-        local_size_xyz.w = 4;
-        local_size_xyz.h = 4;
-        local_size_xyz.c = 4;
-    }
-
-    if (out_elempack == 8)
-    {
-        pipeline_packing_pack8 = new Pipeline(vkdev);
-        pipeline_packing_pack8->set_optimal_local_size_xyz(local_size_xyz);
-
-        pipeline_packing_pack1to8 = new Pipeline(vkdev);
-        pipeline_packing_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-
-        pipeline_packing_pack4to8 = new Pipeline(vkdev);
-        pipeline_packing_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-
-        if (cast_type_from == cast_type_to)
-        {
-            pipeline_packing_pack8->create(LayerShaderType::packing_pack8, opt, specializations);
-            pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8, opt, specializations);
-            pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8, opt, specializations);
-        }
-        else if (cast_type_from == 1)
-        {
-            pipeline_packing_pack8->create(LayerShaderType::packing_pack8_fp32_to_fp16, opt, specializations);
-            pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8_fp32_to_fp16, opt, specializations);
-            pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8_fp32_to_fp16, opt, specializations);
-        }
-        else if (cast_type_to == 1)
-        {
-            pipeline_packing_pack8->create(LayerShaderType::packing_pack8_fp16_to_fp32, opt, specializations);
-            pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8_fp16_to_fp32, opt, specializations);
-            pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8_fp16_to_fp32, opt, specializations);
-        }
-    }
-
-    if (out_elempack == 4)
-    {
-        pipeline_packing_pack4 = new Pipeline(vkdev);
-        pipeline_packing_pack4->set_optimal_local_size_xyz(local_size_xyz);
-
-        pipeline_packing_pack1to4 = new Pipeline(vkdev);
-        pipeline_packing_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-
-        pipeline_packing_pack8to4 = new Pipeline(vkdev);
-        pipeline_packing_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-
-        if (cast_type_from == cast_type_to)
-        {
-            pipeline_packing_pack4->create(LayerShaderType::packing_pack4, opt, specializations);
-            pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4, opt, specializations);
-            pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4, opt, specializations);
-        }
-        else if (cast_type_from == 1)
-        {
-            pipeline_packing_pack4->create(LayerShaderType::packing_pack4_fp32_to_fp16, opt, specializations);
-            pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4_fp32_to_fp16, opt, specializations);
-            pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_fp32_to_fp16, opt, specializations);
-        }
-        else if (cast_type_to == 1)
-        {
-            pipeline_packing_pack4->create(LayerShaderType::packing_pack4_fp16_to_fp32, opt, specializations);
-            pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4_fp16_to_fp32, opt, specializations);
-            pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_fp16_to_fp32, opt, specializations);
-        }
-    }
-
-    if (out_elempack == 1)
-    {
-        pipeline_packing = new Pipeline(vkdev);
-        pipeline_packing->set_optimal_local_size_xyz(local_size_xyz);
-
-        pipeline_packing_pack4to1 = new Pipeline(vkdev);
-        pipeline_packing_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-
-        pipeline_packing_pack8to1 = new Pipeline(vkdev);
-        pipeline_packing_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-
-        if (cast_type_from == cast_type_to)
-        {
             pipeline_packing->create(LayerShaderType::packing, opt, specializations);
-            pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1, opt, specializations);
-            pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1, opt, specializations);
         }
-        else if (cast_type_from == 1)
+    }
+    if (shape.dims == 0 || elempack < out_elempack)
+    {
+        size_t n = 0;
+        size_t c = 0;
+        size_t stride = 0;
+        if (dims == 1)
         {
-            pipeline_packing->create(LayerShaderType::packing_fp32_to_fp16, opt, specializations);
-            pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_fp32_to_fp16, opt, specializations);
-            pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_fp32_to_fp16, opt, specializations);
+            n = 1;
+            c = out_shape.w;
+            stride = 1;
         }
-        else if (cast_type_to == 1)
+        if (dims == 2)
         {
-            pipeline_packing->create(LayerShaderType::packing_fp16_to_fp32, opt, specializations);
-            pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_fp16_to_fp32, opt, specializations);
-            pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_fp16_to_fp32, opt, specializations);
+            n = out_shape.w;
+            c = out_shape.h;
+            stride = shape.w;
+        }
+        if (dims == 3 || dims == 4)
+        {
+            n = out_shape.cstep;
+            c = out_shape.c;
+            stride = shape.cstep;
+        }
+
+        if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
+        {
+            // pack1to4
+            specializations[2 + 0].u32 = n;
+            specializations[2 + 1].u32 = c / 4;
+            specializations[2 + 2].u32 = stride;
+
+            pipeline_packing_pack1to4 = new Pipeline(vkdev);
+            pipeline_packing_pack1to4->set_optimal_local_size_xyz(local_size_x, 1, 1);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4, opt, specializations);
+            }
+        }
+
+        if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
+        {
+            // pack1to8
+            specializations[2 + 0].u32 = n;
+            specializations[2 + 1].u32 = c / 8;
+            specializations[2 + 2].u32 = stride;
+
+            pipeline_packing_pack1to8 = new Pipeline(vkdev);
+            pipeline_packing_pack1to8->set_optimal_local_size_xyz(local_size_x, 1, 1);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8, opt, specializations);
+            }
+        }
+
+        if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
+        {
+            // pack4to8
+            specializations[2 + 0].u32 = n;
+            specializations[2 + 1].u32 = c / 2;
+            specializations[2 + 2].u32 = stride;
+
+            pipeline_packing_pack4to8 = new Pipeline(vkdev);
+            pipeline_packing_pack4to8->set_optimal_local_size_xyz(local_size_x, 1, 1);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8, opt, specializations);
+            }
+        }
+    }
+    if (shape.dims == 0 || elempack > out_elempack)
+    {
+        size_t n = 0;
+        size_t c = 0;
+        size_t stride = 0;
+        if (dims == 1)
+        {
+            n = 1;
+            c = shape.w;
+            stride = 1;
+        }
+        if (dims == 2)
+        {
+            n = shape.w;
+            c = shape.h;
+            stride = out_shape.w;
+        }
+        if (dims == 3 || dims == 4)
+        {
+            n = shape.cstep;
+            c = shape.c;
+            stride = out_shape.cstep;
+        }
+
+        if (shape.dims == 0 || (elempack == 4 && out_elempack == 1))
+        {
+            // pack4to1
+            specializations[2 + 0].u32 = n;
+            specializations[2 + 1].u32 = c / 4;
+            specializations[2 + 2].u32 = stride;
+
+            pipeline_packing_pack4to1 = new Pipeline(vkdev);
+            pipeline_packing_pack4to1->set_optimal_local_size_xyz(local_size_x, 1, 1);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1, opt, specializations);
+            }
+        }
+
+        if (shape.dims == 0 || (elempack == 8 && out_elempack == 1))
+        {
+            // pack8to1
+            specializations[2 + 0].u32 = n;
+            specializations[2 + 1].u32 = c / 8;
+            specializations[2 + 2].u32 = stride;
+
+            pipeline_packing_pack8to1 = new Pipeline(vkdev);
+            pipeline_packing_pack8to1->set_optimal_local_size_xyz(local_size_x, 1, 1);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1, opt, specializations);
+            }
+        }
+
+        if (shape.dims == 0 || (elempack == 8 && out_elempack == 4))
+        {
+            // pack8to4
+            specializations[2 + 0].u32 = n;
+            specializations[2 + 1].u32 = c / 2;
+            specializations[2 + 2].u32 = stride;
+
+            pipeline_packing_pack8to4 = new Pipeline(vkdev);
+            pipeline_packing_pack8to4->set_optimal_local_size_xyz(local_size_x, 1, 1);
+            if (use_int8_shader)
+            {
+                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_int8, opt, specializations);
+            }
+            else
+            {
+                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4, opt, specializations);
+            }
         }
     }
 
@@ -225,12 +261,6 @@ int Packing_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_packing;
     pipeline_packing = 0;
-
-    delete pipeline_packing_pack4;
-    pipeline_packing_pack4 = 0;
-
-    delete pipeline_packing_pack8;
-    pipeline_packing_pack8 = 0;
 
     delete pipeline_packing_pack1to4;
     pipeline_packing_pack1to4 = 0;
@@ -255,8 +285,8 @@ int Packing_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int elempack = bottom_blob.elempack;
-    //     NCNN_LOGE("Packing_vulkan b2b %d %d   %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
+    const int elempack = bottom_blob.elempack;
+    // NCNN_LOGE("Packing_vulkan b2b %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to);
 
     if (elempack == out_elempack && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
     {
@@ -264,12 +294,11 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         return 0;
     }
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+    const int dims = bottom_blob.dims;
 
     if (!use_padding)
     {
@@ -294,15 +323,9 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     size_t out_elemsize;
     if (cast_type_to == 0)
     {
-        if (opt.use_fp16_storage)
+        if (opt.use_fp16_storage || opt.use_fp16_packed)
         {
             out_elemsize = out_elempack * 2u;
-        }
-        else if (opt.use_fp16_packed)
-        {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
         }
         else
         {
@@ -315,23 +338,21 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     }
     else if (cast_type_to == 2)
     {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
+        out_elemsize = out_elempack * 2u;
     }
     else // if (cast_type_to == 3)
     {
-        out_elemsize = out_elempack * 2u;
+        out_elemsize = out_elempack * 1u;
     }
 
     if (dims == 1)
     {
-        if (opt.use_fp16_storage && out_elempack == 1 && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
+        if (out_elempack == 1 && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
         {
             top_blob = bottom_blob;
             top_blob.w = w * elempack;
-            top_blob.cstep = w * elempack;
-            top_blob.elemsize = elemsize / elempack;
+            top_blob.cstep = bottom_blob.cstep * elempack;
+            top_blob.elemsize = bottom_blob.elemsize / elempack;
             top_blob.elempack = out_elempack;
             return 0;
         }
@@ -370,517 +391,157 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             return -100;
     }
 
-    std::vector<VkMat> buffer_bindings(2);
+    std::vector<VkMat> buffer_bindings(4);
     buffer_bindings[0] = bottom_blob;
-    buffer_bindings[1] = top_blob;
+    buffer_bindings[1] = bottom_blob;
+    buffer_bindings[2] = top_blob;
+    buffer_bindings[3] = top_blob;
 
-    std::vector<VkImageMat> image_bindings(2);
-    if (!opt.use_image_storage)
+    if (elempack == out_elempack)
     {
-        image_bindings.clear();
-    }
-
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h * bottom_blob.d;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h * top_blob.d;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
-
-    if (elempack == 1 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 1 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-    if (elempack == 8 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 1 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack1to8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4to8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 8 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8to4, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-    if (elempack == 8 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8to1, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-
-    return 0;
-}
-
-int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    int elempack = bottom_blob.elempack;
-    //     NCNN_LOGE("Packing_vulkan i2i %d %d   %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
-
-    if (elempack == out_elempack && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
-
-    if (!use_padding)
-    {
-        // identity if use_padding not allowed
-        if (dims == 1 && w * elempack % out_elempack != 0)
+        size_t n = 0;
+        size_t c = 0;
+        size_t stride = 0;
+        if (cast_type_from == 1)
         {
-            top_blob = bottom_blob;
-            return 0;
+            if (dims == 1 || dims == 2)
+            {
+                n = bottom_blob.cstep * elempack;
+                c = 1;
+                stride = top_blob.cstep * out_elempack;
+            }
+            if (dims == 3 || dims == 4)
+            {
+                n = bottom_blob.cstep * elempack;
+                c = bottom_blob.c;
+                stride = top_blob.cstep * out_elempack;
+            }
         }
-        if (dims == 2 && h * elempack % out_elempack != 0)
+        else // if (cast_type_to == 1)
         {
-            top_blob = bottom_blob;
-            return 0;
+            if (dims == 1 || dims == 2)
+            {
+                n = top_blob.cstep * out_elempack;
+                c = 1;
+                stride = bottom_blob.cstep * elempack;
+            }
+            if (dims == 3 || dims == 4)
+            {
+                n = top_blob.cstep * out_elempack;
+                c = top_blob.c;
+                stride = bottom_blob.cstep * elempack;
+            }
         }
-        if ((dims == 3 || dims == 4) && channels * elempack % out_elempack != 0)
-        {
-            top_blob = bottom_blob;
-            return 0;
-        }
-    }
 
-    size_t out_elemsize;
-    if (cast_type_to == 0)
+        std::vector<vk_constant_type> constants(3);
+        constants[0].u32 = n / 4;
+        constants[1].u32 = c;
+        constants[2].u32 = stride / 4;
+
+        VkMat dispatcher;
+        dispatcher.w = n / 4;
+        dispatcher.h = c;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_packing, buffer_bindings, constants, dispatcher);
+    }
+    if (elempack < out_elempack)
     {
-        if (opt.use_fp16_storage)
+        size_t n = 0;
+        size_t c = 0;
+        size_t stride = 0;
+        if (dims == 1)
         {
-            out_elemsize = out_elempack * 2u;
+            n = 1;
+            c = top_blob.w;
+            stride = 1;
         }
-        else if (opt.use_fp16_packed)
+        if (dims == 2)
         {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
+            n = top_blob.w;
+            c = top_blob.h;
+            stride = bottom_blob.w;
         }
-        else
+        if (dims == 3 || dims == 4)
         {
-            out_elemsize = out_elempack * 4u;
+            n = top_blob.cstep;
+            c = top_blob.c;
+            stride = bottom_blob.cstep;
+        }
+
+        std::vector<vk_constant_type> constants(3);
+        constants[0].u32 = n;
+        constants[1].u32 = c;
+        constants[2].u32 = stride;
+
+        // NCNN_LOGE("n = %u   c = %u  stride = %u", n, c, stride);
+
+        VkMat dispatcher;
+        dispatcher.w = n;
+        dispatcher.h = c;
+        dispatcher.c = 1;
+
+        if (elempack == 1 && out_elempack == 4)
+        {
+            cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, constants, dispatcher);
+        }
+        if (elempack == 1 && out_elempack == 8)
+        {
+            cmd.record_pipeline(pipeline_packing_pack1to8, buffer_bindings, constants, dispatcher);
+        }
+        if (elempack == 4 && out_elempack == 8)
+        {
+            cmd.record_pipeline(pipeline_packing_pack4to8, buffer_bindings, constants, dispatcher);
         }
     }
-    else if (cast_type_to == 1)
+    if (elempack > out_elempack)
     {
-        out_elemsize = out_elempack * 4u;
-    }
-    else if (cast_type_to == 2)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-    else // if (cast_type_to == 3)
-    {
-        out_elemsize = out_elempack * 2u;
-    }
-
-    if (dims == 1)
-    {
-        int outw = (w * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    if (dims == 2)
-    {
-        int outh = (h * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    if (dims == 3)
-    {
-        int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    if (dims == 4)
-    {
-        int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    std::vector<VkMat> buffer_bindings(2);
-
-    std::vector<VkImageMat> image_bindings(2);
-    image_bindings[0] = bottom_blob;
-    image_bindings[1] = top_blob;
-
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h * bottom_blob.d;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = 0; //bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h * top_blob.d;
-    constants[8].i = top_blob.c;
-    constants[9].i = 0; //top_blob.cstep;
-
-    if (elempack == 1 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 1 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-    if (elempack == 8 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 1 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack1to8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4to8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 8 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8to4, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-    if (elempack == 8 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8to1, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-
-    return 0;
-}
-
-int Packing_vulkan::forward(const VkMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    int elempack = bottom_blob.elempack;
-    //     NCNN_LOGE("Packing_vulkan b2i %d %d   %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
-
-    //     if (!use_padding)
-    //     {
-    //         // identity if use_padding not allowed
-    //         NCNN_LOGE("buffer to mat use_padding not allowed");
-    //         return -1;
-    //     }
-
-    size_t out_elemsize;
-    if (cast_type_to == 0)
-    {
-        if (opt.use_fp16_storage)
+        size_t n = 0;
+        size_t c = 0;
+        size_t stride = 0;
+        if (dims == 1)
         {
-            out_elemsize = out_elempack * 2u;
+            n = 1;
+            c = bottom_blob.w;
+            stride = 1;
         }
-        else if (opt.use_fp16_packed)
+        if (dims == 2)
         {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
+            n = bottom_blob.w;
+            c = bottom_blob.h;
+            stride = top_blob.w;
         }
-        else
+        if (dims == 3 || dims == 4)
         {
-            out_elemsize = out_elempack * 4u;
+            n = bottom_blob.cstep;
+            c = bottom_blob.c;
+            stride = top_blob.cstep;
         }
-    }
-    else if (cast_type_to == 1)
-    {
-        out_elemsize = out_elempack * 4u;
-    }
-    else if (cast_type_to == 2)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-    else // if (cast_type_to == 3)
-    {
-        out_elemsize = out_elempack * 2u;
-    }
 
-    if (dims == 1)
-    {
-        int outw = (w * elempack + out_elempack - 1) / out_elempack;
+        std::vector<vk_constant_type> constants(3);
+        constants[0].u32 = n;
+        constants[1].u32 = c;
+        constants[2].u32 = stride;
 
-        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
+        // NCNN_LOGE("n = %u   c = %u  stride = %u", n, c, stride);
 
-    if (dims == 2)
-    {
-        int outh = (h * elempack + out_elempack - 1) / out_elempack;
+        VkMat dispatcher;
+        dispatcher.w = n;
+        dispatcher.h = c;
+        dispatcher.c = 1;
 
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    if (dims == 3)
-    {
-        int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    if (dims == 4)
-    {
-        int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    std::vector<VkMat> buffer_bindings(2);
-    buffer_bindings[0] = bottom_blob;
-
-    std::vector<VkImageMat> image_bindings(2);
-    image_bindings[1] = top_blob;
-
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h * bottom_blob.d;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h * top_blob.d;
-    constants[8].i = top_blob.c;
-    constants[9].i = 0; //top_blob.cstep;
-
-    if (elempack == 1 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 1 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-    if (elempack == 8 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 1 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack1to8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4to8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 8 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8to4, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-    if (elempack == 8 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8to1, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-
-    return 0;
-}
-
-int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    int elempack = bottom_blob.elempack;
-    //     NCNN_LOGE("Packing_vulkan i2b %d %d   %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
-
-    //     if (!use_padding)
-    //     {
-    //         // identity if use_padding not allowed
-    //         NCNN_LOGE("buffer to mat use_padding not allowed");
-    //         return -1;
-    //     }
-
-    size_t out_elemsize;
-    if (cast_type_to == 0)
-    {
-        if (opt.use_fp16_storage)
+        if (elempack == 4 && out_elempack == 1)
         {
-            out_elemsize = out_elempack * 2u;
+            cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, constants, dispatcher);
         }
-        else if (opt.use_fp16_packed)
+        if (elempack == 8 && out_elempack == 4)
         {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
+            cmd.record_pipeline(pipeline_packing_pack8to4, buffer_bindings, constants, dispatcher);
         }
-        else
+        if (elempack == 8 && out_elempack == 1)
         {
-            out_elemsize = out_elempack * 4u;
+            cmd.record_pipeline(pipeline_packing_pack8to1, buffer_bindings, constants, dispatcher);
         }
-    }
-    else if (cast_type_to == 1)
-    {
-        out_elemsize = out_elempack * 4u;
-    }
-    else if (cast_type_to == 2)
-    {
-        if (out_elempack == 8) out_elemsize = 8 * 2u;
-        if (out_elempack == 4) out_elemsize = 4 * 2u;
-        if (out_elempack == 1) out_elemsize = 4u;
-    }
-    else // if (cast_type_to == 3)
-    {
-        out_elemsize = out_elempack * 2u;
-    }
-
-    if (dims == 1)
-    {
-        int outw = (w * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    if (dims == 2)
-    {
-        int outh = (h * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    if (dims == 3)
-    {
-        int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    if (dims == 4)
-    {
-        int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-
-        top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-    }
-
-    std::vector<VkMat> buffer_bindings(2);
-    buffer_bindings[1] = top_blob;
-
-    std::vector<VkImageMat> image_bindings(2);
-    image_bindings[0] = bottom_blob;
-
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h * bottom_blob.d;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = 0; //bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h * top_blob.d;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
-
-    if (elempack == 1 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 1 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-    if (elempack == 8 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 1 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack1to8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 4 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_packing_pack4to8, buffer_bindings, image_bindings, constants, top_blob);
-    }
-    if (elempack == 8 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8to4, buffer_bindings, image_bindings, constants, bottom_blob);
-    }
-    if (elempack == 8 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_packing_pack8to1, buffer_bindings, image_bindings, constants, bottom_blob);
     }
 
     return 0;

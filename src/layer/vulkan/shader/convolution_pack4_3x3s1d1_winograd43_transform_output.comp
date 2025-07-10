@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -33,15 +22,9 @@ layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
 layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 6) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D top_tm_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer top_tm_blob { sfpvec4 top_tm_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout (binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -66,46 +49,6 @@ void main()
         return;
 
     // load 36
-#if NCNN_image_shader
-    int sx = gy * psc(block_x) + gx;
-
-    afpvec4 v00 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 0));
-    afpvec4 v01 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 1));
-    afpvec4 v02 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 2));
-    afpvec4 v03 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 3));
-    afpvec4 v04 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 4));
-    afpvec4 v05 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 5));
-    afpvec4 v10 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 6));
-    afpvec4 v11 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 7));
-    afpvec4 v12 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 8));
-    afpvec4 v13 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 9));
-    afpvec4 v14 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 10));
-    afpvec4 v15 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 11));
-    afpvec4 v20 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 12));
-    afpvec4 v21 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 13));
-    afpvec4 v22 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 14));
-    afpvec4 v23 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 15));
-    afpvec4 v24 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 16));
-    afpvec4 v25 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 17));
-    afpvec4 v30 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 18));
-    afpvec4 v31 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 19));
-    afpvec4 v32 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 20));
-    afpvec4 v33 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 21));
-    afpvec4 v34 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 22));
-    afpvec4 v35 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 23));
-    afpvec4 v40 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 24));
-    afpvec4 v41 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 25));
-    afpvec4 v42 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 26));
-    afpvec4 v43 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 27));
-    afpvec4 v44 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 28));
-    afpvec4 v45 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 29));
-    afpvec4 v50 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 30));
-    afpvec4 v51 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 31));
-    afpvec4 v52 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 32));
-    afpvec4 v53 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 33));
-    afpvec4 v54 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 34));
-    afpvec4 v55 = image3d_ld4(top_tm_blob, ivec3(sx, gz, 35));
-#else
     int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
 
     afpvec4 v00 = buffer_ld4(top_tm_blob_data, v_tm_offset + 0 * psc(cstep));
@@ -144,7 +87,6 @@ void main()
     afpvec4 v53 = buffer_ld4(top_tm_blob_data, v_tm_offset + 33 * psc(cstep));
     afpvec4 v54 = buffer_ld4(top_tm_blob_data, v_tm_offset + 34 * psc(cstep));
     afpvec4 v55 = buffer_ld4(top_tm_blob_data, v_tm_offset + 35 * psc(cstep));
-#endif
 
 #define sq2 1.41421356237
 #define sq2_m2 1.41421356237*2
@@ -209,11 +151,7 @@ void main()
 
     if (bias_term == 1)
     {
-#if NCNN_image_shader
-        const afpvec4 bias_value = image3d_ld4(bias_blob, ivec3(gz, 0, 0));
-#else
         const afpvec4 bias_value = buffer_ld4(bias_data, gz);
-#endif
 
         v00 = bias_value + v00;
         v01 = bias_value + v01;
@@ -254,24 +192,6 @@ void main()
     int x = gx * 4;
     int y = gy * 4;
 
-#if NCNN_image_shader
-    image3d_st4(top_blob, ivec3(x, y, gz), v00);
-    image3d_st4(top_blob, ivec3(x + 1, y, gz), v01);
-    image3d_st4(top_blob, ivec3(x + 2, y, gz), v02);
-    image3d_st4(top_blob, ivec3(x + 3, y, gz), v03);
-    image3d_st4(top_blob, ivec3(x, y + 1, gz), v10);
-    image3d_st4(top_blob, ivec3(x + 1, y + 1, gz), v11);
-    image3d_st4(top_blob, ivec3(x + 2, y + 1, gz), v12);
-    image3d_st4(top_blob, ivec3(x + 3, y + 1, gz), v13);
-    image3d_st4(top_blob, ivec3(x, y + 2, gz), v20);
-    image3d_st4(top_blob, ivec3(x + 1, y + 2, gz), v21);
-    image3d_st4(top_blob, ivec3(x + 2, y + 2, gz), v22);
-    image3d_st4(top_blob, ivec3(x + 3, y + 2, gz), v23);
-    image3d_st4(top_blob, ivec3(x, y + 3, gz), v30);
-    image3d_st4(top_blob, ivec3(x + 1, y + 3, gz), v31);
-    image3d_st4(top_blob, ivec3(x + 2, y + 3, gz), v32);
-    image3d_st4(top_blob, ivec3(x + 3, y + 3, gz), v33);
-#else
     ivec4 v_offset = gz * psc(outcstep) + y * psc(outw) + x + ivec4(0, 1, 2, 3) * psc(outw);
 
     buffer_st4(top_blob_data, v_offset.r + 0, v00);
@@ -290,5 +210,4 @@ void main()
     if (y + 3 < psc(outh) && x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset.a + 1, v31);
     if (y + 3 < psc(outh) && x + 2 < psc(outw)) buffer_st4(top_blob_data, v_offset.a + 2, v32);
     if (y + 3 < psc(outh) && x + 3 < psc(outw)) buffer_st4(top_blob_data, v_offset.a + 3, v33);
-#endif
 }

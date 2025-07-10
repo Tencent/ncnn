@@ -1,0 +1,92 @@
+// Copyright 2025 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
+layout (constant_id = 0) const int scale_in_data_size = 0;
+layout (constant_id = 1) const float scale_in_value = 1.f;
+layout (constant_id = 2) const int scale_out_data_size = 0;
+layout (constant_id = 3) const float scale_out_value = 1.f;
+layout (constant_id = 4) const int bias_data_size = 0;
+layout (constant_id = 5) const float bias_value = 0.f;
+layout (constant_id = 6) const int activation_type = 0;
+layout (constant_id = 7) const float activation_param_0 = 0;
+layout (constant_id = 8) const float activation_param_1 = 0;
+
+#define shape_constant_id_offset 9
+layout (constant_id = shape_constant_id_offset + 0) const uint c = 0;
+layout (constant_id = shape_constant_id_offset + 1) const uint in_stride = 0;
+layout (constant_id = shape_constant_id_offset + 2) const uint out_stride = 0;
+
+layout (binding = 0) readonly buffer bottom_blob { int bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sint8 top_blob_data[]; };
+layout (binding = 2) readonly buffer scale_in_blob { sfp scale_in_blob_data[]; };
+layout (binding = 3) readonly buffer scale_out_blob { sfp scale_out_blob_data[]; };
+layout (binding = 4) readonly buffer bias_blob { sfp bias_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    uint c;
+    uint in_stride;
+    uint out_stride;
+} p;
+
+void main()
+{
+    const uint gi = gl_GlobalInvocationID.x;
+
+    if (gi >= psc(in_stride) * psc(c))
+        return;
+
+    const uint gy = gi / psc(in_stride);
+    const uint gx = gi % psc(in_stride);
+
+    int v = bottom_blob_data[gi];
+
+    afp scale_in;
+    if (scale_in_data_size == 1)
+    {
+        scale_in = afp(scale_in_value);
+    }
+    else
+    {
+        scale_in = buffer_ld1(scale_in_blob_data, gy);
+    }
+
+    afp bias;
+    if (bias_data_size == 0)
+    {
+        bias = afp(0.f);
+    }
+    else if (bias_data_size == 1)
+    {
+        bias = afp(bias_value);
+    }
+    else
+    {
+        bias = buffer_ld1(bias_blob_data, gy);
+    }
+
+    afp v_fp = afp(v) * scale_in + bias;
+
+    v_fp = activation_afp(v_fp, activation_type, activation_param_0, activation_param_1);
+
+    afp scale_out;
+    if (scale_out_data_size == 1)
+    {
+        scale_out = afp(scale_out_value);
+    }
+    else
+    {
+        scale_out = buffer_ld1(scale_out_blob_data, gy);
+    }
+
+    int v_int = int(round(clamp(v_fp * scale_out, afp(-127.f), afp(127.f))));
+
+    const uint outgi = gy * psc(out_stride) + gx;
+
+    i8buffer_st1(top_blob_data, outgi, v_int);
+}

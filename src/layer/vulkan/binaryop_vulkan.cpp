@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "binaryop_vulkan.h"
 
@@ -21,7 +10,6 @@ namespace ncnn {
 BinaryOp_vulkan::BinaryOp_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     pipeline_binaryop = 0;
     pipeline_binaryop_pack4 = 0;
@@ -76,17 +64,11 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     size_t A_elemsize;
     size_t B_elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         A_elemsize = A_elempack * 2u;
         B_elemsize = B_elempack * 2u;
         out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        A_elemsize = A_elempack == 1 ? 4u : A_elempack * 2u;
-        B_elemsize = B_elempack == 1 ? 4u : B_elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
     else
     {
@@ -640,246 +622,6 @@ int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, con
     constants[12].i = bottom_top_blob.h * bottom_top_blob.d;
     constants[13].i = bottom_top_blob.c;
     constants[14].i = bottom_top_blob.cstep;
-
-    const Pipeline* pipeline = elempack == 8 ? pipeline_binaryop_pack8
-                               : elempack == 4 ? pipeline_binaryop_pack4
-                               : pipeline_binaryop;
-
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
-
-    return 0;
-}
-
-int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
-{
-    const VkImageMat& A = bottom_blobs[0];
-    const VkImageMat& B = bottom_blobs[1];
-    const int outdims = std::max(A.dims, B.dims);
-
-    const bool a_rank_is_lower = A.dims < B.dims;
-    const bool b_rank_is_lower = B.dims < A.dims;
-    const bool a_rank_is_equal = A.dims == B.dims;
-
-    VkImageMat& top_blob = top_blobs[0];
-    if (a_rank_is_lower)
-    {
-        top_blob.create_like(B, opt.blob_vkallocator);
-    }
-    else if (b_rank_is_lower)
-    {
-        top_blob.create_like(A, opt.blob_vkallocator);
-    }
-    else
-    {
-        const int outw = std::max(A.w, B.w);
-        const int outh = std::max(A.h, B.h);
-        const int outd = std::max(A.d, B.d);
-        const int outc = std::max(A.c, B.c);
-        const int out_elempack = std::max(A.elempack, B.elempack);
-        const size_t out_elemsize = std::max(A.elemsize, B.elemsize);
-
-        if (outdims == 1)
-        {
-            top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
-        }
-        if (outdims == 2)
-        {
-            top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
-        }
-        if (outdims == 3)
-        {
-            top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-        }
-        if (outdims == 4)
-        {
-            top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-        }
-    }
-    if (top_blob.empty())
-        return -100;
-
-    // no broadcast
-    if (A.dims == B.dims && A.w == B.w && A.h == B.h && A.d == B.d && A.c == B.c && A.elempack == B.elempack)
-    {
-        std::vector<VkImageMat> bindings(3);
-        bindings[0] = A;
-        bindings[1] = B;
-        bindings[2] = top_blob;
-
-        std::vector<vk_constant_type> constants(15);
-        constants[0].i = A.dims;
-        constants[1].i = A.w;
-        constants[2].i = A.h * A.d;
-        constants[3].i = A.c;
-        constants[4].i = 0; //A.cstep;
-        constants[5].i = B.dims;
-        constants[6].i = B.w;
-        constants[7].i = B.h * B.d;
-        constants[8].i = B.c;
-        constants[9].i = 0; //B.cstep;
-        constants[10].i = top_blob.dims;
-        constants[11].i = top_blob.w;
-        constants[12].i = top_blob.h * top_blob.d;
-        constants[13].i = top_blob.c;
-        constants[14].i = 0; //top_blob.cstep;
-
-        const Pipeline* pipeline = top_blob.elempack == 8 ? pipeline_binaryop_pack8
-                                   : top_blob.elempack == 4 ? pipeline_binaryop_pack4
-                                   : pipeline_binaryop;
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-        return 0;
-    }
-
-    const bool a_pack_is_lower = A.elempack < B.elempack;
-    const bool a_pack_is_equal = A.elempack == B.elempack;
-    const bool a_size_is_lower = A.w * A.h * A.d * A.c * A.elempack < B.w * B.h * B.d * B.c * B.elempack;
-    if (a_rank_is_lower || (a_rank_is_equal && a_pack_is_lower) || (a_pack_is_equal && a_size_is_lower))
-    {
-        VkImageMat A2;
-        if (A.dims == 1 && ((B.dims == 2 && A.w * A.elempack != B.h * B.elempack) || ((B.dims == 3 || B.dims == 4) && A.w * A.elempack != B.c * B.elempack)))
-        {
-            vkdev->convert_packing(A, A2, 1, cmd, opt);
-            A2.dims = top_blob.dims;
-        }
-        else
-        {
-            A2 = A;
-        }
-
-        std::vector<VkImageMat> bindings(3);
-        bindings[0] = B;
-        bindings[1] = A2;
-        bindings[2] = top_blob;
-
-        std::vector<vk_constant_type> constants(18);
-        constants[0].i = B.dims;
-        constants[1].i = B.w;
-        constants[2].i = B.h;
-        constants[3].i = B.d;
-        constants[4].i = B.c;
-        constants[5].i = 0; //B.cstep;
-        constants[6].i = A2.dims;
-        constants[7].i = A2.w;
-        constants[8].i = A2.h;
-        constants[9].i = A2.d;
-        constants[10].i = A2.c;
-        constants[11].i = 0; //A2.cstep;
-        constants[12].i = top_blob.dims;
-        constants[13].i = top_blob.w;
-        constants[14].i = top_blob.h;
-        constants[15].i = top_blob.d;
-        constants[16].i = top_blob.c;
-        constants[17].i = 0; //top_blob.cstep;
-
-        const int ri = get_reverse_op_type(op_type) == op_type ? 0 : 1;
-
-        const Pipeline* pipeline = 0;
-        if (A2.elempack == 1 && top_blob.elempack == 1)
-        {
-            pipeline = pipeline_binaryop_broadcast[ri];
-        }
-        if (A2.elempack == 4 && top_blob.elempack == 4)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack4[ri];
-        }
-        if (A2.elempack == 1 && top_blob.elempack == 4)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack1to4[ri];
-        }
-        if (A2.elempack == 8 && top_blob.elempack == 8)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack8[ri];
-        }
-        if (A2.elempack == 1 && top_blob.elempack == 8)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack1to8[ri];
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-    }
-    else
-    {
-        VkImageMat B2;
-        if (B.dims == 1 && ((A.dims == 2 && B.w * B.elempack != A.h * A.elempack) || ((A.dims == 3 || A.dims == 4) && B.w * B.elempack != A.c * A.elempack)))
-        {
-            vkdev->convert_packing(B, B2, 1, cmd, opt);
-            B2.dims = top_blob.dims;
-        }
-        else
-        {
-            B2 = B;
-        }
-
-        std::vector<VkImageMat> bindings(3);
-        bindings[0] = A;
-        bindings[1] = B2;
-        bindings[2] = top_blob;
-
-        std::vector<vk_constant_type> constants(18);
-        constants[0].i = A.dims;
-        constants[1].i = A.w;
-        constants[2].i = A.h;
-        constants[3].i = A.d;
-        constants[4].i = A.c;
-        constants[5].i = 0; //A.cstep;
-        constants[6].i = B2.dims;
-        constants[7].i = B2.w;
-        constants[8].i = B2.h;
-        constants[9].i = B2.d;
-        constants[10].i = B2.c;
-        constants[11].i = 0; //B2.cstep;
-        constants[12].i = top_blob.dims;
-        constants[13].i = top_blob.w;
-        constants[14].i = top_blob.h;
-        constants[15].i = top_blob.d;
-        constants[16].i = top_blob.c;
-        constants[17].i = 0; //top_blob.cstep;
-
-        const Pipeline* pipeline = 0;
-        if (B2.elempack == 1 && top_blob.elempack == 1)
-        {
-            pipeline = pipeline_binaryop_broadcast[0];
-        }
-        if (B2.elempack == 4 && top_blob.elempack == 4)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack4[0];
-        }
-        if (B2.elempack == 1 && top_blob.elempack == 4)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack1to4[0];
-        }
-        if (B2.elempack == 8 && top_blob.elempack == 8)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack8[0];
-        }
-        if (B2.elempack == 1 && top_blob.elempack == 8)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack1to8[0];
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-    }
-
-    return 0;
-}
-
-int BinaryOp_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
-{
-    int elempack = bottom_top_blob.elempack;
-
-    std::vector<VkImageMat> bindings(3);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = bottom_top_blob; // TODO use dummy buffer
-    bindings[2] = bottom_top_blob;
-
-    std::vector<vk_constant_type> constants(15);
-    constants[10].i = bottom_top_blob.dims;
-    constants[11].i = bottom_top_blob.w;
-    constants[12].i = bottom_top_blob.h * bottom_top_blob.d;
-    constants[13].i = bottom_top_blob.c;
-    constants[14].i = 0; //bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_binaryop_pack8
                                : elempack == 4 ? pipeline_binaryop_pack4

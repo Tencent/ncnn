@@ -132,7 +132,7 @@ layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 
 |storage type|fp32|fp16p|fp16s|
 |---|---|---|---|
-|sfp|float|float|float16_t|
+|sfp|float|uint|float16_t|
 |sfpvec2|vec2|uint|f16vec2|
 |sfpvec4|vec4|uvec2|f16vec4|
 |sfpvec8|mat2x4|uvec4|f16mat2x4|
@@ -329,6 +329,14 @@ judge if the current platform is moltenvk, for enabling some platform-specific w
 #endif
 ```
 
+ncnn adds additional macro definitions in the new version, which may conflict or confuse the existing glsl code. In order to obtain cross-version compatibility of ncnn, you can switch between the old and new codes according to the `ncnn_glsl_version` macro version.
+
+```c
+#if ncnn_glsl_version >= 1
+// use device macros introduced since version 1
+#endif
+```
+
 ncnn additionally defines most of the vulkan device-related features as macros, which we can use to distinguish different platforms, device extensions, features, and properties
 
 ### extension macros
@@ -390,7 +398,7 @@ void main()
 
 ncnn will define some additional convenient macros when the vulkan validation layer enabled
 
-* `ncnn_enable_validataion_layer`
+* `ncnn_enable_validation_layer`
 * `NCNN_LOGE`
 
 currently, you have to modify the `ENABLE_VALIDATION_LAYER` definition at the beginning of `src/gpu.cpp` to `1` to enable these macros.
@@ -402,7 +410,7 @@ void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
 
-#if ncnn_enable_validataion_layer
+#if ncnn_enable_validation_layer
     NCNN_LOGE("gx = %d\n", gx);
 #endif
 }
@@ -449,5 +457,4 @@ layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; }
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
-|NCNN_image_shader|opt.use_image_storage|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|

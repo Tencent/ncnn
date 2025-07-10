@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -30,13 +19,8 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -72,20 +56,6 @@ void main()
     ivec4 z4 = (gz4 % psc(group)) * channels_g + (gz4 / psc(group));
     ivec4 zz4 = (gzz4 % psc(group)) * channels_g + (gzz4 / psc(group));
 
-#if NCNN_image_shader
-    ivec4 sz8 = z4 / 8;
-    ivec4 szz8 = zz4 / 8;
-
-    afpvec8 vr = image3d_ld8(bottom_blob, ivec3(gx, gy, sz8.r));
-    afpvec8 vg = image3d_ld8(bottom_blob, ivec3(gx, gy, sz8.g));
-    afpvec8 vb = image3d_ld8(bottom_blob, ivec3(gx, gy, sz8.b));
-    afpvec8 va = image3d_ld8(bottom_blob, ivec3(gx, gy, sz8.a));
-
-    afpvec8 vvr = image3d_ld8(bottom_blob, ivec3(gx, gy, szz8.r));
-    afpvec8 vvg = image3d_ld8(bottom_blob, ivec3(gx, gy, szz8.g));
-    afpvec8 vvb = image3d_ld8(bottom_blob, ivec3(gx, gy, szz8.b));
-    afpvec8 vva = image3d_ld8(bottom_blob, ivec3(gx, gy, szz8.a));
-#else
     ivec4 v_offset = (z4 / 8) * psc(cstep) + gy * psc(w) + gx;
     ivec4 vv_offset = (zz4 / 8) * psc(cstep) + gy * psc(w) + gx;
 
@@ -100,7 +70,6 @@ void main()
     afpvec8 vvg = buffer_ld8(bottom_blob_data, vv_offset.g);
     afpvec8 vvb = buffer_ld8(bottom_blob_data, vv_offset.b);
     afpvec8 vva = buffer_ld8(bottom_blob_data, vv_offset.a);
-#endif
 
     ivec4 sz4 = (z4 % 8) / 4;
     ivec4 szz4 = (zz4 % 8) / 4;
@@ -151,11 +120,7 @@ void main()
         v = afpvec8(vr[sz4.r][lane4.r], vg[sz4.g][lane4.g], vb[sz4.b][lane4.b], va[sz4.a][lane4.a], vvr[szz4.r][lane8.r], vvg[szz4.g][lane8.g], vvb[szz4.b][lane8.b], vva[szz4.a][lane8.a]);
     }
 
-#if NCNN_image_shader
-    image3d_st8(top_blob, ivec3(gx, gy, gz), v);
-#else
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st8(top_blob_data, gi, v);
-#endif
 }

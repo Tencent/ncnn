@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "unaryop_mips.h"
 
@@ -75,7 +64,7 @@ struct unary_op_abs
 {
     float func(const float& x) const
     {
-        return (float)fabs(x);
+        return (float)fabsf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -103,7 +92,7 @@ struct unary_op_floor
 {
     float func(const float& x) const
     {
-        return (float)floor(x);
+        return (float)floorf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -124,7 +113,7 @@ struct unary_op_ceil
 {
     float func(const float& x) const
     {
-        return (float)ceil(x);
+        return (float)ceilf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -159,7 +148,7 @@ struct unary_op_sqrt
 {
     float func(const float& x) const
     {
-        return (float)sqrt(x);
+        return (float)sqrtf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -173,7 +162,7 @@ struct unary_op_rsqrt
 {
     float func(const float& x) const
     {
-        return (float)(1.f / sqrt(x));
+        return (float)(1.f / sqrtf(x));
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -187,7 +176,7 @@ struct unary_op_exp
 {
     float func(const float& x) const
     {
-        return (float)exp(x);
+        return (float)expf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -201,7 +190,7 @@ struct unary_op_log
 {
     float func(const float& x) const
     {
-        return (float)log(x);
+        return (float)logf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -215,7 +204,7 @@ struct unary_op_sin
 {
     float func(const float& x) const
     {
-        return (float)sin(x);
+        return (float)sinf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -223,10 +212,10 @@ struct unary_op_sin
         // TODO msa optimize
         float tmp[4];
         __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = sin(tmp[0]);
-        tmp[1] = sin(tmp[1]);
-        tmp[2] = sin(tmp[2]);
-        tmp[3] = sin(tmp[3]);
+        tmp[0] = sinf(tmp[0]);
+        tmp[1] = sinf(tmp[1]);
+        tmp[2] = sinf(tmp[2]);
+        tmp[3] = sinf(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
 #endif // __mips_msa
@@ -236,7 +225,7 @@ struct unary_op_cos
 {
     float func(const float& x) const
     {
-        return (float)cos(x);
+        return (float)cosf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -244,10 +233,10 @@ struct unary_op_cos
         // TODO msa optimize
         float tmp[4];
         __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = cos(tmp[0]);
-        tmp[1] = cos(tmp[1]);
-        tmp[2] = cos(tmp[2]);
-        tmp[3] = cos(tmp[3]);
+        tmp[0] = cosf(tmp[0]);
+        tmp[1] = cosf(tmp[1]);
+        tmp[2] = cosf(tmp[2]);
+        tmp[3] = cosf(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
 #endif // __mips_msa
@@ -257,7 +246,7 @@ struct unary_op_tan
 {
     float func(const float& x) const
     {
-        return (float)tan(x);
+        return (float)tanf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -265,10 +254,10 @@ struct unary_op_tan
         // TODO msa optimize
         float tmp[4];
         __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = tan(tmp[0]);
-        tmp[1] = tan(tmp[1]);
-        tmp[2] = tan(tmp[2]);
-        tmp[3] = tan(tmp[3]);
+        tmp[0] = tanf(tmp[0]);
+        tmp[1] = tanf(tmp[1]);
+        tmp[2] = tanf(tmp[2]);
+        tmp[3] = tanf(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
 #endif // __mips_msa
@@ -278,7 +267,7 @@ struct unary_op_asin
 {
     float func(const float& x) const
     {
-        return (float)asin(x);
+        return (float)asinf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -286,10 +275,10 @@ struct unary_op_asin
         // TODO msa optimize
         float tmp[4];
         __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = asin(tmp[0]);
-        tmp[1] = asin(tmp[1]);
-        tmp[2] = asin(tmp[2]);
-        tmp[3] = asin(tmp[3]);
+        tmp[0] = asinf(tmp[0]);
+        tmp[1] = asinf(tmp[1]);
+        tmp[2] = asinf(tmp[2]);
+        tmp[3] = asinf(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
 #endif // __mips_msa
@@ -299,7 +288,7 @@ struct unary_op_acos
 {
     float func(const float& x) const
     {
-        return (float)acos(x);
+        return (float)acosf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -307,10 +296,10 @@ struct unary_op_acos
         // TODO msa optimize
         float tmp[4];
         __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = acos(tmp[0]);
-        tmp[1] = acos(tmp[1]);
-        tmp[2] = acos(tmp[2]);
-        tmp[3] = acos(tmp[3]);
+        tmp[0] = acosf(tmp[0]);
+        tmp[1] = acosf(tmp[1]);
+        tmp[2] = acosf(tmp[2]);
+        tmp[3] = acosf(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
 #endif // __mips_msa
@@ -320,7 +309,7 @@ struct unary_op_atan
 {
     float func(const float& x) const
     {
-        return (float)atan(x);
+        return (float)atanf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -328,10 +317,10 @@ struct unary_op_atan
         // TODO msa optimize
         float tmp[4];
         __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = atan(tmp[0]);
-        tmp[1] = atan(tmp[1]);
-        tmp[2] = atan(tmp[2]);
-        tmp[3] = atan(tmp[3]);
+        tmp[0] = atanf(tmp[0]);
+        tmp[1] = atanf(tmp[1]);
+        tmp[2] = atanf(tmp[2]);
+        tmp[3] = atanf(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
 #endif // __mips_msa
@@ -355,7 +344,7 @@ struct unary_op_tanh
 {
     float func(const float& x) const
     {
-        return (float)tanh(x);
+        return (float)tanhf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
@@ -369,7 +358,7 @@ struct unary_op_log10
 {
     float func(const float& x) const
     {
-        return (float)log10(x);
+        return (float)log10f(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const

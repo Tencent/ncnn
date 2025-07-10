@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -371,6 +360,13 @@ static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std
         size_t i = 0;
         while (!lcss.eof())
         {
+            if (a.type == 5 && a.ai.size() <= i)
+                return false;
+            if (a.type == 6 && a.af.size() <= i)
+                return false;
+            if (a.type == 7 && a.as.size() <= i)
+                return false;
+
             std::string elem;
             std::getline(lcss, elem, ',');
 
@@ -1142,12 +1138,6 @@ void pass_level2(Graph& g)
     int opindex = 0;
     for (auto x : g_global_pnnx_graph_rewriter_passes)
     {
-        // if (x.first == 141)
-        // {
-        //     g.save("debug.param", "debug.bin");
-        //     exit(0);
-        // }
-
         for (auto rewriter : x.second)
         {
             pnnx_graph_rewrite(g, rewriter, opindex);
