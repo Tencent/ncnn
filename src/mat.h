@@ -1283,7 +1283,7 @@ NCNN_FORCEINLINE const float* Mat::row(int y) const
 template<typename T>
 NCNN_FORCEINLINE T* Mat::row(int y)
 {
-    return (T*)((unsigned char*)data + w * y * elemsize);
+    return (T*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 template<typename T>
