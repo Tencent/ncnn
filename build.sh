@@ -80,14 +80,6 @@ make -j4
 make install
 popd
 
-##### linux of himix210 (SS928V100) toolchain with neon and openmp
-mkdir -p build-himix210-linux
-pushd build-himix210-linux
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix210.toolchain.cmake ..
-make -j4
-make install
-popd
-
 ##### linux of arm-linux-gnueabi toolchain
 mkdir -p build-arm-linux-gnueabi
 pushd build-arm-linux-gnueabi
@@ -108,14 +100,6 @@ popd
 mkdir -p build-v831-linux
 pushd build-v831-linux
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/v831.toolchain.cmake ..
-make -j4
-make install
-popd
-
-##### linux of anykav500 (AK39V33X) toolchain with neon and openmp
-mkdir -p build-anykav500-linux
-pushd build-anykav500-linux
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/anykav500.toolchain.cmake ..
 make -j4
 make install
 popd
