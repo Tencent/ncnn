@@ -41,7 +41,7 @@ Mat Mat::clone(Allocator* _allocator) const
         else
         {
             // copy by channel for differnet cstep
-            size_t size = w * h * d * elemsize;
+            size_t size = (size_t)w * h * d * elemsize;
             for (int i = 0; i < c; i++)
             {
                 memcpy(m.channel(i), channel(i), size);
@@ -73,8 +73,8 @@ Mat Mat::reshape(int _w, Allocator* _allocator) const
         for (int i = 0; i < c; i++)
         {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + i * w * h * d * elemsize;
-            memcpy(mptr, ptr, w * h * d * elemsize);
+            void* mptr = (unsigned char*)m.data + i * (size_t)w * h * d * elemsize;
+            memcpy(mptr, ptr, (size_t)w * h * d * elemsize);
         }
 
         return m;
@@ -109,8 +109,8 @@ Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
         for (int i = 0; i < c; i++)
         {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + i * w * h * d * elemsize;
-            memcpy(mptr, ptr, w * h * d * elemsize);
+            void* mptr = (unsigned char*)m.data + i * (size_t)w * h * d * elemsize;
+            memcpy(mptr, ptr, (size_t)w * h * d * elemsize);
         }
 
         return m;
@@ -124,7 +124,7 @@ Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     m.d = 1;
     m.c = 1;
 
-    m.cstep = alignSize(_w * _h * elemsize, 16) / elemsize;
+    m.cstep = alignSize((size_t)_w * _h * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -136,7 +136,7 @@ Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
 
     if (dims < 3)
     {
-        if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize)
+        if ((size_t)_w * _h != alignSize((size_t)_w * _h * elemsize, 16) / elemsize)
         {
             Mat m;
             m.create(_w, _h, _c, elemsize, elempack, _allocator);
@@ -146,9 +146,9 @@ Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
             // align channel
             for (int i = 0; i < _c; i++)
             {
-                const void* ptr = (unsigned char*)data + i * _w * _h * elemsize;
+                const void* ptr = (unsigned char*)data + i * (size_t)_w * _h * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
-                memcpy(mptr, ptr, _w * _h * elemsize);
+                memcpy(mptr, ptr, (size_t)_w * _h * elemsize);
             }
 
             return m;
@@ -169,7 +169,7 @@ Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
     m.d = 1;
     m.c = _c;
 
-    m.cstep = alignSize(_w * _h * elemsize, 16) / elemsize;
+    m.cstep = alignSize((size_t)_w * _h * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -181,7 +181,7 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
 
     if (dims < 3)
     {
-        if ((size_t)_w * _h * _d != alignSize(_w * _h * _d * elemsize, 16) / elemsize)
+        if ((size_t)_w * _h * _d != alignSize((size_t)_w * _h * _d * elemsize, 16) / elemsize)
         {
             Mat m;
             m.create(_w, _h, _d, _c, elemsize, elempack, _allocator);
@@ -191,9 +191,9 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
             // align channel
             for (int i = 0; i < _c; i++)
             {
-                const void* ptr = (unsigned char*)data + i * _w * _h * _d * elemsize;
+                const void* ptr = (unsigned char*)data + i * (size_t)_w * _h * _d * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
-                memcpy(mptr, ptr, _w * _h * _d * elemsize);
+                memcpy(mptr, ptr, (size_t)_w * _h * _d * elemsize);
             }
 
             return m;
@@ -214,7 +214,7 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
     m.d = _d;
     m.c = _c;
 
-    m.cstep = alignSize(_w * _h * _d * elemsize, 16) / elemsize;
+    m.cstep = alignSize((size_t)_w * _h * _d * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -271,7 +271,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -306,7 +306,7 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator
     d = 1;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -341,7 +341,7 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _a
     d = _d;
     c = _c;
 
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -411,7 +411,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
     d = 1;
     c = 1;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -446,7 +446,7 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Alloca
     d = 1;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -481,7 +481,7 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
     d = _d;
     c = _c;
 
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -591,7 +591,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -624,7 +624,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
     d = 1;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -657,7 +657,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator
     d = _d;
     c = _c;
 
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -723,7 +723,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     d = 1;
     c = 1;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -756,7 +756,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     d = 1;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -789,7 +789,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempa
     d = _d;
     c = _c;
 
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
