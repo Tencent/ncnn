@@ -36,8 +36,8 @@ int Sigmoid_vulkan::create_pipeline(const Option& opt)
     }
 
     Mat shape_packed;
-    if (dims == 1) shape_packed = Mat(shape.w / elempack,1,1, (void*)0, elemsize, elempack); // For Align with 4
-    if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack,1, (void*)0, elemsize, elempack);
+    if (dims == 1) shape_packed = Mat(shape.w / elempack, 1, 1, (void*)0, elemsize, elempack); // For Align with 4
+    if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, 1, (void*)0, elemsize, elempack);
     if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
     if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
 
