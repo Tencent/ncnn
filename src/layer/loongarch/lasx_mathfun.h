@@ -275,7 +275,7 @@ static inline __m256 cos256_ps(__m256 x)
     return y;
 }
 
-static inline void sincos256_ps(__m256 x, __m256 * s, __m256 * c)
+static inline void sincos256_ps(__m256 x, __m256* s, __m256* c)
 {
     __m256 y;
     __m256i swap_sign_bit_cos, swap_sign_bit_sin, poly_mask, sign_bit_sin, sign_bit_cos;
@@ -334,7 +334,6 @@ static inline void sincos256_ps(__m256 x, __m256 * s, __m256 * c)
     *s = (__m256)__lasx_xvxor_v((__m256i)ysin1, sign_bit_sin);
     *c = (__m256)__lasx_xvxor_v((__m256i)y, sign_bit_cos);
 }
-
 
 static inline __m256 tan256_ps(__m256 x)
 {
