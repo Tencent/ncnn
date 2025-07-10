@@ -6,11 +6,10 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
-#endif // __loongarch_sx
-
 #if __loongarch_asx
 #include <lasxintrin.h>
 #endif // __loongarch_asx
+#endif // __loongarch_sx
 
 #include <stdint.h>
 

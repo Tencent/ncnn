@@ -6,12 +6,11 @@
 #if __loongarch_sx
 #include <lsxintrin.h>
 #include "lsx_mathfun.h"
-#endif // __loongarch_sx
-
 #if __loongarch_asx
 #include <lasxintrin.h>
 #include "lasx_mathfun.h"
 #endif // __loongarch_asx
+#endif // __loongarch_sx
 
 #include "loongarch_usability.h"
 
