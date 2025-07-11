@@ -29,6 +29,16 @@ Convolution_vulkan::Convolution_vulkan()
 
     reshape_1x1xw = 0;
     reshape_w = 0;
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
 }
 
 int Convolution_vulkan::load_param(const ParamDict& pd)
@@ -782,20 +792,24 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1)
     {
-        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input >= 8 && num_output >= 8;
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
-            int coopmat_M, coopmat_N, coopmat_K;
-            vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+            int size = 1024;
+            if (shape_bordered_packed.dims == 3)
+                size = shape_bordered_packed.w * shape_bordered_packed.h;
+
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-            const int UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+            UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
+            UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
-            const int UNROLL_WG_M = 2; // FIXME hardcode
-            const int UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+            UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+            UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
             //        +-N-+
             //        K   |
@@ -828,8 +842,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             const int blocks_n = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
             // const int blocks_k = (num_input + coopmat_K * UNROLL_SG_K - 1) / (coopmat_K * UNROLL_SG_K);
             const int kk = (num_input + coopmat_K - 1) / coopmat_K;
-
-            // UNROLL_SG_K
 
             weight_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n);
             for (int bn = 0; bn < blocks_n; bn++)
@@ -1120,24 +1132,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1)
     {
-        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input >= 8 && num_output >= 8;
-
         if (use_cooperative_matrix)
         {
-            int coopmat_M, coopmat_N, coopmat_K;
-            vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
-
-            // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
-
-            const int UNROLL_SG_M = 2; // FIXME hardcode
-            const int UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
-
-            const int UNROLL_WG_M = 2; // FIXME hardcode
-            const int UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
-
-            // NCNN_LOGE("coopmat_MNK = %d %d %d", coopmat_M, coopmat_N, coopmat_K);
-
             std::vector<vk_specialization_type> specializations(16 + 3);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
@@ -1308,6 +1304,16 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
         delete reshape_w;
         reshape_w = 0;
     }
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
 
     return 0;
 }
@@ -1762,22 +1768,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         const int num_input = channels * elempack;
 
-        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input >= 8 && num_output >= 8;
-
         if (use_cooperative_matrix)
         {
-            int coopmat_M, coopmat_N, coopmat_K;
-            vkdev->info.get_optimal_cooperative_matrix_mnk(1024, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
-
-            // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
-
-            const int UNROLL_SG_M = 2; // FIXME hardcode
-            const int UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            const int UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
-
-            const int UNROLL_WG_M = 2; // FIXME hardcode
-            const int UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
-
             std::vector<VkMat> bindings(4);
             bindings[0] = bottom_blob_bordered;
             bindings[1] = top_blob;
