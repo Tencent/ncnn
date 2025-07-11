@@ -21,8 +21,6 @@ public:
 
 public:
     Pipeline* pipeline_swish;
-    Pipeline* pipeline_swish_pack4;
-    Pipeline* pipeline_swish_pack8;
 };
 
 } // namespace ncnn

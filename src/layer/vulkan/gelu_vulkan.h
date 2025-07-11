@@ -21,8 +21,6 @@ public:
 
 public:
     Pipeline* pipeline_gelu;
-    Pipeline* pipeline_gelu_pack4;
-    Pipeline* pipeline_gelu_pack8;
 };
 
 } // namespace ncnn
