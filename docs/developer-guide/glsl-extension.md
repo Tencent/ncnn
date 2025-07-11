@@ -168,24 +168,6 @@ shared lfp tmp_a[8][4][2];
 |lfp|float|float|float|float16_t|
 |lfpvec4|vec4|uvec2|uint64_t|f16vec4|
 
-## image format and precision hint type
-
-declare image format in descriptor binding
-
-```c
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-```
-
-|format type|fp32|fp16p|fp16s|
-|---|---|---|---|
-|imfmt1|r32f|f32f|r16f|
-|imfmt4|rgba32f|rgba16f|rgba16f|
-
-|precision hint type|fp32|fp16p|fp16s|
-|---|---|---|---|
-|unfp|highp|mediump|mediump|
-
 # buffer functions
 
 - load typed value from src[offset]
