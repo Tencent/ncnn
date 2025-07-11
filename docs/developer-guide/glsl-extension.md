@@ -374,16 +374,6 @@ void main()
 }
 ```
 
-declare descriptor binding for image or buffer
-
-```c
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-#else
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-#endif
-```
-
 |macro|defined by option|
 |---|---|
 |NCNN_fp16_packed|opt.use_fp16_packed|
