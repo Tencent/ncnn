@@ -118,8 +118,8 @@ static int test_cpu_powersave()
 #else
 
 #if defined _WIN32
-// Check SDK >= Win7
-#if _WIN32_WINNT >= _WIN32_WINNT_WIN7 // win7
+// Check SDK >= WinXP
+#if _WIN32_WINNT >= _WIN32_WINNT_WINXP // winxp
 
 static int test_cpu_info()
 {

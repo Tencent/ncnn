@@ -95,6 +95,7 @@ namespace ncnn {
 
 #if NCNN_THREADS
 #if defined _WIN32
+#if _WIN32_WINNT > _WIN32_WINNT_WINXP // winxp
 class NCNN_EXPORT Mutex
 {
 public:
@@ -119,6 +120,39 @@ public:
 private:
     CONDITION_VARIABLE condvar;
 };
+
+#else
+
+class NCNN_EXPORT Mutex
+{
+public:
+    Mutex() { InitializeCriticalSection(&cs); }
+    ~Mutex() { DeleteCriticalSection(&cs); }
+    void lock() { EnterCriticalSection(&cs); }
+    void unlock() { LeaveCriticalSection(&cs); }
+private:
+    friend class ConditionVariable;
+    CRITICAL_SECTION cs;
+};
+
+class NCNN_EXPORT ConditionVariable
+{
+public:
+    ConditionVariable() { event = CreateEvent(0, FALSE, FALSE, 0); }
+    ~ConditionVariable() { CloseHandle(event); }
+    void wait(Mutex& mutex)
+    {
+        mutex.unlock();
+        WaitForSingleObject(event, INFINITE);
+        mutex.lock();
+    }
+    void broadcast() { SetEvent(event); }
+    void signal() { SetEvent(event); }
+private:
+    HANDLE event;
+};
+
+#endif
 
 static unsigned __stdcall start_wrapper(void* args);
 class NCNN_EXPORT Thread
