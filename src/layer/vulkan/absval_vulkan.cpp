@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "absval_vulkan.h"
 
@@ -29,8 +18,31 @@ int AbsVal_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
+    const int dims = shape.dims;
+
+    int elempack = 0;
+    if (dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (dims == 3 || dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    size_t elemsize;
+    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    {
+        elemsize = elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+    }
+
+    Mat shape_packed;
+    if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
     std::vector<vk_specialization_type> specializations(1);
-    specializations[0].u32 = shape.total() / 4;
+    specializations[0].u32 = shape_packed.total() * elempack / 4;
 
     const int local_size_x = vkdev->info.subgroup_size();
 

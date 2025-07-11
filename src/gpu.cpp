@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "gpu.h"
 
@@ -5306,7 +5295,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 #if ENABLE_VALIDATION_LAYER
         if (info.support_VK_KHR_shader_non_semantic_info())
         {
-            device_defines.append("enable_validataion_layer", VK_TRUE);
+            device_defines.append("enable_validation_layer", VK_TRUE);
             custom_defines.append("NCNN_LOGE", "debugPrintfEXT");
         }
 #endif
