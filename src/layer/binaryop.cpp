@@ -44,7 +44,7 @@ template<typename Op>
 static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 {
     // general broadcast
-    const Op op;
+    const Op op = {};
 
     const int dims = c.dims;
     const int w = c.w;
@@ -124,7 +124,7 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Option
 template<typename Op>
 static void binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 {
-    const Op op;
+    const Op op = {};
 
     const int channels = a.c;
     const int size = a.w * a.h * a.d;

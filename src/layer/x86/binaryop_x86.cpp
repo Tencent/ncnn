@@ -38,7 +38,7 @@ BinaryOp_x86::BinaryOp_x86()
 template<typename Op>
 static void binary_op_vector_no_broadcast(const float* ptr, const float* ptr1, float* outptr, int size)
 {
-    const Op op;
+    const Op op = {};
 
     int i = 0;
 #if __SSE2__
@@ -89,7 +89,7 @@ static void binary_op_vector_no_broadcast(const float* ptr, const float* ptr1, f
 template<typename Op>
 static void binary_op_vector_broadcast_b(const float* ptr, const float* ptr1, float* outptr, int size, int elempack)
 {
-    const Op op;
+    const Op op = {};
 
     const float b = *ptr1;
 
@@ -138,7 +138,7 @@ static void binary_op_vector_broadcast_b(const float* ptr, const float* ptr1, fl
 template<typename Op>
 static void binary_op_vector_broadcast_a(const float* ptr, const float* ptr1, float* outptr, int size, int elempack)
 {
-    const Op op;
+    const Op op = {};
 
     const float a = *ptr;
 
@@ -187,7 +187,7 @@ static void binary_op_vector_broadcast_a(const float* ptr, const float* ptr1, fl
 template<typename Op>
 static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, float* outptr, int w, int elempack)
 {
-    const Op op;
+    const Op op = {};
 
 #if __SSE2__
 #if __AVX__
@@ -286,7 +286,7 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
 template<typename Op>
 static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1, float* outptr, int w, int elempack)
 {
-    const Op op;
+    const Op op = {};
 
     const int size = w * elempack;
 
@@ -329,7 +329,7 @@ static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1,
 template<typename Op>
 static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1, float* outptr, int w, int elempack)
 {
-    const Op op;
+    const Op op = {};
 
 #if __SSE2__
 #if __AVX__
