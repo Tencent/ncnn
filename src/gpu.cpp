@@ -1290,6 +1290,21 @@ void GpuInfoPrivate::query_extension_properties()
         // turnip crash when compiling large shader with full subgroup
         querySubgroupSizeControlFeatures.computeFullSubgroups = VK_FALSE;
     }
+
+#if defined _WIN32
+    if (physicalDeviceProperties.vendorID == 0x10de && queryDriverProperties.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY)
+    {
+        int driver_version_major = (int)atof(queryDriverProperties.driverInfo);
+        if (driver_version_major > 565)
+        {
+            // workaround for windows + nvidia gpu + driver > 565
+            // ref https://github.com/Tencent/ncnn/issues/5920
+            // the default sbo alignment is 16, but the driver is unhappy for vkbuffer with offset 16 aligned
+            // 4096 seems to be a working value   --- nihui
+            physicalDeviceProperties.limits.minStorageBufferOffsetAlignment = 4096;
+        }
+    }
+#endif
 }
 
 GpuInfo::GpuInfo()
