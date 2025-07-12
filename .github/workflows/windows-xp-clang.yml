@@ -9,7 +9,6 @@ on:
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/x86/**'
-    - 'src/layer/vulkan/**'
     - 'tests/**'
   pull_request:
     branches: [master]
@@ -20,7 +19,6 @@ on:
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/x86/**'
-    - 'src/layer/vulkan/**'
     - 'tests/**'
 concurrency:
   group: windows-xp-clang-${{ github.ref }}
