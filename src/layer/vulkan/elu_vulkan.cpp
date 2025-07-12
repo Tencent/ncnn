@@ -49,7 +49,6 @@ int ELU_vulkan::create_pipeline(const Option& opt)
     pipeline_elu->set_optimal_local_size_xyz(local_size_x, 1, 1);
     pipeline_elu->create(LayerShaderType::elu, opt, specializations);
 
-
     return 0;
 }
 
