@@ -5,7 +5,7 @@ macro(ncnn_add_shader NCNN_SHADER_SRC)
 
     add_custom_command(
         OUTPUT ${NCNN_SHADER_COMP_HEADER}
-        COMMAND ${CMAKE_COMMAND} -DSHADER_SRC=${NCNN_SHADER_SRC} -DSHADER_COMP_HEADER=${NCNN_SHADER_COMP_HEADER} -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_comp_header.cmake"
+        COMMAND ${CMAKE_COMMAND} -DSHADER_SRC=${NCNN_SHADER_SRC} -DSHADER_COMP_HEADER=${NCNN_SHADER_COMP_HEADER} -DNCNN_SHADER_COMPRESS=${NCNN_SHADER_COMPRESS}- -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_comp_header.cmake"
         DEPENDS ${NCNN_SHADER_SRC}
         COMMENT "Preprocessing shader source ${NCNN_SHADER_SRC_NAME_WE}.comp"
         VERBATIM

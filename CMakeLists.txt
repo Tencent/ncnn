@@ -106,6 +106,10 @@ else()
     option(NCNN_BUILD_EXAMPLES "build examples" ON)
 endif()
 
+if(NCNN_VULKAN)
+    option(NCNN_SHADER_COMPRESS "compress shader" OFF)
+endif()
+
 if(NCNN_SHARED_LIB)
     if(NCNN_ENABLE_LTO)
         # enable global link time optimization
