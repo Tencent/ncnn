@@ -47,14 +47,12 @@ jobs:
       run: |
         clang --version
         clang++ --version
-    
     - name: config
       run: |
         Invoke-WebRequest -Uri https://jaist.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/8.1.0/threads-posix/dwarf/i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z -OutFile i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z
         7z x ./i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z
         Add-Content -Path $env:GITHUB_ENV -Value "MINGW32_ROOT_PATH=${{ github.workspace }}\mingw32"
-        Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}\mingw32\bin"
-
+        echo "${{ github.workspace }}\mingw32\bin;$env:PATH" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
     - name: build
       run: |
         mkdir build; cd build
