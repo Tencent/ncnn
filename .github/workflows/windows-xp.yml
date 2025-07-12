@@ -70,11 +70,22 @@ jobs:
 
     - name: Setup MinGW environment
       run: |
-        # Install MinGW-w64 using winget
-        winget install -e --id MSYS2.MSYS2
-        $env:PATH = "C:\msys64\mingw32\bin;C:\msys64\usr\bin;$env:PATH"
+        # Download and install MinGW-w64 from GitHub releases
+        $mingwUrl = "https://github.com/niXman/mingw-builds-binaries/releases/download/13.2.0-rt_v11-rev1/winlibs-x86_64-posix-seh-gcc-13.2.0-mingw-w64-11.0.1-r1.zip"
+        $mingwZip = "mingw-w64.zip"
+        $mingwDir = "C:\mingw64"
+        
+        Write-Host "Downloading MinGW-w64..."
+        Invoke-WebRequest -Uri $mingwUrl -OutFile $mingwZip -UseBasicParsing
+        
+        Write-Host "Extracting MinGW-w64..."
+        Expand-Archive -Path $mingwZip -DestinationPath "C:\" -Force
+        
+        # Add MinGW to PATH
+        $env:PATH = "$mingwDir\bin;$env:PATH"
         
         # Verify MinGW installation
+        Write-Host "Verifying MinGW installation..."
         gcc --version
         g++ --version
         mingw32-make --version
@@ -82,7 +93,7 @@ jobs:
     - name: x86 MinGW (Windows XP compatible)
       run: |
         # Set MinGW environment
-        $env:PATH = "C:\msys64\mingw32\bin;C:\msys64\usr\bin;$env:PATH"
+        $env:PATH = "C:\mingw64\bin;$env:PATH"
         
         mkdir build-xp-mingw
         cd build-xp-mingw
@@ -94,7 +105,7 @@ jobs:
     - name: x86 MinGW test (Windows XP compatible)
       run: |
         # Set MinGW environment
-        $env:PATH = "C:\msys64\mingw32\bin;C:\msys64\usr\bin;$env:PATH"
+        $env:PATH = "C:\mingw64\bin;$env:PATH"
         
         cd build-xp-mingw
         ctest -C Release --output-on-failure -j 4
