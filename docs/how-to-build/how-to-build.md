@@ -274,11 +274,7 @@ Build ncnn library for Windows XP:
 cd <ncnn-root-dir>
 mkdir build
 cd build
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake \
-      -DNCNN_VULKAN=OFF \
-      -DNCNN_SIMPLEOCV=ON \
-      -DCMAKE_BUILD_TYPE=Release \
-      -G "MinGW Makefiles" ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
 make -j2
 make install
 ```
