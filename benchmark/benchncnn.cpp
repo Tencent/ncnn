@@ -48,6 +48,14 @@ static ncnn::VkAllocator* g_staging_vkallocator = 0;
 
 void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fixed_path = true)
 {
+    // Skip if int8 model name and using GPU
+    if (opt.use_vulkan_compute && strstr(comment, "int8") != NULL)
+    {
+        if (!fixed_path)
+            fprintf(stderr, "%20s  skipped (int8+GPU not supported)\n", comment);
+        return;
+    }
+
     g_blob_pool_allocator.clear();
     g_workspace_pool_allocator.clear();
 

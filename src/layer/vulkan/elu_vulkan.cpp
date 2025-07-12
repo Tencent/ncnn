@@ -12,8 +12,6 @@ ELU_vulkan::ELU_vulkan()
     support_vulkan = true;
 
     pipeline_elu = 0;
-    pipeline_elu_pack4 = 0;
-    pipeline_elu_pack8 = 0;
 }
 
 int ELU_vulkan::create_pipeline(const Option& opt)
@@ -41,63 +39,15 @@ int ELU_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
 
-    std::vector<vk_specialization_type> specializations(1 + 5);
+    std::vector<vk_specialization_type> specializations(1 + 1);
     specializations[0].f = alpha;
-    specializations[1 + 0].i = shape_packed.dims;
-    specializations[1 + 1].i = shape_packed.w;
-    specializations[1 + 2].i = shape_packed.h * shape_packed.d;
-    specializations[1 + 3].i = shape_packed.c;
-    specializations[1 + 4].i = shape_packed.cstep;
+    specializations[1 + 0].u32 = shape_packed.total() * elempack / 4;
 
-    Mat local_size_xyz;
-    if (shape_packed.dims == 1)
-    {
-        local_size_xyz.w = std::min(64, shape_packed.w);
-        local_size_xyz.h = 1;
-        local_size_xyz.c = 1;
-    }
-    if (shape_packed.dims == 2)
-    {
-        local_size_xyz.w = std::min(8, shape_packed.w);
-        local_size_xyz.h = std::min(8, shape_packed.h);
-        local_size_xyz.c = 1;
-    }
-    if (shape_packed.dims == 3)
-    {
-        local_size_xyz.w = std::min(4, shape_packed.w);
-        local_size_xyz.h = std::min(4, shape_packed.h);
-        local_size_xyz.c = std::min(4, shape_packed.c);
-    }
-    if (shape_packed.dims == 4)
-    {
-        local_size_xyz.w = std::min(4, shape_packed.w);
-        local_size_xyz.h = std::min(4, shape_packed.h * shape_packed.d);
-        local_size_xyz.c = std::min(4, shape_packed.c);
-    }
+    const int local_size_x = vkdev->info.subgroup_size();
 
-    // pack1
-    if (shape.dims == 0 || elempack == 1)
-    {
-        pipeline_elu = new Pipeline(vkdev);
-        pipeline_elu->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_elu->create(LayerShaderType::elu, opt, specializations);
-    }
-
-    // pack4
-    if (shape.dims == 0 || elempack == 4)
-    {
-        pipeline_elu_pack4 = new Pipeline(vkdev);
-        pipeline_elu_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_elu_pack4->create(LayerShaderType::elu_pack4, opt, specializations);
-    }
-
-    // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-    {
-        pipeline_elu_pack8 = new Pipeline(vkdev);
-        pipeline_elu_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_elu_pack8->create(LayerShaderType::elu_pack8, opt, specializations);
-    }
+    pipeline_elu = new Pipeline(vkdev);
+    pipeline_elu->set_optimal_local_size_xyz(local_size_x, 1, 1);
+    pipeline_elu->create(LayerShaderType::elu, opt, specializations);
 
     return 0;
 }
@@ -107,34 +57,24 @@ int ELU_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_elu;
     pipeline_elu = 0;
 
-    delete pipeline_elu_pack4;
-    pipeline_elu_pack4 = 0;
-
-    delete pipeline_elu_pack8;
-    pipeline_elu_pack8 = 0;
-
     return 0;
 }
 
 int ELU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
-    int elempack = bottom_top_blob.elempack;
+    const size_t n = bottom_top_blob.total() * bottom_top_blob.elempack / 4;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
 
-    std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h * bottom_top_blob.d;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = bottom_top_blob.cstep;
+    std::vector<vk_constant_type> constants(1);
+    constants[0].u32 = n;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_elu_pack8
-                               : elempack == 4 ? pipeline_elu_pack4
-                               : pipeline_elu;
-
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    VkMat dispatcher;
+    dispatcher.w = n;
+    dispatcher.h = 1;
+    dispatcher.c = 1;
+    cmd.record_pipeline(pipeline_elu, bindings, constants, dispatcher);
 
     return 0;
 }
