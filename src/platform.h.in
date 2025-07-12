@@ -37,6 +37,7 @@
 #cmakedefine01 NCNN_AVX512BF16
 #cmakedefine01 NCNN_AVX512FP16
 #cmakedefine01 NCNN_VFPV4
+#cmakedefine01 NCNN_APPLE_AMX
 #cmakedefine01 NCNN_ARM82
 #cmakedefine01 NCNN_ARM82DOT
 #cmakedefine01 NCNN_ARM82FP16FML
