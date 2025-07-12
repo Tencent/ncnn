@@ -110,7 +110,7 @@ HANDLE event;
 cd <ncnn-root-dir>
 mkdir build
 cd build
-cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCU=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
+cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
 ```
 
 由于平台性能的限制，Vulkan SDK 最低要求 Windows 7 SP1，XP 无法安装官方驱动和工具链，因此需要关闭Vulkan选项。同时需要使用简化版 OpenCV 替代库NCNN_SIMPLEOCV。
