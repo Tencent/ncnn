@@ -21,7 +21,7 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     std::vector<vk_specialization_type> specializations(2);
     specializations[0].u32 = shape.total() / 4;
     specializations[1].i = op_type;
-    
+
     const int local_size_x = vkdev->info.subgroup_size();
 
     pipeline_unaryop = new Pipeline(vkdev);
@@ -60,4 +60,3 @@ int UnaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 }
 
 } // namespace ncnn
-
