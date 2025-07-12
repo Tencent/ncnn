@@ -3,40 +3,27 @@
 
 #version 450
 
-layout (constant_id = 0) const int op_type = 0;
+layout (constant_id = 0) const uint n = 0;
+layout (constant_id = 1) const int op_type = 0;
 
-#define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
-
-layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
-    int w;
-    int h;
-    int c;
-    int cstep;
+    uint n;
+    int op_type;
 } p;
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    const uint gi = gl_GlobalInvocationID.x;
 
-    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+    if (gi >= psc(n))
         return;
 
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
-    afp v = buffer_ld1(bottom_top_blob_data, gi);
-
-    afp res;
+    afpvec4 res;
 
     if (op_type == 0) res = abs(v);
     if (op_type == 1) res = -v;
@@ -63,5 +50,5 @@ void main()
     if (op_type == 18) res = round(v);
     if (op_type == 19) res = trunc(v);
 
-    buffer_st1(bottom_top_blob_data, gi, res);
+    buffer_st4(bottom_top_blob_data, gi, res);
 }

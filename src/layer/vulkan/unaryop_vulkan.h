@@ -21,8 +21,6 @@ public:
 
 public:
     Pipeline* pipeline_unaryop;
-    Pipeline* pipeline_unaryop_pack4;
-    Pipeline* pipeline_unaryop_pack8;
 };
 
 } // namespace ncnn
