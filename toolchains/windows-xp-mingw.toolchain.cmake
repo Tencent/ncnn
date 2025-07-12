@@ -6,10 +6,6 @@ else()
     message(FATAL_ERROR "MINGW32_ROOT_PATH env must be defined")
 endif()
 
-if(DEFINED ENV{OPENCV_MINGW_DIR})
-    file(TO_CMAKE_PATH $ENV{OPENCV_MINGW_DIR} OpenCV_DIR)
-endif()
-
 set(MINGW32_ROOT_PATH ${MINGW32_ROOT_PATH} CACHE STRING "root path to mingw toolchain")
 
 set(CMAKE_C_COMPILER "${MINGW32_ROOT_PATH}/bin/i686-w64-mingw32-gcc.exe")
