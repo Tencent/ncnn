@@ -663,6 +663,9 @@ https://github.com/Tencent/ncnn/releases/latest
   recognition (i.e., speech-to-text); also support embedded devices and provide
   mobile Apps (e.g., Android App)
 
+    - Speech recognition demo (Chinese + English): https://user-images.githubusercontent.com/5284924/208226257-aaa8d62f-d339-4cfa-9db7-9b0de48ac70b.mp4
+    - Speech recognition demo (Chinese): https://user-images.githubusercontent.com/5284924/208226272-02b80b15-cafc-4fc1-83ea-21fec6906335.mp4
+
 ---
 
 ## License
