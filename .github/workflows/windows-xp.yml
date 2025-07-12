@@ -54,7 +54,7 @@ jobs:
         mkdir build-xp-mingw
         cd build-xp-mingw
         
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
         
         cmake --build . --config Release -j 2
 
@@ -68,7 +68,7 @@ jobs:
         mkdir build-xp-msvc
         cd build-xp-msvc
         
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp-msvc.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
+        cmake -T v143,host=x64 -A x64 -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_TESTS=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_FMA=OFF -DNCNN_F16C=OFF -DNCNN_XOP=OFF -DNCNN_SSE2=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ..
         
         cmake --build . --config Release -j 2
 
