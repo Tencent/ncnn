@@ -372,16 +372,7 @@ void main()
 #if NCNN_fp16_arithmetic
     // 用户启用 fp16 算术选项，且设备支持 fp16 算术运算
 #endif
-```
-
-声明图像或缓冲区的描述符绑定
-
-```c
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-#else
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-#endif
+}
 ```
 
 |宏定义|option中所定义的变量|
