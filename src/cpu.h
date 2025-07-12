@@ -22,6 +22,10 @@ class NCNN_EXPORT CpuSet
 {
 public:
     CpuSet();
+    ~CpuSet();
+    CpuSet(const CpuSet& other);
+    CpuSet& operator=(const CpuSet& other);
+
     void enable(int cpu);
     void disable(int cpu);
     void disable_all();
@@ -29,11 +33,17 @@ public:
     int num_enabled() const;
 
 public:
+#if defined __ANDROID__ || defined __linux__
+    const cpu_set_t* cpu_set() const;
+#endif
+
+private:
 #if defined _WIN32
     ULONG_PTR mask;
 #endif
 #if defined __ANDROID__ || defined __linux__
-    cpu_set_t cpu_set;
+    cpu_set_t* cpu_set_ptr;
+    size_t cpu_set_size;
 #endif
 #if __APPLE__
     unsigned int policy;

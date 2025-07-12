@@ -2297,40 +2297,107 @@ int CpuSet::num_enabled() const
 #elif defined __ANDROID__ || defined __linux__
 CpuSet::CpuSet()
 {
+    try_initialize_global_cpu_info();
+    cpu_set_ptr = CPU_ALLOC(g_cpucount);
+    if (!cpu_set_ptr)
+    {
+        NCNN_LOGE("CPU_ALLOC failed");
+        return;
+    }
+    cpu_set_size = CPU_ALLOC_SIZE(g_cpucount);
     disable_all();
+}
+
+CpuSet::~CpuSet()
+{
+    if (cpu_set_ptr)
+    {
+        CPU_FREE(cpu_set_ptr);
+        cpu_set_ptr = nullptr;
+    }
+}
+
+CpuSet::CpuSet(const CpuSet& other)
+{
+    cpu_set_ptr = CPU_ALLOC(g_cpucount);
+    if (!cpu_set_ptr)
+    {
+        NCNN_LOGE("CPU_ALLOC failed in copy constructor");
+        return;
+    }
+    cpu_set_size = CPU_ALLOC_SIZE(g_cpucount);
+    memcpy(cpu_set_ptr, other.cpu_set_ptr, cpu_set_size);
+}
+
+CpuSet& CpuSet::operator=(const CpuSet& other)
+{
+    if (this != &other)
+    {
+        if (cpu_set_ptr)
+        {
+            CPU_FREE(cpu_set_ptr);
+        }
+        cpu_set_ptr = CPU_ALLOC(g_cpucount);
+        if (!cpu_set_ptr)
+        {
+            NCNN_LOGE("CPU_ALLOC failed in assignment operator");
+            return *this;
+        }
+        cpu_set_size = CPU_ALLOC_SIZE(g_cpucount);
+        memcpy(cpu_set_ptr, other.cpu_set_ptr, cpu_set_size);
+    }
+    return *this;
 }
 
 void CpuSet::enable(int cpu)
 {
-    CPU_SET(cpu, &cpu_set);
+    if (cpu_set_ptr && cpu >= 0 && cpu < g_cpucount)
+    {
+        CPU_SET_S(cpu, cpu_set_size, cpu_set_ptr);
+    }
 }
 
 void CpuSet::disable(int cpu)
 {
-    CPU_CLR(cpu, &cpu_set);
+    if (cpu_set_ptr && cpu >= 0 && cpu < g_cpucount)
+    {
+        CPU_CLR_S(cpu, cpu_set_size, cpu_set_ptr);
+    }
 }
 
 void CpuSet::disable_all()
 {
-    CPU_ZERO(&cpu_set);
+    if (cpu_set_ptr)
+    {
+        CPU_ZERO_S(cpu_set_size, cpu_set_ptr);
+    }
 }
 
 bool CpuSet::is_enabled(int cpu) const
 {
-    return CPU_ISSET(cpu, &cpu_set);
+    if (!cpu_set_ptr || cpu < 0 || cpu >= g_cpucount)
+    {
+        // invalid cpu number
+        return false;
+    }
+    return CPU_ISSET_S(cpu, cpu_set_size, cpu_set_ptr);
 }
 
 int CpuSet::num_enabled() const
 {
-    int num_enabled = 0;
-    for (int i = 0; i < (int)sizeof(cpu_set_t) * 8; i++)
+    if (!cpu_set_ptr)
     {
-        if (is_enabled(i))
-            num_enabled++;
+        // CPU_SET not initialized
+        return 0;
     }
-
-    return num_enabled;
+    return CPU_COUNT_S(cpu_set_size, cpu_set_ptr);
 }
+
+const cpu_set_t* CpuSet::get_cpu_set() const
+{
+    return cpu_set_ptr;
+}
+
 #elif __APPLE__
 CpuSet::CpuSet()
 {
