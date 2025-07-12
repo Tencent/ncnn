@@ -1,4 +1,4 @@
-include
+
 ##############################################
 
 configure_file(platform.h.in ${CMAKE_CURRENT_BINARY_DIR}/platform.h)

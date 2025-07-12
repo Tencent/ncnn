@@ -22,18 +22,18 @@ class NCNN_EXPORT CpuSet
 {
 public:
     CpuSet();
-    ~CpuSet();
-    CpuSet(const CpuSet& other);
-    CpuSet& operator=(const CpuSet& other);
-
+    
     void enable(int cpu);
     void disable(int cpu);
     void disable_all();
     bool is_enabled(int cpu) const;
     int num_enabled() const;
-
+    
 public:
 #if defined __ANDROID__ || defined __linux__
+    ~CpuSet();
+    CpuSet(const CpuSet& other);
+    CpuSet& operator=(const CpuSet& other);
     const cpu_set_t* get_cpu_set() const;
 #endif
 
