@@ -16,6 +16,9 @@ git submodule update --init
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for Windows x64 using MinGW-w64](#build-for-windows-x64-using-mingw-w64)
+- [Build for Windows XP using MinGW](#build-for-windows-xp-using-mingw)
+- [Build for Windows XP using Clang](#build-for-windows-xp-using-clang)
+- [Build for Windows XP using MinGW](#build-for-windows-xp-using-visual-studio-community-2017)
 - [Build for macOS](#build-for-macos)
 - [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
 - [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
@@ -262,6 +265,49 @@ cmake --build . --config Release --target install
 ```
 
 ***
+
+### Build for Windows XP using MinGW
+
+Download mingw toolchain targetting 32 bit from [sourceforge](https://jaist.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/8.1.0/threads-posix/dwarf/i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z -OutFile i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z), extract and add enviornment variable named `MINGW32_ROOT_PATH` valued by `<your-path-to-mingw root-path>`, and add `<your-path-to-mingw root-path>/bin` to `PATH`
+
+```shell
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-mingw.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_VULKAN=OFF .. -G "MinGW Makefiles"
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
+### Build for Windows XP using Clang
+
+Clang requires libraries from mingw. Config mingw toolchain targetting 32bit as in [Build for Windows XP using MinGW](#Build-for-Windows-XP-using-MinGW).
+
+Install clang 3.7.
+
+```shell
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
+### Build for Windows XP using Visual Studio Community 2017
+
+Install v141_xp toolset for Windows XP
+
+1. Bring up the Visual Studio installer (Tools -> Get Tools and Features)
+2. Select Desktop development with C++
+3. Select Windows XP support for C++ from the Summary section
+4. Click Modify
+
+```shell
+mkdir build
+cd build
+cmake -A WIN32 -G "Visual Studio 15 2017" -T v141_xp -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
 
 ### Build for macOS
 
