@@ -1,0 +1,59 @@
+name: windows-xp-msvc
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-xp-msvc.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-xp-msvc.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+concurrency:
+  group: windows-xp-msvc-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: MSVC
+    runs-on: windows-2022
+
+    env:
+      VS_INSTALL_DIR: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: config
+      run: |
+        python vsdownload.py --accept-license --dest C:\msvc
+        ./install.sh C:\msvc
+    - name: Set up the developer command prompt
+      run: |
+      shell: cmd
+        call C:\msvc\VC\Auxiliary\Build\vcvars64.bat
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A WIN32 -G "Visual Studio 15 2017" -T v141_xp -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
+        cmake --build . --config Release -j 4
+    - name: test
+      run: cd build; ctest -C Release --output-on-failure -j 4
