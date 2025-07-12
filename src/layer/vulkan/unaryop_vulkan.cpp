@@ -19,9 +19,9 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     std::vector<vk_specialization_type> specializations(2);
-    specializations[0].u32 = shape.total() / 4;
-    specializations[1].i = op_type;
-
+    specializations[0].i = op_type;
+    specializations[1].u32 = shape.total() / 4;
+    
     const int local_size_x = vkdev->info.subgroup_size();
 
     pipeline_unaryop = new Pipeline(vkdev);
@@ -46,9 +46,8 @@ int UnaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
 
-    std::vector<vk_constant_type> constants(2);
+    std::vector<vk_constant_type> constants(1);
     constants[0].u32 = n;
-    constants[1].i = op_type;
 
     VkMat dispatcher;
     dispatcher.w = n;
