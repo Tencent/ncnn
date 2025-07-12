@@ -94,7 +94,7 @@ struct layer_shader_registry_entry
     int comp_data_size;
 };
 
-void decompress_layer_shader(const unsigned char* comp_data, const int comp_data_size, char* &decompressed_data, int &decompressed_data_size)
+void decompress_layer_shader(const unsigned char* comp_data, const int comp_data_size, char*& decompressed_data, int& decompressed_data_size)
 {
     static const char* dict[] = {
 #include "shader_compress_dict.in"
@@ -4448,7 +4448,7 @@ public:
             char* headerData;
             int headerLength;
 
-            decompress_layer_shader(vulkan_activation_comp_data,sizeof(vulkan_activation_comp_data), headerData, headerLength);
+            decompress_layer_shader(vulkan_activation_comp_data, sizeof(vulkan_activation_comp_data), headerData, headerLength);
 #else
             const char* const headerData = vulkan_activation_comp_data;
             const size_t headerLength = sizeof(vulkan_activation_comp_data);
@@ -4456,7 +4456,7 @@ public:
 
             glslang::TShader::Includer::IncludeResult* r = new glslang::TShader::Includer::IncludeResult(headerName, headerData, headerLength, 0);
 
-            delete [] headerData;
+            delete[] headerData;
             return r;
         }
 
@@ -5584,7 +5584,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
 #ifdef NCNN_SHADER_COMPRESS
     char* comp_data;
     int comp_data_size;
-    decompress_layer_shader(layer_shader_registry[shader_type_index].comp_data,layer_shader_registry[shader_type_index].comp_data_size, comp_data, comp_data_size);
+    decompress_layer_shader(layer_shader_registry[shader_type_index].comp_data, layer_shader_registry[shader_type_index].comp_data_size, comp_data, comp_data_size);
 #else
     const char* comp_data = layer_shader_registry[shader_type_index].comp_data;
     int comp_data_size = layer_shader_registry[shader_type_index].comp_data_size;
@@ -5593,7 +5593,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
     int ret = compile_spirv_module(comp_data, comp_data_size, opt, spirv);
 
 #ifdef NCNN_SHADER_COMPRESS
-    delete [] comp_data;
+    delete[] comp_data;
 #endif
 
     return ret;
