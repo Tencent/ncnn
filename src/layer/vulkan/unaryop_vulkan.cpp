@@ -21,7 +21,7 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     std::vector<vk_specialization_type> specializations(2);
     specializations[0].i = op_type;
     specializations[1].u32 = shape.total() / 4;
-    
+
     const int local_size_x = vkdev->info.subgroup_size();
 
     pipeline_unaryop = new Pipeline(vkdev);
