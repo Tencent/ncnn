@@ -274,7 +274,7 @@ Download mingw toolchain targetting 32 bit from [sourceforge](https://jaist.dl.s
 mkdir build
 cd build
 cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-mingw.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_VULKAN=OFF .. -G "MinGW Makefiles"
-cmake --build . --config Release -j 2
+cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
 
@@ -288,7 +288,7 @@ Install clang 3.7.
 mkdir build
 cd build
 cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
-cmake --build . --config Release -j 2
+cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
 
