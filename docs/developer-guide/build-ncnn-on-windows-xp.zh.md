@@ -30,79 +30,7 @@
 
 ## 1. 编译
 
-#### 1.1 修改头文件
-
-在这一步，需要打开src目录下的platform.h.in进行修改。将原有的
-
-在
-
-```cpp
-#define WIN32_LEAN_AND_MEAN
-```
-
-和
-
-```cpp
-#include <windows.h>
-#include <process.h>
-```
-
-之间添加
-
-```cpp
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0501
-#endif
-```
-
-来确保使用Windows XP的API。之后，将
-
-```cpp
-#if NCNN_THREADS
-#if defined _WIN32
-```
-
-下方原有的
-
-```cpp
-class NCNN_EXPORT Mutex
-```
-
-中的内容替换为
-
-```cpp
-public:
-Mutex() { InitializeCriticalSection(&cs); }
-~Mutex() { DeleteCriticalSection(&cs); }
-void lock() { EnterCriticalSection(&cs); }
-void unlock() { LeaveCriticalSection(&cs); }
-private:
-friend class ConditionVariable;
-CRITICAL_SECTION cs;
-```
-
-再下方的
-
-```cpp
-class NCNN_EXPORT ConditionVariable
-```
-
-中的内容替换为
-
-```cpp
-public:
-ConditionVariable() { event = CreateEvent(NULL, TRUE, FALSE, NULL); }
-~ConditionVariable() { CloseHandle(event); }
-void wait(Mutex& mutex) { LeaveCriticalSection(&mutex.cs); WaitForSingleObject(event, INFINITE); EnterCriticalSection(&mutex.cs); }
-void broadcast() { SetEvent(event); ResetEvent(event); }
-void signal() { SetEvent(event); ResetEvent(event); }
-private:
-HANDLE event;
-```
-
-然后保存。
-
-#### 1.2 cmake
+#### 1.1 cmake
 
 运行
 
@@ -115,7 +43,7 @@ cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW
 
 由于平台性能的限制，Vulkan SDK 最低要求 Windows 7 SP1，XP 无法安装官方驱动和工具链，因此需要关闭Vulkan选项。同时需要使用简化版 OpenCV 替代库NCNN_SIMPLEOCV。
 
-#### 1.3 make
+#### 1.2 make
 
 由于所使用的CMake 3.10.3版本中`-j`（并行编译）参数依赖Ninja生成器，所以改用make。
 
