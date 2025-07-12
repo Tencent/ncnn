@@ -1,0 +1,33 @@
+# using MinGW-w64 with appropriate flags
+
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_SYSTEM_VERSION 5.1)
+set(CMAKE_SYSTEM_PROCESSOR x86)
+
+# Force use of MinGW compilers
+set(CMAKE_C_COMPILER "gcc" CACHE STRING "C compiler" FORCE)
+set(CMAKE_CXX_COMPILER "g++" CACHE STRING "C++ compiler" FORCE)
+set(CMAKE_C_FLAGS "-DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x0501 -DWINVER=0x0501 ${CMAKE_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "-DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x0501 -DWINVER=0x0501 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+
+# Disabling AVX will automatically disable newer instruction sets (AVX2, AVX512, etc.)
+set(NCNN_VULKAN OFF CACHE BOOL "Disable Vulkan for XP compatibility" FORCE)
+
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static-libgcc -static-libstdc++")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++")
+
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+
+set(CMAKE_GENERATOR_PLATFORM Win32 CACHE STRING "Force 32-bit build for XP compatibility" FORCE)
+
+set(CMAKE_MAKE_PROGRAM "mingw32-make" CACHE STRING "Make program" FORCE)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
