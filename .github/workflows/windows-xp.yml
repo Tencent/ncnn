@@ -54,7 +54,7 @@ jobs:
         mkdir build-xp-mingw
         cd build-xp-mingw
         
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
         
         cmake --build . --config Release -j 2
 
@@ -68,7 +68,7 @@ jobs:
         mkdir build-xp-msvc
         cd build-xp-msvc
         
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp-msvc.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp-msvc.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
         
         cmake --build . --config Release -j 2
 
