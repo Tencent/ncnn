@@ -60,3 +60,4 @@ int UnaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 }
 
 } // namespace ncnn
+
