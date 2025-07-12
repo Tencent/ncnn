@@ -34,10 +34,10 @@ public:
 
 public:
 #if defined __ANDROID__ || defined __linux__
-    const cpu_set_t* cpu_set() const;
+    const cpu_set_t* get_cpu_set() const;
 #endif
 
-private:
+public:
 #if defined _WIN32
     ULONG_PTR mask;
 #endif

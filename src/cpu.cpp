@@ -908,34 +908,15 @@ static int get_cpucount()
 }
 
 #if defined __ANDROID__ || defined __linux__
-static int get_thread_siblings(int cpuid)
+static ncnn::CpuSet get_thread_siblings_set(int cpuid)
 {
     char path[256];
     sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpuid);
 
-    FILE* fp = 0; //fopen(path, "rb");
+    FILE* fp = fopen(path, "rb");
+    ncnn::CpuSet siblings_set; // init the CpuSet
     if (fp)
     {
-        int thread_siblings = -1;
-        int nscan = fscanf(fp, "%x", &thread_siblings);
-        if (nscan != 1)
-        {
-            // ignore
-        }
-
-        fclose(fp);
-
-        return thread_siblings;
-    }
-
-    // second try, parse from human-readable thread_siblings_list
-    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuid);
-
-    fp = fopen(path, "rb");
-    if (fp)
-    {
-        int thread_siblings = -1;
-
         int id0;
         char sep;
         int id1;
@@ -943,36 +924,30 @@ static int get_thread_siblings(int cpuid)
         int nscan = fscanf(fp, "%d", &id0);
         if (nscan == 1)
         {
-            thread_siblings = (1 << id0);
+            siblings_set.enable(id0); // enable the first thread sibling
 
             while (fscanf(fp, "%c%d", &sep, &id1) == 2)
             {
                 if (sep == ',')
                 {
-                    thread_siblings |= (1 << id1);
+                    siblings_set.enable(id1); // enable the next thread sibling
                 }
                 if (sep == '-' && id0 < id1)
                 {
                     for (int i = id0 + 1; i <= id1; i++)
                     {
-                        thread_siblings |= (1 << i);
+                        siblings_set.enable(i); // enable the range of thread siblings
                     }
                 }
 
                 id0 = id1;
             }
         }
-        else
-        {
-            // ignore
-        }
 
         fclose(fp);
 
-        return thread_siblings;
+        return siblings_set;
     }
-
-    return -1;
 }
 #endif // defined __ANDROID__ || defined __linux__
 
@@ -1009,11 +984,11 @@ static int get_physical_cpucount()
 
     free(buffer);
 #elif defined __ANDROID__ || defined __linux__
-    std::vector<int> thread_set;
+    std::vector<ncnn::CpuSet> thread_set;
     for (int i = 0; i < g_cpucount; i++)
     {
-        int thread_siblings = get_thread_siblings(i);
-        if (thread_siblings == -1)
+        ncnn::CpuSet thread_siblings_set = get_thread_siblings_set(i);
+        if (thread_siblings_set.num_enabled == 0)
         {
             // ignore malformed one
             continue;
@@ -1022,7 +997,7 @@ static int get_physical_cpucount()
         bool thread_siblings_exists = false;
         for (size_t j = 0; j < thread_set.size(); j++)
         {
-            if (thread_set[j] == thread_siblings)
+            if (thread_set[j] == thread_siblings_set)
             {
                 thread_siblings_exists = true;
                 break;
@@ -1031,7 +1006,7 @@ static int get_physical_cpucount()
 
         if (!thread_siblings_exists)
         {
-            thread_set.push_back(thread_siblings);
+            thread_set.push_back(thread_siblings_set);
             count++;
         }
     }
@@ -1135,17 +1110,31 @@ static int get_data_cache_size(int cpuid, int level)
         }
 
         int len = strlen(shared_cpu_map_str);
-
-        if (shared_cpu_map_str[0] == '0' && shared_cpu_map_str[1] == 'x')
+        const char* p = shared_cpu_map_str;
+        if (p[0] == '0' && p[1] == 'x')
         {
             // skip leading 0x
+            p += 2;
             len -= 2;
         }
 
         int ci = 0;
         for (int i = len - 1; i >= 0; i--)
         {
-            char x = shared_cpu_map_str[i];
+            char c = p[i];
+            int x = 0;
+
+            // convert hex char to int
+            if (c >= '0' && c <= '9') 
+                x = c - '0';
+            else if (c >= 'a' && c <= 'f') 
+                x = c - 'a' + 10;
+            else if (c >= 'A' && c <= 'F') 
+                x = c - 'A' + 10;
+            else 
+                continue;
+
+            // enable 4 cpus at a time
             if (x & 1) shared_cpu_map.enable(ci + 0);
             if (x & 2) shared_cpu_map.enable(ci + 1);
             if (x & 4) shared_cpu_map.enable(ci + 2);
@@ -1552,7 +1541,7 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
     pid_t pid = syscall(SYS_gettid);
 #endif
 
-    int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
+    int syscallret = syscall(__NR_sched_setaffinity, pid, thread_affinity_mask.cpu_set_size, thread_affinity_mask.get_cpu_set());
     if (syscallret)
     {
         NCNN_LOGE("syscall error %d", syscallret);
@@ -2044,7 +2033,7 @@ static int get_sched_affinity(ncnn::CpuSet& thread_affinity_mask)
 
     thread_affinity_mask.disable_all();
 
-    int syscallret = syscall(__NR_sched_getaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
+    int syscallret = syscall(__NR_sched_getaffinity, pid, thread_affinity_mask.cpu_set_size, thread_affinity_mask.get_cpu_set());
     if (syscallret)
     {
         // handle get error silently
