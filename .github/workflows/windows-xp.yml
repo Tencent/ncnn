@@ -70,19 +70,16 @@ jobs:
 
     - name: Setup MinGW environment
       run: |
-        # Download and install MinGW-w64 from GitHub releases
-        $mingwUrl = "https://github.com/niXman/mingw-builds-binaries/releases/download/13.2.0-rt_v11-rev1/winlibs-x86_64-posix-seh-gcc-13.2.0-mingw-w64-11.0.1-r1.zip"
-        $mingwZip = "mingw-w64.zip"
-        $mingwDir = "C:\mingw64"
+        # Install Chocolatey first
+        Set-ExecutionPolicy Bypass -Scope Process -Force
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+        iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
         
-        Write-Host "Downloading MinGW-w64..."
-        Invoke-WebRequest -Uri $mingwUrl -OutFile $mingwZip -UseBasicParsing
-        
-        Write-Host "Extracting MinGW-w64..."
-        Expand-Archive -Path $mingwZip -DestinationPath "C:\" -Force
+        # Install MinGW-w64 using Chocolatey
+        choco install mingw --version=12.2.0 -y
         
         # Add MinGW to PATH
-        $env:PATH = "$mingwDir\bin;$env:PATH"
+        $env:PATH = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;$env:PATH"
         
         # Verify MinGW installation
         Write-Host "Verifying MinGW installation..."
@@ -93,7 +90,7 @@ jobs:
     - name: x86 MinGW (Windows XP compatible)
       run: |
         # Set MinGW environment
-        $env:PATH = "C:\mingw64\bin;$env:PATH"
+        $env:PATH = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;$env:PATH"
         
         mkdir build-xp-mingw
         cd build-xp-mingw
@@ -105,7 +102,7 @@ jobs:
     - name: x86 MinGW test (Windows XP compatible)
       run: |
         # Set MinGW environment
-        $env:PATH = "C:\mingw64\bin;$env:PATH"
+        $env:PATH = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;$env:PATH"
         
         cd build-xp-mingw
         ctest -C Release --output-on-failure -j 4
