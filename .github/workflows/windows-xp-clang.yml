@@ -23,7 +23,7 @@ on:
     - 'src/layer/vulkan/**'
     - 'tests/**'
 concurrency:
-  group: windows-xp-mingw-${{ github.ref }}
+  group: windows-xp-clang-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
