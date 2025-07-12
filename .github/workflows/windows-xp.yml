@@ -67,16 +67,17 @@ jobs:
       run: |
         cd build-xp
         
-        Get-ChildItem -Path "tests\Release" -Filter "*.exe" | ForEach-Object {
-          Write-Host "Testing $($_.Name)..."
-          if (Test-Path $_.FullName) {
-            Write-Host "✓ $($_.Name) exists"
-          }
+        Write-Host "Checking test executables..."
+        Get-ChildItem -Path "tests" -Filter "*.exe" -Recurse | ForEach-Object {
+          Write-Host "✓ Found test executable: $($_.Name)"
         }
         
-        Get-ChildItem -Path "src\Release" -Filter "*.dll" | ForEach-Object {
-          Write-Host "Testing $($_.Name)..."
-          if (Test-Path $_.FullName) {
-            Write-Host "✓ $($_.Name) exists"
-          }
+        Write-Host "Checking library files..."
+        Get-ChildItem -Path "src" -Filter "*.dll" -Recurse | ForEach-Object {
+          Write-Host "✓ Found library: $($_.Name)"
+        }
+        
+        Write-Host "Checking static libraries..."
+        Get-ChildItem -Path "src" -Filter "*.a" -Recurse | ForEach-Object {
+          Write-Host "✓ Found static library: $($_.Name)"
         }
