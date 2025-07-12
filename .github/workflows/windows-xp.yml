@@ -49,23 +49,37 @@ jobs:
       with:
         submodules: true
 
-    - name: x86 (Windows XP compatible)
+    - name: x86 MinGW (Windows XP compatible)
       run: |
-        mkdir build-xp
-        cd build-xp
+        mkdir build-xp-mingw
+        cd build-xp-mingw
         
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
         
         cmake --build . --config Release -j 2
 
-    - name: x86-test (Windows XP compatible)
+    - name: x86 MinGW test (Windows XP compatible)
       run: |
-        cd build-xp
+        cd build-xp-mingw
         ctest -C Release --output-on-failure -j 2
 
-    - name: Verify XP Compatibility
+    - name: x86 MSVC (Windows XP compatible)
       run: |
-        cd build-xp
+        mkdir build-xp-msvc
+        cd build-xp-msvc
+        
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp-msvc.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release ..
+        
+        cmake --build . --config Release -j 2
+
+    - name: x86 MSVC test (Windows XP compatible)
+      run: |
+        cd build-xp-msvc
+        ctest -C Release --output-on-failure -j 2
+
+    - name: Verify XP Compatibility (MinGW)
+      run: |
+        cd build-xp-mingw
         
         Write-Host "Checking test executables..."
         Get-ChildItem -Path "tests" -Filter "*.exe" -Recurse | ForEach-Object {
@@ -79,5 +93,24 @@ jobs:
         
         Write-Host "Checking static libraries..."
         Get-ChildItem -Path "src" -Filter "*.a" -Recurse | ForEach-Object {
+          Write-Host "✓ Found static library: $($_.Name)"
+        }
+
+    - name: Verify XP Compatibility (MSVC)
+      run: |
+        cd build-xp-msvc
+        
+        Write-Host "Checking test executables..."
+        Get-ChildItem -Path "tests" -Filter "*.exe" -Recurse | ForEach-Object {
+          Write-Host "✓ Found test executable: $($_.Name)"
+        }
+        
+        Write-Host "Checking library files..."
+        Get-ChildItem -Path "src" -Filter "*.dll" -Recurse | ForEach-Object {
+          Write-Host "✓ Found library: $($_.Name)"
+        }
+        
+        Write-Host "Checking static libraries..."
+        Get-ChildItem -Path "src" -Filter "*.lib" -Recurse | ForEach-Object {
           Write-Host "✓ Found static library: $($_.Name)"
         }

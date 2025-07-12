@@ -90,14 +90,14 @@ namespace ncnn {
 class NCNN_EXPORT Mutex
 {
 public:
-    public:
     Mutex() { InitializeCriticalSection(&cs); }
     ~Mutex() { DeleteCriticalSection(&cs); }
     void lock() { EnterCriticalSection(&cs); }
     void unlock() { LeaveCriticalSection(&cs); }
 private:
     friend class ConditionVariable;
-    //use CRITICAL_SECTION to make it work on XP
+    // NOTE SRWLock is available from windows vista
+    // use CRITICAL_SECTION to make it work on XP
     CRITICAL_SECTION cs;
 };
 

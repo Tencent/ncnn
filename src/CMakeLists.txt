@@ -338,11 +338,6 @@ endif()
 
 if(WIN32)
     target_compile_definitions(ncnn PUBLIC NOMINMAX)
-    
-    # Add Windows XP compatibility definitions
-    # _WIN32_WINNT=0x0501 for Windows XP
-    # WINVER=0x0501 for Windows XP
-    target_compile_definitions(ncnn PUBLIC _WIN32_WINNT=0x0501 WINVER=0x0501)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))

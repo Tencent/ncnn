@@ -264,7 +264,9 @@ cmake --build . --config Release --target install
 
 ***
 
-### Build for Windows XP (x86) using MinGW-w64
+### Build for Windows XP (x86)
+
+#### Using MinGW-w64
 
 Download MinGW-w64 x86 toolchain from [w64devkit](https://github.com/skeeto/w64devkit), add `bin` folder to environment variables.
 
@@ -280,6 +282,21 @@ make install
 ```
 
 Note: You can also use `cmake --build . --config Release -j 2` instead of `make -j2` if higher version of CMake that supports `-j` is available.
+
+#### Using Visual Studio (MSVC)
+
+For Visual Studio 2017 and later, you can use the MSVC toolchain with XP compatibility:
+
+```shell
+cd <ncnn-root-dir>
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp-msvc.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
+Note: The MSVC toolchain uses the `v141_xp` platform toolset for Windows XP compatibility. Vulkan is disabled for XP compatibility.
 
 ***
 

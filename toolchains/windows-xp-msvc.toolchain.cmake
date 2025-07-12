@@ -1,0 +1,33 @@
+# Windows XP MSVC Toolchain
+# Supports Visual Studio 2017 (v141) and later with XP compatibility
+
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_SYSTEM_VERSION 5.1)
+set(CMAKE_C_COMPILER cl)
+set(CMAKE_CXX_COMPILER cl)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /D_WIN32_WINNT=0x0501 /DWINVER=0x0501")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_WIN32_WINNT=0x0501 /DWINVER=0x0501")
+set(CMAKE_GENERATOR_TOOLSET "v141_xp" CACHE STRING "Platform Toolset" FORCE)
+
+set(NCNN_VULKAN OFF CACHE BOOL "Disable Vulkan for Windows XP" FORCE)
+set(CMAKE_GENERATOR_PLATFORM "Win32" CACHE STRING "Platform" FORCE)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "Runtime Library" FORCE)
+set(NCNN_AVX OFF CACHE BOOL "Disable AVX for Windows XP" FORCE)
+set(NCNN_AVX2 OFF CACHE BOOL "Disable AVX2 for Windows XP" FORCE)
+set(NCNN_AVX512 OFF CACHE BOOL "Disable AVX512 for Windows XP" FORCE)
+set(NCNN_SIMPLEOCV ON CACHE BOOL "Use simple OpenCV implementation" FORCE)
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+message(STATUS "Windows XP MSVC Toolchain configured")
+message(STATUS "  Platform Toolset: ${CMAKE_GENERATOR_TOOLSET}")
+message(STATUS "  Platform: ${CMAKE_GENERATOR_PLATFORM}")
+message(STATUS "  Runtime Library: ${CMAKE_MSVC_RUNTIME_LIBRARY}")
+message(STATUS "  Vulkan: ${NCNN_VULKAN}")
+message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}") 
