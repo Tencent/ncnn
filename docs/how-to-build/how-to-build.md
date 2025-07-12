@@ -16,7 +16,7 @@ git submodule update --init
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for Windows x64 using MinGW-w64](#build-for-windows-x64-using-mingw-w64)
-- [Build for Windows XP(x86) using MinGW-w64](#build-for-windows-xp-x86-using-mingw-w64)
+- [Build for Windows XP (x86)](#build-for-windows-xp-x86)
 - [Build for macOS](#build-for-macos)
 - [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
 - [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
@@ -276,7 +276,7 @@ Build ncnn library for Windows XP:
 cd <ncnn-root-dir>
 mkdir build
 cd build
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
 make -j2
 make install
 ```
@@ -291,12 +291,12 @@ For Visual Studio 2017 and later, you can use the MSVC toolchain with XP compati
 cd <ncnn-root-dir>
 mkdir build
 cd build
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp-msvc.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DCMAKE_BUILD_TYPE=Release ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp-msvc.toolchain.cmake -DNCNN_VULKAN=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
 ```
 
-Note: The MSVC toolchain uses the `v141_xp` platform toolset for Windows XP compatibility. Vulkan is disabled for XP compatibility.
+Note: The MSVC toolchain uses the `v141_xp` platform toolset for Windows XP compatibility. Vulkan is disabled for XP compatibility. Advanced CPU features (AVX, AVX2, AVX512) are disabled to ensure compatibility with older processors.
 
 ***
 
