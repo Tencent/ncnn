@@ -67,6 +67,9 @@
 #if NCNN_THREADS
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#endif
 #include <windows.h>
 #include <process.h>
 #else
@@ -87,26 +90,32 @@ namespace ncnn {
 class NCNN_EXPORT Mutex
 {
 public:
-    Mutex() { InitializeSRWLock(&srwlock); }
-    ~Mutex() {}
-    void lock() { AcquireSRWLockExclusive(&srwlock); }
-    void unlock() { ReleaseSRWLockExclusive(&srwlock); }
+    public:
+    Mutex() { InitializeCriticalSection(&cs); }
+    ~Mutex() { DeleteCriticalSection(&cs); }
+    void lock() { EnterCriticalSection(&cs); }
+    void unlock() { LeaveCriticalSection(&cs); }
 private:
     friend class ConditionVariable;
-    // NOTE SRWLock is available from windows vista
-    SRWLOCK srwlock;
+    //use CRITICAL_SECTION to make it work on XP
+    CRITICAL_SECTION cs;
 };
 
 class NCNN_EXPORT ConditionVariable
 {
+    //use event to make it work on XP
 public:
-    ConditionVariable() { InitializeConditionVariable(&condvar); }
-    ~ConditionVariable() {}
-    void wait(Mutex& mutex) { SleepConditionVariableSRW(&condvar, &mutex.srwlock, INFINITE, 0); }
-    void broadcast() { WakeAllConditionVariable(&condvar); }
-    void signal() { WakeConditionVariable(&condvar); }
+    ConditionVariable() { event = CreateEvent(NULL, TRUE, FALSE, NULL); }
+    ~ConditionVariable() { CloseHandle(event); }
+    void wait(Mutex& mutex) {
+        LeaveCriticalSection(&mutex.cs);
+        WaitForSingleObject(event, INFINITE);
+        EnterCriticalSection(&mutex.cs);
+    }
+    void broadcast() { SetEvent(event); ResetEvent(event); }
+    void signal() { SetEvent(event); ResetEvent(event); }
 private:
-    CONDITION_VARIABLE condvar;
+    HANDLE event;
 };
 
 static unsigned __stdcall start_wrapper(void* args);

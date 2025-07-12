@@ -16,6 +16,7 @@ git submodule update --init
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for Windows x64 using MinGW-w64](#build-for-windows-x64-using-mingw-w64)
+- [Build for Windows XP(x86) using MinGW-w64](#build-for-windows-xp-x86-using-mingw-w64)
 - [Build for macOS](#build-for-macos)
 - [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
 - [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
@@ -260,6 +261,29 @@ cmake -DNCNN_VULKAN=ON -G "MinGW Makefiles" ..
 cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
+
+***
+
+### Build for Windows XP (x86) using MinGW-w64
+
+Download MinGW-w64 x86 toolchain from [w64devkit](https://github.com/skeeto/w64devkit), add `bin` folder to environment variables.
+
+Build ncnn library for Windows XP:
+
+```shell
+cd <ncnn-root-dir>
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/windows-xp.toolchain.cmake \
+      -DNCNN_VULKAN=OFF \
+      -DNCNN_SIMPLEOCV=ON \
+      -DCMAKE_BUILD_TYPE=Release \
+      -G "MinGW Makefiles" ..
+make -j2
+make install
+```
+
+Note: You can also use `cmake --build . --config Release -j 2` instead of `make -j2` if higher version of CMake that supports `-j` is available.
 
 ***
 
