@@ -127,18 +127,35 @@ private:
 class NCNN_EXPORT ConditionVariable
 {
 public:
-    ConditionVariable() { event = CreateEvent(0, FALSE, FALSE, 0); }
-    ~ConditionVariable() { CloseHandle(event); }
+    ConditionVariable() 
+    { 
+        signal_event = CreateEvent(0, FALSE, FALSE, 0); // Auto-reset event for signal()
+        broadcast_event = CreateEvent(0, TRUE, FALSE, 0); // Manual-reset event for broadcast()
+    }
+    ~ConditionVariable() 
+    { 
+        CloseHandle(signal_event); 
+        CloseHandle(broadcast_event); 
+    }
     void wait(Mutex& mutex)
     {
         mutex.unlock();
-        WaitForSingleObject(event, INFINITE);
+        HANDLE events[2] = { signal_event, broadcast_event };
+        WaitForMultipleObjects(2, events, FALSE, INFINITE); // Wait for either signal or broadcast
         mutex.lock();
     }
-    void broadcast() { SetEvent(event); }
-    void signal() { SetEvent(event); }
+    void broadcast() 
+    { 
+        SetEvent(broadcast_event); // Wake all threads
+        ResetEvent(broadcast_event); // Reset after waking all threads
+    }
+    void signal() 
+    { 
+        SetEvent(signal_event); // Wake one thread
+    }
 private:
-    HANDLE event;
+    HANDLE signal_event;
+    HANDLE broadcast_event;
 };
 
 #endif
