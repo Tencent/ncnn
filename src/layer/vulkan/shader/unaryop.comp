@@ -41,7 +41,7 @@ void main()
     if (op_type == 14) res = atan(v);
     if (op_type == 15) res = afp(1.f) / v;
 #if NCNN_moltenvk
-    if (op_type == 16) res = afp(tanh(float(v)));
+    if (op_type == 16) res = afpvec4(tanh(vec4(v)));
 #else
     if (op_type == 16) res = tanh(v);
 #endif
