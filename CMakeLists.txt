@@ -77,6 +77,7 @@ option(NCNN_PIXEL_AFFINE "warp affine image pixel" ON)
 option(NCNN_PIXEL_DRAWING "draw basic figure and text" ON)
 option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 option(NCNN_VULKAN "vulkan compute support" OFF)
+option(NCNN_WEBGPU "webgpu compute support" OFF)
 option(NCNN_SIMPLEVK "minimal in-house vulkan loader" ON)
 option(NCNN_SYSTEM_GLSLANG "use system glslang library" OFF)
 option(NCNN_RUNTIME_CPU "runtime dispatch cpu routines" ON)
@@ -829,6 +830,21 @@ if(NCNN_VULKAN)
             endif()
         endif()
     endif()
+endif()
+
+if(NCNN_WEBGPU)
+    # WebGPU native support reuses Vulkan shader compilation infrastructure
+    # but requires different runtime and uniform handling
+    message(STATUS "WebGPU native support enabled")
+    
+    # Enable Vulkan infrastructure for shader compilation if not already enabled
+    if(NOT NCNN_VULKAN)
+        message(STATUS "Enabling Vulkan infrastructure for WebGPU shader compilation")
+        set(NCNN_VULKAN ON)
+    endif()
+    
+    # WebGPU specific configuration flags
+    add_definitions(-DNCNN_WEBGPU=1)
 endif()
 
 add_subdirectory(src)

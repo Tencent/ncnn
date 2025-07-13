@@ -4792,7 +4792,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("i8buffer_st8(buf,i,v)", "{buf[i]=ivec2(packInt4x8(v.abcd),packInt4x8(v.efgh));}");
     custom_defines.append("i8buffer_cp8(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
 
+#if NCNN_WEBGPU
+    // WebGPU compatibility: use float() casting for specialization constants
+    custom_defines.append("psc(x)", "(float(x)==0?p.x:x)");
+#else
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
+#endif
 
     if (opt.use_fp16_storage)
     {
