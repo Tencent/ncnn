@@ -1452,25 +1452,25 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
             PROCESSOR_NUMBER proc_num;
             proc_num.Group = group_index;
             proc_num.Number = proc_index_in_group;
-            
+
             // We need a way to map from PROCESSOR_NUMBER to a global linear CPU index.
             // This is complex without a pre-built map.
             // A simpler approach is to find the first enabled CPU in the mask,
             // determine its group, and then set the affinity for all other enabled
             // CPUs within that same group.
-            
+
             // Simplified logic: Iterate all CPUs in the mask, find the group of the first one,
             // then construct a mask for that group ONLY.
         }
         // The above mapping is too complex for a direct fix.
         // Let's adopt a simpler, though less flexible, modification that is self-contained.
-        
+
         // Find the group of the current thread
         PROCESSOR_NUMBER proc_num;
         GetCurrentProcessorNumberEx(&proc_num);
-        
+
         KAFFINITY mask_for_current_group = 0;
-        
+
         // Build a mask for the thread's current group based on the CpuSet
         int base_cpu_index = 0;
         for (USHORT i = 0; i < proc_num.Group; i++)
@@ -1479,15 +1479,15 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
         }
 
         UINT procs_in_current_group = GetActiveProcessorCount(proc_num.Group);
-        for(UINT i = 0; i < procs_in_current_group; i++)
+        for (UINT i = 0; i < procs_in_current_group; i++)
         {
             int global_cpu_index = base_cpu_index + i;
-            if(thread_affinity_mask.is_enabled(global_cpu_index))
+            if (thread_affinity_mask.is_enabled(global_cpu_index))
             {
                 mask_for_current_group |= (KAFFINITY)1 << i;
             }
         }
-        
+
         if (mask_for_current_group != 0)
         {
             GROUP_AFFINITY ga;
@@ -1504,7 +1504,7 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
         // A full solution requires redesigning the thread creation logic.
         return 0;
     }
-    
+
     // Fallback for older systems without GetActiveProcessorGroupCount (pre-Win7)
     // The original code is kept here for that.
     DWORD_PTR mask = 0;
