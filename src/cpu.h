@@ -38,10 +38,19 @@ public:
     void disable_all();
     bool is_enabled(int cpu) const;
     int num_enabled() const;
+    
+#if defined _WIN32
+    int get_max_cpus() const { return max_cpus; }
+    ULONG_PTR get_group_mask(int group) const;
+    int get_active_group_count() const;
+#endif
 
 public:
 #if defined _WIN32
-    ULONG_PTR mask;
+    static const int MAX_CPU_GROUPS = 20;
+    ULONG_PTR masks[MAX_CPU_GROUPS];
+    int max_cpus;
+    int active_groups;
 #endif
 #if defined __ANDROID__ || defined __linux__
     cpu_set_t cpu_set;
@@ -129,7 +138,6 @@ NCNN_EXPORT int cpu_support_riscv_xtheadvector();
 // vlenb = riscv vector length in bytes
 NCNN_EXPORT int cpu_riscv_vlenb();
 
-// cpu info
 NCNN_EXPORT int get_cpu_count();
 NCNN_EXPORT int get_little_cpu_count();
 NCNN_EXPORT int get_big_cpu_count();
@@ -138,7 +146,7 @@ NCNN_EXPORT int get_physical_cpu_count();
 NCNN_EXPORT int get_physical_little_cpu_count();
 NCNN_EXPORT int get_physical_big_cpu_count();
 
-// cpu l2 varies from 64k to 1M, but l3 can be zero
+// cpu l2 varies from 64k to 1M, but l3 can be zero 
 NCNN_EXPORT int get_cpu_level2_cache_size();
 NCNN_EXPORT int get_cpu_level3_cache_size();
 
@@ -153,7 +161,7 @@ NCNN_EXPORT int get_cpu_level3_cache_size();
 NCNN_EXPORT int get_cpu_powersave();
 NCNN_EXPORT int set_cpu_powersave(int powersave);
 
-// convenient wrapper
+// convenient wrapper 
 NCNN_EXPORT const CpuSet& get_cpu_thread_affinity_mask(int powersave);
 
 // set explicit thread affinity
