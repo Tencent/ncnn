@@ -48,7 +48,7 @@ jobs:
     - name: build
       run: |
         mkdir build; cd build
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
         cmake --build . --config Release -j 4
     - name: test
       run: cd build; ctest -C Release --output-on-failure -j 4
