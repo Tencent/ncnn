@@ -60,8 +60,15 @@ endif()
 
 ncnn_add_test(c_api)
 ncnn_add_test(cpu)
+ncnn_add_test(cpu_large)
+ncnn_add_test(cpu_simulation)
 ncnn_add_test(expression)
 ncnn_add_test(paramdict)
+
+# Add validate_cpu_support test manually
+add_executable(test_validate_cpu_support validate_cpu_support.cpp)
+target_link_libraries(test_validate_cpu_support ncnn)
+add_test(NAME test_validate_cpu_support COMMAND test_validate_cpu_support)
 
 if(NCNN_VULKAN)
     ncnn_add_test(command)
