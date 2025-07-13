@@ -12,6 +12,7 @@
 #endif
 #if defined __ANDROID__ || defined __linux__
 #include <sched.h> // cpu_set_t
+#include <cstring> // for memcpy
 #endif
 
 #include "platform.h"
@@ -30,10 +31,17 @@ public:
 
 public:
 #if defined _WIN32
-    ULONG_PTR mask;
+    std::vector<bool> enabled_cpus;
 #endif
 #if defined __ANDROID__ || defined __linux__
-    cpu_set_t cpu_set;
+    cpu_set_t* cpu_set;
+    size_t cpu_set_size;
+
+public:
+    ~CpuSet();
+
+    CpuSet(const CpuSet& other);
+    CpuSet& operator=(const CpuSet& other);
 #endif
 #if __APPLE__
     unsigned int policy;
