@@ -21,14 +21,14 @@ The original issue identified two critical problems when trying to compile Vulka
 ### 1. Build System Changes
 
 **CMakeLists.txt**:
-- Added `NCNN_WEBGPU` option
-- Automatically enables Vulkan infrastructure when WebGPU is enabled
+- Automatic WebGPU detection when targeting emscripten with Vulkan enabled  
+- Uses `CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_VULKAN` condition
 - Sets `NCNN_WEBGPU=1` preprocessor define
 
 ### 2. Shader Preprocessing Pipeline
 
 **cmake/ncnn_add_shader.cmake**:
-- Added conditional logic to use WebGPU shader transformation when `NCNN_WEBGPU=ON`
+- Added conditional logic to use WebGPU shader transformation when targeting emscripten + vulkan
 - Uses `ncnn_generate_webgpu_shader_header.cmake` for transformation
 
 **cmake/ncnn_generate_webgpu_shader_header.cmake**:
@@ -72,9 +72,9 @@ if (gx >= psc(w)) return;  // psc(w) = (float(w)==0?p.w:w)
 ## Usage
 
 ```bash
-# Enable WebGPU native support
-cmake .. -DNCNN_WEBGPU=ON
-make -j$(nproc)
+# Enable WebGPU native support with emscripten
+emcmake cmake .. -DNCNN_VULKAN=ON
+emmake make -j$(nproc)
 ```
 
 This implementation provides a solid foundation for WebGPU native support while maintaining compatibility with existing Vulkan infrastructure.

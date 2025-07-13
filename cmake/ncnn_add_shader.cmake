@@ -3,7 +3,7 @@ macro(ncnn_add_shader NCNN_SHADER_SRC)
     get_filename_component(NCNN_SHADER_SRC_NAME_WE ${NCNN_SHADER_SRC} NAME_WE)
     set(NCNN_SHADER_COMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/layer/vulkan/shader/${NCNN_SHADER_SRC_NAME_WE}.comp.hex.h)
 
-    if(NCNN_WEBGPU)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_VULKAN)
         # Use WebGPU shader transformation for push constant -> uniform binding conversion
         add_custom_command(
             OUTPUT ${NCNN_SHADER_COMP_HEADER}

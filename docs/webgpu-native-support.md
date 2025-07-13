@@ -10,15 +10,16 @@ This implementation adds WebGPU native support to NCNN, allowing the reuse of ex
 
 ## Usage
 
-Enable WebGPU support by adding `-DNCNN_WEBGPU=ON` to your CMake configuration:
+WebGPU support is automatically enabled when compiling to WebAssembly (wasm) target with emscripten and Vulkan support is enabled:
 
 ```bash
-cmake .. -DNCNN_WEBGPU=ON
+# Use emscripten toolchain with Vulkan enabled
+emcmake cmake .. -DNCNN_VULKAN=ON
 ```
 
 This will automatically:
-- Enable Vulkan infrastructure for shader compilation
-- Transform all ~300+ compute shaders for WebGPU compatibility
+- Enable WebGPU when targeting emscripten + vulkan
+- Transform all ~300+ compute shaders for WebGPU compatibility  
 - Apply the correct psc macro definition
 
 ## Shader Transformation Example
@@ -57,7 +58,7 @@ The implementation addresses the SPIR-V compilation issues mentioned in the GitH
 
 ## Files Modified
 
-- `CMakeLists.txt`: Added NCNN_WEBGPU option
+- `CMakeLists.txt`: Automatic WebGPU detection for emscripten + vulkan
 - `src/gpu.cpp`: Updated psc macro for WebGPU compatibility
 - `cmake/ncnn_add_shader.cmake`: Added WebGPU shader preprocessing path
 - `cmake/ncnn_generate_webgpu_shader_header.cmake`: New shader transformation logic
@@ -65,10 +66,10 @@ The implementation addresses the SPIR-V compilation issues mentioned in the GitH
 ## Building
 
 ```bash
-# Standard build with WebGPU support
+# Standard build with WebGPU support using emscripten
 mkdir build && cd build
-cmake .. -DNCNN_WEBGPU=ON -DNCNN_BUILD_TESTS=ON
-make -j$(nproc)
+emcmake cmake .. -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON
+emmake make -j$(nproc)
 ```
 
-All 300+ compute shaders will be automatically transformed during the build process.
+All 300+ compute shaders will be automatically transformed during the build process when targeting emscripten with vulkan enabled.
