@@ -107,7 +107,7 @@ else()
 endif()
 
 if(NCNN_VULKAN)
-    option(NCNN_SHADER_COMPRESS "compress shader" OFF)
+    option(NCNN_SHADER_COMPRESS "compress shader" ON)
 endif()
 
 if(NCNN_SHARED_LIB)

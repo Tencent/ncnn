@@ -87,7 +87,7 @@ static GpuInfo* g_gpu_infos[NCNN_MAX_GPU_COUNT] = {0};
 static Mutex g_default_vkdev_lock;
 static VulkanDevice* g_default_vkdev[NCNN_MAX_GPU_COUNT] = {0};
 
-#ifdef NCNN_SHADER_COMPRESS
+#if NCNN_SHADER_COMPRESS
 struct layer_shader_registry_entry
 {
     const unsigned char* comp_data;
@@ -4444,7 +4444,7 @@ public:
     {
         if (strcmp(headerName, "vulkan_activation.comp") == 0)
         {
-#ifdef NCNN_SHADER_COMPRESS
+#if NCNN_SHADER_COMPRESS
             char* headerData;
             int headerLength;
 
@@ -5581,7 +5581,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         NCNN_LOGE("no such shader module %d", shader_type_index);
         return -1;
     }
-#ifdef NCNN_SHADER_COMPRESS
+#if NCNN_SHADER_COMPRESS
     char* comp_data;
     int comp_data_size;
     decompress_layer_shader(layer_shader_registry[shader_type_index].comp_data, layer_shader_registry[shader_type_index].comp_data_size, comp_data, comp_data_size);
@@ -5592,7 +5592,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
 
     int ret = compile_spirv_module(comp_data, comp_data_size, opt, spirv);
 
-#ifdef NCNN_SHADER_COMPRESS
+#if NCNN_SHADER_COMPRESS
     delete[] comp_data;
 #endif
 
