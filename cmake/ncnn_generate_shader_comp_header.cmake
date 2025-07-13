@@ -1,4 +1,5 @@
 # must define SHADER_COMP_HEADER SHADER_SRC
+cmake_policy(SET CMP0007 OLD)
 
 file(READ ${SHADER_SRC} comp_data)
 
