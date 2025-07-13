@@ -38,9 +38,12 @@ public:
     void disable_all();
     bool is_enabled(int cpu) const;
     int num_enabled() const;
-    
+
 #if defined _WIN32
-    int get_max_cpus() const { return max_cpus; }
+    int get_max_cpus() const
+    {
+        return max_cpus;
+    }
     ULONG_PTR get_group_mask(int group) const;
     int get_active_group_count() const;
 #endif
@@ -146,7 +149,7 @@ NCNN_EXPORT int get_physical_cpu_count();
 NCNN_EXPORT int get_physical_little_cpu_count();
 NCNN_EXPORT int get_physical_big_cpu_count();
 
-// cpu l2 varies from 64k to 1M, but l3 can be zero 
+// cpu l2 varies from 64k to 1M, but l3 can be zero
 NCNN_EXPORT int get_cpu_level2_cache_size();
 NCNN_EXPORT int get_cpu_level3_cache_size();
 
@@ -161,7 +164,7 @@ NCNN_EXPORT int get_cpu_level3_cache_size();
 NCNN_EXPORT int get_cpu_powersave();
 NCNN_EXPORT int set_cpu_powersave(int powersave);
 
-// convenient wrapper 
+// convenient wrapper
 NCNN_EXPORT const CpuSet& get_cpu_thread_affinity_mask(int powersave);
 
 // set explicit thread affinity

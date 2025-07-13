@@ -53,7 +53,7 @@
 #endif
 
 #if defined __ANDROID__ || defined __OHOS__ || __linux__
-#include <cstring> 
+#include <cstring>
 #if defined __ANDROID__
 #if __ANDROID_API__ >= 18
 #include <sys/auxv.h> // getauxval()
@@ -879,24 +879,29 @@ static int get_cpucount()
     else
         count = 1;
 #elif defined _WIN32
-    typedef BOOL(WINAPI *LPFN_GLPIEX)(LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
+    typedef BOOL(WINAPI * LPFN_GLPIEX)(LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
     LPFN_GLPIEX glpiex = (LPFN_GLPIEX)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformationEx");
-    if (glpiex != NULL) {
+    if (glpiex != NULL)
+    {
         DWORD length = 0;
         glpiex(RelationAll, NULL, &length);
-        
-        if (length > 0) {
-            PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buffer = 
-                (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)malloc(length);
-            
-            if (buffer && glpiex(RelationAll, buffer, &length)) {
+
+        if (length > 0)
+        {
+            PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)malloc(length);
+
+            if (buffer && glpiex(RelationAll, buffer, &length))
+            {
                 count = 0;
                 PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ptr = buffer;
                 DWORD offset = 0;
-                
-                while (offset < length) {
-                    if (ptr->Relationship == RelationProcessorCore) {
-                        for (WORD i = 0; i < ptr->Processor.GroupCount; i++) {
+
+                while (offset < length)
+                {
+                    if (ptr->Relationship == RelationProcessorCore)
+                    {
+                        for (WORD i = 0; i < ptr->Processor.GroupCount; i++)
+                        {
                             count += __popcnt64(ptr->Processor.GroupMask[i].Mask);
                         }
                     }
@@ -904,14 +909,16 @@ static int get_cpucount()
                     ptr = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)((char*)ptr + ptr->Size);
                 }
             }
-            
-            if (buffer) {
+
+            if (buffer)
+            {
                 free(buffer);
             }
         }
     }
     //If cpu's count <= 64, use the previouse version.
-    if (count == 0) {
+    if (count == 0)
+    {
         SYSTEM_INFO system_info;
         GetSystemInfo(&system_info);
         count = system_info.dwNumberOfProcessors;
@@ -1396,14 +1403,14 @@ static ncnn::CpuSet get_smt_cpu_mask()
     {
         DWORD length = 0;
         glpiex(RelationProcessorCore, NULL, &length);
-        
+
         if (length > 0)
         {
             std::vector<char> buffer(length);
             if (glpiex(RelationProcessorCore, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buffer.data(), &length))
             {
                 PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX current = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buffer.data();
-                
+
                 while ((char*)current < buffer.data() + length)
                 {
                     if (current->Relationship == RelationProcessorCore)
@@ -1413,7 +1420,7 @@ static ncnn::CpuSet get_smt_cpu_mask()
                         {
                             total_logical_count += __popcnt64(current->Processor.GroupMask[group].Mask);
                         }
-                        
+
                         if (total_logical_count > 1)
                         {
                             for (WORD group = 0; group < current->Processor.GroupCount; group++)
@@ -1431,15 +1438,15 @@ static ncnn::CpuSet get_smt_cpu_mask()
                             }
                         }
                     }
-                    
+
                     current = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)((char*)current + current->Size);
                 }
-                
+
                 return smt_cpu_mask;
             }
         }
     }
-    
+
     // Under 64, use the old API
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
@@ -1465,8 +1472,10 @@ static ncnn::CpuSet get_smt_cpu_mask()
             if (logical_count > 1)
             {
                 ULONG_PTR mask = ptr->ProcessorMask;
-                for (int cpu = 0; cpu < 64 && mask; cpu++) {
-                    if (mask & (1ULL << cpu)) {
+                for (int cpu = 0; cpu < 64 && mask; cpu++)
+                {
+                    if (mask & (1ULL << cpu))
+                    {
                         smt_cpu_mask.enable(cpu);
                         mask &= ~(1ULL << cpu);
                     }
@@ -1534,13 +1543,13 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
             groupAffinity.Reserved[0] = 0;
             groupAffinity.Reserved[1] = 0;
             groupAffinity.Reserved[2] = 0;
-            
+
             if (!SetThreadGroupAffinity(GetCurrentThread(), &groupAffinity, NULL))
             {
                 NCNN_LOGE("SetThreadGroupAffinity failed %d", GetLastError());
                 return -1;
             }
-            break; 
+            break;
         }
     }
     return 0;
@@ -1710,7 +1719,6 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
     return 0;
 }
 #endif // __APPLE__
-
 
 static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::CpuSet& mask_little, ncnn::CpuSet& mask_big)
 {
@@ -2254,7 +2262,7 @@ static void initialize_global_cpu_info()
 
     g_cpucount = get_cpucount();
     g_physical_cpucount = get_physical_cpucount();
-    g_powersave = 0; 
+    g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
 #if (defined _WIN32 && (__aarch64__ || __arm__)) || ((defined __ANDROID__ || defined __linux__) && __riscv)
@@ -2380,11 +2388,12 @@ CpuSet::CpuSet()
 void CpuSet::enable(int cpu)
 {
     if (cpu < 0 || cpu >= max_cpus) return;
-    
+
     int group = cpu / 64;
     int bit = cpu % 64;
-    
-    if (group < MAX_CPU_GROUPS) {
+
+    if (group < MAX_CPU_GROUPS)
+    {
         masks[group] |= (1ULL << bit);
     }
 }
@@ -2392,18 +2401,20 @@ void CpuSet::enable(int cpu)
 void CpuSet::disable(int cpu)
 {
     if (cpu < 0 || cpu >= max_cpus) return;
-    
+
     int group = cpu / 64;
     int bit = cpu % 64;
-    
-    if (group < MAX_CPU_GROUPS) {
+
+    if (group < MAX_CPU_GROUPS)
+    {
         masks[group] &= ~(1ULL << bit);
     }
 }
 
 void CpuSet::disable_all()
 {
-    for (int i = 0; i < MAX_CPU_GROUPS; i++) {
+    for (int i = 0; i < MAX_CPU_GROUPS; i++)
+    {
         masks[i] = 0;
     }
 }
@@ -2411,11 +2422,12 @@ void CpuSet::disable_all()
 bool CpuSet::is_enabled(int cpu) const
 {
     if (cpu < 0 || cpu >= max_cpus) return false;
-    
+
     int group = cpu / 64;
     int bit = cpu % 64;
-    
-    if (group < MAX_CPU_GROUPS) {
+
+    if (group < MAX_CPU_GROUPS)
+    {
         return (masks[group] & (1ULL << bit)) != 0;
     }
     return false;
@@ -2424,7 +2436,8 @@ bool CpuSet::is_enabled(int cpu) const
 int CpuSet::num_enabled() const
 {
     int count = 0;
-    for (int i = 0; i < MAX_CPU_GROUPS; i++) {
+    for (int i = 0; i < MAX_CPU_GROUPS; i++)
+    {
         count += __builtin_popcountll(masks[i]);
     }
     return count;
@@ -2432,7 +2445,8 @@ int CpuSet::num_enabled() const
 
 ULONG_PTR CpuSet::get_group_mask(int group) const
 {
-    if (group < 0 || group >= MAX_CPU_GROUPS) {
+    if (group < 0 || group >= MAX_CPU_GROUPS)
+    {
         return 0;
     }
     return masks[group];
@@ -2441,8 +2455,10 @@ ULONG_PTR CpuSet::get_group_mask(int group) const
 int CpuSet::get_active_group_count() const
 {
     int count = 0;
-    for (int i = 0; i < MAX_CPU_GROUPS; i++) {
-        if (masks[i] != 0) {
+    for (int i = 0; i < MAX_CPU_GROUPS; i++)
+    {
+        if (masks[i] != 0)
+        {
             count++;
         }
     }
