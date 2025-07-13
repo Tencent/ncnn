@@ -49,7 +49,7 @@ static int get_processor_group_count()
 {
     HMODULE kernel32 = GetModuleHandle(TEXT("kernel32"));
     if (!kernel32) return 1;
-    typedef WORD (WINAPI* LPFN_GPAC)(void);
+    typedef WORD(WINAPI * LPFN_GPAC)(void);
     LPFN_GPAC gpaz = (LPFN_GPAC)GetProcAddress(kernel32, "GetActiveProcessorGroupCount");
     if (gpaz)
     {
@@ -963,7 +963,7 @@ static ncnn::CpuSet get_thread_siblings_mask(int cpuid)
     }
 
     fclose(fp);
-    
+
     // If parsing was successful but resulted in an empty set (highly unlikely),
     // ensure at least the input cpuid is in its own sibling list.
     if (siblings_mask.num_enabled() == 0)
@@ -1466,7 +1466,7 @@ static std::vector<int> get_max_freq_mhz()
 }
 
 static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
-{    
+{
     WinCpuSetImpl* impl = (WinCpuSetImpl*)thread_affinity_mask.win_group_affinity;
 
     int target_group = -1;
@@ -1478,7 +1478,7 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
             break;
         }
     }
-    
+
     if (target_group == -1)
     {
         return 0;
@@ -1486,7 +1486,7 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 
     HMODULE kernel32 = GetModuleHandle(TEXT("kernel32"));
     if (!kernel32) return -1;
-    typedef BOOL (WINAPI* LPFN_STGA)(HANDLE, const GROUP_AFFINITY*, PGROUP_AFFINITY);
+    typedef BOOL(WINAPI * LPFN_STGA)(HANDLE, const GROUP_AFFINITY*, PGROUP_AFFINITY);
     LPFN_STGA stga = (LPFN_STGA)GetProcAddress(kernel32, "SetThreadGroupAffinity");
 
     if (stga)
@@ -1501,11 +1501,11 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
     {
         if (!SetThreadAffinityMask(GetCurrentThread(), impl->affinities[0].Mask))
         {
-             NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
-             return -1;
+            NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
+            return -1;
         }
     }
-    
+
     return 0;
 }
 #endif // defined _WIN32
@@ -2365,12 +2365,12 @@ CpuSet& CpuSet::operator=(const CpuSet& other)
 
     WinCpuSetImpl* impl = (WinCpuSetImpl*)win_group_affinity;
     delete[] impl->affinities;
-    
+
     WinCpuSetImpl* other_impl = (WinCpuSetImpl*)other.win_group_affinity;
     impl->group_count = other_impl->group_count;
     impl->affinities = new GROUP_AFFINITY[impl->group_count];
     memcpy(impl->affinities, other_impl->affinities, sizeof(GROUP_AFFINITY) * impl->group_count);
-    
+
     return *this;
 }
 
@@ -2472,7 +2472,7 @@ CpuSet& CpuSet::operator=(const CpuSet& other)
     if (this == &other) return *this;
 
     if (cpu_set_ptr) CPU_FREE(cpu_set_ptr);
-    
+
     int count = CPU_COUNT_S(other.cpu_set_size, other.cpu_set_ptr);
     cpu_set_ptr = CPU_ALLOC(count);
     if (!cpu_set_ptr)
@@ -2482,7 +2482,7 @@ CpuSet& CpuSet::operator=(const CpuSet& other)
     }
     cpu_set_size = CPU_ALLOC_SIZE(count);
     memcpy(cpu_set_ptr, other.cpu_set_ptr, cpu_set_size);
-    
+
     return *this;
 }
 
@@ -2521,12 +2521,17 @@ CpuSet::CpuSet()
     policy.resize(get_cpu_count(), false);
 }
 
-CpuSet::~CpuSet() {}
+CpuSet::~CpuSet()
+{
+}
 
-CpuSet::CpuSet(const CpuSet& other) : policy(other.policy) {}
+CpuSet::CpuSet(const CpuSet& other)
+    : policy(other.policy)
+{
+}
 
-CpuSet& CpuSet::operator=(const CpuSet& other) 
-{ 
+CpuSet& CpuSet::operator=(const CpuSet& other)
+{
     policy = other.policy;
     return *this;
 }
@@ -3287,7 +3292,7 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
             enabled_cpus.push_back(i);
         }
     }
-    
+
     if (enabled_cpus.empty())
     {
         return 0;
@@ -3298,11 +3303,11 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     for (int i = 0; i < num_threads; i++)
     {
         int core_idx = enabled_cpus[i % enabled_cpus.size()];
-        
+
         mach_port_t tid = pthread_mach_thread_np(pthread_self());
         thread_affinity_policy_data_t policy_data;
         policy_data.affinity_tag = core_idx + 1;
-        
+
         int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
         if (ret && ret != KERN_NOT_SUPPORTED)
         {
