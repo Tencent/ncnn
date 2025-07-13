@@ -14,6 +14,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if (defined __ANDROID__ || defined __linux__ || defined __APPLE__) && !defined(__wasi__)
+#include <pthread.h>
+#endif
+
 #ifdef _OPENMP
 #if NCNN_SIMPLEOMP
 #include "simpleomp.h"
@@ -2244,15 +2248,32 @@ static void initialize_global_cpu_info()
 #endif // defined __ANDROID__ || defined __linux__
 }
 
+#if defined _WIN32
+static INIT_ONCE g_cpu_info_once = INIT_ONCE_STATIC_INIT;
+static BOOL CALLBACK initialize_global_cpu_info_wrapper(PINIT_ONCE /*InitOnce*/, PVOID /*Parameter*/, PVOID* /*Context*/)
+{
+    initialize_global_cpu_info();
+    return TRUE;
+}
+#elif (defined __ANDROID__ || defined __linux__ || defined __APPLE__) && !defined(__wasi__)
+static pthread_once_t g_cpu_info_once = PTHREAD_ONCE_INIT;
+#else
 static int g_cpu_info_initialized = 0;
+#endif
 
 static inline void try_initialize_global_cpu_info()
 {
+#if defined _WIN32
+    InitOnceExecuteOnce(&g_cpu_info_once, initialize_global_cpu_info_wrapper, NULL, NULL);
+#elif (defined __ANDROID__ || defined __linux__ || defined __APPLE__) && !defined(__wasi__)
+    pthread_once(&g_cpu_info_once, initialize_global_cpu_info);
+#else
     if (!g_cpu_info_initialized)
     {
         initialize_global_cpu_info();
         g_cpu_info_initialized = 1;
     }
+#endif
 }
 
 namespace ncnn {
@@ -2291,7 +2312,7 @@ int CpuSet::num_enabled() const
         if (is_enabled(i))
             num_enabled++;
     }
-
+    
     return num_enabled;
 }
 #elif defined __ANDROID__ || defined __linux__
