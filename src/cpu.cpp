@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "cpu.h"
 
@@ -24,6 +13,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
+#include <vector>
 
 #ifdef _OPENMP
 #if NCNN_SIMPLEOMP
@@ -185,6 +176,7 @@ __attribute__((constructor)) void ncnn_kmp_env_initializer()
 static int g_cpucount;
 static int g_physical_cpucount;
 static int g_powersave;
+static int g_max_cpu_count = 0; // Maximum CPU count detected at runtime
 static ncnn::CpuSet g_cpu_affinity_mask_all;
 static ncnn::CpuSet g_cpu_affinity_mask_little;
 static ncnn::CpuSet g_cpu_affinity_mask_big;
@@ -919,24 +911,58 @@ static int get_cpucount()
 }
 
 #if defined __ANDROID__ || defined __linux__
-static int get_thread_siblings(int cpuid)
+static void get_thread_siblings(int cpuid, ncnn::CpuSet& siblings)
 {
+    siblings.disable_all();
+
     char path[256];
     sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpuid);
 
     FILE* fp = 0; //fopen(path, "rb");
     if (fp)
     {
-        int thread_siblings = -1;
-        int nscan = fscanf(fp, "%x", &thread_siblings);
-        if (nscan != 1)
+        // Try to read hex mask directly (this path is currently disabled)
+        char hex_str[256];
+        int nscan = fscanf(fp, "%255s", hex_str);
+        if (nscan == 1)
         {
-            // ignore
+            // Parse hex string into CpuSet
+            int len = strlen(hex_str);
+            if (hex_str[0] == '0' && hex_str[1] == 'x')
+            {
+                // Skip "0x" prefix
+                len -= 2;
+                memmove(hex_str, hex_str + 2, len + 1);
+            }
+
+            int ci = 0;
+            for (int i = len - 1; i >= 0; i--)
+            {
+                char c = hex_str[i];
+                int hex_val = 0;
+
+                if (c >= '0' && c <= '9')
+                    hex_val = c - '0';
+                else if (c >= 'a' && c <= 'f')
+                    hex_val = c - 'a' + 10;
+                else if (c >= 'A' && c <= 'F')
+                    hex_val = c - 'A' + 10;
+                else
+                    continue;
+
+                if (hex_val & 1) siblings.enable(ci + 0);
+                if (hex_val & 2) siblings.enable(ci + 1);
+                if (hex_val & 4) siblings.enable(ci + 2);
+                if (hex_val & 8) siblings.enable(ci + 3);
+
+                ci += 4;
+            }
         }
 
         fclose(fp);
 
-        return thread_siblings;
+        if (!siblings.is_empty())
+            return;
     }
 
     // second try, parse from human-readable thread_siblings_list
@@ -945,8 +971,6 @@ static int get_thread_siblings(int cpuid)
     fp = fopen(path, "rb");
     if (fp)
     {
-        int thread_siblings = -1;
-
         int id0;
         char sep;
         int id1;
@@ -954,36 +978,28 @@ static int get_thread_siblings(int cpuid)
         int nscan = fscanf(fp, "%d", &id0);
         if (nscan == 1)
         {
-            thread_siblings = (1 << id0);
+            siblings.enable(id0);
 
             while (fscanf(fp, "%c%d", &sep, &id1) == 2)
             {
                 if (sep == ',')
                 {
-                    thread_siblings |= (1 << id1);
+                    siblings.enable(id1);
                 }
                 if (sep == '-' && id0 < id1)
                 {
                     for (int i = id0 + 1; i <= id1; i++)
                     {
-                        thread_siblings |= (1 << i);
+                        siblings.enable(i);
                     }
                 }
 
                 id0 = id1;
             }
         }
-        else
-        {
-            // ignore
-        }
 
         fclose(fp);
-
-        return thread_siblings;
     }
-
-    return -1;
 }
 #endif // defined __ANDROID__ || defined __linux__
 
@@ -1020,11 +1036,12 @@ static int get_physical_cpucount()
 
     free(buffer);
 #elif defined __ANDROID__ || defined __linux__
-    std::vector<int> thread_set;
+    std::vector<ncnn::CpuSet> thread_set;
     for (int i = 0; i < g_cpucount; i++)
     {
-        int thread_siblings = get_thread_siblings(i);
-        if (thread_siblings == -1)
+        ncnn::CpuSet thread_siblings;
+        get_thread_siblings(i, thread_siblings);
+        if (thread_siblings.is_empty())
         {
             // ignore malformed one
             continue;
@@ -1033,7 +1050,18 @@ static int get_physical_cpucount()
         bool thread_siblings_exists = false;
         for (size_t j = 0; j < thread_set.size(); j++)
         {
-            if (thread_set[j] == thread_siblings)
+            // Compare CpuSets by checking if they have the same enabled CPUs
+            bool same = true;
+            int max_cpu = std::max(thread_siblings.max_cpu_id(), thread_set[j].max_cpu_id());
+            for (int k = 0; k <= max_cpu; k++)
+            {
+                if (thread_siblings.is_enabled(k) != thread_set[j].is_enabled(k))
+                {
+                    same = false;
+                    break;
+                }
+            }
+            if (same)
             {
                 thread_siblings_exists = true;
                 break;
@@ -1156,11 +1184,24 @@ static int get_data_cache_size(int cpuid, int level)
         int ci = 0;
         for (int i = len - 1; i >= 0; i--)
         {
-            char x = shared_cpu_map_str[i];
-            if (x & 1) shared_cpu_map.enable(ci + 0);
-            if (x & 2) shared_cpu_map.enable(ci + 1);
-            if (x & 4) shared_cpu_map.enable(ci + 2);
-            if (x & 8) shared_cpu_map.enable(ci + 3);
+            char c = shared_cpu_map_str[i];
+            int hex_val = 0;
+
+            // Convert hex character to value
+            if (c >= '0' && c <= '9')
+                hex_val = c - '0';
+            else if (c >= 'a' && c <= 'f')
+                hex_val = c - 'a' + 10;
+            else if (c >= 'A' && c <= 'F')
+                hex_val = c - 'A' + 10;
+            else
+                continue; // Skip invalid characters
+
+            // Set bits according to hex value
+            if (hex_val & 1) shared_cpu_map.enable(ci + 0);
+            if (hex_val & 2) shared_cpu_map.enable(ci + 1);
+            if (hex_val & 4) shared_cpu_map.enable(ci + 2);
+            if (hex_val & 8) shared_cpu_map.enable(ci + 3);
 
             ci += 4;
         }
@@ -1172,14 +1213,15 @@ static int get_data_cache_size(int cpuid, int level)
     // resolve physical cpu count in the shared_cpu_map
     int shared_physical_cpu_count = 0;
     {
-        std::vector<int> thread_set;
+        std::vector<ncnn::CpuSet> thread_set;
         for (int i = 0; i < g_cpucount; i++)
         {
             if (!shared_cpu_map.is_enabled(i))
                 continue;
 
-            int thread_siblings = get_thread_siblings(i);
-            if (thread_siblings == -1)
+            ncnn::CpuSet thread_siblings;
+            get_thread_siblings(i, thread_siblings);
+            if (thread_siblings.is_empty())
             {
                 // ignore malformed one
                 continue;
@@ -1188,7 +1230,18 @@ static int get_data_cache_size(int cpuid, int level)
             bool thread_siblings_exists = false;
             for (size_t j = 0; j < thread_set.size(); j++)
             {
-                if (thread_set[j] == thread_siblings)
+                // Compare CpuSets by checking if they have the same enabled CPUs
+                bool same = true;
+                int max_cpu = std::max(thread_siblings.max_cpu_id(), thread_set[j].max_cpu_id());
+                for (int k = 0; k <= max_cpu; k++)
+                {
+                    if (thread_siblings.is_enabled(k) != thread_set[j].is_enabled(k))
+                    {
+                        same = false;
+                        break;
+                    }
+                }
+                if (same)
                 {
                     thread_siblings_exists = true;
                     break;
@@ -1376,11 +1429,17 @@ static ncnn::CpuSet get_smt_cpu_mask()
         if (ptr->Relationship == RelationProcessorCore)
         {
             ncnn::CpuSet smt_set;
-            smt_set.mask = ptr->ProcessorMask;
+            smt_set.set_legacy_mask(ptr->ProcessorMask);
             if (smt_set.num_enabled() > 1)
             {
-                // this core is smt
-                smt_cpu_mask.mask |= smt_set.mask;
+                // this core is smt - merge with existing smt_cpu_mask
+                for (int i = 0; i < 64; i++) // ProcessorMask is limited to 64 bits
+                {
+                    if (smt_set.is_enabled(i))
+                    {
+                        smt_cpu_mask.enable(i);
+                    }
+                }
             }
         }
 
@@ -1435,14 +1494,73 @@ static std::vector<int> get_max_freq_mhz()
 
 static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 {
-    DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.mask);
-    if (prev_mask == 0)
+    // Check if we can use the legacy method (<=64 CPUs)
+    int max_cpu = thread_affinity_mask.max_cpu_id();
+    if (max_cpu < 64)
     {
-        NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
+        ULONG_PTR legacy_mask = thread_affinity_mask.get_legacy_mask();
+        if (legacy_mask != 0)
+        {
+            DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), legacy_mask);
+            if (prev_mask == 0)
+            {
+                NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
+                return -1;
+            }
+            return 0;
+        }
+    }
+
+    // For >64 CPU support, use SetThreadGroupAffinity
+    // Windows organizes CPUs into groups of 64
+    typedef BOOL(WINAPI * LPFN_STGA)(HANDLE, const GROUP_AFFINITY*, GROUP_AFFINITY*);
+
+    HMODULE kernel32 = GetModuleHandle(TEXT("kernel32.dll"));
+    if (!kernel32)
+    {
+        NCNN_LOGE("Failed to get kernel32.dll handle");
         return -1;
     }
 
-    return 0;
+    LPFN_STGA SetThreadGroupAffinityFunc = (LPFN_STGA)GetProcAddress(kernel32, "SetThreadGroupAffinity");
+    if (!SetThreadGroupAffinityFunc)
+    {
+        NCNN_LOGE("SetThreadGroupAffinity not available, >64 CPU affinity not supported");
+        return -1;
+    }
+
+    // Find the first enabled CPU and set affinity to its group
+    // This is a simplified implementation - ideally we'd handle multiple groups
+    for (int cpu = 0; cpu <= max_cpu; cpu++)
+    {
+        if (thread_affinity_mask.is_enabled(cpu))
+        {
+            GROUP_AFFINITY group_affinity = {0};
+            group_affinity.Group = (WORD)(cpu / 64);
+            group_affinity.Mask = 1ULL << (cpu % 64);
+
+            // Add other CPUs in the same group
+            for (int other_cpu = cpu + 1; other_cpu <= max_cpu && other_cpu < (group_affinity.Group + 1) * 64; other_cpu++)
+            {
+                if (thread_affinity_mask.is_enabled(other_cpu))
+                {
+                    group_affinity.Mask |= 1ULL << (other_cpu % 64);
+                }
+            }
+
+            GROUP_AFFINITY prev_affinity;
+            if (!SetThreadGroupAffinityFunc(GetCurrentThread(), &group_affinity, &prev_affinity))
+            {
+                NCNN_LOGE("SetThreadGroupAffinity failed %d", GetLastError());
+                return -1;
+            }
+
+            return 0;
+        }
+    }
+
+    NCNN_LOGE("No CPUs enabled in affinity mask");
+    return -1;
 }
 #endif // defined _WIN32
 
@@ -1563,7 +1681,14 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
     pid_t pid = syscall(SYS_gettid);
 #endif
 
-    int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
+    const cpu_set_t* cpuset = thread_affinity_mask.get_cpu_set();
+    if (!cpuset)
+    {
+        NCNN_LOGE("Failed to get cpu_set from CpuSet");
+        return -1;
+    }
+
+    int syscallret = syscall(__NR_sched_setaffinity, pid, CPU_ALLOC_SIZE(CPU_SETSIZE), cpuset);
     if (syscallret)
     {
         NCNN_LOGE("syscall error %d", syscallret);
@@ -1586,7 +1711,8 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
     // see https://github.com/Tencent/ncnn/pull/2335#discussion_r528233919   --- AmeAkio
 
     int affinity_tag = THREAD_AFFINITY_TAG_NULL;
-    for (int i = 0; i < (int)sizeof(thread_affinity_mask.policy) * 8; i++)
+    int max_cpu = thread_affinity_mask.max_cpu_id();
+    for (int i = 0; i <= max_cpu && i < 32; i++) // Apple policy is limited to 32 bits
     {
         if (thread_affinity_mask.is_enabled(i))
         {
@@ -2056,12 +2182,24 @@ static int get_sched_affinity(ncnn::CpuSet& thread_affinity_mask)
 
     thread_affinity_mask.disable_all();
 
-    int syscallret = syscall(__NR_sched_getaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
+    // Allocate a temporary cpu_set_t for the syscall
+    cpu_set_t* temp_cpuset = CPU_ALLOC(CPU_SETSIZE);
+    if (!temp_cpuset)
+    {
+        return -1;
+    }
+
+    int syscallret = syscall(__NR_sched_getaffinity, pid, CPU_ALLOC_SIZE(CPU_SETSIZE), temp_cpuset);
     if (syscallret)
     {
+        CPU_FREE(temp_cpuset);
         // handle get error silently
         return -1;
     }
+
+    // Copy the result to our CpuSet
+    thread_affinity_mask.set_cpu_set(temp_cpuset);
+    CPU_FREE(temp_cpuset);
 
     return 0;
 }
@@ -2153,6 +2291,10 @@ static void initialize_global_cpu_info()
     g_cpucount = get_cpucount();
     g_physical_cpucount = get_physical_cpucount();
     g_powersave = 0;
+
+    // Set global max CPU count for CpuSet optimization
+    g_max_cpu_count = g_cpucount;
+
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
 #if (defined _WIN32 && (__aarch64__ || __arm__)) || ((defined __ANDROID__ || defined __linux__) && __riscv)
@@ -2269,142 +2411,506 @@ static inline void try_initialize_global_cpu_info()
 
 namespace ncnn {
 
+// New unified CpuSet implementation supporting >64 CPUs
+CpuSet::CpuSet()
+    : fast_mask(0)
+    , extended_mask(nullptr)
+    , extended_capacity(0)
+    , use_extended(false)
 #if defined _WIN32
-CpuSet::CpuSet()
+    , legacy_mask_cache(0)
+    , legacy_mask_valid(false)
+#endif
+#if defined __ANDROID__ || defined __linux__
+    , cpu_set_cache(nullptr)
+    , cpu_set_valid(false)
+#endif
+#if __APPLE__
+    , legacy_policy_cache(0)
+    , legacy_policy_valid(false)
+#endif
 {
-    disable_all();
 }
 
+CpuSet::CpuSet(const CpuSet& other)
+    : fast_mask(0)
+    , extended_mask(nullptr)
+    , extended_capacity(0)
+    , use_extended(false)
+#if defined _WIN32
+    , legacy_mask_cache(0)
+    , legacy_mask_valid(false)
+#endif
+#if defined __ANDROID__ || defined __linux__
+    , cpu_set_cache(nullptr)
+    , cpu_set_valid(false)
+#endif
+#if __APPLE__
+    , legacy_policy_cache(0)
+    , legacy_policy_valid(false)
+#endif
+{
+    copy_from(other);
+}
+
+CpuSet& CpuSet::operator=(const CpuSet& other)
+{
+    if (this != &other)
+    {
+        copy_from(other);
+    }
+    return *this;
+}
+
+CpuSet::~CpuSet()
+{
+    if (extended_mask)
+    {
+        free(extended_mask);
+    }
+#if defined __ANDROID__ || defined __linux__
+    if (cpu_set_cache)
+    {
+        CPU_FREE(cpu_set_cache);
+    }
+#endif
+}
+
+void CpuSet::copy_from(const CpuSet& other)
+{
+    // Clean up existing state
+    if (extended_mask)
+    {
+        free(extended_mask);
+        extended_mask = nullptr;
+    }
+    extended_capacity = 0;
+
+    // Copy basic state
+    fast_mask = other.fast_mask;
+    use_extended = other.use_extended;
+
+    // Copy extended mask if needed
+    if (other.use_extended && other.extended_mask)
+    {
+        extended_capacity = other.extended_capacity;
+        extended_mask = (uint64_t*)malloc(extended_capacity * sizeof(uint64_t));
+        if (extended_mask)
+        {
+            memcpy(extended_mask, other.extended_mask, extended_capacity * sizeof(uint64_t));
+        }
+    }
+
+    // Invalidate caches
+#if defined _WIN32
+    legacy_mask_valid = false;
+#endif
+#if defined __ANDROID__ || defined __linux__
+    cpu_set_valid = false;
+    if (cpu_set_cache)
+    {
+        CPU_FREE(cpu_set_cache);
+        cpu_set_cache = nullptr;
+    }
+#endif
+#if __APPLE__
+    legacy_policy_valid = false;
+#endif
+}
+
+void CpuSet::ensure_capacity(int cpu_id)
+{
+    if (cpu_id < FAST_PATH_BITS && !use_extended)
+    {
+        return; // Fast path is sufficient
+    }
+
+    // Need to switch to extended mode
+    if (!use_extended)
+    {
+        use_extended = true;
+        // Calculate required capacity
+        int required_words = (cpu_id / BITS_PER_WORD) + 1;
+        extended_capacity = std::max(required_words, 2); // Minimum 2 words
+        extended_mask = (uint64_t*)calloc(extended_capacity, sizeof(uint64_t));
+        if (extended_mask)
+        {
+            // Copy fast_mask to extended_mask[0]
+            extended_mask[0] = fast_mask;
+        }
+        return;
+    }
+
+    // Already in extended mode, check if we need more capacity
+    int required_words = (cpu_id / BITS_PER_WORD) + 1;
+    if (required_words > extended_capacity)
+    {
+        int new_capacity = std::max(required_words, extended_capacity * 2);
+        uint64_t* new_mask = (uint64_t*)realloc(extended_mask, new_capacity * sizeof(uint64_t));
+        if (new_mask)
+        {
+            // Zero out new memory
+            memset(new_mask + extended_capacity, 0, (new_capacity - extended_capacity) * sizeof(uint64_t));
+            extended_mask = new_mask;
+            extended_capacity = new_capacity;
+        }
+    }
+}
 void CpuSet::enable(int cpu)
 {
-    mask |= ((ULONG_PTR)1 << cpu);
+    if (cpu < 0) return;
+
+    ensure_capacity(cpu);
+
+    if (!use_extended && cpu < FAST_PATH_BITS)
+    {
+        fast_mask |= (1ULL << cpu);
+    }
+    else if (use_extended && extended_mask)
+    {
+        int word_idx = cpu / BITS_PER_WORD;
+        int bit_idx = cpu % BITS_PER_WORD;
+        if (word_idx < extended_capacity)
+        {
+            extended_mask[word_idx] |= (1ULL << bit_idx);
+        }
+    }
+
+    // Invalidate caches
+#if defined _WIN32
+    legacy_mask_valid = false;
+#endif
+#if defined __ANDROID__ || defined __linux__
+    cpu_set_valid = false;
+#endif
+#if __APPLE__
+    legacy_policy_valid = false;
+#endif
 }
 
 void CpuSet::disable(int cpu)
 {
-    mask &= ~((ULONG_PTR)1 << cpu);
+    if (cpu < 0) return;
+
+    if (!use_extended && cpu < FAST_PATH_BITS)
+    {
+        fast_mask &= ~(1ULL << cpu);
+    }
+    else if (use_extended && extended_mask)
+    {
+        int word_idx = cpu / BITS_PER_WORD;
+        int bit_idx = cpu % BITS_PER_WORD;
+        if (word_idx < extended_capacity)
+        {
+            extended_mask[word_idx] &= ~(1ULL << bit_idx);
+        }
+    }
+
+    // Invalidate caches
+#if defined _WIN32
+    legacy_mask_valid = false;
+#endif
+#if defined __ANDROID__ || defined __linux__
+    cpu_set_valid = false;
+#endif
+#if __APPLE__
+    legacy_policy_valid = false;
+#endif
 }
 
 void CpuSet::disable_all()
 {
-    mask = 0;
+    fast_mask = 0;
+    if (use_extended && extended_mask)
+    {
+        memset(extended_mask, 0, extended_capacity * sizeof(uint64_t));
+    }
+
+    // Invalidate caches
+#if defined _WIN32
+    legacy_mask_valid = false;
+#endif
+#if defined __ANDROID__ || defined __linux__
+    cpu_set_valid = false;
+#endif
+#if __APPLE__
+    legacy_policy_valid = false;
+#endif
 }
 
 bool CpuSet::is_enabled(int cpu) const
 {
-    return mask & ((ULONG_PTR)1 << cpu);
-}
+    if (cpu < 0) return false;
 
-int CpuSet::num_enabled() const
-{
-    int num_enabled = 0;
-    for (int i = 0; i < (int)sizeof(mask) * 8; i++)
+    if (!use_extended && cpu < FAST_PATH_BITS)
     {
-        if (is_enabled(i))
-            num_enabled++;
+        return (fast_mask & (1ULL << cpu)) != 0;
+    }
+    else if (use_extended && extended_mask)
+    {
+        int word_idx = cpu / BITS_PER_WORD;
+        int bit_idx = cpu % BITS_PER_WORD;
+        if (word_idx < extended_capacity)
+        {
+            return (extended_mask[word_idx] & (1ULL << bit_idx)) != 0;
+        }
     }
 
-    return num_enabled;
+    return false;
 }
-#elif defined __ANDROID__ || defined __linux__
-CpuSet::CpuSet()
+// Helper function to count bits in a 64-bit integer
+static int popcount64(uint64_t x)
 {
-    disable_all();
-}
-
-void CpuSet::enable(int cpu)
-{
-    CPU_SET(cpu, &cpu_set);
-}
-
-void CpuSet::disable(int cpu)
-{
-    CPU_CLR(cpu, &cpu_set);
-}
-
-void CpuSet::disable_all()
-{
-    CPU_ZERO(&cpu_set);
-}
-
-bool CpuSet::is_enabled(int cpu) const
-{
-    return CPU_ISSET(cpu, &cpu_set);
-}
-
-int CpuSet::num_enabled() const
-{
-    int num_enabled = 0;
-    for (int i = 0; i < (int)sizeof(cpu_set_t) * 8; i++)
-    {
-        if (is_enabled(i))
-            num_enabled++;
-    }
-
-    return num_enabled;
-}
-#elif __APPLE__
-CpuSet::CpuSet()
-{
-    disable_all();
-}
-
-void CpuSet::enable(int cpu)
-{
-    policy |= ((unsigned int)1 << cpu);
-}
-
-void CpuSet::disable(int cpu)
-{
-    policy &= ~((unsigned int)1 << cpu);
-}
-
-void CpuSet::disable_all()
-{
-    policy = 0;
-}
-
-bool CpuSet::is_enabled(int cpu) const
-{
-    return policy & ((unsigned int)1 << cpu);
-}
-
-int CpuSet::num_enabled() const
-{
-    int num_enabled = 0;
-    for (int i = 0; i < (int)sizeof(policy) * 8; i++)
-    {
-        if (is_enabled(i))
-            num_enabled++;
-    }
-
-    return num_enabled;
-}
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_popcountll(x);
+#elif defined(_MSC_VER)
+    return (int)__popcnt64(x);
 #else
-CpuSet::CpuSet()
-{
+    // Fallback implementation
+    int count = 0;
+    while (x)
+    {
+        count += x & 1;
+        x >>= 1;
+    }
+    return count;
+#endif
 }
 
-void CpuSet::enable(int /* cpu */)
+int CpuSet::num_enabled() const
 {
+    int count = 0;
+
+    if (!use_extended)
+    {
+        // Fast path: count bits in fast_mask
+        count = popcount64(fast_mask);
+    }
+    else if (extended_mask)
+    {
+        // Extended path: count bits in all words
+        for (int i = 0; i < extended_capacity; i++)
+        {
+            count += popcount64(extended_mask[i]);
+        }
+    }
+
+    return count;
 }
 
-void CpuSet::disable(int /* cpu */)
+int CpuSet::max_cpu_id() const
 {
+    if (!use_extended)
+    {
+        if (fast_mask == 0) return -1;
+
+        // Find highest set bit in fast_mask
+        for (int i = FAST_PATH_BITS - 1; i >= 0; i--)
+        {
+            if (fast_mask & (1ULL << i))
+                return i;
+        }
+        return -1;
+    }
+    else if (extended_mask)
+    {
+        // Find highest set bit in extended_mask
+        for (int word = extended_capacity - 1; word >= 0; word--)
+        {
+            if (extended_mask[word] != 0)
+            {
+                for (int bit = BITS_PER_WORD - 1; bit >= 0; bit--)
+                {
+                    if (extended_mask[word] & (1ULL << bit))
+                        return word * BITS_PER_WORD + bit;
+                }
+            }
+        }
+    }
+
+    return -1;
 }
 
-void CpuSet::disable_all()
+bool CpuSet::is_empty() const
 {
-}
+    if (!use_extended)
+    {
+        return fast_mask == 0;
+    }
+    else if (extended_mask)
+    {
+        for (int i = 0; i < extended_capacity; i++)
+        {
+            if (extended_mask[i] != 0)
+                return false;
+        }
+    }
 
-bool CpuSet::is_enabled(int /* cpu */) const
-{
     return true;
 }
 
-int CpuSet::num_enabled() const
+void CpuSet::set_range(int start_cpu, int end_cpu, bool enabled)
 {
-    return get_cpu_count();
+    if (start_cpu < 0 || end_cpu < start_cpu) return;
+
+    for (int cpu = start_cpu; cpu <= end_cpu; cpu++)
+    {
+        if (enabled)
+            enable(cpu);
+        else
+            disable(cpu);
+    }
+}
+// Platform-specific compatibility methods
+#if defined _WIN32
+ULONG_PTR CpuSet::get_legacy_mask() const
+{
+    if (!legacy_mask_valid)
+    {
+        legacy_mask_cache = 0;
+
+        if (!use_extended)
+        {
+            // Fast path: directly use fast_mask (truncated to ULONG_PTR size)
+            legacy_mask_cache = (ULONG_PTR)(fast_mask & ((1ULL << (sizeof(ULONG_PTR) * 8)) - 1));
+        }
+        else if (extended_mask && extended_capacity > 0)
+        {
+            // Extended path: use first word, truncated to ULONG_PTR size
+            legacy_mask_cache = (ULONG_PTR)(extended_mask[0] & ((1ULL << (sizeof(ULONG_PTR) * 8)) - 1));
+        }
+
+        legacy_mask_valid = true;
+    }
+
+    return legacy_mask_cache;
+}
+
+void CpuSet::set_legacy_mask(ULONG_PTR mask)
+{
+    disable_all();
+
+    // Set bits according to the legacy mask
+    for (int i = 0; i < (int)(sizeof(ULONG_PTR) * 8); i++)
+    {
+        if (mask & ((ULONG_PTR)1 << i))
+        {
+            enable(i);
+        }
+    }
+}
+#endif
+
+#if defined __ANDROID__ || defined __linux__
+const cpu_set_t* CpuSet::get_cpu_set() const
+{
+    if (!cpu_set_valid)
+    {
+        // Allocate cpu_set_t if not already done
+        if (!cpu_set_cache)
+        {
+            cpu_set_cache = CPU_ALLOC(CPU_SETSIZE);
+            if (!cpu_set_cache)
+                return nullptr;
+        }
+
+        CPU_ZERO_S(CPU_ALLOC_SIZE(CPU_SETSIZE), cpu_set_cache);
+
+        // Copy our internal representation to cpu_set_t
+        if (!use_extended)
+        {
+            for (int i = 0; i < FAST_PATH_BITS && i < CPU_SETSIZE; i++)
+            {
+                if (fast_mask & (1ULL << i))
+                {
+                    CPU_SET_S(i, CPU_ALLOC_SIZE(CPU_SETSIZE), cpu_set_cache);
+                }
+            }
+        }
+        else if (extended_mask)
+        {
+            for (int word = 0; word < extended_capacity; word++)
+            {
+                uint64_t mask = extended_mask[word];
+                for (int bit = 0; bit < BITS_PER_WORD; bit++)
+                {
+                    int cpu_id = word * BITS_PER_WORD + bit;
+                    if (cpu_id >= CPU_SETSIZE) break;
+
+                    if (mask & (1ULL << bit))
+                    {
+                        CPU_SET_S(cpu_id, CPU_ALLOC_SIZE(CPU_SETSIZE), cpu_set_cache);
+                    }
+                }
+                if ((word + 1) * BITS_PER_WORD >= CPU_SETSIZE) break;
+            }
+        }
+
+        cpu_set_valid = true;
+    }
+
+    return cpu_set_cache;
+}
+
+cpu_set_t* CpuSet::get_cpu_set_mutable()
+{
+    get_cpu_set(); // Ensure cache is valid
+    return cpu_set_cache;
+}
+
+void CpuSet::set_cpu_set(const cpu_set_t* cpuset)
+{
+    if (!cpuset) return;
+
+    disable_all();
+
+    // Copy from cpu_set_t to our internal representation
+    for (int i = 0; i < CPU_SETSIZE; i++)
+    {
+        if (CPU_ISSET(i, cpuset))
+        {
+            enable(i);
+        }
+    }
+}
+#endif
+
+#if __APPLE__
+unsigned int CpuSet::get_legacy_policy() const
+{
+    if (!legacy_policy_valid)
+    {
+        legacy_policy_cache = 0;
+
+        if (!use_extended)
+        {
+            // Fast path: directly use fast_mask (truncated to 32 bits)
+            legacy_policy_cache = (unsigned int)(fast_mask & 0xFFFFFFFFU);
+        }
+        else if (extended_mask && extended_capacity > 0)
+        {
+            // Extended path: use first word, truncated to 32 bits
+            legacy_policy_cache = (unsigned int)(extended_mask[0] & 0xFFFFFFFFU);
+        }
+
+        legacy_policy_valid = true;
+    }
+
+    return legacy_policy_cache;
+}
+
+void CpuSet::set_legacy_policy(unsigned int policy)
+{
+    disable_all();
+
+    // Set bits according to the legacy policy
+    for (int i = 0; i < 32; i++)
+    {
+        if (policy & (1U << i))
+        {
+            enable(i);
+        }
+    }
 }
 #endif
 
@@ -3069,7 +3575,8 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     {
         // assign one core for each thread
         int core = -1 - i;
-        for (int j = 0; j < (int)sizeof(thread_affinity_mask.policy) * 8; j++)
+        int max_cpu = thread_affinity_mask.max_cpu_id();
+        for (int j = 0; j <= max_cpu && j < 32; j++) // Apple policy is limited to 32 bits
         {
             if (thread_affinity_mask.is_enabled(j))
             {
