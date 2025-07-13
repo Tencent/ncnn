@@ -39,6 +39,24 @@
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+typedef struct
+{
+    int group_count;
+    GROUP_AFFINITY* affinities;
+} WinCpuSetImpl;
+
+static int get_processor_group_count()
+{
+    HMODULE kernel32 = GetModuleHandle(TEXT("kernel32"));
+    if (!kernel32) return 1;
+    typedef WORD (WINAPI* LPFN_GPAC)(void);
+    LPFN_GPAC gpaz = (LPFN_GPAC)GetProcAddress(kernel32, "GetActiveProcessorGroupCount");
+    if (gpaz)
+    {
+        return gpaz();
+    }
+    return 1; // Fallback for older systems
+}
 #endif
 
 #if defined __ANDROID__ || defined __OHOS__ || __linux__
@@ -68,6 +86,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "TargetConditionals.h"
+#include <algorithm> // for std::fill
+#include <vector>
 #if TARGET_OS_IPHONE
 #define __IOS__ 1
 #endif
@@ -908,71 +928,50 @@ static int get_cpucount()
 }
 
 #if defined __ANDROID__ || defined __linux__
-static int get_thread_siblings(int cpuid)
+static ncnn::CpuSet get_thread_siblings_mask(int cpuid)
 {
+    ncnn::CpuSet siblings_mask;
+
     char path[256];
-    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpuid);
-
-    FILE* fp = 0; //fopen(path, "rb");
-    if (fp)
-    {
-        int thread_siblings = -1;
-        int nscan = fscanf(fp, "%x", &thread_siblings);
-        if (nscan != 1)
-        {
-            // ignore
-        }
-
-        fclose(fp);
-
-        return thread_siblings;
-    }
-
-    // second try, parse from human-readable thread_siblings_list
     sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuid);
 
-    fp = fopen(path, "rb");
-    if (fp)
+    FILE* fp = fopen(path, "rb");
+    if (!fp)
     {
-        int thread_siblings = -1;
-
-        int id0;
-        char sep;
-        int id1;
-
-        int nscan = fscanf(fp, "%d", &id0);
-        if (nscan == 1)
-        {
-            thread_siblings = (1 << id0);
-
-            while (fscanf(fp, "%c%d", &sep, &id1) == 2)
-            {
-                if (sep == ',')
-                {
-                    thread_siblings |= (1 << id1);
-                }
-                if (sep == '-' && id0 < id1)
-                {
-                    for (int i = id0 + 1; i <= id1; i++)
-                    {
-                        thread_siblings |= (1 << i);
-                    }
-                }
-
-                id0 = id1;
-            }
-        }
-        else
-        {
-            // ignore
-        }
-
-        fclose(fp);
-
-        return thread_siblings;
+        // Fallback for systems that might not have thread_siblings_list
+        // If it fails, assume the core is not SMT and is its own sibling
+        siblings_mask.enable(cpuid);
+        return siblings_mask;
     }
 
-    return -1;
+    int id0 = -1;
+    while (fscanf(fp, "%d", &id0) == 1)
+    {
+        siblings_mask.enable(id0);
+        char sep;
+        if (fscanf(fp, "%c", &sep) == 1 && sep == '-')
+        {
+            int id1 = -1;
+            if (fscanf(fp, "%d", &id1) == 1)
+            {
+                for (int i = id0 + 1; i <= id1; ++i)
+                {
+                    siblings_mask.enable(i);
+                }
+            }
+        }
+    }
+
+    fclose(fp);
+    
+    // If parsing was successful but resulted in an empty set (highly unlikely),
+    // ensure at least the input cpuid is in its own sibling list.
+    if (siblings_mask.num_enabled() == 0)
+    {
+        siblings_mask.enable(cpuid);
+    }
+
+    return siblings_mask;
 }
 #endif // defined __ANDROID__ || defined __linux__
 
@@ -980,58 +979,106 @@ static int get_physical_cpucount()
 {
     int count = 0;
 #if defined _WIN32
-    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
-    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
-    if (glpi == NULL)
+    HMODULE kernel32 = GetModuleHandle(TEXT("kernel32"));
+    if (!kernel32)
     {
-        NCNN_LOGE("GetLogicalProcessorInformation is not supported");
-        return g_cpucount;
+        NCNN_LOGE("GetModuleHandle for kernel32 failed");
+        return g_cpucount; // Fallback
     }
 
-    DWORD return_length = 0;
-    glpi(NULL, &return_length);
+    typedef BOOL(WINAPI * LPFN_GLPIEX)(LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
+    LPFN_GLPIEX glpiex = (LPFN_GLPIEX)GetProcAddress(kernel32, "GetLogicalProcessorInformationEx");
 
-    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
-    glpi(buffer, &return_length);
-
-    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
-    DWORD byte_offset = 0;
-    while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+    if (glpiex)
     {
-        if (ptr->Relationship == RelationProcessorCore)
+        DWORD return_length = 0;
+        glpiex(RelationProcessorCore, NULL, &return_length);
+
+        if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
         {
-            count++;
+            NCNN_LOGE("GetLogicalProcessorInformationEx failed to get buffer size");
+            return g_cpucount; // Fallback
         }
 
-        byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
-        ptr++;
-    }
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)malloc(return_length);
+        if (!buffer)
+        {
+            NCNN_LOGE("Failed to allocate buffer for processor information");
+            return g_cpucount; // Fallback
+        }
 
-    free(buffer);
+        if (!glpiex(RelationProcessorCore, buffer, &return_length))
+        {
+            NCNN_LOGE("GetLogicalProcessorInformationEx failed");
+            free(buffer);
+            return g_cpucount; // Fallback
+        }
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ptr = buffer;
+        DWORD byte_offset = 0;
+        while (byte_offset < return_length)
+        {
+            if (ptr->Relationship == RelationProcessorCore)
+            {
+                count++;
+            }
+            byte_offset += ptr->Size;
+            ptr = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)((BYTE*)ptr + ptr->Size);
+        }
+
+        free(buffer);
+    }
+    else
+    {
+        typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+        LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+        if (glpi == NULL)
+        {
+            NCNN_LOGE("GetLogicalProcessorInformation is not supported");
+            return g_cpucount;
+        }
+
+        DWORD return_length = 0;
+        glpi(NULL, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+        glpi(buffer, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+        DWORD byte_offset = 0;
+        while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+        {
+            if (ptr->Relationship == RelationProcessorCore)
+            {
+                count++;
+            }
+            byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+            ptr++;
+        }
+        free(buffer);
+    }
 #elif defined __ANDROID__ || defined __linux__
     std::vector<int> thread_set;
+    std::vector<ncnn::CpuSet> physical_core_masks;
     for (int i = 0; i < g_cpucount; i++)
     {
-        int thread_siblings = get_thread_siblings(i);
-        if (thread_siblings == -1)
-        {
-            // ignore malformed one
-            continue;
-        }
+        ncnn::CpuSet siblings_mask = get_thread_siblings_mask(i);
 
-        bool thread_siblings_exists = false;
-        for (size_t j = 0; j < thread_set.size(); j++)
+        bool mask_exists = false;
+        for (size_t j = 0; j < physical_core_masks.size(); j++)
         {
-            if (thread_set[j] == thread_siblings)
+            // Use the new operator== for comparison
+            if (physical_core_masks[j] == siblings_mask)
             {
-                thread_siblings_exists = true;
+                mask_exists = true;
                 break;
             }
         }
 
-        if (!thread_siblings_exists)
+        if (!mask_exists)
         {
-            thread_set.push_back(thread_siblings);
+            physical_core_masks.push_back(siblings_mask);
+            // Each unique sibling mask represents one physical core
             count++;
         }
     }
@@ -1047,8 +1094,8 @@ static int get_physical_cpucount()
     count = g_cpucount;
 #endif
 
-    if (count > g_cpucount)
-        count = g_cpucount;
+    if (count < 1) count = 1;
+    if (count > g_cpucount) count = g_cpucount;
 
     return count;
 }
@@ -1161,32 +1208,28 @@ static int get_data_cache_size(int cpuid, int level)
     // resolve physical cpu count in the shared_cpu_map
     int shared_physical_cpu_count = 0;
     {
-        std::vector<int> thread_set;
+        std::vector<ncnn::CpuSet> physical_core_masks;
         for (int i = 0; i < g_cpucount; i++)
         {
             if (!shared_cpu_map.is_enabled(i))
                 continue;
 
-            int thread_siblings = get_thread_siblings(i);
-            if (thread_siblings == -1)
-            {
-                // ignore malformed one
-                continue;
-            }
+            ncnn::CpuSet siblings_mask = get_thread_siblings_mask(i);
+            if (siblings_mask.num_enabled() == 0) continue; // Should not happen
 
-            bool thread_siblings_exists = false;
-            for (size_t j = 0; j < thread_set.size(); j++)
+            bool mask_exists = false;
+            for (size_t j = 0; j < physical_core_masks.size(); j++)
             {
-                if (thread_set[j] == thread_siblings)
+                if (physical_core_masks[j] == siblings_mask)
                 {
-                    thread_siblings_exists = true;
+                    mask_exists = true;
                     break;
                 }
             }
 
-            if (!thread_siblings_exists)
+            if (!mask_exists)
             {
-                thread_set.push_back(thread_siblings);
+                physical_core_masks.push_back(siblings_mask);
                 shared_physical_cpu_count++;
             }
         }
@@ -1423,14 +1466,46 @@ static std::vector<int> get_max_freq_mhz()
 }
 
 static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
-{
-    DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.mask);
-    if (prev_mask == 0)
+{    
+    WinCpuSetImpl* impl = (WinCpuSetImpl*)thread_affinity_mask.win_group_affinity;
+
+    int target_group = -1;
+    for (int i = 0; i < impl->group_count; i++)
     {
-        NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
-        return -1;
+        if (impl->affinities[i].Mask != 0)
+        {
+            target_group = i;
+            break;
+        }
+    }
+    
+    if (target_group == -1)
+    {
+        return 0;
     }
 
+    HMODULE kernel32 = GetModuleHandle(TEXT("kernel32"));
+    if (!kernel32) return -1;
+    typedef BOOL (WINAPI* LPFN_STGA)(HANDLE, const GROUP_AFFINITY*, PGROUP_AFFINITY);
+    LPFN_STGA stga = (LPFN_STGA)GetProcAddress(kernel32, "SetThreadGroupAffinity");
+
+    if (stga)
+    {
+        if (!stga(GetCurrentThread(), &impl->affinities[target_group], NULL))
+        {
+            NCNN_LOGE("SetThreadGroupAffinity failed %d", GetLastError());
+            return -1;
+        }
+    }
+    else
+    {
+        if (!SetThreadAffinityMask(GetCurrentThread(), impl->affinities[0].Mask))
+        {
+             NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
+             return -1;
+        }
+    }
+    
     return 0;
 }
 #endif // defined _WIN32
@@ -1552,7 +1627,7 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
     pid_t pid = syscall(SYS_gettid);
 #endif
 
-    int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
+    int syscallret = syscall(__NR_sched_setaffinity, pid, thread_affinity_mask.cpu_set_size, thread_affinity_mask.cpu_set_ptr);
     if (syscallret)
     {
         NCNN_LOGE("syscall error %d", syscallret);
@@ -2260,112 +2335,240 @@ namespace ncnn {
 #if defined _WIN32
 CpuSet::CpuSet()
 {
+    WinCpuSetImpl* impl = new WinCpuSetImpl;
+    impl->group_count = get_processor_group_count();
+    impl->affinities = new GROUP_AFFINITY[impl->group_count];
+    win_group_affinity = impl;
     disable_all();
+}
+
+CpuSet::~CpuSet()
+{
+    WinCpuSetImpl* impl = (WinCpuSetImpl*)win_group_affinity;
+    delete[] impl->affinities;
+    delete impl;
+}
+
+CpuSet::CpuSet(const CpuSet& other)
+{
+    WinCpuSetImpl* other_impl = (WinCpuSetImpl*)other.win_group_affinity;
+    WinCpuSetImpl* impl = new WinCpuSetImpl;
+    impl->group_count = other_impl->group_count;
+    impl->affinities = new GROUP_AFFINITY[impl->group_count];
+    memcpy(impl->affinities, other_impl->affinities, sizeof(GROUP_AFFINITY) * impl->group_count);
+    win_group_affinity = impl;
+}
+
+CpuSet& CpuSet::operator=(const CpuSet& other)
+{
+    if (this == &other) return *this;
+
+    WinCpuSetImpl* impl = (WinCpuSetImpl*)win_group_affinity;
+    delete[] impl->affinities;
+    
+    WinCpuSetImpl* other_impl = (WinCpuSetImpl*)other.win_group_affinity;
+    impl->group_count = other_impl->group_count;
+    impl->affinities = new GROUP_AFFINITY[impl->group_count];
+    memcpy(impl->affinities, other_impl->affinities, sizeof(GROUP_AFFINITY) * impl->group_count);
+    
+    return *this;
 }
 
 void CpuSet::enable(int cpu)
 {
-    mask |= ((ULONG_PTR)1 << cpu);
+    WinCpuSetImpl* impl = (WinCpuSetImpl*)win_group_affinity;
+    int group = cpu / 64;
+    int bit = cpu % 64;
+    if (group < impl->group_count)
+    {
+        impl->affinities[group].Mask |= (KAFFINITY)1 << bit;
+    }
 }
 
 void CpuSet::disable(int cpu)
 {
-    mask &= ~((ULONG_PTR)1 << cpu);
+    WinCpuSetImpl* impl = (WinCpuSetImpl*)win_group_affinity;
+    int group = cpu / 64;
+    int bit = cpu % 64;
+    if (group < impl->group_count)
+    {
+        impl->affinities[group].Mask &= ~((KAFFINITY)1 << bit);
+    }
 }
 
 void CpuSet::disable_all()
 {
-    mask = 0;
+    WinCpuSetImpl* impl = (WinCpuSetImpl*)win_group_affinity;
+    for (int i = 0; i < impl->group_count; i++)
+    {
+        impl->affinities[i].Mask = 0;
+        impl->affinities[i].Group = i;
+        impl->affinities[i].Reserved[0] = 0;
+        impl->affinities[i].Reserved[1] = 0;
+        impl->affinities[i].Reserved[2] = 0;
+    }
 }
 
 bool CpuSet::is_enabled(int cpu) const
 {
-    return mask & ((ULONG_PTR)1 << cpu);
+    const WinCpuSetImpl* impl = (const WinCpuSetImpl*)win_group_affinity;
+    int group = cpu / 64;
+    int bit = cpu % 64;
+    if (group < impl->group_count)
+    {
+        return (impl->affinities[group].Mask & ((KAFFINITY)1 << bit)) != 0;
+    }
+    return false;
 }
 
 int CpuSet::num_enabled() const
 {
+    const WinCpuSetImpl* impl = (const WinCpuSetImpl*)win_group_affinity;
     int num_enabled = 0;
-    for (int i = 0; i < (int)sizeof(mask) * 8; i++)
+    for (int i = 0; i < impl->group_count * 64; i++)
     {
         if (is_enabled(i))
             num_enabled++;
     }
-
     return num_enabled;
 }
 #elif defined __ANDROID__ || defined __linux__
 CpuSet::CpuSet()
 {
+    int count = get_cpu_count();
+    cpu_set_ptr = CPU_ALLOC(count);
+    if (!cpu_set_ptr)
+    {
+        cpu_set_size = 0;
+        return;
+    }
+    cpu_set_size = CPU_ALLOC_SIZE(count);
     disable_all();
+}
+
+CpuSet::~CpuSet()
+{
+    if (cpu_set_ptr)
+    {
+        CPU_FREE(cpu_set_ptr);
+    }
+}
+
+CpuSet::CpuSet(const CpuSet& other)
+{
+    int count = CPU_COUNT_S(other.cpu_set_size, other.cpu_set_ptr);
+    cpu_set_ptr = CPU_ALLOC(count);
+    if (!cpu_set_ptr)
+    {
+        cpu_set_size = 0;
+        return;
+    }
+    cpu_set_size = CPU_ALLOC_SIZE(count);
+    memcpy(cpu_set_ptr, other.cpu_set_ptr, cpu_set_size);
+}
+
+CpuSet& CpuSet::operator=(const CpuSet& other)
+{
+    if (this == &other) return *this;
+
+    if (cpu_set_ptr) CPU_FREE(cpu_set_ptr);
+    
+    int count = CPU_COUNT_S(other.cpu_set_size, other.cpu_set_ptr);
+    cpu_set_ptr = CPU_ALLOC(count);
+    if (!cpu_set_ptr)
+    {
+        cpu_set_size = 0;
+        return *this;
+    }
+    cpu_set_size = CPU_ALLOC_SIZE(count);
+    memcpy(cpu_set_ptr, other.cpu_set_ptr, cpu_set_size);
+    
+    return *this;
 }
 
 void CpuSet::enable(int cpu)
 {
-    CPU_SET(cpu, &cpu_set);
+    if (!cpu_set_ptr) return;
+    CPU_SET_S(cpu, cpu_set_size, cpu_set_ptr);
 }
 
 void CpuSet::disable(int cpu)
 {
-    CPU_CLR(cpu, &cpu_set);
+    if (!cpu_set_ptr) return;
+    CPU_CLR_S(cpu, cpu_set_size, cpu_set_ptr);
 }
 
 void CpuSet::disable_all()
 {
-    CPU_ZERO(&cpu_set);
+    if (!cpu_set_ptr) return;
+    CPU_ZERO_S(cpu_set_size, cpu_set_ptr);
 }
 
 bool CpuSet::is_enabled(int cpu) const
 {
-    return CPU_ISSET(cpu, &cpu_set);
+    if (!cpu_set_ptr) return false;
+    return CPU_ISSET_S(cpu, cpu_set_size, cpu_set_ptr);
 }
 
 int CpuSet::num_enabled() const
 {
-    int num_enabled = 0;
-    for (int i = 0; i < (int)sizeof(cpu_set_t) * 8; i++)
-    {
-        if (is_enabled(i))
-            num_enabled++;
-    }
-
-    return num_enabled;
+    if (!cpu_set_ptr) return 0;
+    return CPU_COUNT_S(cpu_set_size, cpu_set_ptr);
 }
 #elif __APPLE__
 CpuSet::CpuSet()
 {
-    disable_all();
+    policy.resize(get_cpu_count(), false);
+}
+
+CpuSet::~CpuSet() {}
+
+CpuSet::CpuSet(const CpuSet& other) : policy(other.policy) {}
+
+CpuSet& CpuSet::operator=(const CpuSet& other) 
+{ 
+    policy = other.policy;
+    return *this;
 }
 
 void CpuSet::enable(int cpu)
 {
-    policy |= ((unsigned int)1 << cpu);
+    if (cpu >= 0 && cpu < (int)policy.size())
+    {
+        policy[cpu] = true;
+    }
 }
 
 void CpuSet::disable(int cpu)
 {
-    policy &= ~((unsigned int)1 << cpu);
+    if (cpu >= 0 && cpu < (int)policy.size())
+    {
+        policy[cpu] = false;
+    }
 }
 
 void CpuSet::disable_all()
 {
-    policy = 0;
+    std::fill(policy.begin(), policy.end(), false);
 }
 
 bool CpuSet::is_enabled(int cpu) const
 {
-    return policy & ((unsigned int)1 << cpu);
+    if (cpu >= 0 && cpu < (int)policy.size())
+    {
+        return policy[cpu];
+    }
+    return false;
 }
 
 int CpuSet::num_enabled() const
 {
     int num_enabled = 0;
-    for (int i = 0; i < (int)sizeof(policy) * 8; i++)
+    for (size_t i = 0; i < policy.size(); i++)
     {
-        if (is_enabled(i))
+        if (policy[i])
             num_enabled++;
     }
-
     return num_enabled;
 }
 #else
@@ -3022,16 +3225,35 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__ || defined _WIN32
 #ifdef _OPENMP
-    int num_threads = thread_affinity_mask.num_enabled();
+    std::vector<int> enabled_cpus;
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        if (thread_affinity_mask.is_enabled(i))
+        {
+            enabled_cpus.push_back(i);
+        }
+    }
 
-    // set affinity for each thread
-    set_omp_num_threads(num_threads);
+    if (enabled_cpus.empty())
+    {
+        return 0;
+    }
+
+    int num_threads = get_omp_num_threads();
     std::vector<int> ssarets(num_threads, 0);
+
     #pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
-        ssarets[i] = set_sched_affinity(thread_affinity_mask);
+        int thread_num = get_omp_thread_num();
+        int cpu_idx = enabled_cpus[thread_num % enabled_cpus.size()];
+
+        CpuSet single_cpu_mask;
+        single_cpu_mask.enable(cpu_idx);
+
+        ssarets[i] = set_sched_affinity(single_cpu_mask);
     }
+
     for (int i = 0; i < num_threads; i++)
     {
         if (ssarets[i] != 0)
@@ -3041,45 +3263,53 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     int ssaret = set_sched_affinity(thread_affinity_mask);
     if (ssaret != 0)
         return -1;
-#endif
-
+#endif // _OPENMP
     return 0;
+
 #elif __APPLE__
+    // NOTE on macOS implementation:
+    // Unlike on Linux or Windows, macOS does not provide an API to set a thread's
+    // affinity to a MASK of CPUs. The THREAD_AFFINITY_POLICY allows binding a
+    // thread to a SINGLE core only.
+    //
+    // This implementation works around this limitation by distributing OpenMP
+    // threads among the cores enabled in the `thread_affinity_mask`. For a single-
+    // threaded context, it binds to the first available core in the mask.
 
 #ifdef _OPENMP
-    int num_threads = thread_affinity_mask.num_enabled();
+    int num_threads = get_omp_num_threads();
 
-    // set affinity for each thread
-    set_omp_num_threads(num_threads);
+    std::vector<int> enabled_cpus;
+    for (int i = 0; i < get_cpu_count(); i++)
+    {
+        if (thread_affinity_mask.is_enabled(i))
+        {
+            enabled_cpus.push_back(i);
+        }
+    }
+    
+    if (enabled_cpus.empty())
+    {
+        return 0;
+    }
+
     std::vector<int> ssarets(num_threads, 0);
     #pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
-        // assign one core for each thread
-        int core = -1 - i;
-        for (int j = 0; j < (int)sizeof(thread_affinity_mask.policy) * 8; j++)
+        int core_idx = enabled_cpus[i % enabled_cpus.size()];
+        
+        mach_port_t tid = pthread_mach_thread_np(pthread_self());
+        thread_affinity_policy_data_t policy_data;
+        policy_data.affinity_tag = core_idx + 1;
+        
+        int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
+        if (ret && ret != KERN_NOT_SUPPORTED)
         {
-            if (thread_affinity_mask.is_enabled(j))
-            {
-                if (core == -1)
-                {
-                    core = j;
-                    break;
-                }
-                else
-                {
-                    core++;
-                }
-            }
+            ssarets[i] = -1;
         }
-        CpuSet this_thread_affinity_mask;
-        if (core != -1 - i)
-        {
-            this_thread_affinity_mask.enable(core);
-        }
-
-        ssarets[i] = set_sched_affinity(this_thread_affinity_mask);
     }
+
     for (int i = 0; i < num_threads; i++)
     {
         if (ssarets[i] != 0)

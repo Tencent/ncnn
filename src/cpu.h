@@ -14,6 +14,11 @@
 #include <sched.h> // cpu_set_t
 #endif
 
+#if __APPLE__
+#include <vector>
+#include <stdint.h>
+#endif
+
 #include "platform.h"
 
 namespace ncnn {
@@ -22,6 +27,9 @@ class NCNN_EXPORT CpuSet
 {
 public:
     CpuSet();
+    ~CpuSet();
+    CpuSet(const CpuSet& other);
+    CpuSet& operator=(const CpuSet& other);
     void enable(int cpu);
     void disable(int cpu);
     void disable_all();
@@ -30,13 +38,21 @@ public:
 
 public:
 #if defined _WIN32
-    ULONG_PTR mask;
+    void* win_group_affinity;
 #endif
 #if defined __ANDROID__ || defined __linux__
-    cpu_set_t cpu_set;
+    cpu_set_t* cpu_set_ptr;
+    size_t cpu_set_size;
+    bool operator==(const CpuSet& other) const
+    {
+        if (cpu_set_size != other.cpu_set_size)
+            return false;
+
+        return CPU_EQUAL_S(cpu_set_size, cpu_set_ptr, other.cpu_set_ptr) != 0;
+    }
 #endif
 #if __APPLE__
-    unsigned int policy;
+    std::vector<bool> policy;
 #endif
 };
 
@@ -146,6 +162,11 @@ NCNN_EXPORT int set_cpu_powersave(int powersave);
 NCNN_EXPORT const CpuSet& get_cpu_thread_affinity_mask(int powersave);
 
 // set explicit thread affinity
+// Note on macOS: The underlying OS API (thread_policy_set) only supports
+// pinning a thread to a SINGLE core, not a mask of allowed cores. This
+// function will bind the thread(s) to one or more of the cores specified in
+// the affinity mask, but a single thread cannot freely move between the
+// cores in the mask. This is a platform limitation.
 NCNN_EXPORT int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask);
 
 // runtime thread affinity info
