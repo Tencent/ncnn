@@ -2312,7 +2312,7 @@ int CpuSet::num_enabled() const
         if (is_enabled(i))
             num_enabled++;
     }
-    
+
     return num_enabled;
 }
 #elif defined __ANDROID__ || defined __linux__
