@@ -21,8 +21,6 @@ public:
 
 public:
     Pipeline* pipeline_tanh;
-    Pipeline* pipeline_tanh_pack4;
-    Pipeline* pipeline_tanh_pack8;
 };
 
 } // namespace ncnn

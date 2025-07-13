@@ -168,24 +168,6 @@ shared lfp tmp_a[8][4][2];
 |lfp|float|float|float|float16_t|
 |lfpvec4|vec4|uvec2|uint64_t|f16vec4|
 
-## image format and precision hint type
-
-declare image format in descriptor binding
-
-```c
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-```
-
-|format type|fp32|fp16p|fp16s|
-|---|---|---|---|
-|imfmt1|r32f|f32f|r16f|
-|imfmt4|rgba32f|rgba16f|rgba16f|
-
-|precision hint type|fp32|fp16p|fp16s|
-|---|---|---|---|
-|unfp|highp|mediump|mediump|
-
 # buffer functions
 
 - load typed value from src[offset]
@@ -230,53 +212,6 @@ void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
 void buffer_cp8to1(sfp dst, ivec4 dst_offsets_0, ivec4 dst_offsets_1, sfpvec8 src, int src_offset);
 void buffer_cp8to4(sfpvec4 dst, ivec2 dst_offsets, sfpvec8 src, int src_offset);
 ```
-
-# image functions
-
-- load typed value from src at pos
-
-```c
-afp image1d_ld1(sampler1D src, float pos);
-afp image2d_ld1(sampler2D src, vec2 pos);
-afp image3d_ld1(sampler3D src, vec3 pos);
-afpvec4 image1d_ld4(sampler1D src, float pos);
-afpvec4 image2d_ld4(sampler2D src, vec2 pos);
-afpvec4 image3d_ld4(sampler3D src, vec3 pos);
-afpvec8 image1d_ld8(sampler1D src, float pos);
-afpvec8 image2d_ld8(sampler2D src, vec2 pos);
-afpvec8 image3d_ld8(sampler3D src, vec3 pos);
-```
-
-- store typed value to dst at pos
-
-```c
-void image1d_st1(image1D dst, int pos, afp v);
-void image2d_st1(image2D dst, ivec2 pos, afp v);
-void image3d_st1(image3D dst, ivec3 pos, afp v);
-void image1d_st4(image1D dst, int pos, afpvec4 v);
-void image2d_st4(image2D dst, ivec2 pos, afpvec4 v);
-void image3d_st4(image3D dst, ivec3 pos, afpvec4 v);
-void image1d_st8(image1D dst, int pos, afpvec8 v);
-void image2d_st8(image2D dst, ivec2 pos, afpvec8 v);
-void image3d_st8(image3D dst, ivec3 pos, afpvec8 v);
-```
-
-- copy typed value from src at src_pos to dst at dst_pos
-
-```c
-void image1d_cp1(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp1(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp1(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp4(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp4(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp4(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp8(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp8(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp8(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-```
-
-Note: Since image is an opaque data structure, no copy and pack/unpack functions are provided. To achieve this operation, you need to load first and then store.
-
 # local data conversion functions
 
 - storage buffer to local memory
@@ -437,16 +372,6 @@ void main()
     // the user enable fp16 arithmetic option and the device has fp16 arithmetic support
 #endif
 }
-```
-
-declare descriptor binding for image or buffer
-
-```c
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-#else
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-#endif
 ```
 
 |macro|defined by option|
