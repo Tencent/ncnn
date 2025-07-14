@@ -21,8 +21,6 @@ public:
 
 public:
     Pipeline* pipeline_sigmoid;
-    Pipeline* pipeline_sigmoid_pack4;
-    Pipeline* pipeline_sigmoid_pack8;
 };
 
 } // namespace ncnn
