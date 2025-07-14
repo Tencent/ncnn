@@ -331,24 +331,6 @@ void main()
                 {
                     if (elempack == 1)
                     {
-                        //        +-M-+
-                        //        K   |
-                        //        +SG_UM
-                        //        |   |
-                        //     ^  +---+
-                        //     |  |   |
-                        //   SG_UK+- -+
-                        //     |  |   |
-                        //   ^ v  +---+
-                        //   |    |   |
-                        //   |    +- -+
-                        //   |    |   |
-                        // WG_UM  +---+
-                        //   |    |   |
-                        //   |    +- -+
-                        //   |    |   |
-                        //   v    +---+
-
                         const uint cstepd4 = psc(cstep) / 4;
 
                         const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
@@ -365,24 +347,6 @@ void main()
                     }
                     else // if (elempack == 4)
                     {
-                        //        +-K-+
-                        //        M   |
-                        //        +- -+
-                        //      SG_UM |
-                        //     ^  +---+
-                        //     |  |   |
-                        //   SG_UK+- -+
-                        //     |  |   |
-                        //   ^ v  +---+
-                        //   |    |   |
-                        //   |    +- -+
-                        //   |    |   |
-                        // WG_UM  +---+
-                        //   |    |   |
-                        //   |    +- -+
-                        //   |    |   |
-                        //   v    +---+
-
                         const uint inchd4 = inch / 4;
 
                         const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
@@ -401,26 +365,6 @@ void main()
 
                 // load weight
                 {
-                    //        +-N-+
-                    //        K   |
-                    //        +SG_UN
-                    //        |   |
-                    //     ^  +---+
-                    //     |  |   |
-                    //   SG_UK+- -+
-                    //     |  |   |
-                    //   ^ v  +---+
-                    //   |    |   |
-                    //   |    +- -+
-                    //   |    |   |
-                    // WG_UN  +---+
-                    //   |    |   |
-                    //   |    +- -+
-                    //   |    |   |
-                    //   v    +---+
-
-                    // weight_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
-
                     const uint Nd4_K_USGN = Nd4 * K * UNROLL_SG_N;
                     const uint Nd4_K_USGN_USGK = Nd4 * K * UNROLL_SG_N * UNROLL_SG_K;
 
@@ -593,24 +537,6 @@ void main()
                 {
                     if (elempack == 1)
                     {
-                        //        +-M-+
-                        //        K   |
-                        //        +SG_UM
-                        //        |   |
-                        //     ^  +---+
-                        //     |  |   |
-                        //   SG_UK+- -+
-                        //     |  |   |
-                        //   ^ v  +---+
-                        //   |    |   |
-                        //   |    +- -+
-                        //   |    |   |
-                        // WG_UM  +---+
-                        //   |    |   |
-                        //   |    +- -+
-                        //   |    |   |
-                        //   v    +---+
-
     #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
     #elif ncnn_VK_NV_cooperative_matrix
@@ -619,24 +545,6 @@ void main()
                     }
                     else // if (elempack == 4)
                     {
-                        //        +-K-+
-                        //        M   |
-                        //        +- -+
-                        //      SG_UM |
-                        //     ^  +---+
-                        //     |  |   |
-                        //   SG_UK+- -+
-                        //     |  |   |
-                        //   ^ v  +---+
-                        //   |    |   |
-                        //   |    +- -+
-                        //   |    |   |
-                        // WG_UM  +---+
-                        //   |    |   |
-                        //   |    +- -+
-                        //   |    |   |
-                        //   v    +---+
-
     #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
     #elif ncnn_VK_NV_cooperative_matrix
@@ -647,24 +555,6 @@ void main()
 
                 [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
                 {
-                    //        +-N-+
-                    //        K   |
-                    //        +SG_UN
-                    //        |   |
-                    //     ^  +---+
-                    //     |  |   |
-                    //   SG_UK+- -+
-                    //     |  |   |
-                    //   ^ v  +---+
-                    //   |    |   |
-                    //   |    +- -+
-                    //   |    |   |
-                    // WG_UN  +---+
-                    //   |    |   |
-                    //   |    +- -+
-                    //   |    |   |
-                    //   v    +---+
-
     #if ncnn_VK_KHR_cooperative_matrix
                     coopMatLoad(B[zn], tmp_k[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
     #elif ncnn_VK_NV_cooperative_matrix
@@ -695,24 +585,6 @@ void main()
             {
                 if (elempack == 1)
                 {
-                    //        +-M-+
-                    //        K   |
-                    //        +SG_UM
-                    //        |   |
-                    //     ^  +---+
-                    //     |  |   |
-                    //   SG_UK+- -+
-                    //     |  |   |
-                    //   ^ v  +---+
-                    //   |    |   |
-                    //   |    +- -+
-                    //   |    |   |
-                    // WG_UM  +---+
-                    //   |    |   |
-                    //   |    +- -+
-                    //   |    |   |
-                    //   v    +---+
-
                     const uint cstepd4 = psc(cstep) / 4;
 
                     const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
@@ -729,24 +601,6 @@ void main()
                 }
                 else // if (elempack == 4)
                 {
-                    //        +-K-+
-                    //        M   |
-                    //        +- -+
-                    //      SG_UM |
-                    //     ^  +---+
-                    //     |  |   |
-                    //   SG_UK+- -+
-                    //     |  |   |
-                    //   ^ v  +---+
-                    //   |    |   |
-                    //   |    +- -+
-                    //   |    |   |
-                    // WG_UM  +---+
-                    //   |    |   |
-                    //   |    +- -+
-                    //   |    |   |
-                    //   v    +---+
-
                     const uint inchd4 = inch / 4;
 
                     const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
@@ -765,26 +619,6 @@ void main()
 
             // load weight
             {
-                //        +-N-+
-                //        K   |
-                //        +SG_UN
-                //        |   |
-                //     ^  +---+
-                //     |  |   |
-                //   SG_UK+- -+
-                //     |  |   |
-                //   ^ v  +---+
-                //   |    |   |
-                //   |    +- -+
-                //   |    |   |
-                // WG_UN  +---+
-                //   |    |   |
-                //   |    +- -+
-                //   |    |   |
-                //   v    +---+
-
-                // weight_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
-
                 const uint Nd4_K_USGN = Nd4 * K * UNROLL_SG_N;
                 const uint Nd4_K_USGN_USGK = Nd4 * K * UNROLL_SG_N * UNROLL_SG_K;
 
@@ -1179,16 +1013,6 @@ void main()
         {
             if (elempack == 1)
             {
-                //      +-M-+
-                //      K   |
-                //      +SG_UM
-                //      |   |
-                //   ^  +---+
-                //   |  |   |
-                // WG_UM+- -+
-                //   |  |   |
-                //   v  +---+
-
 #if ncnn_VK_KHR_cooperative_matrix
                 coopMatLoad(A[zm], tmp_v[sgmi], zm * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
@@ -1197,16 +1021,6 @@ void main()
             }
             else // if (elempack == 4)
             {
-                //      +-K-+
-                //      M   |
-                //      +- -+
-                //    SG_UM |
-                //   ^  +---+
-                //   |  |   |
-                // WG_UM+- -+
-                //   |  |   |
-                //   v  +---+
-
 #if ncnn_VK_KHR_cooperative_matrix
                 coopMatLoad(A[zm], tmp_v[sgmi], zm * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
@@ -1217,16 +1031,6 @@ void main()
 
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
-            //      +-N-+
-            //      K   |
-            //      +SG_UN
-            //      |   |
-            //   ^  +---+
-            //   |  |   |
-            // WG_UN+- -+
-            //   |  |   |
-            //   v  +---+
-
 #if ncnn_VK_KHR_cooperative_matrix
             coopMatLoad(B[zn], tmp_k[sgni], zn * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
@@ -1288,7 +1092,6 @@ void main()
 #endif
 #endif
             }
-
         }
     }
 
