@@ -53,7 +53,6 @@
 #endif
 
 #if defined __ANDROID__ || defined __OHOS__ || __linux__
-#include <cstring> 
 #if defined __ANDROID__
 #if __ANDROID_API__ >= 18
 #include <sys/auxv.h> // getauxval()
@@ -897,7 +896,7 @@ static int get_cpucount()
                 while (offset < length) {
                     if (ptr->Relationship == RelationProcessorCore) {
                         for (WORD i = 0; i < ptr->Processor.GroupCount; i++) {
-                            count += __popcnt64(ptr->Processor.GroupMask[i].Mask);
+                            count += _popcnt64(ptr->Processor.GroupMask[i].Mask);
                         }
                     }
                     offset += ptr->Size;
@@ -1390,8 +1389,8 @@ static ncnn::CpuSet get_smt_cpu_mask()
 {
     ncnn::CpuSet smt_cpu_mask;
 
-    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
-    LPFN_GLPI glpiex = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformationEx");
+    typedef BOOL(WINAPI * LPFN_GLPIEX)(LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
+    LPFN_GLPIEX glpiex = (LPFN_GLPIEX)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformationEx");
     if (glpiex != NULL) //CPU core > 64
     {
         DWORD length = 0;
@@ -1411,7 +1410,7 @@ static ncnn::CpuSet get_smt_cpu_mask()
                         int total_logical_count = 0;
                         for (WORD group = 0; group < current->Processor.GroupCount; group++)
                         {
-                            total_logical_count += __popcnt64(current->Processor.GroupMask[group].Mask);
+                            total_logical_count += _popcnt64(current->Processor.GroupMask[group].Mask);
                         }
                         
                         if (total_logical_count > 1)
@@ -1461,7 +1460,7 @@ static ncnn::CpuSet get_smt_cpu_mask()
     {
         if (ptr->Relationship == RelationProcessorCore)
         {
-            int logical_count = __popcnt64(ptr->ProcessorMask);
+            int logical_count = _popcnt64(ptr->ProcessorMask);
             if (logical_count > 1)
             {
                 ULONG_PTR mask = ptr->ProcessorMask;
