@@ -1152,8 +1152,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             specializations[14].u32 = elempack;
             specializations[15].u32 = out_elempack;
             specializations[16 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
-            specializations[16 + 1].u32 = 0; //shape_bordered_packed.cstep;
-            specializations[16 + 2].u32 = 0; //out_shape_packed.cstep;
+            specializations[16 + 1].u32 = shape_bordered_packed.cstep;
+            specializations[16 + 2].u32 = out_shape_packed.cstep;
 
             const int subgroup_size = vkdev->info.subgroup_size();
 
