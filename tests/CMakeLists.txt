@@ -60,6 +60,15 @@ endif()
 
 ncnn_add_test(c_api)
 ncnn_add_test(cpu)
+
+if(WIN32)
+    target_compile_definitions(ncnn PUBLIC NCNN_TEST_FORCE_MULTI_GROUP)
+endif()
+add_executable(test_multicpu test_multicpu.cpp)
+target_link_libraries(test_multicpu PRIVATE ncnntestutil)
+add_test(NAME test_multicpu COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:test_multicpu> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
+set_property(TARGET test_multicpu PROPERTY FOLDER "tests")
+
 ncnn_add_test(expression)
 ncnn_add_test(paramdict)
 
