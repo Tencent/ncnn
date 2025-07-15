@@ -694,7 +694,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
         }
     }
-    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 16 && num_output >= 16)
+    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8)
     {
         use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
 
@@ -1135,7 +1135,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     {
         // pass
     }
-    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 16 && num_output >= 16)
+    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8)
     {
         use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
 
@@ -1574,14 +1574,15 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     const int maxk = kernel_w * kernel_h;
+    const int num_input = channels * elempack;
 
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
-    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
-        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 8 == 0 && num_output % 8 == 0;
-        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 16 == 0 && num_output % 16 == 0;
+        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
+        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
         if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
         {
             use_cooperative_matrix_16_8_8 = false;
@@ -1809,14 +1810,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         return 0;
     }
-    if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && channels * elempack * maxk >= 16 && num_output >= 16)
+    if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8)
     {
         // gemm
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
-
-        const int num_input = channels * elempack;
 
         if (use_cooperative_matrix)
         {
@@ -1879,8 +1878,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
-
-        const int num_input = channels * elempack;
 
         if (use_cooperative_matrix)
         {
