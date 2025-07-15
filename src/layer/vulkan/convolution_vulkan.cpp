@@ -696,7 +696,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 16 && num_output >= 16)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input * maxk >= 8 && num_output >= 8;
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
 
         if (use_cooperative_matrix)
         {
@@ -1137,7 +1137,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 16 && num_output >= 16)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input * maxk >= 8 && num_output >= 8;
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
 
         if (use_cooperative_matrix)
         {
@@ -1170,8 +1170,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             specializations[22 + 3].u32 = out_shape_packed.w;
             specializations[22 + 4].u32 = out_shape_packed.h;
             specializations[22 + 5].u32 = out_shape_packed.cstep;
-
-            NCNN_LOGE("%d %d", elempack, out_elempack);
 
             const int subgroup_size = vkdev->info.subgroup_size();
 
