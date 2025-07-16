@@ -153,7 +153,11 @@ __attribute__((constructor)) void ncnn_kmp_env_initializer()
     // and cpu core goes offline in powersave mode on android, which triggers abort
     // disable affinity capability, we handle thread affinity for openmp threads
 #if defined _WIN32
+#if _WIN32_WINNT >= 0x0600
     _putenv_s("KMP_AFFINITY", "disabled");
+#else
+    _putenv("KMP_AFFINITY=disabled");
+#endif
 #else
     setenv("KMP_AFFINITY", "disabled", 1);
 #endif
@@ -163,7 +167,11 @@ __attribute__((constructor)) void ncnn_kmp_env_initializer()
     // this happens when loading multiple libraries that are static linked openmp
     // just let it continue to work, it works well in most cases, at least it won't crash unexpectedly
 #if defined _WIN32
+#if _WIN32_WINNT >= 0x0600
     _putenv_s("KMP_DUPLICATE_LIB_OK", "1");
+#else
+    _putenv("KMP_DUPLICATE_LIB_OK=1");
+#endif
 #else
     setenv("KMP_DUPLICATE_LIB_OK", "1", 1);
 #endif
