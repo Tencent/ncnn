@@ -29,14 +29,6 @@ void test_cpuset_multi_group_simulation()
     
     ncnn::CpuSet cpuset;
     
-#if defined (_WIN32) && !defined(NCNN_TEST_FORCE_MULTI_GROUP)
-    if (cpuset.is_legacy_mode())
-    {
-        std::cout << "Legacy mode detected, skipping multi-group tests" << std::endl;
-        return;
-    }
-#endif
-
     // Simulate enabling CPUs across multiple groups
     std::vector<int> test_cpus = {0, 1, 32, 63, 64, 65, 96, 127, 128, 200, 256};
     
@@ -132,10 +124,6 @@ void test_real_system_integration()
     std::cout << "Little cores enabled: " << little_mask.num_enabled() << std::endl;
     std::cout << "Big cores enabled: " << big_mask.num_enabled() << std::endl;
     
-    #if defined _WIN32
-    std::cout << "Legacy mode: " << (cpuset.is_legacy_mode() ? "Yes" : "No") << std::endl;
-    std::cout << "Group count: " << cpuset.get_group_count() << std::endl;
-    #endif
 }
 
 void test_processor_group_simulation()

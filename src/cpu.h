@@ -49,14 +49,11 @@ public:
     void set_group_mask(int group, ULONG_PTR mask);
     ULONG_PTR get_group_mask(int group) const;
     int get_group_count() const;
-    bool is_legacy_mode() const;
 #endif // defined _WIN32
 
 public:
 #if defined _WIN32
     ULONG_PTR mask_groups[NCNN_CPU_MASK_GROUPS];
-    int actual_cpu_count;
-    bool legacy_mode;
 #endif
 #if defined __ANDROID__ || defined __linux__
     cpu_set_t cpu_set;
