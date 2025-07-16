@@ -696,7 +696,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && (opt.use_fp16_storage || opt.use_fp16_packed);
 
         if (use_cooperative_matrix)
         {
@@ -875,7 +875,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input >= 8 && num_output >= 8;
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && (opt.use_fp16_storage || opt.use_fp16_packed) && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
@@ -1137,8 +1137,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && opt.use_fp16_storage;
-
         if (use_cooperative_matrix)
         {
             std::vector<vk_specialization_type> specializations(22 + 6);
