@@ -831,6 +831,14 @@ if(NCNN_VULKAN)
     endif()
 endif()
 
+# Automatically enable WebGPU when compiling to wasm target with emscripten if Vulkan is enabled
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_VULKAN)
+    message(STATUS "WebGPU native support enabled (emscripten + vulkan)")
+    
+    # WebGPU specific configuration flags
+    add_definitions(-DNCNN_WEBGPU=1)
+endif()
+
 add_subdirectory(src)
 if(NCNN_BUILD_BENCHMARK)
     add_subdirectory(benchmark)
