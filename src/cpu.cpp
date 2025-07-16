@@ -5,6 +5,7 @@
 
 #include "platform.h"
 
+#include <cstdint>
 #include <limits.h>
 #ifndef __wasi__
 #include <setjmp.h>
