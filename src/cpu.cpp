@@ -2668,10 +2668,11 @@ static int popcount64(uint64_t x)
 {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_popcountll(x);
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+    // __popcnt64 is only available on x86/x64, not on ARM
     return (int)__popcnt64(x);
 #else
-    // Fallback implementation
+    // Fallback implementation for ARM and other architectures
     int count = 0;
     while (x)
     {
