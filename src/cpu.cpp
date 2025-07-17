@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #ifdef _OPENMP
