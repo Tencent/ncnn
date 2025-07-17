@@ -2425,41 +2425,41 @@ namespace ncnn {
 
 // New unified CpuSet implementation supporting >64 CPUs
 CpuSet::CpuSet()
-    : fast_mask(0)
-    , extended_mask(nullptr)
-    , extended_capacity(0)
-    , use_extended(false)
+    : fast_mask(0), extended_mask(nullptr), extended_capacity(0), use_extended(false)
 #if defined _WIN32
-    , legacy_mask_cache(0)
-    , legacy_mask_valid(false)
+    ,
+      legacy_mask_cache(0),
+      legacy_mask_valid(false)
 #endif
 #if defined __ANDROID__ || defined __linux__
-    , cpu_set_cache(nullptr)
-    , cpu_set_valid(false)
+    ,
+      cpu_set_cache(nullptr),
+      cpu_set_valid(false)
 #endif
 #if __APPLE__
-    , legacy_policy_cache(0)
-    , legacy_policy_valid(false)
+    ,
+      legacy_policy_cache(0),
+      legacy_policy_valid(false)
 #endif
 {
 }
 
 CpuSet::CpuSet(const CpuSet& other)
-    : fast_mask(0)
-    , extended_mask(nullptr)
-    , extended_capacity(0)
-    , use_extended(false)
+    : fast_mask(0), extended_mask(nullptr), extended_capacity(0), use_extended(false)
 #if defined _WIN32
-    , legacy_mask_cache(0)
-    , legacy_mask_valid(false)
+    ,
+      legacy_mask_cache(0),
+      legacy_mask_valid(false)
 #endif
 #if defined __ANDROID__ || defined __linux__
-    , cpu_set_cache(nullptr)
-    , cpu_set_valid(false)
+    ,
+      cpu_set_cache(nullptr),
+      cpu_set_valid(false)
 #endif
 #if __APPLE__
-    , legacy_policy_cache(0)
-    , legacy_policy_valid(false)
+    ,
+      legacy_policy_cache(0),
+      legacy_policy_valid(false)
 #endif
 {
     copy_from(other);
