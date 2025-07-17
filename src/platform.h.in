@@ -15,9 +15,7 @@
 #ifndef NCNN_PLATFORM_H
 #define NCNN_PLATFORM_H
 
-// Ensure basic integer types are available in all modes
-// Use C header for compatibility with C++03 and simple modes
-#include <stdint.h>
+
 
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING
@@ -275,6 +273,9 @@ static inline void swap_endianness_32(void* x)
 #if NCNN_SIMPLESTL
 #include "simplestl.h"
 #else
+// Ensure basic integer types are available when not using simplestl
+// Use C header for compatibility with C++03 and simple modes
+#include <stdint.h>
 #include <algorithm>
 #include <list>
 #include <vector>
