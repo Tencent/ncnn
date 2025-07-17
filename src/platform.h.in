@@ -5,11 +5,8 @@
 #define NCNN_PLATFORM_H
 
 // Ensure basic integer types are available in all modes
-#if NCNN_SIMPLESTL
+// Use C header for compatibility with C++03 and simple modes
 #include <stdint.h>
-#else
-#include <cstdint>
-#endif
 
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING

@@ -3482,8 +3482,7 @@ int get_little_cpu_count()
 int get_big_cpu_count()
 {
     try_initialize_global_cpu_info();
-    int big_cpu_count = get_cpu_thread_affinity_mask(2).num_enabled();
-    return big_cpu_count ? big_cpu_count : g_cpucount;
+    return get_cpu_thread_affinity_mask(2).num_enabled();
 }
 
 int get_physical_cpu_count()
