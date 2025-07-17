@@ -5,7 +5,6 @@
 #define NCNN_CPU_H
 
 #include <stddef.h>
-#include <cstdint>
 
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN

@@ -5,7 +5,6 @@
 
 #include "platform.h"
 
-#include <cstdint>
 #include <limits.h>
 #ifndef __wasi__
 #include <setjmp.h>
@@ -14,9 +13,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if !NCNN_SIMPLESTL
 #include <algorithm>
+#include <cstdint>
 #include <utility>
 #include <vector>
+#endif
 
 #ifdef _OPENMP
 #if NCNN_SIMPLEOMP
@@ -2422,41 +2425,41 @@ namespace ncnn {
 
 // New unified CpuSet implementation supporting >64 CPUs
 CpuSet::CpuSet()
-    : fast_mask(0), extended_mask(nullptr), extended_capacity(0), use_extended(false)
+    : fast_mask(0)
+    , extended_mask(nullptr)
+    , extended_capacity(0)
+    , use_extended(false)
 #if defined _WIN32
-    ,
-      legacy_mask_cache(0),
-      legacy_mask_valid(false)
+    , legacy_mask_cache(0)
+    , legacy_mask_valid(false)
 #endif
 #if defined __ANDROID__ || defined __linux__
-    ,
-      cpu_set_cache(nullptr),
-      cpu_set_valid(false)
+    , cpu_set_cache(nullptr)
+    , cpu_set_valid(false)
 #endif
 #if __APPLE__
-    ,
-      legacy_policy_cache(0),
-      legacy_policy_valid(false)
+    , legacy_policy_cache(0)
+    , legacy_policy_valid(false)
 #endif
 {
 }
 
 CpuSet::CpuSet(const CpuSet& other)
-    : fast_mask(0), extended_mask(nullptr), extended_capacity(0), use_extended(false)
+    : fast_mask(0)
+    , extended_mask(nullptr)
+    , extended_capacity(0)
+    , use_extended(false)
 #if defined _WIN32
-    ,
-      legacy_mask_cache(0),
-      legacy_mask_valid(false)
+    , legacy_mask_cache(0)
+    , legacy_mask_valid(false)
 #endif
 #if defined __ANDROID__ || defined __linux__
-    ,
-      cpu_set_cache(nullptr),
-      cpu_set_valid(false)
+    , cpu_set_cache(nullptr)
+    , cpu_set_valid(false)
 #endif
 #if __APPLE__
-    ,
-      legacy_policy_cache(0),
-      legacy_policy_valid(false)
+    , legacy_policy_cache(0)
+    , legacy_policy_valid(false)
 #endif
 {
     copy_from(other);
@@ -2781,12 +2784,30 @@ ULONG_PTR CpuSet::get_legacy_mask() const
         if (!use_extended)
         {
             // Fast path: directly use fast_mask (truncated to ULONG_PTR size)
-            legacy_mask_cache = (ULONG_PTR)(fast_mask & ((1ULL << (sizeof(ULONG_PTR) * 8)) - 1));
+            if (sizeof(ULONG_PTR) >= sizeof(uint64_t))
+            {
+                legacy_mask_cache = (ULONG_PTR)fast_mask;
+            }
+            else
+            {
+                // Create mask for ULONG_PTR size without undefined behavior
+                const uint64_t ptr_mask = (sizeof(ULONG_PTR) == 4) ? 0xFFFFFFFFULL : 0xFFFFFFFFFFFFFFFFULL;
+                legacy_mask_cache = (ULONG_PTR)(fast_mask & ptr_mask);
+            }
         }
         else if (extended_mask && extended_capacity > 0)
         {
             // Extended path: use first word, truncated to ULONG_PTR size
-            legacy_mask_cache = (ULONG_PTR)(extended_mask[0] & ((1ULL << (sizeof(ULONG_PTR) * 8)) - 1));
+            if (sizeof(ULONG_PTR) >= sizeof(uint64_t))
+            {
+                legacy_mask_cache = (ULONG_PTR)extended_mask[0];
+            }
+            else
+            {
+                // Create mask for ULONG_PTR size without undefined behavior
+                const uint64_t ptr_mask = (sizeof(ULONG_PTR) == 4) ? 0xFFFFFFFFULL : 0xFFFFFFFFFFFFFFFFULL;
+                legacy_mask_cache = (ULONG_PTR)(extended_mask[0] & ptr_mask);
+            }
         }
 
         legacy_mask_valid = true;

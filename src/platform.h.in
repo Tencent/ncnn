@@ -4,7 +4,12 @@
 #ifndef NCNN_PLATFORM_H
 #define NCNN_PLATFORM_H
 
+// Ensure basic integer types are available in all modes
+#if NCNN_SIMPLESTL
+#include <stdint.h>
+#else
 #include <cstdint>
+#endif
 
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING
