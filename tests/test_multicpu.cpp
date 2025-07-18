@@ -166,8 +166,10 @@ int main()
 {
     std::cout << "Starting CpuSet Multi-CPU Simulation Tests..." << std::endl;
     std::cout << "Current system CPU count: " << ncnn::get_cpu_count() << std::endl;
+#if defined _WIN32
     std::cout << "NCNN_MAX_CPU_COUNT: " << NCNN_MAX_CPU_COUNT << std::endl;
     std::cout << "NCNN_CPU_MASK_GROUPS: " << NCNN_CPU_MASK_GROUPS << std::endl;
+#endif
     std::cout << std::endl;
     
     try {

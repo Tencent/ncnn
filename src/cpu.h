@@ -54,12 +54,12 @@ public:
 public:
 #if defined _WIN32
     ULONG_PTR mask_groups[NCNN_CPU_MASK_GROUPS];
-#endif
-#if defined __ANDROID__ || defined __linux__
+#elif defined __ANDROID__ || defined __linux__
     cpu_set_t cpu_set;
-#endif
-#if __APPLE__
+#elif __APPLE__
     unsigned int policy;
+#else
+    int empty;
 #endif
 };
 

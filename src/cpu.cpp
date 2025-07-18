@@ -1480,6 +1480,45 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
         }
         
         break;
+    HMODULE kernel32 = GetModuleHandle(TEXT("kernel32.dll"));
+    if (!kernel32)
+    {
+        NCNN_LOGE("Failed to get kernel32.dll handle");
+        return -1;
+    }
+    
+    typedef BOOL(WINAPI *SetThreadGroupAffinityFunc)(HANDLE, const GROUP_AFFINITY*, PGROUP_AFFINITY);
+    SetThreadGroupAffinityFunc SetThreadGroupAffinityPtr = 
+        (SetThreadGroupAffinityFunc)GetProcAddress(kernel32, "SetThreadGroupAffinity");
+    
+    if (!SetThreadGroupAffinityPtr)
+    {
+        DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.get_group_mask(0));
+        if (prev_mask == 0)
+        {
+            NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
+            return -1;
+        }
+        return 0;
+    }
+    
+    for (int group = 0; group < thread_affinity_mask.get_group_count(); group++)
+    {
+        ULONG_PTR group_mask = thread_affinity_mask.get_group_mask(group);
+        if (group_mask == 0)
+            continue;
+        
+        GROUP_AFFINITY group_affinity = {0};
+        group_affinity.Mask = group_mask;
+        group_affinity.Group = (WORD)group;
+        
+        if (!SetThreadGroupAffinityPtr(GetCurrentThread(), &group_affinity, NULL))
+        {
+            NCNN_LOGE("SetThreadGroupAffinity failed for group %d, error %d", group, GetLastError());
+            return -1;
+        }
+        
+        break;
     }
     
     return 0;
@@ -1699,8 +1738,6 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         NCNN_LOGE("LoadLibrary kernel32.dll failed");
         mask_little.disable_all();
         mask_big = mask_all;
-        mask_little.disable_all();
-        mask_big = mask_all;
         return;
     }
 
@@ -1715,9 +1752,6 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         if (!glpie(RelationProcessorCore, (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
         {
             NCNN_LOGE("GetLogicalProcessorInformationEx failed");
-            FreeLibrary(kernel32);
-            mask_little.disable_all();
-            mask_big = mask_all;
             FreeLibrary(kernel32);
             mask_little.disable_all();
             mask_big = mask_all;
