@@ -442,13 +442,13 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
                 {
                     std::vector<vk_specialization_type> specializations(0 + 7);
-                    specializations[0 + 0].i = 0;//shape_bordered_packed.w;
-                    specializations[0 + 1].i = 0;//shape_bordered_packed.h;
-                    specializations[0 + 2].i = 0;//shape_bordered_packed.c;
-                    specializations[0 + 3].i = 0;//shape_bordered_packed.cstep;
-                    specializations[0 + 4].i = 0;//shape_winograd_input_transformed_packed.cstep;
-                    specializations[0 + 5].i = 0;//block_x;
-                    specializations[0 + 6].i = 0;//block_y;
+                    specializations[0 + 0].i = 0; //shape_bordered_packed.w;
+                    specializations[0 + 1].i = 0; //shape_bordered_packed.h;
+                    specializations[0 + 2].i = 0; //shape_bordered_packed.c;
+                    specializations[0 + 3].i = 0; //shape_bordered_packed.cstep;
+                    specializations[0 + 4].i = 0; //shape_winograd_input_transformed_packed.cstep;
+                    specializations[0 + 5].i = 0; //block_x;
+                    specializations[0 + 6].i = 0; //block_y;
 
                     int shader_type_index = -1;
                     if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_input;
@@ -529,13 +529,13 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     specializations[1].i = activation_type;
                     specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                     specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-                    specializations[4 + 0].i = 0;//shape_winograd_gemm_packed.h;
-                    specializations[4 + 1].i = 0;//shape_winograd_gemm_packed.cstep;
-                    specializations[4 + 2].i = 0;//block_x;
-                    specializations[4 + 3].i = 0;//block_y;
-                    specializations[4 + 4].i = 0;//out_shape_packed.w;
-                    specializations[4 + 5].i = 0;//out_shape_packed.h;
-                    specializations[4 + 6].i = 0;//out_shape_packed.cstep;
+                    specializations[4 + 0].i = 0; //shape_winograd_gemm_packed.h;
+                    specializations[4 + 1].i = 0; //shape_winograd_gemm_packed.cstep;
+                    specializations[4 + 2].i = 0; //block_x;
+                    specializations[4 + 3].i = 0; //block_y;
+                    specializations[4 + 4].i = 0; //out_shape_packed.w;
+                    specializations[4 + 5].i = 0; //out_shape_packed.h;
+                    specializations[4 + 6].i = 0; //out_shape_packed.cstep;
 
                     int shader_type_index = -1;
                     if (out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_output;
@@ -635,12 +635,12 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
                     // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-                    UNROLL_SG_M = 1;//std::min((size + coopmat_M - 1) / coopmat_M, 2);
-                    UNROLL_SG_N = 1;//std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-                    UNROLL_SG_K = 1;//std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+                    UNROLL_SG_M = 1; //std::min((size + coopmat_M - 1) / coopmat_M, 2);
+                    UNROLL_SG_N = 1; //std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+                    UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
-                    UNROLL_WG_M = 1;//std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
-                    UNROLL_WG_N = 1;//std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+                    UNROLL_WG_M = 1; //std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+                    UNROLL_WG_N = 1; //std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
                     //        +-N-+
                     //        K   |
@@ -751,24 +751,24 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     // DEBUG weight_winograd23_data_packed
                     if (0)
                     {
-                    for (int q = 0; q < weight_winograd23_data_packed.c; q++)
-                    {
-                        const float* ptr = weight_winograd23_data_packed.channel(q);
-                        for (int z = 0; z < weight_winograd23_data_packed.d; z++)
+                        for (int q = 0; q < weight_winograd23_data_packed.c; q++)
                         {
-                            for (int y = 0; y < weight_winograd23_data_packed.h; y++)
+                            const float* ptr = weight_winograd23_data_packed.channel(q);
+                            for (int z = 0; z < weight_winograd23_data_packed.d; z++)
                             {
-                                for (int x = 0; x < weight_winograd23_data_packed.w; x++)
+                                for (int y = 0; y < weight_winograd23_data_packed.h; y++)
                                 {
-                                    printf("%f ", ptr[x]);
+                                    for (int x = 0; x < weight_winograd23_data_packed.w; x++)
+                                    {
+                                        printf("%f ", ptr[x]);
+                                    }
+                                    ptr += weight_winograd23_data_packed.w;
+                                    printf("\n");
                                 }
-                                ptr += weight_winograd23_data_packed.w;
                                 printf("\n");
                             }
-                            printf("\n");
+                            printf("------------------------\n");
                         }
-                        printf("------------------------\n");
-                    }
                     }
                 }
                 else
@@ -827,13 +827,13 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
                 {
                     std::vector<vk_specialization_type> specializations(0 + 7);
-                    specializations[0 + 0].i = 0;//shape_bordered_packed.w;
-                    specializations[0 + 1].i = 0;//shape_bordered_packed.h;
-                    specializations[0 + 2].i = 0;//shape_bordered_packed.c;
-                    specializations[0 + 3].i = 0;//shape_bordered_packed.cstep;
-                    specializations[0 + 4].i = 0;//shape_winograd_input_transformed_packed.cstep;
-                    specializations[0 + 5].i = 0;//block_x;
-                    specializations[0 + 6].i = 0;//block_y;
+                    specializations[0 + 0].i = 0; //shape_bordered_packed.w;
+                    specializations[0 + 1].i = 0; //shape_bordered_packed.h;
+                    specializations[0 + 2].i = 0; //shape_bordered_packed.c;
+                    specializations[0 + 3].i = 0; //shape_bordered_packed.cstep;
+                    specializations[0 + 4].i = 0; //shape_winograd_input_transformed_packed.cstep;
+                    specializations[0 + 5].i = 0; //block_x;
+                    specializations[0 + 6].i = 0; //block_y;
 
                     int shader_type_index = -1;
                     if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd23_transform_input;
@@ -850,7 +850,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     Mat weight_winograd23_data_packed_fp16 = Mat(weight_winograd23_data_packed.w, weight_winograd23_data_packed.h, weight_winograd23_data_packed.c, (void*)0, 2u, 1);
 
                     std::vector<vk_specialization_type> specializations(14 + 3);
-                    specializations[0].u32 = 16;//batch
+                    specializations[0].u32 = 16; //batch
                     specializations[1].u32 = coopmat_M;
                     specializations[2].u32 = coopmat_N;
                     specializations[3].u32 = coopmat_K;
@@ -864,9 +864,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     specializations[11].u32 = elempack;
                     specializations[12].u32 = out_elempack;
                     specializations[13].u32 = weight_winograd23_data_packed_fp16.cstep;
-                    specializations[14 + 0].u32 = 0;//shape_winograd_input_transformed_packed.w;
-                    specializations[14 + 1].u32 = 0;//shape_winograd_input_transformed_packed.cstep;
-                    specializations[14 + 2].u32 = 0;//shape_winograd_gemm_packed.cstep;
+                    specializations[14 + 0].u32 = 0; //shape_winograd_input_transformed_packed.w;
+                    specializations[14 + 1].u32 = 0; //shape_winograd_input_transformed_packed.cstep;
+                    specializations[14 + 2].u32 = 0; //shape_winograd_gemm_packed.cstep;
 
                     const int subgroup_size = vkdev->info.subgroup_size();
 
@@ -914,13 +914,13 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     specializations[1].i = activation_type;
                     specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                     specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-                    specializations[4 + 0].i = 0;//shape_winograd_gemm_packed.h;
-                    specializations[4 + 1].i = 0;//shape_winograd_gemm_packed.cstep;
-                    specializations[4 + 2].i = 0;//block_x;
-                    specializations[4 + 3].i = 0;//block_y;
-                    specializations[4 + 4].i = 0;//out_shape_packed.w;
-                    specializations[4 + 5].i = 0;//out_shape_packed.h;
-                    specializations[4 + 6].i = 0;//out_shape_packed.cstep;
+                    specializations[4 + 0].i = 0; //shape_winograd_gemm_packed.h;
+                    specializations[4 + 1].i = 0; //shape_winograd_gemm_packed.cstep;
+                    specializations[4 + 2].i = 0; //block_x;
+                    specializations[4 + 3].i = 0; //block_y;
+                    specializations[4 + 4].i = 0; //out_shape_packed.w;
+                    specializations[4 + 5].i = 0; //out_shape_packed.h;
+                    specializations[4 + 6].i = 0; //out_shape_packed.cstep;
 
                     int shader_type_index = -1;
                     if (out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd23_transform_output;
@@ -1832,7 +1832,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         //         pre_winograd43 = false;
         //
         //     if (use_cooperative_matrix && (w <= 18 && h <= 18))
-                pre_winograd43 = false;
+        pre_winograd43 = false;
         // }
 
         if (pre_winograd43)
@@ -1997,7 +1997,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 bindings[2] = bias_data_gpu;
 
                 std::vector<vk_constant_type> constants(7);
-                constants[0].i = num_output / out_elempack;//top_tm_blob.h;
+                constants[0].i = num_output / out_elempack; //top_tm_blob.h;
                 constants[1].i = top_tm_blob.cstep;
                 constants[2].i = block_x;
                 constants[3].i = block_y;
@@ -2206,7 +2206,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 bindings[2] = bias_data_gpu;
 
                 std::vector<vk_constant_type> constants(7);
-                constants[0].i = num_output / out_elempack;//top_tm_blob.h;
+                constants[0].i = num_output / out_elempack; //top_tm_blob.h;
                 constants[1].i = top_tm_blob.cstep;
                 constants[2].i = block_x;
                 constants[3].i = block_y;
