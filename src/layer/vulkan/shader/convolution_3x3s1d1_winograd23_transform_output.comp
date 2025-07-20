@@ -49,24 +49,25 @@ void main()
         return;
 
     // load 16
-    int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
+//     int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
+    int v_tm_offset = gz * psc(cstep) + gy * psc(block_x) + gx;
 
-    afp v00 = buffer_ld1(top_tm_blob_data, v_tm_offset + 0 * psc(cstep));
-    afp v01 = buffer_ld1(top_tm_blob_data, v_tm_offset + 1 * psc(cstep));
-    afp v02 = buffer_ld1(top_tm_blob_data, v_tm_offset + 2 * psc(cstep));
-    afp v03 = buffer_ld1(top_tm_blob_data, v_tm_offset + 3 * psc(cstep));
-    afp v10 = buffer_ld1(top_tm_blob_data, v_tm_offset + 4 * psc(cstep));
-    afp v11 = buffer_ld1(top_tm_blob_data, v_tm_offset + 5 * psc(cstep));
-    afp v12 = buffer_ld1(top_tm_blob_data, v_tm_offset + 6 * psc(cstep));
-    afp v13 = buffer_ld1(top_tm_blob_data, v_tm_offset + 7 * psc(cstep));
-    afp v20 = buffer_ld1(top_tm_blob_data, v_tm_offset + 8 * psc(cstep));
-    afp v21 = buffer_ld1(top_tm_blob_data, v_tm_offset + 9 * psc(cstep));
-    afp v22 = buffer_ld1(top_tm_blob_data, v_tm_offset + 10 * psc(cstep));
-    afp v23 = buffer_ld1(top_tm_blob_data, v_tm_offset + 11 * psc(cstep));
-    afp v30 = buffer_ld1(top_tm_blob_data, v_tm_offset + 12 * psc(cstep));
-    afp v31 = buffer_ld1(top_tm_blob_data, v_tm_offset + 13 * psc(cstep));
-    afp v32 = buffer_ld1(top_tm_blob_data, v_tm_offset + 14 * psc(cstep));
-    afp v33 = buffer_ld1(top_tm_blob_data, v_tm_offset + 15 * psc(cstep));
+    afp v00 = buffer_ld1(top_tm_blob_data, v_tm_offset + 0 * psc(cstep) * psc(c));
+    afp v01 = buffer_ld1(top_tm_blob_data, v_tm_offset + 1 * psc(cstep) * psc(c));
+    afp v02 = buffer_ld1(top_tm_blob_data, v_tm_offset + 2 * psc(cstep) * psc(c));
+    afp v03 = buffer_ld1(top_tm_blob_data, v_tm_offset + 3 * psc(cstep) * psc(c));
+    afp v10 = buffer_ld1(top_tm_blob_data, v_tm_offset + 4 * psc(cstep) * psc(c));
+    afp v11 = buffer_ld1(top_tm_blob_data, v_tm_offset + 5 * psc(cstep) * psc(c));
+    afp v12 = buffer_ld1(top_tm_blob_data, v_tm_offset + 6 * psc(cstep) * psc(c));
+    afp v13 = buffer_ld1(top_tm_blob_data, v_tm_offset + 7 * psc(cstep) * psc(c));
+    afp v20 = buffer_ld1(top_tm_blob_data, v_tm_offset + 8 * psc(cstep) * psc(c));
+    afp v21 = buffer_ld1(top_tm_blob_data, v_tm_offset + 9 * psc(cstep) * psc(c));
+    afp v22 = buffer_ld1(top_tm_blob_data, v_tm_offset + 10 * psc(cstep) * psc(c));
+    afp v23 = buffer_ld1(top_tm_blob_data, v_tm_offset + 11 * psc(cstep) * psc(c));
+    afp v30 = buffer_ld1(top_tm_blob_data, v_tm_offset + 12 * psc(cstep) * psc(c));
+    afp v31 = buffer_ld1(top_tm_blob_data, v_tm_offset + 13 * psc(cstep) * psc(c));
+    afp v32 = buffer_ld1(top_tm_blob_data, v_tm_offset + 14 * psc(cstep) * psc(c));
+    afp v33 = buffer_ld1(top_tm_blob_data, v_tm_offset + 15 * psc(cstep) * psc(c));
 
     // const float itm[2][4] = {
     //     {1.0f,  1.0f,  1.0f,  0.0f},
