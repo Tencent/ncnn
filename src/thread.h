@@ -6,33 +6,36 @@
 #include <pthread.h>
 #endif
 namespace ncnn {
-    struct ThreadWorkspace{
-        Layer* layer;
-    };
-    struct ThreadInfoExc{
-        int threadid;
-        size_t start_index;
-        size_t end_index;
-        ThreadWorkspace* workspace;
-        std::vector<ncnn::Mat>* mats;
-        Option* opt;
-        MutilThread* manager;
-        #if defined _WIN32
-        CoreInfo* coreinfo;
-        #endif
-    };
-    class MutilThread
-    {
-    private:
-        Option m_opt;
-        volatile int helpid;
-        ThreadWorkspace workspace;
-    public:
-        MutilThread(ThreadWorkspace _workspace,const Option& opt);
-        void join(std::vector<ncnn::Mat>& mats);
-        std::vector<bool> threadsComplete;
-        ~MutilThread();
-    };
-    
+struct ThreadWorkspace
+{
+    Layer* layer;
+};
+struct ThreadInfoExc
+{
+    int threadid;
+    size_t start_index;
+    size_t end_index;
+    ThreadWorkspace* workspace;
+    std::vector<ncnn::Mat>* mats;
+    Option* opt;
+    MutilThread* manager;
+#if defined _WIN32
+    CoreInfo* coreinfo;
+#endif
+};
+class MutilThread
+{
+private:
+    Option m_opt;
+    volatile int helpid;
+    ThreadWorkspace workspace;
+
+public:
+    MutilThread(ThreadWorkspace _workspace, const Option& opt);
+    void join(std::vector<ncnn::Mat>& mats);
+    std::vector<bool> threadsComplete;
+    ~MutilThread();
+};
+
 } // namespace ncnn
 #endif
