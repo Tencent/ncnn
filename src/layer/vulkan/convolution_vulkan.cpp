@@ -250,15 +250,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                         }
                     }
 
-                    // DEBUG
-                    if (0)
-                    {
-                        for (int k = 0; k < 36; k++)
-                        {
-                            fprintf(stderr, "%d  =  %f\n", k, weight_data_tm_r2.channel(k)[0]);
-                        }
-                    }
-
                     int size = 1024;
                     if (out_shape.dims != 0)
                     {
@@ -611,15 +602,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                             {
                                 *g00++ = weight_data_tm[(q * num_input + p) * 16 + k];
                             }
-                        }
-                    }
-
-                    // DEBUG
-                    if (0)
-                    {
-                        for (int k = 0; k < 16; k++)
-                        {
-                            fprintf(stderr, "%d  =  %f\n", k, weight_data_tm_r2.channel(k)[0]);
                         }
                     }
 
@@ -1802,16 +1784,16 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1)
     {
         bool pre_winograd43 = opt.use_winograd43_convolution;
-        // if (opt.use_winograd23_convolution)
-        // {
-        //     if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || ((w >= 23 && w <= 24) && (h >= 23 && h <= 24))))
-        //         pre_winograd43 = false;
-        //     if (vkdev->info.type() != 0 && (w <= 12 && h <= 12))
-        //         pre_winograd43 = false;
-        //
-        //     if (use_cooperative_matrix && (w <= 18 && h <= 18))
-        //         pre_winograd43 = false;
-        // }
+        if (opt.use_winograd23_convolution)
+        {
+            if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || ((w >= 23 && w <= 24) && (h >= 23 && h <= 24))))
+                pre_winograd43 = false;
+            if (vkdev->info.type() != 0 && (w <= 12 && h <= 12))
+                pre_winograd43 = false;
+
+            if (use_cooperative_matrix && (w <= 18 && h <= 18))
+                pre_winograd43 = false;
+        }
 
         if (pre_winograd43)
         {
