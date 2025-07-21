@@ -7,6 +7,9 @@
 #endif
 namespace ncnn
 {
+    struct ThreadWorkspace{
+        Layer* layer;
+    };
     struct ThreadInfoExc{
         int threadid;
         size_t start_index;
@@ -18,9 +21,6 @@ namespace ncnn
         #if defined _WIN32
         CoreInfo* coreinfo;
         #endif
-    };
-    struct ThreadWorkspace{
-        Layer* layer;
     };
     class MutilThread
     {
