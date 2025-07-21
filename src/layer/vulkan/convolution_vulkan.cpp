@@ -1229,96 +1229,27 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else
     {
-        // src = kw-kh-inch-outch
-        // dst = pa-pb-kw-kh-inch/pa-outch/pb
-        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && is_conv1x1s1d1 && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
-        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && is_conv1x1s1d1 && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
-        if (vkdev->info.subgroup_size() != 32 && (!vkdev->info.support_subgroup_size_control() || vkdev->info.min_subgroup_size() > 32 || vkdev->info.max_subgroup_size() < 32))
+        Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+        weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            use_cooperative_matrix_16_8_8 = false;
-            use_cooperative_matrix_16_16_16 = false;
-        }
+            float* g00 = weight_data_packed.channel(q / out_elempack);
 
-        if (use_cooperative_matrix_16_8_8)
-        {
-            // dst = 8b-8a-inch/8a-outch/8b
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_packed.create(maxk, num_input / 8, num_output / 8, (size_t)4 * 8 * 8, 8 * 8);
-
-            for (int q = 0; q + 7 < num_output; q += 8)
+            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                float* g00 = weight_data_packed.channel(q / 8);
-
-                for (int p = 0; p + 7 < num_input; p += 8)
+                for (int k = 0; k < maxk; k++)
                 {
-                    for (int k = 0; k < maxk; k++)
+                    for (int i = 0; i < out_elempack; i++)
                     {
-                        for (int i = 0; i < 8; i++)
+                        const Mat k0 = weight_data_r2.channel(q + i);
+
+                        for (int j = 0; j < elempack; j++)
                         {
-                            for (int j = 0; j < 8; j++)
-                            {
-                                const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-                                g00[0] = k00[k];
-                                g00++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        else if (use_cooperative_matrix_16_16_16)
-        {
-            // dst = 16b-16a-inch/16a-outch/16b
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_packed.create(maxk, num_input / 16, num_output / 16, (size_t)4 * 16 * 16, 16 * 16);
-
-            for (int q = 0; q + 15 < num_output; q += 16)
-            {
-                float* g00 = weight_data_packed.channel(q / 16);
-
-                for (int p = 0; p + 15 < num_input; p += 16)
-                {
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        for (int i = 0; i < 16; i++)
-                        {
-                            for (int j = 0; j < 16; j++)
-                            {
-                                const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-                                g00[0] = k00[k];
-                                g00++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        else
-        {
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
-
-            for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
-            {
-                float* g00 = weight_data_packed.channel(q / out_elempack);
-
-                for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
-                {
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        for (int i = 0; i < out_elempack; i++)
-                        {
-                            const Mat k0 = weight_data_r2.channel(q + i);
-
-                            for (int j = 0; j < elempack; j++)
-                            {
-                                const float* k00 = k0.row(p + j);
-                                g00[0] = k00[k];
-                                g00++;
-                            }
+                            const float* k00 = k0.row(p + j);
+                            g00[0] = k00[k];
+                            g00++;
                         }
                     }
                 }
