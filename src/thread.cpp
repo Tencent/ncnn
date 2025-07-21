@@ -5,15 +5,16 @@
 DWORD WINAPI winWorker(LPVOID lpParam)
 {
     ncnn::ThreadInfoExc* info = (ncnn::ThreadInfoExc*)lpParam;
-    if (info->coreinfo->group >= 0 && info->coreinfo->affinity != 0) {
+    if (info->coreinfo->group >= 0 && info->coreinfo->affinity != 0)
+    {
         GROUP_AFFINITY groupAffinity;
         ZeroMemory(&groupAffinity, sizeof(groupAffinity));
         groupAffinity.Group = static_cast<WORD>(info->coreinfo->group);
         groupAffinity.Mask = info->coreinfo->affinity;
-        
+
         return SetThreadGroupAffinity(GetCurrentThread(), &groupAffinity, NULL) != 0;
     }
-    info->workspace->layer->forward_thread(info); 
+    info->workspace->layer->forward_thread(info);
     info->manager->threadsComplete[info->threadid] = true;
     delete info;
     return 0;
@@ -25,24 +26,24 @@ void* pthreadWorker(void* lpParam)
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(info->threadid, &cpuset);
-    
+
     // 绑定到指定核心
     pthread_t current_thread = pthread_self();
     pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
-    info->workspace->layer->forward_thread(info); 
+    info->workspace->layer->forward_thread(info);
     info->manager->threadsComplete[info->threadid] = true;
     delete info;
     return nullptr;
 }
 #endif
-namespace ncnn
-{
+namespace ncnn {
 MutilThread::MutilThread(ThreadWorkspace _workspace, const Option& opt)
 {
     workspace = _workspace;
     m_opt = opt;
     threadsComplete.resize(opt.num_threads);
-    for(int i=0;i<opt.num_threads;i++){
+    for (int i = 0; i < opt.num_threads; i++)
+    {
         threadsComplete[i] = false;
     }
     threadsComplete[helpid] = true;
@@ -55,21 +56,23 @@ MutilThread::~MutilThread()
 
 void MutilThread::join(std::vector<Mat>& mats)
 {
-    #if defined _WIN32
+#if defined _WIN32
     Mat mat = mats[0];
     CoreInfo cur = TheadInfo::get()->getCurrentCore();
     std::vector<CoreInfo> cores;
     TheadInfo::get()->getAllCore(cores);
     std::vector<HANDLE> handles;
     ThreadInfoExc* curinfo = nullptr;
-    size_t workersize = ((mat.w*mat.h*mat.d)/m_opt.num_threads +1)*mat.c*mat.elemsize;
+    size_t workersize = ((mat.w * mat.h * mat.d) / m_opt.num_threads + 1) * mat.c * mat.elemsize;
     size_t matlen = mats.size();
-    for(int i=0;i<m_opt.num_threads;i++){
-        ThreadInfoExc *info = new ThreadInfoExc();
+    for (int i = 0; i < m_opt.num_threads; i++)
+    {
+        ThreadInfoExc* info = new ThreadInfoExc();
         info->threadid = i;
-        info->start_index = i*workersize;
-        info->end_index = (i+1)*workersize;
-        if(info->end_index>matlen){
+        info->start_index = i * workersize;
+        info->end_index = (i + 1) * workersize;
+        if (info->end_index > matlen)
+        {
             info->end_index = matlen;
         }
         info->workspace = &workspace;
@@ -78,45 +81,52 @@ void MutilThread::join(std::vector<Mat>& mats)
         info->coreinfo = &cores[i];
         threadsComplete[i] = false;
         info->manager = this;
-        if(cur.id==cores[i].id){
+        if (cur.id == cores[i].id)
+        {
             helpid = i;
             threadsComplete[i] = true;
             handles.push_back(nullptr);
             curinfo = info;
             continue;
         }
-        handles.push_back(CreateThread(nullptr,0,winWorker,info,0,nullptr));
+        handles.push_back(CreateThread(nullptr, 0, winWorker, info, 0, nullptr));
     }
     workspace.layer->forward_inplace(curinfo);
     delete curinfo;
     bool check = true;
-    do{
+    do
+    {
         check = false;
-        for(int i=0;i<m_opt.num_threads;i++){
-            if(threadsComplete[i]==false){
+        for (int i = 0; i < m_opt.num_threads; i++)
+        {
+            if (threadsComplete[i] == false)
+            {
                 check = true;
                 break;
             }
         }
-    }while(check);
+    } while (check);
     for (size_t i = 0; i < handles.size(); i++)
     {
-        if(handles[i]!=nullptr){
+        if (handles[i] != nullptr)
+        {
             CloseHandle(handles[i]);
         }
     }
     handles.clear();
-    #else
+#else
     std::vector<pthread_t> pthread_handles;
     ThreadInfoExc* curinfo = nullptr;
-    size_t workersize = ((mat.w*mat.h*mat.d)/m_opt.num_threads +1)*mat.c*mat.elemsize;
+    size_t workersize = ((mat.w * mat.h * mat.d) / m_opt.num_threads + 1) * mat.c * mat.elemsize;
     size_t matlen = mats.size();
-    for(int i=0;i<m_opt.num_threads;i++){
-        ThreadInfoExc *info = new ThreadInfoExc();
+    for (int i = 0; i < m_opt.num_threads; i++)
+    {
+        ThreadInfoExc* info = new ThreadInfoExc();
         info->threadid = i;
-        info->start_index = i*workersize;
-        info->end_index = (i+1)*workersize;
-        if(info->end_index>matlen){
+        info->start_index = i * workersize;
+        info->end_index = (i + 1) * workersize;
+        if (info->end_index > matlen)
+        {
             info->end_index = matlen;
         }
         info->workspace = &workspace;
@@ -124,7 +134,8 @@ void MutilThread::join(std::vector<Mat>& mats)
         info->opt = &m_opt;
         threadsComplete[i] = false;
         info->manager = this;
-        if(cur.id==cores[i].id){
+        if (cur.id == cores[i].id)
+        {
             helpid = i;
             threadsComplete[i] = true;
             curinfo = info;
@@ -138,6 +149,6 @@ void MutilThread::join(std::vector<Mat>& mats)
     {
         pthread_join(pthread_handles[i], nullptr);
     }
-    #endif
+#endif
 }
 } // namespace ncnn

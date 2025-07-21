@@ -5,7 +5,8 @@
 #if defined __ANDROID__ || defined __linux__ || defined __APPLE__
 #include <pthread.h>
 #endif
-namespace ncnn
+namespace ncnn {
+struct ThreadInfoExc
 {
     struct ThreadWorkspace{
         Layer* layer;

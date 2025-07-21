@@ -173,7 +173,6 @@ NCNN_EXPORT void set_kmp_blocktime(int time_ms);
 NCNN_EXPORT int get_flush_denormals();
 NCNN_EXPORT int set_flush_denormals(int flush_denormals);
 
-
 // multi thread batch inference
 NCNN_EXPORT int get_multi_thread_batch();
 
