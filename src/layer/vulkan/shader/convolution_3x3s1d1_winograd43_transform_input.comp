@@ -3,16 +3,17 @@
 
 #version 450
 
-#define shape_constant_id_offset 0
+layout (constant_id = 0) const int c = 0;
+
+#define shape_constant_id_offset 1
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outcstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int block_x = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int block_y = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int block_x = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int block_y = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer bottom_tm_blob { sfp bottom_tm_blob_data[]; };
@@ -21,7 +22,6 @@ layout (push_constant) uniform parameter
 {
     int w;
     int h;
-    int c;
     int cstep;
 
     int outcstep;
@@ -36,7 +36,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= psc(c))
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= c)
         return;
 
     // load 6x6
@@ -190,40 +190,40 @@ void main()
 //     int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
     int v_tm_offset = gz * psc(outcstep) + gy * psc(block_x) + gx;
 
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 0 * psc(outcstep) * psc(c), v00);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 1 * psc(outcstep) * psc(c), v01);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 2 * psc(outcstep) * psc(c), v02);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 3 * psc(outcstep) * psc(c), v03);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 4 * psc(outcstep) * psc(c), v04);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 5 * psc(outcstep) * psc(c), v05);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 6 * psc(outcstep) * psc(c), v10);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 7 * psc(outcstep) * psc(c), v11);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 8 * psc(outcstep) * psc(c), v12);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 9 * psc(outcstep) * psc(c), v13);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 10 * psc(outcstep) * psc(c), v14);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 11 * psc(outcstep) * psc(c), v15);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 12 * psc(outcstep) * psc(c), v20);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 13 * psc(outcstep) * psc(c), v21);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 14 * psc(outcstep) * psc(c), v22);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 15 * psc(outcstep) * psc(c), v23);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 16 * psc(outcstep) * psc(c), v24);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 17 * psc(outcstep) * psc(c), v25);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 18 * psc(outcstep) * psc(c), v30);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 19 * psc(outcstep) * psc(c), v31);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 20 * psc(outcstep) * psc(c), v32);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 21 * psc(outcstep) * psc(c), v33);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 22 * psc(outcstep) * psc(c), v34);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 23 * psc(outcstep) * psc(c), v35);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 24 * psc(outcstep) * psc(c), v40);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 25 * psc(outcstep) * psc(c), v41);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 26 * psc(outcstep) * psc(c), v42);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 27 * psc(outcstep) * psc(c), v43);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 28 * psc(outcstep) * psc(c), v44);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 29 * psc(outcstep) * psc(c), v45);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 30 * psc(outcstep) * psc(c), v50);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 31 * psc(outcstep) * psc(c), v51);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 32 * psc(outcstep) * psc(c), v52);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 33 * psc(outcstep) * psc(c), v53);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 34 * psc(outcstep) * psc(c), v54);
-    buffer_st1(bottom_tm_blob_data, v_tm_offset + 35 * psc(outcstep) * psc(c), v55);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 0 * psc(outcstep) * c, v00);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 1 * psc(outcstep) * c, v01);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 2 * psc(outcstep) * c, v02);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 3 * psc(outcstep) * c, v03);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 4 * psc(outcstep) * c, v04);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 5 * psc(outcstep) * c, v05);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 6 * psc(outcstep) * c, v10);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 7 * psc(outcstep) * c, v11);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 8 * psc(outcstep) * c, v12);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 9 * psc(outcstep) * c, v13);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 10 * psc(outcstep) * c, v14);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 11 * psc(outcstep) * c, v15);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 12 * psc(outcstep) * c, v20);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 13 * psc(outcstep) * c, v21);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 14 * psc(outcstep) * c, v22);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 15 * psc(outcstep) * c, v23);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 16 * psc(outcstep) * c, v24);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 17 * psc(outcstep) * c, v25);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 18 * psc(outcstep) * c, v30);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 19 * psc(outcstep) * c, v31);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 20 * psc(outcstep) * c, v32);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 21 * psc(outcstep) * c, v33);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 22 * psc(outcstep) * c, v34);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 23 * psc(outcstep) * c, v35);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 24 * psc(outcstep) * c, v40);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 25 * psc(outcstep) * c, v41);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 26 * psc(outcstep) * c, v42);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 27 * psc(outcstep) * c, v43);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 28 * psc(outcstep) * c, v44);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 29 * psc(outcstep) * c, v45);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 30 * psc(outcstep) * c, v50);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 31 * psc(outcstep) * c, v51);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 32 * psc(outcstep) * c, v52);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 33 * psc(outcstep) * c, v53);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 34 * psc(outcstep) * c, v54);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 35 * psc(outcstep) * c, v55);
 }
