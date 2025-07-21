@@ -41,7 +41,7 @@ void main()
     afp sum2 = afp(0.f);
     afp sum3 = afp(0.f);
 
-    int v_offset = gz * psc(cstep) + gx;
+    int v_offset = gz * psc(c) * psc(cstep) + gx;
     int w_offset = gz * psc(c) * psc(outc) + gy * psc(c);
 
     for (int z = 0; z < psc(c); z++)
@@ -59,11 +59,11 @@ void main()
         sum2 += dot(v2[0], k[0]) + dot(v2[1], k[1]);
         sum3 += dot(v3[0], k[0]) + dot(v3[1], k[1]);
 
-        v_offset += psc(outw);
+        v_offset += psc(cstep);
         w_offset += 1;
     }
 
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    int gi = gz * psc(outc) * psc(outcstep) + gy * psc(outcstep) + gx;
 
     buffer_st1(top_tm_blob_data, gi + 0, sum0);
     if (gx + 1 < psc(outw)) buffer_st1(top_tm_blob_data, gi + 1, sum1);

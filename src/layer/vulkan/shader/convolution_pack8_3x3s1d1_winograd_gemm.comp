@@ -41,7 +41,7 @@ void main()
     afpvec8 sum2 = afpvec8(afpvec4(0.f), afpvec4(0.f));
     afpvec8 sum3 = afpvec8(afpvec4(0.f), afpvec4(0.f));
 
-    int v_offset = gz * psc(cstep) + gx;
+    int v_offset = gz * psc(c) * psc(cstep) + gx;
     int w_offset = (gz * psc(c) * psc(outc) + gy * psc(c)) * 8;
 
     for (int z = 0; z < psc(c); z++)
@@ -97,11 +97,11 @@ void main()
         sum3[1].b += dot(v3[0], k6[0]) + dot(v3[1], k6[1]);
         sum3[1].a += dot(v3[0], k7[0]) + dot(v3[1], k7[1]);
 
-        v_offset += psc(outw);
+        v_offset += psc(cstep);
         w_offset += 8;
     }
 
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    int gi = gz * psc(outc) * psc(outcstep) + gy * psc(outcstep) + gx;
 
     buffer_st8(top_tm_blob_data, gi + 0, sum0);
     if (gx + 1 < psc(outw)) buffer_st8(top_tm_blob_data, gi + 1, sum1);

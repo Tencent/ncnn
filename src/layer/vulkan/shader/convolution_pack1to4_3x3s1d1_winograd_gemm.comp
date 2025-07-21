@@ -50,7 +50,7 @@ void main()
     afpvec4 sum2 = afpvec4(0.f);
     afpvec4 sum3 = afpvec4(0.f);
 
-    int v_offset = gz * psc(cstep) + gx;
+    int v_offset = gz * psc(c) * psc(cstep) + gx;
     int w_offset = gz * psc(c) * psc(outc) + gy * psc(c);
 
 #if NCNN_shader_local_memory
@@ -64,7 +64,7 @@ void main()
         {
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
-                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_tm_blob_data, v_offset + z4 * psc(outw) + ly));
+                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_tm_blob_data, v_offset + z4 * psc(cstep) + ly));
             }
         }
 
@@ -93,7 +93,7 @@ void main()
             sum3 += v3 * k;
         }
 
-        v_offset += LOCAL_MEMORY_UNROLL_INCH * psc(outw);
+        v_offset += LOCAL_MEMORY_UNROLL_INCH * psc(cstep);
         w_offset += LOCAL_MEMORY_UNROLL_INCH;
 
         barrier();
@@ -107,7 +107,7 @@ void main()
         {
             for (int z4 = 0; z4 < remain; z4++)
             {
-                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_tm_blob_data, v_offset + z4 * psc(outw) + ly));
+                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_tm_blob_data, v_offset + z4 * psc(cstep) + ly));
             }
         }
 
@@ -151,7 +151,7 @@ void main()
         sum2 += v2 * k;
         sum3 += v3 * k;
 
-        v_offset += psc(outw);
+        v_offset += psc(cstep);
         w_offset += 1;
     }
 #endif
@@ -161,7 +161,7 @@ void main()
         return;
 #endif
 
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    int gi = gz * psc(outc) * psc(outcstep) + gy * psc(outcstep) + gx;
 
     buffer_st4(top_tm_blob_data, gi + 0, sum0);
     if (gx + 1 < psc(outw)) buffer_st4(top_tm_blob_data, gi + 1, sum1);
