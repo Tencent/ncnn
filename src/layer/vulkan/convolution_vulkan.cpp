@@ -176,7 +176,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         padding->create_pipeline(opt);
     }
 
-    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1)
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
         use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && (opt.use_fp16_storage || opt.use_fp16_packed);
 
@@ -1331,7 +1331,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         convert_packing(bias_data, bias_data_packed, out_elempack, opt);
     }
 
-    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1)
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
         // pass
     }
@@ -1628,9 +1628,8 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
-    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1)
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
-#if 1
         // winograd43
         if (opt.use_winograd43_convolution)
         {
@@ -1638,9 +1637,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
             weight_winograd43_data_packed.release();
         }
-#endif
 
-#if 1
         // winograd23
         if (opt.use_winograd23_convolution)
         {
@@ -1648,7 +1645,6 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
             weight_winograd23_data_packed.release();
         }
-#endif
     }
     else
     {
@@ -1781,7 +1777,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
-    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1)
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
         bool pre_winograd43 = opt.use_winograd43_convolution;
         if (opt.use_winograd23_convolution)
