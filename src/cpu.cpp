@@ -3266,17 +3266,17 @@ int set_flush_denormals(int flush_denormals)
 #endif
 }
 
-int get_multi_thread_batch(){
+int get_multi_thread_batch()
+{
 #if defined(_NCNN_MUTITHREAD)
-    #if defined _WIN32
-     DWORD length = 0;
+#if defined _WIN32
+    DWORD length = 0;
     GetLogicalProcessorInformation(NULL, &length);
     if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
         return 0;
 
-    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = 
-        (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(length);
-        
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(length);
+
     int count = 0;
     if (GetLogicalProcessorInformation(buffer, &length))
     {
@@ -3285,16 +3285,16 @@ int get_multi_thread_batch(){
         {
             if (buffer->Relationship == RelationProcessorCore)
                 count++;
-            
+
             offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
             buffer++;
         }
     }
     free(buffer);
     return count;
-    #else
+#else
     return get_cpu_count();
-    #endif
+#endif
 #else
     return get_cpu_count();
 #endif

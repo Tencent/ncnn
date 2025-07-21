@@ -143,7 +143,7 @@ public:
 // layer factory function
 typedef Layer* (*layer_creator_func)(void*);
 typedef void (*layer_destroyer_func)(Layer*, void*);
-typedef int (*layer_work_func)(Layer*,void*);
+typedef int (*layer_work_func)(Layer*, void*);
 
 struct layer_registry_entry
 {
