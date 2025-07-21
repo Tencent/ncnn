@@ -251,6 +251,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     }
 
                     // DEBUG
+                    if (0)
                     {
                         for (int k = 0; k < 36; k++)
                         {
@@ -270,12 +271,12 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
                     // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-                    UNROLL_SG_M = 1; //std::min((size + coopmat_M - 1) / coopmat_M, 2);
-                    UNROLL_SG_N = 1; //std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+                    UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
+                    UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
                     UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
-                    UNROLL_WG_M = 1; //std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
-                    UNROLL_WG_N = 1; //std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+                    UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+                    UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
                     //        +-N-+
                     //        K   |
@@ -547,6 +548,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     pipeline_convolution_3x3s1d1_winograd43_transform_output->create(shader_type_index, opt, specializations);
                 }
             }
+#endif
 
 #if 1
             // winograd23 transform kernel
@@ -616,6 +618,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     }
 
                     // DEBUG
+                    if (0)
                     {
                         for (int k = 0; k < 16; k++)
                         {
@@ -635,12 +638,12 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
                     // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-                    UNROLL_SG_M = 1; //std::min((size + coopmat_M - 1) / coopmat_M, 2);
-                    UNROLL_SG_N = 1; //std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+                    UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
+                    UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
                     UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
-                    UNROLL_WG_M = 1; //std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
-                    UNROLL_WG_N = 1; //std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+                    UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+                    UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
                     //        +-N-+
                     //        K   |
@@ -932,7 +935,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     pipeline_convolution_3x3s1d1_winograd23_transform_output->create(shader_type_index, opt, specializations);
                 }
             }
-#endif
 #endif
         }
     }
@@ -1672,6 +1674,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1)
     {
+#if 1
         // winograd43
         if (opt.use_winograd43_convolution)
         {
@@ -1679,6 +1682,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
             weight_winograd43_data_packed.release();
         }
+#endif
 
 #if 1
         // winograd23
@@ -1823,17 +1827,17 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
     if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1)
     {
-        bool pre_winograd43 = true; //opt.use_winograd43_convolution;
-        // if (opt.use_winograd23_convolution)
-        // {
-        //     if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || ((w >= 23 && w <= 24) && (h >= 23 && h <= 24))))
-        //         pre_winograd43 = false;
-        //     if (vkdev->info.type() != 0 && (w <= 12 && h <= 12))
-        //         pre_winograd43 = false;
-        //
-        //     if (use_cooperative_matrix && (w <= 18 && h <= 18))
-        pre_winograd43 = false;
-        // }
+        bool pre_winograd43 = opt.use_winograd43_convolution;
+        if (opt.use_winograd23_convolution)
+        {
+            if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || ((w >= 23 && w <= 24) && (h >= 23 && h <= 24))))
+                pre_winograd43 = false;
+            if (vkdev->info.type() != 0 && (w <= 12 && h <= 12))
+                pre_winograd43 = false;
+
+            if (use_cooperative_matrix && (w <= 18 && h <= 18))
+                pre_winograd43 = false;
+        }
 
         if (pre_winograd43)
         {
@@ -2020,7 +2024,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             int block_y = (outh + 1) / 2;
 
             // DEBUG
-            // if (0)
+            if (0)
             {
                 Mat tmp;
                 cmd.record_download(bottom_blob_bordered, tmp, opt);
@@ -2073,12 +2077,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 VkMat dispatcher;
                 dispatcher.w = block_x;
                 dispatcher.h = block_y;
-                dispatcher.c = bottom_tm_blob.h;
+                dispatcher.c = channels;
 
                 cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_input, bindings, constants, dispatcher);
 
                 // DEBUG
-                // if (0)
+                if (0)
                 {
                     Mat tmp;
                     cmd.record_download(bottom_tm_blob, tmp, opt);
@@ -2097,7 +2101,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                             {
                                 for (int x = 0; x < m.w; x++)
                                 {
-                                    printf("%f ", ptr[x]);
+                                    printf("%.2f ", ptr[x]);
                                 }
                                 ptr += m.w;
                                 printf("\n");
@@ -2138,7 +2142,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     dispatcher.h = 1;
                     dispatcher.c = 16;
 
-                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_gemm, bindings, constants, dispatcher);
+                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_gemm, bindings, constants, dispatcher);
 
                     // DEBUG
                     if (0)
@@ -2160,7 +2164,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                                 {
                                     for (int x = 0; x < m.w; x++)
                                     {
-                                        printf("%f ", ptr[x]);
+                                        printf("%.2f   ", ptr[x]);
                                     }
                                     ptr += m.w;
                                     printf("\n");

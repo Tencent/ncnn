@@ -158,24 +158,6 @@ void main()
 
         // load bottom_tm_blob
         {
-
-//  0
-//  0
-//  0
-//  0
-//  0
-//  4
-//  0
-// -2
-//  0
-//  0
-//  0
-//  0
-//  0
-// -2
-//  0
-//  1
-
             if (elempack == 1)
             {
                 //      +-M-+
@@ -217,7 +199,7 @@ void main()
 //                         if (li == 0)
 //                         {
 //                             vec2 vf = unpackHalf2x16(tmp_v[sgmi][siq].r);
-//                             NCNN_LOGE("== wgi %u  gz %u   %u   %v2f", wgi, gz, gz * inch * cstepd4 + gk * cstepd4 + gm, vf);
+//                             NCNN_LOGE("== wgi %u  gz %u   gk %u zm %u   %v2f", wgi, gz, gk, zm, vf);
 //
 // //                             NCNN_LOGE("gk %u  inch %u  gm %u  sized4 %u", gk, inch, gm, sized4);
 //                         }
@@ -253,7 +235,7 @@ void main()
                         const uint gm = mi * M + zmi;
                         const uint gk = ki / 4 + j;
 
-                        uvec2 v = gk < inchd4 && gm < psc(size) ? bottom_tm_blob_data[gz * inch * psc(cstep) + gk * psc(cstep) + gm] : uvec2(0);
+                        uvec2 v = gk < inchd4 && gm < psc(size) ? bottom_tm_blob_data[gz * inchd4 * psc(cstep) + gk * psc(cstep) + gm] : uvec2(0);
 
                         tmp_v[sgmi][siq] = v;
 //                         tmp_v[sgmi][siq] = uvec2(0);
@@ -261,23 +243,6 @@ void main()
                 }
             }
         }
-
-// 0  =  1.0
-// 1  =  1.5
-// 2  =  0.5
-// 3  =  1.0
-// 4  =  1.5
-// 5  =  2.25
-// 6  =  0.75
-// 7  =  1.50
-// 8  =  0.5
-// 9  =  0.75
-// 10  =  0.25
-// 11  =  0.5
-// 12  =  1.0
-// 13  =  1.5
-// 14  =  0.5
-// 15  =  1.0
 
         // load weight
         {
@@ -327,34 +292,6 @@ void main()
         fcoopmatNV<16, gl_ScopeSubgroup, M, K> A[UNROLL_SG_M];
         fcoopmatNV<16, gl_ScopeSubgroup, K, N> B[UNROLL_SG_N];
 #endif
-
-//         // DEBUG
-//         if (li == 0)
-//         {
-//             for (int i = 0; i < K; i++)
-//             {
-//             for (int j = 0; j < Md4; j++)
-//             {
-//                 uvec2 a = tmp_v[0][i * Md4 + j];
-//                 vec4 a4 = vec4(unpackHalf2x16(a.r),unpackHalf2x16(a.g));
-//                 NCNN_LOGE("a4 = %v4f", a4);
-//                 break;
-//             }
-//             break;
-//             }
-//
-//             for (int i = 0; i < K; i++)
-//             {
-//             for (int j = 0; j < Nd4; j++)
-//             {
-//                 uvec2 k = tmp_k[0][i * Nd4 + j];
-//                 vec4 k4 = vec4(unpackHalf2x16(k.r),unpackHalf2x16(k.g));
-//                 NCNN_LOGE("k4 = %v4f", k4);
-//                 break;
-//             }
-//             break;
-//             }
-//         }
 
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
@@ -508,7 +445,7 @@ void main()
 //                         uvec2 v = tmp_o[sgi][siq];
 //
 //                         vec2 vf = unpackHalf2x16(v.r);
-//                         NCNN_LOGE("==== wgi %u  gz %u   %v2f", wgi, gz, vf);
+//                         NCNN_LOGE("==== wgi %u  gz %u    gn %u  gm %u   outch %u outcstepd4 %u   %v2f", wgi, gz, gn, gm, outch, outcstepd4, vf);
 //                     }
 
                     if (gn < outch && gm < outcstepd4)
@@ -575,7 +512,7 @@ void main()
 
                     if (gn < outchd4 && gm < psc(size))
                     {
-                        top_tm_blob_data[gz * outch * psc(outcstep) + gn * psc(outcstep) + gm] = tmp_o[sgi][siq];
+                        top_tm_blob_data[gz * outchd4 * psc(outcstep) + gn * psc(outcstep) + gm] = tmp_o[sgi][siq];
                     }
                 }
             }
