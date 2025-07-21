@@ -537,29 +537,29 @@ void main()
                 {
                     if (elempack == 1)
                     {
-    #if ncnn_VK_KHR_cooperative_matrix
+#if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
-    #elif ncnn_VK_NV_cooperative_matrix
+#elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
-    #endif
+#endif
                     }
                     else // if (elempack == 4)
                     {
-    #if ncnn_VK_KHR_cooperative_matrix
+#if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
-    #elif ncnn_VK_NV_cooperative_matrix
+#elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
-    #endif
+#endif
                     }
                 }
 
                 [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
                 {
-    #if ncnn_VK_KHR_cooperative_matrix
+#if ncnn_VK_KHR_cooperative_matrix
                     coopMatLoad(B[zn], tmp_k[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
-    #elif ncnn_VK_NV_cooperative_matrix
+#elif ncnn_VK_NV_cooperative_matrix
                     coopMatLoadNV(B[zn], tmp_k[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
-    #endif
+#endif
                 }
 
                 // sum += k * v
@@ -567,11 +567,11 @@ void main()
                 {
                     [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
                     {
-    #if ncnn_VK_KHR_cooperative_matrix
+#if ncnn_VK_KHR_cooperative_matrix
                         sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
-    #elif ncnn_VK_NV_cooperative_matrix
+#elif ncnn_VK_NV_cooperative_matrix
                         sum[zn][zm] = coopMatMulAddNV(A[zm], B[zn], sum[zn][zm]);
-    #endif
+#endif
                     }
                 }
             }

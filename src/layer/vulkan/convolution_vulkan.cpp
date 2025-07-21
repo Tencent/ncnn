@@ -273,7 +273,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
                     UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
                     UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-                    UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+                    UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
                     UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
                     UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
@@ -311,9 +311,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                     const int kk = (num_input + coopmat_K - 1) / coopmat_K;
 
                     weight_winograd43_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n, 36);
-
-                    // weight_winograd43_data_packed.fill(0.f);
-
                     for (int b = 0; b < 36; b++)
                     {
                         for (int bn = 0; bn < blocks_n; bn++)
@@ -321,37 +318,37 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                             float* p = weight_winograd43_data_packed.channel(b).row(bn);
 
                             int k = 0;
-                            // for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
-                            // {
-                            //     // const int ki = k * coopmat_K;
-                            //
-                            //     for (int wn = 0; wn < UNROLL_WG_N; wn++)
-                            //     {
-                            //         for (int zk = 0; zk < UNROLL_SG_K; zk++)
-                            //         {
-                            //             for (int zn = 0; zn < UNROLL_SG_N; zn++)
-                            //             {
-                            //                 for (int i = 0; i < coopmat_K; i++)
-                            //                 {
-                            //                     for (int j = 0; j < coopmat_N; j++)
-                            //                     {
-                            //                         const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
-                            //                         const int gki = (k + zk) * coopmat_K + i;
-                            //
-                            //                         if (gni < num_output && gki < num_input)
-                            //                         {
-                            //                             *p++ = weight_data_tm_r2.channel(b)[gni * num_input + gki];
-                            //                         }
-                            //                         else
-                            //                         {
-                            //                             *p++ = 0.f;
-                            //                         }
-                            //                     }
-                            //                 }
-                            //             }
-                            //         }
-                            //     }
-                            // }
+                            for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
+                            {
+                                // const int ki = k * coopmat_K;
+
+                                for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                                {
+                                    for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                                    {
+                                        for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                        {
+                                            for (int i = 0; i < coopmat_K; i++)
+                                            {
+                                                for (int j = 0; j < coopmat_N; j++)
+                                                {
+                                                    const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                                    const int gki = (k + zk) * coopmat_K + i;
+
+                                                    if (gni < num_output && gki < num_input)
+                                                    {
+                                                        *p++ = weight_data_tm_r2.channel(b)[gni * num_input + gki];
+                                                    }
+                                                    else
+                                                    {
+                                                        *p++ = 0.f;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             for (; k < kk; k++)
                             {
                                 // const int ki = k * coopmat_K;
@@ -640,7 +637,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
                     UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
                     UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-                    UNROLL_SG_K = 1; //std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+                    UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
                     UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
                     UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
@@ -685,37 +682,37 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                             float* p = weight_winograd23_data_packed.channel(b).row(bn);
 
                             int k = 0;
-                            // for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
-                            // {
-                            //     // const int ki = k * coopmat_K;
-                            //
-                            //     for (int wn = 0; wn < UNROLL_WG_N; wn++)
-                            //     {
-                            //         for (int zk = 0; zk < UNROLL_SG_K; zk++)
-                            //         {
-                            //             for (int zn = 0; zn < UNROLL_SG_N; zn++)
-                            //             {
-                            //                 for (int i = 0; i < coopmat_K; i++)
-                            //                 {
-                            //                     for (int j = 0; j < coopmat_N; j++)
-                            //                     {
-                            //                         const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
-                            //                         const int gki = (k + zk) * coopmat_K + i;
-                            //
-                            //                         if (gni < num_output && gki < num_input)
-                            //                         {
-                            //                             *p++ = weight_data_tm_r2.channel(b)[gni * num_input + gki];
-                            //                         }
-                            //                         else
-                            //                         {
-                            //                             *p++ = 0.f;
-                            //                         }
-                            //                     }
-                            //                 }
-                            //             }
-                            //         }
-                            //     }
-                            // }
+                            for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
+                            {
+                                // const int ki = k * coopmat_K;
+
+                                for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                                {
+                                    for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                                    {
+                                        for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                        {
+                                            for (int i = 0; i < coopmat_K; i++)
+                                            {
+                                                for (int j = 0; j < coopmat_N; j++)
+                                                {
+                                                    const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                                    const int gki = (k + zk) * coopmat_K + i;
+
+                                                    if (gni < num_output && gki < num_input)
+                                                    {
+                                                        *p++ = weight_data_tm_r2.channel(b)[gni * num_input + gki];
+                                                    }
+                                                    else
+                                                    {
+                                                        *p++ = 0.f;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             for (; k < kk; k++)
                             {
                                 // const int ki = k * coopmat_K;
@@ -748,29 +745,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                                     }
                                 }
                             }
-                        }
-                    }
-
-                    // DEBUG weight_winograd23_data_packed
-                    if (0)
-                    {
-                        for (int q = 0; q < weight_winograd23_data_packed.c; q++)
-                        {
-                            const float* ptr = weight_winograd23_data_packed.channel(q);
-                            for (int z = 0; z < weight_winograd23_data_packed.d; z++)
-                            {
-                                for (int y = 0; y < weight_winograd23_data_packed.h; y++)
-                                {
-                                    for (int x = 0; x < weight_winograd23_data_packed.w; x++)
-                                    {
-                                        printf("%f ", ptr[x]);
-                                    }
-                                    ptr += weight_winograd23_data_packed.w;
-                                    printf("\n");
-                                }
-                                printf("\n");
-                            }
-                            printf("------------------------\n");
                         }
                     }
                 }
@@ -1871,37 +1845,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 dispatcher.c = channels;
 
                 cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_transform_input, bindings, constants, dispatcher);
-
-                // DEBUG
-                if (0)
-                {
-                    Mat tmp;
-                    cmd.record_download(bottom_tm_blob, tmp, opt);
-                    cmd.submit_and_wait();
-                    cmd.reset();
-
-                    Mat m;
-                    convert_packing(tmp, m, 1, opt);
-
-                    for (int q = 0; q < m.c; q++)
-                    {
-                        const float* ptr = m.channel(q);
-                        for (int z = 0; z < m.d; z++)
-                        {
-                            for (int y = 0; y < m.h; y++)
-                            {
-                                for (int x = 0; x < m.w; x++)
-                                {
-                                    printf("%f ", ptr[x]);
-                                }
-                                ptr += m.w;
-                                printf("\n");
-                            }
-                            printf("\n");
-                        }
-                        printf("------------------------\n");
-                    }
-                }
             }
 
             // gemm
@@ -1934,37 +1877,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     dispatcher.c = 36;
 
                     cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_gemm, bindings, constants, dispatcher);
-
-                    // DEBUG
-                    if (0)
-                    {
-                        Mat tmp;
-                        cmd.record_download(top_tm_blob, tmp, opt);
-                        cmd.submit_and_wait();
-                        cmd.reset();
-
-                        Mat m;
-                        convert_packing(tmp, m, 1, opt);
-
-                        for (int q = 0; q < m.c; q++)
-                        {
-                            const float* ptr = m.channel(q);
-                            for (int z = 0; z < m.d; z++)
-                            {
-                                for (int y = 0; y < m.h; y++)
-                                {
-                                    for (int x = 0; x < m.w; x++)
-                                    {
-                                        printf("%f ", ptr[x]);
-                                    }
-                                    ptr += m.w;
-                                    printf("\n");
-                                }
-                                printf("\n");
-                            }
-                            printf("------------------------\n");
-                        }
-                    }
                 }
                 else
                 {
@@ -2023,37 +1935,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             int block_x = (outw + 1) / 2;
             int block_y = (outh + 1) / 2;
 
-            // DEBUG
-            if (0)
-            {
-                Mat tmp;
-                cmd.record_download(bottom_blob_bordered, tmp, opt);
-                cmd.submit_and_wait();
-                cmd.reset();
-
-                Mat m;
-                convert_packing(tmp, m, 1, opt);
-
-                for (int q = 0; q < m.c; q++)
-                {
-                    const float* ptr = m.channel(q);
-                    for (int z = 0; z < m.d; z++)
-                    {
-                        for (int y = 0; y < m.h; y++)
-                        {
-                            for (int x = 0; x < m.w; x++)
-                            {
-                                printf("%f ", ptr[x]);
-                            }
-                            ptr += m.w;
-                            printf("\n");
-                        }
-                        printf("\n");
-                    }
-                    printf("------------------------\n");
-                }
-            }
-
             // transform input
             VkMat bottom_tm_blob;
             {
@@ -2080,37 +1961,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 dispatcher.c = channels;
 
                 cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_input, bindings, constants, dispatcher);
-
-                // DEBUG
-                if (0)
-                {
-                    Mat tmp;
-                    cmd.record_download(bottom_tm_blob, tmp, opt);
-                    cmd.submit_and_wait();
-                    cmd.reset();
-
-                    Mat m;
-                    convert_packing(tmp, m, 1, opt);
-
-                    for (int q = 0; q < m.c; q++)
-                    {
-                        const float* ptr = m.channel(q);
-                        for (int z = 0; z < m.d; z++)
-                        {
-                            for (int y = 0; y < m.h; y++)
-                            {
-                                for (int x = 0; x < m.w; x++)
-                                {
-                                    printf("%.2f ", ptr[x]);
-                                }
-                                ptr += m.w;
-                                printf("\n");
-                            }
-                            printf("\n");
-                        }
-                        printf("------------------------\n");
-                    }
-                }
             }
 
             // gemm
@@ -2143,37 +1993,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     dispatcher.c = 16;
 
                     cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_gemm, bindings, constants, dispatcher);
-
-                    // DEBUG
-                    if (0)
-                    {
-                        Mat tmp;
-                        cmd.record_download(top_tm_blob, tmp, opt);
-                        cmd.submit_and_wait();
-                        cmd.reset();
-
-                        Mat m;
-                        convert_packing(tmp, m, 1, opt);
-
-                        for (int q = 0; q < m.c; q++)
-                        {
-                            const float* ptr = m.channel(q);
-                            for (int z = 0; z < m.d; z++)
-                            {
-                                for (int y = 0; y < m.h; y++)
-                                {
-                                    for (int x = 0; x < m.w; x++)
-                                    {
-                                        printf("%.2f   ", ptr[x]);
-                                    }
-                                    ptr += m.w;
-                                    printf("\n");
-                                }
-                                printf("\n");
-                            }
-                            printf("------------------------\n");
-                        }
-                    }
                 }
                 else
                 {
