@@ -6,8 +6,6 @@
 #include <pthread.h>
 #endif
 namespace ncnn {
-struct ThreadInfoExc
-{
     struct ThreadWorkspace{
         Layer* layer;
     };
