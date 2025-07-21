@@ -60,3 +60,4 @@ python/setup.py
 
 # Xmake
 .xmake/
+CMakePresets.json

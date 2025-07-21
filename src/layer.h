@@ -94,6 +94,10 @@ public:
     // return 0 if success
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+    /// @brief mutithread work function
+    /// @param workspace thread infomation
+    /// @return 0 if success
+    virtual int forward_thread(void* workspace);
 
 #if NCNN_VULKAN
 public:
@@ -139,6 +143,7 @@ public:
 // layer factory function
 typedef Layer* (*layer_creator_func)(void*);
 typedef void (*layer_destroyer_func)(Layer*, void*);
+typedef int (*layer_work_func)(Layer*,void*);
 
 struct layer_registry_entry
 {

@@ -8,6 +8,7 @@
 
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
+#define _WIN32_WINNT 0x0601 // Windows 7+
 #include <windows.h>
 #endif
 #if defined __ANDROID__ || defined __linux__
@@ -171,6 +172,10 @@ NCNN_EXPORT void set_kmp_blocktime(int time_ms);
 // 3 = DAZ ON,  FTZ ON
 NCNN_EXPORT int get_flush_denormals();
 NCNN_EXPORT int set_flush_denormals(int flush_denormals);
+
+
+// multi thread batch inference
+NCNN_EXPORT int get_multi_thread_batch();
 
 } // namespace ncnn
 

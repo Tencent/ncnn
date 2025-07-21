@@ -3266,4 +3266,38 @@ int set_flush_denormals(int flush_denormals)
 #endif
 }
 
+int get_multi_thread_batch(){
+#if defined(_NCNN_MUTITHREAD)
+    #if defined _WIN32
+     DWORD length = 0;
+    GetLogicalProcessorInformation(NULL, &length);
+    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+        return 0;
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = 
+        (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(length);
+        
+    int count = 0;
+    if (GetLogicalProcessorInformation(buffer, &length))
+    {
+        DWORD offset = 0;
+        while (offset < length)
+        {
+            if (buffer->Relationship == RelationProcessorCore)
+                count++;
+            
+            offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+            buffer++;
+        }
+    }
+    free(buffer);
+    return count;
+    #else
+    return get_cpu_count();
+    #endif
+#else
+    return get_cpu_count();
+#endif
+}
+
 } // namespace ncnn
