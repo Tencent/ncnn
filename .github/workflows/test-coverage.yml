@@ -58,7 +58,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
-        use_pypi: true
         plugins: noop
         files: build/lcov.info
 
@@ -140,7 +139,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
-        use_pypi: true
         plugins: noop
         files: build/lcov.info,build-openmp/lcov.info
 
@@ -172,7 +170,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
-        use_pypi: true
         plugins: noop
         files: build/lcov.info
 
@@ -224,7 +221,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
-        use_pypi: true
         plugins: noop
         files: build/lcov.info
 
@@ -284,7 +280,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
-        use_pypi: true
         plugins: noop
         files: build/lcov.info
 
@@ -329,7 +324,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
-        use_pypi: true
         plugins: noop
         files: build/lcov.info
 
@@ -361,7 +355,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
-        use_pypi: true
         plugins: noop
         files: build/lcov.info
 
@@ -419,7 +412,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
-        use_pypi: true
         plugins: noop
         files: build/lcov.info
 
@@ -578,6 +570,5 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
-        use_pypi: true
         plugins: noop
         files: build/lcov.info,build-openmp/lcov.info
