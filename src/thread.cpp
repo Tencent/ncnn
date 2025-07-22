@@ -1,5 +1,9 @@
 #include "thread.h"
 #include "cpu.h"
+#if defined __ANDROID__ || defined __linux__
+#include <sched.h>
+#endif
+
 
 #if defined _WIN32
 DWORD WINAPI winWorker(LPVOID lpParam)
@@ -23,13 +27,14 @@ DWORD WINAPI winWorker(LPVOID lpParam)
 void* pthreadWorker(void* lpParam)
 {
     ncnn::ThreadInfoExc* info = (ncnn::ThreadInfoExc*)lpParam;
+    #if defined __ANDROID__ || defined __linux__
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(info->threadid, &cpuset);
-
     // 绑定到指定核心
     pthread_t current_thread = pthread_self();
     pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+    #endif
     info->workspace->layer->forward_thread(info);
     info->manager->threadsComplete[info->threadid] = true;
     delete info;
@@ -115,6 +120,12 @@ void MutilThread::join(std::vector<Mat>& mats)
     }
     handles.clear();
 #else
+    Mat mat = mats[0];
+    int curid = -1;
+    #if defined __ANDROID__ || defined __linux__
+    curid = sched_getcpu();
+    #endif
+
     std::vector<pthread_t> pthread_handles;
     ThreadInfoExc* curinfo = nullptr;
     size_t workersize = ((mat.w * mat.h * mat.d) / m_opt.num_threads + 1) * mat.c * mat.elemsize;
@@ -134,7 +145,7 @@ void MutilThread::join(std::vector<Mat>& mats)
         info->opt = &m_opt;
         threadsComplete[i] = false;
         info->manager = this;
-        if (cur.id == cores[i].id)
+        if (curid == cores[i].id && curid > 1)
         {
             helpid = i;
             threadsComplete[i] = true;
