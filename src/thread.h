@@ -6,6 +6,7 @@
 #include <pthread.h>
 #endif
 namespace ncnn {
+    class MutilThread;
     struct ThreadWorkspace{
         Layer* layer;
     };
