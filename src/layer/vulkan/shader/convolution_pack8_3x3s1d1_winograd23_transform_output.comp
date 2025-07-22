@@ -48,7 +48,6 @@ void main()
         return;
 
     // load 16
-//     int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
     int v_tm_offset = gz * psc(cstep) + gy * psc(block_x) + gx;
 
     afpvec8 v00 = buffer_ld8(top_tm_blob_data, v_tm_offset + 0 * psc(cstep) * c);

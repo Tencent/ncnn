@@ -187,7 +187,6 @@ void main()
     v55 = m51 - m53 * afp(2.5) + m55;
 
     // store 36
-//     int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
     int v_tm_offset = gz * psc(outcstep) + gy * psc(block_x) + gx;
 
     buffer_st8(bottom_tm_blob_data, v_tm_offset + 0 * psc(outcstep) * c, v00);
