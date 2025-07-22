@@ -19,49 +19,34 @@
 #extension GL_NV_cooperative_matrix: require
 #endif
 
-layout (constant_id = 0) const uint kernel_w = 1;
-layout (constant_id = 1) const uint kernel_h = 1;
-layout (constant_id = 2) const uint dilation_w = 1;
-layout (constant_id = 3) const uint dilation_h = 1;
-layout (constant_id = 4) const uint stride_w = 1;
-layout (constant_id = 5) const uint stride_h = 1;
-layout (constant_id = 6) const int bias_term = 0;
-layout (constant_id = 7) const int activation_type = 0;
-layout (constant_id = 8) const float activation_param_0 = 0;
-layout (constant_id = 9) const float activation_param_1 = 0;
-layout (constant_id = 10) const uint M = 1;
-layout (constant_id = 11) const uint N = 1;
-layout (constant_id = 12) const uint K = 1;
-layout (constant_id = 13) const uint UNROLL_SG_M = 2;
-layout (constant_id = 14) const uint UNROLL_SG_N = 2;
-layout (constant_id = 15) const uint UNROLL_SG_K = 2;
-layout (constant_id = 16) const uint UNROLL_WG_M = 2;
-layout (constant_id = 17) const uint UNROLL_WG_N = 2;
-layout (constant_id = 18) const uint inch = 1;
-layout (constant_id = 19) const uint outch = 1;
-layout (constant_id = 20) const uint elempack = 1;
-layout (constant_id = 21) const uint out_elempack = 1;
+layout (constant_id = 0) const uint batch = 1;
+layout (constant_id = 1) const uint M = 1;
+layout (constant_id = 2) const uint N = 1;
+layout (constant_id = 3) const uint K = 1;
+layout (constant_id = 4) const uint UNROLL_SG_M = 2;
+layout (constant_id = 5) const uint UNROLL_SG_N = 2;
+layout (constant_id = 6) const uint UNROLL_SG_K = 2;
+layout (constant_id = 7) const uint UNROLL_WG_M = 2;
+layout (constant_id = 8) const uint UNROLL_WG_N = 2;
+layout (constant_id = 9) const uint inch = 1;
+layout (constant_id = 10) const uint outch = 1;
+layout (constant_id = 11) const uint elempack = 1;
+layout (constant_id = 12) const uint out_elempack = 1;
+layout (constant_id = 13) const uint wbstep = 0;
 
-#define shape_constant_id_offset 22
-layout (constant_id = shape_constant_id_offset + 0) const uint w = 0;
-layout (constant_id = shape_constant_id_offset + 1) const uint h = 0;
-layout (constant_id = shape_constant_id_offset + 2) const uint cstep = 0;
-layout (constant_id = shape_constant_id_offset + 3) const uint outw = 0;
-layout (constant_id = shape_constant_id_offset + 4) const uint outh = 0;
-layout (constant_id = shape_constant_id_offset + 5) const uint outcstep = 0;
+#define shape_constant_id_offset 14
+layout (constant_id = shape_constant_id_offset + 0) const uint size = 0;
+layout (constant_id = shape_constant_id_offset + 1) const uint cstep = 0;
+layout (constant_id = shape_constant_id_offset + 2) const uint outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { uvec2 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { uvec2 top_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { uvec2 weight_data[]; };
-layout (binding = 3) readonly buffer bias_blob { uvec2 bias_data[]; };
+layout (binding = 0) readonly buffer bottom_tm_blob { uvec2 bottom_tm_blob_data[]; };
+layout (binding = 1) writeonly buffer top_tm_blob { uvec2 top_tm_blob_data[]; };
+layout (binding = 2) readonly buffer weight_tm_blob { uvec2 weight_tm_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    uint w;
-    uint h;
+    uint size;
     uint cstep;
-    uint outw;
-    uint outh;
     uint outcstep;
 } p;
 
@@ -99,10 +84,14 @@ void main()
     //    v  +------+------+------+------+
     //
 
+    const uint gz = gl_GlobalInvocationID.z;
+    if (gz >= batch)
+        return;
+
     const uint wgi = gl_WorkGroupID.x;
     const uint sgi = gl_SubgroupID;
 
-    const uint wgmm = (psc(outw) * psc(outh) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
+    const uint wgmm = (psc(size) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
     const uint wgnn = (outch + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
 
     const uint wgmi = wgi / wgnn;
@@ -111,11 +100,9 @@ void main()
     const uint sgmi = sgi / UNROLL_WG_N;
     const uint sgni = sgi % UNROLL_WG_N;
 
-    const uint maxk = kernel_w * kernel_h;
-
-//     const uint mm = (psc(outw) * psc(outh) + M - 1) / M;
+//     const uint mm = (psc(size) + M - 1) / M;
 //     const uint nn = (outch + N - 1) / N;
-    const uint kk = (inch * maxk + K - 1) / K;
+    const uint kk = (inch + K - 1) / K;
 
     if (wgmi >= wgmm)
         return;
@@ -140,48 +127,19 @@ void main()
 #endif
 #endif
 
-    if (bias_term == 1)
+    [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
     {
-        [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
-            coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> bias;
-            coopMatLoad(bias, bias_data, ((wgni* UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * Nd4, 0, gl_CooperativeMatrixLayoutRowMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-            fcoopmatNV<16, gl_ScopeSubgroup, M, N> bias;
-            coopMatLoadNV(bias, bias_data, ((wgni* UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * Nd4, 0, false);
-#endif
-
-            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-            {
-#if NCNN_fp16_arithmetic
-                sum[zn][zm] = bias;
-#else
-#if ncnn_VK_KHR_cooperative_matrix
-                sum[zn][zm] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(bias);
-#elif ncnn_VK_NV_cooperative_matrix
-                sum[zn][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(bias);
-#endif
-#endif
-            }
-        }
-    }
-    else
-    {
-        [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-        {
-            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-            {
-#if ncnn_VK_KHR_cooperative_matrix
-                sum[zn][zm] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
+            sum[zn][zm] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
 #elif ncnn_VK_NV_cooperative_matrix
 #if NCNN_fp16_arithmetic
-                sum[zn][zm] = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(0.f);
+            sum[zn][zm] = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(0.f);
 #else
-                sum[zn][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(0.f);
+            sum[zn][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(0.f);
 #endif
 #endif
-            }
         }
     }
 
@@ -241,35 +199,9 @@ void main()
                             const uint gk = ki + zk * K + i;
                             const uint gm = (mi + zm) * Md4 + j;
 
-                            const uint sz = gk / maxk;
-                            const uint kykx = gk % maxk;
+                            uvec2 v = gk < inch && gm < cstepd4 ? bottom_tm_blob_data[(gz * inch + gk) * cstepd4 + gm] : uvec2(0);
 
-                            const uint ky = kykx / kernel_w;
-                            const uint kx = kykx % kernel_w;
-
-                            const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
-
-                            const uvec4 sy = gm4 / psc(outw);
-                            const uvec4 sx = gm4 % psc(outw);
-
-                            const uvec4 sxs = sx * stride_w;
-                            const uvec4 sys = sy * stride_h;
-
-                            const uvec4 si4 = (sys + ky * dilation_h) * psc(w) + sxs + kx * dilation_w;
-
-                            const uvec4 v_offset = sz * psc(cstep) + si4;
-
-                            const uvec4 v_offset_d4 = v_offset / 4;
-                            const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
-                            const uvec4 v_offset_m2 = v_offset % 2;
-
-                            vec4 v;
-                            v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                            v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                            v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                            v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
-
-                            prefetch_tmp_v[q] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
+                            prefetch_tmp_v[q] = v;
                         }
                     }
                 }
@@ -311,21 +243,7 @@ void main()
                             const uint gm = mi * M + zmi;
                             const uint gk = ki / 4 + zk * Kd4 + j;
 
-                            const uint sz = gk / maxk;
-                            const uint kykx = gk % maxk;
-
-                            const uint ky = kykx / kernel_w;
-                            const uint kx = kykx % kernel_w;
-
-                            const uint sy = gm / psc(outw);
-                            const uint sx = gm % psc(outw);
-
-                            const uint sxs = sx * stride_w;
-                            const uint sys = sy * stride_h;
-
-                            const uint si = (sys + ky * dilation_h) * psc(w) + sxs + kx * dilation_w;
-
-                            uvec2 v = sz < inchd4 && si < psc(cstep) ? bottom_blob_data[sz * psc(cstep) + si] : uvec2(0);
+                            uvec2 v = gk < inchd4 && gm < psc(cstep) ? bottom_tm_blob_data[(gz * inchd4 + gk) * psc(cstep) + gm] : uvec2(0);
 
                             prefetch_tmp_v[q] = v;
                         }
@@ -353,12 +271,12 @@ void main()
                 //   |    |   |
                 //   v    +---+
 
-                // weight_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
+                // weight_tm_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
 
                 const uint Nd4_K_USGN = Nd4 * K * UNROLL_SG_N;
                 const uint Nd4_K_USGN_USGK = Nd4 * K * UNROLL_SG_N * UNROLL_SG_K;
 
-                const uint w_offset = ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
+                const uint w_offset = gz * wbstep / 4 + ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
 
                 const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
                 [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
@@ -367,7 +285,7 @@ void main()
 
                     if (Nd4_K_USGN_USGK % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
                     {
-                        prefetch_tmp_k[q] = weight_data[w_offset + siq];
+                        prefetch_tmp_k[q] = weight_tm_data[w_offset + siq];
                     }
                 }
             }
@@ -457,6 +375,8 @@ void main()
                         //   |    |   |
                         //   v    +---+
 
+                        const uint cstepd4 = psc(cstep) / 4;
+
                         const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
                         const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
                         [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
@@ -475,35 +395,9 @@ void main()
                                 const uint gk = ki + zk * K + i;
                                 const uint gm = (mi + zm) * Md4 + j;
 
-                                const uint sz = gk / maxk;
-                                const uint kykx = gk % maxk;
+                                uvec2 v = gk < inch && gm < cstepd4 ? bottom_tm_blob_data[(gz * inch + gk) * cstepd4 + gm] : uvec2(0);
 
-                                const uint ky = kykx / kernel_w;
-                                const uint kx = kykx % kernel_w;
-
-                                const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
-
-                                const uvec4 sy = gm4 / psc(outw);
-                                const uvec4 sx = gm4 % psc(outw);
-
-                                const uvec4 sxs = sx * stride_w;
-                                const uvec4 sys = sy * stride_h;
-
-                                const uvec4 si4 = (sys + ky * dilation_h) * psc(w) + sxs + kx * dilation_w;
-
-                                const uvec4 v_offset = sz * psc(cstep) + si4;
-
-                                const uvec4 v_offset_d4 = v_offset / 4;
-                                const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
-                                const uvec4 v_offset_m2 = v_offset % 2;
-
-                                vec4 v;
-                                v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                                v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                                v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                                v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
-
-                                prefetch_tmp_v[q] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
+                                prefetch_tmp_v[q] = v;
                             }
                         }
                     }
@@ -545,21 +439,7 @@ void main()
                                 const uint gm = mi * M + zmi;
                                 const uint gk = ki / 4 + zk * Kd4 + j;
 
-                                const uint sz = gk / maxk;
-                                const uint kykx = gk % maxk;
-
-                                const uint ky = kykx / kernel_w;
-                                const uint kx = kykx % kernel_w;
-
-                                const uint sy = gm / psc(outw);
-                                const uint sx = gm % psc(outw);
-
-                                const uint sxs = sx * stride_w;
-                                const uint sys = sy * stride_h;
-
-                                const uint si = (sys + ky * dilation_h) * psc(w) + sxs + kx * dilation_w;
-
-                                uvec2 v = sz < inchd4 && si < psc(cstep) ? bottom_blob_data[sz * psc(cstep) + si] : uvec2(0);
+                                uvec2 v = gk < inchd4 && gm < psc(cstep) ? bottom_tm_blob_data[(gz * inchd4 + gk) * psc(cstep) + gm] : uvec2(0);
 
                                 prefetch_tmp_v[q] = v;
                             }
@@ -587,12 +467,12 @@ void main()
                     //   |    |   |
                     //   v    +---+
 
-                    // weight_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
+                    // weight_tm_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
 
                     const uint Nd4_K_USGN = Nd4 * K * UNROLL_SG_N;
                     const uint Nd4_K_USGN_USGK = Nd4 * K * UNROLL_SG_N * UNROLL_SG_K;
 
-                    const uint w_offset = ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
+                    const uint w_offset = gz * wbstep / 4 + ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
 
                     const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
                     [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
@@ -601,7 +481,7 @@ void main()
 
                         if (Nd4_K_USGN_USGK % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
                         {
-                            prefetch_tmp_k[q] = weight_data[w_offset + siq];
+                            prefetch_tmp_k[q] = weight_tm_data[w_offset + siq];
                         }
                     }
                 }
@@ -796,6 +676,8 @@ void main()
                 //   |    |   |
                 //   v    +---+
 
+                const uint cstepd4 = psc(cstep) / 4;
+
                 const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
                 const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
                 [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
@@ -814,35 +696,9 @@ void main()
                         const uint gk = ki + zk * K + i;
                         const uint gm = (mi + zm) * Md4 + j;
 
-                        const uint sz = gk / maxk;
-                        const uint kykx = gk % maxk;
+                        uvec2 v = gk < inch && gm < cstepd4 ? bottom_tm_blob_data[(gz * inch  + gk) * cstepd4 + gm] : uvec2(0);
 
-                        const uint ky = kykx / kernel_w;
-                        const uint kx = kykx % kernel_w;
-
-                        const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
-
-                        const uvec4 sy = gm4 / psc(outw);
-                        const uvec4 sx = gm4 % psc(outw);
-
-                        const uvec4 sxs = sx * stride_w;
-                        const uvec4 sys = sy * stride_h;
-
-                        const uvec4 si4 = (sys + ky * dilation_h) * psc(w) + sxs + kx * dilation_w;
-
-                        const uvec4 v_offset = sz * psc(cstep) + si4;
-
-                        const uvec4 v_offset_d4 = v_offset / 4;
-                        const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
-                        const uvec4 v_offset_m2 = v_offset % 2;
-
-                        vec4 v;
-                        v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                        v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                        v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                        v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
-
-                        tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
+                        tmp_v[sgmi][siq] = v;
                     }
                 }
             }
@@ -884,21 +740,7 @@ void main()
                         const uint gm = mi * M + zmi;
                         const uint gk = ki / 4 + zk * Kd4 + j;
 
-                        const uint sz = gk / maxk;
-                        const uint kykx = gk % maxk;
-
-                        const uint ky = kykx / kernel_w;
-                        const uint kx = kykx % kernel_w;
-
-                        const uint sy = gm / psc(outw);
-                        const uint sx = gm % psc(outw);
-
-                        const uint sxs = sx * stride_w;
-                        const uint sys = sy * stride_h;
-
-                        const uint si = (sys + ky * dilation_h) * psc(w) + sxs + kx * dilation_w;
-
-                        uvec2 v = sz < inchd4 && si < psc(cstep) ? bottom_blob_data[sz * psc(cstep) + si] : uvec2(0);
+                        uvec2 v = gk < inchd4 && gm < psc(cstep) ? bottom_tm_blob_data[(gz * inchd4 + gk) * psc(cstep) + gm] : uvec2(0);
 
                         tmp_v[sgmi][siq] = v;
                     }
@@ -926,12 +768,12 @@ void main()
             //   |    |   |
             //   v    +---+
 
-            // weight_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
+            // weight_tm_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
 
             const uint Nd4_K_USGN = Nd4 * K * UNROLL_SG_N;
             const uint Nd4_K_USGN_USGK = Nd4 * K * UNROLL_SG_N * UNROLL_SG_K;
 
-            const uint w_offset = ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
+            const uint w_offset = gz * wbstep / 4 + ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
 
             const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
             [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
@@ -940,7 +782,7 @@ void main()
 
                 if (Nd4_K_USGN_USGK % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
                 {
-                    tmp_k[sgni][siq] = weight_data[w_offset + siq];
+                    tmp_k[sgni][siq] = weight_tm_data[w_offset + siq];
                 }
             }
         }
@@ -1009,7 +851,7 @@ void main()
 
         barrier();
 
-        // load bottom_blob
+        // load bottom_tm_blob
         {
             if (elempack == 1)
             {
@@ -1022,6 +864,8 @@ void main()
                 // WG_UM+- -+
                 //   |  |   |
                 //   v  +---+
+
+                const uint cstepd4 = psc(cstep) / 4;
 
                 const uint Md4_K_USGM = Md4 * K * UNROLL_SG_M;
                 const uint Md4_K_USGM_d_subgroupsize = (Md4_K_USGM + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
@@ -1039,35 +883,9 @@ void main()
                         const uint gk = ki + i;
                         const uint gm = (mi + zm) * Md4 + j;
 
-                        const uint sz = gk / maxk;
-                        const uint kykx = gk % maxk;
+                        uvec2 v = gk < inch && gm < cstepd4 ? bottom_tm_blob_data[(gz * inch + gk) * cstepd4 + gm] : uvec2(0);
 
-                        const uint ky = kykx / kernel_w;
-                        const uint kx = kykx % kernel_w;
-
-                        const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
-
-                        const uvec4 sy = gm4 / psc(outw);
-                        const uvec4 sx = gm4 % psc(outw);
-
-                        const uvec4 sxs = sx * stride_w;
-                        const uvec4 sys = sy * stride_h;
-
-                        const uvec4 si4 = (sys + ky * dilation_h) * psc(w) + sxs + kx * dilation_w;
-
-                        const uvec4 v_offset = sz * psc(cstep) + si4;
-
-                        const uvec4 v_offset_d4 = v_offset / 4;
-                        const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
-                        const uvec4 v_offset_m2 = v_offset % 2;
-
-                        vec4 v;
-                        v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                        v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                        v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                        v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
-
-                        tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
+                        tmp_v[sgmi][siq] = v;
                     }
                 }
             }
@@ -1099,21 +917,7 @@ void main()
                         const uint gm = mi * M + zmi;
                         const uint gk = ki / 4 + j;
 
-                        const uint sz = gk / maxk;
-                        const uint kykx = gk % maxk;
-
-                        const uint ky = kykx / kernel_w;
-                        const uint kx = kykx % kernel_w;
-
-                        const uint sy = gm / psc(outw);
-                        const uint sx = gm % psc(outw);
-
-                        const uint sxs = sx * stride_w;
-                        const uint sys = sy * stride_h;
-
-                        const uint si = (sys + ky * dilation_h) * psc(w) + sxs + kx * dilation_w;
-
-                        uvec2 v = sz < inchd4 && si < psc(cstep) ? bottom_blob_data[sz * psc(cstep) + si] : uvec2(0);
+                        uvec2 v = gk < inchd4 && gm < psc(size) ? bottom_tm_blob_data[(gz * inchd4 + gk) * psc(cstep) + gm] : uvec2(0);
 
                         tmp_v[sgmi][siq] = v;
                     }
@@ -1133,11 +937,11 @@ void main()
             //   |  |   |
             //   v  +---+
 
-            // weight_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
+            // weight_tm_data   coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n
 
             const uint Nd4_K_USGN = Nd4 * K * UNROLL_SG_N;
 
-            const uint w_offset = ((wgni * kk + k) * UNROLL_WG_N + sgni) * Nd4_K_USGN;
+            const uint w_offset = gz * wbstep / 4 + ((wgni * kk + k) * UNROLL_WG_N + sgni) * Nd4_K_USGN;
 
             const uint Nd4_K_USGN_d_subgroupsize = (Nd4_K_USGN + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
             [[unroll]] for (uint q = 0; q < Nd4_K_USGN_d_subgroupsize; q++)
@@ -1146,7 +950,7 @@ void main()
 
                 if (Nd4_K_USGN % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN)
                 {
-                    tmp_k[sgni][siq] = weight_data[w_offset + siq];
+                    tmp_k[sgni][siq] = weight_tm_data[w_offset + siq];
                 }
             }
         }
@@ -1249,7 +1053,7 @@ void main()
 
     barrier();
 
-    // store top_blob
+    // store top_tm_blob
     {
         if (out_elempack == 1)
         {
@@ -1309,20 +1113,7 @@ void main()
 
                     if (gn < outch && gm < outcstepd4)
                     {
-                        uvec2 sum = tmp_o[sgi][siq];
-
-                        if (activation_type == 0)
-                        {
-                            top_blob_data[gn * outcstepd4 + gm] = sum;
-                        }
-                        else
-                        {
-                            afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
-
-                            v = activation_afpvec4(v, activation_type, activation_param_0, activation_param_1);
-
-                            top_blob_data[gn * outcstepd4 + gm] = uvec2(packHalf2x16(vec4(v).rg), packHalf2x16(vec4(v).ba));
-                        }
+                        top_tm_blob_data[(gz * outch + gn) * outcstepd4 + gm] = tmp_o[sgi][siq];
                     }
                 }
             }
@@ -1381,22 +1172,9 @@ void main()
                     const uint gn = (ni + zn) * Nd4 + j;
                     const uint gm = mi * M + zmi;
 
-                    if (gn < outchd4 && gm < psc(outcstep))
+                    if (gn < outchd4 && gm < psc(size))
                     {
-                        uvec2 sum = tmp_o[sgi][siq];
-
-                        if (activation_type == 0)
-                        {
-                            top_blob_data[gn * psc(outcstep) + gm] = sum;
-                        }
-                        else
-                        {
-                            afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
-
-                            v = activation_afpvec4(v, activation_type, activation_param_0, activation_param_1);
-
-                            top_blob_data[gn * psc(outcstep) + gm] = uvec2(packHalf2x16(vec4(v).rg), packHalf2x16(vec4(v).ba));
-                        }
+                        top_tm_blob_data[(gz * outchd4 + gn) * psc(outcstep) + gm] = tmp_o[sgi][siq];
                     }
                 }
             }

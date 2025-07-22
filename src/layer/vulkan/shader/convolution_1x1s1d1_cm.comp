@@ -331,8 +331,6 @@ void main()
                 {
                     if (elempack == 1)
                     {
-                        const uint cstepd4 = psc(cstep) / 4;
-
                         const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
                         const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
                         [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
@@ -347,8 +345,6 @@ void main()
                     }
                     else // if (elempack == 4)
                     {
-                        const uint inchd4 = inch / 4;
-
                         const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
                         const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
                         [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
@@ -365,11 +361,7 @@ void main()
 
                 // load weight
                 {
-                    const uint Nd4_K_USGN = Nd4 * K * UNROLL_SG_N;
                     const uint Nd4_K_USGN_USGK = Nd4 * K * UNROLL_SG_N * UNROLL_SG_K;
-
-                    const uint w_offset = ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
-
                     const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
                     [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
                     {
@@ -537,29 +529,29 @@ void main()
                 {
                     if (elempack == 1)
                     {
-    #if ncnn_VK_KHR_cooperative_matrix
+#if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
-    #elif ncnn_VK_NV_cooperative_matrix
+#elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
-    #endif
+#endif
                     }
                     else // if (elempack == 4)
                     {
-    #if ncnn_VK_KHR_cooperative_matrix
+#if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
-    #elif ncnn_VK_NV_cooperative_matrix
+#elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(A[zm], tmp_v[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
-    #endif
+#endif
                     }
                 }
 
                 [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
                 {
-    #if ncnn_VK_KHR_cooperative_matrix
+#if ncnn_VK_KHR_cooperative_matrix
                     coopMatLoad(B[zn], tmp_k[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
-    #elif ncnn_VK_NV_cooperative_matrix
+#elif ncnn_VK_NV_cooperative_matrix
                     coopMatLoadNV(B[zn], tmp_k[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
-    #endif
+#endif
                 }
 
                 // sum += k * v
@@ -567,11 +559,11 @@ void main()
                 {
                     [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
                     {
-    #if ncnn_VK_KHR_cooperative_matrix
+#if ncnn_VK_KHR_cooperative_matrix
                         sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
-    #elif ncnn_VK_NV_cooperative_matrix
+#elif ncnn_VK_NV_cooperative_matrix
                         sum[zn][zm] = coopMatMulAddNV(A[zm], B[zn], sum[zn][zm]);
-    #endif
+#endif
                     }
                 }
             }
@@ -585,8 +577,6 @@ void main()
             {
                 if (elempack == 1)
                 {
-                    const uint cstepd4 = psc(cstep) / 4;
-
                     const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
                     const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
                     [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
@@ -601,8 +591,6 @@ void main()
                 }
                 else // if (elempack == 4)
                 {
-                    const uint inchd4 = inch / 4;
-
                     const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
                     const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
                     [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
@@ -619,11 +607,7 @@ void main()
 
             // load weight
             {
-                const uint Nd4_K_USGN = Nd4 * K * UNROLL_SG_N;
                 const uint Nd4_K_USGN_USGK = Nd4 * K * UNROLL_SG_N * UNROLL_SG_K;
-
-                const uint w_offset = ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
-
                 const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
                 [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
                 {
