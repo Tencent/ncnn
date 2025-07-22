@@ -485,13 +485,13 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
             else
             {
-                std::vector<vk_specialization_type> specializations(1 + 5);
+                std::vector<vk_specialization_type> specializations(3 + 3);
                 specializations[0].i = 36;
-                specializations[1 + 0].i = num_input / elempack;
-                specializations[1 + 1].i = shape_winograd_input_transformed_packed.cstep;
-                specializations[1 + 2].i = shape_winograd_gemm_packed.w;
-                specializations[1 + 3].i = num_output / out_elempack;
-                specializations[1 + 4].i = shape_winograd_gemm_packed.cstep;
+                specializations[1].i = num_input / elempack;
+                specializations[2].i = num_output / out_elempack;
+                specializations[3 + 0].i = shape_winograd_input_transformed_packed.cstep;
+                specializations[3 + 1].i = shape_winograd_gemm_packed.w;
+                specializations[3 + 2].i = shape_winograd_gemm_packed.cstep;
 
                 int shader_type_index = -1;
                 if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd_gemm;
@@ -819,13 +819,13 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
             else
             {
-                std::vector<vk_specialization_type> specializations(1 + 5);
+                std::vector<vk_specialization_type> specializations(3 + 3);
                 specializations[0].i = 16;
-                specializations[1 + 0].i = num_input / elempack;
-                specializations[1 + 1].i = shape_winograd_input_transformed_packed.cstep;
-                specializations[1 + 2].i = shape_winograd_gemm_packed.w;
-                specializations[1 + 3].i = num_output / out_elempack;
-                specializations[1 + 4].i = shape_winograd_gemm_packed.cstep;
+                specializations[1].i = num_input / elempack;
+                specializations[2].i = num_output / out_elempack;
+                specializations[3 + 0].i = shape_winograd_input_transformed_packed.cstep;
+                specializations[3 + 1].i = shape_winograd_gemm_packed.w;
+                specializations[3 + 2].i = shape_winograd_gemm_packed.cstep;
 
                 int shader_type_index = -1;
                 if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd_gemm;
@@ -1774,12 +1774,10 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     bindings[1] = top_tm_blob;
                     bindings[2] = weight_data_gpu_tm_winograd43;
 
-                    std::vector<vk_constant_type> constants(5);
-                    constants[0].i = channels;
-                    constants[1].i = bottom_tm_blob.cstep;
-                    constants[2].i = top_tm_blob.w;
-                    constants[3].i = num_output / out_elempack;
-                    constants[4].i = top_tm_blob.cstep;
+                    std::vector<vk_constant_type> constants(3);
+                    constants[0].i = bottom_tm_blob.cstep;
+                    constants[1].i = top_tm_blob.w;
+                    constants[2].i = top_tm_blob.cstep;
 
                     VkMat dispatcher;
                     dispatcher.w = (top_tm_blob.w + 3) / 4;
@@ -1888,12 +1886,10 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     bindings[1] = top_tm_blob;
                     bindings[2] = weight_data_gpu_tm_winograd23;
 
-                    std::vector<vk_constant_type> constants(5);
-                    constants[0].i = channels;
-                    constants[1].i = bottom_tm_blob.cstep;
-                    constants[2].i = top_tm_blob.w;
-                    constants[3].i = num_output / out_elempack;
-                    constants[4].i = top_tm_blob.cstep;
+                    std::vector<vk_constant_type> constants(3);
+                    constants[0].i = bottom_tm_blob.cstep;
+                    constants[1].i = top_tm_blob.w;
+                    constants[2].i = top_tm_blob.cstep;
 
                     VkMat dispatcher;
                     dispatcher.w = (top_tm_blob.w + 3) / 4;

@@ -4,14 +4,13 @@
 #version 450
 
 layout (constant_id = 0) const int batch = 1;
+layout (constant_id = 1) const int c = 0;
+layout (constant_id = 2) const int outc = 0;
 
-#define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
-
-layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+#define shape_constant_id_offset 3
+layout (constant_id = shape_constant_id_offset + 0) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
 
 layout (binding = 0) readonly buffer bottom_tm_blob { sfpvec8 bottom_tm_blob_data[]; };
 layout (binding = 1) writeonly buffer top_tm_blob { sfpvec4 top_tm_blob_data[]; };
@@ -19,11 +18,8 @@ layout (binding = 2) readonly buffer weight_tm_blob { sfpvec8 weight_tm_data[]; 
 
 layout (push_constant) uniform parameter
 {
-    int c;
     int cstep;
-
     int outw;
-    int outc;
     int outcstep;
 } p;
 
@@ -33,7 +29,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
+    if (gx >= psc(outw) || gy >= outc || gz >= batch)
         return;
 
     afpvec4 sum0 = afpvec4(0.f);
@@ -41,10 +37,10 @@ void main()
     afpvec4 sum2 = afpvec4(0.f);
     afpvec4 sum3 = afpvec4(0.f);
 
-    int v_offset = gz * psc(c) * psc(cstep) + gx;
-    int w_offset = (gz * psc(c) * psc(outc) + gy * psc(c)) * 4;
+    int v_offset = gz * c * psc(cstep) + gx;
+    int w_offset = (gz * c * outc + gy * c) * 4;
 
-    for (int z = 0; z < psc(c); z++)
+    for (int z = 0; z < c; z++)
     {
         afpvec8 v0 = buffer_ld8(bottom_tm_blob_data, v_offset + 0);
         afpvec8 v1 = buffer_ld8(bottom_tm_blob_data, v_offset + 1);
@@ -81,7 +77,7 @@ void main()
         w_offset += 4;
     }
 
-    int gi = gz * psc(outc) * psc(outcstep) + gy * psc(outcstep) + gx;
+    int gi = gz * outc * psc(outcstep) + gy * psc(outcstep) + gx;
 
     buffer_st4(top_tm_blob_data, gi + 0, sum0);
     if (gx + 1 < psc(outw)) buffer_st4(top_tm_blob_data, gi + 1, sum1);
