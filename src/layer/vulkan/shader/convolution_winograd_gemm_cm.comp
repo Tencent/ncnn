@@ -917,7 +917,7 @@ void main()
                         const uint gm = mi * M + zmi;
                         const uint gk = ki / 4 + j;
 
-                        uvec2 v = gk < inchd4 && gm < psc(size) ? bottom_tm_blob_data[(gz * inchd4 + gk) * psc(cstep) + gm] : uvec2(0);
+                        uvec2 v = gk < inchd4 && gm < psc(cstep) ? bottom_tm_blob_data[(gz * inchd4 + gk) * psc(cstep) + gm] : uvec2(0);
 
                         tmp_v[sgmi][siq] = v;
                     }
