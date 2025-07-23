@@ -396,7 +396,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         {
-            std::vector<vk_specialization_type> specializations(10 + 7);
+            std::vector<vk_specialization_type> specializations(11 + 6);
             specializations[0].i = kernel_w;
             specializations[1].i = kernel_h;
             specializations[2].i = dilation_w;
@@ -407,13 +407,13 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             specializations[7].i = activation_type;
             specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-            specializations[10 + 0].i = shape_packed.w;
-            specializations[10 + 1].i = shape_packed.h;
-            specializations[10 + 2].i = out_shape_col_packed.cstep;
-            specializations[10 + 3].i = out_shape_bordered_packed.w;
-            specializations[10 + 4].i = out_shape_bordered_packed.h;
-            specializations[10 + 5].i = out_shape_bordered_packed.c;
-            specializations[10 + 6].i = out_shape_bordered_packed.cstep;
+            specializations[10].i = num_output / out_elempack;
+            specializations[11 + 0].i = shape_packed.w;
+            specializations[11 + 1].i = shape_packed.h;
+            specializations[11 + 2].i = out_shape_col_packed.cstep;
+            specializations[11 + 3].i = out_shape_bordered_packed.w;
+            specializations[11 + 4].i = out_shape_bordered_packed.h;
+            specializations[11 + 5].i = out_shape_bordered_packed.cstep;
 
             Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
             if (out_shape_bordered_packed.dims != 0)
@@ -704,14 +704,13 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             bindings[1] = top_blob_bordered;
             bindings[2] = bias_data_gpu;
 
-            std::vector<vk_constant_type> constants(7);
+            std::vector<vk_constant_type> constants(6);
             constants[0].i = w;
             constants[1].i = h;
             constants[2].i = top_blob_col.cstep;
             constants[3].i = top_blob_bordered.w;
             constants[4].i = top_blob_bordered.h;
-            constants[5].i = top_blob_bordered.c;
-            constants[6].i = top_blob_bordered.cstep;
+            constants[5].i = top_blob_bordered.cstep;
 
             cmd.record_pipeline(pipeline_deconvolution_col2im, bindings, constants, top_blob_bordered);
         }
