@@ -198,7 +198,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 
             Mat weight_data_r2;
 
-            // TODO
             if (out_elempack == 4)
             {
                 // from maxk-inch-outch to inch-4*maxk-outch/4
@@ -363,14 +362,14 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             specializations[1 + 1].i = shape_packed.h;
             specializations[1 + 2].i = shape_packed.c;
             specializations[1 + 3].i = shape_packed.cstep;
-            specializations[1 + 4].i = out_shape_col_packed.w;
-            specializations[1 + 5].i = out_shape_col_packed.h;
+            specializations[1 + 4].i = out_shape_col_packed.cstep;
+            specializations[1 + 5].i = out_shape_col_packed.c;
 
             Mat local_size_xyz(8, std::min(4, num_output / out_elempack), 1, (void*)0);
             if (out_shape_col_packed.dims != 0)
             {
                 local_size_xyz.w = std::min(8, out_shape_col_packed.w);
-                local_size_xyz.h = std::min(4, out_shape_col_packed.h);
+                local_size_xyz.h = std::min(4, out_shape_col_packed.c);
             }
 
             int shader_type_index = -1;
@@ -675,12 +674,12 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 constants[1].i = bottom_blob.h;
                 constants[2].i = bottom_blob.c;
                 constants[3].i = bottom_blob.cstep;
-                constants[4].i = top_blob_col.w;
-                constants[5].i = top_blob_col.h;
+                constants[4].i = top_blob_col.cstep;
+                constants[5].i = top_blob_col.c;
 
                 VkMat dispatcher;
-                dispatcher.w = (top_blob_col.w + 3) / 4;
-                dispatcher.h = top_blob_col.h;
+                dispatcher.w = (top_blob_col.cstep + 3) / 4;
+                dispatcher.h = top_blob_col.c;
                 dispatcher.c = 1;
 
                 cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher);
