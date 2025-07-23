@@ -133,14 +133,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { cpu: x60, QEMU_CPU: rv64, OPENMP: ON, RVV: ON, XTHEADVECTOR: OFF, ZFH: ON, ZVFH: ON }
+          - { cpu: x60, QEMU_CPU: "max,vlen=256,elen=64,vext_spec=v1.0", OPENMP: ON, RVV: ON, XTHEADVECTOR: OFF, ZFH: ON, ZVFH: ON }
 
     steps:
     - uses: actions/checkout@v4
 
+    # https://archive.spacemit.com/toolchain/spacemit-toolchain-linux-glibc-x86_64-v1.1.2.tar.xz
     - name: build-gcc
       run: |
-        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.0.5
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
         mkdir build-gcc && cd build-gcc
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/k1.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
             -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
@@ -154,7 +155,7 @@ jobs:
 
     - name: build-llvm
       run: |
-        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.0.5
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
         mkdir build-llvm && cd build-llvm
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/k1.llvm.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
             -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
@@ -166,11 +167,20 @@ jobs:
             -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 8
 
-    # - name: test-gcc
-    #   run: |
-    #     export PATH=/data/action/osd/spacemit-ai-sdk.v1.1.0/spacemit-qemu/bin:$PATH
-    #     cd build-gcc
-    #     TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }}" ctest --output-on-failure -j 8
+    # https://archive.spacemit.com/spacemit-ai/qemu/jdsk-qemu-v0.0.14.tar.gz
+    - name: test-gcc
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
+        export PATH=/data/action/osd/jdsk-qemu/bin:$PATH
+        cd build-gcc
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }};-L;${RISCV_ROOT_PATH}/sysroot" ctest --output-on-failure -j 8
+
+    - name: test-llvm
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
+        export PATH=/data/action/osd/jdsk-qemu/bin:$PATH
+        cd build-llvm
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }};-L;${RISCV_ROOT_PATH}/sysroot" ctest --output-on-failure -j 8
 
   gcc-rvv:
     runs-on: [self-hosted, linux, ubuntu]
