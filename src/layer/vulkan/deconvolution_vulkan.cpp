@@ -134,7 +134,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         convert_packing(bias_data, bias_data_packed, out_elempack, opt);
     }
 
-    if (opt.use_sgemm_convolution)
+    if (opt.use_sgemm_convolution && num_input >= 8 && maxk * num_output >= 8)
     {
         Mat out_shape_col;
         if (shape.dims != 0 && out_shape.dims != 0)
@@ -624,11 +624,12 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    VkMat top_blob_bordered;
-    if (opt.use_sgemm_convolution)
-    {
-        const int maxk = kernel_w * kernel_h;
+    const int num_input = channels * elempack;
+    const int maxk = kernel_w * kernel_h;
 
+    VkMat top_blob_bordered;
+    if (opt.use_sgemm_convolution && num_input >= 8 && maxk * num_output >= 8)
+    {
         // gemm
         VkMat top_blob_col;
         {
