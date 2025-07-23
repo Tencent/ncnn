@@ -16,7 +16,7 @@
 
 #if !NCNN_SIMPLESTL
 #include <algorithm>
-#include <cstdint>
+#include <stdint.h>
 #include <utility>
 #include <vector>
 #endif
@@ -1775,7 +1775,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
     if (glpie != NULL)
     {
         DWORD bufferSize = 0;
-        glpie(RelationProcessorCore, nullptr, &bufferSize);
+        glpie(RelationProcessorCore, NULL, &bufferSize);
         std::vector<BYTE> buffer(bufferSize);
         if (!glpie(RelationProcessorCore, (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
         {
@@ -2425,7 +2425,7 @@ namespace ncnn {
 
 // New unified CpuSet implementation supporting >64 CPUs
 CpuSet::CpuSet()
-    : fast_mask(0), extended_mask(nullptr), extended_capacity(0), use_extended(false)
+    : fast_mask(0), extended_mask(NULL), extended_capacity(0), use_extended(false)
 #if defined _WIN32
     ,
       legacy_mask_cache(0),
@@ -2433,7 +2433,7 @@ CpuSet::CpuSet()
 #endif
 #if defined __ANDROID__ || defined __linux__
     ,
-      cpu_set_cache(nullptr),
+      cpu_set_cache(NULL),
       cpu_set_valid(false)
 #endif
 #if __APPLE__
@@ -2445,7 +2445,7 @@ CpuSet::CpuSet()
 }
 
 CpuSet::CpuSet(const CpuSet& other)
-    : fast_mask(0), extended_mask(nullptr), extended_capacity(0), use_extended(false)
+    : fast_mask(0), extended_mask(NULL), extended_capacity(0), use_extended(false)
 #if defined _WIN32
     ,
       legacy_mask_cache(0),
@@ -2453,7 +2453,7 @@ CpuSet::CpuSet(const CpuSet& other)
 #endif
 #if defined __ANDROID__ || defined __linux__
     ,
-      cpu_set_cache(nullptr),
+      cpu_set_cache(NULL),
       cpu_set_valid(false)
 #endif
 #if __APPLE__
@@ -2494,7 +2494,7 @@ void CpuSet::copy_from(const CpuSet& other)
     if (extended_mask)
     {
         free(extended_mask);
-        extended_mask = nullptr;
+        extended_mask = NULL;
     }
     extended_capacity = 0;
 
@@ -2522,7 +2522,7 @@ void CpuSet::copy_from(const CpuSet& other)
     if (cpu_set_cache)
     {
         CPU_FREE(cpu_set_cache);
-        cpu_set_cache = nullptr;
+        cpu_set_cache = NULL;
     }
 #endif
 #if __APPLE__
@@ -2673,18 +2673,20 @@ bool CpuSet::is_enabled(int cpu) const
 // Helper function to count bits in a 64-bit integer
 static int popcount64(uint64_t x)
 {
-#if defined(__GNUC__) || defined(__clang__)
-    return __builtin_popcountll(x);
-#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
     // __popcnt64 is only available on x86/x64, not on ARM
     return (int)__popcnt64(x);
+#elif (defined(__GNUC__) || defined(__clang__)) && defined(__POPCNT__) && !defined(__FREESTANDING__) && !NCNN_SIMPLESTL
+    // Only use builtin if POPCNT instruction is available
+    return __builtin_popcountll(x);
 #else
-    // Fallback implementation for ARM and other architectures
+    // Fallback implementation for compatibility
+    // Use Brian Kernighan's algorithm for better performance
     int count = 0;
     while (x)
     {
-        count += x & 1;
-        x >>= 1;
+        x &= x - 1; // Clear the lowest set bit
+        count++;
     }
     return count;
 #endif
@@ -2842,7 +2844,7 @@ const cpu_set_t* CpuSet::get_cpu_set() const
         {
             cpu_set_cache = CPU_ALLOC(CPU_SETSIZE);
             if (!cpu_set_cache)
-                return nullptr;
+                return NULL;
         }
 
         CPU_ZERO_S(CPU_ALLOC_SIZE(CPU_SETSIZE), cpu_set_cache);
