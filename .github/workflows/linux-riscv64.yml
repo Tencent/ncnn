@@ -170,12 +170,14 @@ jobs:
     # https://archive.spacemit.com/spacemit-ai/qemu/jdsk-qemu-v0.0.14.tar.gz
     - name: test-gcc
       run: |
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
         export PATH=/data/action/osd/jdsk-qemu/bin:$PATH
         cd build-gcc
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }};-L;${RISCV_ROOT_PATH}/sysroot" ctest --output-on-failure -j 8
 
     - name: test-llvm
       run: |
+        export RISCV_ROOT_PATH=/data/action/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
         export PATH=/data/action/osd/jdsk-qemu/bin:$PATH
         cd build-llvm
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }};-L;${RISCV_ROOT_PATH}/sysroot" ctest --output-on-failure -j 8
