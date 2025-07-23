@@ -59,6 +59,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        use_pypi: true
         files: build/lcov.info
 
   linux-gcc-x64:
