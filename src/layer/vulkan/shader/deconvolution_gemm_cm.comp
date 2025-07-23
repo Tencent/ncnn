@@ -19,21 +19,20 @@
 #extension GL_NV_cooperative_matrix: require
 #endif
 
-layout (constant_id = 0) const uint maxk = 1;
-layout (constant_id = 1) const uint M = 1;
-layout (constant_id = 2) const uint N = 1;
-layout (constant_id = 3) const uint K = 1;
-layout (constant_id = 4) const uint UNROLL_SG_M = 2;
-layout (constant_id = 5) const uint UNROLL_SG_N = 2;
-layout (constant_id = 6) const uint UNROLL_SG_K = 2;
-layout (constant_id = 7) const uint UNROLL_WG_M = 2;
-layout (constant_id = 8) const uint UNROLL_WG_N = 2;
-layout (constant_id = 9) const uint inch = 1;
-layout (constant_id = 10) const uint outch = 1;
-layout (constant_id = 11) const uint elempack = 1;
-layout (constant_id = 12) const uint out_elempack = 1;
+layout (constant_id = 0) const uint M = 1;
+layout (constant_id = 1) const uint N = 1;
+layout (constant_id = 2) const uint K = 1;
+layout (constant_id = 3) const uint UNROLL_SG_M = 2;
+layout (constant_id = 4) const uint UNROLL_SG_N = 2;
+layout (constant_id = 5) const uint UNROLL_SG_K = 2;
+layout (constant_id = 6) const uint UNROLL_WG_M = 2;
+layout (constant_id = 7) const uint UNROLL_WG_N = 2;
+layout (constant_id = 8) const uint inch = 1;
+layout (constant_id = 9) const uint outch = 1;
+layout (constant_id = 10) const uint elempack = 1;
+layout (constant_id = 11) const uint out_elempack = 1;
 
-#define shape_constant_id_offset 13
+#define shape_constant_id_offset 12
 layout (constant_id = shape_constant_id_offset + 0) const uint size = 0;
 layout (constant_id = shape_constant_id_offset + 1) const uint cstep = 0;
 layout (constant_id = shape_constant_id_offset + 2) const uint outcstep = 0;
@@ -87,7 +86,7 @@ void main()
     const uint sgi = gl_SubgroupID;
 
     const uint wgmm = (psc(size) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
-    const uint wgnn = (maxk * outch + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
+    const uint wgnn = (outch + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
 
     const uint wgmi = wgi / wgnn;
     const uint wgni = wgi % wgnn;
@@ -96,7 +95,7 @@ void main()
     const uint sgni = sgi % UNROLL_WG_N;
 
 //     const uint mm = (psc(size) + M - 1) / M;
-//     const uint nn = (maxk * outch + N - 1) / N;
+//     const uint nn = (outch + N - 1) / N;
     const uint kk = (inch + K - 1) / K;
 
     if (wgmi >= wgmm)
@@ -1106,22 +1105,9 @@ void main()
                     const uint gn = (ni + zn) * N + i;
                     const uint gm = (mi + zm) * Md4 + j;
 
-                    if (gn < maxk * outch && gm < outcstepd4)
+                    if (gn < outch && gm < outcstepd4)
                     {
-                        uvec2 sum = tmp_o[sgi][siq];
-
-                        if (activation_type == 0)
-                        {
-                            top_blob_data[gn * outcstepd4 + gm] = sum;
-                        }
-                        else
-                        {
-                            afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
-
-                            v = activation_afpvec4(v, activation_type, activation_param_0, activation_param_1);
-
-                            top_blob_data[gn * outcstepd4 + gm] = uvec2(packHalf2x16(vec4(v).rg), packHalf2x16(vec4(v).ba));
-                        }
+                        col_blob_data[gn * outcstepd4 + gm] = tmp_o[sgi][siq];
                     }
                 }
             }
@@ -1162,7 +1148,7 @@ void main()
             //   |      |   |
             //   v      +---+
 
-            const uint outchd4 = maxk * outch / 4;
+            const uint outchd4 = outch / 4;
 
             const uint Nd4_M_USGM_USGN = Nd4 * M * UNROLL_SG_M * UNROLL_SG_N;
             const uint Nd4_M_USGM_USGN_d_subgroupsize = (Nd4_M_USGM_USGN + ncnn_subgroupSize - 1) / ncnn_subgroupSize;
@@ -1182,20 +1168,7 @@ void main()
 
                     if (gn < outchd4 && gm < psc(outcstep))
                     {
-                        uvec2 sum = tmp_o[sgi][siq];
-
-                        if (activation_type == 0)
-                        {
-                            top_blob_data[gn * psc(outcstep) + gm] = sum;
-                        }
-                        else
-                        {
-                            afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
-
-                            v = activation_afpvec4(v, activation_type, activation_param_0, activation_param_1);
-
-                            top_blob_data[gn * psc(outcstep) + gm] = uvec2(packHalf2x16(vec4(v).rg), packHalf2x16(vec4(v).ba));
-                        }
+                        col_blob_data[gn * psc(outcstep) + gm] = tmp_o[sgi][siq];
                     }
                 }
             }

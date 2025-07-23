@@ -196,6 +196,43 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             // const int blocks_k = (num_input + coopmat_K * UNROLL_SG_K - 1) / (coopmat_K * UNROLL_SG_K);
             const int kk = (num_input + coopmat_K - 1) / coopmat_K;
 
+            Mat weight_data_r2;
+
+            // TODO
+            if (out_elempack == 4)
+            {
+                // from maxk-inch-outch to inch-4*maxk-outch/4
+                weight_data_r2.create(num_input * 4 * maxk * (num_output / 4));
+                for (int i = 0; i < num_output / 4; i++)
+                {
+                    for (int j = 0; j < maxk; j++)
+                    {
+                        for (int ii = 0; ii < 4; ii++)
+                        {
+                            for (int k = 0; k < num_input; k++)
+                            {
+                                weight_data_r2[((i * maxk + j) * 4 + ii) * num_input + k] = weight_data[((i * 4 + ii) * num_input + k) * maxk + j];
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // from maxk-inch-outch to inch-maxk-outch
+                weight_data_r2.create(num_input * maxk * num_output);
+                for (int i = 0; i < num_output; i++)
+                {
+                    for (int j = 0; j < maxk; j++)
+                    {
+                        for (int k = 0; k < num_input; k++)
+                        {
+                            weight_data_r2[(i * maxk + j) * num_input + k] = weight_data[(i * num_input + k) * maxk + j];
+                        }
+                    }
+                }
+            }
+
             weight_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n);
             for (int bn = 0; bn < blocks_n; bn++)
             {
@@ -221,7 +258,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 
                                         if (gni < maxk * num_output && gki < num_input)
                                         {
-                                            *p++ = weight_data[((gni / maxk) * num_input + gki) * maxk + (gni % maxk)];
+                                            *p++ = weight_data_r2[gni * num_input + gki];
                                         }
                                         else
                                         {
@@ -253,7 +290,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 
                                         if (gni < maxk * num_output && gki < num_input)
                                         {
-                                            *p++ = weight_data[((gni / maxk) * num_input + gki) * maxk + (gni % maxk)];
+                                            *p++ = weight_data_r2[gni * num_input + gki];
                                         }
                                         else
                                         {
@@ -267,23 +304,22 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
                 }
             }
 
-            std::vector<vk_specialization_type> specializations(13 + 3);
-            specializations[0].u32 = maxk;
-            specializations[1].u32 = coopmat_M;
-            specializations[2].u32 = coopmat_N;
-            specializations[3].u32 = coopmat_K;
-            specializations[4].u32 = UNROLL_SG_M;
-            specializations[5].u32 = UNROLL_SG_N;
-            specializations[6].u32 = UNROLL_SG_K;
-            specializations[7].u32 = UNROLL_WG_M;
-            specializations[8].u32 = UNROLL_WG_N;
-            specializations[9].u32 = num_input;
-            specializations[10].u32 = num_output;
-            specializations[11].u32 = elempack;
-            specializations[12].u32 = out_elempack;
-            specializations[13 + 0].u32 = shape_packed.w * shape_packed.h;
-            specializations[13 + 1].u32 = shape_packed.cstep;
-            specializations[13 + 2].u32 = out_shape_col_packed.cstep;
+            std::vector<vk_specialization_type> specializations(12 + 3);
+            specializations[0].u32 = coopmat_M;
+            specializations[1].u32 = coopmat_N;
+            specializations[2].u32 = coopmat_K;
+            specializations[3].u32 = UNROLL_SG_M;
+            specializations[4].u32 = UNROLL_SG_N;
+            specializations[5].u32 = UNROLL_SG_K;
+            specializations[6].u32 = UNROLL_WG_M;
+            specializations[7].u32 = UNROLL_WG_N;
+            specializations[8].u32 = num_input;
+            specializations[9].u32 = maxk * num_output;
+            specializations[10].u32 = elempack;
+            specializations[11].u32 = out_elempack;
+            specializations[12 + 0].u32 = shape_packed.w * shape_packed.h;
+            specializations[12 + 1].u32 = shape_packed.cstep;
+            specializations[12 + 2].u32 = out_shape_col_packed.cstep;
 
             const int subgroup_size = vkdev->info.subgroup_size();
 
@@ -361,7 +397,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         {
-            std::vector<vk_specialization_type> specializations(10 + 6);
+            std::vector<vk_specialization_type> specializations(10 + 7);
             specializations[0].i = kernel_w;
             specializations[1].i = kernel_h;
             specializations[2].i = dilation_w;
@@ -374,10 +410,11 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
             specializations[10 + 0].i = shape_packed.w;
             specializations[10 + 1].i = shape_packed.h;
-            specializations[10 + 2].i = out_shape_bordered_packed.w;
-            specializations[10 + 3].i = out_shape_bordered_packed.h;
-            specializations[10 + 4].i = out_shape_bordered_packed.c;
-            specializations[10 + 5].i = out_shape_bordered_packed.cstep;
+            specializations[10 + 2].i = out_shape_col_packed.cstep;
+            specializations[10 + 3].i = out_shape_bordered_packed.w;
+            specializations[10 + 4].i = out_shape_bordered_packed.h;
+            specializations[10 + 5].i = out_shape_bordered_packed.c;
+            specializations[10 + 6].i = out_shape_bordered_packed.cstep;
 
             Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
             if (out_shape_bordered_packed.dims != 0)
@@ -668,13 +705,14 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             bindings[1] = top_blob_bordered;
             bindings[2] = bias_data_gpu;
 
-            std::vector<vk_constant_type> constants(6);
+            std::vector<vk_constant_type> constants(7);
             constants[0].i = w;
             constants[1].i = h;
-            constants[2].i = top_blob_bordered.w;
-            constants[3].i = top_blob_bordered.h;
-            constants[4].i = top_blob_bordered.c;
-            constants[5].i = top_blob_bordered.cstep;
+            constants[2].i = top_blob_col.cstep;
+            constants[3].i = top_blob_bordered.w;
+            constants[4].i = top_blob_bordered.h;
+            constants[5].i = top_blob_bordered.c;
+            constants[6].i = top_blob_bordered.cstep;
 
             cmd.record_pipeline(pipeline_deconvolution_col2im, bindings, constants, top_blob_bordered);
         }

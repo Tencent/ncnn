@@ -20,11 +20,12 @@ layout (constant_id = 9) const float activation_param_1 = 0;
 #define shape_constant_id_offset 10
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outcstep = 0;
 
 layout (binding = 0) readonly buffer col_blob { sfpvec8 col_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
@@ -34,6 +35,7 @@ layout (push_constant) uniform parameter
 {
     int w;
     int h;
+    int cstep;
 
     int outw;
     int outh;
@@ -84,7 +86,7 @@ void main()
                 h_k /= dilation_h;
                 w_k /= dilation_w;
 
-                const int gi = (gz * maxk + h_k * kernel_w + w_k) * psc(w) * psc(h) + sy * psc(w) + sx;
+                const int gi = (gz * maxk + h_k * kernel_w + w_k) * psc(cstep) + sy * psc(w) + sx;
 
                 sum += buffer_ld8(col_blob_data, gi);
             }
