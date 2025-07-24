@@ -680,7 +680,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         const int size = w;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const size_t stride = w * elempack;
+        const size_t stride = (size_t)w * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())

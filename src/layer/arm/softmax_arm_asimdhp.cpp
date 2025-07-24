@@ -799,7 +799,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
     {
         const int size = w;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const size_t stride = w * elempack;
+        const size_t stride = (size_t)w * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 2u, opt.workspace_allocator);
         if (maxsum.empty())
