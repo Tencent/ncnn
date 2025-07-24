@@ -13,8 +13,8 @@ layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outc = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer col_blob { sfpvec4 col_blob_data[]; };
@@ -27,8 +27,8 @@ layout (push_constant) uniform parameter
     int c;
     int cstep;
 
-    int outw;
-    int outh;
+    int outcstep;
+    int outc;
 } p;
 
 #if NCNN_shader_local_memory
@@ -42,7 +42,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
 
 #if !NCNN_shader_local_memory
-    if (gx >= psc(outw) || gy >= psc(outh))
+    if (gx >= psc(outcstep) || gy >= psc(outc))
         return;
 #endif
 
@@ -173,14 +173,14 @@ void main()
 #endif
 
 #if NCNN_shader_local_memory
-    if (gx >= psc(outw) || gy >= psc(outh))
+    if (gx >= psc(outcstep) || gy >= psc(outc))
         return;
 #endif
 
-    const int gi = gy * psc(outw) + gx;
+    const int gi = gy * psc(outcstep) + gx;
 
     buffer_st4(col_blob_data, gi, sum0);
-    if (gx + 1 < psc(outw)) buffer_st4(col_blob_data, gi + 1, sum1);
-    if (gx + 2 < psc(outw)) buffer_st4(col_blob_data, gi + 2, sum2);
-    if (gx + 3 < psc(outw)) buffer_st4(col_blob_data, gi + 3, sum3);
+    if (gx + 1 < psc(outcstep)) buffer_st4(col_blob_data, gi + 1, sum1);
+    if (gx + 2 < psc(outcstep)) buffer_st4(col_blob_data, gi + 2, sum2);
+    if (gx + 3 < psc(outcstep)) buffer_st4(col_blob_data, gi + 3, sum3);
 }
