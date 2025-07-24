@@ -108,7 +108,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             if (top_blob.empty())
                 return -100;
 
-            size_t size = w * slice;
+            size_t size = (size_t)w * slice;
 
             const unsigned char* ptr = bottom_blob.row<const unsigned char>(q);
             unsigned char* outptr = top_blob;
@@ -267,7 +267,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             {
                 for (int j = 0; j < d; j++)
                 {
-                    size_t size = w * slice;
+                    size_t size = (size_t)w * slice;
 
                     unsigned char* outptr = top_blob.channel(p).depth(j);
                     const unsigned char* ptr = bottom_blob.channel(p).depth(j).row<const unsigned char>(q);
@@ -386,7 +386,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < channels; p++)
             {
-                size_t size = w * h * slice;
+                size_t size = (size_t)w * h * slice;
 
                 unsigned char* outptr = top_blob.channel(p);
                 const unsigned char* ptr = bottom_blob.channel(p).depth(q);
