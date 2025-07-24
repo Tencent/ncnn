@@ -567,7 +567,7 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
 
 static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)sB.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     unsigned short* pp = BT;
 
