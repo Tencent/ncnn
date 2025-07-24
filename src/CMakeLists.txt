@@ -246,8 +246,6 @@ if(NCNN_OPENMP)
         elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
             target_compile_options(ncnn PRIVATE -fopenmp)
             target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
-            # see cpu.cpp __wrap___kmp_abort_process comment for the linker magic
-            target_link_libraries(ncnn PUBLIC -Wl,-wrap,__kmp_affinity_determine_capable)
         elseif(OpenMP_CXX_FOUND)
             target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
         else()
@@ -719,6 +717,13 @@ add_dependencies(ncnn ncnn-generate-spirv)
 if(NCNN_INSTALL_SDK)
     include(GNUInstallDirs)
 
+    include(CMakePackageConfigHelpers)
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfigVersion.cmake
+        VERSION ${NCNN_VERSION}
+        COMPATIBILITY AnyNewerVersion
+    )
+
     install(TARGETS ncnn EXPORT ncnn
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -758,7 +763,10 @@ if(NCNN_INSTALL_SDK)
     )
     install(EXPORT ncnn DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in ncnnConfig.cmake @ONLY)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
     # pkgconfig
     configure_file(ncnn.pc.in ${CMAKE_CURRENT_BINARY_DIR}/ncnn.pc @ONLY)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnn.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

@@ -160,7 +160,9 @@ class CMakeBuild(build_ext):
                 # CMake 3.12+ only.
                 build_args += ["-j{}".format(self.parallel)]
             else:
-                build_args += ["-j4"]
+                # Automatically set parallel jobs based on CPU core count
+                cpu_count = os.cpu_count() or 1
+                build_args += ["-j{}".format(cpu_count)]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
@@ -205,8 +207,12 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     license="BSD-3",
     python_requires=">=3.5",

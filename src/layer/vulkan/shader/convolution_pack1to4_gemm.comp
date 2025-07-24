@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -41,17 +30,10 @@ layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D weight_blob;
-layout (binding = 3) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -90,11 +72,7 @@ void main()
 
     if (bias_term == 1)
     {
-#if NCNN_image_shader
-        sum0 = image3d_ld4(bias_blob, ivec3(gy, 0, 0));
-#else
         sum0 = buffer_ld4(bias_data, gy);
-#endif
         sum1 = sum0;
         sum2 = sum0;
         sum3 = sum0;
@@ -118,31 +96,6 @@ void main()
     const ivec4 sxs4 = sx4 * stride_w;
     const ivec4 sys4 = sy4 * stride_h;
 
-#if NCNN_image_shader
-    for (int z = 0; z < N; z++)
-    {
-        const int sz = z / maxk;
-        const int kk = z % maxk;
-
-        const int ky = kk / kernel_w;
-        const int kx = kk % kernel_w;
-
-        const ivec4 x4 = sxs4 + kx * dilation_w;
-        const ivec4 y4 = sys4 + ky * dilation_h;
-
-        afp v0 = image3d_ld1(bottom_blob, ivec3(x4.r, y4.r, sz));
-        afp v1 = image3d_ld1(bottom_blob, ivec3(x4.g, y4.g, sz));
-        afp v2 = image3d_ld1(bottom_blob, ivec3(x4.b, y4.b, sz));
-        afp v3 = image3d_ld1(bottom_blob, ivec3(x4.a, y4.a, sz));
-
-        afpvec4 k = image3d_ld4(weight_blob, ivec3(z, gy, 0));
-
-        sum0 += v0 * k;
-        sum1 += v1 * k;
-        sum2 += v2 * k;
-        sum3 += v3 * k;
-    }
-#else
     int w_offset = gy * N;
 
 #if NCNN_shader_local_memory
@@ -164,7 +117,7 @@ void main()
 
                 const int v_offset = sz * psc(cstep) + (sys4[ly] + ky * dilation_h) * psc(w) + sxs4[ly] + kx * dilation_w;
 
-                tmp_v[lx][z4][ly] = sfp2lfp(bottom_blob_data[v_offset]);
+                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_blob_data, v_offset));
             }
         }
 
@@ -214,7 +167,7 @@ void main()
 
                 const int v_offset = sz * psc(cstep) + (sys4[ly] + ky * dilation_h) * psc(w) + sxs4[ly] + kx * dilation_w;
 
-                tmp_v[lx][z4][ly] = sfp2lfp(bottom_blob_data[v_offset]);
+                tmp_v[lx][z4][ly] = sfp2lfp(buffer_ld1(bottom_blob_data, v_offset));
             }
         }
 
@@ -269,7 +222,6 @@ void main()
         w_offset += 1;
     }
 #endif
-#endif
 
 #if NCNN_shader_local_memory
     if (gx >= outsize || gy >= psc(outc))
@@ -281,17 +233,10 @@ void main()
     sum2 = activation_afpvec4(sum2, activation_type, activation_param_0, activation_param_1);
     sum3 = activation_afpvec4(sum3, activation_type, activation_param_0, activation_param_1);
 
-#if NCNN_image_shader
-    image3d_st4(top_blob, ivec3(sx4.r, sy4.r, gy), sum0);
-    image3d_st4(top_blob, ivec3(sx4.g, sy4.g, gy), sum1);
-    image3d_st4(top_blob, ivec3(sx4.b, sy4.b, gy), sum2);
-    image3d_st4(top_blob, ivec3(sx4.a, sy4.a, gy), sum3);
-#else
     const int gi = gy * psc(outcstep) + gx;
 
     buffer_st4(top_blob_data, gi, sum0);
     if (gx + 1 < outsize) buffer_st4(top_blob_data, gi + 1, sum1);
     if (gx + 2 < outsize) buffer_st4(top_blob_data, gi + 2, sum2);
     if (gx + 3 < outsize) buffer_st4(top_blob_data, gi + 3, sum3);
-#endif
 }

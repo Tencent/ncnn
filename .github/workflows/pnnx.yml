@@ -4,12 +4,14 @@ on:
     branches: [master]
     paths:
     - '.github/workflows/pnnx.yml'
+    - 'src/layer/*'
     - 'tools/pnnx/**'
     - '!tools/pnnx/README.md'
   pull_request:
     branches: [master]
     paths:
     - '.github/workflows/pnnx.yml'
+    - 'src/layer/*'
     - 'tools/pnnx/**'
     - '!tools/pnnx/README.md'
 concurrency:
@@ -18,8 +20,16 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  LIBTORCH_VERSION: 2.7.0
+  TORCHVISION_VERSION: 0.22.0
+  PROTOBUF_VERSION: 21.12
+  ONNXRUNTIME_VERSION: 1.21.1
+  CACHE_DATE: 20250512
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 15
+
 jobs:
-  build:
+  quick-test:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -54,3 +64,303 @@ jobs:
       run: |
         cd tools/pnnx
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
+
+  build:
+    runs-on: [self-hosted, linux, ubuntu25]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: local-cache-libtorch
+      id: local-cache-libtorch
+      uses: maxnowack/local-cache@v2
+      with:
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-torchvision
+      id: local-cache-torchvision
+      uses: maxnowack/local-cache@v2
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-onnxruntime
+      id: local-cache-onnxruntime
+      uses: maxnowack/local-cache@v2
+      with:
+        path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+        key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: cache-libtorch
+      id: cache-libtorch
+      uses: actions/cache@v4
+      with:
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: cache-torchvision
+      id: cache-torchvision
+      uses: actions/cache@v4
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: cache-onnxruntime
+      id: cache-onnxruntime
+      uses: actions/cache@v4
+      with:
+        path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+        key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: pnnx-patches
+      if: (steps.local-cache-libtorch.outputs.cache-hit != 'true' && steps.cache-libtorch.outputs.cache-hit != 'true') || (steps.local-cache-torchvision.outputs.cache-hit != 'true' && steps.cache-torchvision.outputs.cache-hit != 'true') || (steps.local-cache-onnxruntime.outputs.cache-hit != 'true' && steps.cache-onnxruntime.outputs.cache-hit != 'true')
+      uses: actions/checkout@v4
+      with:
+        repository: pnnx/pnnx
+        path: pnnx-patches
+
+    - name: libtorch
+      if: steps.local-cache-libtorch.outputs.cache-hit != 'true' && steps.cache-libtorch.outputs.cache-hit != 'true'
+      run: |
+        wget -q https://github.com/pytorch/pytorch/releases/download/v${{ env.LIBTORCH_VERSION }}/pytorch-v${{ env.LIBTORCH_VERSION }}.tar.gz
+        tar -xf pytorch-v${{ env.LIBTORCH_VERSION }}.tar.gz
+        cd pytorch-v${{ env.LIBTORCH_VERSION }}
+        pip3 install -r requirements.txt --break-system-packages
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-mobile-build.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-no-link-system-lib.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-pocketfft-build.patch
+        mkdir -p build && cd build
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DBUILD_CUSTOM_PROTOBUF=OFF \
+            -DBUILD_LITE_INTERPRETER=OFF \
+            -DBUILD_PYTHON=OFF \
+            -DINTERN_BUILD_MOBILE=ON \
+            -DINTERN_DISABLE_AUTOGRAD=ON \
+            -DINTERN_DISABLE_ONNX=ON \
+            -DUSE_CUDA=OFF \
+            -DUSE_DISTRIBUTED=OFF \
+            -DUSE_ITT=OFF \
+            -DUSE_KINETO=OFF \
+            -DUSE_LITE_INTERPRETER_PROFILER=OFF \
+            -DUSE_MKLDNN=OFF \
+            -DUSE_MPS=OFF \
+            -DUSE_NUMPY=OFF \
+            -DUSE_OPENMP=OFF \
+            -DUSE_SOURCE_DEBUG_ON_MOBILE=OFF \
+            -DUSE_XNNPACK=OFF ..
+        cmake --build . -j 8
+        cmake --build . -j 8 --target install/strip
+
+    - name: torchvision
+      if: steps.local-cache-torchvision.outputs.cache-hit != 'true' && steps.cache-torchvision.outputs.cache-hit != 'true'
+      run: |
+        wget -q https://github.com/pytorch/vision/archive/v${{ env.TORCHVISION_VERSION }}.zip -O vision-${{ env.TORCHVISION_VERSION }}.zip
+        unzip -q vision-${{ env.TORCHVISION_VERSION }}.zip
+        cd vision-${{ env.TORCHVISION_VERSION }}
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.TORCHVISION_VERSION }}-ops-only.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/vision-${{ env.TORCHVISION_VERSION }}-no-cuda-version.patch
+        mkdir -p build && cd build
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
+            -DTorch_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install/share/cmake/Torch \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DWITH_PNG=OFF \
+            -DWITH_JPEG=OFF ..
+        cmake --build . -j 8
+        cmake --build . -j 8 --target install/strip
+
+    - name: onnxruntime
+      if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
+      run: |
+        wget -q https://github.com/protocolbuffers/protobuf/archive/v${{ env.PROTOBUF_VERSION }}.zip -O protobuf-${{ env.PROTOBUF_VERSION }}.zip
+        unzip -q protobuf-${{ env.PROTOBUF_VERSION }}.zip
+        cd protobuf-${{ env.PROTOBUF_VERSION }}
+        mkdir -p build2 && cd build2
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
+            -Dprotobuf_BUILD_TESTS=OFF \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
+        cmake --build . -j 8
+        cmake --build . -j 8 --target install/strip
+
+        cd ../../
+        wget -q https://github.com/microsoft/onnxruntime/archive/v${{ env.ONNXRUNTIME_VERSION }}.zip -O onnxruntime-${{ env.ONNXRUNTIME_VERSION }}.zip
+        unzip -q onnxruntime-${{ env.ONNXRUNTIME_VERSION }}.zip
+        cd onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-less-mlas-features.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-monolithic-static-library.patch
+        mkdir -p build2 && cd build2
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -Donnxruntime_USE_FULL_PROTOBUF=ON \
+            -Donnxruntime_BUILD_SHARED_LIB=ON \
+            -Donnxruntime_BUILD_UNIT_TESTS=OFF \
+            -Donnxruntime_ENABLE_CPUINFO=OFF \
+            -Donnxruntime_DISABLE_CONTRIB_OPS=ON \
+            -Donnxruntime_DISABLE_ML_OPS=ON \
+            -Donnxruntime_DISABLE_SPARSE_TENSORS=ON \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            --compile-no-warning-as-error ../cmake
+        cmake --build . -j 8
+        cmake --build . -j 8 --target install/strip
+
+    - name: pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DTorch_INSTALL_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
+            -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
+            -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
+            -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
+        cmake --build . -j 8
+        strip src/pnnx
+
+    - name: upload-pnnx
+      uses: actions/upload-artifact@v4
+      with:
+        name: pnnx
+        path: tools/pnnx/build/src/pnnx
+        compression-level: 9
+
+  test:
+    needs: [build]
+    runs-on: [self-hosted, linux, ubuntu25]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python: '3.8',  numpy: '1.24.4', torch: '1.8.1',  torchvision: '0.9.1',  torchaudio: '0.8.1'      }
+          - { python: '3.8',  numpy: '1.24.4', torch: '1.9.1',  torchvision: '0.10.1', torchaudio: '0.9.1'      }
+          - { python: '3.8',  numpy: '1.24.4', torch: '1.10.0', torchvision: '0.11.1', torchaudio: '0.10.0+cpu' }
+          - { python: '3.9',  numpy: '1.26.4', torch: '1.11.0', torchvision: '0.12.0', torchaudio: '0.11.0+cpu' }
+          - { python: '3.9',  numpy: '1.26.4', torch: '1.12.0', torchvision: '0.13.0', torchaudio: '0.12.0+cpu' }
+          - { python: '3.10', numpy: '1.26.4', torch: '1.13.0', torchvision: '0.14.0', torchaudio: '0.13.0+cpu' }
+          - { python: '3.10', numpy: '1.26.4', torch: '2.0.0',  torchvision: '0.15.1', torchaudio: '2.0.0+cpu'  }
+          - { python: '3.10', numpy: '1.26.4', torch: '2.1.0',  torchvision: '0.16.0', torchaudio: '2.1.0+cpu'  }
+          - { python: '3.11', numpy: '1.26.4', torch: '2.2.1',  torchvision: '0.17.1', torchaudio: '2.2.1+cpu'  }
+          - { python: '3.11', numpy: '1.26.4', torch: '2.3.0',  torchvision: '0.18.0', torchaudio: '2.3.0+cpu'  }
+          - { python: '3.11', numpy: '2.2.5',  torch: '2.4.0',  torchvision: '0.19.0', torchaudio: '2.4.0+cpu'  }
+          - { python: '3.12', numpy: '2.2.5',  torch: '2.5.0',  torchvision: '0.20.0', torchaudio: '2.5.0+cpu'  }
+          - { python: '3.12', numpy: '2.2.5',  torch: '2.6.0',  torchvision: '0.21.0', torchaudio: '2.6.0+cpu'  }
+          - { python: '3.12', numpy: '2.2.5',  torch: '2.7.0',  torchvision: '0.22.0', torchaudio: '2.7.0+cpu'  }
+
+    name: test-${{ matrix.torch }}-py${{ matrix.python }}
+
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: local-cache-libtorch
+      id: local-cache-libtorch
+      uses: maxnowack/local-cache@v2
+      with:
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-torchvision
+      id: local-cache-torchvision
+      uses: maxnowack/local-cache@v2
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: local-cache-onnxruntime
+      id: local-cache-onnxruntime
+      uses: maxnowack/local-cache@v2
+      with:
+        path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+        key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+
+    - name: cache-libtorch
+      if: steps.local-cache-libtorch.outputs.cache-hit != 'true'
+      id: cache-libtorch
+      uses: actions/cache/restore@v4
+      with:
+        path: libtorch-${{ env.LIBTORCH_VERSION }}-install
+        key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+        fail-on-cache-miss: true
+
+    - name: cache-torchvision
+      if: steps.local-cache-torchvision.outputs.cache-hit != 'true'
+      id: cache-torchvision
+      uses: actions/cache/restore@v4
+      with:
+        path: torchvision-${{ env.TORCHVISION_VERSION }}-install
+        key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+        fail-on-cache-miss: true
+
+    - name: cache-onnxruntime
+      if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true'
+      id: cache-onnxruntime
+      uses: actions/cache/restore@v4
+      with:
+        path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
+        key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
+        fail-on-cache-miss: true
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: setup-pytorch
+      run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
+        pip3 install --user pytest wheel twine requests einops numpy==${{ matrix.numpy }}
+        pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user onnx onnxscript
+        pip3 install --user "transformers<=4.52.1" diffusers
+
+    - name: setup-pytorch-execstack-or-patchelf
+      if: ${{ matrix.python }} == '3.8' || ${{ matrix.python }} == '3.9'
+      run: |
+        execstack -c ${{ env.PYTHONUSERBASE }}/lib/python${{ matrix.python }}/site-packages/torch/lib/libtorch_cpu.so || true
+        patchelf --clear-execstack ${{ env.PYTHONUSERBASE }}/lib/python${{ matrix.python }}/site-packages/torch/lib/libtorch_cpu.so || true
+
+    - name: python-ncnn
+      run: |
+        export CMAKE_BUILD_PARALLEL_LEVEL=8
+        pip3 install --user . --verbose
+
+    - name: pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release \
+            -DTorch_INSTALL_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
+            -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
+            -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
+            -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
+
+    - name: download-pnnx
+      uses: actions/download-artifact@v4
+      with:
+        name: pnnx
+        path: tools/pnnx/build/src
+
+    - name: test
+      run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
+        chmod +x tools/pnnx/build/src/pnnx
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        export MKL_NUM_THREADS=1
+        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
+        cd tools/pnnx/build
+        ctest --output-on-failure -j 8
+
+    - name: python-pnnx
+      run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
+        export PNNX_WHEEL_WITHOUT_BUILD=ON
+        cd tools/pnnx/python
+        cp ../build/src/pnnx pnnx/
+        python3 setup.py install --user
+        pytest tests

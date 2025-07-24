@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "deepcopy_vulkan.h"
 
@@ -21,7 +10,6 @@ namespace ncnn {
 DeepCopy_vulkan::DeepCopy_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
 
     pipeline_deepcopy = 0;
     pipeline_deepcopy_pack4 = 0;
@@ -45,15 +33,10 @@ int DeepCopy_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
     else
     {
@@ -157,34 +140,6 @@ int DeepCopy_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComput
     constants[2].i = bottom_blob.h;
     constants[3].i = bottom_blob.c;
     constants[4].i = bottom_blob.cstep;
-
-    const Pipeline* pipeline = elempack == 8 ? pipeline_deepcopy_pack8
-                               : elempack == 4 ? pipeline_deepcopy_pack4
-                               : pipeline_deepcopy;
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-    return 0;
-}
-
-int DeepCopy_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    int elempack = bottom_blob.elempack;
-
-    top_blob.create_like(bottom_blob, opt.blob_vkallocator);
-    if (top_blob.empty())
-        return -100;
-
-    std::vector<VkImageMat> bindings(2);
-    bindings[0] = bottom_blob;
-    bindings[1] = top_blob;
-
-    std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = 0; //bottom_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_deepcopy_pack8
                                : elempack == 4 ? pipeline_deepcopy_pack4

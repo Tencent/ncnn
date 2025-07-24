@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2025 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2025 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_slice_expression.h"
 
@@ -642,7 +631,7 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             op->params.clear();
             op->params["19"] = starts_expr;
             op->params["20"] = ends_expr;
-            op->params["21"] = std::to_string(dim);
+            op->params["21"] = std::to_string(dim > batch_index ? dim - 1 : dim);
 
             // link references to reshape
             {
@@ -788,7 +777,7 @@ void convert_slice_expression_single_axis_select(Graph& graph)
             op->params.clear();
             op->params["19"] = starts_expr;
             op->params["20"] = std::string("+(") + starts_expr + ",1)";
-            op->params["21"] = std::to_string(dim);
+            op->params["21"] = std::to_string(dim > batch_index ? dim - 1 : dim);
 
             // link references to reshape
             {
@@ -1330,7 +1319,7 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 new_starts_expr += new_start_expr;
                 new_ends_expr += new_end_expr;
                 new_steps_expr += new_step_expr;
-                new_dims_expr += std::to_string(dims[i]);
+                new_dims_expr += std::to_string(dims[i] > batch_index ? dims[i] - 1 : dims[i]);
 
                 if (i + 1 != dims_count)
                 {

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -39,17 +28,10 @@ layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D weight_blob;
-layout (binding = 3) uniform unfp sampler3D bias_blob;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec8 weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfp bias_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -81,11 +63,7 @@ void main()
 
     if (bias_term == 1)
     {
-#if NCNN_image_shader
-        sum0 = image3d_ld1(bias_blob, ivec3(gy, 0, 0));
-#else
         sum0 = buffer_ld1(bias_data, gy);
-#endif
         sum1 = sum0;
         sum2 = sum0;
         sum3 = sum0;
@@ -109,32 +87,6 @@ void main()
     const ivec4 sxs4 = sx4 * stride_w;
     const ivec4 sys4 = sy4 * stride_h;
 
-#if NCNN_image_shader
-    for (int z = 0; z < N; z++)
-    {
-        const int sz = z / maxk;
-        const int kk = z % maxk;
-
-        const int ky = kk / kernel_w;
-        const int kx = kk % kernel_w;
-
-        const ivec4 x4 = sxs4 + kx * dilation_w;
-        const ivec4 y4 = sys4 + ky * dilation_h;
-
-        afpvec8 v0 = image3d_ld8(bottom_blob, ivec3(x4.r, y4.r, sz));
-        afpvec8 v1 = image3d_ld8(bottom_blob, ivec3(x4.g, y4.g, sz));
-        afpvec8 v2 = image3d_ld8(bottom_blob, ivec3(x4.b, y4.b, sz));
-        afpvec8 v3 = image3d_ld8(bottom_blob, ivec3(x4.a, y4.a, sz));
-
-        afpvec8 k = image3d_ld8(weight_blob, ivec3(z, gy, 0));
-
-        // sum += dot(v, k);
-        sum0 += dot(v0[0], k[0]) + dot(v0[1], k[1]);
-        sum1 += dot(v1[0], k[0]) + dot(v1[1], k[1]);
-        sum2 += dot(v2[0], k[0]) + dot(v2[1], k[1]);
-        sum3 += dot(v3[0], k[0]) + dot(v3[1], k[1]);
-    }
-#else
     int w_offset = gy * N;
 
     for (int z = 0; z < N; z++)
@@ -162,24 +114,16 @@ void main()
 
         w_offset += 1;
     }
-#endif
 
     sum0 = activation_afp(sum0, activation_type, activation_param_0, activation_param_1);
     sum1 = activation_afp(sum1, activation_type, activation_param_0, activation_param_1);
     sum2 = activation_afp(sum2, activation_type, activation_param_0, activation_param_1);
     sum3 = activation_afp(sum3, activation_type, activation_param_0, activation_param_1);
 
-#if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(sx4.r, sy4.r, gy), sum0);
-    image3d_st1(top_blob, ivec3(sx4.g, sy4.g, gy), sum1);
-    image3d_st1(top_blob, ivec3(sx4.b, sy4.b, gy), sum2);
-    image3d_st1(top_blob, ivec3(sx4.a, sy4.a, gy), sum3);
-#else
     const int gi = gy * psc(outcstep) + gx;
 
     buffer_st1(top_blob_data, gi, sum0);
     if (gx + 1 < outsize) buffer_st1(top_blob_data, gi + 1, sum1);
     if (gx + 2 < outsize) buffer_st1(top_blob_data, gi + 2, sum2);
     if (gx + 3 < outsize) buffer_st1(top_blob_data, gi + 3, sum3);
-#endif
 }

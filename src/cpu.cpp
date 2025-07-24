@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "cpu.h"
 
@@ -22,6 +11,7 @@
 #include <signal.h>
 #endif // __wasi__
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef _OPENMP
@@ -113,6 +103,14 @@
 #ifndef CPUFAMILY_ARM_COLL
 #define CPUFAMILY_ARM_COLL 0x2876f5b5
 #endif
+// A18
+#ifndef CPUFAMILY_ARM_TUPAI
+#define CPUFAMILY_ARM_TUPAI 0x204526d0
+#endif
+// A18 Pro
+#ifndef CPUFAMILY_ARM_TAHITI
+#define CPUFAMILY_ARM_TAHITI 0x75d4acb9
+#endif
 // M3
 #ifndef CPUFAMILY_ARM_IBIZA
 #define CPUFAMILY_ARM_IBIZA 0xfa33415e
@@ -125,15 +123,59 @@
 #ifndef CPUFAMILY_ARM_PALMA
 #define CPUFAMILY_ARM_PALMA 0x72015832
 #endif
+// M4
+#ifndef CPUFAMILY_ARM_DONAN
+#define CPUFAMILY_ARM_DONAN 0x6f5129ac
+#endif
+// M4 Pro / M4 Max
+#ifndef CPUFAMILY_ARM_BRAVA
+#define CPUFAMILY_ARM_BRAVA 0x17d5b93a
+#endif
 #endif // __APPLE__
 
 #if defined(__SSE3__)
 #include <immintrin.h>
 #endif
 
-#if (defined _WIN32 && (__aarch64__ || __arm__))
+#if (defined _WIN32 && (__aarch64__ || __arm__)) || ((defined __ANDROID__ || defined __linux__) && __riscv)
 #define RUAPU_IMPLEMENTATION
 #include "ruapu.h"
+#endif
+
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
+__attribute__((constructor)) void ncnn_kmp_env_initializer()
+{
+    // this function should be called before touching all openmp stuff
+    // the env setting here helps prevent abort from happening inside openmp
+
+    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
+    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
+    // and cpu core goes offline in powersave mode on android, which triggers abort
+    // disable affinity capability, we handle thread affinity for openmp threads
+#if defined _WIN32
+#if _WIN32_WINNT >= 0x0600
+    _putenv_s("KMP_AFFINITY", "disabled");
+#else
+    _putenv("KMP_AFFINITY=disabled");
+#endif
+#else
+    setenv("KMP_AFFINITY", "disabled", 1);
+#endif
+
+    // openmp initialization triggers abort when another openmp runtime detected
+    // ref __kmp_register_library_startup in openmp/runtime/src/kmp_runtime.cpp
+    // this happens when loading multiple libraries that are static linked openmp
+    // just let it continue to work, it works well in most cases, at least it won't crash unexpectedly
+#if defined _WIN32
+#if _WIN32_WINNT >= 0x0600
+    _putenv_s("KMP_DUPLICATE_LIB_OK", "1");
+#else
+    _putenv("KMP_DUPLICATE_LIB_OK=1");
+#endif
+#else
+    setenv("KMP_DUPLICATE_LIB_OK", "1", 1);
+#endif
+}
 #endif
 
 // topology info
@@ -194,6 +236,14 @@ static int g_cpu_support_x86_avx512_vnni;
 static int g_cpu_support_x86_avx512_bf16;
 static int g_cpu_support_x86_avx512_fp16;
 #endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+static int g_cpu_support_riscv_zfh;
+static int g_cpu_support_riscv_zvfh;
+static int g_cpu_support_riscv_xtheadvector;
+#endif // __riscv
+#endif // defined __ANDROID__ || defined __linux__
 
 static int g_cpu_level2_cachesize;
 static int g_cpu_level3_cachesize;
@@ -1585,8 +1635,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         DWORD bufferSize = 0;
         glpie(RelationProcessorCore, nullptr, &bufferSize);
         std::vector<BYTE> buffer(bufferSize);
-        if (!GetLogicalProcessorInformationEx(RelationProcessorCore,
-                                              (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
+        if (!glpie(RelationProcessorCore, (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
         {
             NCNN_LOGE("GetLogicalProcessorInformationEx failed");
             return;
@@ -2093,12 +2142,16 @@ static int detect_cpu_is_arm_a53_a55()
 // the initialization
 static void initialize_global_cpu_info()
 {
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
+    ncnn_kmp_env_initializer();
+#endif
+
     g_cpucount = get_cpucount();
     g_physical_cpucount = get_physical_cpucount();
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
-#if (defined _WIN32 && (__aarch64__ || __arm__))
+#if (defined _WIN32 && (__aarch64__ || __arm__)) || ((defined __ANDROID__ || defined __linux__) && __riscv)
     if (!is_being_debugged())
     {
         ruapu_init();
@@ -2136,6 +2189,32 @@ static void initialize_global_cpu_info()
     g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
     g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
     g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
+
+    switch (g_hw_cpufamily)
+    {
+    case CPUFAMILY_ARM_TUPAI:
+    case CPUFAMILY_ARM_TAHITI:
+    case CPUFAMILY_ARM_DONAN:
+    case CPUFAMILY_ARM_BRAVA:
+    // TODO check sve sme
+    case CPUFAMILY_ARM_AVALANCHE_BLIZZARD:
+    case CPUFAMILY_ARM_EVEREST_SAWTOOTH:
+    case CPUFAMILY_ARM_COLL:
+    case CPUFAMILY_ARM_IBIZA:
+    case CPUFAMILY_ARM_LOBOS:
+    case CPUFAMILY_ARM_PALMA:
+        g_hw_optional_arm_FEAT_BF16 = 1;
+        g_hw_optional_arm_FEAT_I8MM = 1;
+    case CPUFAMILY_ARM_LIGHTNING_THUNDER:
+    case CPUFAMILY_ARM_FIRESTORM_ICESTORM:
+        g_hw_optional_arm_FEAT_DotProd = 1;
+        g_hw_optional_arm_FEAT_FHM = 1;
+    case CPUFAMILY_ARM_MONSOON_MISTRAL:
+    case CPUFAMILY_ARM_VORTEX_TEMPEST:
+        g_hw_optional_arm_FEAT_FP16 = 1;
+    default:
+        break;
+    }
 #endif // __aarch64__
 #endif
 
@@ -2154,6 +2233,14 @@ static void initialize_global_cpu_info()
     g_cpu_support_x86_avx512_bf16 = get_cpu_support_x86_avx512_bf16();
     g_cpu_support_x86_avx512_fp16 = get_cpu_support_x86_avx512_fp16();
 #endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    g_cpu_support_riscv_zfh = ruapu_supports("zfh") || ruapu_supports("xtheadvector");   // xtheadvector implies zfh
+    g_cpu_support_riscv_zvfh = ruapu_supports("zvfh") || ruapu_supports("xtheadvector"); // xtheadvector implies zvfh
+    g_cpu_support_riscv_xtheadvector = ruapu_supports("xtheadvector");
+#endif // __riscv
+#endif // defined __ANDROID__ || defined __linux__
 
     g_cpu_level2_cachesize = get_cpu_level2_cachesize();
     g_cpu_level3_cachesize = get_cpu_level3_cachesize();
@@ -2384,17 +2471,7 @@ int cpu_support_arm_asimdhp()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDHP;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_FP16
-           || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL
-           || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_FP16;
 #else
     return 0;
 #endif
@@ -2430,15 +2507,7 @@ int cpu_support_arm_asimddp()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDDP;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_DotProd
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_DotProd;
 #else
     return 0;
 #endif
@@ -2456,15 +2525,7 @@ int cpu_support_arm_asimdfhm()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDFHM;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_FHM
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_FHM;
 #else
     return 0;
 #endif
@@ -2482,13 +2543,7 @@ int cpu_support_arm_bf16()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_BF16;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_BF16
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_BF16;
 #else
     return 0;
 #endif
@@ -2506,13 +2561,7 @@ int cpu_support_arm_i8mm()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_I8MM;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_I8MM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH
-           || g_hw_cpufamily == CPUFAMILY_ARM_COLL
-           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA
-           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS
-           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA;
+    return g_hw_optional_arm_FEAT_I8MM;
 #else
     return 0;
 #endif
@@ -2816,9 +2865,7 @@ int cpu_support_riscv_zfh()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    // v + f does not imply zfh, but how to discover zfh properly ?
-    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
-    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+    return g_cpu_support_riscv_zfh;
 #else
     return 0;
 #endif
@@ -2832,9 +2879,7 @@ int cpu_support_riscv_zvfh()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    // v + f does not imply zfh, but how to discover zvfh properly ?
-    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
-    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+    return g_cpu_support_riscv_zvfh;
 #else
     return 0;
 #endif
@@ -2848,9 +2893,7 @@ int cpu_support_riscv_xtheadvector()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    // v + f does not imply zfh, but how to discover zvfh properly ?
-    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
-    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+    return g_cpu_support_riscv_xtheadvector;
 #else
     return 0;
 #endif
@@ -3231,21 +3274,3 @@ int set_flush_denormals(int flush_denormals)
 }
 
 } // namespace ncnn
-
-#if defined __ANDROID__ && defined(_OPENMP) && __clang__
-#ifdef __cplusplus
-extern "C" {
-#endif
-void __wrap___kmp_affinity_determine_capable(const char* /*env_var*/)
-{
-    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
-    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
-    // and cpu core goes offline in powersave mode on android, which triggers abort
-    // ATM there is no known api for controlling the abort behavior
-    // override __kmp_affinity_determine_capable with empty body to disable affinity regardless of KMP_AFFINITY env_var
-    // ugly hack works >.<    --- nihui
-}
-#ifdef __cplusplus
-} // extern "C"
-#endif
-#endif
