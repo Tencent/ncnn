@@ -1,4 +1,4 @@
-/* LOONGARCH implementation of exp
+/* LOONGARCH implementation of mathfun
  *
  *   Inspired by Intel Approximate Math library, and based on the
  *   corresponding algorithms of the cephes math library
@@ -32,10 +32,15 @@
 
 #include <lsxintrin.h>
 
+_LOONGARCH_FLOAT_CONST(c_0, 0.0f);
 _LOONGARCH_FLOAT_CONST(c_1, 1.0f);
 _LOONGARCH_FLOAT_CONST(c_2, 2.0f);
+_LOONGARCH_FLOAT_CONST(c_3, 3.0f);
+_LOONGARCH_FLOAT_CONST(c_4, 4.0f);
 _LOONGARCH_FLOAT_CONST(c_n1, -1.0f);
+_LOONGARCH_FLOAT_CONST(c_n3, -3.0f);
 _LOONGARCH_FLOAT_CONST(c_0p5, 0.5f);
+_LOONGARCH_FLOAT_CONST(c_eps, 1E-8f);
 
 #define c_inv_mant_mask ~0x7f800000u
 _LOONGARCH_FLOAT_CONST(c_cephes_SQRTHF, 0.707106781186547524);
@@ -240,6 +245,192 @@ static inline __m128 tanh_ps(__m128 x)
     return y;
 }
 
+_LOONGARCH_FLOAT_CONST(c_minus_cephes_DP1, -0.78515625f);
+_LOONGARCH_FLOAT_CONST(c_minus_cephes_DP2, -2.4187564849853515625e-4f);
+_LOONGARCH_FLOAT_CONST(c_minus_cephes_DP3, -3.77489497744594108e-8f);
+_LOONGARCH_FLOAT_CONST(c_cephes_sin_p0, -1.9515295891E-4f);
+_LOONGARCH_FLOAT_CONST(c_cephes_sin_p1, 8.3321608736E-3f);
+_LOONGARCH_FLOAT_CONST(c_cephes_sin_p2, -1.6666654611E-1f);
+_LOONGARCH_FLOAT_CONST(c_cephes_cos_p0, 2.443315711809948E-005f);
+_LOONGARCH_FLOAT_CONST(c_cephes_cos_p1, -1.388731625493765E-003f);
+_LOONGARCH_FLOAT_CONST(c_cephes_cos_p2, 4.166664568298827E-002f);
+_LOONGARCH_FLOAT_CONST(c_cephes_FOPI, 1.27323954473516f); // 4/PI
+
+static inline __m128 sin_ps(__m128 x)
+{
+    __m128 y;
+    __m128i swap_sign_bit, poly_mask, sign_bit;
+    __m128 n0p5 = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_n1.i), (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
+
+    sign_bit = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
+
+    y = __lsx_vfmul_s(x, (__m128)__lsx_vreplgr2vr_w(c_cephes_FOPI.i));
+
+    poly_mask = __lsx_vftintrz_w_s(y);
+    poly_mask = __lsx_vadd_w(poly_mask, __lsx_vreplgr2vr_w(1));
+    poly_mask = __lsx_vand_v(poly_mask, __lsx_vreplgr2vr_w(~1));
+    y = __lsx_vffint_s_w(poly_mask);
+
+    swap_sign_bit = __lsx_vand_v(poly_mask, __lsx_vreplgr2vr_w(4));
+    swap_sign_bit = __lsx_vslli_w(swap_sign_bit, 29);
+
+    poly_mask = __lsx_vand_v(poly_mask, __lsx_vreplgr2vr_w(2));
+    poly_mask = __lsx_vseq_w(poly_mask, __lsx_vreplgr2vr_w(0));
+
+    sign_bit = __lsx_vxor_v(sign_bit, swap_sign_bit);
+
+    x = __lsx_vfmadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_minus_cephes_DP1.i), x);
+    x = __lsx_vfmadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_minus_cephes_DP2.i), x);
+    x = __lsx_vfmadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_minus_cephes_DP3.i), x);
+
+    y = (__m128)__lsx_vreplgr2vr_w(c_cephes_cos_p0.i);
+    __m128 z = __lsx_vfmul_s(x, x);
+    y = __lsx_vfmadd_s(y, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_cos_p1.i));
+    y = __lsx_vfmadd_s(y, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_cos_p2.i));
+    y = __lsx_vfmul_s(y, z);
+    y = __lsx_vfmul_s(y, z);
+    y = __lsx_vfmadd_s(z, n0p5, y);
+    y = __lsx_vfadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_1.i));
+
+    __m128 y2 = (__m128)__lsx_vreplgr2vr_w(c_cephes_sin_p0.i);
+    y2 = __lsx_vfmadd_s(y2, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_sin_p1.i));
+    y2 = __lsx_vfmadd_s(y2, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_sin_p2.i));
+    y2 = __lsx_vfmul_s(y2, z);
+    y2 = __lsx_vfmadd_s(y2, x, x);
+
+    y2 = (__m128)__lsx_vand_v((__m128i)y2, poly_mask);
+    y = (__m128)__lsx_vand_v(__lsx_vxor_v(poly_mask, __lsx_vreplgr2vr_w(0xffffffff)), (__m128i)y);
+    y = __lsx_vfadd_s(y, y2);
+    y = (__m128)__lsx_vxor_v((__m128i)y, sign_bit);
+
+    return y;
+}
+
+static inline __m128 cos_ps(__m128 x)
+{
+    __m128 y;
+    __m128i swap_sign_bit, poly_mask, sign_bit;
+    __m128 n0p5 = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_n1.i), (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
+
+    x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
+
+    y = __lsx_vfmul_s(x, (__m128)__lsx_vreplgr2vr_w(c_cephes_FOPI.i));
+
+    poly_mask = __lsx_vftintrz_w_s(y);
+    poly_mask = __lsx_vadd_w(poly_mask, __lsx_vreplgr2vr_w(1));
+    poly_mask = __lsx_vand_v(poly_mask, __lsx_vreplgr2vr_w(~1));
+    y = __lsx_vffint_s_w(poly_mask);
+    poly_mask = __lsx_vsub_w(poly_mask, __lsx_vreplgr2vr_w(2));
+
+    swap_sign_bit = __lsx_vandn_v(poly_mask, __lsx_vreplgr2vr_w(4));
+    swap_sign_bit = __lsx_vslli_w(swap_sign_bit, 29);
+
+    poly_mask = __lsx_vand_v(poly_mask, __lsx_vreplgr2vr_w(2));
+    poly_mask = __lsx_vseq_w(poly_mask, __lsx_vreplgr2vr_w(0));
+
+    sign_bit = swap_sign_bit;
+
+    x = __lsx_vfmadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_minus_cephes_DP1.i), x);
+    x = __lsx_vfmadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_minus_cephes_DP2.i), x);
+    x = __lsx_vfmadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_minus_cephes_DP3.i), x);
+
+    y = (__m128)__lsx_vreplgr2vr_w(c_cephes_cos_p0.i);
+    __m128 z = __lsx_vfmul_s(x, x);
+    y = __lsx_vfmadd_s(y, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_cos_p1.i));
+    y = __lsx_vfmadd_s(y, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_cos_p2.i));
+    y = __lsx_vfmul_s(y, z);
+    y = __lsx_vfmul_s(y, z);
+    y = __lsx_vfmadd_s(z, n0p5, y);
+    y = __lsx_vfadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_1.i));
+
+    __m128 y2 = (__m128)__lsx_vreplgr2vr_w(c_cephes_sin_p0.i);
+    y2 = __lsx_vfmadd_s(y2, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_sin_p1.i));
+    y2 = __lsx_vfmadd_s(y2, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_sin_p2.i));
+    y2 = __lsx_vfmul_s(y2, z);
+    y2 = __lsx_vfmadd_s(y2, x, x);
+
+    y2 = (__m128)__lsx_vand_v((__m128i)y2, poly_mask);
+    y = (__m128)__lsx_vandn_v(poly_mask, (__m128i)y);
+    y = __lsx_vfadd_s(y, y2);
+    y = (__m128)__lsx_vxor_v((__m128i)y, sign_bit);
+
+    return y;
+}
+
+static inline void sincos_ps(__m128 x, __m128* s, __m128* c)
+{
+    __m128 y;
+    __m128i swap_sign_bit_cos, swap_sign_bit_sin, poly_mask, sign_bit_sin, sign_bit_cos;
+    __m128 n0p5 = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_n1.i), (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
+
+    sign_bit_sin = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
+
+    y = __lsx_vfmul_s(x, (__m128)__lsx_vreplgr2vr_w(c_cephes_FOPI.i));
+
+    poly_mask = __lsx_vftintrz_w_s(y);
+    poly_mask = __lsx_vadd_w(poly_mask, __lsx_vreplgr2vr_w(1));
+    poly_mask = __lsx_vand_v(poly_mask, __lsx_vreplgr2vr_w(~1));
+    y = __lsx_vffint_s_w(poly_mask);
+
+    swap_sign_bit_cos = __lsx_vsub_w(poly_mask, __lsx_vreplgr2vr_w(2));
+    swap_sign_bit_cos = __lsx_vandn_v(swap_sign_bit_cos, __lsx_vreplgr2vr_w(4));
+    swap_sign_bit_cos = __lsx_vslli_w(swap_sign_bit_cos, 29);
+
+    swap_sign_bit_sin = __lsx_vand_v(poly_mask, __lsx_vreplgr2vr_w(4));
+    swap_sign_bit_sin = __lsx_vslli_w(swap_sign_bit_sin, 29);
+
+    poly_mask = __lsx_vand_v(poly_mask, __lsx_vreplgr2vr_w(2));
+    poly_mask = __lsx_vseq_w(poly_mask, __lsx_vreplgr2vr_w(0));
+
+    sign_bit_sin = __lsx_vxor_v(sign_bit_sin, swap_sign_bit_sin);
+    sign_bit_cos = swap_sign_bit_cos;
+
+    x = __lsx_vfmadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_minus_cephes_DP1.i), x);
+    x = __lsx_vfmadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_minus_cephes_DP2.i), x);
+    x = __lsx_vfmadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_minus_cephes_DP3.i), x);
+
+    __m128 z = __lsx_vfmul_s(x, x);
+    y = (__m128)__lsx_vreplgr2vr_w(c_cephes_cos_p0.i);
+    y = __lsx_vfmadd_s(y, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_cos_p1.i));
+    y = __lsx_vfmadd_s(y, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_cos_p2.i));
+    y = __lsx_vfmul_s(y, z);
+    y = __lsx_vfmul_s(y, z);
+    y = __lsx_vfmadd_s(z, n0p5, y);
+    y = __lsx_vfadd_s(y, (__m128)__lsx_vreplgr2vr_w(c_1.i));
+
+    __m128 y2 = (__m128)__lsx_vreplgr2vr_w(c_cephes_sin_p0.i);
+    y2 = __lsx_vfmadd_s(y2, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_sin_p1.i));
+    y2 = __lsx_vfmadd_s(y2, z, (__m128)__lsx_vreplgr2vr_w(c_cephes_sin_p2.i));
+    y2 = __lsx_vfmul_s(y2, z);
+    y2 = __lsx_vfmadd_s(y2, x, x);
+
+    __m128 ysin1 = (__m128)__lsx_vandn_v(poly_mask, (__m128i)y);
+    __m128 ysin2 = (__m128)__lsx_vand_v(poly_mask, (__m128i)y2);
+    y2 = __lsx_vfsub_s(y2, ysin2);
+    y = __lsx_vfsub_s(y, ysin1);
+
+    ysin1 = __lsx_vfadd_s(ysin1, ysin2);
+    y = __lsx_vfadd_s(y, y2);
+
+    *s = (__m128)__lsx_vxor_v((__m128i)ysin1, sign_bit_sin);
+    *c = (__m128)__lsx_vxor_v((__m128i)y, sign_bit_cos);
+}
+
+static inline __m128 tan_ps(__m128 x)
+{
+    __m128 ysin, ycos;
+    __m128 eps = (__m128)__lsx_vreplgr2vr_w(c_eps.i);
+    __m128 zero = (__m128)__lsx_vreplgr2vr_w(c_0.i);
+    sincos_ps(x, &ysin, &ycos);
+    __m128i mask = __lsx_vfcmp_ceq_s(ycos, eps);
+    mask = __lsx_vand_v(mask, (__m128i)eps);
+    ycos = __lsx_vfadd_s(ycos, (__m128)mask);
+    __m128 ytan = __lsx_vfdiv_s(ysin, ycos);
+    return ytan;
+}
+
 static inline __m128 pow_ps(__m128 a, __m128 b)
 {
     // pow(x, m) = exp(m * log(x))
@@ -255,18 +446,184 @@ static inline __m128 sigmoid_ps(__m128 _v)
     return __lsx_vfdiv_s(_one, _v);
 }
 
-static inline __m128 atan2_ps(__m128 a, __m128 b)
+_LOONGARCH_FLOAT_CONST(c_cephes_asin_a4, 0.023994016f);
+_LOONGARCH_FLOAT_CONST(c_cephes_asin_a5, 0.042417344f);
+_LOONGARCH_FLOAT_CONST(c_cephes_asin_a2, 0.07494697f);
+_LOONGARCH_FLOAT_CONST(c_cephes_asin_a3, 0.045520633f);
+_LOONGARCH_FLOAT_CONST(c_cephes_asin_a0, 1.0f);
+_LOONGARCH_FLOAT_CONST(c_cephes_asin_a1, 0.166667819f);
+_LOONGARCH_FLOAT_CONST(c_cephes_asin_half_pi, 1.5707964f);
+_LOONGARCH_FLOAT_CONST(c_cephes_asin_pi, 3.1415927f);
+_LOONGARCH_FLOAT_CONST(c_cephes_asin_npi, -3.1415927f);
+
+static inline __m128 asin_ps(__m128 x)
 {
-    //TODO lsx optimize
-    float tmpx[4];
-    float tmpy[4];
-    __lsx_vst(a, tmpx, 0);
-    __lsx_vst(b, tmpy, 0);
-    tmpx[0] = atan2f(tmpx[0], tmpy[0]);
-    tmpx[1] = atan2f(tmpx[1], tmpy[1]);
-    tmpx[2] = atan2f(tmpx[2], tmpy[2]);
-    tmpx[3] = atan2f(tmpx[3], tmpy[3]);
-    return (__m128)__lsx_vld(tmpx, 0);
+    __m128 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
+    __m128 is_big_input_one, output_approx, final_approx;
+    __m128 tmp1, tmp2, tmp3, tmp4;
+    __m128i mask, is_small_input, is_big_input;
+
+    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
+
+    is_small_input = __lsx_vfcmp_cle_s(x, (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
+    is_big_input = __lsx_vxor_v(is_small_input, __lsx_vreplgr2vr_w(0xffffffff));
+    is_big_input_one = (__m128)__lsx_vand_v(__lsx_vreplgr2vr_w(c_1.i), is_big_input);
+
+    big_input_approx = __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(c_1.i), x);
+    big_input_approx = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_0p5.i), big_input_approx);
+    big_input_approx = __lsx_vfsqrt_s(big_input_approx);
+
+    input_approx = (__m128)__lsx_vand_v(is_small_input, (__m128i)x);
+    input_approx = (__m128)__lsx_vor_v((__m128i)input_approx, __lsx_vand_v(is_big_input, (__m128i)big_input_approx));
+
+    square_of_input_approx = __lsx_vfmul_s(input_approx, input_approx);
+    fourth_power_of_input_approx = __lsx_vfmul_s(square_of_input_approx, square_of_input_approx);
+
+    tmp1 = __lsx_vfmadd_s(fourth_power_of_input_approx, (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a4.i), (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a2.i));
+    tmp2 = __lsx_vfmadd_s(fourth_power_of_input_approx, (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a5.i), (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a3.i));
+    tmp3 = __lsx_vfmadd_s(fourth_power_of_input_approx, tmp1, (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a0.i));
+    tmp4 = __lsx_vfmadd_s(fourth_power_of_input_approx, tmp2, (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a1.i));
+    output_approx = __lsx_vfmadd_s(square_of_input_approx, tmp4, tmp3);
+
+    tmp1 = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_cephes_asin_half_pi.i), is_big_input_one);
+    tmp2 = __lsx_vfmul_s(output_approx, input_approx);
+    tmp3 = __lsx_vfmadd_s((__m128)__lsx_vreplgr2vr_w(c_n3.i), is_big_input_one, (__m128)__lsx_vreplgr2vr_w(c_1.i));
+
+    final_approx = __lsx_vfmadd_s(tmp2, tmp3, tmp1);
+    final_approx = (__m128)__lsx_vor_v((__m128i)final_approx, mask);
+
+    return final_approx;
+}
+
+static inline __m128 acos_ps(__m128 x)
+{
+    __m128 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
+    __m128 output_approx, final_approx, small_final_approx, big_final_approx;
+    __m128 tmp1, tmp2, tmp3, tmp4;
+    __m128i mask, mask2, is_small_input, is_big_input, lt_zero;
+
+    lt_zero = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(c_0.i));
+    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
+
+    is_small_input = __lsx_vfcmp_cle_s(x, (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
+    is_big_input = __lsx_vxor_v(is_small_input, __lsx_vreplgr2vr_w(0xffffffff));
+
+    big_input_approx = __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(c_1.i), x);
+    big_input_approx = __lsx_vfmul_s((__m128)__lsx_vreplgr2vr_w(c_0p5.i), big_input_approx);
+    big_input_approx = __lsx_vfsqrt_s(big_input_approx);
+
+    input_approx = (__m128)__lsx_vand_v(is_small_input, (__m128i)x);
+    input_approx = (__m128)__lsx_vor_v((__m128i)input_approx, __lsx_vand_v(is_big_input, (__m128i)big_input_approx));
+
+    square_of_input_approx = __lsx_vfmul_s(input_approx, input_approx);
+    fourth_power_of_input_approx = __lsx_vfmul_s(square_of_input_approx, square_of_input_approx);
+
+    tmp1 = __lsx_vfmadd_s(fourth_power_of_input_approx, (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a4.i), (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a2.i));
+    tmp2 = __lsx_vfmadd_s(fourth_power_of_input_approx, (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a5.i), (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a3.i));
+    tmp3 = __lsx_vfmadd_s(fourth_power_of_input_approx, tmp1, (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a0.i));
+    tmp4 = __lsx_vfmadd_s(fourth_power_of_input_approx, tmp2, (__m128)__lsx_vreplgr2vr_w(c_cephes_asin_a1.i));
+    output_approx = __lsx_vfmadd_s(square_of_input_approx, tmp4, tmp3);
+
+    tmp1 = __lsx_vfmul_s(input_approx, output_approx);
+
+    small_final_approx = (__m128)__lsx_vor_v((__m128i)tmp1, mask);
+    small_final_approx = __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(c_cephes_asin_half_pi.i), small_final_approx);
+
+    big_final_approx = (__m128)__lsx_vand_v(lt_zero, __lsx_vreplgr2vr_w(c_cephes_asin_pi.i));
+    tmp1 = __lsx_vfadd_s(tmp1, tmp1);
+    tmp1 = (__m128)__lsx_vor_v((__m128i)tmp1, mask);
+    big_final_approx = __lsx_vfadd_s(big_final_approx, tmp1);
+
+    final_approx = (__m128)__lsx_vand_v(is_small_input, (__m128i)small_final_approx);
+    final_approx = (__m128)__lsx_vor_v((__m128i)final_approx, __lsx_vand_v(is_big_input, (__m128i)big_final_approx));
+
+    return final_approx;
+}
+
+_LOONGARCH_FLOAT_CONST(c_cephes_atan_x0, 1.0f);
+_LOONGARCH_FLOAT_CONST(c_cephes_atan_x1, -0.33333072f);
+_LOONGARCH_FLOAT_CONST(c_cephes_atan_x2, 0.1999262f);
+_LOONGARCH_FLOAT_CONST(c_cephes_atan_x3, -0.14203644f);
+_LOONGARCH_FLOAT_CONST(c_cephes_atan_x4, 0.10640934f);
+_LOONGARCH_FLOAT_CONST(c_cephes_atan_x5, -0.07504295f);
+_LOONGARCH_FLOAT_CONST(c_cephes_atan_x6, 0.04269152f);
+_LOONGARCH_FLOAT_CONST(c_cephes_atan_x7, -0.01606863f);
+_LOONGARCH_FLOAT_CONST(c_cephes_atan_x8, 0.0028498897f);
+
+static inline __m128 atan_ps(__m128 x)
+{
+    __m128i mask, is_small_input, is_big_input;
+    __m128 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, input_approx, output_approx;
+    __m128 square_of_input_approx, fourth_power_of_input_approx;
+
+    mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    x = (__m128)__lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x7fffffff));
+
+    is_small_input = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(c_1.i), x);
+    is_big_input = __lsx_vxor_v(is_small_input, __lsx_vreplgr2vr_w(0xffffffff));
+
+    tmp1 = (__m128)__lsx_vand_v(is_small_input, __lsx_vreplgr2vr_w(c_n1.i));
+    tmp1 = (__m128)__lsx_vor_v(__lsx_vand_v(is_big_input, (__m128i)x), (__m128i)tmp1);
+
+    tmp2 = (__m128)__lsx_vand_v(is_small_input, (__m128i)x);
+    tmp2 = (__m128)__lsx_vor_v(__lsx_vand_v((__m128i)is_big_input, __lsx_vreplgr2vr_w(c_1.i)), (__m128i)tmp2);
+
+    input_approx = __lsx_vfdiv_s(tmp1, tmp2);
+    square_of_input_approx = __lsx_vfmul_s(input_approx, input_approx);
+    fourth_power_of_input_approx = __lsx_vfmul_s(square_of_input_approx, square_of_input_approx);
+
+    tmp1 = __lsx_vfmadd_s(fourth_power_of_input_approx, (__m128)__lsx_vreplgr2vr_w(c_cephes_atan_x7.i), (__m128)__lsx_vreplgr2vr_w(c_cephes_atan_x5.i));
+    tmp2 = __lsx_vfmadd_s(fourth_power_of_input_approx, (__m128)__lsx_vreplgr2vr_w(c_cephes_atan_x8.i), (__m128)__lsx_vreplgr2vr_w(c_cephes_atan_x6.i));
+    tmp3 = __lsx_vfmadd_s(fourth_power_of_input_approx, tmp1, (__m128)__lsx_vreplgr2vr_w(c_cephes_atan_x3.i));
+    tmp4 = __lsx_vfmadd_s(fourth_power_of_input_approx, tmp2, (__m128)__lsx_vreplgr2vr_w(c_cephes_atan_x4.i));
+    tmp5 = __lsx_vfmadd_s(fourth_power_of_input_approx, tmp3, (__m128)__lsx_vreplgr2vr_w(c_cephes_atan_x1.i));
+    tmp6 = __lsx_vfmadd_s(fourth_power_of_input_approx, tmp4, (__m128)__lsx_vreplgr2vr_w(c_cephes_atan_x2.i));
+    tmp7 = __lsx_vfmadd_s(fourth_power_of_input_approx, tmp6, (__m128)__lsx_vreplgr2vr_w(c_cephes_atan_x0.i));
+    output_approx = __lsx_vfmadd_s(square_of_input_approx, tmp5, tmp7);
+
+    tmp1 = __lsx_vfmul_s(input_approx, output_approx);
+    tmp2 = (__m128)__lsx_vand_v(is_small_input, __lsx_vreplgr2vr_w(c_cephes_asin_half_pi.i));
+    tmp1 = __lsx_vfadd_s(tmp1, tmp2);
+    tmp1 = (__m128)__lsx_vxor_v(mask, (__m128i)tmp1);
+    return tmp1;
+}
+
+static inline __m128 atan2_ps(__m128 y, __m128 x)
+{
+    __m128i not_eq_zero_x, not_eq_zero_y, normal_mode, negative_mask_x, negative_mask_y;
+    __m128i lt_zero_mask_x, lt_zero_mask_y, ge_zero_mask_y, eq_zero_y;
+    __m128 pi_additions, tmp1, tmp2, normal_result, special_result, final_result;
+
+    not_eq_zero_x = __lsx_vfcmp_cne_s(x, (__m128)__lsx_vreplgr2vr_w(c_0.i));
+    not_eq_zero_y = __lsx_vfcmp_cne_s(y, (__m128)__lsx_vreplgr2vr_w(c_0.i));
+    eq_zero_y = __lsx_vxor_v(not_eq_zero_y, __lsx_vreplgr2vr_w(0xffffffff));
+    normal_mode = __lsx_vand_v(not_eq_zero_x, not_eq_zero_y);
+    negative_mask_x = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));
+    negative_mask_y = __lsx_vand_v((__m128i)y, __lsx_vreplgr2vr_w(0x80000000));
+
+    lt_zero_mask_x = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(0));
+    lt_zero_mask_y = __lsx_vfcmp_clt_s(y, (__m128)__lsx_vreplgr2vr_w(0));
+    ge_zero_mask_y = __lsx_vxor_v(lt_zero_mask_y, __lsx_vreplgr2vr_w(0xffffffff));
+
+    pi_additions = (__m128)__lsx_vand_v(lt_zero_mask_y, __lsx_vreplgr2vr_w(c_cephes_asin_npi.i));
+    pi_additions = (__m128)__lsx_vor_v(__lsx_vand_v(ge_zero_mask_y, __lsx_vreplgr2vr_w(c_cephes_asin_pi.i)), (__m128i)pi_additions);
+    pi_additions = (__m128)__lsx_vand_v(lt_zero_mask_x, (__m128i)pi_additions);
+
+    normal_result = __lsx_vfdiv_s(y, x);
+    normal_result = __lsx_vfadd_s(atan_ps(normal_result), pi_additions);
+
+    tmp1 = (__m128)__lsx_vand_v(negative_mask_y, __lsx_vreplgr2vr_w(c_cephes_asin_half_pi.i));
+    tmp2 = (__m128)__lsx_vand_v(negative_mask_x, __lsx_vreplgr2vr_w(c_cephes_asin_pi.i));
+    special_result = (__m128)__lsx_vand_v(not_eq_zero_y, (__m128i)tmp1);
+    special_result = (__m128)__lsx_vor_v(__lsx_vand_v(eq_zero_y, (__m128i)tmp2), (__m128i)special_result);
+
+    final_result = (__m128)__lsx_vand_v(normal_mode, (__m128i)normal_result);
+    normal_mode = __lsx_vxor_v(normal_mode, __lsx_vreplgr2vr_w(0xffffffff));
+    final_result = (__m128)__lsx_vor_v(__lsx_vand_v(normal_mode, (__m128i)special_result), (__m128i)final_result);
+
+    return final_result;
 }
 
 #endif // LSX_MATHFUN_H

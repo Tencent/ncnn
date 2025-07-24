@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -27,14 +16,15 @@ layout (constant_id = 6) const int bias_term = 0;
 layout (constant_id = 7) const int activation_type = 0;
 layout (constant_id = 8) const float activation_param_0 = 0;
 layout (constant_id = 9) const float activation_param_1 = 0;
+layout (constant_id = 10) const int outc = 0;
 
-#define shape_constant_id_offset 10
+#define shape_constant_id_offset 11
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
 
 layout (binding = 0) readonly buffer col_blob { sfp col_blob_data[]; };
@@ -45,10 +35,10 @@ layout (push_constant) uniform parameter
 {
     int w;
     int h;
+    int cstep;
 
     int outw;
     int outh;
-    int outc;
     int outcstep;
 } p;
 
@@ -58,7 +48,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= outc)
         return;
 
     afp sum;
@@ -95,7 +85,7 @@ void main()
                 h_k /= dilation_h;
                 w_k /= dilation_w;
 
-                const int gi = (gz * maxk + h_k * kernel_w + w_k) * psc(w) * psc(h) + sy * psc(w) + sx;
+                const int gi = (gz * maxk + h_k * kernel_w + w_k) * psc(cstep) + sy * psc(w) + sx;
 
                 sum += buffer_ld1(col_blob_data, gi);
             }

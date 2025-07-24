@@ -1,21 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "gpu.h"
 
 #if NCNN_VULKAN
 
+#include <float.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2023,6 +2013,79 @@ const std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV>& GpuInfo::q
 const std::vector<VkCooperativeVectorPropertiesNV>& GpuInfo::queryCooperativeVectorSubPropertiesNV() const
 {
     return d->queryCooperativeVectorSubPropertiesNV;
+}
+
+void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K) const
+{
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+
+    // collect mnk candidates
+    std::vector<VkCooperativeMatrixPropertiesKHR> mnk_properties;
+
+    if (d->support_VK_KHR_cooperative_matrix && d->queryCooperativeMatrixFeatures.cooperativeMatrix)
+    {
+        for (size_t i = 0; i < d->queryCooperativeMatrixSubProperties.size(); i++)
+        {
+            const VkCooperativeMatrixPropertiesKHR& cmp = d->queryCooperativeMatrixSubProperties[i];
+
+            if (cmp.AType == type && cmp.BType == type
+                    && cmp.CType == acctype && cmp.ResultType == acctype
+                    && cmp.scope == scope)
+            {
+                mnk_properties.push_back(cmp);
+            }
+        }
+    }
+    else if (d->support_VK_NV_cooperative_matrix && d->queryCooperativeMatrixFeaturesNV.cooperativeMatrix)
+    {
+        for (size_t i = 0; i < d->queryCooperativeMatrixSubPropertiesNV.size(); i++)
+        {
+            const VkCooperativeMatrixPropertiesNV& cmp = d->queryCooperativeMatrixSubPropertiesNV[i];
+
+            if (cmp.AType == (VkComponentTypeNV)type && cmp.BType == (VkComponentTypeNV)type
+                    && cmp.CType == (VkComponentTypeNV)acctype && cmp.DType == (VkComponentTypeNV)acctype
+                    && cmp.scope == (VkScopeNV)scope)
+            {
+                VkCooperativeMatrixPropertiesKHR cmp_khr;
+                cmp_khr.MSize = cmp.MSize;
+                cmp_khr.NSize = cmp.NSize;
+                cmp_khr.KSize = cmp.KSize;
+
+                mnk_properties.push_back(cmp_khr);
+            }
+        }
+    }
+
+    if (mnk_properties.empty() && (acctype == VK_COMPONENT_TYPE_FLOAT16_KHR || acctype == VK_COMPONENT_TYPE_BFLOAT16_KHR))
+    {
+        // try acctype fp32
+        return get_optimal_cooperative_matrix_mnk(M, N, K, type, VK_COMPONENT_TYPE_FLOAT32_KHR, scope, coopmat_M, coopmat_N, coopmat_K);
+    }
+
+    if (mnk_properties.empty())
+        return;
+
+    // find the optimal, prefer the first mnk tuple with same cost
+    double min_cost = DBL_MAX;
+    for (size_t i = 0; i < mnk_properties.size(); i++)
+    {
+        const VkCooperativeMatrixPropertiesKHR& cmp = mnk_properties[i];
+
+        const int M_pad = (M + cmp.MSize - 1) / cmp.MSize * cmp.MSize;
+        const int N_pad = (N + cmp.NSize - 1) / cmp.NSize * cmp.NSize;
+        const int K_pad = (K + cmp.KSize - 1) / cmp.KSize * cmp.KSize;
+
+        double cost = M_pad * N_pad * K_pad - M * N * K;
+        if (cost < min_cost)
+        {
+            min_cost = cost;
+            coopmat_M = cmp.MSize;
+            coopmat_N = cmp.NSize;
+            coopmat_K = cmp.KSize;
+        }
+    }
 }
 
 static int init_instance_core()
@@ -5306,7 +5369,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 #if ENABLE_VALIDATION_LAYER
         if (info.support_VK_KHR_shader_non_semantic_info())
         {
-            device_defines.append("enable_validataion_layer", VK_TRUE);
+            device_defines.append("enable_validation_layer", VK_TRUE);
             custom_defines.append("NCNN_LOGE", "debugPrintfEXT");
         }
 #endif

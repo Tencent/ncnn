@@ -1,28 +1,16 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
 layout (constant_id = 0) const int batch = 1;
+layout (constant_id = 1) const int c = 0;
+layout (constant_id = 2) const int outc = 0;
 
-#define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
-
-layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+#define shape_constant_id_offset 3
+layout (constant_id = shape_constant_id_offset + 0) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
 
 layout (binding = 0) readonly buffer bottom_tm_blob { sfpvec8 bottom_tm_blob_data[]; };
 layout (binding = 1) writeonly buffer top_tm_blob { sfp top_tm_blob_data[]; };
@@ -30,11 +18,8 @@ layout (binding = 2) readonly buffer weight_tm_blob { sfpvec8 weight_tm_data[]; 
 
 layout (push_constant) uniform parameter
 {
-    int c;
     int cstep;
-
     int outw;
-    int outc;
     int outcstep;
 } p;
 
@@ -44,7 +29,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
+    if (gx >= psc(outw) || gy >= outc || gz >= batch)
         return;
 
     afp sum0 = afp(0.f);
@@ -52,10 +37,10 @@ void main()
     afp sum2 = afp(0.f);
     afp sum3 = afp(0.f);
 
-    int v_offset = gz * psc(cstep) + gx;
-    int w_offset = gz * psc(c) * psc(outc) + gy * psc(c);
+    int v_offset = gz * c * psc(cstep) + gx;
+    int w_offset = gz * c * outc + gy * c;
 
-    for (int z = 0; z < psc(c); z++)
+    for (int z = 0; z < c; z++)
     {
         afpvec8 v0 = buffer_ld8(bottom_tm_blob_data, v_offset + 0);
         afpvec8 v1 = buffer_ld8(bottom_tm_blob_data, v_offset + 1);
@@ -70,11 +55,11 @@ void main()
         sum2 += dot(v2[0], k[0]) + dot(v2[1], k[1]);
         sum3 += dot(v3[0], k[0]) + dot(v3[1], k[1]);
 
-        v_offset += psc(outw);
+        v_offset += psc(cstep);
         w_offset += 1;
     }
 
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    int gi = gz * outc * psc(outcstep) + gy * psc(outcstep) + gx;
 
     buffer_st1(top_tm_blob_data, gi + 0, sum0);
     if (gx + 1 < psc(outw)) buffer_st1(top_tm_blob_data, gi + 1, sum1);

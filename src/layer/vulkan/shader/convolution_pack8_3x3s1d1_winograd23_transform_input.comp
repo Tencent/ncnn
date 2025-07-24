@@ -1,29 +1,19 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
-#define shape_constant_id_offset 0
+layout (constant_id = 0) const int c = 0;
+
+#define shape_constant_id_offset 1
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outcstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int block_x = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int block_y = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int block_x = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int block_y = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer bottom_tm_blob { sfpvec8 bottom_tm_blob_data[]; };
@@ -32,7 +22,6 @@ layout (push_constant) uniform parameter
 {
     int w;
     int h;
-    int c;
     int cstep;
 
     int outcstep;
@@ -47,7 +36,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= psc(c))
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= c)
         return;
 
     // load 4x4
@@ -126,22 +115,22 @@ void main()
     v33 = m33 - m31;
 
     // store 16
-    int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
+    int v_tm_offset = gz * psc(outcstep) + gy * psc(block_x) + gx;
 
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 0 * psc(outcstep), v00);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 1 * psc(outcstep), v01);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 2 * psc(outcstep), v02);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 3 * psc(outcstep), v03);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 4 * psc(outcstep), v10);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 5 * psc(outcstep), v11);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 6 * psc(outcstep), v12);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 7 * psc(outcstep), v13);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 8 * psc(outcstep), v20);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 9 * psc(outcstep), v21);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 10 * psc(outcstep), v22);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 11 * psc(outcstep), v23);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 12 * psc(outcstep), v30);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 13 * psc(outcstep), v31);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 14 * psc(outcstep), v32);
-    buffer_st8(bottom_tm_blob_data, v_tm_offset + 15 * psc(outcstep), v33);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 0 * psc(outcstep) * c, v00);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 1 * psc(outcstep) * c, v01);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 2 * psc(outcstep) * c, v02);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 3 * psc(outcstep) * c, v03);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 4 * psc(outcstep) * c, v10);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 5 * psc(outcstep) * c, v11);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 6 * psc(outcstep) * c, v12);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 7 * psc(outcstep) * c, v13);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 8 * psc(outcstep) * c, v20);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 9 * psc(outcstep) * c, v21);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 10 * psc(outcstep) * c, v22);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 11 * psc(outcstep) * c, v23);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 12 * psc(outcstep) * c, v30);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 13 * psc(outcstep) * c, v31);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 14 * psc(outcstep) * c, v32);
+    buffer_st8(bottom_tm_blob_data, v_tm_offset + 15 * psc(outcstep) * c, v33);
 }

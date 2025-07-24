@@ -16,9 +16,14 @@ git submodule update --init
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for Windows x64 using MinGW-w64](#build-for-windows-x64-using-mingw-w64)
+- [Build for Windows XP (x86)](#build-for-windows-xp-x86)
+  - [Using MinGW-w64](#using-mingw-w64)
+  - [Using Clang](#using-clang)
+  - [Using Visual Studio (MSVC)](#using-visual-studio-msvc)
 - [Build for macOS](#build-for-macos)
 - [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
 - [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
+- [Build for AnyCloud platform with cross-compiling](#build-for-AnyCloud-platform-with-cross-compiling)
 - [Build for Android](#build-for-android)
 - [Build for iOS on macOS with xcode](#build-for-ios-on-macos-with-xcode)
 - [Build for WebAssembly](#build-for-webassembly)
@@ -262,6 +267,57 @@ cmake --build . --config Release --target install
 
 ***
 
+### Build for Windows XP (x86)
+
+> **Note:** Windows XP support is provided through collaborative contributions from [@Sugar-Baby](https://github.com/Sugar-Baby) and [@AtomAlpaca](https://github.com/AtomAlpaca).
+
+#### Using MinGW-w64
+
+Download mingw toolchain targeting 32 bit from [sourceforge](https://jaist.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/8.1.0/threads-posix/dwarf/i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z), extract and add environment variable named `MINGW32_ROOT_PATH` valued by `<your-path-to-mingw-root-path>`, and add `<your-path-to-mingw-root-path>/bin` to `PATH`.
+
+```shell
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-mingw.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_VULKAN=OFF .. -G "MinGW Makefiles"
+cmake --build . --config Release -j 4
+cmake --build . --config Release --target install
+```
+
+#### Using Clang
+
+Clang requires libraries from mingw. Configure mingw toolchain targeting 32-bit as described in the [MinGW-w64 section](#using-mingw-w64).
+
+Install Clang 6.0 or later.
+
+```shell
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
+cmake --build . --config Release -j 4
+cmake --build . --config Release --target install
+```
+
+#### Using Visual Studio (MSVC)
+
+Install v141_xp toolset for Windows XP:
+
+1. Bring up the Visual Studio installer (Tools → Get Tools and Features)
+2. Select Desktop development with C++
+3. Select Windows XP support for C++ from the Summary section
+4. Click Modify
+
+```shell
+mkdir build
+cd build
+cmake -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
+**Note:** The MSVC toolchain uses the `v141_xp` platform toolset for Windows XP compatibility. Vulkan is disabled for XP compatibility, and advanced CPU features (AVX, AVX2, AVX512) are disabled to ensure compatibility with older processors.
+
+***
+
 ### Build for macOS
 
 We've published ncnn to [brew](https://formulae.brew.sh/formula/ncnn#default) now, you can just use following method to install ncnn if you have the Xcode Command Line Tools installed.
@@ -349,7 +405,8 @@ make -j$(nproc)
 ***
 
 ### Build for Hisilicon platform with cross-compiling
-Download and install Hisilicon SDK. The toolchain should be in `/opt/hisi-linux/x86-arm`
+Download and install Hisilicon SDK. The toolchain should be in `/opt/hisi-linux/x86-arm` 
+new version of Hisilicon toolchain should be in `/opt/linux/x86-arm/` 
 
 ```shell
 cd <ncnn-root-dir>
@@ -361,6 +418,24 @@ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/hisiv300.toolchain.cmake ..
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/hisiv500.toolchain.cmake ..
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix100.toolchain.cmake ..
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix200.toolchain.cmake ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix210.toolchain.cmake ..
+
+make -j$(nproc)
+make install
+```
+
+***
+
+### Build for AnyCloud platform with cross-compiling
+Download and install AnyCloud SDK. And load env to set toolchain can access in shell
+
+```shell
+cd <ncnn-root-dir>
+mkdir -p build
+cd build
+
+# Choose one cmake toolchain file depends on your target platform
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/anykav500.toolchain.cmake ..
 
 make -j$(nproc)
 make install

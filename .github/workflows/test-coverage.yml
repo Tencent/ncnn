@@ -59,6 +59,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/.local/bin/codecov
         files: build/lcov.info
 
   linux-gcc-x64:
@@ -140,6 +141,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info,build-openmp/lcov.info
 
   linux-gcc-x64-simplestl-simplemath:
@@ -171,6 +173,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gcc-x64-sde:
@@ -222,6 +225,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gcc-x64-sde-combined:
@@ -281,6 +285,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gcc-riscv64-rvv:
@@ -356,6 +361,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gpu-swiftshader:
@@ -413,6 +419,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gcc-cross:
@@ -571,4 +578,5 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info,build-openmp/lcov.info

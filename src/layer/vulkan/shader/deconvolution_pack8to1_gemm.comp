@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -22,8 +11,8 @@ layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outc = 0;
 
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer col_blob { sfp col_blob_data[]; };
@@ -36,8 +25,8 @@ layout (push_constant) uniform parameter
     int c;
     int cstep;
 
-    int outw;
-    int outh;
+    int outcstep;
+    int outc;
 } p;
 
 void main()
@@ -45,7 +34,7 @@ void main()
     int gx = int(gl_GlobalInvocationID.x) * 4;
     int gy = int(gl_GlobalInvocationID.y);
 
-    if (gx >= psc(outw) || gy >= psc(outh))
+    if (gx >= psc(outcstep) || gy >= psc(outc))
         return;
 
     afp sum0 = afp(0.f);
@@ -75,10 +64,10 @@ void main()
         w_offset += 1;
     }
 
-    const int gi = gy * psc(outw) + gx;
+    const int gi = gy * psc(outcstep) + gx;
 
     buffer_st1(col_blob_data, gi, sum0);
-    if (gx + 1 < psc(outw)) buffer_st1(col_blob_data, gi + 1, sum1);
-    if (gx + 2 < psc(outw)) buffer_st1(col_blob_data, gi + 2, sum2);
-    if (gx + 3 < psc(outw)) buffer_st1(col_blob_data, gi + 3, sum3);
+    if (gx + 1 < psc(outcstep)) buffer_st1(col_blob_data, gi + 1, sum1);
+    if (gx + 2 < psc(outcstep)) buffer_st1(col_blob_data, gi + 2, sum2);
+    if (gx + 3 < psc(outcstep)) buffer_st1(col_blob_data, gi + 3, sum3);
 }

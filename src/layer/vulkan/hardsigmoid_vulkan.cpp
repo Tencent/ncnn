@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "hardsigmoid_vulkan.h"
 
@@ -23,8 +12,6 @@ HardSigmoid_vulkan::HardSigmoid_vulkan()
     support_vulkan = true;
 
     pipeline_hardsigmoid = 0;
-    pipeline_hardsigmoid_pack4 = 0;
-    pipeline_hardsigmoid_pack8 = 0;
 }
 
 int HardSigmoid_vulkan::create_pipeline(const Option& opt)
@@ -51,58 +38,16 @@ int HardSigmoid_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
-    std::vector<vk_specialization_type> specializations(2 + 5);
+    std::vector<vk_specialization_type> specializations(2 + 1);
     specializations[0].f = alpha;
     specializations[1].f = beta;
-    specializations[2 + 0].i = shape_packed.dims;
-    specializations[2 + 1].i = shape_packed.w;
-    specializations[2 + 2].i = shape_packed.h;
-    specializations[2 + 3].i = shape_packed.c;
-    specializations[2 + 4].i = shape_packed.cstep;
+    specializations[2 + 0].u32 = shape_packed.total() * elempack / 4;
 
-    Mat local_size_xyz;
-    if (shape_packed.dims == 1)
-    {
-        local_size_xyz.w = std::min(64, shape_packed.w);
-        local_size_xyz.h = 1;
-        local_size_xyz.c = 1;
-    }
-    if (shape_packed.dims == 2)
-    {
-        local_size_xyz.w = std::min(8, shape_packed.w);
-        local_size_xyz.h = std::min(8, shape_packed.h);
-        local_size_xyz.c = 1;
-    }
-    if (shape_packed.dims == 3)
-    {
-        local_size_xyz.w = std::min(4, shape_packed.w);
-        local_size_xyz.h = std::min(4, shape_packed.h);
-        local_size_xyz.c = std::min(4, shape_packed.c);
-    }
+    const int local_size_x = vkdev->info.subgroup_size();
 
-    // pack1
-    if (shape.dims == 0 || elempack == 1)
-    {
-        pipeline_hardsigmoid = new Pipeline(vkdev);
-        pipeline_hardsigmoid->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardsigmoid->create(LayerShaderType::hardsigmoid, opt, specializations);
-    }
-
-    // pack4
-    if (shape.dims == 0 || elempack == 4)
-    {
-        pipeline_hardsigmoid_pack4 = new Pipeline(vkdev);
-        pipeline_hardsigmoid_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardsigmoid_pack4->create(LayerShaderType::hardsigmoid_pack4, opt, specializations);
-    }
-
-    // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-    {
-        pipeline_hardsigmoid_pack8 = new Pipeline(vkdev);
-        pipeline_hardsigmoid_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardsigmoid_pack8->create(LayerShaderType::hardsigmoid_pack8, opt, specializations);
-    }
+    pipeline_hardsigmoid = new Pipeline(vkdev);
+    pipeline_hardsigmoid->set_optimal_local_size_xyz(local_size_x, 1, 1);
+    pipeline_hardsigmoid->create(LayerShaderType::hardsigmoid, opt, specializations);
 
     return 0;
 }
@@ -112,34 +57,24 @@ int HardSigmoid_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_hardsigmoid;
     pipeline_hardsigmoid = 0;
 
-    delete pipeline_hardsigmoid_pack4;
-    pipeline_hardsigmoid_pack4 = 0;
-
-    delete pipeline_hardsigmoid_pack8;
-    pipeline_hardsigmoid_pack8 = 0;
-
     return 0;
 }
 
 int HardSigmoid_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
-    int elempack = bottom_top_blob.elempack;
+    const size_t n = bottom_top_blob.total() * bottom_top_blob.elempack / 4;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
 
-    std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = bottom_top_blob.cstep;
+    std::vector<vk_constant_type> constants(1);
+    constants[0].u32 = n;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_hardsigmoid_pack8
-                               : elempack == 4 ? pipeline_hardsigmoid_pack4
-                               : pipeline_hardsigmoid;
-
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    VkMat dispatcher;
+    dispatcher.w = n;
+    dispatcher.h = 1;
+    dispatcher.c = 1;
+    cmd.record_pipeline(pipeline_hardsigmoid, bindings, constants, dispatcher);
 
     return 0;
 }
