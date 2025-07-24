@@ -2012,7 +2012,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w - 1) / 2;
 
@@ -2597,7 +2597,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 1) / 2;
 
@@ -3376,7 +3376,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w + 1) / 4;
 
@@ -4165,7 +4165,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 3) / 4;
 
@@ -5227,7 +5227,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w + 3) / 6;
 
@@ -6236,7 +6236,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 5) / 6;
 

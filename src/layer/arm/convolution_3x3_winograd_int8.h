@@ -3626,7 +3626,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w - 1) / 2;
 
@@ -3919,7 +3919,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 1) / 2;
 
@@ -4484,7 +4484,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w + 1) / 4;
 
@@ -4896,7 +4896,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 3) / 4;
 

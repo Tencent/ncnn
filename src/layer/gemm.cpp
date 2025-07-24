@@ -136,10 +136,10 @@ static void gemm_transB(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < M; i++)
     {
-        const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+        const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
-        const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
-        const int BT_hstep = BT.dims == 3 ? (int)BT.cstep : BT.w;
+        const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+        const size_t BT_hstep = BT.dims == 3 ? BT.cstep : (size_t)BT.w;
 
         const float* ptrA = (const float*)A + i * A_hstep;
         const float* ptrC = C;
@@ -212,7 +212,7 @@ static void gemm_transB_int8(const Mat& A_int8, const Mat& BT_int8, const Mat& A
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < M; i++)
     {
-        const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+        const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
         const signed char* ptrA = A_int8.row<const signed char>(i);
         const float* ptrC = C;
@@ -306,7 +306,7 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         // transpose A to row-major
         A.create((A0.dims == 3 ? A0.c : A0.h), A0.w, elemsize, opt.workspace_allocator);
 
-        const int A0_hstep = A0.dims == 3 ? (int)A0.cstep : A0.w;
+        const size_t A0_hstep = A0.dims == 3 ? A0.cstep : (size_t)A0.w;
 
         for (int i = 0; i < A.h; i++)
         {
@@ -324,7 +324,7 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         // transpose B to col-major
         BT.create((B0.dims == 3 ? B0.c : B0.h), B0.w, elemsize, opt.workspace_allocator);
 
-        const int B0_hstep = B0.dims == 3 ? (int)B0.cstep : B0.w;
+        const size_t B0_hstep = B0.dims == 3 ? B0.cstep : (size_t)B0.w;
 
         for (int i = 0; i < BT.h; i++)
         {
@@ -476,7 +476,7 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
         for (int i = 0; i < A_int8.h; i++)
         {
-            const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+            const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
             const float* ptr = (const float*)A + i * A_hstep;
 
             float absmax = 0.f;
@@ -507,7 +507,7 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         float absmax = 0.f;
         for (int i = 0; i < B0_int8.h; i++)
         {
-            const int B_hstep = B0.dims == 3 ? (int)B0.cstep : B0.w;
+            const size_t B_hstep = B0.dims == 3 ? B0.cstep : (size_t)B0.w;
             const float* ptr = (const float*)B0 + i * B_hstep;
 
             for (int k = 0; k < B0_int8.w; k++)
@@ -520,7 +520,7 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
         for (int i = 0; i < B0_int8.h; i++)
         {
-            const int B_hstep = B0.dims == 3 ? (int)B0.cstep : B0.w;
+            const size_t B_hstep = B0.dims == 3 ? B0.cstep : (size_t)B0.w;
             const float* ptr = (const float*)B0 + i * B_hstep;
 
             signed char* ptrBi = B0_int8.row<signed char>(i);

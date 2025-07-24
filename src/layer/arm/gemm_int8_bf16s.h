@@ -20,7 +20,7 @@ void transpose_unpack_output_tile_int32_to_bf16_asimddp(const Mat& topT, const M
 static void compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
 {
     const int elempack = A.elempack;
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
     const int K = A.w;
 
     // NCNN_LOGE("compute_A_tile_bf16_int8_scales %d %d", max_ii, elempack);
@@ -194,7 +194,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 #endif
 
     const int elempack = A.elempack;
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     // NCNN_LOGE("pack_A_tile_bf16_to_int8 %d %d", max_ii, elempack);
 
@@ -1096,7 +1096,7 @@ static void pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 static void transpose_compute_A_tile_bf16_int8_scales(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
 {
     const int elempack = A.elempack;
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
     const int K = A.dims == 3 ? A.c : A.h;
 
     // NCNN_LOGE("transpose_compute_A_tile_bf16_int8_scales %d %d", max_ii, elempack);
@@ -1339,7 +1339,7 @@ static void transpose_pack_A_tile_bf16_to_int8(const Mat& A, Mat& AT, int i, int
 #endif
 
     const int elempack = A.elempack;
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     // NCNN_LOGE("transpose_pack_A_tile_bf16_to_int8 %d %d", max_ii, elempack);
 
@@ -2314,7 +2314,7 @@ static void compute_B_bf16_int8_scale(const Mat& B, float& scale)
 #endif
     for (int i = 0; i < (B.dims == 3 ? B.c : B.h); i++)
     {
-        const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+        const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
         const unsigned short* ptr = (const unsigned short*)B + i * B_hstep * B.elempack;
 
         const int size = B.w * B.elempack;
@@ -2370,7 +2370,7 @@ static void pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 #endif
 
     const int elempack = B.elempack;
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     // NCNN_LOGE("pack_B_tile_bf16_to_int8 %d %d", max_jj, elempack);
 
@@ -3227,7 +3227,7 @@ static void transpose_pack_B_tile_bf16_to_int8(const Mat& B, Mat& BT, int j, int
 #endif
 
     const int elempack = B.elempack;
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     // NCNN_LOGE("transpose_pack_B_tile_bf16_to_int8 %d %d", max_jj, elempack);
 
@@ -4142,9 +4142,9 @@ static void unpack_output_tile_int32_to_bf16(const Mat& topT, const Mat& C, Mat&
 #endif
 
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
-    const int c_hstep = C.dims == 3 ? (int)C.cstep : C.w;
+    const size_t c_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
     const int c_elempack = C.elempack;
     const unsigned short* pC = C;
 
@@ -6332,9 +6332,9 @@ static void transpose_unpack_output_tile_int32_to_bf16(const Mat& topT, const Ma
 #endif
 
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
-    const int c_hstep = C.dims == 3 ? (int)C.cstep : C.w;
+    const size_t c_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
     const int c_elempack = C.elempack;
     const unsigned short* pC = C;
 

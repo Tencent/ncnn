@@ -142,7 +142,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 }
 
 #if __ARM_NEON
-static void softmax_pack4(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_pack4(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -278,7 +278,7 @@ static void softmax_pack4(float* _ptr, int elemcount, int stride, int size1, flo
 }
 #endif // __ARM_NEON
 
-static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -388,7 +388,7 @@ static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, flo
     }
 }
 
-static void softmax(float* _ptr, int elemcount, int elempack, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax(float* _ptr, int elemcount, int elempack, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     {
@@ -475,7 +475,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         const int size = w;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = w * elempack;
+        const size_t stride = w * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
@@ -513,7 +513,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         const int size = w * h * d;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = bottom_top_blob.cstep * elempack;
+        const size_t stride = bottom_top_blob.cstep * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
@@ -771,7 +771,7 @@ static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack)
 }
 
 #if __ARM_NEON
-static void softmax_bf16s_pack4(unsigned short* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_bf16s_pack4(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -927,7 +927,7 @@ static void softmax_bf16s_pack4(unsigned short* _ptr, int elemcount, int stride,
 }
 #endif // __ARM_NEON
 
-static void softmax_bf16s_pack1(unsigned short* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_bf16s_pack1(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -1088,7 +1088,7 @@ static void softmax_bf16s_pack1(unsigned short* _ptr, int elemcount, int stride,
     }
 }
 
-static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     {
@@ -1163,7 +1163,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
     {
         const int size = w;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = w * elempack;
+        const size_t stride = w * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
@@ -1201,7 +1201,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
     {
         const int size = w * h * d;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = bottom_top_blob.cstep * elempack;
+        const size_t stride = bottom_top_blob.cstep * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())

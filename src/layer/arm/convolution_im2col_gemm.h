@@ -180,7 +180,7 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
     // NCNN_LOGE("convolution_gemm_transB_packed_tile %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = (int)top_blob.cstep;
+    const size_t out_hstep = top_blob.cstep;
 
     const float* pAT = AT_tile;
     const float* pBT = BT_tile;

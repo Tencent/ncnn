@@ -208,7 +208,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 }
 
 #if __riscv_vector
-static void softmax_packn(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_packn(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     const size_t vlm8 = __riscv_vsetvlmax_e32m8();
     const size_t vlm4 = __riscv_vsetvlmax_e32m4();
@@ -476,7 +476,7 @@ static void softmax_packn(float* _ptr, int elemcount, int stride, int size1, flo
 }
 #endif // __riscv_vector
 
-static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -597,7 +597,7 @@ static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, flo
     }
 }
 
-static void softmax(float* _ptr, int elemcount, int elempack, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax(float* _ptr, int elemcount, int elempack, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     {
@@ -680,7 +680,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         const int size = w;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = w * elempack;
+        const size_t stride = w * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
@@ -718,7 +718,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         const int size = w * h * d;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = bottom_top_blob.cstep * elempack;
+        const size_t stride = bottom_top_blob.cstep * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
