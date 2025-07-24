@@ -2347,8 +2347,8 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     int v0 = uv0 % kernel_w;
                     int v1 = uv1 % kernel_w;
 
-                    size_t puv_offset0 = p0 * cstep + u0 * dilation_h * w + v0 * dilation_w;
-                    size_t puv_offset1 = p1 * cstep + u1 * dilation_h * w + v1 * dilation_w;
+                    size_t puv_offset0 = p0 * cstep + (size_t)(u0 * dilation_h * w + v0 * dilation_w);
+                    size_t puv_offset1 = p1 * cstep + (size_t)(u1 * dilation_h * w + v1 * dilation_w);
 
                     int offset00 = dxy_offset0 + puv_offset0;
                     int offset01 = dxy_offset1 + puv_offset0;
