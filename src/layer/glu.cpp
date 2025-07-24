@@ -122,7 +122,7 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
 
         top_blob.create(out_w, out_h, out_c, sizeof(float), opt.blob_allocator);
 
-        int offset = out_c * bottom_blob.cstep;
+        size_t offset = out_c * bottom_blob.cstep;
         int size = w * h;
 
         #pragma omp parallel for num_threads(opt.num_threads)
