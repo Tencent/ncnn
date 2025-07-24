@@ -25,116 +25,10 @@ permissions:
   contents: read
 
 jobs:
-  linux-gcc-gpu:
-    runs-on: [self-hosted, linux, cvm]
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: cache-swiftshader
-      id: cache-swiftshader
-      uses: actions/cache@v3
-      with:
-        path: swiftshader-install
-        key: swiftshader-linux-install-20220211
-    - name: checkout-swiftshader
-      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: google/swiftshader
-        path: swiftshader
-        ref: 0863290dc7f6cc1649bab1858790e812b8aef02a
-    - name: checkout-swiftshader-submodules
-      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      run: |
-        cd swiftshader
-        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
-    - name: swiftshader
-      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      run: |
-        cd swiftshader
-        mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . -j 4
-        mkdir $GITHUB_WORKSPACE/swiftshader-install
-        cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 4
-    - name: test
-      run: |
-        printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
-        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
-        cd build && ctest --output-on-failure -j 4
-    - name: lcov-collect
-      run: |
-        cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov -r lcov.info '*/glslang/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      id: codecov
-      continue-on-error: true
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-1
-      continue-on-error: true
-      id: codecov-vlen256-retry-1
-      if: steps.codecov.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-2
-      continue-on-error: true
-      id: codecov-vlen256-retry-2
-      if: steps.codecov-vlen256-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-3
-      continue-on-error: true
-      id: codecov-vlen256-retry-3
-      if: steps.codecov-vlen256-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-4
-      continue-on-error: true
-      id: codecov-vlen256-retry-4
-      if: steps.codecov-vlen256-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-5
-      continue-on-error: true
-      id: codecov-vlen256-retry-5
-      if: steps.codecov-vlen256-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: set the status
-      if: always()
-      run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
-           echo fine
-        else
-           exit 1
-        fi
-
   linux-gcc-gpu-t4:
     runs-on: [self-hosted, linux, t4]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: build
@@ -143,9 +37,8 @@ jobs:
         CXX: g++
         LD_LIBRARY_PATH: /data/action/install/lib64
       run: |
-        export VULKAN_SDK=/data/action/osd/1.2.189.0/x86_64
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 4
     - name: test
       env:
@@ -159,461 +52,166 @@ jobs:
         lcov -r lcov.info '*/install/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
+
     - name: codecov
-      id: codecov
-      continue-on-error: true
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-1
-      continue-on-error: true
-      id: codecov-vlen256-retry-1
-      if: steps.codecov.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-2
-      continue-on-error: true
-      id: codecov-vlen256-retry-2
-      if: steps.codecov-vlen256-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-3
-      continue-on-error: true
-      id: codecov-vlen256-retry-3
-      if: steps.codecov-vlen256-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-4
-      continue-on-error: true
-      id: codecov-vlen256-retry-4
-      if: steps.codecov-vlen256-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-5
-      continue-on-error: true
-      id: codecov-vlen256-retry-5
-      if: steps.codecov-vlen256-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: set the status
-      if: always()
-      run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
-           echo fine
-        else
-           exit 1
-        fi
-
-  linux-gcc-gpu-lavapipe:
-    runs-on: [self-hosted, linux, cvm]
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-
-    - name: cache-lavapipe
-      id: cache-lavapipe
-      uses: actions/cache@v3
-      with:
-        path: lavapipe-install
-        key: lavapipe-linux-install-20211127-2
-    - name: checkout-lavapipe
-      if: steps.cache-lavapipe.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: mesa3d/mesa
-        path: mesa
-        ref: cd39180cfab20734744b379b085cc3b5c2cecd3a
-    - name: lavapipe
-      if: steps.cache-lavapipe.outputs.cache-hit != 'true'
-      run: |
-        mkdir -p "$GITHUB_WORKSPACE/lavapipe-install"
-        cd mesa
-        mkdir build
-        cd build
-        meson -Dprefix="$GITHUB_WORKSPACE/lavapipe-install" -Dbuildtype=release -Db_lto=true -Db_ndebug=true -Dplatforms="x11" -Ddri3=enabled -Ddri-drivers="" -Dgallium-drivers=swrast -Dgallium-vdpau=disabled -Dgallium-xvmc=disabled -Dgallium-omx=disabled -Dgallium-va=disabled -Dgallium-xa=disabled -Dgallium-opencl=disabled -Dopencl-native=false -Dvulkan-drivers=swrast -Dshader-cache=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=disabled -Dllvm=enabled -Dvalgrind=disabled -Dlibunwind=disabled -Dlmsensors=disabled ..
-        ninja -j4
-        ninja install
-        sed -ie "s@$GITHUB_WORKSPACE/lavapipe-install/lib/x86_64-linux-gnu/libvulkan_lvp.so@../../../lib/x86_64-linux-gnu/libvulkan_lvp.so@g" $GITHUB_WORKSPACE/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json
-
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 4
-    - name: test
-      run: |
-        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
-        cd build && ctest --output-on-failure -j 4
-    - name: lcov-collect
-      run: |
-        cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov -r lcov.info '*/glslang/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      id: codecov
-      continue-on-error: true
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-1
-      continue-on-error: true
-      id: codecov-vlen256-retry-1
-      if: steps.codecov.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-2
-      continue-on-error: true
-      id: codecov-vlen256-retry-2
-      if: steps.codecov-vlen256-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-3
-      continue-on-error: true
-      id: codecov-vlen256-retry-3
-      if: steps.codecov-vlen256-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-4
-      continue-on-error: true
-      id: codecov-vlen256-retry-4
-      if: steps.codecov-vlen256-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-5
-      continue-on-error: true
-      id: codecov-vlen256-retry-5
-      if: steps.codecov-vlen256-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: set the status
-      if: always()
-      run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
-           echo fine
-        else
-           exit 1
-        fi
+        disable_search: true
+        plugins: noop
+        binary: /data/action/.local/bin/codecov
+        files: build/lcov.info
 
   linux-gcc-x64:
-    runs-on: ubuntu-latest
+    name: x64-${{ matrix.name }}
+    runs-on: [self-hosted, linux, ubuntu25]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'none',       SSE2: OFF, AVX: OFF, F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'sse2',       SSE2: ON,  AVX: OFF, F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'avx',        SSE2: ON,  AVX: ON,  F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'avx2',       SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: OFF, AVX512VNNI: OFF }
+          - { name: 'avx512',     SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: OFF }
+          - { name: 'avx512vnni', SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: ON  }
     steps:
-    - uses: actions/checkout@v3
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: build-sse2
-      run: |
-        mkdir build-sse2 && cd build-sse2
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test-sse2
-      run: cd build-sse2 && ctest --output-on-failure -j 2
-    - name: lcov-collect
-      run: |
-        cd build-sse2
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-sse2/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov-sse2
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-sse2/lcov.info
-
-    - name: build-avx
-      run: |
-        mkdir build-avx && cd build-avx
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test-avx
-      run: cd build-avx && ctest --output-on-failure -j 2
-    - name: lcov-collect
-      run: |
-        cd build-avx
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-avx/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov-avx
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-avx/lcov.info
-
-    - name: build-avx2
-      run: |
-        mkdir build-avx2 && cd build-avx2
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test-avx2
-      run: cd build-avx2 && ctest --output-on-failure -j 2
-    - name: lcov-collect
-      run: |
-        cd build-avx2
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-avx2/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov-avx2
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-avx2/lcov.info
-
-  linux-gcc-x64-avx512:
-    runs-on: [self-hosted, linux, t4]
-    steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: build
-      env:
-        CC: gcc
-        CXX: g++
-        LD_LIBRARY_PATH: /data/action/install/lib64
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 4
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_SSE2=${{ matrix.SSE2 }} \
+            -DNCNN_AVX=${{ matrix.AVX }} \
+            -DNCNN_F16C=${{ matrix.F16C }} \
+            -DNCNN_FMA=${{ matrix.FMA }} \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVXVNNI=OFF \
+            -DNCNN_AVX512BF16=OFF \
+            -DNCNN_AVX512FP16=OFF \
+            -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
     - name: test
-      env:
-        LD_LIBRARY_PATH: /data/action/install/lib64
-      run: cd build && ctest --output-on-failure -j 4
+      run: |
+        cd build
+        ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/install/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov
-      id: codecov
-      continue-on-error: true
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-1
-      continue-on-error: true
-      id: codecov-vlen256-retry-1
-      if: steps.codecov.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-2
-      continue-on-error: true
-      id: codecov-vlen256-retry-2
-      if: steps.codecov-vlen256-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-3
-      continue-on-error: true
-      id: codecov-vlen256-retry-3
-      if: steps.codecov-vlen256-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-4
-      continue-on-error: true
-      id: codecov-vlen256-retry-4
-      if: steps.codecov-vlen256-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-5
-      continue-on-error: true
-      id: codecov-vlen256-retry-5
-      if: steps.codecov-vlen256-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: set the status
-      if: always()
+    - name: build-openmp
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
-           echo fine
-        else
-           exit 1
-        fi
-
-  linux-gcc-x64-avx512-spr:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v3
-    - name: update
-      run: sudo apt-get update
-    - name: gcc12
-      run: sudo apt-get install gcc-12 g++-12
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: Setup SDE binaries
-      uses: petarpetrovt/setup-sde@v2
-    - name: build-avx512-spr
-      env:
-        CC: gcc-12
-        CXX: g++-12
+        mkdir build-openmp && cd build-openmp
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_SSE2=${{ matrix.SSE2 }} \
+            -DNCNN_AVX=${{ matrix.AVX }} \
+            -DNCNN_F16C=${{ matrix.F16C }} \
+            -DNCNN_FMA=${{ matrix.FMA }} \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVXVNNI=OFF \
+            -DNCNN_AVX512BF16=OFF \
+            -DNCNN_AVX512FP16=OFF \
+            -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
       run: |
-        mkdir build-avx512-spr && cd build-avx512-spr
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=ON -DNCNN_AVX512FP16=ON -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test-avx512-spr
-      run: |
-        cd build-avx512-spr
-        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        cd build-openmp
+        ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
-        cd build-avx512-spr
-        lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
+        cd build-openmp
+        lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-avx512-spr/*' -o lcov.info
+        lcov -r lcov.info '*/build-openmp/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov-avx512-spr
-      uses: codecov/codecov-action@v3
+    - name: codecov
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-avx512-spr/lcov.info
+        disable_search: true
+        plugins: noop
+        binary: /data/action/osd/codecov
+        files: build/lcov.info,build-openmp/lcov.info
 
-  linux-gcc-armhf-vfpv3-d16:
-    runs-on: ubuntu-20.04
+  linux-gcc-x64-simplestl-simplemath:
+    name: simplestl-simplemath
+    runs-on: [self-hosted, linux, ubuntu25]
     steps:
-    - uses: actions/checkout@v3
-    - name: lcov
-      run: sudo apt-get install lcov
-
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-arm-install-20220502
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=arm-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: arm-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-arm-linux-gnueabihf
-
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - uses: actions/checkout@v4
     - name: build
-      run: cmake --build build -j 2
-
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEMATH=ON \
+            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
     - name: test
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j 2
-
+        ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+        disable_search: true
+        plugins: noop
+        binary: /data/action/osd/codecov
+        files: build/lcov.info
 
-  linux-gcc-arm:
-    runs-on: ubuntu-20.04
+  linux-gcc-x64-sde:
+    name: sde-${{ matrix.cpu }}
+    runs-on: [self-hosted, linux, ubuntu25]
+    env:
+      SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cpu: hsw, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: adl, AVX2: ON, AVXVNNI: ON,  AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: arl, AVX2: ON, AVXVNNI: ON,  AVXVNNIINT8: ON,  AVXNECONVERT: ON,  AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
+          - { cpu: spr, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: ON,  AVX512VNNI: ON,  AVX512BF16: ON,  AVX512FP16: ON  }
     steps:
-    - uses: actions/checkout@v3
-    - name: lcov
-      run: sudo apt-get install lcov
-
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-arm-install-20220502
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=arm-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: arm-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-arm-linux-gnueabi
-
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=ON -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - uses: actions/checkout@v4
     - name: build
-      run: cmake --build build -j 2
-
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_AVX=ON \
+            -DNCNN_F16C=ON \
+            -DNCNN_XOP=OFF \
+            -DNCNN_AVX2=${{ matrix.AVX2 }} \
+            -DNCNN_AVXVNNI=${{ matrix.AVXVNNI }} \
+            -DNCNN_AVXVNNIINT8=${{ matrix.AVXVNNIINT8 }} \
+            -DNCNN_AVXNECONVERT=${{ matrix.AVXNECONVERT }} \
+            -DNCNN_AVX512=${{ matrix.AVX512 }} \
+            -DNCNN_AVX512VNNI=${{ matrix.AVX512VNNI }} \
+            -DNCNN_AVX512BF16=${{ matrix.AVX512BF16 }} \
+            -DNCNN_AVX512FP16=${{ matrix.AVX512FP16 }} \
+            -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
     - name: test
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j 2
-
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-${{ matrix.cpu }};--" ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
         cd build
@@ -622,60 +220,58 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+        disable_search: true
+        plugins: noop
+        binary: /data/action/osd/codecov
+        files: build/lcov.info
 
-  linux-gcc-aarch64:
-    runs-on: ubuntu-20.04
+  linux-gcc-x64-sde-combined:
+    name: sde-combined
+    runs-on: [self-hosted, linux, ubuntu25]
+    env:
+      SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
     steps:
-    - uses: actions/checkout@v3
-    - name: lcov
-      run: sudo apt-get install lcov
-
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-aarch64-install-20220502
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: aarch64-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-aarch64-linux-gnu
-
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - uses: actions/checkout@v4
     - name: build
-      run: cmake --build build -j 2
-
-    - name: test
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test-p4p
+      run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
-
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-p4p;--" ctest --output-on-failure -j 8
+    - name: test-snb
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-snb;--" ctest --output-on-failure -j 8
+    - name: test-hsw
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-hsw;--" ctest --output-on-failure -j 8
+    - name: test-adl
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-adl;--" ctest --output-on-failure -j 8
+    - name: test-arl
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-arl;--" ctest --output-on-failure -j 8
+    - name: test-skx
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-skx;--" ctest --output-on-failure -j 8
+    - name: test-spr
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 8
+    - name: test-gnr
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-gnr;--" ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
         cd build
@@ -684,675 +280,303 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-
-  linux-gcc-arm82:
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-aarch64-install-20220502
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: aarch64-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-aarch64-linux-gnu
-
-    - name: build-arm82
-      run: |
-        mkdir build-arm82 && cd build-arm82
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test
-      run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
-        cd build-arm82
-        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
-    - name: lcov-collect
-      run: |
-        cd build-arm82
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-arm82/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-arm82/lcov.info
-
-  linux-gcc-arm82-omp:
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-aarch64-install-20220502
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: aarch64-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-aarch64-linux-gnu
-
-    - name: build-arm82-omp
-      run: |
-        mkdir build-arm82-omp && cd build-arm82-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test
-      run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
-        cd build-arm82-omp
-        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
-    - name: lcov-collect
-      run: |
-        cd build-arm82-omp
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-arm82-omp/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-arm82-omp/lcov.info
-
-  linux-gcc-arm82dot-omp:
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-aarch64-install-20220502
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: aarch64-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-aarch64-linux-gnu
-
-    - name: build-arm82dot-omp
-      run: |
-        mkdir build-arm82dot-omp && cd build-arm82dot-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test
-      run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
-        cd build-arm82dot-omp
-        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
-    - name: lcov-collect
-      run: |
-        cd build-arm82dot-omp
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-arm82dot-omp/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-arm82dot-omp/lcov.info
-
-  linux-gcc-arm84:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-aarch64-install-20220502
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: aarch64-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-aarch64-linux-gnu
-
-    - name: build-arm84
-      run: |
-        mkdir build-arm84 && cd build-arm84
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_ARM82FP16FML=ON -DNCNN_ARM84BF16=ON -DNCNN_ARM84I8MM=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test
-      run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
-        cd build-arm84
-        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
-    - name: lcov-collect
-      run: |
-        cd build-arm84
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-arm84/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build-arm84/lcov.info
-
-  linux-gcc-mipsisa32r6el:
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-mipsel-install-20220502
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mipsel-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: mipsisa32r6el-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-mipsisa32r6el-linux-gnu
-
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=OFF -DNCNN_MMI=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-
-    - name: test
-      run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
-        cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j 2
-
-    - name: lcov-collect
-      run: |
-        cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-
-  linux-gcc-mipsisa64r6el:
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-mips64el-install-20220502-3
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0001-target-mips-Fix-SAT_S-trans-helper.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
-        patch -p1 -i 0001-target-mips-Fix-SAT_S-trans-helper.patch
-        patch -p1 -i 0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
-        patch -p1 -i 0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
-        patch -p1 -i 0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
-        patch -p1 -i 0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
-        patch -p1 -i 0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mips64el-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: mipsisa64r6el-gnuabi64-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-mipsisa64r6el-linux-gnuabi64
-
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=ON -DNCNN_MMI=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-
-    - name: test
-      run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
-        cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j 2
-
-    - name: lcov-collect
-      run: |
-        cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-
-  linux-gcc-riscv64:
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: lcov
-      run: sudo apt-get install lcov
-
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-riscv64-install-20220502-3
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
-        make -j2
-        make install
-
-    - name: riscv64-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-riscv64-linux-gnu
-
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-
-    - name: test
-      run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
-        cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j 2
-
-    - name: lcov-collect
-      run: |
-        cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+        disable_search: true
+        plugins: noop
+        binary: /data/action/osd/codecov
+        files: build/lcov.info
 
   linux-gcc-riscv64-rvv:
-    runs-on: [self-hosted, linux, centos]
+    strategy:
+      matrix:
+        openmp: [ON, OFF]
+    runs-on: [self-hosted, linux, ubuntu]
     steps:
-    - uses: actions/checkout@v3
-
-    #- name: lcov
-      #run: sudo apt-get install lcov
-
-    #- name: cache-qemu
-      #id: cache-qemu
-      #uses: actions/cache@v3
-      #with:
-        #path: qemu-install
-        #key: qemu-riscv64-install-20220502-3
-    #- name: install-qemu-build-deps
-      #if: steps.cache-qemu.outputs.cache-hit != 'true'
-      #run: |
-        #sudo apt-get update
-        #sudo apt-get install autoconf automake autotools-dev ninja-build
-    #- name: checkout-qemu
-      #if: steps.cache-qemu.outputs.cache-hit != 'true'
-      #uses: actions/checkout@v3
-      #with:
-        #repository: qemu/qemu
-        #path: qemu
-        #ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    #- name: qemu
-      #if: steps.cache-qemu.outputs.cache-hit != 'true'
-      #run: |
-        #cd qemu
-        #wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        #patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        #./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
-        #make -j2
-        #make install
-
-    #- name: cache-riscv
-      #id: cache-riscv
-      #uses: actions/cache@v3
-      #with:
-        #path: rv64gcv-install
-        #key: rv64gcv-linux-install-20210504
-
-    #- name: install-riscv-build-deps
-      #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #run: |
-        #sudo apt-get update
-        #sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
-
-    #- name: checkout-riscv-gnu-toolchain
-      #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #uses: actions/checkout@v3
-      #with:
-        #repository: riscv/riscv-gnu-toolchain
-        #path: riscv-gnu-toolchain
-        #ref: 28271f03bb538d926ad2889dc8ad1b0cb1b3b45c
-    #- name: checkout-riscv-gnu-toolchain-submodules
-      #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #run: |
-        #cd riscv-gnu-toolchain
-        #git submodule update --init --recursive --depth 1 riscv-binutils
-        #git submodule update --init --recursive --depth 1 riscv-gcc
-        #git submodule update --init --recursive --depth 1 riscv-glibc
-        #git submodule update --init --recursive --depth 1 riscv-dejagnu
-        #git submodule update --init --recursive --depth 1 riscv-newlib
-        #git submodule update --init --recursive --depth 1 riscv-gdb
-    #- name: riscv-gnu-toolchain
-      #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #run: |
-        #cd riscv-gnu-toolchain
-        #sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
-        #./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
-        #make linux
-
-    #- name: riscv-strip-install
-      #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
-
-    - name: configure
-      run: export RISCV_ROOT_PATH=/data/action/osd/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - uses: actions/checkout@v4
     - name: build
-      run: cmake --build build -j 4
-
-    - name: test-vlen128
       run: |
-        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        export RISCV_ROOT_PATH=/data/action/osd/riscv
+        mkdir build
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
-
-    - name: lcov-collect-vlen128
-      run: |
-        cd build
-        lcov --gcov-tool /data/action/osd/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov-vlen128
-      id: codecov-vlen128
-      continue-on-error: true
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen128-retry-1
-      continue-on-error: true
-      id: codecov-vlen128-retry-1
-      if: steps.codecov-vlen128.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen128-retry-2
-      continue-on-error: true
-      id: codecov-vlen128-retry-2
-      if: steps.codecov-vlen128-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen128-retry-3
-      continue-on-error: true
-      id: codecov-vlen128-retry-3
-      if: steps.codecov-vlen128-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen128-retry-4
-      continue-on-error: true
-      id: codecov-vlen128-retry-4
-      if: steps.codecov-vlen128-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen128-retry-5
-      continue-on-error: true
-      id: codecov-vlen128-retry-5
-      if: steps.codecov-vlen128-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: set codecov-vlen128 status
-      if: always()
-      run: |
-        if ${{ steps.codecov-vlen128.outcome=='success' || steps.codecov-vlen128-retry-1.outcome=='success' || steps.codecov-vlen128-retry-2.outcome=='success' || steps.codecov-vlen128-retry-3.outcome=='success' || steps.codecov-vlen128-retry-4.outcome=='success' || steps.codecov-vlen128-retry-5.outcome=='success' }}; then
-           echo fine
-        else
-           exit 1
-        fi
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_ZFH=ON -DNCNN_ZVFH=ON -DNCNN_OPENMP=${{ matrix.openmp }} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
 
     - name: test-vlen256
       run: |
         export PATH=/data/action/osd/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
 
-    - name: lcov-collect-vlen256
+    - name: test-vlen128
+      run: |
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,zfh=true,zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/riscv/sysroot" ctest --output-on-failure -j 8
+
+    - name: lcov-collect
       run: |
         cd build
-        lcov --gcov-tool /data/action/osd/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov --gcov-tool /data/action/osd/riscv/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/install/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        files: build/lcov.info
+
+  linux-gpu-llvmpipe:
+    runs-on: [self-hosted, linux, ubuntu25]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        export LP_NUM_THREADS=4
+        cd build && ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov-vlen256
-      id: codecov-vlen256
-      continue-on-error: true
-      uses: codecov/codecov-action@v3
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-1
-      continue-on-error: true
-      id: codecov-vlen256-retry-1
-      if: steps.codecov-vlen256.outcome=='failure'
-      uses: codecov/codecov-action@v3
+        disable_search: true
+        plugins: noop
+        binary: /data/action/osd/codecov
+        files: build/lcov.info
+
+  linux-gpu-swiftshader:
+    runs-on: [self-hosted, linux, ubuntu25]
+    steps:
+    - uses: actions/checkout@v4
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-2
-      continue-on-error: true
-      id: codecov-vlen256-retry-2
-      if: steps.codecov-vlen256-retry-1.outcome=='failure'
-      uses: codecov/codecov-action@v3
+        submodules: true
+
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: actions/cache@v4
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-3
-      continue-on-error: true
-      id: codecov-vlen256-retry-3
-      if: steps.codecov-vlen256-retry-2.outcome=='failure'
-      uses: codecov/codecov-action@v3
+        path: swiftshader-install
+        key: swiftshader-linux-install-20250508
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-4
-      continue-on-error: true
-      id: codecov-vlen256-retry-4
-      if: steps.codecov-vlen256-retry-3.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: codecov-vlen256-retry-5
-      continue-on-error: true
-      id: codecov-vlen256-retry-5
-      if: steps.codecov-vlen256-retry-4.outcome=='failure'
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
-    - name: set codecov-vlen256 status
-      if: always()
+        repository: google/swiftshader
+        path: swiftshader
+        ref: 930d46d31b5d637f313fd5ef55da2bbf053c26c1
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
-        if ${{ steps.codecov-vlen256.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
-           echo fine
-        else
-           exit 1
-        fi
+        cd swiftshader
+        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 8
+        mkdir $GITHUB_WORKSPACE/swiftshader-install
+        cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_AVXNECONVERT=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+    - name: test
+      run: |
+        printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd build && ctest --output-on-failure -j 8
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        binary: /data/action/osd/codecov
+        files: build/lcov.info
+
+  linux-gcc-cross:
+    name: ${{ matrix.arch }}
+    runs-on: [self-hosted, linux, ubuntu25]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm
+            toolchain: arm-linux-gnueabi.toolchain.cmake
+            extra-cmake-args: -DNCNN_VFPV4=ON
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabi"
+
+          - arch: arm-noinlineasm
+            toolchain: arm-linux-gnueabi.toolchain.cmake
+            extra-cmake-args: -DNCNN_GNU_INLINE_ASM=OFF -DNCNN_VFPV4=ON
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabi"
+
+          - arch: armhf-vfpv3-d16
+            toolchain: arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake
+            extra-cmake-args: -DNCNN_VFPV4=OFF
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabihf"
+
+          - arch: armhf-vfpv3-d16-noinlineasm
+            toolchain: arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake
+            extra-cmake-args: -DNCNN_GNU_INLINE_ASM=OFF -DNCNN_VFPV4=OFF
+            qemu: qemu-arm-static
+            qemu-args: "-L;/usr/arm-linux-gnueabihf"
+
+          - arch: aarch64-armv8.0
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM82=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.2
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM82DOT=OFF -DNCNN_ARM82FP16FML=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.4
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.6
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_ARM86SVE=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: aarch64-armv8.6-noinlineasm
+            toolchain: aarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_GNU_INLINE_ASM=OFF -DNCNN_ARM86SVE=OFF
+            qemu: qemu-aarch64-static
+            qemu-args: "-L;/usr/aarch64-linux-gnu"
+
+          - arch: mipsisa32r6el
+            toolchain: mipsisa32r6el-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_MSA=OFF -DNCNN_MMI=OFF
+            qemu: qemu-mipsel-static
+            qemu-args: "-L;/usr/mipsisa32r6el-linux-gnu"
+
+          - arch: mipsisa64r6el
+            toolchain: mipsisa64r6el-linux-gnuabi64.toolchain.cmake
+            extra-cmake-args: -DNCNN_MSA=ON -DNCNN_MMI=OFF
+            qemu: qemu-mips64el-static
+            qemu-args: "-L;/usr/mipsisa64r6el-linux-gnuabi64"
+
+          - arch: powerpc
+            toolchain: powerpc-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-ppc-static
+            qemu-args: "-L;/usr/powerpc-linux-gnu"
+
+          - arch: powerpc64le
+            toolchain: powerpc64le-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-ppc64le-static
+            qemu-args: "-L;/usr/powerpc64le-linux-gnu"
+
+          - arch: riscv64
+            toolchain: riscv64-linux-gnu.toolchain.cmake
+            extra-cmake-args:
+            qemu: qemu-riscv64-static
+            qemu-args: "-L;/usr/riscv64-linux-gnu"
+
+          - arch: loongarch64-la264
+            toolchain: loongarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_LSX=ON -DNCNN_LASX=OFF
+            qemu: qemu-loongarch64-static
+            qemu-args: "-L;/usr/loongarch64-linux-gnu"
+
+          - arch: loongarch64-la664
+            toolchain: loongarch64-linux-gnu.toolchain.cmake
+            extra-cmake-args: -DNCNN_LSX=ON -DNCNN_LASX=ON
+            qemu: qemu-loongarch64-static
+            qemu-args: "-L;/usr/loongarch64-linux-gnu"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} ${{ matrix.extra-cmake-args }} -DNCNN_OPENMP=OFF \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
+
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-openmp
+      run: |
+        mkdir build-openmp && cd build-openmp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.toolchain }} ${{ matrix.extra-cmake-args }} -DNCNN_OPENMP=ON \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test-openmp
+      run: |
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        cd build-openmp
+        TESTS_EXECUTABLE_LOADER=${{ matrix.qemu }} TESTS_EXECUTABLE_LOADER_ARGUMENTS="${{ matrix.qemu-args }}" ctest --output-on-failure -j 8
+
+    - name: lcov-collect-openmp
+      run: |
+        cd build-openmp
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-openmp/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        disable_search: true
+        plugins: noop
+        binary: /data/action/osd/codecov
+        files: build/lcov.info,build-openmp/lcov.info

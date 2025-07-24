@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "solve_batch_index.h"
 
@@ -40,10 +29,13 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "F.conv1d",
         "F.conv2d",
         "F.conv3d",
+        "F.embedding",
+        "F.fold",
         "F.grid_sample",
         "F.group_norm",
         "F.instance_norm",
         "F.interpolate",
+        "F.layer_norm",
         "F.linear",
         "F.local_response_norm",
         "F.lp_pool1d",
@@ -54,6 +46,9 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "F.pixel_shuffle",
         "F.pixel_unshuffle",
         "F.prelu",
+        "F.rms_norm",
+        "F.scaled_dot_product_attention",
+        "F.unfold",
         "F.upsample_bilinear",
         "F.upsample_nearest",
         "F.upsample",
@@ -80,11 +75,14 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "nn.ConvTranspose1d",
         "nn.ConvTranspose2d",
         "nn.ConvTranspose3d",
+        "nn.Embedding",
+        "nn.Fold",
         "nn.GroupNorm",
         "nn.InstanceNorm1d",
         "nn.InstanceNorm2d",
         "nn.InstanceNorm3d",
         "nn.LocalResponseNorm",
+        "nn.LayerNorm",
         "nn.LPPool1d",
         "nn.LPPool2d",
         "nn.MaxPool1d",
@@ -98,6 +96,9 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "nn.ReplicationPad1d",
         "nn.ReplicationPad2d",
         "nn.ReplicationPad3d",
+        "nn.RMSNorm",
+        "nn.Softmax2d",
+        "nn.Unfold",
         "nn.Upsample",
         "nn.UpsamplingBilinear2d",
         "nn.UpsamplingNearest2d",
@@ -126,6 +127,8 @@ static void solve_batch_index_forward(Operand* operand)
         return;
 
     int batch_index = operand->params["__batch_index"].i;
+    if (batch_index == 233)
+        return;
 
     for (Operator* op : operand->consumers)
     {
@@ -135,14 +138,21 @@ static void solve_batch_index_forward(Operand* operand)
         if (is_known_operator_with_batch_first_param(op))
             continue;
 
-        if (op->type == "torch.permute" || op->type == "Tensor.permute")
+        const int input_rank0 = op->inputs.empty() ? 0 : (int)op->inputs[0]->shape.size();
+        const int output_rank0 = op->outputs.empty() ? 0 : (int)op->outputs[0]->shape.size();
+
+        if (op->type == "Tensor.permute")
         {
             const std::vector<int>& dims = op->params.at("dims").ai;
 
             int batch_index_permuted = -1;
             for (int i = 0; i < (int)dims.size(); i++)
             {
-                if (dims[i] == batch_index)
+                int dim = dims[i];
+                if (dim < 0)
+                    dim += input_rank0;
+
+                if (dim >= 0 && dim == batch_index)
                 {
                     batch_index_permuted = i;
                     break;
@@ -160,23 +170,193 @@ static void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
-        else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+        else if (op->type == "torch.transpose")
         {
-            if (op->params.find("shape") == op->params.end())
+            int dim0 = op->params.at("dim0").i;
+            int dim1 = op->params.at("dim1").i;
+            if (dim0 < 0)
+                dim0 += input_rank0;
+            if (dim1 < 0)
+                dim1 += input_rank0;
+
+            int batch_index_transposed = batch_index;
+            if (dim0 >= 0 && dim0 == batch_index)
             {
-                continue;
+                batch_index_transposed = dim1;
+            }
+            else if (dim1 >= 0 && dim1 == batch_index)
+            {
+                batch_index_transposed = dim0;
             }
 
-            const std::vector<int>& shape = op->params.at("shape").ai;
+            for (Operand* r : op->outputs)
+            {
+                if (r->params.find("__batch_index") != r->params.end())
+                    continue;
 
-            if (shape[batch_index] == 1)
+                r->params["__batch_index"] = batch_index_transposed;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
+        else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+        {
+            std::vector<int> shape;
+            if (op->params.find("shape") == op->params.end())
+            {
+                // dynamic reshape
+                const Operator* op_expr = op->inputs[1]->producer;
+                std::string expr = op_expr->params.at("expr").s;
+                {
+                    int expr_stack = 0;
+                    std::string t;
+                    for (size_t i = 0; i < expr.size(); i++)
+                    {
+                        char ch = expr[i];
+
+                        if (ch == '[') // list
+                        {
+                            t.clear();
+                        }
+                        else if (ch == '(')
+                        {
+                            expr_stack += 1;
+                        }
+                        else if (ch == ')')
+                        {
+                            expr_stack -= 1;
+                            t.clear();
+                        }
+                        else if (ch == ',' || ch == ']')
+                        {
+                            if (expr_stack > 0)
+                            {
+                                shape.push_back(-1);
+                            }
+                            else if (!t.empty())
+                            {
+                                shape.push_back(std::stoi(t));
+                            }
+                            t.clear();
+                        }
+                        else
+                        {
+                            t += ch;
+                        }
+                    }
+
+                    if (!t.empty())
+                    {
+                        shape.push_back(std::stoi(t));
+                    }
+                }
+            }
+            else
+            {
+                shape = op->params.at("shape").ai;
+            }
+
+            bool keep_batch_index = false;
+            int batch_index_reshaped = batch_index;
+            if (batch_index == 0 && shape[0] == 1)
+            {
+                keep_batch_index = true;
+            }
+            else if (output_rank0 > 0)
+            {
+                if (batch_index == input_rank0 - 1 && shape[shape.size() - 1] == 1)
+                {
+                    keep_batch_index = true;
+                    batch_index_reshaped = output_rank0 - 1;
+                }
+                else
+                {
+                    batch_index_reshaped = -1;
+
+                    // batch index is in the middle, let's consider the left and right parts
+                    int left = 1;
+                    int right = 1;
+                    for (int i = 0; i < batch_index; i++)
+                    {
+                        if (op->inputs[0]->shape[i] == -1)
+                        {
+                            left = -1;
+                            break;
+                        }
+                        left *= op->inputs[0]->shape[i];
+                    }
+                    for (int i = batch_index + 1; i < (int)op->inputs[0]->shape.size(); i++)
+                    {
+                        if (op->inputs[0]->shape[i] == -1)
+                        {
+                            right = -1;
+                            break;
+                        }
+                        right *= op->inputs[0]->shape[i];
+                    }
+
+                    // try to find batch index in the output shape
+                    if (left > 0)
+                    {
+                        int left2 = 1;
+                        for (int i = 0; i < output_rank0 - 1; i++)
+                        {
+                            if (op->outputs[0]->shape[i] == -1)
+                            {
+                                left2 = -1;
+                                break;
+                            }
+                            left2 *= op->outputs[0]->shape[i];
+                            if (left2 == left && op->outputs[0]->shape[i + 1] == 1)
+                            {
+                                batch_index_reshaped = i + 1;
+                                if (batch_index_reshaped + 1 < output_rank0 && op->outputs[0]->shape[batch_index_reshaped + 1] == 1)
+                                {
+                                    // multiple axes can be batch index, give up
+                                    batch_index_reshaped = -1;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    if (right > 0)
+                    {
+                        int right2 = 1;
+                        for (int i = output_rank0 - 1; i >= 1; i--)
+                        {
+                            if (op->outputs[0]->shape[i] == -1)
+                            {
+                                right2 = -1;
+                                break;
+                            }
+                            right2 *= op->outputs[0]->shape[i];
+                            if (right2 == right && op->outputs[0]->shape[i - 1] == 1)
+                            {
+                                batch_index_reshaped = i - 1;
+                                if (batch_index_reshaped - 1 >= 0 && op->outputs[0]->shape[batch_index_reshaped - 1] == 1)
+                                {
+                                    // multiple axes can be batch index, give up
+                                    batch_index_reshaped = -1;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if (batch_index_reshaped >= 0)
+                        keep_batch_index = true;
+                }
+            }
+
+            if (keep_batch_index)
             {
                 for (Operand* r : op->outputs)
                 {
                     if (r->params.find("__batch_index") != r->params.end())
                         continue;
 
-                    r->params["__batch_index"] = batch_index;
+                    r->params["__batch_index"] = batch_index_reshaped;
 
                     solve_batch_index_forward(r);
                     solve_batch_index_backward(r);
@@ -185,6 +365,67 @@ static void solve_batch_index_forward(Operand* operand)
             else
             {
                 // give up reshape across batch index
+            }
+        }
+        else if (op->type == "Tensor.slice" || op->type == "Tensor.select")
+        {
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
+        else if (op->type == "pnnx.SliceIndexes")
+        {
+            // pass
+        }
+        else if (op->type == "torch.squeeze")
+        {
+            int dim = op->params.at("dim").i;
+            if (dim < 0)
+                dim += input_rank0;
+
+            int batch_index_squeezed = batch_index;
+            if (dim >= 0 && dim < batch_index)
+            {
+                batch_index_squeezed = batch_index - 1;
+            }
+            if (dim >= 0 && dim == batch_index)
+            {
+                batch_index_squeezed = 233;
+            }
+
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index_squeezed;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
+        else if (op->type == "torch.unsqueeze")
+        {
+            int dim = op->params.at("dim").i;
+            if (dim < 0)
+                dim += input_rank0;
+
+            int batch_index_unsqueezed = batch_index;
+            if (dim >= 0 && dim <= batch_index)
+            {
+                batch_index_unsqueezed = batch_index + 1;
+            }
+
+            Operand* r = op->outputs[0];
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                r->params["__batch_index"] = batch_index_unsqueezed;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
             }
         }
         else
@@ -209,6 +450,8 @@ static void solve_batch_index_backward(Operand* operand)
         return;
 
     int batch_index = operand->params["__batch_index"].i;
+    if (batch_index == 233)
+        return;
 
     Operator* op = operand->producer;
     if (is_known_operator_with_batch_index_0(op))
@@ -217,11 +460,16 @@ static void solve_batch_index_backward(Operand* operand)
     if (is_known_operator_with_batch_first_param(op))
         return;
 
-    if (op->type == "torch.permute" || op->type == "Tensor.permute")
+    const int input_rank0 = op->inputs.empty() ? 0 : (int)op->inputs[0]->shape.size();
+    const int output_rank0 = op->outputs.empty() ? 0 : (int)op->outputs[0]->shape.size();
+
+    if (op->type == "Tensor.permute")
     {
         const std::vector<int>& dims = op->params.at("dims").ai;
 
         int batch_index_permuted = dims[batch_index];
+        if (batch_index_permuted < 0)
+            batch_index_permuted += input_rank0;
 
         for (Operand* r : op->inputs)
         {
@@ -234,23 +482,196 @@ static void solve_batch_index_backward(Operand* operand)
             solve_batch_index_forward(r);
         }
     }
-    else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+    else if (op->type == "torch.transpose")
     {
-        if (op->params.find("shape") == op->params.end())
+        int dim0 = op->params.at("dim0").i;
+        int dim1 = op->params.at("dim1").i;
+        if (dim0 < 0)
+            dim0 += input_rank0;
+        if (dim1 < 0)
+            dim1 += input_rank0;
+
+        int batch_index_transposed = batch_index;
+        if (dim0 >= 0 && dim0 == batch_index)
         {
-            return;
+            batch_index_transposed = dim1;
+        }
+        else if (dim1 >= 0 && dim1 == batch_index)
+        {
+            batch_index_transposed = dim0;
         }
 
-        const std::vector<int>& shape = op->params.at("shape").ai;
+        for (Operand* r : op->inputs)
+        {
+            if (r->params.find("__batch_index") != r->params.end())
+                continue;
 
-        if (shape[batch_index] == 1)
+            r->params["__batch_index"] = batch_index_transposed;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+    else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+    {
+        std::vector<int> shape;
+        if (op->params.find("shape") == op->params.end())
+        {
+            // dynamic reshape
+            const Operator* op_expr = op->inputs[1]->producer;
+            std::string expr = op_expr->params.at("expr").s;
+            {
+                int expr_stack = 0;
+                std::string t;
+                for (size_t i = 0; i < expr.size(); i++)
+                {
+                    char ch = expr[i];
+
+                    if (ch == '[') // list
+                    {
+                        t.clear();
+                    }
+                    else if (ch == '(')
+                    {
+                        expr_stack += 1;
+                    }
+                    else if (ch == ')')
+                    {
+                        expr_stack -= 1;
+                        t.clear();
+                    }
+                    else if (ch == ',' || ch == ']')
+                    {
+                        if (expr_stack > 0)
+                        {
+                            shape.push_back(-1);
+                        }
+                        else if (!t.empty())
+                        {
+                            shape.push_back(std::stoi(t));
+                        }
+                        t.clear();
+                    }
+                    else
+                    {
+                        t += ch;
+                    }
+                }
+
+                if (!t.empty())
+                {
+                    shape.push_back(std::stoi(t));
+                }
+            }
+        }
+        else
+        {
+            shape = op->params.at("shape").ai;
+        }
+
+        bool keep_batch_index = false;
+        int batch_index_unreshaped = batch_index;
+        if (input_rank0 > 0)
+        {
+            if (batch_index == 0 && shape[0] == 1 && op->inputs[0]->shape[0] == 1)
+            {
+                keep_batch_index = true;
+            }
+            else if (output_rank0 > 0)
+            {
+                if (batch_index == output_rank0 - 1 && shape[shape.size() - 1] == 1 && op->inputs[0]->shape[input_rank0 - 1] == 1)
+                {
+                    keep_batch_index = true;
+                    batch_index_unreshaped = input_rank0 - 1;
+                }
+                else
+                {
+                    batch_index_unreshaped = -1;
+
+                    // batch index is in the middle, let's consider the left and right parts
+                    int left = 1;
+                    int right = 1;
+                    for (int i = 0; i < batch_index; i++)
+                    {
+                        if (op->outputs[0]->shape[i] == -1)
+                        {
+                            left = -1;
+                            break;
+                        }
+                        left *= op->outputs[0]->shape[i];
+                    }
+                    for (int i = batch_index + 1; i < (int)op->outputs[0]->shape.size(); i++)
+                    {
+                        if (op->outputs[0]->shape[i] == -1)
+                        {
+                            right = -1;
+                            break;
+                        }
+                        right *= op->outputs[0]->shape[i];
+                    }
+
+                    // try to find batch index in the output shape
+                    if (left > 0)
+                    {
+                        int left2 = 1;
+                        for (int i = 0; i < input_rank0 - 1; i++)
+                        {
+                            if (op->inputs[0]->shape[i] == -1)
+                            {
+                                left2 = -1;
+                                break;
+                            }
+                            left2 *= op->inputs[0]->shape[i];
+                            if (left2 == left && op->inputs[0]->shape[i + 1] == 1)
+                            {
+                                batch_index_unreshaped = i + 1;
+                                if (batch_index_unreshaped + 1 < input_rank0 && op->inputs[0]->shape[batch_index_unreshaped + 1] == 1)
+                                {
+                                    // multiple axes can be batch index, give up
+                                    batch_index_unreshaped = -1;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    if (right > 0)
+                    {
+                        int right2 = 1;
+                        for (int i = input_rank0 - 1; i >= 1; i--)
+                        {
+                            if (op->inputs[0]->shape[i] == -1)
+                            {
+                                right2 = -1;
+                                break;
+                            }
+                            right2 *= op->inputs[0]->shape[i];
+                            if (right2 == right && op->inputs[0]->shape[i - 1] == 1)
+                            {
+                                batch_index_unreshaped = i - 1;
+                                if (batch_index_unreshaped - 1 >= 0 && op->inputs[0]->shape[batch_index_unreshaped - 1] == 1)
+                                {
+                                    // multiple axes can be batch index, give up
+                                    batch_index_unreshaped = -1;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if (batch_index_unreshaped >= 0)
+                        keep_batch_index = true;
+                }
+            }
+        }
+
+        if (keep_batch_index)
         {
             for (Operand* r : op->inputs)
             {
                 if (r->params.find("__batch_index") != r->params.end())
                     continue;
 
-                r->params["__batch_index"] = batch_index;
+                r->params["__batch_index"] = batch_index_unreshaped;
 
                 solve_batch_index_backward(r);
                 solve_batch_index_forward(r);
@@ -259,6 +680,63 @@ static void solve_batch_index_backward(Operand* operand)
         else
         {
             // give up reshape across batch index
+        }
+    }
+    else if (op->type == "Tensor.slice" || op->type == "Tensor.select")
+    {
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+    else if (op->type == "pnnx.SliceIndexes")
+    {
+        // pass
+    }
+    else if (op->type == "torch.squeeze")
+    {
+        int dim = op->params.at("dim").i;
+        if (dim < 0)
+            dim += input_rank0;
+
+        int batch_index_unsqueezed = batch_index;
+        if (dim >= 0 && dim <= batch_index)
+        {
+            batch_index_unsqueezed = batch_index + 1;
+        }
+
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index_unsqueezed;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+    else if (op->type == "torch.unsqueeze")
+    {
+        int dim = op->params.at("dim").i;
+        if (dim < 0)
+            dim += input_rank0;
+
+        int batch_index_squeezed = batch_index;
+        if (dim >= 0 && dim <= batch_index)
+        {
+            batch_index_squeezed = batch_index - 1;
+        }
+
+        Operand* r = op->inputs[0];
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            r->params["__batch_index"] = batch_index_squeezed;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
         }
     }
     else
@@ -283,6 +761,11 @@ void solve_batch_index(Graph& graph)
     {
         if (is_known_operator_with_batch_index_0(op))
         {
+            if (op->type == std::string("F.grid_sample"))
+            {
+                op->inputs[1]->params["__batch_index"] = 0;
+            }
+
             op->inputs[0]->params["__batch_index"] = 0;
             op->outputs[0]->params["__batch_index"] = 0;
         }
@@ -300,6 +783,21 @@ void solve_batch_index(Graph& graph)
 
             for (size_t j = 1; j < op->inputs.size(); j++)
             {
+                if (op->type == "nn.MultiheadAttention")
+                {
+                    if (op->inputnames.size() == op->inputs.size() && op->inputnames[j] == "attn_mask")
+                    {
+                        // no batch for mha attn_mask
+                        op->inputs[j]->params["__batch_index"] = 233;
+                    }
+                    else
+                    {
+                        op->inputs[j]->params["__batch_index"] = batch_first ? 0 : 1;
+                    }
+
+                    continue;
+                }
+
                 op->inputs[j]->params["__batch_index"] = 1;
             }
 
@@ -321,6 +819,16 @@ void solve_batch_index(Graph& graph)
         for (Operand* r : op->outputs)
         {
             solve_batch_index_forward(r);
+        }
+    }
+
+    // always treat 1-dim tensor as no batch axis
+    for (Operand* r : graph.operands)
+    {
+        if (r->shape.size() == 1)
+        {
+            fprintf(stderr, "force batch axis 233 for operand %s\n", r->name.c_str());
+            r->params["__batch_index"] = 233;
         }
     }
 

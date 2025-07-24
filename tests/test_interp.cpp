@@ -1,18 +1,6 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/interp.h"
 #include "testutil.h"
 
 static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width)
@@ -26,7 +14,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width);
@@ -47,7 +35,7 @@ static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_heigh
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, as);
+    int ret = test_layer("Interp", pd, weights, as);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp_ref failed a.dims=%d a=(%d %d %d) resize_type=%d output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, output_height, output_width);
@@ -68,7 +56,7 @@ static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float h
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d align_corner=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width, align_corner);
@@ -88,7 +76,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float width_scale, i
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d width_scale=%f output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, width_scale, output_width);
@@ -109,7 +97,7 @@ static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_width
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, as);
+    int ret = test_layer("Interp", pd, weights, as);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp_ref failed a.dims=%d a=(%d %d %d) resize_type=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, output_width);
@@ -130,7 +118,7 @@ static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float w
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d width_scale=%f output_width=%d align_corner=%d\n", a.dims, a.w, a.h, a.c, resize_type, width_scale, output_width, align_corner);

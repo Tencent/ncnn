@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "eliminate_identity_operator.h"
 
@@ -29,7 +18,7 @@ void eliminate_identity_operator(Graph& graph)
         {
             Operator* op0 = graph.ops[i];
 
-            if (op0->type == "pnnx.Input" || op0->type == "pnnx.Output" || op0->type == "pnnx.Attribute")
+            if (op0->type == "pnnx.Input" || op0->type == "pnnx.Output" || op0->type == "pnnx.Attribute" || op0->type == "torch.clone")
                 continue;
 
             Operator* op1 = 0;
@@ -38,7 +27,7 @@ void eliminate_identity_operator(Graph& graph)
             {
                 op1 = graph.ops[j];
 
-                if (op1->type == "pnnx.Input" || op1->type == "pnnx.Output" || op0->type == "pnnx.Attribute")
+                if (op1->type == "pnnx.Input" || op1->type == "pnnx.Output" || op0->type == "pnnx.Attribute" || op1->type == "torch.clone")
                     continue;
 
                 if (op0->type != op1->type)
@@ -71,7 +60,7 @@ void eliminate_identity_operator(Graph& graph)
             {
                 Operand* in0 = op0->inputs[j];
 
-                in0->consumers.erase(std::find(in0->consumers.begin(), in0->consumers.end(), op1));
+                in0->remove_consumer(op1);
             }
 
             int output_count = (int)op0->outputs.size();

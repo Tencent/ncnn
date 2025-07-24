@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static inline void interpolate_cubic_fp16sa(float fx, __fp16* coeffs)
 {
@@ -24,7 +13,7 @@ static inline void interpolate_cubic_fp16sa(float fx, __fp16* coeffs)
     coeffs[0] = (__fp16)(A * fx0 * fx0 * fx0 - 5 * A * fx0 * fx0 + 8 * A * fx0 - 4 * A);
     coeffs[1] = (__fp16)((A + 2) * fx1 * fx1 * fx1 - (A + 3) * fx1 * fx1 + 1);
     coeffs[2] = (__fp16)((A + 2) * fx2 * fx2 * fx2 - (A + 3) * fx2 * fx2 + 1);
-    coeffs[3] = (__fp16)(1.f - coeffs[0] - coeffs[1] - coeffs[2]);
+    coeffs[3] = (__fp16)((__fp16)1.f - coeffs[0] - coeffs[1] - coeffs[2]);
 }
 
 static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
@@ -51,7 +40,7 @@ static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int a
         if (sx <= -1)
         {
             sx = 1;
-            alpha[dx * 4 + 0] = (__fp16)(1.f - alpha[dx * 4 + 3]);
+            alpha[dx * 4 + 0] = (__fp16)((__fp16)1.f - alpha[dx * 4 + 3]);
             alpha[dx * 4 + 1] = (__fp16)alpha[dx * 4 + 3];
             alpha[dx * 4 + 2] = (__fp16)0.f;
             alpha[dx * 4 + 3] = (__fp16)0.f;
@@ -75,7 +64,7 @@ static void cubic_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int a
         if (sx >= w - 1)
         {
             sx = w - 3;
-            alpha[dx * 4 + 3] = (__fp16)(1.f - alpha[dx * 4 + 0]);
+            alpha[dx * 4 + 3] = (__fp16)((__fp16)1.f - alpha[dx * 4 + 0]);
             alpha[dx * 4 + 2] = (__fp16)(alpha[dx * 4 + 0]);
             alpha[dx * 4 + 1] = (__fp16)0.f;
             alpha[dx * 4 + 0] = (__fp16)0.f;

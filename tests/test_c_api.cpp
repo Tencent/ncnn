@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <string.h>
 #include "c_api.h"
@@ -243,9 +232,15 @@ static int test_c_api_2()
         emptydr->read = emptydr_read;
     }
 
+    ncnn_allocator_t blob_allocator = ncnn_allocator_create_pool_allocator();
+    ncnn_allocator_t workspace_allocator = ncnn_allocator_create_unlocked_pool_allocator();
+
     ncnn_option_t opt = ncnn_option_create();
     {
         ncnn_option_set_num_threads(opt, 1);
+
+        ncnn_option_set_blob_allocator(opt, blob_allocator);
+        ncnn_option_set_workspace_allocator(opt, workspace_allocator);
     }
 
     ncnn_net_t net = ncnn_net_create();
@@ -260,7 +255,7 @@ static int test_c_api_2()
         ncnn_net_load_model_datareader(net, emptydr);
     }
 
-    ncnn_mat_t a = ncnn_mat_create_1d(24, NULL);
+    ncnn_mat_t a = ncnn_mat_create_1d(24, blob_allocator);
 
     // set a
     {
@@ -274,7 +269,7 @@ static int test_c_api_2()
         memcpy(a_data, data, 24 * sizeof(float));
     }
 
-    ncnn_mat_t b = ncnn_mat_reshape_3d(a, 4, 2, 3, NULL);
+    ncnn_mat_t b = ncnn_mat_reshape_3d(a, 4, 2, 3, blob_allocator);
     ncnn_mat_t c = 0;
 
     {
@@ -320,6 +315,9 @@ static int test_c_api_2()
     ncnn_mat_destroy(c);
 
     ncnn_option_destroy(opt);
+
+    ncnn_allocator_destroy(blob_allocator);
+    ncnn_allocator_destroy(workspace_allocator);
 
     ncnn_datareader_destroy(emptydr);
 

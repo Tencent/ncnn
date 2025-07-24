@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_binaryop_eltwise.h"
 
@@ -48,18 +37,25 @@ pnnx.Output             output      1 0 out
         return "weighted_sum";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        auto a_shape = matched_operators.at("op_0")->inputs[0]->shape;
+        auto b_shape = matched_operators.at("op_1")->inputs[0]->shape;
+        return !a_shape.empty() && a_shape == b_shape;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         float c0 = 1.f;
         float c1 = 1.f;
 
         if (captured_params.at("c0").type == 2)
-            c0 = captured_params.at("c0").i;
+            c0 = (float)captured_params.at("c0").i;
         if (captured_params.at("c0").type == 3)
             c0 = captured_params.at("c0").f;
 
         if (captured_params.at("c1").type == 2)
-            c1 = captured_params.at("c1").i;
+            c1 = (float)captured_params.at("c1").i;
         if (captured_params.at("c1").type == 3)
             c1 = captured_params.at("c1").f;
 
@@ -93,13 +89,20 @@ pnnx.Output             output      1 0 out
         return "weighted_sum";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        auto a_shape = matched_operators.at("op_0")->inputs[0]->shape;
+        auto b_shape = matched_operators.at("op_1")->inputs[1]->shape;
+        return !a_shape.empty() && a_shape == b_shape;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         float c0 = 1.f;
         float c1 = 1.f;
 
         if (captured_params.at("c0").type == 2)
-            c0 = captured_params.at("c0").i;
+            c0 = (float)captured_params.at("c0").i;
         if (captured_params.at("c0").type == 3)
             c0 = captured_params.at("c0").f;
 
@@ -133,13 +136,20 @@ pnnx.Output             output      1 0 out
         return "weighted_sum";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        auto a_shape = matched_operators.at("op_1")->inputs[0]->shape;
+        auto b_shape = matched_operators.at("op_0")->inputs[0]->shape;
+        return !a_shape.empty() && a_shape == b_shape;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         float c0 = 1.f;
         float c1 = 1.f;
 
         if (captured_params.at("c1").type == 2)
-            c1 = captured_params.at("c1").i;
+            c1 = (float)captured_params.at("c1").i;
         if (captured_params.at("c1").type == 3)
             c1 = captured_params.at("c1").f;
 

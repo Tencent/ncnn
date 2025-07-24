@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2020 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import sys
 import numpy as np
@@ -211,10 +200,11 @@ def test_mat_dims4():
 
 def test_numpy():
     mat = ncnn.Mat(1)
-    array = np.array(mat)
+    array = mat.numpy()
     assert mat.dims == array.ndim and mat.w == array.shape[0]
     mat = ncnn.Mat(2, 3)
-    array = np.array(mat)
+    array = mat.numpy()
+    assert array.dtype == np.float32
     assert (
         mat.dims == array.ndim and mat.w == array.shape[1] and mat.h == array.shape[0]
     )
@@ -237,10 +227,10 @@ def test_numpy():
     )
 
     mat = ncnn.Mat(1, elemsize=1)
-    array = np.array(mat)
+    array = mat.numpy()
     assert array.dtype == np.int8
     mat = ncnn.Mat(1, elemsize=2)
-    array = np.array(mat)
+    array = mat.numpy()
     assert array.dtype == np.float16
     # pybind11 def_buffer throw bug
     # with pytest.raises(RuntimeError) as execinfo:
@@ -251,7 +241,7 @@ def test_numpy():
     #     )
     assert array.dtype == np.float16
     mat = ncnn.Mat(1, elemsize=4)
-    array = np.array(mat)
+    array = mat.numpy()
     assert array.dtype == np.float32
 
     mat = np.random.randint(0, 128, size=(12,)).astype(np.uint8)
@@ -279,12 +269,25 @@ def test_numpy():
     array = np.array(mat)
     assert (mat == array).all()
 
+    array = np.array([1, 2, 3], dtype=np.int32)
+    mat = ncnn.Mat(array)
+    array2 = mat.numpy(format='i')
+    assert array2.dtype == np.int32
+    array[0] = 10
+    assert array2[0] == 10
+
+    array = np.array([1, 2, 3], dtype=np.float32)
+    mat = ncnn.Mat(array)
+    array2 = mat.numpy(format='f')
+    assert array2.dtype == np.float32
+    array2[0] = 100
+    assert array[0] == 100
 
 def test_fill():
     mat = ncnn.Mat(1)
     mat.fill(1.0)
     array = np.array(mat)
-    assert np.abs(array[0] - 1.0) < sys.float_info.min
+    assert np.abs(array[0] - 1.0) < np.finfo(np.float32).eps
 
 
 def test_clone():
@@ -543,9 +546,9 @@ def test_empty():
 
 def test_total():
     mat = ncnn.Mat(1)
-    assert mat.total() == 1
+    assert mat.total() == 4 # 1 aligned
     mat = ncnn.Mat(2, 3)
-    assert mat.total() == 2 * 3
+    assert mat.total() == 8 # 2 * 3 aligned
     mat = ncnn.Mat(4, 5, 6)
     assert mat.total() == 4 * 5 * 6
     mat = ncnn.Mat(7, 8, 9, 10)

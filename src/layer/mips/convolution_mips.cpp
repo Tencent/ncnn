@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution_mips.h"
 
@@ -226,9 +215,7 @@ int Convolution_mips::create_pipeline(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -284,7 +271,7 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             top_blob.w = top_blob_3d.c;
             top_blob.h = 1;
             top_blob.c = 1;
-            bottom_blob_3d.cstep = top_blob_3d.c;
+            top_blob.cstep = top_blob_3d.c;
         }
         else
         {
@@ -593,16 +580,16 @@ int Convolution_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
     pd.set(1, _kernel_w);
     pd.set(11, _kernel_h);
     pd.set(2, dilation_w);
-    pd.set(21, dilation_h);
+    pd.set(12, dilation_h);
     pd.set(3, stride_w);
-    pd.set(31, stride_h);
+    pd.set(13, stride_h);
     pd.set(4, pad_left);
     pd.set(15, pad_right);
     pd.set(14, pad_top);
@@ -793,9 +780,7 @@ int Convolution_mips::create_pipeline_int8_mips(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -953,6 +938,29 @@ int Convolution_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, c
             convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
     }
+
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        // NCNN_LOGE("top_blob_int32  %d  %d", top_blob_int32.c, top_blob_int32.elempack);
+        if (use_int8_requantize)
+        {
+            // TODO implement winograd sgemm packed int8 pack1 output
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 1)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 1, opt);
+                top_blob_int32 = tmp;
+            }
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 0)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 8, opt);
+                top_blob_int32 = tmp;
+            }
+        }
+    }
+#endif
 
     if (use_int8_requantize)
     {

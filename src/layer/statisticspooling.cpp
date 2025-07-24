@@ -1,20 +1,10 @@
 // Copyright 2016 SoundAI Technology Co., Ltd. (author: Charles Wang)
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "statisticspooling.h"
 
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -68,9 +58,9 @@ int StatisticsPooling::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         float std = 0.f;
         for (int i = 0; i < size; i++)
         {
-            std += pow((ptr[i] - top_blob[q - channels]), 2);
+            std += powf((ptr[i] - top_blob[q - channels]), 2);
         }
-        top_blob[q] = sqrt(std / w / h);
+        top_blob[q] = sqrtf(std / w / h);
     }
 
     return 0;

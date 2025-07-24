@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -30,8 +19,8 @@ class Model(nn.Module):
         else:
             self.conv_3 = nn.Conv1d(in_channels=24, out_channels=28, kernel_size=5, stride=1, padding='valid', dilation=1, groups=4, bias=True)
             self.conv_4 = nn.Conv1d(in_channels=28, out_channels=32, kernel_size=3, stride=1, padding='same', dilation=2, groups=2, bias=False, padding_mode='zeros')
-        #self.conv_5 = nn.Conv1d(in_channels=32, out_channels=32, kernel_size=2, stride=2, padding=3, dilation=1, groups=32, bias=True, padding_mode='reflect')
-        #self.conv_6 = nn.Conv1d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, dilation=1, groups=1, bias=False, padding_mode='replicate')
+        self.conv_5 = nn.Conv1d(in_channels=32, out_channels=32, kernel_size=2, stride=2, padding=3, dilation=1, groups=32, bias=True, padding_mode='reflect')
+        self.conv_6 = nn.Conv1d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, dilation=1, groups=1, bias=False, padding_mode='replicate')
 
     def forward(self, x):
         x = self.conv_0(x)
@@ -39,8 +28,8 @@ class Model(nn.Module):
         x = self.conv_2(x)
         x = self.conv_3(x)
         x = self.conv_4(x)
-        #x = self.conv_5(x)
-        #x = self.conv_6(x)
+        x = self.conv_5(x)
+        x = self.conv_6(x)
 
         return x
 

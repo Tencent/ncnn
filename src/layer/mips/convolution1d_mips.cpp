@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution1d_mips.h"
 
@@ -77,6 +66,9 @@ int Convolution1D_mips::create_pipeline(const Option& opt)
             }
         }
     }
+
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -281,7 +273,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         sum = bias_data[p];
                     }
 
-                    const float* kptr = (const float*)weight_data + kernel_w * h * p;
+                    const float* kptr = weight_data_packed.channel(p);
 
                     for (int q = 0; q < h; q++)
                     {
@@ -342,7 +334,7 @@ int Convolution1D_mips::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution1D);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution1D);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

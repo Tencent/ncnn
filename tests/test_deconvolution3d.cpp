@@ -1,18 +1,6 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/deconvolution3d.h"
 #include "testutil.h"
 
 static int test_deconvolution3d(int w, int h, int d, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int output_pad_right, int output_pad_bottom, int output_pad_behind, int output_w, int output_h, int output_d)
@@ -51,7 +39,7 @@ static int test_deconvolution3d(int w, int h, int d, int c, int outch, int kerne
     weights[0] = RandomMat(outch * c * kernel * kernel * kernel);
     weights[1] = RandomMat(outch);
 
-    int ret = test_layer<ncnn::Deconvolution3D>("Deconvolution3D", pd, weights, a);
+    int ret = test_layer("Deconvolution3D", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolution3d failed w=%d h=%d d=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_pad_behind=%d output_w=%d output_h=%d output_d=%d\n", w, h, d, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_pad_behind, output_w, output_h, output_d);

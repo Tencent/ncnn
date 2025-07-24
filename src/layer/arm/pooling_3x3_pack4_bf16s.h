@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
@@ -416,15 +405,15 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
             }
             for (; j < outw; j++)
             {
-                float32x4_t _r00 = float2bfloat(vld1_u16(r0));
-                float32x4_t _r01 = float2bfloat(vld1_u16(r0 + 4));
-                float32x4_t _r02 = float2bfloat(vld1_u16(r0 + 8));
-                float32x4_t _r10 = float2bfloat(vld1_u16(r1));
-                float32x4_t _r11 = float2bfloat(vld1_u16(r1 + 4));
-                float32x4_t _r12 = float2bfloat(vld1_u16(r1 + 8));
-                float32x4_t _r20 = float2bfloat(vld1_u16(r2));
-                float32x4_t _r21 = float2bfloat(vld1_u16(r2 + 4));
-                float32x4_t _r22 = float2bfloat(vld1_u16(r2 + 8));
+                float32x4_t _r00 = bfloat2float(vld1_u16(r0));
+                float32x4_t _r01 = bfloat2float(vld1_u16(r0 + 4));
+                float32x4_t _r02 = bfloat2float(vld1_u16(r0 + 8));
+                float32x4_t _r10 = bfloat2float(vld1_u16(r1));
+                float32x4_t _r11 = bfloat2float(vld1_u16(r1 + 4));
+                float32x4_t _r12 = bfloat2float(vld1_u16(r1 + 8));
+                float32x4_t _r20 = bfloat2float(vld1_u16(r2));
+                float32x4_t _r21 = bfloat2float(vld1_u16(r2 + 4));
+                float32x4_t _r22 = bfloat2float(vld1_u16(r2 + 8));
 
                 float32x4_t _max0 = vmaxq_f32(vmaxq_f32(_r00, _r01), _r02);
                 float32x4_t _max1 = vmaxq_f32(vmaxq_f32(_r10, _r11), _r12);
@@ -432,7 +421,7 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
 
                 float32x4_t _max = vmaxq_f32(vmaxq_f32(_max0, _max1), _max2);
 
-                vst1_u16(outptr, bfloat2float(_max));
+                vst1_u16(outptr, float2bfloat(_max));
 
                 r0 += 8;
                 r1 += 8;

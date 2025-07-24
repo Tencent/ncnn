@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2022 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -22,10 +11,16 @@ class Model(nn.Module):
 
     def forward(self, x, y, z, w):
         x0, x1, x2 = torch.tensor_split(x, (12, 13))
-        y0, y1, y2 = torch.tensor_split(y, 3, dim=1)
+        y0, y1 = torch.tensor_split(y, 2, dim=0)
+        y2, y3, y4 = torch.tensor_split(y, 3, dim=1)
         z0, z1 = torch.tensor_split(z, (3,), dim=0)
-        w0, w1, w2, w3, w4 = torch.tensor_split(w, (1, 3, 7, 17), dim=3)
-        return x0, x1, x2, y0, y1, y2, z0, z1, w0, w1, w2, w3, w4
+        z2, z3 = torch.tensor_split(z, (1,), dim=1)
+        z4, z5, z6 = torch.tensor_split(z, 3, dim=2)
+        w0, w1, w2 = torch.tensor_split(w, (2, 4), dim=0)
+        w3, w4 = torch.tensor_split(w, 2, dim=1)
+        w5, w6, w7 = torch.tensor_split(w, (1, 5), dim=2)
+        w8, w9, wa, wb, wc = torch.tensor_split(w, (1, 3, 7, 17), dim=3)
+        return x0, x1, x2, y0, y1, y2, y3, y4, z0, z1, z2, z3, z4, z5, z6, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wa, wb, wc
 
 def test():
     net = Model()

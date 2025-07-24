@@ -1,3 +1,6 @@
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include <stdio.h>
 
 #include "cpu.h"
@@ -103,10 +106,38 @@ static int test_cpu_powersave()
 
 #else
 
+#if defined _WIN32
+// Check SDK >= WinXP
+#if _WIN32_WINNT >= _WIN32_WINNT_WINXP // winxp
+
+static int test_cpu_info()
+{
+    int cpucount = ncnn::get_cpu_count();
+    int bigcpucount = ncnn::get_big_cpu_count();
+    int littlecpucount = ncnn::get_little_cpu_count();
+
+    fprintf(stderr, "cpucount = %d\n", cpucount);
+    fprintf(stderr, "bigcpucount = %d\n", bigcpucount);
+    fprintf(stderr, "littlecpucount = %d\n", littlecpucount);
+
+    if ((cpucount != bigcpucount + littlecpucount) || (bigcpucount > cpucount) || (littlecpucount > cpucount))
+    {
+        fprintf(stderr, "The number of big and little cpus must be less than or equal to the total number of cpus\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+#endif
+#else
+
 static int test_cpu_info()
 {
     return 0;
 }
+
+#endif
 
 static int test_cpu_omp()
 {

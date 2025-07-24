@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static inline void interpolate_cubic(float fx, float* coeffs)
 {
@@ -264,11 +253,11 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
             __m256 _rows1 = _mm256_loadu_ps(rows1p);
             __m256 _rows2 = _mm256_loadu_ps(rows2p);
             __m256 _rows3 = _mm256_loadu_ps(rows3p);
-            __m256 _D = _mm256_mul_ps(_rows0, _b0_256);
-            _D = _mm256_comp_fmadd_ps(_rows1, _b1_256, _D);
-            _D = _mm256_comp_fmadd_ps(_rows2, _b2_256, _D);
-            _D = _mm256_comp_fmadd_ps(_rows3, _b3_256, _D);
-            _mm256_storeu_ps(Dp, _D);
+            __m256 _Dp = _mm256_mul_ps(_rows0, _b0_256);
+            _Dp = _mm256_comp_fmadd_ps(_rows1, _b1_256, _Dp);
+            _Dp = _mm256_comp_fmadd_ps(_rows2, _b2_256, _Dp);
+            _Dp = _mm256_comp_fmadd_ps(_rows3, _b3_256, _Dp);
+            _mm256_storeu_ps(Dp, _Dp);
 
             Dp += 8;
             rows0p += 8;
@@ -287,11 +276,11 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
             __m128 _rows1 = _mm_loadu_ps(rows1p);
             __m128 _rows2 = _mm_loadu_ps(rows2p);
             __m128 _rows3 = _mm_loadu_ps(rows3p);
-            __m128 _D = _mm_mul_ps(_rows0, _b0_128);
-            _D = _mm_comp_fmadd_ps(_rows1, _b1_128, _D);
-            _D = _mm_comp_fmadd_ps(_rows2, _b2_128, _D);
-            _D = _mm_comp_fmadd_ps(_rows3, _b3_128, _D);
-            _mm_storeu_ps(Dp, _D);
+            __m128 _Dp = _mm_mul_ps(_rows0, _b0_128);
+            _Dp = _mm_comp_fmadd_ps(_rows1, _b1_128, _Dp);
+            _Dp = _mm_comp_fmadd_ps(_rows2, _b2_128, _Dp);
+            _Dp = _mm_comp_fmadd_ps(_rows3, _b3_128, _Dp);
+            _mm_storeu_ps(Dp, _Dp);
 
             Dp += 4;
             rows0p += 4;

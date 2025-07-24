@@ -1,20 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "priorbox.h"
-
-#include <math.h>
 
 namespace ncnn {
 
@@ -99,7 +86,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 float size = min_sizes[0];
                 for (int p = 1; p < num_ratios; p++)
                 {
-                    float ratio = static_cast<float>(sqrt(aspect_ratios[p]));
+                    float ratio = sqrtf(aspect_ratios[p]);
                     float cw = size * h / w * ratio / 2;
                     float ch = size / ratio / 2;
 
@@ -139,13 +126,13 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     {
         step_w = (float)image_w / w;
         if (step_mmdetection)
-            step_w = static_cast<float>(ceil((float)image_w / w));
+            step_w = ceilf((float)image_w / w);
     }
     if (step_h == -233)
     {
         step_h = (float)image_h / h;
         if (step_mmdetection)
-            step_h = static_cast<float>(ceil((float)image_h / h));
+            step_h = ceilf((float)image_h / h);
     }
 
     int num_min_size = min_sizes.w;
@@ -198,7 +185,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     float max_size = max_sizes[k];
 
                     // max size box
-                    box_w = box_h = static_cast<float>(sqrt(min_size * max_size));
+                    box_w = box_h = sqrtf(min_size * max_size);
 
                     box[0] = (center_x - box_w * 0.5f) / image_w;
                     box[1] = (center_y - box_h * 0.5f) / image_h;
@@ -213,8 +200,8 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 {
                     float ar = aspect_ratios[p];
 
-                    box_w = static_cast<float>(min_size * sqrt(ar));
-                    box_h = static_cast<float>(min_size / sqrt(ar));
+                    box_w = min_size * sqrtf(ar);
+                    box_h = min_size / sqrtf(ar);
 
                     box[0] = (center_x - box_w * 0.5f) / image_w;
                     box[1] = (center_y - box_h * 0.5f) / image_h;

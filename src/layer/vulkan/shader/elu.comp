@@ -1,0 +1,30 @@
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const float alpha = 0;
+
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const uint n = 0;
+
+layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    uint n;
+} p;
+
+void main()
+{
+    const uint gi = gl_GlobalInvocationID.x;
+
+    if (gi >= psc(n))
+        return;
+
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+
+    v = mix(afpvec4(alpha) * afpvec4(exp(v) - afpvec4(1.0f)), v, greaterThan(v, afpvec4(0.0f)));
+
+    buffer_st4(bottom_top_blob_data, gi, v);
+}

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "option.h"
 
@@ -21,7 +10,11 @@ namespace ncnn {
 Option::Option()
 {
     lightmode = true;
-    num_threads = get_big_cpu_count();
+    use_shader_pack8 = false;
+    use_subgroup_ops = false;
+    use_reserved_0 = false;
+
+    num_threads = get_physical_big_cpu_count();
     blob_allocator = 0;
     workspace_allocator = 0;
 
@@ -50,17 +43,13 @@ Option::Option()
 
     use_packing_layout = true;
 
-    use_shader_pack8 = false;
+    vulkan_device_index = -1;
+    use_reserved_1 = false;
 
-    use_subgroup_basic = false;
-    use_subgroup_vote = false;
-    use_subgroup_ballot = false;
-    use_subgroup_shuffle = false;
-
-    use_image_storage = false;
     use_tensor_storage = false;
+    use_reserved_1p = false;
 
-    use_reserved_0 = false;
+    use_reserved_2 = false;
 
     flush_denormals = 3;
 
@@ -72,6 +61,15 @@ Option::Option()
     use_winograd23_convolution = true;
     use_winograd43_convolution = true;
     use_winograd63_convolution = true;
+
+    use_a53_a55_optimized_kernel = is_current_thread_running_on_a53_a55();
+
+    use_fp16_uniform = true;
+    use_int8_uniform = true;
+
+    use_reserved_9 = false;
+    use_reserved_10 = false;
+    use_reserved_11 = false;
 }
 
 } // namespace ncnn

@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2020 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import pytest
 
@@ -27,7 +16,7 @@ def test_option():
     opt.lightmode = False
     assert opt.lightmode == False
 
-    assert opt.num_threads == ncnn.get_cpu_count()
+    assert opt.num_threads == ncnn.get_physical_big_cpu_count()
     opt.num_threads = 1
     assert opt.num_threads == 1
 
@@ -108,30 +97,10 @@ def test_option():
     opt.use_shader_pack8 = False
     assert opt.use_shader_pack8 == False
 
-    opt.use_subgroup_basic = True
-    assert opt.use_subgroup_basic == True
-    opt.use_subgroup_basic = False
-    assert opt.use_subgroup_basic == False
-
-    opt.use_subgroup_vote = True
-    assert opt.use_subgroup_vote == True
-    opt.use_subgroup_vote = False
-    assert opt.use_subgroup_vote == False
-
-    opt.use_subgroup_ballot = True
-    assert opt.use_subgroup_ballot == True
-    opt.use_subgroup_ballot = False
-    assert opt.use_subgroup_ballot == False
-
-    opt.use_subgroup_shuffle = True
-    assert opt.use_subgroup_shuffle == True
-    opt.use_subgroup_shuffle = False
-    assert opt.use_subgroup_shuffle == False
-
-    opt.use_image_storage = True
-    assert opt.use_image_storage == True
-    opt.use_image_storage = False
-    assert opt.use_image_storage == False
+    opt.use_subgroup_ops = True
+    assert opt.use_subgroup_ops == True
+    opt.use_subgroup_ops = False
+    assert opt.use_subgroup_ops == False
 
     opt.use_tensor_storage = True
     assert opt.use_tensor_storage == True

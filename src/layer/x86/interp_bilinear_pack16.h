@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void resize_bilinear_image_pack16(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
@@ -109,9 +98,9 @@ static void resize_bilinear_image_pack16(const Mat& src, Mat& dst, float* alpha,
         {
             __m512 _rows0 = _mm512_load_ps(rows0p);
             __m512 _rows1 = _mm512_load_ps(rows1p);
-            __m512 _D = _mm512_mul_ps(_rows0, _b0);
-            _D = _mm512_fmadd_ps(_rows1, _b1, _D);
-            _mm512_store_ps(Dp, _D);
+            __m512 _Dp = _mm512_mul_ps(_rows0, _b0);
+            _Dp = _mm512_fmadd_ps(_rows1, _b1, _Dp);
+            _mm512_store_ps(Dp, _Dp);
 
             Dp += 16;
             rows0p += 16;

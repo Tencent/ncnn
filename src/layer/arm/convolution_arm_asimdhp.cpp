@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution_arm.h"
 
@@ -27,42 +16,21 @@ namespace ncnn {
 
 #if __ARM_NEON
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#include "convolution_fp16s.h"
-#include "convolution_pack8_fp16s.h"
-#include "convolution_pack1to8_fp16s.h"
-#include "convolution_pack4to8_fp16s.h"
-#include "convolution_pack8to1_fp16s.h"
-#include "convolution_pack8to4_fp16s.h"
-#include "convolution_pack4_fp16s.h"
-#include "convolution_pack1to4_fp16s.h"
-#include "convolution_pack4to1_fp16s.h"
-#include "convolution_sgemm_fp16s.h"
-#include "convolution_sgemm_pack4_fp16s.h"
-#include "convolution_sgemm_pack1to4_fp16s.h"
-#include "convolution_sgemm_pack4to8_fp16s.h"
-#include "convolution_sgemm_pack8_fp16s.h"
-#include "convolution_sgemm_pack8to4_fp16s.h"
-#include "convolution_sgemm_pack8to1_fp16s.h"
-#include "convolution_winograd_transform_fp16s.h"
-#include "convolution_winograd_transform_pack4_fp16s.h"
-#include "convolution_winograd_transform_pack8_fp16s.h"
-#include "convolution_winograd_dot_pack4_fp16s.h"
-#include "convolution_winograd_dot_pack8_fp16s.h"
-#include "convolution_1x1_fp16s.h"
-#include "convolution_1x1_pack4_fp16s.h"
-#include "convolution_1x1_pack1to4_fp16s.h"
-#include "convolution_1x1_pack8_fp16s.h"
-#include "convolution_1x1_pack4to8_fp16s.h"
-#include "convolution_1x1_pack8to1_fp16s.h"
-#include "convolution_1x1_pack8to4_fp16s.h"
+#include "convolution_packed_fp16s.h"
+
+#include "convolution_3x3_winograd_fp16s.h"
+
+#include "convolution_im2col_gemm_bf16s_fp16s.h"
+#include "convolution_im2col_gemm_fp16s.h"
+
+#if NCNN_GNU_INLINE_ASM
 #include "convolution_3x3_pack4_fp16s.h"
 #include "convolution_3x3_pack1to8_fp16s.h"
 #include "convolution_3x3_pack1to4_fp16s.h"
 #include "convolution_3x3_pack8_fp16s.h"
-#include "convolution_3x3_pack8to1_fp16s.h"
-#include "convolution_3x3_pack8to4_fp16s.h"
 #include "convolution_5x5_pack8_fp16s.h"
 #include "convolution_7x7_pack1to8_fp16s.h"
+#endif // NCNN_GNU_INLINE_ASM
 #endif
 #endif // __ARM_NEON
 
@@ -117,231 +85,124 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
         out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     }
 
-    // pack8
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input >= 16 || num_output >= 16);
+
+    if (opt.use_fp16_arithmetic && opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        // dynamic shape
+        if (opt.use_winograd63_convolution && (num_input <= 128 && num_output <= 128))
+            conv3x3s1_winograd63_transform_kernel_fp16sa(weight_data, weight_winograd63_data, num_input, num_output, opt);
+        else if (opt.use_winograd43_convolution && (num_input >= 16 && num_output >= 16))
+            conv3x3s1_winograd43_transform_kernel_fp16sa(weight_data, weight_winograd43_data, num_input, num_output, opt);
+        else
+            conv3x3s1_winograd23_transform_kernel_fp16sa(weight_data, weight_winograd23_data, num_input, num_output, opt);
+
+        if (opt.lightmode)
+            weight_data.release();
+
+        if (opt.use_fp16_arithmetic)
+        {
+            ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+        }
+
+        return 0;
+    }
+
+    int l2_cache_size_fp16 = get_cpu_level2_cache_size() / sizeof(unsigned short);
+    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * 2 > l2_cache_size_fp16 || (num_input > 16 || num_output > 16);
+
+#if NCNN_GNU_INLINE_ASM
     if (elempack == 8 && out_elempack == 8)
     {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            convolution_im2col_sgemm_transform_kernel_pack8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+            prefer_sgemm = false;
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 64 || num_output < 128))
         {
-            convolution_im2col_sgemm_transform_kernel_pack8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+            prefer_sgemm = false;
         }
-        else if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input > 8 || num_output > 8))
+        if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            if ((opt.use_winograd63_convolution && num_input >= 16 && num_output >= 16 && num_input <= 128 && num_output <= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd63_transform_kernel_pack8_fp16sa_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 16 && num_output >= 16) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd43_transform_kernel_pack8_fp16sa_neon(weight_data, weight_winograd43_data, num_input, num_output, opt);
-            else // if (opt.use_winograd23_convolution)
-                conv3x3s1_winograd23_transform_kernel_pack8_fp16sa_neon(weight_data, weight_winograd23_data, num_input, num_output, opt);
+            prefer_sgemm = false;
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 16 || num_output < 88))
         {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-        }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            if (opt.use_sgemm_convolution && num_input >= 64 && num_output >= 128)
-            {
-                convolution_im2col_sgemm_transform_kernel_pack8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-            }
-            else
-            {
-                convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-            }
-        }
-        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-        }
-        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            if (opt.use_sgemm_convolution && num_input >= 16 && num_output >= 80)
-            {
-                convolution_im2col_sgemm_transform_kernel_pack8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-            }
-            else
-            {
-                convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-            }
-        }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            prefer_sgemm = false;
         }
     }
 
-    // pack1to8
     if (elempack == 1 && out_elempack == 8)
     {
-        convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-    }
-
-    // pack4to8
-    if (elempack == 4 && out_elempack == 8)
-    {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            convolution_im2col_sgemm_transform_kernel_pack4to8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+            prefer_sgemm = false;
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            convolution_im2col_sgemm_transform_kernel_pack4to8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+            prefer_sgemm = false;
         }
-        else if (opt.use_sgemm_convolution)
+        if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            convolution_im2col_sgemm_transform_kernel_pack4to8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            prefer_sgemm = false;
         }
     }
 
-    // pack8to1
-    if (elempack == 8 && out_elempack == 1)
-    {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack8to1_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack8to1_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (opt.use_winograd_convolution && opt.use_winograd63_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv3x3s1_winograd63_transform_kernel_pack8to1_fp16sa_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
-        }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack8to1_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-        }
-    }
-
-    // pack8to4
-    if (elempack == 8 && out_elempack == 4)
-    {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack8to4_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack8to4_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (opt.use_winograd_convolution && opt.use_winograd63_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv3x3s1_winograd63_transform_kernel_pack8to4_fp16sa_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
-        }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack8to4_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-        }
-    }
-
-    // pack4
     if (elempack == 4 && out_elempack == 4)
     {
-        if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            convolution_im2col_sgemm_transform_kernel_pack4_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack4_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (opt.use_fp16_arithmetic && opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input > 4 || num_output > 4))
-        {
-            if ((opt.use_winograd63_convolution && num_input >= 8 && num_output >= 8 && num_input <= 64 && num_output <= 64) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd63_transform_kernel_pack4_fp16sa_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 8 && num_output >= 8) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd43_transform_kernel_pack4_fp16sa_neon(weight_data, weight_winograd43_data, num_input, num_output, opt);
-            else // if (opt.use_winograd23_convolution)
-                conv3x3s1_winograd23_transform_kernel_pack4_fp16sa_neon(weight_data, weight_winograd23_data, num_input, num_output, opt);
-        }
-        else if (opt.use_fp16_arithmetic && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-        }
-        else if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack4_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            prefer_sgemm = false;
         }
     }
 
-    // pack1to4
     if (elempack == 1 && out_elempack == 4)
     {
-        if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            convolution_im2col_sgemm_transform_kernel_pack1to4_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            convolution_im2col_sgemm_transform_kernel_pack1to4_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            prefer_sgemm = false;
         }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            prefer_sgemm = false;
         }
-        else if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            convolution_im2col_sgemm_transform_kernel_pack1to4_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            prefer_sgemm = false;
         }
     }
+#endif // NCNN_GNU_INLINE_ASM
 
-    // pack4to1
-    if (elempack == 4 && out_elempack == 1)
+    if (opt.use_fp16_arithmetic && ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1)))
+    {
+        convolution_im2col_gemm_transform_kernel_fp16sa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
+
+        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+
+        if (opt.lightmode)
+            weight_data.release();
+
+        return 0;
+    }
+
+#if NCNN_GNU_INLINE_ASM
+    if ((elempack == 8 && out_elempack == 8 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            || (elempack == 8 && out_elempack == 8 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            || (elempack == 8 && out_elempack == 8 && kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            || (elempack == 8 && out_elempack == 8 && kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            || (elempack == 1 && out_elempack == 8 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            || (elempack == 1 && out_elempack == 8 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            || (elempack == 1 && out_elempack == 8 && kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            || (opt.use_fp16_arithmetic && elempack == 4 && out_elempack == 4 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            || (opt.use_fp16_arithmetic && elempack == 1 && out_elempack == 4 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            || (opt.use_fp16_arithmetic && elempack == 1 && out_elempack == 4 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2))
     {
         convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
-
-    // pack1
-    if (elempack == 1 && out_elempack == 1)
+    else
+#endif // NCNN_GNU_INLINE_ASM
     {
-        if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            convolution_im2col_sgemm_transform_kernel_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            convolution_im2col_sgemm_transform_kernel_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_transform_kernel_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-        }
-        else
-        {
-            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-        }
+        convolution_transform_kernel_packed_fp16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
     if (opt.use_fp16_arithmetic)
@@ -350,9 +211,7 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -394,22 +253,22 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
 
     if (elempack == 4 && out_elempack == 4)
     {
-        convolution_pack4_fp16s_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        convolution_packed_fp16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     if (elempack == 1 && out_elempack == 4)
     {
-        convolution_pack1to4_fp16s_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        convolution_packed_fp16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     if (elempack == 4 && out_elempack == 1)
     {
-        convolution_pack4to1_fp16s_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        convolution_packed_fp16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     if (elempack == 1 && out_elempack == 1)
     {
-        convolution_fp16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        convolution_packed_fp16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     return 0;
@@ -457,41 +316,168 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 
     const int num_input = channels * elempack;
 
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input >= 16 || num_output >= 16);
+
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        bool prefer_winograd63 = false;
+        bool prefer_winograd23 = false;
+        bool prefer_winograd43 = !prefer_winograd63 && !prefer_winograd23;
+
+        if (prefer_winograd23 && (!opt.use_winograd23_convolution || weight_winograd23_data.empty()))
+        {
+            // f23 fallback to f43
+            prefer_winograd23 = false;
+            prefer_winograd43 = true;
+        }
+
+        if (prefer_winograd63 && (!opt.use_winograd63_convolution || weight_winograd63_data.empty()))
+        {
+            // f63 fallback to f43
+            prefer_winograd63 = false;
+            prefer_winograd43 = true;
+        }
+
+        if (prefer_winograd43 && (!opt.use_winograd43_convolution || weight_winograd43_data.empty()))
+        {
+            // f43 fallback to f63 or f23
+            prefer_winograd43 = false;
+            if (opt.use_winograd63_convolution && !weight_winograd63_data.empty())
+            {
+                prefer_winograd63 = true;
+            }
+            else
+            {
+                prefer_winograd23 = true;
+            }
+        }
+        // NCNN_LOGE("prefer_winograd %d %d %d", prefer_winograd23, prefer_winograd43, prefer_winograd63);
+
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution winograd will use load-time value %d", opt.num_threads, nT);
+        }
+
+        int ret = 0;
+        if (prefer_winograd23)
+        {
+            ret = conv3x3s1_winograd23_fp16sa(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data_fp16, _nT, opt);
+        }
+        else if (prefer_winograd43)
+        {
+            ret = conv3x3s1_winograd43_fp16sa(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data_fp16, _nT, opt);
+        }
+        else if (prefer_winograd63)
+        {
+            ret = conv3x3s1_winograd63_fp16sa(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data_fp16, _nT, opt);
+        }
+        else
+        {
+            // should never reach here
+        }
+        if (ret != 0)
+            return ret;
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }
+        return 0;
+    }
+
+    int l2_cache_size_fp16 = get_cpu_level2_cache_size() / sizeof(unsigned short);
+    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * 2 > l2_cache_size_fp16 || (num_input > 16 || num_output > 16);
+
+#if NCNN_GNU_INLINE_ASM
     if (elempack == 8 && out_elempack == 8)
     {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv1x1s1_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
+            prefer_sgemm = false;
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 64 || num_output < 128))
         {
-            conv1x1s2_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
+            prefer_sgemm = false;
         }
-        else if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input > 8 || num_output > 8))
+        if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            if ((opt.use_winograd63_convolution && num_input >= 16 && num_output >= 16 && num_input <= 128 && num_output <= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd63_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data_fp16, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 16 && num_output >= 16) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd43_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data_fp16, opt);
-            else // if (opt.use_winograd23_convolution)
-                conv3x3s1_winograd23_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
+            prefer_sgemm = false;
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 16 || num_output < 88))
+        {
+            prefer_sgemm = false;
+        }
+    }
+
+    if (elempack == 1 && out_elempack == 8)
+    {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            prefer_sgemm = false;
+        }
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            prefer_sgemm = false;
+        }
+        if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            prefer_sgemm = false;
+        }
+    }
+
+    if (elempack == 4 && out_elempack == 4)
+    {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            prefer_sgemm = false;
+        }
+    }
+
+    if (elempack == 1 && out_elempack == 4)
+    {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            prefer_sgemm = false;
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            prefer_sgemm = false;
+        }
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            prefer_sgemm = false;
+        }
+    }
+#endif // NCNN_GNU_INLINE_ASM
+
+    if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
+    {
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
+        }
+
+        int ret = convolution_im2col_gemm_fp16sa(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        if (ret != 0)
+            return ret;
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }
+        return 0;
+    }
+
+#if NCNN_GNU_INLINE_ASM
+    if (elempack == 8 && out_elempack == 8)
+    {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv3x3s1_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
 
@@ -502,14 +488,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            if (opt.use_sgemm_convolution && num_input >= 64 && num_output >= 128)
-            {
-                convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-            }
-            else
-            {
-                conv3x3s2_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
-            }
+            conv3x3s2_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
 
             if (activation)
             {
@@ -527,23 +506,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            if (opt.use_sgemm_convolution && num_input >= 16 && num_output >= 80)
-            {
-                convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-            }
-            else
-            {
-                conv5x5s2_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+            conv5x5s2_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
 
             if (activation)
             {
@@ -552,7 +515,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-            convolution_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -587,174 +550,34 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-            convolution_pack1to8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 4 && out_elempack == 8)
     {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv1x1s1_sgemm_pack4to8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            conv1x1s2_sgemm_pack4to8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_pack4to8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else
-        {
-            convolution_pack4to8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 8 && out_elempack == 1)
     {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv1x1s1_sgemm_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            conv1x1s2_sgemm_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (opt.use_winograd_convolution && opt.use_winograd63_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            // TODO more proper condition
-            conv3x3s1_winograd63_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data_fp16, opt);
-
-            //             conv3x3s1_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else
-        {
-            convolution_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 8 && out_elempack == 4)
     {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv1x1s1_sgemm_pack8to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            conv1x1s2_sgemm_pack8to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (opt.use_winograd_convolution && opt.use_winograd63_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            // TODO more proper condition
-            conv3x3s1_winograd63_pack8to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data_fp16, opt);
-
-            //             conv3x3s1_pack8to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_pack8to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else
-        {
-            convolution_pack8to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 4 && out_elempack == 4)
     {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv1x1s1_sgemm_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            conv1x1s2_sgemm_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input > 4 || num_output > 4))
-        {
-            if ((opt.use_winograd63_convolution && num_input >= 8 && num_output >= 8 && num_input <= 64 && num_output <= 64) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd63_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data_fp16, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 8 && num_output >= 8) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd43_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data_fp16, opt);
-            else // if (opt.use_winograd23_convolution)
-                conv3x3s1_winograd23_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv3x3s1_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
 
@@ -763,42 +586,15 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
         else
         {
-            convolution_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 1 && out_elempack == 4)
     {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv1x1s1_sgemm_pack1to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            conv1x1s2_sgemm_pack1to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv3x3s1_pack1to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
 
@@ -816,60 +612,30 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_pack1to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
         else
         {
-            convolution_pack1to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 4 && out_elempack == 1)
     {
-        convolution_pack4to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        {
+            convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        }
     }
 
     if (elempack == 1 && out_elempack == 1)
     {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv1x1s1_sgemm_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            conv1x1s2_sgemm_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else if (opt.use_sgemm_convolution)
-        {
-            convolution_im2col_sgemm_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
-        else
-        {
-            convolution_fp16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
+#else  // NCNN_GNU_INLINE_ASM
+    {
+        convolution_packed_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+    }
+#endif // NCNN_GNU_INLINE_ASM
 
     return 0;
 }

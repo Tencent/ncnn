@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pooling_arm.h"
 
@@ -26,6 +15,7 @@
 
 namespace ncnn {
 
+#if NCNN_GNU_INLINE_ASM
 #include "pooling_2x2.h"
 #include "pooling_3x3.h"
 
@@ -35,6 +25,7 @@ namespace ncnn {
 #include "pooling_2x2_pack4_bf16s.h"
 #include "pooling_3x3_pack4_bf16s.h"
 #endif
+#endif // NCNN_GNU_INLINE_ASM
 
 Pooling_arm::Pooling_arm()
 {
@@ -193,6 +184,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (pooling_type == PoolMethod_MAX)
         {
+#if NCNN_GNU_INLINE_ASM
             if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
             {
                 pooling2x2s2_max_pack4_neon(bottom_blob_bordered, top_blob, opt);
@@ -206,6 +198,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                 return 0;
             }
+#endif // NCNN_GNU_INLINE_ASM
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -337,6 +330,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
 #endif // __ARM_NEON
 
+#if NCNN_GNU_INLINE_ASM
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
         return Pooling::forward(bottom_blob, top_blob, opt);
@@ -376,6 +370,9 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         pooling3x3s2_max_neon(bottom_blob_bordered, top_blob, opt);
 
     return 0;
+#else  // NCNN_GNU_INLINE_ASM
+    return Pooling::forward(bottom_blob, top_blob, opt);
+#endif // NCNN_GNU_INLINE_ASM
 }
 
 #if NCNN_BF16
@@ -413,13 +410,13 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     float32x4_t _max = vdupq_n_f32(-FLT_MAX);
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _val = float2bfloat(vld1_u16(ptr));
+                        float32x4_t _val = bfloat2float(vld1_u16(ptr));
                         _max = vmaxq_f32(_max, _val);
                         ptr += 4;
                     }
 
                     unsigned short* outptr = top_blob;
-                    vst1_u16(outptr + q * 4, bfloat2float(_max));
+                    vst1_u16(outptr + q * 4, float2bfloat(_max));
                 }
             }
 #endif // __ARM_NEON
@@ -456,7 +453,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     float32x4_t _sum = vdupq_n_f32(0.f);
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _val = float2bfloat(vld1_u16(ptr));
+                        float32x4_t _val = bfloat2float(vld1_u16(ptr));
                         _sum = vaddq_f32(_sum, _val);
                         ptr += 4;
                     }
@@ -465,7 +462,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     float32x4_t _avg = vmulq_f32(_sum, _inv_size);
 
                     unsigned short* outptr = top_blob;
-                    vst1_u16(outptr + q * 4, bfloat2float(_avg));
+                    vst1_u16(outptr + q * 4, float2bfloat(_avg));
                 }
             }
 #endif // __ARM_NEON
@@ -533,6 +530,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __ARM_NEON
         if (elempack == 4)
         {
+#if NCNN_GNU_INLINE_ASM
             if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
             {
                 pooling2x2s2_max_pack4_bf16s_neon(bottom_blob_bordered, top_blob, opt);
@@ -546,6 +544,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 return 0;
             }
+#endif // NCNN_GNU_INLINE_ASM
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -563,11 +562,11 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            float32x4_t _val = float2bfloat(vld1_u16(sptr + space_ofs[k] * 4));
+                            float32x4_t _val = bfloat2float(vld1_u16(sptr + space_ofs[k] * 4));
                             _max = vmaxq_f32(_max, _val);
                         }
 
-                        vst1_u16(outptr + j * 4, bfloat2float(_max));
+                        vst1_u16(outptr + j * 4, float2bfloat(_max));
                     }
 
                     outptr += outw * 4;
@@ -660,7 +659,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                                     if (sx >= w - pad_right - wtailpad)
                                         break;
 
-                                    float32x4_t _val = float2bfloat(vld1_u16(m.row<const unsigned short>(sy) + sx * 4));
+                                    float32x4_t _val = bfloat2float(vld1_u16(m.row<const unsigned short>(sy) + sx * 4));
                                     _sum = vaddq_f32(_sum, _val);
                                     area += 1;
                                 }
@@ -668,7 +667,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                             float32x4_t _inv_area = vdupq_n_f32(1.f / area);
                             float32x4_t _avg = vmulq_f32(_sum, _inv_area);
-                            vst1_u16(outptr + j * 4, bfloat2float(_avg));
+                            vst1_u16(outptr + j * 4, float2bfloat(_avg));
                         }
 
                         outptr += outw * 4;
@@ -754,12 +753,12 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = float2bfloat(vld1_u16(sptr + space_ofs[k] * 4));
+                                float32x4_t _val = bfloat2float(vld1_u16(sptr + space_ofs[k] * 4));
                                 _sum = vaddq_f32(_sum, _val);
                             }
 
                             float32x4_t _avg = vmulq_f32(_sum, _inv_maxk);
-                            vst1_u16(outptr + j * 4, bfloat2float(_avg));
+                            vst1_u16(outptr + j * 4, float2bfloat(_avg));
                         }
 
                         outptr += outw * 4;

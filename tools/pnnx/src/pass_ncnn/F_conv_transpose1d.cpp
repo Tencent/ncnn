@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -18,7 +7,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class F_conv_transpose1d : public GraphRewriterPass
+class F_conv_transpose1d_4 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -26,8 +15,8 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-F.conv_transpose1d      op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=1
+pnnx.Input              weight      0 1 weight
+F.conv_transpose1d      op_0        2 1 input weight out bias=None stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=1
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -39,60 +28,32 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "conv_transpose1d";
+        return "deconv1d";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        Attribute weight;
-        for (const auto& x : captured_attrs)
+        std::vector<int> weight_shape = op->inputs[1]->shape;
+        if (weight_shape.empty())
         {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
+            weight_shape = {0, 0, 0};
         }
 
-        op->params["0"] = weight.shape[1];
-        op->params["1"] = weight.shape[2];
+        op->params["0"] = weight_shape[1];
+        op->params["1"] = weight_shape[2];
         op->params["2"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[0];
         op->params["4"] = captured_params.at("padding").ai[0];
         op->params["18"] = captured_params.at("output_padding").ai[0];
         op->params["5"] = 0;
-        op->params["6"] = (int)(weight.data.size() / sizeof(float));
-
-        // transpose inch-outch-kw to outch-inch-kw
-        const int inch = weight.shape[0];
-        const int outch = weight.shape[1];
-        const int kw = weight.shape[2];
-        std::vector<float> new_weight;
-        {
-            const float* w = (const float*)weight.data.data();
-
-            new_weight.resize(outch * inch * kw);
-            float* w2 = (float*)new_weight.data();
-
-            // reorder weight from inch-outch to outch-inch
-            for (int i = 0; i < outch; i++)
-            {
-                for (int j = 0; j < inch; j++)
-                {
-                    for (int k = 0; k < kw; k++)
-                    {
-                        w2[(i * inch + j) * kw + k] = w[(j * outch + i) * kw + k];
-                    }
-                }
-            }
-        }
-
-        op->attrs["0"] = Attribute();
-        op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = Attribute({outch, inch, kw}, new_weight);
+        op->params["6"] = (int)(weight_shape[0] * weight_shape[1] * weight_shape[2]);
+        op->params["28"] = 1; // dynamic weight
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv_transpose1d, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv_transpose1d_4, 22)
 
-class F_conv_transpose1d_1 : public GraphRewriterPass
+class F_conv_transpose1d_5 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -100,9 +61,9 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
-F.conv_transpose1d      op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=1
+pnnx.Input              weight      0 1 weight
+pnnx.Input              bias        0 1 bias
+F.conv_transpose1d      op_0        3 1 input weight bias out stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=1
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -114,64 +75,32 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "conv_transpose1d";
+        return "deconv1d";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
+        std::vector<int> weight_shape = op->inputs[1]->shape;
+        if (weight_shape.empty())
         {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
+            weight_shape = {0, 0, 0};
         }
 
-        op->params["0"] = weight.shape[1];
-        op->params["1"] = weight.shape[2];
+        op->params["0"] = weight_shape[1];
+        op->params["1"] = weight_shape[2];
         op->params["2"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[0];
         op->params["4"] = captured_params.at("padding").ai[0];
         op->params["18"] = captured_params.at("output_padding").ai[0];
         op->params["5"] = 1;
-        op->params["6"] = (int)(weight.data.size() / sizeof(float));
-
-        // transpose inch-outch-kw to outch-inch-kw
-        const int inch = weight.shape[0];
-        const int outch = weight.shape[1];
-        const int kw = weight.shape[2];
-        std::vector<float> new_weight;
-        {
-            const float* w = (const float*)weight.data.data();
-
-            new_weight.resize(outch * inch * kw);
-            float* w2 = (float*)new_weight.data();
-
-            // reorder weight from inch-outch to outch-inch
-            for (int i = 0; i < outch; i++)
-            {
-                for (int j = 0; j < inch; j++)
-                {
-                    for (int k = 0; k < kw; k++)
-                    {
-                        w2[(i * inch + j) * kw + k] = w[(j * outch + i) * kw + k];
-                    }
-                }
-            }
-        }
-
-        op->attrs["0"] = Attribute();
-        op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = Attribute({outch, inch, kw}, new_weight);
-        op->attrs["2"] = bias;
+        op->params["6"] = (int)(weight_shape[0] * weight_shape[1] * weight_shape[2]);
+        op->params["28"] = 1; // dynamic weight
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv_transpose1d_1, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv_transpose1d_5, 22)
 
-class F_conv_transpose1d_2 : public GraphRewriterPass
+class F_conv_transpose1d_6 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -179,8 +108,8 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-F.conv_transpose1d      op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
+pnnx.Input              weight      0 1 weight
+F.conv_transpose1d      op_0        2 1 input weight out bias=None stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=%groups
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -195,67 +124,30 @@ pnnx.Output             output      1 0 out
         return "deconvdw1d";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        Attribute weight;
-        for (const auto& x : captured_attrs)
+        std::vector<int> weight_shape = op->inputs[1]->shape;
+        if (weight_shape.empty())
         {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
+            weight_shape = {0, 0, 0};
         }
 
-        const int groups = captured_params.at("groups").i;
-
-        op->params["0"] = weight.shape[1] * groups;
-        op->params["1"] = weight.shape[2];
+        op->params["0"] = weight_shape[1] * captured_params.at("groups").i;
+        op->params["1"] = weight_shape[2];
         op->params["2"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[0];
         op->params["4"] = captured_params.at("padding").ai[0];
         op->params["18"] = captured_params.at("output_padding").ai[0];
         op->params["5"] = 0;
-        op->params["6"] = (int)(weight.data.size() / sizeof(float));
-        op->params["7"] = groups;
-
-        // transpose group-inch/group-outch/group-kw to group-outch/group-inch/group-kw
-        const int inch = weight.shape[0];
-        const int outch = weight.shape[1] * groups;
-        const int kw = weight.shape[2];
-        std::vector<float> new_weight;
-        {
-            const float* w = (const float*)weight.data.data();
-
-            new_weight.resize(outch / groups * inch * kw);
-            float* w2 = (float*)new_weight.data();
-            const int outch_g = outch / groups;
-            const int inch_g = inch / groups;
-
-            for (int g = 0; g < groups; g++)
-            {
-                // reorder weight from inch-outch to outch-inch
-                float* wg2 = w2 + g * outch_g * inch_g * kw;
-                const float* wg = w + g * inch_g * outch_g * kw;
-                for (int i = 0; i < outch_g; i++)
-                {
-                    for (int j = 0; j < inch_g; j++)
-                    {
-                        for (int k = 0; k < kw; k++)
-                        {
-                            wg2[(i * inch_g + j) * kw + k] = wg[(j * outch_g + i) * kw + k];
-                        }
-                    }
-                }
-            }
-        }
-
-        op->attrs["0"] = Attribute();
-        op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = Attribute({outch / groups, inch, kw}, new_weight);
+        op->params["6"] = (int)(weight_shape[0] * weight_shape[1] * weight_shape[2]);
+        op->params["7"] = captured_params.at("groups");
+        op->params["28"] = 1; // dynamic weight
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv_transpose1d_2, 21)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv_transpose1d_6, 23)
 
-class F_conv_transpose1d_3 : public GraphRewriterPass
+class F_conv_transpose1d_7 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -263,9 +155,9 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
-F.conv_transpose1d      op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
+pnnx.Input              weight      0 1 weight
+pnnx.Input              bias        0 1 bias
+F.conv_transpose1d      op_0        3 1 input weight bias out stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=%groups
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -280,69 +172,28 @@ pnnx.Output             output      1 0 out
         return "deconvdw1d";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
+        std::vector<int> weight_shape = op->inputs[1]->shape;
+        if (weight_shape.empty())
         {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
+            weight_shape = {0, 0, 0};
         }
 
-        const int groups = captured_params.at("groups").i;
-
-        op->params["0"] = weight.shape[1] * groups;
-        op->params["1"] = weight.shape[2];
+        op->params["0"] = weight_shape[1] * captured_params.at("groups").i;
+        op->params["1"] = weight_shape[2];
         op->params["2"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[0];
         op->params["4"] = captured_params.at("padding").ai[0];
         op->params["18"] = captured_params.at("output_padding").ai[0];
         op->params["5"] = 1;
-        op->params["6"] = (int)(weight.data.size() / sizeof(float));
-        op->params["7"] = groups;
-
-        // transpose group-inch/group-outch/group-kw to group-outch/group-inch/group-kw
-        const int inch = weight.shape[0];
-        const int outch = weight.shape[1] * groups;
-        const int kw = weight.shape[2];
-        std::vector<float> new_weight;
-        {
-            const float* w = (const float*)weight.data.data();
-
-            new_weight.resize(outch / groups * inch * kw);
-            float* w2 = (float*)new_weight.data();
-            const int outch_g = outch / groups;
-            const int inch_g = inch / groups;
-
-            for (int g = 0; g < groups; g++)
-            {
-                // reorder weight from inch-outch to outch-inch
-                float* wg2 = w2 + g * outch_g * inch_g * kw;
-                const float* wg = w + g * inch_g * outch_g * kw;
-                for (int i = 0; i < outch_g; i++)
-                {
-                    for (int j = 0; j < inch_g; j++)
-                    {
-                        for (int k = 0; k < kw; k++)
-                        {
-                            wg2[(i * inch_g + j) * kw + k] = wg[(j * outch_g + i) * kw + k];
-                        }
-                    }
-                }
-            }
-        }
-
-        op->attrs["0"] = Attribute();
-        op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = Attribute({outch / groups, inch, kw}, new_weight);
-        op->attrs["2"] = bias;
+        op->params["6"] = (int)(weight_shape[0] * weight_shape[1] * weight_shape[2]);
+        op->params["7"] = captured_params.at("groups");
+        op->params["28"] = 1; // dynamic weight
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv_transpose1d_3, 21)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_conv_transpose1d_7, 23)
 
 } // namespace ncnn
 

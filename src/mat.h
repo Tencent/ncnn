@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_MAT_H
 #define NCNN_MAT_H
@@ -29,6 +18,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif
+#if __loongarch_sx
+#include <lsxintrin.h>
+#endif
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "cpu.h" // cpu_riscv_vlenb()
@@ -37,10 +29,6 @@
 #include "allocator.h"
 #include "option.h"
 #include "platform.h"
-
-#if NCNN_VULKAN
-#include <vulkan/vulkan.h>
-#endif // NCNN_VULKAN
 
 #if NCNN_PIXEL
 #if NCNN_PLATFORM_API
@@ -108,11 +96,15 @@ public:
 #if __ARM_NEON
     void fill(float32x4_t _v);
     void fill(uint16x4_t _v);
+#if !defined(_MSC_VER)
     void fill(int32x4_t _v);
+#endif
     void fill(int32x4_t _v0, int32x4_t _v1);
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if !defined(_MSC_VER)
     void fill(float16x4_t _v);
     void fill(float16x8_t _v);
+#endif
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 #if __SSE2__
@@ -128,13 +120,16 @@ public:
 #if __mips_msa
     void fill(v4f32 _v);
 #endif // __mips_msa
+#if __loongarch_sx
+    void fill(__m128 _v);
+#endif //__loongarch_sx
 #if __riscv_vector
     void fill(vfloat32m1_t _v);
     void fill(vuint16m1_t _v);
     void fill(vint8m1_t _v);
-#if __riscv_zfh
+#if __riscv_zvfh
     void fill(vfloat16m1_t _v);
-#endif // __riscv_zfh
+#endif // __riscv_zvfh
 #endif // __riscv_vector
     template<typename T>
     void fill(T v);
@@ -604,6 +599,7 @@ union vk_constant_type
 {
     int i;
     float f;
+    uint32_t u32;
 };
 #endif // NCNN_VULKAN
 
@@ -844,13 +840,13 @@ NCNN_FORCEINLINE Mat::Mat(const Mat& m)
 NCNN_FORCEINLINE Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
@@ -868,13 +864,13 @@ NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _e
 NCNN_FORCEINLINE Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
@@ -957,6 +953,7 @@ NCNN_FORCEINLINE void Mat::fill(uint16x4_t _v)
     }
 }
 
+#if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
 {
     int size = (int)total();
@@ -967,6 +964,7 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
         ptr += 4;
     }
 }
+#endif
 
 NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
 {
@@ -980,6 +978,7 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
     }
 }
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 {
     int size = (int)total();
@@ -1001,6 +1000,7 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
         ptr += 8;
     }
 }
+#endif
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 
@@ -1067,17 +1067,30 @@ NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 }
 #endif // __mips_msa
 
+#if __loongarch_sx
+NCNN_FORCEINLINE void Mat::fill(__m128 _v)
+{
+    int size = (int)total();
+    float* ptr = (float*)data;
+    for (int i = 0; i < size; i++)
+    {
+        __lsx_vst(_v, ptr, 0);
+        ptr += 4;
+    }
+}
+#endif // __loongarch_sx
+
 #if __riscv_vector
 NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 4;
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 
     int size = (int)total();
     float* ptr = (float*)data;
     for (int i = 0; i < size; i++)
     {
-        vse32_v_f32m1(ptr, _v, vl);
+        __riscv_vse32_v_f32m1(ptr, _v, vl);
         ptr += packn;
     }
 }
@@ -1085,13 +1098,13 @@ NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
 NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
     for (int i = 0; i < size; i++)
     {
-        vse16_v_u16m1(ptr, _v, vl);
+        __riscv_vse16_v_u16m1(ptr, _v, vl);
         ptr += packn;
     }
 }
@@ -1099,31 +1112,31 @@ NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
 NCNN_FORCEINLINE void Mat::fill(vint8m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 1;
-    const size_t vl = vsetvl_e8m1(packn);
+    const size_t vl = __riscv_vsetvl_e8m1(packn);
 
     int size = (int)total();
     signed char* ptr = (signed char*)data;
     for (int i = 0; i < size; i++)
     {
-        vse8_v_i8m1(ptr, _v, vl);
+        __riscv_vse8_v_i8m1(ptr, _v, vl);
         ptr += packn;
     }
 }
-#if __riscv_zfh
+#if __riscv_zvfh
 NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int size = (int)total();
     __fp16* ptr = (__fp16*)data;
     for (int i = 0; i < size; i++)
     {
-        vse16_v_f16m1(ptr, _v, vl);
+        __riscv_vse16_v_f16m1(ptr, _v, vl);
         ptr += packn;
     }
 }
-#endif // __riscv_zfh
+#endif // __riscv_zvfh
 #endif // __riscv_vector
 
 template<typename T>
@@ -1245,12 +1258,16 @@ NCNN_FORCEINLINE const Mat Mat::channel(int _c) const
 
 NCNN_FORCEINLINE Mat Mat::depth(int z)
 {
-    return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    Mat m(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * h;
+    return m;
 }
 
 NCNN_FORCEINLINE const Mat Mat::depth(int z) const
 {
-    return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    Mat m(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * h;
+    return m;
 }
 
 NCNN_FORCEINLINE float* Mat::row(int y)
@@ -1305,22 +1322,30 @@ NCNN_FORCEINLINE const Mat Mat::depth_range(int z, int depths) const
 
 NCNN_FORCEINLINE Mat Mat::row_range(int y, int rows)
 {
-    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    Mat m(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * rows;
+    return m;
 }
 
 NCNN_FORCEINLINE const Mat Mat::row_range(int y, int rows) const
 {
-    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    Mat m(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * rows;
+    return m;
 }
 
 NCNN_FORCEINLINE Mat Mat::range(int x, int n)
 {
-    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    Mat m(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)n;
+    return m;
 }
 
 NCNN_FORCEINLINE const Mat Mat::range(int x, int n) const
 {
-    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    Mat m(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)n;
+    return m;
 }
 
 template<typename T>
@@ -1411,49 +1436,49 @@ NCNN_FORCEINLINE VkMat::VkMat(const VkMat& m)
 NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
-    cstep = w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
-    cstep = w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::~VkMat()

@@ -1,20 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "psroipooling.h"
-
-#include <math.h>
 
 namespace ncnn {
 
@@ -58,10 +45,10 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     // For each ROI R = [x y w h]: avg pool over R
     const float* roi_ptr = roi_blob;
 
-    float roi_x1 = static_cast<float>(round(roi_ptr[0]) * spatial_scale);
-    float roi_y1 = static_cast<float>(round(roi_ptr[1]) * spatial_scale);
-    float roi_x2 = static_cast<float>(round(roi_ptr[2] + 1.f) * spatial_scale);
-    float roi_y2 = static_cast<float>(round(roi_ptr[3] + 1.f) * spatial_scale);
+    float roi_x1 = roundf(roi_ptr[0]) * spatial_scale;
+    float roi_y1 = roundf(roi_ptr[1]) * spatial_scale;
+    float roi_x2 = roundf(roi_ptr[2] + 1.f) * spatial_scale;
+    float roi_y2 = roundf(roi_ptr[3] + 1.f) * spatial_scale;
 
     float roi_w = std::max(roi_x2 - roi_x1, 0.1f);
     float roi_h = std::max(roi_y2 - roi_y1, 0.1f);
@@ -80,10 +67,10 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             {
                 const float* ptr = bottom_blob.channel((q * pooled_height + ph) * pooled_width + pw);
 
-                int hstart = static_cast<int>(floor(roi_y1 + (float)(ph)*bin_size_h));
-                int wstart = static_cast<int>(floor(roi_x1 + (float)(pw)*bin_size_w));
-                int hend = static_cast<int>(ceil(roi_y1 + (float)(ph + 1) * bin_size_h));
-                int wend = static_cast<int>(ceil(roi_x1 + (float)(pw + 1) * bin_size_w));
+                int hstart = static_cast<int>(floorf(roi_y1 + ph * bin_size_h));
+                int wstart = static_cast<int>(floorf(roi_x1 + pw * bin_size_w));
+                int hend = static_cast<int>(ceilf(roi_y1 + (ph + 1) * bin_size_h));
+                int wend = static_cast<int>(ceilf(roi_x1 + (pw + 1) * bin_size_w));
 
                 hstart = std::min(std::max(hstart, 0), h);
                 wstart = std::min(std::max(wstart, 0), w);

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pipeline.h"
 
@@ -18,8 +7,6 @@
 #include "mat.h"
 #include "pipelinecache.h"
 #include "option.h"
-
-#include <math.h>
 
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
@@ -42,6 +29,7 @@ public:
     uint32_t local_size_x;
     uint32_t local_size_y;
     uint32_t local_size_z;
+    uint32_t subgroup_size;
 };
 
 Pipeline::Pipeline(const VulkanDevice* _vkdev)
@@ -56,6 +44,7 @@ Pipeline::Pipeline(const VulkanDevice* _vkdev)
     d->local_size_x = 1;
     d->local_size_y = 1;
     d->local_size_z = 1;
+    d->subgroup_size = vkdev->info.subgroup_size();
 }
 
 Pipeline::~Pipeline()
@@ -113,13 +102,118 @@ void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
     set_local_size_xyz(w, h, c);
 }
 
+void Pipeline::set_subgroup_size(uint32_t subgroup_size)
+{
+    // assert subgroup_size be power of two
+    subgroup_size = std::max(subgroup_size, vkdev->info.min_subgroup_size());
+    subgroup_size = std::min(subgroup_size, vkdev->info.max_subgroup_size());
+
+    d->subgroup_size = subgroup_size;
+}
+
+static int count_trailing_zeros(unsigned int v)
+{
+    int cnt = 0;
+    while ((v & 1) == 0)
+    {
+        cnt++;
+        v >>= 1;
+    }
+    return cnt;
+}
+
+// round up v to the next multiple of 2^k
+static unsigned int round_up_pow2_mul(unsigned int v, int k)
+{
+    unsigned int m = 1u << k;
+    return ((v + m - 1) / m) * m;
+}
+
+// adjust x, y, z so that new x * y * z is a multiple of size (size must be a power of two), and new x, y, z are no less than the inputs
+// new values do not have to be integer multiples of the originals
+// minimize the total increment (x'-x)+(y'-y)+(z'-z)
+// additional constraint: if original y is 1, prefer not to adjust y; if original z is 1, prefer not to adjust z
+static void adjust_xyz(int& x, int& y, int& z, const int subgroup_size)
+{
+    if (x * y * z % subgroup_size == 0)
+        return;
+
+    int target_n = 0;
+    {
+        while ((1 << target_n) != subgroup_size)
+            target_n++;
+    }
+
+    // subgroup shall usually be 4 ~ 128, sanitize the max possible size
+    target_n = std::min(target_n, 10);
+
+    const int tx = count_trailing_zeros((unsigned int)x);
+    const int ty = count_trailing_zeros((unsigned int)y);
+    const int tz = count_trailing_zeros((unsigned int)z);
+    const int tn = tx + ty + tz;
+
+    const int need = target_n - tn;
+
+    if (z == 1)
+    {
+        if (y == 1)
+        {
+            // adjust x only
+            x = round_up_pow2_mul((unsigned int)x, target_n);
+        }
+        else if (x == 1)
+        {
+            // adjust y only
+            y = round_up_pow2_mul((unsigned int)y, target_n);
+        }
+        else
+        {
+            // adjust x and y
+            y = round_up_pow2_mul((unsigned int)y, ty + need / 2);
+            x = round_up_pow2_mul((unsigned int)x, tx + need - need / 2);
+        }
+    }
+    else if (y == 1)
+    {
+        if (x == 1)
+        {
+            // adjust z only
+            z = round_up_pow2_mul((unsigned int)z, target_n);
+        }
+        else
+        {
+            // adjust x and z
+            z = round_up_pow2_mul((unsigned int)z, tz + need / 2);
+            x = round_up_pow2_mul((unsigned int)x, tx + need - need / 2);
+        }
+    }
+    else if (x == 1)
+    {
+        // adjust y and z
+        z = round_up_pow2_mul((unsigned int)z, tz + need / 2);
+        y = round_up_pow2_mul((unsigned int)y, ty + need - need / 2);
+    }
+    else
+    {
+        // adjust x y z
+        z = round_up_pow2_mul((unsigned int)z, tz + need / 3);
+        y = round_up_pow2_mul((unsigned int)y, ty + (need - need / 3) / 2);
+        x = round_up_pow2_mul((unsigned int)x, tx + need - (need - need / 3) / 2);
+    }
+}
+
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
+    // dispatch at least one subgroup
+    // make local size be multiple of subgroup size
+    // and metal is unhappy with arbitrary local size anyway
+    adjust_xyz(w, h, c, d->subgroup_size);
+
     d->local_size_x = w;
     d->local_size_y = h;
     d->local_size_z = c;
 
-    //     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
+    // NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
 }
 
 int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
@@ -127,7 +221,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
     const PipelineCache* pipeline_cache = vkdev->get_pipeline_cache();
 
     // get from pipeline cache
-    return pipeline_cache->get_pipeline(spv_data, spv_data_size, specializations, d->local_size_x, d->local_size_y, d->local_size_z,
+    return pipeline_cache->get_pipeline(spv_data, spv_data_size, specializations, d->local_size_x, d->local_size_y, d->local_size_z, d->subgroup_size,
                                         &d->shader_module, &d->descriptorset_layout, &d->pipeline_layout, &d->pipeline, &d->descriptor_update_template,
                                         d->shader_info);
 }
@@ -137,7 +231,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     const PipelineCache* pipeline_cache = opt.pipeline_cache ? opt.pipeline_cache : vkdev->get_pipeline_cache();
 
     // get from pipeline cache
-    return pipeline_cache->get_pipeline(shader_type_index, opt, specializations, d->local_size_x, d->local_size_y, d->local_size_z,
+    return pipeline_cache->get_pipeline(shader_type_index, opt, specializations, d->local_size_x, d->local_size_y, d->local_size_z, d->subgroup_size,
                                         &d->shader_module, &d->descriptorset_layout, &d->pipeline_layout, &d->pipeline, &d->descriptor_update_template,
                                         d->shader_info);
 }
@@ -319,7 +413,7 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     vkdev->create_pipeline_layout(_shader_info.push_constant_count, descriptorset_layout(), &pipeline_layout);
 
-    vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, &pipeline);
+    vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, vkdev->info.subgroup_size(), &pipeline);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template())
     {

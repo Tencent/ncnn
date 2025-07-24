@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_PLATFORM_H
 #define NCNN_PLATFORM_H
@@ -20,6 +9,7 @@
 #cmakedefine01 NCNN_SIMPLEOCV
 #cmakedefine01 NCNN_SIMPLEOMP
 #cmakedefine01 NCNN_SIMPLESTL
+#cmakedefine01 NCNN_SIMPLEMATH
 #cmakedefine01 NCNN_THREADS
 #cmakedefine01 NCNN_BENCHMARK
 #cmakedefine01 NCNN_C_API
@@ -29,20 +19,24 @@
 #cmakedefine01 NCNN_PIXEL_AFFINE
 #cmakedefine01 NCNN_PIXEL_DRAWING
 #cmakedefine01 NCNN_VULKAN
+#cmakedefine01 NCNN_SIMPLEVK
 #cmakedefine01 NCNN_SYSTEM_GLSLANG
 #cmakedefine01 NCNN_RUNTIME_CPU
+#cmakedefine01 NCNN_GNU_INLINE_ASM
 #cmakedefine01 NCNN_AVX
 #cmakedefine01 NCNN_XOP
 #cmakedefine01 NCNN_FMA
 #cmakedefine01 NCNN_F16C
 #cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_AVXVNNI
+#cmakedefine01 NCNN_AVXVNNIINT8
+#cmakedefine01 NCNN_AVXVNNIINT16
+#cmakedefine01 NCNN_AVXNECONVERT
 #cmakedefine01 NCNN_AVX512
 #cmakedefine01 NCNN_AVX512VNNI
 #cmakedefine01 NCNN_AVX512BF16
 #cmakedefine01 NCNN_AVX512FP16
 #cmakedefine01 NCNN_VFPV4
-#if __aarch64__
 #cmakedefine01 NCNN_ARM82
 #cmakedefine01 NCNN_ARM82DOT
 #cmakedefine01 NCNN_ARM82FP16FML
@@ -53,10 +47,13 @@
 #cmakedefine01 NCNN_ARM86SVEBF16
 #cmakedefine01 NCNN_ARM86SVEI8MM
 #cmakedefine01 NCNN_ARM86SVEF32MM
-#endif // __aarch64__
 #cmakedefine01 NCNN_MSA
+#cmakedefine01 NCNN_LSX
 #cmakedefine01 NCNN_MMI
 #cmakedefine01 NCNN_RVV
+#cmakedefine01 NCNN_ZFH
+#cmakedefine01 NCNN_ZVFH
+#cmakedefine01 NCNN_XTHEADVECTOR
 #cmakedefine01 NCNN_INT8
 #cmakedefine01 NCNN_BF16
 #cmakedefine01 NCNN_FORCE_INLINE
@@ -68,8 +65,11 @@
 #ifdef __cplusplus
 
 #if NCNN_THREADS
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#endif
 #include <windows.h>
 #include <process.h>
 #else
@@ -78,13 +78,16 @@
 #endif // NCNN_THREADS
 
 #if __ANDROID_API__ >= 26
+#ifndef VK_USE_PLATFORM_ANDROID_KHR
 #define VK_USE_PLATFORM_ANDROID_KHR
+#endif
 #endif // __ANDROID_API__ >= 26
 
 namespace ncnn {
 
 #if NCNN_THREADS
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
+#if _WIN32_WINNT > _WIN32_WINNT_WINXP // Windows Vista and later
 class NCNN_EXPORT Mutex
 {
 public:
@@ -94,7 +97,6 @@ public:
     void unlock() { ReleaseSRWLockExclusive(&srwlock); }
 private:
     friend class ConditionVariable;
-    // NOTE SRWLock is available from windows vista
     SRWLOCK srwlock;
 };
 
@@ -109,6 +111,56 @@ public:
 private:
     CONDITION_VARIABLE condvar;
 };
+
+#else // Windows XP compatibility
+
+class NCNN_EXPORT Mutex
+{
+public:
+    Mutex() { InitializeCriticalSection(&cs); }
+    ~Mutex() { DeleteCriticalSection(&cs); }
+    void lock() { EnterCriticalSection(&cs); }
+    void unlock() { LeaveCriticalSection(&cs); }
+private:
+    friend class ConditionVariable;
+    CRITICAL_SECTION cs;
+};
+
+class NCNN_EXPORT ConditionVariable
+{
+public:
+    ConditionVariable() 
+    { 
+        signal_event = CreateEvent(0, FALSE, FALSE, 0); // Auto-reset event for signal()
+        broadcast_event = CreateEvent(0, TRUE, FALSE, 0); // Manual-reset event for broadcast()
+    }
+    ~ConditionVariable() 
+    { 
+        CloseHandle(signal_event); 
+        CloseHandle(broadcast_event); 
+    }
+    void wait(Mutex& mutex)
+    {
+        mutex.unlock();
+        HANDLE events[2] = { signal_event, broadcast_event };
+        WaitForMultipleObjects(2, events, FALSE, INFINITE); // Wait for either signal or broadcast
+        mutex.lock();
+    }
+    void broadcast() 
+    { 
+        SetEvent(broadcast_event); // Wake all threads
+        ResetEvent(broadcast_event); // Reset after waking all threads
+    }
+    void signal() 
+    { 
+        SetEvent(signal_event); // Wake one thread
+    }
+private:
+    HANDLE signal_event;
+    HANDLE broadcast_event;
+};
+
+#endif // _WIN32_WINNT > _WIN32_WINNT_WINXP
 
 static unsigned __stdcall start_wrapper(void* args);
 class NCNN_EXPORT Thread
@@ -139,7 +191,7 @@ public:
 private:
     DWORD key;
 };
-#else // (defined _WIN32 && !(defined __MINGW32__))
+#else // defined _WIN32
 class NCNN_EXPORT Mutex
 {
 public:
@@ -184,7 +236,7 @@ public:
 private:
     pthread_key_t key;
 };
-#endif // (defined _WIN32 && !(defined __MINGW32__))
+#endif // defined _WIN32
 #else // NCNN_THREADS
 class NCNN_EXPORT Mutex
 {
@@ -234,6 +286,28 @@ private:
     Mutex& mutex;
 };
 
+static inline void swap_endianness_16(void* x)
+{
+    unsigned char* xx = (unsigned char*)x;
+    unsigned char x0 = xx[0];
+    unsigned char x1 = xx[1];
+    xx[0] = x1;
+    xx[1] = x0;
+}
+
+static inline void swap_endianness_32(void* x)
+{
+    unsigned char* xx = (unsigned char*)x;
+    unsigned char x0 = xx[0];
+    unsigned char x1 = xx[1];
+    unsigned char x2 = xx[2];
+    unsigned char x3 = xx[3];
+    xx[0] = x3;
+    xx[1] = x2;
+    xx[2] = x1;
+    xx[3] = x0;
+}
+
 } // namespace ncnn
 
 #if NCNN_SIMPLESTL
@@ -242,8 +316,26 @@ private:
 #include <algorithm>
 #include <list>
 #include <vector>
+#include <stack>
 #include <string>
 #endif
+
+// simplemath
+#if NCNN_SIMPLEMATH
+#include "simplemath.h"
+#else
+#include <math.h>
+#include <fenv.h>
+#endif
+
+#if NCNN_VULKAN
+#if NCNN_SIMPLEVK
+#include "simplevk.h"
+#else
+#include <vulkan/vulkan.h>
+#endif
+#include "vulkan_header_fix.h"
+#endif // NCNN_VULKAN
 
 #endif // __cplusplus
 

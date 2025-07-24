@@ -293,7 +293,7 @@ bool BroadcastCompatible(TypeRange lhs, TypeRange rhs)
 // The two types are considered cast compatible if they have dynamically equal
 // shapes and element type. For element types that do not have subtypes, they
 // must be equal. However for TensorFlow types such as Resource and Variant,
-// that also have subtypes, we recursively check for subtype compatibilty for
+// that also have subtypes, we recursively check for subtype compatibility for
 // Resource types and assume all variant types are cast compatible. If either
 // one of `a` or `b` have empty subtypes, they are considered cast compatible.
 //

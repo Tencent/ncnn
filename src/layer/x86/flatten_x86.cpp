@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "flatten_x86.h"
 
@@ -83,7 +72,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         top_blob.dims = 1;
         top_blob.w = total / out_elempack;
         top_blob.h = 1;
-        top_blob.cstep = top_blob.w;
+        top_blob.cstep = bottom_blob.cstep / out_elempack;
         top_blob.elemsize = out_elemsize;
         top_blob.elempack = out_elempack;
         return 0;
@@ -141,7 +130,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m512 _re = _mm512_loadu_ps(ptr + 16 * 14);
                     __m512 _rf = _mm512_loadu_ps(ptr + 16 * 15);
 
-                    transpose16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                    transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 
                     _mm512_storeu_ps(outptr0, _r0);
                     _mm512_storeu_ps(outptr1, _r1);
@@ -230,7 +219,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m256 _row6 = _mm256_loadu_ps(ptr + 48);
                     __m256 _row7 = _mm256_loadu_ps(ptr + 56);
 
-                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+                    transpose8x8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
 
                     _mm256_storeu_ps(outptr0, _row0);
                     _mm256_storeu_ps(outptr1, _row1);
@@ -362,7 +351,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m512 _re = _mm512_loadu_ps(ptr + 16 * 14);
                     __m512 _rf = _mm512_loadu_ps(ptr + 16 * 15);
 
-                    transpose16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                    transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 
                     _mm512_storeu_ps(outptr0, _r0);
                     _mm512_storeu_ps(outptr1, _r1);
@@ -451,7 +440,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m256 _row6 = _mm256_loadu_ps(ptr + 48);
                     __m256 _row7 = _mm256_loadu_ps(ptr + 56);
 
-                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+                    transpose8x8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
 
                     _mm256_storeu_ps(outptr0, _row0);
                     _mm256_storeu_ps(outptr1, _row1);
@@ -601,7 +590,7 @@ int Flatten_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         top_blob.dims = 1;
         top_blob.w = total / out_elempack;
         top_blob.h = 1;
-        top_blob.cstep = top_blob.w;
+        top_blob.cstep = bottom_blob.cstep / out_elempack;
         top_blob.elemsize = out_elemsize;
         top_blob.elempack = out_elempack;
         return 0;

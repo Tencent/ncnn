@@ -1,18 +1,6 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/pooling.h"
 #include "testutil.h"
 
 static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_w)
@@ -32,7 +20,7 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Pooling>("Pooling", pd, weights, a);
+    int ret = test_layer("Pooling", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_pooling failed w=%d h=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d adaptive_pooling=%d out_w=%d\n", w, h, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad, adaptive_pooling, out_w);
@@ -126,6 +114,10 @@ static int test_pooling_2()
            || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0, 0, 0)
            || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0, 0, 0)
            || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(110, 103, 106, 0, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(130, 101, 106, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(80, 93, 128, 0, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(80, 91, 128, 1, 1, 1, 0, 1, 0, 0, 0, 0)
            || test_pooling(48, 48, 4, 0, 2, 2, 0, 0, 0, 0, 0, 0)
            || test_pooling(48, 48, 15, 0, 2, 2, 1, 0, 0, 0, 0, 0);
 }

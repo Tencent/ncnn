@@ -1,22 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "yolodetectionoutput.h"
 
 #include "layer_type.h"
-
-#include <math.h>
 
 namespace ncnn {
 
@@ -40,7 +27,7 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
 int YoloDetectionOutput::create_pipeline(const Option& opt)
 {
     {
-        softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+        softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
 
         ncnn::ParamDict pd;
         pd.set(0, 0); // axis
@@ -171,7 +158,7 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<s
 
 static inline float sigmoid(float x)
 {
-    return static_cast<float>(1.f / (1.f + exp(-x)));
+    return 1.f / (1.f + expf(-x));
 }
 
 int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
@@ -199,6 +186,9 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
         all_box_bbox_rects.resize(num_box);
         all_box_bbox_scores.resize(num_box);
 
+        std::vector<int> softmax_rets;
+        softmax_rets.resize(num_box);
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < num_box; pp++)
         {
@@ -216,7 +206,7 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
 
             // softmax class scores
             Mat scores = bottom_top_blob.channel_range(p + 5, num_class);
-            softmax->forward_inplace(scores, opt);
+            softmax_rets[pp] = softmax->forward_inplace(scores, opt);
 
             for (int i = 0; i < h; i++)
             {
@@ -225,8 +215,8 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
                     // region box
                     float bbox_cx = (j + sigmoid(xptr[0])) / w;
                     float bbox_cy = (i + sigmoid(yptr[0])) / h;
-                    float bbox_w = static_cast<float>(exp(wptr[0]) * bias_w / w);
-                    float bbox_h = static_cast<float>(exp(hptr[0]) * bias_h / h);
+                    float bbox_w = expf(wptr[0]) * bias_w / w;
+                    float bbox_h = expf(hptr[0]) * bias_h / h;
 
                     float bbox_xmin = bbox_cx - bbox_w * 0.5f;
                     float bbox_ymin = bbox_cy - bbox_h * 0.5f;
@@ -271,6 +261,9 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
 
         for (int i = 0; i < num_box; i++)
         {
+            if (softmax_rets[i] != 0)
+                return softmax_rets[i];
+
             const std::vector<BBoxRect>& box_bbox_rects = all_box_bbox_rects[i];
             const std::vector<float>& box_bbox_scores = all_box_bbox_scores[i];
 
@@ -313,7 +306,7 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
         float score = bbox_scores[i];
         float* outptr = top_blob.row(i);
 
-        outptr[0] = static_cast<float>(r.label + 1); // +1 for prepend background class
+        outptr[0] = r.label + 1.0f; // +1 for prepend background class
         outptr[1] = score;
         outptr[2] = r.xmin;
         outptr[3] = r.ymin;

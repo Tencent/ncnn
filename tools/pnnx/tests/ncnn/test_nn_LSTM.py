@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -22,15 +11,15 @@ class Model(nn.Module):
 
         self.lstm_0_0 = nn.LSTM(input_size=32, hidden_size=16)
         self.lstm_0_1 = nn.LSTM(input_size=16, hidden_size=16, num_layers=3, bias=False)
-        self.lstm_0_2 = nn.LSTM(input_size=16, hidden_size=16, num_layers=4, bias=True, bidirectional=True)
-        self.lstm_0_3 = nn.LSTM(input_size=16, hidden_size=16, num_layers=4, bias=True, bidirectional=True)
-        self.lstm_0_4 = nn.LSTM(input_size=16, hidden_size=16, num_layers=4, bias=True, bidirectional=True)
+        self.lstm_0_2 = nn.LSTM(input_size=16, hidden_size=16, num_layers=4, bias=True, bidirectional=True, proj_size=10)
+        self.lstm_0_3 = nn.LSTM(input_size=20, hidden_size=16, num_layers=4, bias=True, bidirectional=True, proj_size=10)
+        self.lstm_0_4 = nn.LSTM(input_size=20, hidden_size=16, num_layers=4, bias=True, bidirectional=True, proj_size=10)
 
         self.lstm_1_0 = nn.LSTM(input_size=25, hidden_size=16, batch_first=True)
         self.lstm_1_1 = nn.LSTM(input_size=16, hidden_size=16, num_layers=3, bias=False, batch_first=True)
-        self.lstm_1_2 = nn.LSTM(input_size=16, hidden_size=16, num_layers=4, bias=True, batch_first=True, bidirectional=True)
-        self.lstm_1_3 = nn.LSTM(input_size=16, hidden_size=16, num_layers=4, bias=True, batch_first=True, bidirectional=True)
-        self.lstm_1_4 = nn.LSTM(input_size=16, hidden_size=16, num_layers=4, bias=True, batch_first=True, bidirectional=True)
+        self.lstm_1_2 = nn.LSTM(input_size=16, hidden_size=16, num_layers=4, bias=True, batch_first=True, bidirectional=True, proj_size=10)
+        self.lstm_1_3 = nn.LSTM(input_size=20, hidden_size=16, num_layers=4, bias=True, batch_first=True, bidirectional=True, proj_size=10)
+        self.lstm_1_4 = nn.LSTM(input_size=20, hidden_size=16, num_layers=4, bias=True, batch_first=True, bidirectional=True, proj_size=10)
 
     def forward(self, x, y):
         x = x.permute(1, 0, 2)
@@ -38,14 +27,14 @@ class Model(nn.Module):
         x0, _ = self.lstm_0_0(x)
         x1, _ = self.lstm_0_1(x0)
         x2, (h0, c0) = self.lstm_0_2(x1)
-        x3, (h1, c1) = self.lstm_0_3(x1, (h0, c0))
-        x4, _ = self.lstm_0_4(x1, (h1, c1))
+        x3, (h1, c1) = self.lstm_0_3(x2, (h0, c0))
+        x4, _ = self.lstm_0_4(x3, (h1, c1))
 
         y0, _ = self.lstm_1_0(y)
         y1, _ = self.lstm_1_1(y0)
         y2, (h2, c2) = self.lstm_1_2(y1)
-        y3, (h3, c3) = self.lstm_1_3(y1, (h2, c2))
-        y4, _ = self.lstm_1_4(y1, (h3, c3))
+        y3, (h3, c3) = self.lstm_1_3(y2, (h2, c2))
+        y4, _ = self.lstm_1_4(y3, (h3, c3))
 
         x2 = x2.permute(1, 0, 2)
         x3 = x3.permute(1, 0, 2)

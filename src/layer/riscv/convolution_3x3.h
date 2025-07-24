@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void conv3x3s1_winograd23_transform_kernel_rvv(const Mat& kernel, Mat& kernel_tm2, int inch, int outch, const Option& opt)
 {
@@ -215,12 +204,13 @@ static void conv3x3s1_winograd43_transform_kernel_rvv(const Mat& kernel, Mat& ke
     Mat kernel_tm(6 * 6, inch, outch);
 
     // G
+    const float sq2 = 1.41421356237f;
     const float ktm[6][3] = {
-        {1.0f / 4, 0.0f, 0.0f},
-        {-1.0f / 6, -1.0f / 6, -1.0f / 6},
-        {-1.0f / 6, 1.0f / 6, -1.0f / 6},
-        {1.0f / 24, 1.0f / 12, 1.0f / 6},
-        {1.0f / 24, -1.0f / 12, 1.0f / 6},
+        {1.0f, 0.0f, 0.0f},
+        {-2.0f / 3, -sq2 / 3, -1.0f / 3},
+        {-2.0f / 3, sq2 / 3, -1.0f / 3},
+        {1.0f / 6, sq2 / 6, 1.0f / 3},
+        {1.0f / 6, -sq2 / 6, 1.0f / 3},
         {0.0f, 0.0f, 1.0f}
     };
 

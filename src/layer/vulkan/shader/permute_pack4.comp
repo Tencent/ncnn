@@ -1,25 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
-
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
 
 layout (constant_id = 0) const int order_type = 0;
 layout (constant_id = 1) const int bugihfa = 0;
@@ -39,17 +21,12 @@ layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
 layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-#else
 #if NCNN_fp16_packed
 layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 #endif
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -325,15 +302,10 @@ void main()
         }
     }
 
-#if NCNN_image_shader
-    ivec4 i4 = z4 * psc(w) * psc(h) * psc(d) + y4 * psc(w) + x4;
-    ivec4 lane4;
-#else
     ivec4 i4 = z4 * psc(cstep) + y4 * psc(w) + x4;
     ivec4 v_offset;
 #if NCNN_fp16_packed
     ivec4 lane2;
-#endif
 #endif
 
     if (psc(dims) == 2)
@@ -341,16 +313,11 @@ void main()
         y4 = i4 / psc(w);
         x4 = i4 % psc(w);
 
-#if NCNN_image_shader
-        lane4 = y4 % 4;
-        y4 = y4 / 4;
-#else
 #if NCNN_fp16_packed
         v_offset = ((y4 / 4) * psc(w) + x4) * 2 + (y4 % 4) / 2;
         lane2 = y4 % 2;
 #else
         v_offset = ((y4 / 4) * psc(w) + x4) * 4 + y4 % 4;
-#endif
 #endif
     }
     else if (psc(dims) == 3)
@@ -361,16 +328,11 @@ void main()
         y4 = i4 % size / psc(w);
         x4 = i4 % size % psc(w);
 
-#if NCNN_image_shader
-        lane4 = z4 % 4;
-        z4 = z4 / 4;
-#else
 #if NCNN_fp16_packed
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
         lane2 = z4 % 2;
 #else
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
-#endif
 #endif
     }
     else // if (psc(dims) == 4)
@@ -385,54 +347,14 @@ void main()
 
         y4 = yd4 * psc(h) + yh4;
 
-#if NCNN_image_shader
-        lane4 = z4 % 4;
-        z4 = z4 / 4;
-#else
 #if NCNN_fp16_packed
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
         lane2 = z4 % 2;
 #else
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
 #endif
-#endif
     }
 
-#if NCNN_image_shader
-    afpvec4 vr = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r, z4.r));
-    afpvec4 vg = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g, z4.g));
-    afpvec4 vb = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b, z4.b));
-    afpvec4 va = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a, z4.a));
-
-    afpvec4 v;
-#if NCNN_fp16_arithmetic
-    if (bugihfa == 1)
-    {
-        if (lane4.r == 0) v.r = vr.r;
-        if (lane4.r == 1) v.r = vr.g;
-        if (lane4.r == 2) v.r = vr.b;
-        if (lane4.r == 3) v.r = vr.a;
-        if (lane4.g == 0) v.g = vg.r;
-        if (lane4.g == 1) v.g = vg.g;
-        if (lane4.g == 2) v.g = vg.b;
-        if (lane4.g == 3) v.g = vg.a;
-        if (lane4.b == 0) v.b = vb.r;
-        if (lane4.b == 1) v.b = vb.g;
-        if (lane4.b == 2) v.b = vb.b;
-        if (lane4.b == 3) v.b = vb.a;
-        if (lane4.a == 0) v.a = va.r;
-        if (lane4.a == 1) v.a = va.g;
-        if (lane4.a == 2) v.a = va.b;
-        if (lane4.a == 3) v.a = va.a;
-    }
-    else
-#endif
-    {
-        v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
-    }
-
-    image3d_st4(top_blob_3d, ivec3(gx, gy, gz), v);
-#else
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
 #if NCNN_fp16_packed
@@ -446,6 +368,5 @@ void main()
     buffer_st4(top_blob_data, gi, v);
 #else
     buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
 #endif
 }

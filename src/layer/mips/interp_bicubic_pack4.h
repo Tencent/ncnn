@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
@@ -268,11 +257,11 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
             v4f32 _rows1 = (v4f32)__msa_ld_w(rows1p, 0);
             v4f32 _rows2 = (v4f32)__msa_ld_w(rows2p, 0);
             v4f32 _rows3 = (v4f32)__msa_ld_w(rows3p, 0);
-            v4f32 _D = __msa_fmul_w(_rows0, _b0);
-            _D = __msa_fmadd_w(_D, _rows1, _b1);
-            _D = __msa_fmadd_w(_D, _rows2, _b2);
-            _D = __msa_fmadd_w(_D, _rows3, _b3);
-            __msa_st_w((v4i32)_D, Dp, 0);
+            v4f32 _Dp = __msa_fmul_w(_rows0, _b0);
+            _Dp = __msa_fmadd_w(_Dp, _rows1, _b1);
+            _Dp = __msa_fmadd_w(_Dp, _rows2, _b2);
+            _Dp = __msa_fmadd_w(_Dp, _rows3, _b3);
+            __msa_st_w((v4i32)_Dp, Dp, 0);
 
             Dp += 4;
             rows0p += 4;

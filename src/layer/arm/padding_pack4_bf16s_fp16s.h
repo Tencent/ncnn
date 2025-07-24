@@ -1,21 +1,10 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void padding_constant_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, uint16x8_t v)
 {
-    const short* ptr = src;
-    short* outptr = dst;
+    const unsigned short* ptr = src;
+    unsigned short* outptr = dst;
 
     int w = src.w;
     int h = src.h;
@@ -23,6 +12,7 @@ static void padding_constant_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int
     int top_size = top * dst.w;
     int bottom_size = bottom * dst.w;
 
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
     asm volatile(
         "mov    v0.16b, %10.16b         \n"
@@ -332,6 +322,60 @@ static void padding_constant_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int
         "w"(v)            // %10
         : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+
+    // fill top
+    {
+        int x = 0;
+        for (; x + 3 < top_size; x += 4)
+        {
+            vst1q_u16(outptr, v);
+            vst1q_u16(outptr + 8, v);
+            outptr += 16;
+        }
+        for (; x < top_size; x++)
+        {
+            vst1_u16(outptr, vget_low_u16(v));
+            outptr += 4;
+        }
+    }
+    // fill center
+    for (int y = 0; y < src.h; y++)
+    {
+        for (int x = 0; x < left; x++)
+        {
+            vst1_u16(outptr, vget_low_u16(v));
+            outptr += 4;
+        }
+        for (int x = 0; x < src.w; x++)
+        {
+            uint16x4_t _p = vld1_u16(ptr);
+            vst1_u16(outptr, _p);
+            ptr += 4;
+            outptr += 4;
+        }
+        for (int x = 0; x < right; x++)
+        {
+            vst1_u16(outptr, vget_low_u16(v));
+            outptr += 4;
+        }
+    }
+    // fill bottom
+    {
+        int x = 0;
+        for (; x + 3 < bottom_size; x += 4)
+        {
+            vst1q_u16(outptr, v);
+            vst1q_u16(outptr + 8, v);
+            outptr += 16;
+        }
+        for (; x < bottom_size; x++)
+        {
+            vst1_u16(outptr, vget_low_u16(v));
+            outptr += 4;
+        }
+    }
+#endif // NCNN_GNU_INLINE_ASM
 }
 
 static void padding_replicate_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)

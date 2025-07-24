@@ -1,23 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "yolov3detectionoutput.h"
 
 #include "layer_type.h"
 
 #include <float.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -26,7 +14,7 @@ Yolov3DetectionOutput::Yolov3DetectionOutput()
     one_blob_only = false;
     support_inplace = false;
 
-    //softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+    //softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
 
     // set param
     ncnn::ParamDict pd;
@@ -138,7 +126,7 @@ void Yolov3DetectionOutput::nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std
 
 static inline float sigmoid(float x)
 {
-    return static_cast<float>(1.f / (1.f + exp(-x)));
+    return 1.f / (1.f + expf(-x));
 }
 
 int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -205,14 +193,14 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                     }
 
                     //sigmoid(box_score) * sigmoid(class_score)
-                    float confidence = 1.f / ((1.f + exp(-box_score_ptr[0]) * (1.f + exp(-class_score))));
+                    float confidence = 1.f / ((1.f + expf(-box_score_ptr[0]) * (1.f + expf(-class_score))));
                     if (confidence >= confidence_threshold)
                     {
                         // region box
                         float bbox_cx = (j + sigmoid(xptr[0])) / w;
                         float bbox_cy = (i + sigmoid(yptr[0])) / h;
-                        float bbox_w = static_cast<float>(exp(wptr[0]) * bias_w / net_w);
-                        float bbox_h = static_cast<float>(exp(hptr[0]) * bias_h / net_h);
+                        float bbox_w = expf(wptr[0]) * bias_w / net_w;
+                        float bbox_h = expf(hptr[0]) * bias_h / net_h;
 
                         float bbox_xmin = bbox_cx - bbox_w * 0.5f;
                         float bbox_ymin = bbox_cy - bbox_h * 0.5f;
@@ -275,7 +263,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
         float score = r.score;
         float* outptr = top_blob.row(i);
 
-        outptr[0] = static_cast<float>(r.label + 1); // +1 for prepend background class
+        outptr[0] = r.label + 1.0f; // +1 for prepend background class
         outptr[1] = score;
         outptr[2] = r.xmin;
         outptr[3] = r.ymin;

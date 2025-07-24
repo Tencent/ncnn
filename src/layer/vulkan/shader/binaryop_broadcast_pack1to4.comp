@@ -1,0 +1,107 @@
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const int op_type = 0;
+
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int adims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int aw = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int ah = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int ad = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int ac = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int acstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 6) const int bdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int bw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int bh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int bd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int bc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int bcstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 12) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 13) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 14) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 15) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 16) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 17) const int outcstep = 0;
+
+layout (binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
+layout (binding = 1) readonly buffer b_blob { sfp b_blob_data[]; };
+layout (binding = 2) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int adims;
+    int aw;
+    int ah;
+    int ad;
+    int ac;
+    int acstep;
+
+    int bdims;
+    int bw;
+    int bh;
+    int bd;
+    int bc;
+    int bcstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outd;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
+        return;
+
+    int yd = gy / psc(outh);
+    int yh = gy % psc(outh);
+
+    // explicit broadcast
+    int ax = min(gx, psc(aw) - 1);
+    int ay = min(yd, psc(ad) - 1) * psc(ah) + min(yh, psc(ah) - 1);
+    int az = min(gz, psc(ac) - 1);
+
+    int bx = min(gx, psc(bw) - 1);
+    int by = min(yd, psc(bd) - 1) * psc(bh) + min(yh, psc(bh) - 1);
+    int bz = min(gz, psc(bc) - 1);
+
+    int ai = az * psc(acstep) + ay * psc(aw) + ax;
+    int bi = bz * psc(bcstep) + by * psc(bw) + bx;
+
+    afpvec4 v1 = buffer_ld4(a_blob_data, ai);
+    afpvec4 v2 = afpvec4(buffer_ld1(b_blob_data, bi));
+
+    afpvec4 res;
+
+    if (op_type == 0) res = v1 + v2;
+    if (op_type == 1) res = v1 - v2;
+    if (op_type == 2) res = v1 * v2;
+    if (op_type == 3) res = v1 / v2;
+    if (op_type == 4) res = max(v1, v2);
+    if (op_type == 5) res = min(v1, v2);
+    if (op_type == 6) res = pow(v1, v2);
+    if (op_type == 7) res = v2 - v1;
+    if (op_type == 8) res = v2 / v1;
+    if (op_type == 9) res = pow(v2, v1);
+#if NCNN_moltenvk
+    if (op_type == 10) res = afpvec4(atan(vec4(v1), vec4(v2)));
+    if (op_type == 11) res = afpvec4(atan(vec4(v2), vec4(v1)));
+#else
+    if (op_type == 10) res = atan(v1, v2);
+    if (op_type == 11) res = atan(v2, v1);
+#endif
+
+    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    buffer_st4(top_blob_data, gi, res);
+}

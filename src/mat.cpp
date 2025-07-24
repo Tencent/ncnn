@@ -1,27 +1,10 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "mat.h"
 
-#if __ARM_NEON
-#include <arm_neon.h>
-#endif // __ARM_NEON
-#include "cpu.h"
 #include "layer.h"
 #include "layer_type.h"
-
-#include <math.h>
 
 #if NCNN_VULKAN
 #if NCNN_PLATFORM_API
@@ -47,6 +30,9 @@ Mat Mat::clone(Allocator* _allocator) const
         m.create(w, h, c, elemsize, elempack, _allocator);
     else if (dims == 4)
         m.create(w, h, d, c, elemsize, elempack, _allocator);
+
+    if (m.empty())
+        return m;
 
     if (total() > 0)
     {
@@ -80,12 +66,14 @@ Mat Mat::reshape(int _w, Allocator* _allocator) const
     {
         Mat m;
         m.create(_w, elemsize, elempack, _allocator);
+        if (m.empty())
+            return m;
 
         // flatten
         for (int i = 0; i < c; i++)
         {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + (size_t)i * w * h * d * elemsize;
+            void* mptr = (unsigned char*)m.data + i * (size_t)w * h * d * elemsize;
             memcpy(mptr, ptr, (size_t)w * h * d * elemsize);
         }
 
@@ -100,7 +88,7 @@ Mat Mat::reshape(int _w, Allocator* _allocator) const
     m.d = 1;
     m.c = 1;
 
-    m.cstep = _w;
+    m.cstep = alignSize(_w * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -114,12 +102,14 @@ Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     {
         Mat m;
         m.create(_w, _h, elemsize, elempack, _allocator);
+        if (m.empty())
+            return m;
 
         // flatten
         for (int i = 0; i < c; i++)
         {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + (size_t)i * w * h * d * elemsize;
+            void* mptr = (unsigned char*)m.data + i * (size_t)w * h * d * elemsize;
             memcpy(mptr, ptr, (size_t)w * h * d * elemsize);
         }
 
@@ -134,7 +124,7 @@ Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     m.d = 1;
     m.c = 1;
 
-    m.cstep = (size_t)_w * _h;
+    m.cstep = alignSize((size_t)_w * _h * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -150,11 +140,13 @@ Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
         {
             Mat m;
             m.create(_w, _h, _c, elemsize, elempack, _allocator);
+            if (m.empty())
+                return m;
 
             // align channel
             for (int i = 0; i < _c; i++)
             {
-                const void* ptr = (unsigned char*)data + (size_t)i * _w * _h * elemsize;
+                const void* ptr = (unsigned char*)data + i * (size_t)_w * _h * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
                 memcpy(mptr, ptr, (size_t)_w * _h * elemsize);
             }
@@ -193,11 +185,13 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
         {
             Mat m;
             m.create(_w, _h, _d, _c, elemsize, elempack, _allocator);
+            if (m.empty())
+                return m;
 
             // align channel
             for (int i = 0; i < _c; i++)
             {
-                const void* ptr = (unsigned char*)data + (size_t)i * _w * _h * _d * elemsize;
+                const void* ptr = (unsigned char*)data + i * (size_t)_w * _h * _d * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
                 memcpy(mptr, ptr, (size_t)_w * _h * _d * elemsize);
             }
@@ -242,7 +236,7 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -277,7 +271,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -382,7 +376,7 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -417,7 +411,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
     d = 1;
     c = 1;
 
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -564,7 +558,7 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -597,7 +591,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -630,7 +624,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
     d = 1;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -663,7 +657,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator
     d = _d;
     c = _c;
 
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -696,7 +690,7 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -729,7 +723,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     d = 1;
     c = 1;
 
-    cstep = w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -762,7 +756,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     d = 1;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -795,7 +789,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempa
     d = _d;
     c = _c;
 
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -1207,68 +1201,14 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
 Mat Mat::from_float16(const unsigned short* data, int size)
 {
-    Mat m(size);
-    if (m.empty())
-        return m;
+    Mat src(size, (void*)data, (size_t)2u);
+    Mat dst;
 
-    float* ptr = m; //.data;
+    Option opt;
+    opt.num_threads = 1; // TODO
+    cast_float16_to_float32(src, dst, opt);
 
-#if __ARM_NEON && (__ARM_FP & 2)
-    int nn = cpu_support_arm_vfpv4() ? size >> 2 : 0;
-    int remain = size - (nn << 2);
-#else
-    int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON && (__ARM_FP & 2)
-#if __aarch64__
-    if (nn > 0)
-    {
-        asm volatile(
-            "0:                             \n"
-            "ld1    {v0.4h}, [%1], #8       \n"
-            "fcvtl  v1.4s, v0.4h            \n"
-            "subs   %w0, %w0, #1            \n"
-            "st1    {v1.4s}, [%2], #16      \n"
-            "bne    0b                      \n"
-            : "=r"(nn),   // %0
-            "=r"(data), // %1
-            "=r"(ptr)   // %2
-            : "0"(nn),
-            "1"(data),
-            "2"(ptr)
-            : "cc", "memory", "v0", "v1");
-    }
-#else
-    if (nn > 0)
-    {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #64]           \n"
-            "vld1.s16   {d0}, [%1]!         \n"
-            "vcvt.f32.f16 q1, d0            \n"
-            "subs       %0, #1              \n"
-            "vst1.f32   {d2-d3}, [%2 :128]! \n"
-            "bne        0b                  \n"
-            : "=r"(nn),   // %0
-            "=r"(data), // %1
-            "=r"(ptr)   // %2
-            : "0"(nn),
-            "1"(data),
-            "2"(ptr)
-            : "cc", "memory", "q0", "q1");
-    }
-#endif // __aarch64__
-#endif // __ARM_NEON
-    for (; remain > 0; remain--)
-    {
-        *ptr = float16_to_float32(*data);
-
-        data++;
-        ptr++;
-    }
-
-    return m;
+    return dst;
 }
 
 #if NCNN_VULKAN
@@ -1278,8 +1218,9 @@ VkImageMat VkImageMat::from_android_hardware_buffer(VkAndroidHardwareBufferImage
 {
     int width = allocator->width();
     int height = allocator->height();
+    size_t elemsize = 4u; // elemsize for ahb is actually just a placeholder
 
-    return VkImageMat(width, height, allocator);
+    return VkImageMat(width, height, elemsize, allocator);
 }
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API

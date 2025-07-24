@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_OPTION_H
 #define NCNN_OPTION_H
@@ -36,6 +25,14 @@ public:
     // intermediate blob will be recycled when enabled
     // enabled by default
     bool lightmode;
+
+    // use pack8 shader
+    bool use_shader_pack8;
+
+    // enable subgroup in shader
+    bool use_subgroup_ops;
+
+    bool use_reserved_0;
 
     // thread count
     // default value is the one returned by get_cpu_count()
@@ -105,19 +102,15 @@ public:
     // enabled by default
     bool use_packing_layout;
 
-    bool use_shader_pack8;
+    // the vulkan device
+    int vulkan_device_index;
 
-    // subgroup option
-    bool use_subgroup_basic;
-    bool use_subgroup_vote;
-    bool use_subgroup_ballot;
-    bool use_subgroup_shuffle;
+    bool use_reserved_1;
 
-    // turn on for adreno
-    bool use_image_storage;
     bool use_tensor_storage;
 
-    bool use_reserved_0;
+    bool use_reserved_1p;
+    bool use_reserved_2;
 
     // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)
     // default value is 3
@@ -140,9 +133,14 @@ public:
     bool use_winograd43_convolution;
     bool use_winograd63_convolution;
 
-    bool use_reserved_6;
-    bool use_reserved_7;
-    bool use_reserved_8;
+    // this option is turned on for A53/A55 automatically
+    // but you can force this on/off if you wish
+    bool use_a53_a55_optimized_kernel;
+
+    // enable options for shared variables in gpu shader
+    bool use_fp16_uniform;
+    bool use_int8_uniform;
+
     bool use_reserved_9;
     bool use_reserved_10;
     bool use_reserved_11;

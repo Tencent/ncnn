@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "onnx.pb.h"
 
@@ -2930,8 +2919,41 @@ static void fuse_binaryop_with_scalar(onnx::GraphProto* mutable_graph, std::map<
     }
 }
 
+// truncate layer/blob names when they exceed 255, which is the upper length limit when parsing param in src/net.cpp
+static std::string trunc_name(std::string name)
+{
+    static int trunc_idx = 0;
+    static std::map<std::string, std::string> name_trunc_map;
+
+    const int max_len = 255;
+    if (name.size() <= max_len)
+    {
+        return name;
+    }
+    if (name_trunc_map.count(name))
+    {
+        return name_trunc_map[name];
+    }
+
+    std::string concat_name = name + "_t" + std::to_string(trunc_idx);
+    std::string trunc_name = concat_name.substr(concat_name.size() - max_len);
+    trunc_idx += 1;
+    name_trunc_map[name] = trunc_name;
+
+    return trunc_name;
+}
+
 int main(int argc, char** argv)
 {
+    fprintf(stderr, "onnx2ncnn may not fully meet your needs. For more accurate and elegant\n\
+conversion results, please use PNNX. PyTorch Neural Network eXchange (PNNX) is\n\
+an open standard for PyTorch model interoperability. PNNX provides an open model\n\
+format for PyTorch. It defines computation graph as well as high level operators\n\
+strictly matches PyTorch. You can obtain pnnx through the following ways:\n\
+1. Install via python\n\
+   pip3 install pnnx\n\
+2. Get the executable from https://github.com/pnnx/pnnx\n\
+For more information, please refer to https://github.com/pnnx/pnnx\n");
     if (!(argc == 2 || argc == 4))
     {
         fprintf(stderr, "Usage: %s [onnxpb] [ncnnparam] [ncnnbin]\n", argv[0]);
@@ -3433,7 +3455,7 @@ int main(int argc, char** argv)
         if (weights.find(input_name) != weights.end())
             continue;
 
-        fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", input_name.c_str(), input_name.c_str());
+        fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", trunc_name(input_name).c_str(), trunc_name(input_name).c_str());
 
         int refcount = node_reference[input_name];
         if (refcount <= 1)
@@ -3444,11 +3466,12 @@ int main(int argc, char** argv)
         char splitname[256];
         sprintf(splitname, "splitncnn_input%d", j);
         fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
-        fprintf(pp, " %s", input_name.c_str());
+        fprintf(pp, " %s", trunc_name(input_name).c_str());
 
         for (int k = 0; k < refcount; k++)
         {
-            fprintf(pp, " %s_splitncnn_%d", input_name.c_str(), k);
+            std::string split_name = input_name + "_splitncnn_" + std::to_string(k);
+            fprintf(pp, " %s", trunc_name(split_name).c_str());
         }
         fprintf(pp, "\n");
     }
@@ -3464,7 +3487,7 @@ int main(int argc, char** argv)
             continue;
         }
 
-        fprintf(pp, "%-16s %-24s 0 1 %s", "MemoryData", input_name.c_str(), input_name.c_str());
+        fprintf(pp, "%-16s %-24s 0 1 %s", "MemoryData", trunc_name(input_name).c_str(), trunc_name(input_name).c_str());
 
         const onnx::TensorProto& M = weights[input_name];
 
@@ -3513,11 +3536,12 @@ int main(int argc, char** argv)
         sprintf(splitname, "splitncnn_%d", internal_split);
         fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
 
-        fprintf(pp, " %s", input_name.c_str());
+        fprintf(pp, " %s", trunc_name(input_name).c_str());
 
         for (int k = 0; k < refcount; k++)
         {
-            fprintf(pp, " %s_splitncnn_%d", input_name.c_str(), k);
+            std::string split_name = input_name + "_splitncnn_" + std::to_string(k);
+            fprintf(pp, " %s", trunc_name(split_name).c_str());
         }
         fprintf(pp, "\n");
 
@@ -3615,6 +3639,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Celu")
+        {
+            fprintf(pp, "%-16s", "CELU");
+        }
         else if (op == "Clip")
         {
             fprintf(pp, "%-16s", "Clip");
@@ -3687,6 +3715,10 @@ int main(int argc, char** argv)
         else if (op == "EmbedLayerNormalization")
         {
             fprintf(pp, "%-16s", "EmbedLayerNormalization");
+        }
+        else if (op == "Erf")
+        {
+            fprintf(pp, "%-16s", "Erf");
         }
         else if (op == "Exp")
         {
@@ -3860,6 +3892,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
+        else if (op == "Shrink")
+        {
+            fprintf(pp, "%-16s", "Shrink");
+        }
         else if (op == "ShuffleChannel")
         {
             fprintf(pp, "%-16s", "ShuffleChannel");
@@ -3939,7 +3975,7 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", op.c_str());
         }
 
-        fprintf(pp, " %-24s %d %d", name.c_str(), input_size, output_size);
+        fprintf(pp, " %-24s %d %d", trunc_name(name).c_str(), input_size, output_size);
 
         for (int j = 0; j < (int)node.input_size(); j++)
         {
@@ -3966,14 +4002,14 @@ int main(int argc, char** argv)
                 input_name = input_name + splitsuffix;
             }
 
-            fprintf(pp, " %s", input_name.c_str());
+            fprintf(pp, " %s", trunc_name(input_name).c_str());
         }
 
         for (int j = 0; j < output_size; j++)
         {
             const std::string& output_name = node.output(j);
 
-            fprintf(pp, " %s", output_name.c_str());
+            fprintf(pp, " %s", trunc_name(output_name).c_str());
         }
 
         if (op == "Abs")
@@ -4123,6 +4159,12 @@ int main(int argc, char** argv)
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "CeLU")
+        {
+            float alpha = get_node_attr_f(node, "alpha", 1.0f);
+
+            fprintf(pp, " 0=%e", alpha);
         }
         else if (op == "Clip")
         {
@@ -4483,6 +4525,10 @@ int main(int argc, char** argv)
             fwrite(&quantize_tag, sizeof(int), 1, bp);
 
             fwrite_tensor_proto_data(B, bp);
+        }
+        else if (op == "Erf")
+        {
+            // no-op
         }
         else if (op == "Exp")
         {
@@ -5702,6 +5748,13 @@ int main(int argc, char** argv)
                 fprintf(pp, " 2=%e", b);
             }
         }
+        else if (op == "Shrink")
+        {
+            float bias = get_node_attr_f(node, "bias", 0.0f);
+            float lambd = get_node_attr_f(node, "lambd", 0.5f);
+            fprintf(pp, " 0=%e", bias);
+            fprintf(pp, " 1=%e", lambd);
+        }
         else if (op == "ShuffleChannel")
         {
             int group = get_node_attr_i(node, "group", 1);
@@ -5929,6 +5982,8 @@ int main(int argc, char** argv)
                     fprintf(pp, " 0=4"); // h c w
                 else if (perm[1] == 3 && perm[2] == 2 && perm[3] == 1)
                     fprintf(pp, " 0=5"); // c h w
+                else
+                    fprintf(stderr, "Unsupported transpose type !\n");
             }
             else if (perm.size() == 5)
             {
@@ -6064,11 +6119,12 @@ int main(int argc, char** argv)
                     sprintf(splitname, "splitncnn_%d", internal_split);
                     fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
 
-                    fprintf(pp, " %s", output_name.c_str());
+                    fprintf(pp, " %s", trunc_name(output_name).c_str());
 
                     for (int k = 0; k < refcount; k++)
                     {
-                        fprintf(pp, " %s_splitncnn_%d", output_name.c_str(), k);
+                        std::string split_name = output_name + "_splitncnn_" + std::to_string(k);
+                        fprintf(pp, " %s", trunc_name(split_name).c_str());
                     }
                     fprintf(pp, "\n");
 

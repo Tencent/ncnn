@@ -1,21 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "eltwise_arm.h"
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -26,9 +16,10 @@ int Eltwise_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
-    int size = w * h * elempack;
+    int size = w * h * d * elempack;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create_like(bottom_blob, opt.blob_allocator);
@@ -287,7 +278,7 @@ int Eltwise_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector
         return 0;
     }
 
-    Mat top_blob_fp32(w, h, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
+    Mat top_blob_fp32(w, h, d, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
     if (top_blob_fp32.empty())
         return -100;
 
@@ -1097,9 +1088,10 @@ int Eltwise_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vecto
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
-    int size = w * h * elempack;
+    int size = w * h * d * elempack;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create_like(bottom_blob, opt.blob_allocator);

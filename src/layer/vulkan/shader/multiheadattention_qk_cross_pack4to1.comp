@@ -1,0 +1,65 @@
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const int attn_mask = 0;
+layout (constant_id = 1) const int M = 0;
+layout (constant_id = 2) const int N = 0;
+layout (constant_id = 3) const int K = 0;
+layout (constant_id = 4) const int B = 0;
+layout (constant_id = 5) const int attn_mask_dims = 0;
+
+layout (binding = 0) readonly buffer q_blob { sfpvec4 q_blob_data[]; };
+layout (binding = 1) readonly buffer k_blob { sfpvec4 k_blob_data[]; };
+layout (binding = 2) writeonly buffer qkcross_blob { sfp qkcross_blob_data[]; };
+layout (binding = 3) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int B;
+    int attn_mask_dims;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+
+    afp sum = afp(0.f);
+
+    if (attn_mask == 1)
+    {
+        if (psc(attn_mask_dims) == 3)
+        {
+            const int mi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
+            sum = buffer_ld1(attn_mask_blob_data, mi);
+        }
+        else
+        {
+            const int mi = gy * psc(N) + gx;
+            sum = buffer_ld1(attn_mask_blob_data, mi);
+        }
+    }
+
+    for (int k = 0; k < psc(K); k++)
+    {
+        const int ai = gz * psc(M) * psc(K) + k * psc(M) + gy;
+        afpvec4 q0 = buffer_ld4(q_blob_data, ai);
+
+        const int bi = gz * psc(N) * psc(K) + k * psc(N) + gx;
+        afpvec4 k0 = buffer_ld4(k_blob_data, bi);
+
+        sum += dot(q0, k0);
+    }
+
+    const int gi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
+    buffer_st1(qkcross_blob_data, gi, sum);
+}

@@ -1,20 +1,10 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "unaryop.h"
 
-#include <math.h>
+// #include <fenv.h>
+#include <float.h>
 
 namespace ncnn {
 
@@ -36,7 +26,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 {
     Op op;
 
-    int size = static_cast<int>(a.total());
+    const int size = (int)a.total();
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < size; i++)
@@ -51,7 +41,7 @@ struct unary_op_abs
 {
     float operator()(const float& x) const
     {
-        return (float)fabs(x);
+        return (float)fabsf(x);
     }
 };
 
@@ -67,7 +57,7 @@ struct unary_op_floor
 {
     float operator()(const float& x) const
     {
-        return (float)floor(x);
+        return (float)floorf(x);
     }
 };
 
@@ -75,7 +65,7 @@ struct unary_op_ceil
 {
     float operator()(const float& x) const
     {
-        return (float)ceil(x);
+        return (float)ceilf(x);
     }
 };
 
@@ -91,7 +81,7 @@ struct unary_op_sqrt
 {
     float operator()(const float& x) const
     {
-        return (float)sqrt(x);
+        return (float)sqrtf(x);
     }
 };
 
@@ -99,7 +89,7 @@ struct unary_op_rsqrt
 {
     float operator()(const float& x) const
     {
-        return (float)(1.f / sqrt(x));
+        return 1.f / sqrtf(x);
     }
 };
 
@@ -107,7 +97,7 @@ struct unary_op_exp
 {
     float operator()(const float& x) const
     {
-        return (float)exp(x);
+        return (float)expf(x);
     }
 };
 
@@ -115,7 +105,7 @@ struct unary_op_log
 {
     float operator()(const float& x) const
     {
-        return (float)log(x);
+        return (float)logf(x);
     }
 };
 
@@ -123,7 +113,7 @@ struct unary_op_sin
 {
     float operator()(const float& x) const
     {
-        return (float)sin(x);
+        return (float)sinf(x);
     }
 };
 
@@ -131,7 +121,7 @@ struct unary_op_cos
 {
     float operator()(const float& x) const
     {
-        return (float)cos(x);
+        return (float)cosf(x);
     }
 };
 
@@ -139,7 +129,7 @@ struct unary_op_tan
 {
     float operator()(const float& x) const
     {
-        return (float)tan(x);
+        return (float)tanf(x);
     }
 };
 
@@ -147,7 +137,7 @@ struct unary_op_asin
 {
     float operator()(const float& x) const
     {
-        return (float)asin(x);
+        return (float)asinf(x);
     }
 };
 
@@ -155,7 +145,7 @@ struct unary_op_acos
 {
     float operator()(const float& x) const
     {
-        return (float)acos(x);
+        return (float)acosf(x);
     }
 };
 
@@ -163,7 +153,7 @@ struct unary_op_atan
 {
     float operator()(const float& x) const
     {
-        return (float)atan(x);
+        return (float)atanf(x);
     }
 };
 
@@ -179,7 +169,31 @@ struct unary_op_tanh
 {
     float operator()(const float& x) const
     {
-        return (float)tanh(x);
+        return (float)tanhf(x);
+    }
+};
+
+struct unary_op_log10
+{
+    float operator()(const float& x) const
+    {
+        return (float)log10f(x);
+    }
+};
+
+struct unary_op_round
+{
+    float operator()(const float& x) const
+    {
+        return nearbyintf(x);
+    }
+};
+
+struct unary_op_trunc
+{
+    float operator()(const float& x) const
+    {
+        return (float)truncf(x);
     }
 };
 
@@ -235,6 +249,26 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TANH)
         return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+    {
+        // round to nearest even
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        int ret = unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return ret;
+    }
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }

@@ -27,22 +27,10 @@ You may also manually specify ncnn library path and including directory. Note th
 For example, on Visual Studio debug mode with vulkan required, the lib paths are:
 ```
 E:\github\ncnn\build\vs2019-x64\install\lib\ncnnd.lib
-E:\lib\VulkanSDK\1.2.148.0\Lib\vulkan-1.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\SPIRVd.lib
 E:\github\ncnn\build\vs2019-x64\install\lib\glslangd.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\MachineIndependentd.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\OGLCompilerd.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\OSDependentd.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\GenericCodeGend.lib
 ```
 And for its release mode, lib paths are:
 ```
 E:\github\ncnn\build\vs2019-x64\install\lib\ncnn.lib
-E:\lib\VulkanSDK\1.2.148.0\Lib\vulkan-1.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\SPIRV.lib
 E:\github\ncnn\build\vs2019-x64\install\lib\glslang.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\MachineIndependent.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\OGLCompiler.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\OSDependent.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\GenericCodeGen.lib
 ```

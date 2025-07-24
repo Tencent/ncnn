@@ -21,8 +21,6 @@ int main()
     net.load_model("model.bin");
 
     ncnn::Extractor ex = net.create_extractor();
-    ex.set_light_mode(true);
-    ex.set_num_threads(4);
 
     ex.input("data", in);
 

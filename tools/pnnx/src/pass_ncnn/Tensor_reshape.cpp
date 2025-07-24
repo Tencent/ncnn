@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -45,11 +34,12 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& shape = captured_params.at("shape").ai;
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int batch_index = op->outputs[0]->params["__batch_index"].i;
 
         if (batch_index != 0 && batch_index != 233)
         {
-            fprintf(stderr, "reshape tensor with batch index %d is not supported yet!\n", batch_index);
+            if (op->outputs[0]->shape.empty() || op->outputs[0]->shape[batch_index] != 1)
+                fprintf(stderr, "reshape tensor with batch index %d is not supported yet!\n", batch_index);
         }
 
         // drop shape batch index

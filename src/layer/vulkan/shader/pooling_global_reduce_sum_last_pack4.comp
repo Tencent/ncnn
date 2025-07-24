@@ -1,0 +1,44 @@
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
+
+layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int c;
+    int cstep;
+    int size;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= 1 || gy >= 1 || gz >= psc(c))
+        return;
+
+    const int v_offset = gz * psc(cstep);
+
+    vec4 sum = vec4(0.f);
+
+    for (int i = 0; i < psc(w); i++)
+    {
+        vec4 v = bottom_blob_data[v_offset + i];
+        sum += v;
+    }
+
+    afpvec4 res = afpvec4(sum / p.size);
+
+    buffer_st4(top_blob_data, gz, res);
+}

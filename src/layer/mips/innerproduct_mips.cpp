@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "innerproduct_mips.h"
 
@@ -37,7 +26,7 @@ InnerProduct_mips::InnerProduct_mips()
 int InnerProduct_mips::create_pipeline(const Option& opt)
 {
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_cpu(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
 
@@ -100,9 +89,7 @@ int InnerProduct_mips::create_pipeline(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -137,7 +124,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     const int num_input = weight_data_size / num_output;
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {
         // gemm
         int h = bottom_blob.h;
@@ -656,9 +643,7 @@ int InnerProduct_mips::create_pipeline_fp16s(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -667,7 +652,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 {
     const int num_input = weight_data_size / num_output;
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {
         // gemm
         int h = bottom_blob.h;
@@ -1147,9 +1132,7 @@ int InnerProduct_mips::create_pipeline_int8_mips(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -1168,7 +1151,7 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
     }
 
-    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input && bottom_blob_int8.h * bottom_blob_int8.elempack > 1)
+    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input)
     {
         // gemm
         Mat bottom_blob_int8_unpacked;

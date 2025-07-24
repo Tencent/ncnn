@@ -1,18 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "pass_level1.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -27,6 +16,18 @@ public:
     const char* type_str() const
     {
         return "nn.GELU";
+    }
+
+    void write(Operator* op, const TorchGraphProxy& graph) const
+    {
+        const TorchNodeProxy* gelu = graph.find_node_by_kind("aten::gelu");
+
+        if (gelu->hasNamedInput("approximate"))
+        {
+            op->params["approximate"] = gelu->namedInput("approximate");
+            if (op->params["approximate"].s == "none")
+                op->params.clear();
+        }
     }
 };
 
