@@ -1509,6 +1509,7 @@ typedef enum VkCooperativeVectorMatrixLayoutNV
     VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL_NV = 3,
     VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_MAX_ENUM_NV = 0x7FFFFFFF
 } VkCooperativeVectorMatrixLayoutNV;
+#ifndef VK_KHR_acceleration_structure
 typedef union VkDeviceOrHostAddressConstKHR
 {
     VkDeviceAddress deviceAddress;
@@ -1519,6 +1520,7 @@ typedef union VkDeviceOrHostAddressKHR
     VkDeviceAddress deviceAddress;
     void* hostAddress;
 } VkDeviceOrHostAddressKHR;
+#endif // VK_KHR_acceleration_structure
 typedef struct VkPhysicalDeviceCooperativeVectorPropertiesNV
 {
     VkStructureType sType;
