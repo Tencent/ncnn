@@ -39,7 +39,6 @@ jobs:
     name: ${{ matrix.vs-version }}
     runs-on: windows-2022
     strategy:
-      fail-fast: false
       matrix:
         include:
           - vs-version: vs2015
