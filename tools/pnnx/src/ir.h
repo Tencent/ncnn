@@ -43,6 +43,17 @@ class OnnxAttributeProxy;
 
 namespace pnnx {
 
+struct ModelInfo
+{
+    ModelInfo()
+        : flops(0), memory_access(0)
+    {
+    }
+
+    long long flops;
+    long long memory_access;
+};
+
 class Parameter
 {
 public:
@@ -320,6 +331,8 @@ public:
 
     int parse(const std::string& param);
 
+    ModelInfo flops_mem_count();
+
     Operator* new_operator(const std::string& type, const std::string& name);
 
     Operator* new_operator_before(const std::string& type, const std::string& name, const Operator* cur);
@@ -339,6 +352,7 @@ public:
     Operand* get_operand(const std::string& name);
     const Operand* get_operand(const std::string& name) const;
 
+    ModelInfo m;
     std::vector<Operator*> ops;
     std::vector<Operand*> operands;
 
