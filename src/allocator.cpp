@@ -749,6 +749,12 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     }
 
     block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!block->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+        delete block;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1028,6 +1034,12 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
     // bind at memory offset
     ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+        delete ptr;
+        return 0;
+    }
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
@@ -1337,6 +1349,12 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             }
 
             block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, buffer_memory_type_index, 0, block->buffer);
+            if (!block->memory)
+            {
+                vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+                delete block;
+                return 0;
+            }
 
             // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
             vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1396,6 +1414,12 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     }
 
     block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!block->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+        delete block;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1553,6 +1577,12 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
             // bind memory
             ptr->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, image_memory_type_index, ptr->image, 0);
+            if (!ptr->memory)
+            {
+                vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+                delete ptr;
+                return 0;
+            }
             ptr->bind_offset = 0;
             ptr->bind_capacity = memoryRequirements2.memoryRequirements.size;
 
@@ -1660,6 +1690,12 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
     // bind at memory offset
     ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+        delete ptr;
+        return 0;
+    }
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
@@ -1794,6 +1830,12 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        delete ptr;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
@@ -1903,6 +1945,12 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        delete ptr;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
