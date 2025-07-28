@@ -176,10 +176,20 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         // total channels
         size_t elemsize = bottom_blobs[0].elemsize;
         int elempack = bottom_blobs[0].elempack;
-        int top_channels = 0;
-        for (size_t b = 0; b < bottom_blobs.size(); b++)
+        int top_channels = bottom_blobs[0].c * bottom_blobs[0].elempack;
+        for (size_t b = 1; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
+            if (bottom_blob.w != w || bottom_blob.h != h || bottom_blob.d != d)
+            {
+                NCNN_LOGE("Sizes of bottom blobs must match except in axis 0. "
+                          "Expected size (w:%d h: %d d: %d) "
+                          "but got size (w:%d h: %d d: %d) "
+                          "for blob number %d in the list.",
+                          w, h, d, bottom_blob.w, bottom_blob.h, bottom_blob.d, (int)b);
+                return -1;
+            }
+
             elemsize = std::min(elemsize, bottom_blob.elemsize);
             elempack = std::min(elempack, bottom_blob.elempack);
             top_channels += bottom_blob.c * bottom_blob.elempack;

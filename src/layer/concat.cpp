@@ -128,10 +128,20 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         int d = bottom_blobs[0].d;
 
         // total channels
-        int top_channels = 0;
-        for (size_t b = 0; b < bottom_blobs.size(); b++)
+        int top_channels = bottom_blobs[0].c;
+        for (size_t b = 1; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
+            if (bottom_blob.w != w || bottom_blob.h != h || bottom_blob.d != d)
+            {
+                NCNN_LOGE("Sizes of bottom blobs must match except in axis 0. "
+                          "Expected size (w:%d h: %d d: %d) "
+                          "but got size (w:%d h: %d d: %d) "
+                          "for blob number %d in the list.",
+                          w, h, d, bottom_blob.w, bottom_blob.h, bottom_blob.d, (int)b);
+                return -1;
+            }
+
             top_channels += bottom_blob.c;
         }
 
