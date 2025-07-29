@@ -31,6 +31,7 @@ public:
 
 public:
 #if defined _WIN32
+    int cpu_group;
     ULONG_PTR mask;
 #endif
 #if defined __ANDROID__ || defined __linux__

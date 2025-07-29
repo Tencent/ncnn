@@ -16,7 +16,7 @@ DWORD WINAPI winWorker(LPVOID lpParam)
         groupAffinity.Group = static_cast<WORD>(info->coreinfo->group);
         groupAffinity.Mask = info->coreinfo->affinity;
 
-        return SetThreadGroupAffinity(GetCurrentThread(), &groupAffinity, NULL) != 0;
+        SetThreadGroupAffinity(GetCurrentThread(), &groupAffinity, NULL);
     }
     info->workspace->layer->forward_thread(info);
     info->manager->threadsComplete[info->threadid] = true;
@@ -63,9 +63,9 @@ void MutilThread::join(std::vector<Mat>& mats)
 {
 #if defined _WIN32
     Mat mat = mats[0];
-    CoreInfo cur = TheadInfo::get()->getCurrentCore();
+    CoreInfo cur = ThreadInfo::get()->getCurrentCore();
     std::vector<CoreInfo> cores;
-    TheadInfo::get()->getAllCore(cores);
+    ThreadInfo::get()->getAllCore(cores);   
     std::vector<HANDLE> handles;
     ThreadInfoExc* curinfo = nullptr;
     size_t workersize = ((mat.w * mat.h * mat.d) / m_opt.num_threads + 1) * mat.c * mat.elemsize;
@@ -96,7 +96,7 @@ void MutilThread::join(std::vector<Mat>& mats)
         }
         handles.push_back(CreateThread(nullptr, 0, winWorker, info, 0, nullptr));
     }
-    workspace.layer->forward_inplace(curinfo);
+    workspace.layer->forward_thread(curinfo);
     delete curinfo;
     bool check = true;
     do
@@ -145,7 +145,7 @@ void MutilThread::join(std::vector<Mat>& mats)
         info->opt = &m_opt;
         threadsComplete[i] = false;
         info->manager = this;
-        if (curid == cores[i].id && curid > 1)
+        if (curid == cores[i].id && curid > -1)
         {
             helpid = i;
             threadsComplete[i] = true;
@@ -154,7 +154,7 @@ void MutilThread::join(std::vector<Mat>& mats)
         }
         pthread_handles.push_back(pthread_create(&pthread_handles[i], nullptr, pthreadWorker, info));
     }
-    workspace.layer->forward_inplace(curinfo);
+    workspace.layer->forward_thread(curinfo);
     delete curinfo;
     for (size_t i = 0; i < pthread_handles.size(); i++)
     {

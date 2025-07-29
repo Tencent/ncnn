@@ -11,12 +11,12 @@ public:
     int group;
     DWORD_PTR affinity;
 };
-class TheadInfo
+class ThreadInfo
 {
 private:
     static ThreadInfo* thread_info;
     std::vector<CoreInfo> core_infos;
-    TheadInfo(/* args */);
+    ThreadInfo(/* args */);
 
 public:
     static ThreadInfo* get();

@@ -1424,12 +1424,21 @@ static std::vector<int> get_max_freq_mhz()
 
 static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 {
+    #ifdef _WIN32
+        GROUP_AFFINITY groupAffinity;
+        ZeroMemory(&groupAffinity, sizeof(groupAffinity));
+        groupAffinity.Group = static_cast<WORD>(thread_affinity_mask.cpu_group);
+        groupAffinity.Mask = thread_affinity_mask.mask;
+
+        SetThreadGroupAffinity(GetCurrentThread(), &groupAffinity, NULL);
+    #else
     DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.mask);
     if (prev_mask == 0)
     {
         NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
         return -1;
     }
+    #endif
 
     return 0;
 }
@@ -2266,22 +2275,27 @@ CpuSet::CpuSet()
 
 void CpuSet::enable(int cpu)
 {
-    mask |= ((ULONG_PTR)1 << cpu);
+    cpu_group = cpu/64;
+    mask |= ((ULONG_PTR)1 << (cpu-cpu_group*64));
 }
 
 void CpuSet::disable(int cpu)
 {
-    mask &= ~((ULONG_PTR)1 << cpu);
+    cpu_group = cpu/64;
+    mask &= ~((ULONG_PTR)1 << (cpu-cpu_group*64));
 }
 
 void CpuSet::disable_all()
 {
+    cpu_group = 0;
     mask = 0;
 }
 
 bool CpuSet::is_enabled(int cpu) const
 {
-    return mask & ((ULONG_PTR)1 << cpu);
+    if (cpu_group != cpu/64)
+        return false;
+    return mask & ((ULONG_PTR)1 << (cpu-cpu_group*64));
 }
 
 int CpuSet::num_enabled() const

@@ -51,7 +51,7 @@ endif()
 if(NCNN_MUTITHREAD)
     list(APPEND ncnn_SRCS thread.cpp)
     if(WIN32)
-        list(APPEND ncnn_SRCS ThreadInfo.cpp)
+        list(APPEND ncnn_SRCS TheadInfo.cpp)
     endif()
 endif()
 
