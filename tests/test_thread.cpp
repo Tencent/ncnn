@@ -73,38 +73,41 @@ static int test_thread(const ncnn::Mat& a)
     return ret;
 }
 
-static int test_thread_0(){
+static int test_thread_0()
+{
     return 0
-          || test_thread(RandomMat(5,6,7,24))
-          || test_thread(RandomMat(5,6,7,12))
-          || test_thread(RandomMat(5,6,7,13));
-
+           || test_thread(RandomMat(5, 6, 7, 24))
+           || test_thread(RandomMat(5, 6, 7, 12))
+           || test_thread(RandomMat(5, 6, 7, 13));
 }
 
-static int test_thread_1(){
+static int test_thread_1()
+{
     return 0
-          || test_thread(RandomMat(5,7,24))
-          || test_thread(RandomMat(5,6,24))
-          || test_thread(RandomMat(7,9,24));
+           || test_thread(RandomMat(5, 7, 24))
+           || test_thread(RandomMat(5, 6, 24))
+           || test_thread(RandomMat(7, 9, 24));
 }
 
-static int test_thread_2(){
+static int test_thread_2()
+{
     return 0
-          || test_thread(RandomMat(7,12))
-          || test_thread(RandomMat(5,12))
-          || test_thread(RandomMat(9,12));
+           || test_thread(RandomMat(7, 12))
+           || test_thread(RandomMat(5, 12))
+           || test_thread(RandomMat(9, 12));
 }
 
-static int test_thread_3(){
+static int test_thread_3()
+{
     return 0
-          || test_thread(RandomMat(7))
-          || test_thread(RandomMat(128))
-          || test_thread(RandomMat(256));
+           || test_thread(RandomMat(7))
+           || test_thread(RandomMat(128))
+           || test_thread(RandomMat(256));
 }
 
 int main()
 {
-    return 0 
+    return 0
            || test_thread_0()
            || test_thread_1()
            || test_thread_2()

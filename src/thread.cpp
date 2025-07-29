@@ -64,7 +64,7 @@ void MutilThread::join(std::vector<Mat>& mats)
     Mat mat = mats[0];
     CoreInfo cur = ThreadInfo::get()->getCurrentCore();
     std::vector<CoreInfo> cores;
-    ThreadInfo::get()->getAllCore(cores);   
+    ThreadInfo::get()->getAllCore(cores);
     std::vector<HANDLE> handles;
     ThreadInfoExc* curinfo = nullptr;
     size_t workersize = ((mat.w * mat.h * mat.d) / m_opt.num_threads + 1) * mat.c * mat.elemsize;
