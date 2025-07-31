@@ -138,7 +138,7 @@ public:
     mutable std::vector<pipeline_cache_digest> cache_digests;
     mutable std::vector<pipeline_cache_artifact> cache_artifacts;
 
-    VkPipelineCache vk_pipeline_cache = 0; // VK_NULL_HANDLE
+    VkPipelineCache vk_pipeline_cache = 0;                                                 // VK_NULL_HANDLE
     mutable std::vector<std::pair<spv_param, std::vector<uint32_t> > > cache_spirv_module; // digest(index,opt) -> spirv data
 
     mutable Mutex cache_lock;
