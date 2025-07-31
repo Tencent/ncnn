@@ -42,6 +42,16 @@ public:
                      VkDescriptorUpdateTemplateKHR* descriptor_update_template,
                      ShaderInfo& shader_info) const;
 
+    int save_cache(std::vector<unsigned char> &buf) const;
+    int load_cache(const std::vector<unsigned char>& buf) const;
+
+#ifdef NCNN_STDIO
+    int save_cache(FILE* fp) const;
+    int load_cache(FILE* fp) const;
+    int save_cache(const char* fp) const;
+    int load_cache(const char* fp) const;
+#endif
+
 protected:
     int create_shader_module(int shader_type_index, const Option& opt,
                              uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
