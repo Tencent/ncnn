@@ -686,6 +686,7 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
                         | opt.use_int8_arithmetic << 2;
 
     std::vector<uint32_t> spirv;
+    int retc = 0;
 
     for (int i = 0; i < d->cache_spirv_module.size(); i++)
     {
@@ -696,7 +697,7 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
         }
     }
 
-    int retc = compile_spirv_module(shader_type_index, opt, spirv);
+    retc = compile_spirv_module(shader_type_index, opt, spirv);
     if (retc != 0)
     {
         NCNN_LOGE("compile_spirv_module failed %d", retc);
