@@ -42,7 +42,7 @@ public:
                      VkDescriptorUpdateTemplateKHR* descriptor_update_template,
                      ShaderInfo& shader_info) const;
 
-    int save_cache(std::vector<unsigned char> &buf) const;
+    int save_cache(std::vector<unsigned char>& buf) const;
     int load_cache(const std::vector<unsigned char>& buf) const;
 
 #ifdef NCNN_STDIO

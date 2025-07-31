@@ -298,7 +298,7 @@ static int test_gpu_pipecache_performance()
         net_no_cache.load_model(dr);
 
         auto end = std::chrono::high_resolution_clock::now();
-        time_no_cache = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(end - start).count();
+        time_no_cache = std::chrono::duration_cast<std::chrono::duration<double, std::milli> >(end - start).count();
         std::cout << "Model loading time without cache: " << time_no_cache << " ms" << std::endl;
 
         // 推理以获得基准输出
@@ -347,7 +347,7 @@ static int test_gpu_pipecache_performance()
         net_with_cache.load_model(dr);
 
         auto end = std::chrono::high_resolution_clock::now();
-        time_with_cache = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(end - start).count();
+        time_with_cache = std::chrono::duration_cast<std::chrono::duration<double, std::milli> >(end - start).count();
         std::cout << "Model loading time with cache: " << time_with_cache << " ms" << std::endl;
 
         // 推理
@@ -377,7 +377,8 @@ static int test_gpu_pipecache_performance()
     std::cout << "  - Without Cache: " << time_no_cache << " ms" << std::endl;
     std::cout << "  - With Cache:    " << time_with_cache << " ms" << std::endl;
 
-    if (time_no_cache > 0) {
+    if (time_no_cache > 0)
+    {
         double speedup = (time_no_cache - time_with_cache) / time_no_cache * 100;
         std::cout << "  - Speedup:       " << speedup << "%" << std::endl;
     }
