@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2025 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "datareader.h"
 #include "gpu.h"
@@ -23,7 +12,6 @@
 #include <chrono>
 #include <vector>
 
-// 一个空数据读取器，用于加载模型结构，权重将全部为0
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
@@ -40,7 +28,7 @@ public:
     }
 };
 
-// MobileNetV3 的网络结构参数
+// MobileNetV3
 static const char* mobilenet_v3_param = R"delimiter(
 7767517
 145 163
@@ -191,22 +179,17 @@ InnerProduct             791                      1 1 790 791 -23330=4,1,1000,1,
 Softmax                  prob                     1 1 791 output -23330=4,1,1000,1,1
 )delimiter";
 
-/**
- * @brief 使用一个简单的 Sigmoid 网络预热并测试 Pipeline Cache 的基本保存和加载功能
- * @return 0 on success, -1 on failure
- */
 static int warmup_gpu_pipecache()
 {
     std::cout << "==================================================" << std::endl;
     std::cout << "           Warmup: Testing Basic Cache IO         " << std::endl;
     std::cout << "==================================================" << std::endl;
 
-    // 1. 创建一个网络，运行一次以生成 pipeline
     ncnn::Net net;
     net.opt.use_vulkan_compute = true;
 
     net.load_param_mem("7767517\n2 2\nInput    input0    0   1   input0\nSigmoid  sigmoid0  1   1   input0    output0");
-    net.load_model((unsigned char*)""); // 用于创建 pipeline
+    net.load_model((unsigned char*)"");
 
     ncnn::Mat input0 = RandomMat(224, 224);
     ncnn::Mat output0;
@@ -222,7 +205,6 @@ static int warmup_gpu_pipecache()
         return -1;
     }
 
-    // 2. 保存 pipeline cache
     const char* cache_path = "./sigmoid_pipecache.bin";
     if (net.opt.pipeline_cache->save_cache(cache_path) != 0)
     {
@@ -231,7 +213,6 @@ static int warmup_gpu_pipecache()
     }
     std::cout << "Warmup: Pipeline cache saved successfully." << std::endl;
 
-    // 3. 创建第二个网络，加载刚才保存的 cache
     ncnn::Net net2;
     net2.opt.use_vulkan_compute = true;
     net2.opt.pipeline_cache = new ncnn::PipelineCache(net.vulkan_device());
@@ -243,9 +224,8 @@ static int warmup_gpu_pipecache()
         return -1;
     }
     std::cout << "Warmup: Pipeline cache loaded successfully." << std::endl;
-    net2.load_model((unsigned char*)""); // 创建 pipeline
+    net2.load_model((unsigned char*)"");
 
-    // 4. 再次推理并验证结果是否一致
     ncnn::Mat output0_2;
     {
         ncnn::Extractor ex2 = net2.create_extractor();
@@ -269,10 +249,6 @@ static int warmup_gpu_pipecache()
     return 0;
 }
 
-/**
- * @brief 对比使用和不使用 Pipeline Cache 时的模型加载性能
- * @return 0 on success, -1 on failure
- */
 static int test_gpu_pipecache_performance()
 {
     ncnn::Mat output_no_cache;
@@ -283,7 +259,7 @@ static int test_gpu_pipecache_performance()
     ncnn::Mat input = RandomMat(224, 224, 3);
 
     // -------------------------------------------------
-    // 1. 不使用 Pipeline Cache (首次加载)
+    // 1. Without cache
     // -------------------------------------------------
     std::cout << "\n==================================================" << std::endl;
     std::cout << "       Performance Test: Without Pipeline Cache   " << std::endl;
@@ -298,10 +274,9 @@ static int test_gpu_pipecache_performance()
         net_no_cache.load_model(dr);
 
         auto end = std::chrono::high_resolution_clock::now();
-        time_no_cache = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(end - start).count();
+        time_no_cache = std::chrono::duration_cast<std::chrono::duration<double, std::milli> >(end - start).count();
         std::cout << "Model loading time without cache: " << time_no_cache << " ms" << std::endl;
 
-        // 推理以获得基准输出
         ncnn::Extractor ex = net_no_cache.create_extractor();
         ex.input("data", input);
         ex.extract("output", output_no_cache);
@@ -312,7 +287,7 @@ static int test_gpu_pipecache_performance()
             return -1;
         }
 
-        // 保存 cache 以供下一步使用
+        // save cache
         if (net_no_cache.opt.pipeline_cache->save_cache(cache_path) != 0)
         {
             std::cerr << "Test failed: could not save pipeline cache to " << cache_path << std::endl;
@@ -322,7 +297,7 @@ static int test_gpu_pipecache_performance()
     }
 
     // -------------------------------------------------
-    // 2. 使用 Pipeline Cache (二次加载)
+    // 2. With Cache
     // -------------------------------------------------
     ncnn::Mat output_with_cache;
     double time_with_cache = 0;
@@ -331,13 +306,12 @@ static int test_gpu_pipecache_performance()
     std::cout << "==================================================" << std::endl;
     {
         ncnn::Net net_with_cache;
-        // 必须在加载模型前设置好 cache
         net_with_cache.opt.pipeline_cache = new ncnn::PipelineCache(ncnn::get_gpu_device());
         net_with_cache.opt.use_vulkan_compute = true;
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        // 从文件加载 cache
+        // load from cache
         if (net_with_cache.opt.pipeline_cache->load_cache(cache_path) != 0)
         {
             std::cerr << "Test failed: could not load pipeline cache from " << cache_path << std::endl;
@@ -347,10 +321,9 @@ static int test_gpu_pipecache_performance()
         net_with_cache.load_model(dr);
 
         auto end = std::chrono::high_resolution_clock::now();
-        time_with_cache = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(end - start).count();
+        time_with_cache = std::chrono::duration_cast<std::chrono::duration<double, std::milli> >(end - start).count();
         std::cout << "Model loading time with cache: " << time_with_cache << " ms" << std::endl;
 
-        // 推理
         ncnn::Extractor ex2 = net_with_cache.create_extractor();
         ex2.input("data", input);
         ex2.extract("output", output_with_cache);
@@ -363,7 +336,7 @@ static int test_gpu_pipecache_performance()
     }
 
     // -------------------------------------------------
-    // 3. 结果验证与总结
+    // 3. Verification
     // -------------------------------------------------
     std::cout << "\n==================================================" << std::endl;
     std::cout << "              Verification and Summary            " << std::endl;
@@ -377,7 +350,8 @@ static int test_gpu_pipecache_performance()
     std::cout << "  - Without Cache: " << time_no_cache << " ms" << std::endl;
     std::cout << "  - With Cache:    " << time_with_cache << " ms" << std::endl;
 
-    if (time_no_cache > 0) {
+    if (time_no_cache > 0)
+    {
         double speedup = (time_no_cache - time_with_cache) / time_no_cache * 100;
         std::cout << "  - Speedup:       " << speedup << "%" << std::endl;
     }
@@ -394,12 +368,11 @@ static int test_gpu_pipecache_performance()
 
 int main()
 {
-    // 运行预热测试，检查基本IO功能
+    // warming up
     if (warmup_gpu_pipecache() != 0)
     {
         return -1;
     }
 
-    // 运行性能对比测试
     return test_gpu_pipecache_performance();
 }
