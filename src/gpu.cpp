@@ -477,16 +477,16 @@ void GpuInfoPrivate::query_properties()
     }
 
     if (physicalDeviceProperties.vendorID == 0x13b5
-        && (physicalDeviceProperties.deviceID == 0x7500001
-            || physicalDeviceProperties.deviceID == 0x7501000
-            || physicalDeviceProperties.deviceID == 0x8602000
-            || physicalDeviceProperties.deviceID == 0x8800020
-            || physicalDeviceProperties.deviceID == 0x70930000
-            || physicalDeviceProperties.deviceID == 0x70901010
-            || physicalDeviceProperties.deviceID == 0x72120000
-            || physicalDeviceProperties.deviceID == 0x74021000
-            || physicalDeviceProperties.deviceID == 0x60a00002
-            || physicalDeviceProperties.deviceID == 0x62210001))
+            && (physicalDeviceProperties.deviceID == 0x7500001
+                || physicalDeviceProperties.deviceID == 0x7501000
+                || physicalDeviceProperties.deviceID == 0x8602000
+                || physicalDeviceProperties.deviceID == 0x8800020
+                || physicalDeviceProperties.deviceID == 0x70930000
+                || physicalDeviceProperties.deviceID == 0x70901010
+                || physicalDeviceProperties.deviceID == 0x72120000
+                || physicalDeviceProperties.deviceID == 0x74021000
+                || physicalDeviceProperties.deviceID == 0x60a00002
+                || physicalDeviceProperties.deviceID == 0x62210001))
     {
         // NOTE rk3288/rk3399/t880/g31/g51/g52/g71/g72
         // however, g76/g77 has explicit fp16 arithmetic
@@ -495,9 +495,9 @@ void GpuInfoPrivate::query_properties()
     }
 
     if (physicalDeviceProperties.vendorID == 0x5143
-        && (physicalDeviceProperties.deviceID == 0x6030001
-            || physicalDeviceProperties.deviceID == 0x6040001
-            || physicalDeviceProperties.deviceID == 0x6050002))
+            && (physicalDeviceProperties.deviceID == 0x6030001
+                || physicalDeviceProperties.deviceID == 0x6040001
+                || physicalDeviceProperties.deviceID == 0x6050002))
     {
         // TODO enable devices other than qcom845/qcom855/qcom855plus/qcom865
         // qcom adreno driver accept spirv with fp16 arithmetic
@@ -513,7 +513,7 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-            && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
         {
             return i;
         }
@@ -525,7 +525,7 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-            && (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                && (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
         {
             return i;
         }
@@ -554,8 +554,8 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_TRANSFER_BIT)
-            && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-            && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
         {
             return i;
         }
@@ -1138,30 +1138,30 @@ void GpuInfoPrivate::query_extension_properties()
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.ResultType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
-                && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
-                && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
-                && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
+                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
+                    && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
             {
                 support_cooperative_matrix_8_8_16 = true;
             }
             if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 8
-                && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
-                && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
-                && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
+                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
+                    && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
             {
                 support_cooperative_matrix_16_8_8 = true;
             }
             if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 16
-                && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
-                && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
-                && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
+                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
+                    && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
             {
                 support_cooperative_matrix_16_8_16 = true;
             }
             if (cmp.MSize == 16 && cmp.NSize == 16 && cmp.KSize == 16
-                && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
-                && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
-                && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
+                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
+                    && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
             {
                 support_cooperative_matrix_16_16_16 = true;
             }
@@ -1195,30 +1195,30 @@ void GpuInfoPrivate::query_extension_properties()
             // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
 
             if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
-                && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
-                && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
-                && cmp.scope == VK_SCOPE_SUBGROUP_NV)
+                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
+                    && cmp.scope == VK_SCOPE_SUBGROUP_NV)
             {
                 support_cooperative_matrix_8_8_16 = true;
             }
             if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 8
-                && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
-                && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
-                && cmp.scope == VK_SCOPE_SUBGROUP_NV)
+                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
+                    && cmp.scope == VK_SCOPE_SUBGROUP_NV)
             {
                 support_cooperative_matrix_16_8_8 = true;
             }
             if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 16
-                && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
-                && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
-                && cmp.scope == VK_SCOPE_SUBGROUP_NV)
+                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
+                    && cmp.scope == VK_SCOPE_SUBGROUP_NV)
             {
                 support_cooperative_matrix_16_8_16 = true;
             }
             if (cmp.MSize == 16 && cmp.NSize == 16 && cmp.KSize == 16
-                && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
-                && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
-                && cmp.scope == VK_SCOPE_SUBGROUP_NV)
+                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
+                    && cmp.scope == VK_SCOPE_SUBGROUP_NV)
             {
                 support_cooperative_matrix_16_16_16 = true;
             }
@@ -2032,8 +2032,8 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
             const VkCooperativeMatrixPropertiesKHR& cmp = d->queryCooperativeMatrixSubProperties[i];
 
             if (cmp.AType == type && cmp.BType == type
-                && cmp.CType == acctype && cmp.ResultType == acctype
-                && cmp.scope == scope)
+                    && cmp.CType == acctype && cmp.ResultType == acctype
+                    && cmp.scope == scope)
             {
                 mnk_properties.push_back(cmp);
             }
@@ -2046,8 +2046,8 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
             const VkCooperativeMatrixPropertiesNV& cmp = d->queryCooperativeMatrixSubPropertiesNV[i];
 
             if (cmp.AType == (VkComponentTypeNV)type && cmp.BType == (VkComponentTypeNV)type
-                && cmp.CType == (VkComponentTypeNV)acctype && cmp.DType == (VkComponentTypeNV)acctype
-                && cmp.scope == (VkScopeNV)scope)
+                    && cmp.CType == (VkComponentTypeNV)acctype && cmp.DType == (VkComponentTypeNV)acctype
+                    && cmp.scope == (VkScopeNV)scope)
             {
                 VkCooperativeMatrixPropertiesKHR cmp_khr;
                 cmp_khr.MSize = cmp.MSize;
@@ -2460,7 +2460,7 @@ int create_gpu_instance(const char* driver_path)
 #endif // __ANDROID_API__ >= 26
 
     uint32_t instance_api_version = VK_MAKE_VERSION(1, 0, 0);
-    typedef VkResult(VKAPI_PTR * PFN_vkEnumerateInstanceVersion)(uint32_t* pApiVersion);
+    typedef VkResult(VKAPI_PTR * PFN_vkEnumerateInstanceVersion)(uint32_t * pApiVersion);
     PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = (PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(0, "vkEnumerateInstanceVersion");
     if (vkEnumerateInstanceVersion)
     {
@@ -2673,7 +2673,7 @@ int create_gpu_instance(const char* driver_path)
                         fp16_matrix_properties.push_back(cmp);
                 }
                 if ((cmp.AType == VK_COMPONENT_TYPE_SINT8_KHR || cmp.AType == VK_COMPONENT_TYPE_SINT8_PACKED_NV)
-                    && (cmp.BType == VK_COMPONENT_TYPE_SINT8_KHR || cmp.BType == VK_COMPONENT_TYPE_SINT8_PACKED_NV))
+                        && (cmp.BType == VK_COMPONENT_TYPE_SINT8_KHR || cmp.BType == VK_COMPONENT_TYPE_SINT8_PACKED_NV))
                 {
                     bool mnk_hit = false;
                     for (size_t k = 0; k < int8_matrix_properties.size(); k++)
@@ -2704,9 +2704,9 @@ int create_gpu_instance(const char* driver_path)
                         bf16_matrix_properties.push_back(cmp);
                 }
                 if ((cmp.AType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT || cmp.AType == VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT
-                     || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV)
-                    && (cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT || cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT
-                        || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV))
+                        || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.AType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV)
+                        && (cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT || cmp.BType == VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT
+                            || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E4M3_NV || cmp.BType == VK_COMPONENT_TYPE_FLOAT_E5M2_NV))
                 {
                     bool mnk_hit = false;
                     for (size_t k = 0; k < fp8_matrix_properties.size(); k++)
@@ -3144,9 +3144,8 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     uop->vkdev = vkdev;
 
     ncnn::ParamDict pd;
-    pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4
-                                                                          : 8); // out_elempack
-    pd.set(2, cast_type_from_index + 1);                                        // 0=auto 1=fp32 2=fp16 3=int8
+    pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4 : 8); // out_elempack
+    pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16 3=int8
     pd.set(3, cast_type_to_index + 1);
 
     uop->load_param(pd);
@@ -3897,8 +3896,8 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
         {
             const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
-                && (preferred && (memoryType.propertyFlags & preferred))
-                && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
+                    && (preferred && (memoryType.propertyFlags & preferred))
+                    && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
             {
                 return i;
             }
@@ -3913,7 +3912,7 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
         {
             const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
-                && (preferred && (memoryType.propertyFlags & preferred)))
+                    && (preferred && (memoryType.propertyFlags & preferred)))
             {
                 return i;
             }
@@ -3928,7 +3927,7 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
         {
             const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
-                && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
+                    && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
             {
                 return i;
             }
@@ -4236,8 +4235,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
 void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const
 {
-    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1
-                                                                          : 2;
+    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
     if (src.elembits() == 32)
