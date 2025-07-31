@@ -138,7 +138,7 @@ public:
     mutable std::vector<pipeline_cache_digest> cache_digests;
     mutable std::vector<pipeline_cache_artifact> cache_artifacts;
 
-    VkPipelineCache vk_pipeline_cache;
+    VkPipelineCache vk_pipeline_cache = 0; // VK_NULL_HANDLE
     mutable std::vector<std::pair<spv_param, std::vector<uint32_t> > > cache_spirv_module; // digest(index,opt) -> spirv data
 
     mutable Mutex cache_lock;
@@ -259,6 +259,12 @@ void PipelineCache::clear()
 
     d->cache_digests.clear();
     d->cache_artifacts.clear();
+
+    if (d->vk_pipeline_cache)
+    {
+        vkDestroyPipelineCache(vkdev->vkdevice(), d->vk_pipeline_cache, 0);
+        d->vk_pipeline_cache = 0;
+    }
 }
 
 int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
