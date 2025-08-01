@@ -56,6 +56,24 @@ public:
 
     // pipeline cache
     PipelineCache* pipeline_cache;
+
+    enum VK_FAST_MATH_FLAG
+    {
+        // Base
+        VK_FAST_MATH_FLAG_DISABLE = 0x0,
+        VK_FAST_MATH_FLAG_NotNaN = 0x1, // Assume parameters and result are not NaN. If this assumption does not hold then the operation returns an undefined value.
+        VK_FAST_MATH_FLAG_NotInf = 0x2, // Assume parameters and result are not +/- Inf. If this assumption does not hold then the operation returns an undefined value.
+        VK_FAST_MATH_FLAG_NSZ = 0x4, // Treat the sign of a zero parameter or result as insignificant.
+        VK_FAST_MATH_FLAG_AllowRecip = 0x8, // Allow the usage of reciprocal rather than perform a division.
+        VK_FAST_MATH_FLAG_Fast = 0x10, // Allow algebraic transformations according to real-number associative and distributive algebra. This flag implies above;
+        // FloatControls2
+        VK_FAST_MATH_FLAG_AllowContract = 0x10000, // Allows a floating-point operation to be contracted with any operation(s) producing its operands. Rounding steps may be eliminated or may preserve higher bit-depth than the specified types. The instructions producing the operands do not need to be decorated to allow this transformation.
+        VK_FAST_MATH_FLAG_AllowReassoc = 0x20000, // Allows a floating-point operation to be reordered with any operation(s) producing its operands according to real-number associativity rules. The instructions producing the operands do not need to be decorated to allow this transformation.
+        VK_FAST_MATH_FLAG_AllowTransform = 0x40000, // Allows a floating-point operation to be transformed with any operation(s) producing its operands according to real-number rules. This is a superset of AllowContract and AllowReassoc and those bits must be set whenever this bit is set. The instructions producing the operands do not need to be decorated to allow this transformation, but note that non-trivial transformations may require multiple instructions to be decorated.
+    };
+
+    // vk fast math mode, 0 is disable
+    int vk_fast_math_flag;
 #endif // NCNN_VULKAN
 
     // the time openmp threads busy-wait for more work before going to sleep

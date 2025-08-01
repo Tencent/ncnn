@@ -65,6 +65,7 @@ ncnn_add_test(paramdict)
 
 if(NCNN_VULKAN)
     ncnn_add_test(command)
+    ncnn_add_test(fast_math)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")

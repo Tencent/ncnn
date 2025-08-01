@@ -3524,18 +3524,16 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     return shader_module;
 }
 
-static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint32_t>& dstcode)
+static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint32_t>& dstcode, uint32_t fast_math_flag)
 {
-    // 基本验证
+    // check spv magic number
     if (size < 20 || code[0] != 0x07230203)
     {
         dstcode.assign(code, code + size / sizeof(uint32_t));
         return;
     }
 
-    // =========================================================================
-    // Pass 1: 分析 SPIR-V，收集所有必需的 ID 和锚点指针
-    // =========================================================================
+    // analyze spv
     uint32_t bound = code[3];
     uint32_t entry_point_id = 0;
     uint32_t float32_type_id = 0;
@@ -3552,7 +3550,7 @@ static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint
     while (p < end)
     {
         uint16_t wordcount = p[0] >> 16;
-        if (wordcount == 0 || p + wordcount > end) break; // 安全检查
+        if (wordcount == 0 || p + wordcount > end) break; // for safety
         uint16_t op = p[0] & 0xffff;
 
         switch (op)
@@ -3572,7 +3570,7 @@ static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint
         case 54: // OpFunction
             if (!first_function_ptr) first_function_ptr = p;
             break;
-        case 2: // OpCapability
+        case 17: // OpCapability
             if (p[1] == 6029 /* FloatControls2 */) has_float_controls2_capability = true;
             break;
         case 10: // OpExtension
@@ -3580,31 +3578,28 @@ static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint
             break;
         }
 
-        // 如果找到了第一个函数，后面的内容无需再扫描以寻找锚点
+        // fin
         if (first_function_ptr) break;
 
         p += wordcount;
     }
 
-    // 如果缺少任何关键信息，则无法安全修改，返回原始代码
+    // cannot find key elements
     if (entry_point_id == 0 || float32_type_id == 0 || uint32_type_id == 0 || !memory_model_ptr || !first_function_ptr)
     {
         dstcode.assign(code, code + size / sizeof(uint32_t));
         return;
     }
 
-    // =========================================================================
-    // Pass 2: 使用锚点构建新的 SPIR-V
-    // =========================================================================
+    // build spirv
     dstcode.clear();
     dstcode.reserve(size / sizeof(uint32_t) + 20);
 
-    // -- 准备新ID和数据 --
+    // prepare
     uint32_t fast_math_constant_id = bound;
-    uint32_t new_bound = bound + 1;
-    const uint32_t fast_math_flags = 0x40000 /* AllowTransform */ | 0x20000 /* AllowReassoc */ | 0x10000 /* AllowContract */;
+    uint32_t new_bound = bound + 1; // for new OpConstant
 
-    // -- 写入新的头部，并更新Bound --
+    // header
     dstcode.insert(dstcode.end(), code, code + 5);
     dstcode[3] = new_bound;
 
@@ -3614,24 +3609,24 @@ static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint
         uint16_t wordcount = p[0] >> 16;
         if (wordcount == 0) break;
 
-        // 在复制第一条 OpFunction 指令之前，注入 OpConstant
+        // constant need before at first function
         if (p == first_function_ptr)
         {
             dstcode.push_back((4u << 16) | 43 /* OpConstant */);
             dstcode.push_back(uint32_type_id);
             dstcode.push_back(fast_math_constant_id);
-            dstcode.push_back(fast_math_flags);
+            dstcode.push_back(fast_math_flag);
         }
 
-        // 复制当前指令
+        // Pass
         dstcode.insert(dstcode.end(), p, p + wordcount);
 
-        // 在复制了锚点指令之后，注入新指令
+        // inject new instructions
         if (p == memory_model_ptr)
         {
             if (!has_float_controls2_capability)
             {
-                dstcode.push_back((2u << 16) | 2 /* OpCapability */);
+                dstcode.push_back((2u << 16) | 17 /* OpCapability */);
                 dstcode.push_back(6029 /* FloatControls2 */);
             }
             if (!has_float_controls2_extension)
@@ -3754,33 +3749,24 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
     *dstsize = (unsigned char*)dp - (unsigned char*)dstcode;
 }
 
-VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
+VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t fast_math_flag) const
 {
     uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size);
     size_t spv_data_size_modified = spv_data_size;
     inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
 
-    std::vector<uint32_t> buffer;
-    inject_fast_math(spv_data_modified, spv_data_size_modified, buffer);
-
-    // export to file
-    FILE* fp = fopen("shader.spv", "wb");
-    if (fp)
+    VkShaderModule shader_module;
+    if (fast_math_flag != 0)
     {
-        fwrite(buffer.data(), sizeof(uint32_t), buffer.size(), fp);
-        fclose(fp);
-    }
-    FILE* fp2 = fopen("shader_modified.spv", "wb");
-    if (fp2)
+        std::vector<uint32_t> buffer;
+        inject_fast_math(spv_data_modified, spv_data_size_modified, buffer,fast_math_flag);
+
+        shader_module = compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t));
+    } else
     {
-        fwrite(spv_data_modified, sizeof(uint32_t), spv_data_size_modified / sizeof(uint32_t), fp2);
-        fclose(fp2);
+        shader_module = compile_shader_module(spv_data_modified, spv_data_size_modified);
     }
-
-    VkShaderModule shader_module = compile_shader_module(spv_data_modified, spv_data_size_modified);
-
     free(spv_data_modified);
-
     return shader_module;
 }
 
