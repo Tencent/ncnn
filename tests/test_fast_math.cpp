@@ -12,7 +12,7 @@
 #include <vector>
 #include <cstring> // For memset
 
-int device_index = 1;
+int device_index = 0;
 
 // A data reader that provides zero-filled data, useful for loading models without actual weights.
 class DataReaderFromEmpty : public ncnn::DataReader
@@ -79,6 +79,9 @@ static int test_vulkan_fast_math()
     ncnn::Net net_default;
     net_default.opt.use_vulkan_compute = true;
     net_default.opt.vulkan_device_index = device_index;
+    net_default.opt.use_fp16_arithmetic = false;
+    net_default.opt.use_fp16_storage = false;
+    net_default.opt.use_fp16_packed = false;
 
     net_default.load_param_mem(mish25_param);
     net_default.load_model(dr);
@@ -97,6 +100,9 @@ static int test_vulkan_fast_math()
                                           | ncnn::Option::VK_FAST_MATH_FLAG_AllowReassoc
                                           | ncnn::Option::VK_FAST_MATH_FLAG_AllowTransform;
     net_fast_math.opt.vulkan_device_index = device_index;
+    net_fast_math.opt.use_fp16_arithmetic = false;
+    net_fast_math.opt.use_fp16_packed = false;
+    net_fast_math.opt.use_fp16_storage = false;
 
     net_fast_math.load_param_mem(mish25_param);
     net_fast_math.load_model(dr);
