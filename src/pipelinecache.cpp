@@ -119,7 +119,7 @@ public:
 };
 
 PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
-                                                                   uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size, uint32_t _fast_math_flag)
+        uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size, uint32_t _fast_math_flag)
 {
     spv_data_murmur3 = murmur3_32(spv_data, spv_data_size / 4);
 
@@ -139,7 +139,7 @@ PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(const uint32_
 }
 
 PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(int _shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
-                                                                   uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size)
+        uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size)
 {
     shader_type_index = _shader_type_index;
 

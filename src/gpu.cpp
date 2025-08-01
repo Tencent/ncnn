@@ -3759,10 +3759,11 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     if (fast_math_flag != 0)
     {
         std::vector<uint32_t> buffer;
-        inject_fast_math(spv_data_modified, spv_data_size_modified, buffer,fast_math_flag);
+        inject_fast_math(spv_data_modified, spv_data_size_modified, buffer, fast_math_flag);
 
         shader_module = compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t));
-    } else
+    }
+    else
     {
         shader_module = compile_shader_module(spv_data_modified, spv_data_size_modified);
     }

@@ -102,7 +102,6 @@ static int test_vulkan_fast_math()
     net_fast_math.load_model(dr);
     printf("Fast math net loaded successfully.\n");
 
-
     // ==================================================
     // 3. Warm-up Run
     // ==================================================
@@ -121,7 +120,6 @@ static int test_vulkan_fast_math()
         ex.extract("out0", output_fast_math);
     }
     printf("Warm-up complete.\n");
-
 
     // ==================================================
     // 4. Benchmark Performance
@@ -201,7 +199,6 @@ int main(int argc, char** argv)
     {
         device_index = atoi(argv[1]);
     }
-
 
     int gpu_count = ncnn::get_gpu_count();
     if (device_index < 0 || device_index >= gpu_count)
