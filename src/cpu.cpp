@@ -1432,12 +1432,21 @@ static std::vector<int> get_max_freq_mhz()
 
 static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 {
+#ifdef _WIN32
+    GROUP_AFFINITY groupAffinity;
+    ZeroMemory(&groupAffinity, sizeof(groupAffinity));
+    groupAffinity.Group = static_cast<WORD>(thread_affinity_mask.cpu_group);
+    groupAffinity.Mask = thread_affinity_mask.mask;
+
+    SetThreadGroupAffinity(GetCurrentThread(), &groupAffinity, NULL);
+#else
     DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.mask);
     if (prev_mask == 0)
     {
         NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
         return -1;
     }
+#endif
 
     return 0;
 }
@@ -2273,22 +2282,27 @@ CpuSet::CpuSet()
 
 void CpuSet::enable(int cpu)
 {
-    mask |= ((ULONG_PTR)1 << cpu);
+    cpu_group = cpu / 64;
+    mask |= ((ULONG_PTR)1 << (cpu - cpu_group * 64));
 }
 
 void CpuSet::disable(int cpu)
 {
-    mask &= ~((ULONG_PTR)1 << cpu);
+    cpu_group = cpu / 64;
+    mask &= ~((ULONG_PTR)1 << (cpu - cpu_group * 64));
 }
 
 void CpuSet::disable_all()
 {
+    cpu_group = 0;
     mask = 0;
 }
 
 bool CpuSet::is_enabled(int cpu) const
 {
-    return mask & ((ULONG_PTR)1 << cpu);
+    if (cpu_group != cpu / 64)
+        return false;
+    return mask & ((ULONG_PTR)1 << (cpu - cpu_group * 64));
 }
 
 int CpuSet::num_enabled() const
@@ -3270,6 +3284,40 @@ int set_flush_denormals(int flush_denormals)
     return 0;
 #else
     return 0;
+#endif
+}
+
+int get_multi_thread_batch()
+{
+#if defined(_NCNN_MUTITHREAD)
+#if defined _WIN32
+    DWORD length = 0;
+    GetLogicalProcessorInformation(NULL, &length);
+    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+        return 0;
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(length);
+
+    int count = 0;
+    if (GetLogicalProcessorInformation(buffer, &length))
+    {
+        DWORD offset = 0;
+        while (offset < length)
+        {
+            if (buffer->Relationship == RelationProcessorCore)
+                count++;
+
+            offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+            buffer++;
+        }
+    }
+    free(buffer);
+    return count;
+#else
+    return get_cpu_count();
+#endif
+#else
+    return get_cpu_count();
 #endif
 }
 
