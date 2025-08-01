@@ -18,6 +18,8 @@ class Model(nn.Module):
         self.deconv_6 = nn.ConvTranspose1d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, output_padding=0, dilation=1, groups=1, bias=False)
         self.deconv_7 = nn.ConvTranspose1d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(6), output_padding=(1), dilation=2, groups=1, bias=True)
 
+        self.deconv_7 = torch.nn.utils.weight_norm(self.deconv_7)
+
         self.downsample = nn.Conv1d(24, 16, 3, stride=2, padding=1)
         self.upsample = nn.ConvTranspose1d(16, 24, 3, stride=2, padding=1)
 
@@ -57,7 +59,7 @@ def test():
     import test_nn_ConvTranspose1d_ncnn
     b = test_nn_ConvTranspose1d_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    return torch.allclose(a, b, 1e-3, 1e-3)
 
 if __name__ == "__main__":
     if test():

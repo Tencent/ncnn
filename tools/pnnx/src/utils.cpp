@@ -112,25 +112,23 @@ float float16_to_float32(unsigned short value)
     return tmp.f;
 }
 
-void apply_weight_norm(std::vector<float>& weight, const std::vector<float>& weight_g, int outch, int inch)
+void apply_weight_norm(std::vector<float>& weight, const std::vector<float>& weight_g, int dim0, int size)
 {
-    const float eps = 1e-12f;
-
-    for (int i = 0; i < outch; i++)
+    for (int i = 0; i < dim0; i++)
     {
-        float* pw = weight.data() + i * inch;
+        float* pw = weight.data() + i * size;
 
-        float norm = 0.f;
-        for (int j = 0; j < inch; j++)
+        double norm = 0.f;
+        for (int j = 0; j < size; j++)
         {
             float w = pw[j];
             norm += w * w;
         }
-        norm = sqrt(norm) + eps;
+        norm = sqrt(norm);
 
-        for (int j = 0; j < inch; j++)
+        for (int j = 0; j < size; j++)
         {
-            pw[j] = weight_g[i] * pw[j] / norm;
+            pw[j] = pw[j] * (weight_g[i] / norm);
         }
     }
 }
