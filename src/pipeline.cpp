@@ -461,7 +461,7 @@ int ImportAndroidHardwareBufferPipeline::create_shader_module(const Option& opt)
 
     set_shader_info(shader_info);
 
-    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x(), local_size_y(), local_size_z());
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x(), local_size_y(), local_size_z(), opt.fast_math_flag);
     set_shader_module(shader_module);
 
     return 0;

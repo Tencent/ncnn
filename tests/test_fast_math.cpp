@@ -36,7 +36,7 @@ static int test_vulkan_fast_math()
 {
     // Define model path based on environment
     // Create a random input matrix
-    ncnn::Mat input = RandomMat(512, 512, 3);
+    ncnn::Mat input = RandomMat(224, 224, 3);
     DataReaderFromEmpty dr;
 
 #ifdef __EMSCRIPTEN__
@@ -58,7 +58,7 @@ static int test_vulkan_fast_math()
     net_default.opt.use_fp16_storage = false;
     net_default.opt.use_fp16_packed = false;
 
-    net_default.load_param(MODEL_DIR "/vision_transformer.param");
+    net_default.load_param(MODEL_DIR "/resnet50.param");
     net_default.load_model(dr);
     printf("Default net loaded successfully.\n");
 
@@ -70,16 +70,14 @@ static int test_vulkan_fast_math()
     printf("==================================================\n");
     ncnn::Net net_fast_math;
     net_fast_math.opt.use_vulkan_compute = true;
-    net_fast_math.opt.vk_fast_math_flag = ncnn::Option::VK_FAST_MATH_FLAG_Fast
-                                          | ncnn::Option::VK_FAST_MATH_FLAG_AllowContract
-                                          | ncnn::Option::VK_FAST_MATH_FLAG_AllowReassoc
-                                          | ncnn::Option::VK_FAST_MATH_FLAG_AllowTransform;
+    net_fast_math.opt.vk_fast_math_flag = ncnn::Option::VK_FAST_MATH_FLAG_AllowContract;
+
     net_fast_math.opt.vulkan_device_index = device_index;
     net_fast_math.opt.use_fp16_arithmetic = false;
     net_fast_math.opt.use_fp16_packed = false;
     net_fast_math.opt.use_fp16_storage = false;
 
-    net_fast_math.load_param(MODEL_DIR "/vision_transformer.param");
+    net_fast_math.load_param(MODEL_DIR "/resnet50.param");
     net_fast_math.load_model(dr);
     printf("Fast math net loaded successfully.\n");
 
@@ -92,12 +90,12 @@ static int test_vulkan_fast_math()
     ncnn::Mat output_default, output_fast_math;
     {
         ncnn::Extractor ex = net_default.create_extractor();
-        ex.input("input", input);
+        ex.input("data", input);
         ex.extract("output", output_default);
     }
     {
         ncnn::Extractor ex = net_fast_math.create_extractor();
-        ex.input("input", input);
+        ex.input("data", input);
         ex.extract("output", output_fast_math);
     }
     printf("Warm-up complete.\n");
@@ -118,7 +116,7 @@ static int test_vulkan_fast_math()
         for (int i = 0; i < loop_count; i++)
         {
             ncnn::Extractor ex = net_default.create_extractor();
-            ex.input("input", input);
+            ex.input("data", input);
             ex.extract("output", output_default);
         }
         double end = ncnn::get_current_time();
@@ -132,7 +130,7 @@ static int test_vulkan_fast_math()
         for (int i = 0; i < loop_count; i++)
         {
             ncnn::Extractor ex = net_fast_math.create_extractor();
-            ex.input("input", input);
+            ex.input("data", input);
             ex.extract("output", output_fast_math);
         }
         double end = ncnn::get_current_time();
