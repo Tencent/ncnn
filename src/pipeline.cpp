@@ -223,7 +223,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
     // get from pipeline cache
     return pipeline_cache->get_pipeline(spv_data, spv_data_size, specializations, d->local_size_x, d->local_size_y, d->local_size_z, d->subgroup_size,
                                         &d->shader_module, &d->descriptorset_layout, &d->pipeline_layout, &d->pipeline, &d->descriptor_update_template,
-                                        d->shader_info,fast_math_flag);
+                                        d->shader_info, fast_math_flag);
 }
 
 int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
