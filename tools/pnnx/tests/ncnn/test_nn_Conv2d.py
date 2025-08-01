@@ -23,7 +23,10 @@ class Model(nn.Module):
         self.conv_6 = nn.Conv2d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, dilation=1, groups=1, bias=False, padding_mode='replicate')
 
         self.conv_7 = nn.Conv2d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6), dilation=2, groups=1, bias=True)
-        self.conv_7 = torch.nn.utils.weight_norm(self.conv_7)
+        if version.parse(torch.__version__) < version.parse('2.1'):
+            self.conv_7 = torch.nn.utils.weight_norm(self.conv_7)
+        else:
+            self.conv_7 = torch.nn.utils.parametrizations.weight_norm(self.conv_7)
 
     def forward(self, x):
         x = self.conv_0(x)

@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -13,7 +14,10 @@ class Model(nn.Module):
         self.linear_1 = nn.Linear(in_features=16, out_features=13, bias=True)
 
         self.linear_2 = nn.Linear(in_features=13, out_features=17, bias=True)
-        self.linear_2 = torch.nn.utils.weight_norm(self.linear_2)
+        if version.parse(torch.__version__) < version.parse('2.1'):
+            self.linear_2 = torch.nn.utils.weight_norm(self.linear_2)
+        else:
+            self.linear_2 = torch.nn.utils.parametrizations.weight_norm(self.linear_2)
 
     def forward(self, x, y, z):
         x = self.linear_0(x)

@@ -25,7 +25,10 @@ class Model(nn.Module):
             # self.conv_7 = nn.Conv3d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6,7), dilation=2, groups=1, bias=True, padding_mode='circular')
 
         self.conv_8 = nn.Conv3d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6,7), dilation=2, groups=1, bias=True)
-        self.conv_8 = torch.nn.utils.weight_norm(self.conv_8)
+        if version.parse(torch.__version__) < version.parse('2.1'):
+            self.conv_8 = torch.nn.utils.weight_norm(self.conv_8)
+        else:
+            self.conv_8 = torch.nn.utils.parametrizations.weight_norm(self.conv_8)
 
     def forward(self, x):
         x = self.conv_0(x)
