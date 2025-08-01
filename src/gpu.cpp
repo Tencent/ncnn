@@ -3555,28 +3555,29 @@ static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint
         if (wordcount == 0 || p + wordcount > end) break; // 安全检查
         uint16_t op = p[0] & 0xffff;
 
-        switch (op) {
-            case 14: // OpMemoryModel
-                if (!memory_model_ptr) memory_model_ptr = p;
-                break;
-            case 15: // OpEntryPoint
-                if (p[1] == 5 /* GLCompute */) entry_point_id = p[2];
-                break;
-            case 21: // OpTypeInt
-                if (wordcount == 4 && p[2] == 32 && p[3] == 0) uint32_type_id = p[1];
-                break;
-            case 22: // OpTypeFloat
-                if (wordcount == 3 && p[2] == 32) float32_type_id = p[1];
-                break;
-            case 54: // OpFunction
-                if (!first_function_ptr) first_function_ptr = p;
-                break;
-            case 2: // OpCapability
-                if (p[1] == 6029 /* FloatControls2 */) has_float_controls2_capability = true;
-                break;
-            case 10: // OpExtension
-                if (strcmp((const char*)&p[1], "SPV_KHR_float_controls2") == 0) has_float_controls2_extension = true;
-                break;
+        switch (op)
+        {
+        case 14: // OpMemoryModel
+            if (!memory_model_ptr) memory_model_ptr = p;
+            break;
+        case 15: // OpEntryPoint
+            if (p[1] == 5 /* GLCompute */) entry_point_id = p[2];
+            break;
+        case 21: // OpTypeInt
+            if (wordcount == 4 && p[2] == 32 && p[3] == 0) uint32_type_id = p[1];
+            break;
+        case 22: // OpTypeFloat
+            if (wordcount == 3 && p[2] == 32) float32_type_id = p[1];
+            break;
+        case 54: // OpFunction
+            if (!first_function_ptr) first_function_ptr = p;
+            break;
+        case 2: // OpCapability
+            if (p[1] == 6029 /* FloatControls2 */) has_float_controls2_capability = true;
+            break;
+        case 10: // OpExtension
+            if (strcmp((const char*)&p[1], "SPV_KHR_float_controls2") == 0) has_float_controls2_extension = true;
+            break;
         }
 
         // 如果找到了第一个函数，后面的内容无需再扫描以寻找锚点
@@ -3614,7 +3615,8 @@ static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint
         if (wordcount == 0) break;
 
         // 在复制第一条 OpFunction 指令之前，注入 OpConstant
-        if (p == first_function_ptr) {
+        if (p == first_function_ptr)
+        {
             dstcode.push_back((4u << 16) | 43 /* OpConstant */);
             dstcode.push_back(uint32_type_id);
             dstcode.push_back(fast_math_constant_id);
@@ -3627,11 +3629,13 @@ static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint
         // 在复制了锚点指令之后，注入新指令
         if (p == memory_model_ptr)
         {
-            if (!has_float_controls2_capability) {
+            if (!has_float_controls2_capability)
+            {
                 dstcode.push_back((2u << 16) | 2 /* OpCapability */);
                 dstcode.push_back(6029 /* FloatControls2 */);
             }
-            if (!has_float_controls2_extension) {
+            if (!has_float_controls2_extension)
+            {
                 const char ext_name[] = "SPV_KHR_float_controls2";
                 size_t ext_word_count = (sizeof(ext_name) + 3) / 4;
                 dstcode.push_back(((ext_word_count + 1) << 16) | 10 /* OpExtension */);
@@ -3757,7 +3761,7 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
 
     std::vector<uint32_t> buffer;
-    inject_fast_math(spv_data_modified, spv_data_size_modified,buffer);
+    inject_fast_math(spv_data_modified, spv_data_size_modified, buffer);
 
     // export to file
     FILE* fp = fopen("shader.spv", "wb");
