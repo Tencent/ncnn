@@ -12,7 +12,7 @@
 #include <vector>
 #include <cstring> // For memset
 
-int device_index = 0;
+int device_index = 1;
 
 // A data reader that provides zero-filled data, useful for loading models without actual weights.
 class DataReaderFromEmpty : public ncnn::DataReader
@@ -31,37 +31,6 @@ public:
     }
 };
 
-static const char* mish25_param = R"delimiter(
-7767517
-26 26
-Input                    in0                      0 1 in0
-Mish                     mish_0                   1 1 in0 1
-Mish                     mish_1                   1 1 1 2
-Mish                     mish_2                   1 1 2 3
-Mish                     mish_3                   1 1 3 4
-Mish                     mish_4                   1 1 4 5
-Mish                     mish_5                   1 1 5 6
-Mish                     mish_6                   1 1 6 7
-Mish                     mish_7                   1 1 7 8
-Mish                     mish_8                   1 1 8 9
-Mish                     mish_9                   1 1 9 10
-Mish                     mish_10                  1 1 10 11
-Mish                     mish_11                  1 1 11 12
-Mish                     mish_12                  1 1 12 13
-Mish                     mish_13                  1 1 13 14
-Mish                     mish_14                  1 1 14 15
-Mish                     mish_15                  1 1 15 16
-Mish                     mish_16                  1 1 16 17
-Mish                     mish_17                  1 1 17 18
-Mish                     mish_18                  1 1 18 19
-Mish                     mish_19                  1 1 19 20
-Mish                     mish_20                  1 1 20 21
-Mish                     mish_21                  1 1 21 22
-Mish                     mish_22                  1 1 22 23
-Mish                     mish_23                  1 1 23 24
-Mish                     mish_24                  1 1 24 out0
-)delimiter";
-
 // The main test function to compare default vs. fast math performance.
 static int test_vulkan_fast_math()
 {
@@ -69,6 +38,12 @@ static int test_vulkan_fast_math()
     // Create a random input matrix
     ncnn::Mat input = RandomMat(512, 512, 3);
     DataReaderFromEmpty dr;
+
+#ifdef __EMSCRIPTEN__
+#define MODEL_DIR "/working"
+#else
+#define MODEL_DIR "../../benchmark"
+#endif
 
     // ==================================================
     // 1. Setup Net with Default Options
@@ -83,7 +58,7 @@ static int test_vulkan_fast_math()
     net_default.opt.use_fp16_storage = false;
     net_default.opt.use_fp16_packed = false;
 
-    net_default.load_param_mem(mish25_param);
+    net_default.load_param(MODEL_DIR "/resnet50.param");
     net_default.load_model(dr);
     printf("Default net loaded successfully.\n");
 
@@ -104,7 +79,7 @@ static int test_vulkan_fast_math()
     net_fast_math.opt.use_fp16_packed = false;
     net_fast_math.opt.use_fp16_storage = false;
 
-    net_fast_math.load_param_mem(mish25_param);
+    net_fast_math.load_param(MODEL_DIR "/resnet50.param");
     net_fast_math.load_model(dr);
     printf("Fast math net loaded successfully.\n");
 
@@ -117,13 +92,13 @@ static int test_vulkan_fast_math()
     ncnn::Mat output_default, output_fast_math;
     {
         ncnn::Extractor ex = net_default.create_extractor();
-        ex.input("in0", input);
-        ex.extract("out0", output_default);
+        ex.input("data", input);
+        ex.extract("output", output_default);
     }
     {
         ncnn::Extractor ex = net_fast_math.create_extractor();
-        ex.input("in0", input);
-        ex.extract("out0", output_fast_math);
+        ex.input("data", input);
+        ex.extract("output", output_fast_math);
     }
     printf("Warm-up complete.\n");
 
@@ -143,8 +118,8 @@ static int test_vulkan_fast_math()
         for (int i = 0; i < loop_count; i++)
         {
             ncnn::Extractor ex = net_default.create_extractor();
-            ex.input("in0", input);
-            ex.extract("out0", output_default);
+            ex.input("data", input);
+            ex.extract("output", output_default);
         }
         double end = ncnn::get_current_time();
         time_default = (end - start) / loop_count;
@@ -157,8 +132,8 @@ static int test_vulkan_fast_math()
         for (int i = 0; i < loop_count; i++)
         {
             ncnn::Extractor ex = net_fast_math.create_extractor();
-            ex.input("in0", input);
-            ex.extract("out0", output_fast_math);
+            ex.input("data", input);
+            ex.extract("output", output_fast_math);
         }
         double end = ncnn::get_current_time();
         time_fast_math = (end - start) / loop_count;

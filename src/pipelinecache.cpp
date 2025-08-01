@@ -64,12 +64,12 @@ public:
 
         bool operator==(const pipeline_cache_digest& rhs) const
         {
-            return d0 == rhs.d0 && d1 == rhs.d1 && d2 == rhs.d2 && d3 == rhs.d3;
+            return d0 == rhs.d0 && d1 == rhs.d1 && d2 == rhs.d2 && d3 == rhs.d3 && d4 == rhs.d4;
         }
 
         bool operator!=(const pipeline_cache_digest& rhs) const
         {
-            return d0 != rhs.d0 || d1 != rhs.d1 || d2 != rhs.d2 || d3 != rhs.d3;
+            return d0 != rhs.d0 || d1 != rhs.d1 || d2 != rhs.d2 || d3 != rhs.d3 || d4 != rhs.d4;
         }
 
         union
