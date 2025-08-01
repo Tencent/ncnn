@@ -10,17 +10,23 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
         self.linear_0 = nn.Linear(in_features=64, out_features=16, bias=False)
-        self.linear_1 = nn.Linear(in_features=16, out_features=3, bias=True)
+        self.linear_1 = nn.Linear(in_features=16, out_features=13, bias=True)
+
+        self.linear_2 = nn.Linear(in_features=13, out_features=17, bias=True)
+        self.linear_2 = torch.nn.utils.weight_norm(self.linear_2)
 
     def forward(self, x, y, z):
         x = self.linear_0(x)
         x = self.linear_1(x)
+        x = self.linear_2(x)
 
         y = self.linear_0(y)
         y = self.linear_1(y)
+        y = self.linear_2(y)
 
         z = self.linear_0(z)
         z = self.linear_1(z)
+        z = self.linear_2(z)
         return x, y, z
 
 def test():
@@ -32,7 +38,7 @@ def test():
     y = torch.rand(12, 64)
     z = torch.rand(1, 3, 12, 64)
 
-    a0, a1, a2 = net(x, y, z)
+    a = net(x, y, z)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
@@ -44,9 +50,13 @@ def test():
 
     # pnnx inference
     import test_nn_Linear_pnnx
-    b0, b1, b2 = test_nn_Linear_pnnx.test_inference()
+    b = test_nn_Linear_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    for a0, b0 in zip(a, b):
+        b0 = b0.reshape_as(a0)
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():
