@@ -189,6 +189,7 @@ static int test_gpu_pipecache_performance()
             fprintf(stderr, "Test failed: extraction with cache failed.\n");
             return -1;
         }
+        delete net_with_cache.opt.pipeline_cache; // clean up pipeline cache by hand
     }
 
     // -------------------------------------------------
