@@ -58,7 +58,7 @@ static int test_vulkan_fast_math()
     net_default.opt.use_fp16_storage = false;
     net_default.opt.use_fp16_packed = false;
 
-    net_default.load_param(MODEL_DIR "/resnet50.param");
+    net_default.load_param(MODEL_DIR "/vision_transformer.param");
     net_default.load_model(dr);
     printf("Default net loaded successfully.\n");
 
@@ -79,7 +79,7 @@ static int test_vulkan_fast_math()
     net_fast_math.opt.use_fp16_packed = false;
     net_fast_math.opt.use_fp16_storage = false;
 
-    net_fast_math.load_param(MODEL_DIR "/resnet50.param");
+    net_fast_math.load_param(MODEL_DIR "/vision_transformer.param");
     net_fast_math.load_model(dr);
     printf("Fast math net loaded successfully.\n");
 
@@ -92,12 +92,12 @@ static int test_vulkan_fast_math()
     ncnn::Mat output_default, output_fast_math;
     {
         ncnn::Extractor ex = net_default.create_extractor();
-        ex.input("data", input);
+        ex.input("input", input);
         ex.extract("output", output_default);
     }
     {
         ncnn::Extractor ex = net_fast_math.create_extractor();
-        ex.input("data", input);
+        ex.input("input", input);
         ex.extract("output", output_fast_math);
     }
     printf("Warm-up complete.\n");
@@ -118,7 +118,7 @@ static int test_vulkan_fast_math()
         for (int i = 0; i < loop_count; i++)
         {
             ncnn::Extractor ex = net_default.create_extractor();
-            ex.input("data", input);
+            ex.input("input", input);
             ex.extract("output", output_default);
         }
         double end = ncnn::get_current_time();
@@ -132,7 +132,7 @@ static int test_vulkan_fast_math()
         for (int i = 0; i < loop_count; i++)
         {
             ncnn::Extractor ex = net_fast_math.create_extractor();
-            ex.input("data", input);
+            ex.input("input", input);
             ex.extract("output", output_fast_math);
         }
         double end = ncnn::get_current_time();
@@ -186,6 +186,11 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "Invalid GPU device index %d. The valid range is [0, %d-1]. Using default device 0.\n", device_index, gpu_count);
         device_index = 0;
+    }
+    if (!ncnn::get_gpu_device(device_index)->info.support_VK_KHR_shader_float_controls2())
+    {
+        fprintf(stderr, "The selected device does not support VK_KHR_shader_float_controls2. Fast math tests may not be valid.\n");
+        return 0;
     }
 
     // Set the default device for all ncnn operations.
