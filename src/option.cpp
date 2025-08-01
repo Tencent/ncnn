@@ -24,7 +24,7 @@ Option::Option()
     staging_vkallocator = 0;
     pipeline_cache = 0;
     vk_fast_math_flag = 0; // default no fast math
-#endif // NCNN_VULKAN
+#endif                     // NCNN_VULKAN
 
     openmp_blocktime = 20;
 
