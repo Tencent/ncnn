@@ -65,9 +65,9 @@ static int warmup_gpu_pipecache()
 
     ncnn::Net net2;
     net2.opt.use_vulkan_compute = true;
-    net2.opt.pipeline_cache = new ncnn::PipelineCache(net.vulkan_device());
 
     net2.load_param_mem("7767517\n2 2\nInput    input0    0   1   input0\nSigmoid  sigmoid0  1   1   input0    output0");
+    net2.opt.pipeline_cache = new ncnn::PipelineCache(net2.vulkan_device());
     if (net2.opt.pipeline_cache->load_cache(cache_path) != 0)
     {
         fprintf(stderr, "Warmup failed: could not load pipeline cache from %s\n", cache_path);
@@ -162,18 +162,18 @@ static int test_gpu_pipecache_performance()
     printf("==================================================\n");
     {
         ncnn::Net net_with_cache;
-        net_with_cache.opt.pipeline_cache = new ncnn::PipelineCache(ncnn::get_gpu_device());
         net_with_cache.opt.use_vulkan_compute = true;
 
         auto start = ncnn::get_current_time();
 
+        net_with_cache.load_param(MODEL_DIR "/mobilenet_v3.param"); // after load param vkdev will be create
+        net_with_cache.opt.pipeline_cache = new ncnn::PipelineCache(net_with_cache.vulkan_device());
         // load from cache
         if (net_with_cache.opt.pipeline_cache->load_cache(cache_path) != 0)
         {
             fprintf(stderr, "Test failed: could not load pipeline cache from %s\n", cache_path);
             return -1;
         }
-        net_with_cache.load_param(MODEL_DIR "/mobilenet_v3.param");
         net_with_cache.load_model(dr);
 
         auto end = ncnn::get_current_time();
