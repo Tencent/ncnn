@@ -12,7 +12,7 @@
 #include <vector>
 #include <cstring> // For memset
 
-int device_index = 1;
+int device_index = 0;
 
 // A data reader that provides zero-filled data, useful for loading models without actual weights.
 class DataReaderFromEmpty : public ncnn::DataReader
