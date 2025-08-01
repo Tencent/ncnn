@@ -122,9 +122,8 @@ public:
             std::vector<float> weight_data = op->attrs["weight"].get_float32_data();
             std::vector<float> weight_g_data = weight_g.get_float32_data();
             int outch = op->params.at("out_channels").i;
-            int inch = op->params.at("in_channels").i;
-            int maxk = op->params.at("kernel_size").ai[0] * op->params.at("kernel_size").ai[1] * op->params.at("kernel_size").ai[2];
-            apply_weight_norm(weight_data, weight_g_data, outch, inch, maxk);
+            int inch = op->params.at("in_channels").i * op->params.at("kernel_size").ai[0] * op->params.at("kernel_size").ai[1] * op->params.at("kernel_size").ai[2];
+            apply_weight_norm(weight_data, weight_g_data, outch, inch);
             op->attrs["weight"].set_float32_data(weight_data);
 
             // drop the additional weight input
