@@ -676,7 +676,7 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     std::vector<at::Tensor> input_tensors2;
     if (input_contents2.size() != 0)
     {
-        for (size_t i = 0; i < traced_input_shapes.size(); i++)
+        for (size_t i = 0; i < input_shapes2.size(); i++)
         {
             const std::vector<int64_t>& shape = input_shapes2[i];
             const std::string& type = input_types2[i];
@@ -692,7 +692,7 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     }
     else
     {
-        for (size_t i = 0; i < traced_input_shapes.size(); i++)
+        for (size_t i = 0; i < input_shapes2.size(); i++)
         {
             std::vector<at::Tensor> input_tensors2;
             for (size_t i = 0; i < input_shapes2.size(); i++)
