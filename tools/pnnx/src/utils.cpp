@@ -157,17 +157,17 @@ void prase_dtype(char* dtype, std::vector<std::string>& types, char& endian)
     types.push_back(s);
 }
 
-void prase_numpy_header(char* header_str, 
+void prase_numpy_header(char* header_str,
                         std::vector<std::vector<int64_t> >& shapes,
                         std::vector<std::string>& types,
                         bool& fortran_order,
                         char& endian)
-{    
-    char* start; 
+{
+    char* start;
     char* end;
     char* ptr = strstr(header_str, "\'fortran_order\'");
     fortran_order = strstr(ptr, "True") != NULL;
-    
+
     ptr = strstr(header_str, "\'descr\'");
     start = strchr(ptr + strlen("\'descr\'"), '\'');
     ++start;
@@ -182,7 +182,7 @@ void prase_numpy_header(char* header_str,
     end = strchr(ptr, ')');
     *end = '\0';
 
-    std::vector <int64_t> v;
+    std::vector<int64_t> v;
     char* token = strtok(start, ",");
     while (token != NULL)
     {
@@ -192,7 +192,8 @@ void prase_numpy_header(char* header_str,
     shapes.push_back(v);
 }
 
-char get_system_endian() {
+char get_system_endian()
+{
     uint16_t i = 1;
     return (*(char*)&i) ? '<' : '>';
 }
@@ -212,7 +213,7 @@ void swap_bytes(void* buffer, size_t type_size, size_t content_len)
     }
 }
 
-size_t get_type_size_from_input_type(const char * str)
+size_t get_type_size_from_input_type(const char* str)
 {
     return atoi(str + 1) / 8;
 }
@@ -273,10 +274,10 @@ void convert_to_c_order(void* src, const std::vector<int64_t>& shape, size_t typ
     free(index);
 }
 
-void prase_numpy_file(const char * path, 
-                             std::vector<std::vector<int64_t> >& shapes,
-                             std::vector<std::string>& types,
-                             std::vector<std::vector<char> >& contents)
+void prase_numpy_file(const char* path,
+                      std::vector<std::vector<int64_t> >& shapes,
+                      std::vector<std::string>& types,
+                      std::vector<std::vector<char> >& contents)
 {
     fprintf(stderr, "prasing numpy file: %s\n", path);
     FILE* fp = fopen(path, "rb");
@@ -284,7 +285,7 @@ void prase_numpy_file(const char * path,
     {
         fprintf(stderr, "open failed %s\n", path);
         fclose(fp);
-        return ;
+        return;
     }
 
     char magic[6];
@@ -308,13 +309,13 @@ void prase_numpy_file(const char * path,
         fread(&header_len_v2, sizeof(uint32_t), 1, fp);
         header_len = header_len_v2;
     }
-    
+
     char* header_str = (char*)malloc(header_len + 1);
     if (header_str == NULL)
     {
         fprintf(stderr, "malloc filed");
         fclose(fp);
-        return ;
+        return;
     }
     fread(header_str, sizeof(char), header_len, fp);
     header_str[header_len] = '\0';
@@ -325,7 +326,7 @@ void prase_numpy_file(const char * path,
     free(header_str);
 
     size_t content_len = 1;
-    for (auto & i : shapes[shapes.size() - 1])
+    for (auto& i : shapes[shapes.size() - 1])
     {
         content_len *= i;
     }
@@ -344,7 +345,7 @@ void prase_numpy_file(const char * path,
         convert_to_c_order(buffer, shapes[shapes.size() - 1], type_size, content_len);
     }
 
-    std::vector <char> v;
+    std::vector<char> v;
     v.resize(type_size * content_len);
     memcpy(v.data(), buffer, type_size * content_len);
     contents.push_back(v);

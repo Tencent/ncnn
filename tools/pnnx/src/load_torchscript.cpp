@@ -651,7 +651,7 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
 
             at::TensorOptions options(input_type_to_c10_ScalarType(type));
             at::IntArrayRef shape2(shape);
-            at::Tensor t = torch::from_blob((void*)input_contents[i].data(), shape2, options);    
+            at::Tensor t = torch::from_blob((void*)input_contents[i].data(), shape2, options);
             if (device == "gpu")
                 t = t.cuda();
 
@@ -674,25 +674,24 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     }
 
     std::vector<at::Tensor> input_tensors2;
-    if(input_contents2.size() != 0)
+    if (input_contents2.size() != 0)
     {
         for (size_t i = 0; i < traced_input_shapes.size(); i++)
         {
             const std::vector<int64_t>& shape = input_shapes2[i];
             const std::string& type = input_types2[i];
-            
+
             at::TensorOptions options(input_type_to_c10_ScalarType(type));
             at::IntArrayRef shape2(shape);
-            at::Tensor t = torch::from_blob((void*)input_contents2[i].data(), shape2, options);    
+            at::Tensor t = torch::from_blob((void*)input_contents2[i].data(), shape2, options);
             if (device == "gpu")
                 t = t.cuda();
 
             input_tensors2.push_back(t);
-
         }
     }
     else
-    {        
+    {
         for (size_t i = 0; i < traced_input_shapes.size(); i++)
         {
             std::vector<at::Tensor> input_tensors2;

@@ -156,13 +156,13 @@ static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, c
 
 static bool file_maybe_numpy(const std::string& path)
 {
-    FILE * fp = fopen(path.c_str(), "rb");
-    if (!fp) 
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
     {
         fprintf(stderr, "open failed %s\n", path.c_str());
         return false;
     }
-    
+
     char signature[7];
     fread(signature, sizeof(char), 6, fp);
     signature[6] = '\0';
@@ -172,17 +172,17 @@ static bool file_maybe_numpy(const std::string& path)
     return strcmp(signature, "\x93NUMPY") == 0;
 }
 
-static void prase_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector <std::vector<char> >& contents)
+static void prase_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector<std::vector<char> >& contents)
 {
-    std::vector <std::string> list;
+    std::vector<std::string> list;
     parse_string_list(s, list);
 
-    for (auto & s : list)
+    for (auto& s : list)
     {
         if (!file_maybe_numpy(s))
         {
             fprintf(stderr, "%s is not a vaild numpy file", s.c_str());
-            return ;
+            return;
         }
         pnnx::prase_numpy_file(s.c_str(), shapes, types, contents);
     }
