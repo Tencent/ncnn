@@ -6,7 +6,7 @@ macro(pnnx_numpy_add_test name)
 endmacro()
 
 pnnx_numpy_add_test(convnext_tiny)
-pnnx_numpy_add_test(test_convnext_tiny_endian)
+pnnx_numpy_add_test(convnext_tiny_endian)
 pnnx_numpy_add_test(convnext_tiny_fortran_array)
 pnnx_numpy_add_test(nn_Conv3d)
 pnnx_numpy_add_test(pnnx_eliminate_noop_expand)
