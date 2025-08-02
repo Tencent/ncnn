@@ -163,8 +163,9 @@ static bool file_maybe_numpy(const std::string& path)
         return false;
     }
     
-    char signature[6];
+    char signature[7];
     fread(signature, sizeof(char), 6, fp);
+    signature[6] = '\0';
 
     fclose(fp);
 
@@ -180,7 +181,7 @@ static void prase_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& s
     {
         if (!file_maybe_numpy(s))
         {
-            fprintf(stderr, "%s is not a vaild numpy file", s);
+            fprintf(stderr, "%s is not a vaild numpy file", s.c_str());
             return ;
         }
         pnnx::prase_numpy_file(s.c_str(), shapes, types, contents);

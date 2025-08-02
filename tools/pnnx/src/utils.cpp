@@ -4,6 +4,7 @@
 #include "utils.h"
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <math.h>
 
@@ -151,7 +152,8 @@ void prase_dtype(char* dtype, std::vector<std::string>& types, char& endian)
     std::string s;
     s += dtype[0];
     char p[10];
-    s += itoa(8 * atoi(dtype + 1), p, 10);
+    sprintf(p, "%d", 8 * atoi(dtype + 1));
+    s += p;
     types.push_back(s);
 }
 
@@ -284,7 +286,7 @@ void prase_numpy_file(const char * path,
         fclose(fp);
         return ;
     }
-    
+
     char magic[6];
     fread(magic, sizeof(char), 6, fp);
 
