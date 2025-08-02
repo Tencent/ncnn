@@ -47,7 +47,7 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 12, 48, 48, 64)
     np = x.numpy()
-    npy.save("input1.npy", np)
+    npy.save("test_nn_Conv3d_input1.npy", np)
 
     a = net(x)
 
@@ -57,7 +57,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Conv3d.pt input=input1.npy")
+    os.system("../../src/pnnx test_nn_Conv3d.pt input=test_nn_Conv3d_input1.npy")
 
     # pnnx inference
     import test_nn_Conv3d_pnnx

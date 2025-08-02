@@ -19,17 +19,17 @@ def test():
 
     np = x.numpy()
     f_np = npy.asfortranarray(np);
-    npy.save("input1.npy", f_np)
+    npy.save("test_convnext_tiny_fortran_array_input1.npy", f_np)
 
     a = net(x)
 
     # export torchscript
     mod = torch.jit.trace(net, x)
-    mod.save("test_convnext_tiny.pt")
+    mod.save("test_convnext_tiny_fortran_array.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_convnext_tiny.pt input=input1.npy")
+    os.system("../../src/pnnx test_convnext_tiny_fortran_array.pt input=test_convnext_tiny_fortran_array_input1.npy")
 
     # pnnx inference
     import test_convnext_tiny_pnnx

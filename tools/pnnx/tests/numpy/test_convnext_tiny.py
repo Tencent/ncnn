@@ -18,7 +18,7 @@ def test():
     x = torch.rand(1, 3, 224, 224)
 
     np = x.numpy()
-    npy.save("input1.npy", np)
+    npy.save("test_convnext_tiny_input1.npy", np)
 
     a = net(x)
 
@@ -28,7 +28,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_convnext_tiny.pt input=input1.npy")
+    os.system("../../src/pnnx test_convnext_tiny.pt input=test_convnext_tiny_input1.npy")
 
     # pnnx inference
     import test_convnext_tiny_pnnx
