@@ -29,7 +29,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.Linear               linear      1 1 input out in_features=%in_features out_features=%out_features bias=False @weight=%op_weight.data
+nn.Linear               F_linear    1 1 input out in_features=%in_features out_features=%out_features bias=False @weight=%op_weight.data
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -55,7 +55,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.Linear               linear      1 1 input out in_features=%in_features out_features=%out_features bias=True @weight=%op_weight.data @bias=%op_bias.data
+nn.Linear               F_linear    1 1 input out in_features=%in_features out_features=%out_features bias=True @weight=%op_weight.data @bias=%op_bias.data
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -82,7 +82,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.Linear               linear      1 1 input out in_features=%in_features out_features=%out_features bias=True @weight=%op_weight.data @bias=%op_bias.data
+nn.Linear               F_linear    1 1 input out in_features=%in_features out_features=%out_features bias=True @weight=%op_weight.data @bias=%op_bias.data
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
