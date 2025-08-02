@@ -57,6 +57,7 @@
 #cmakedefine01 NCNN_INT8
 #cmakedefine01 NCNN_BF16
 #cmakedefine01 NCNN_FORCE_INLINE
+#cmakedefine01 NCNN_SHADER_COMPRESS
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
 
