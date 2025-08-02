@@ -409,3 +409,5 @@ add_subdirectory(ncnn)
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()
+
+add_subdirectory(numpy)
