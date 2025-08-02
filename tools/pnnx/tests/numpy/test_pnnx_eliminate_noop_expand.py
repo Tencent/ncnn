@@ -225,7 +225,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_pnnx_eliminate_noop_expand.pt inputshape=x0.npy,x1.npy,y0.npy,y1.npy,y2.npy,y3.npy,z0.npy,z1.npy,z2.npy,z3.npy,z4.npy,z5.npy,z6.npy,z7.npy,w0.npy,w1.npy,w2.npy,w3.npy,w4.npy,w5.npy,w6.npy,w7.npy,w8.npy,w9.npy,w10.npy,w11.npy,w12.npy,w13.npy,w14.npy,w15.npy")
+    os.system("../../src/pnnx test_pnnx_eliminate_noop_expand.pt input=x0.npy,x1.npy,y0.npy,y1.npy,y2.npy,y3.npy,z0.npy,z1.npy,z2.npy,z3.npy,z4.npy,z5.npy,z6.npy,z7.npy,w0.npy,w1.npy,w2.npy,w3.npy,w4.npy,w5.npy,w6.npy,w7.npy,w8.npy,w9.npy,w10.npy,w11.npy,w12.npy,w13.npy,w14.npy,w15.npy")
 
     # pnnx inference
     import test_pnnx_eliminate_noop_expand_pnnx
