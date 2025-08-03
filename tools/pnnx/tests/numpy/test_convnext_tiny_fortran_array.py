@@ -32,8 +32,8 @@ def test():
     os.system("../../src/pnnx test_convnext_tiny_fortran_array.pt input=test_convnext_tiny_fortran_array_input1.npy")
 
     # pnnx inference
-    import test_convnext_tiny_pnnx
-    b = test_convnext_tiny_pnnx.test_inference()
+    import test_convnext_tiny_fortran_array_pnnx
+    b = test_convnext_tiny_fortran_array_pnnx.test_inference()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 

@@ -29,11 +29,11 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_convnext_tiny_endian.pt input=test_convnext_tiny_endian_input1.npy")
+    os.system("pnnx test_convnext_tiny_endian.pt input=test_convnext_tiny_endian_input1.npy")
 
     # pnnx inference
-    import test_convnext_tiny_pnnx
-    b = test_convnext_tiny_pnnx.test_inference()
+    import test_convnext_tiny_endian_pnnx
+    b = test_convnext_tiny_endian_pnnx.test_inference()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 
