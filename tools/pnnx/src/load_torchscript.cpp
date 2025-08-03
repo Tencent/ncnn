@@ -690,7 +690,7 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
             input_tensors2.push_back(t);
         }
     }
-    else if(input_shapes2.size() != 0)
+    else if (input_shapes2.size() != 0)
     {
         for (size_t i = 0; i < input_shapes2.size(); i++)
         {
