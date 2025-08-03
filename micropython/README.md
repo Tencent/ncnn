@@ -18,9 +18,9 @@ cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_SHARED_LIB=OFF -DNCNN_VULKAN=OFF -DNCNN_
 ```
 2. mpy
 ```bash
-~/dev/ncnn_mp$ cd micropython/ports/unix/
-~/dev/ncnn_mp/micropython/ports/unix$ make -C ../../mpy-cross
-~/dev/ncnn_mp/micropython/ports/unix$ make submodules
-~/dev/ncnn_mp/micropython/ports/unix$ make USER_C_MODULES=../../../modules
-~/dev/ncnn_mp/micropython/ports/unix$ ./build-standard/micropython ../../../examples/main.py
+~/dev/ncnn$ cd micropython/micropython/ports/unix/
+~/dev/ncnn/micropython/micropython/ports/unix/$ make -C ../../mpy-cross -j4
+~/dev/ncnn/micropython/micropython/ports/unix/$ make submodules -j4
+~/dev/ncnn/micropython/micropython/ports/unix/$ make USER_C_MODULES=../../../modules -j4
+~/dev/ncnn/micropython/micropython/ports/unix/$ ./build-standard/micropython ../../../examples/main.py
 ```

@@ -1,5 +1,5 @@
 NCNN_MP_MOD_DIR := $(USERMOD_DIR)
-NCNN_DIR := $(NCNN_MP_MOD_DIR)/../../ncnn
+NCNN_DIR := $(NCNN_MP_MOD_DIR)/../../..
 NCNN_BUILD_DIR := $(NCNN_DIR)/build/src
 
 SRC_USERMOD_C += $(NCNN_MP_MOD_DIR)/ncnn_mp.c

@@ -1,6 +1,6 @@
 add_library(ncnn_mpy INTERFACE)
 
-set(NCNN_SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../ncnn/src)
+set(NCNN_SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../src)
 
 file(GLOB NCNN_CORE_SRC
     "${NCNN_SRC_DIR}/*.cpp"
