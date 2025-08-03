@@ -29,7 +29,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("pnnx test_convnext_tiny_endian.pt input=test_convnext_tiny_endian_input1.npy")
+    os.system("../../src/pnnx test_convnext_tiny_endian.pt input=test_convnext_tiny_endian_input1.npy")
 
     # pnnx inference
     import test_convnext_tiny_endian_pnnx
