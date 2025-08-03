@@ -8,7 +8,7 @@
 
 namespace pnnx {
 
-int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16);
+int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_npy_paths, int fp16);
 
 } // namespace pnnx
 
