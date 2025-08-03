@@ -39,7 +39,6 @@ def test():
 
 if __name__ == "__main__":
     if test():
-        print("YES")
         exit(0)
     else:
         exit(1)
