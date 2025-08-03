@@ -692,20 +692,17 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     }
     else
     {
+        std::vector<at::Tensor> input_tensors2;
         for (size_t i = 0; i < input_shapes2.size(); i++)
         {
-            std::vector<at::Tensor> input_tensors2;
-            for (size_t i = 0; i < input_shapes2.size(); i++)
-            {
-                const std::vector<int64_t>& shape = input_shapes2[i];
-                const std::string& type = input_types2[i];
+            const std::vector<int64_t>& shape = input_shapes2[i];
+            const std::string& type = input_types2[i];
 
-                at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
-                if (device == "gpu")
-                    t = t.cuda();
+            at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+            if (device == "gpu")
+                t = t.cuda();
 
-                input_tensors2.push_back(t);
-            }
+            input_tensors2.push_back(t);
         }
     }
     torch::jit::Module mod;
