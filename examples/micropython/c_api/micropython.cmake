@@ -1,6 +1,14 @@
 add_library(usermod_ncnn INTERFACE)
 find_package(OpenMP REQUIRED)
 
+find_library(NCNN_LIBRARY 
+    NAMES ncnn
+    PATHS 
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../build_micropython/install/lib64
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../build_micropython/install/lib
+    NO_DEFAULT_PATH
+)
+
 target_sources(usermod_ncnn INTERFACE
     ${CMAKE_CURRENT_LIST_DIR}/ncnn_module.cpp
 )
