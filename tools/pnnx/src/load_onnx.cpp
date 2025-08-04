@@ -10,6 +10,7 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/text_format.h>
 
+#include <chrono>
 #include <fstream>
 
 #include <onnxruntime_c_api.h>

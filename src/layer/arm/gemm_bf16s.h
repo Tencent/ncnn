@@ -3,7 +3,7 @@
 
 static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     unsigned short* pp = AT;
 
@@ -192,7 +192,7 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
 
 static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     unsigned short* pp = AT;
 
@@ -256,7 +256,7 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
 
 static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     unsigned short* pp = BT;
 
@@ -567,7 +567,7 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
 
 static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     unsigned short* pp = BT;
 
@@ -646,7 +646,7 @@ static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int
 static void transpose_unpack_output_tile_fp32_to_bf16(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
     const float* pp = topT;
 
@@ -785,7 +785,7 @@ static void transpose_unpack_output_tile_fp32_to_bf16(const Mat& topT, Mat& top_
 static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, float alpha, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
     const unsigned short* pAT = AT_tile;
     const unsigned short* pBT = BT_tile;

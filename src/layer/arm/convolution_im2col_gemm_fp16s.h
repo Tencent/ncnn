@@ -6,7 +6,7 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
     // NCNN_LOGE("convolution_gemm_transB_packed_tile_fp16sa %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = (int)top_blob.cstep;
+    const size_t out_hstep = top_blob.cstep;
 
     const __fp16* pAT = AT_tile;
     const __fp16* pBT = BT_tile;

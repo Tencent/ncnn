@@ -67,6 +67,9 @@
 #if NCNN_THREADS
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#endif
 #include <windows.h>
 #include <process.h>
 #else
@@ -84,6 +87,7 @@ namespace ncnn {
 
 #if NCNN_THREADS
 #if defined _WIN32
+#if _WIN32_WINNT > _WIN32_WINNT_WINXP // Windows Vista and later
 class NCNN_EXPORT Mutex
 {
 public:
@@ -93,7 +97,6 @@ public:
     void unlock() { ReleaseSRWLockExclusive(&srwlock); }
 private:
     friend class ConditionVariable;
-    // NOTE SRWLock is available from windows vista
     SRWLOCK srwlock;
 };
 
@@ -108,6 +111,56 @@ public:
 private:
     CONDITION_VARIABLE condvar;
 };
+
+#else // Windows XP compatibility
+
+class NCNN_EXPORT Mutex
+{
+public:
+    Mutex() { InitializeCriticalSection(&cs); }
+    ~Mutex() { DeleteCriticalSection(&cs); }
+    void lock() { EnterCriticalSection(&cs); }
+    void unlock() { LeaveCriticalSection(&cs); }
+private:
+    friend class ConditionVariable;
+    CRITICAL_SECTION cs;
+};
+
+class NCNN_EXPORT ConditionVariable
+{
+public:
+    ConditionVariable() 
+    { 
+        signal_event = CreateEvent(0, FALSE, FALSE, 0); // Auto-reset event for signal()
+        broadcast_event = CreateEvent(0, TRUE, FALSE, 0); // Manual-reset event for broadcast()
+    }
+    ~ConditionVariable() 
+    { 
+        CloseHandle(signal_event); 
+        CloseHandle(broadcast_event); 
+    }
+    void wait(Mutex& mutex)
+    {
+        mutex.unlock();
+        HANDLE events[2] = { signal_event, broadcast_event };
+        WaitForMultipleObjects(2, events, FALSE, INFINITE); // Wait for either signal or broadcast
+        mutex.lock();
+    }
+    void broadcast() 
+    { 
+        SetEvent(broadcast_event); // Wake all threads
+        ResetEvent(broadcast_event); // Reset after waking all threads
+    }
+    void signal() 
+    { 
+        SetEvent(signal_event); // Wake one thread
+    }
+private:
+    HANDLE signal_event;
+    HANDLE broadcast_event;
+};
+
+#endif // _WIN32_WINNT > _WIN32_WINNT_WINXP
 
 static unsigned __stdcall start_wrapper(void* args);
 class NCNN_EXPORT Thread

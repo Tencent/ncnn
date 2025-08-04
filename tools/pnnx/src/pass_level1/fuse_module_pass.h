@@ -20,7 +20,7 @@ struct Value;
 } // namespace jit
 } // namespace torch
 namespace at {
-struct Tensor;
+class Tensor;
 } // namespace at
 
 namespace pnnx {
