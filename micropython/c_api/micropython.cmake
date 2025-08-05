@@ -4,22 +4,23 @@ find_package(OpenMP REQUIRED)
 find_library(NCNN_LIBRARY 
     NAMES ncnn
     PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../build_micropython/install/lib64
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../build_micropython/install/lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../build_micropython/install/lib64
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../build_micropython/install/lib
     NO_DEFAULT_PATH
 )
 
 target_sources(usermod_ncnn INTERFACE
-    ${CMAKE_CURRENT_LIST_DIR}/ncnn_module.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/c_api.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ncnn_module.c
 )
 
 target_include_directories(usermod_ncnn INTERFACE
     ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/../../../build_micropython/install/include
+    ${CMAKE_CURRENT_LIST_DIR}/../../build_micropython/install/include
 )
 
 target_link_directories(usermod_ncnn INTERFACE
-    ${CMAKE_CURRENT_LIST_DIR}/../../../build_micropython/install/lib
+    ${CMAKE_CURRENT_LIST_DIR}/../../build_micropython/install/lib
     OpenMP::OpenMP_CXX
 )
 
