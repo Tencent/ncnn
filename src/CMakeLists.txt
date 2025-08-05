@@ -41,6 +41,7 @@ set(ncnn_SRCS
     simpleomp.cpp
     simplestl.cpp
     simplemath.cpp
+    simplegcov.cpp
     simplevk.cpp
 )
 
@@ -704,7 +705,11 @@ endif()
 
 if(NCNN_COVERAGE)
     target_compile_options(ncnn PUBLIC -coverage -fprofile-arcs -ftest-coverage)
-    target_link_libraries(ncnn PUBLIC -coverage -lgcov)
+    if(NCNN_SIMPLEGCOV)
+        target_link_libraries(ncnn PUBLIC -coverage)
+    else()
+        target_link_libraries(ncnn PUBLIC -coverage -lgcov)
+    endif()
 endif()
 
 if(NCNN_ASAN)
@@ -753,6 +758,7 @@ if(NCNN_INSTALL_SDK)
         simpleomp.h
         simplestl.h
         simplemath.h
+        simplegcov.h
         simplevk.h
         vulkan_header_fix.h
         ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
