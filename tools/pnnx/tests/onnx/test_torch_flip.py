@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -44,6 +45,9 @@ class Model(nn.Module):
         return x0, y0, y1, y2, z0, z1, z2, z3, z4, z5, z6, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.12'):
+        return True
+
     net = Model()
     net.eval()
 
