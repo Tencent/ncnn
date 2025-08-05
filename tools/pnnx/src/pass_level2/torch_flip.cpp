@@ -69,9 +69,11 @@ pnnx.Output             output      1 0 out
                 if (starts[i] != -1 || ends[i] != INT_MIN + 1 || steps[i] != -1)
                     return false;
             }
+
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
