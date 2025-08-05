@@ -55,17 +55,16 @@ def test():
 
     a = net(x, y, z, w)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_torch_flip.pt")
+    # export onnx
+    torch.onnx.export(net, (x, y, z, w), "test_torch_flip.onnx")
 
-    # torchscript to pnnx
+    # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_torch_flip.pt inputshape=[36],[14,17],[13,14,15],[48,12,16,17]")
+    os.system("../../src/pnnx test_torch_flip.onnx inputshape=[36],[14,17],[13,14,15],[48,12,16,17]")
 
-    # ncnn inference
-    import test_torch_flip_ncnn
-    b = test_torch_flip_ncnn.test_inference()
+    # pnnx inference
+    import test_torch_flip_pnnx
+    b = test_torch_flip_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

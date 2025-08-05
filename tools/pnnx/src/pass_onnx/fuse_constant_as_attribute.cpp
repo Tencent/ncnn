@@ -146,7 +146,9 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
                     }
 
                     if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                    if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                     if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                    if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
 
                     onnx::AttributeProto* attr = node->add_attribute();
                     attr->set_name(std::string(attr_name));
@@ -242,7 +244,9 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
                     for (auto i64 : ai)
                     {
                         if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                        if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                         if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                        if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
 
                         attr->add_ints((int)i64);
                     }
