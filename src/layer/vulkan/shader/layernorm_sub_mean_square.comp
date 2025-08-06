@@ -5,7 +5,7 @@
 
 layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer mean_blob { float mean_data[]; };
-// The output buffer's type must match the input type if the framework reuses the memory type
+
 layout (binding = 2) writeonly buffer square_blob { sfp square_blob_data[]; };
 
 layout (push_constant) uniform parameter {
@@ -40,10 +40,9 @@ void main() {
 
     int linear_index = gz * p.cstep + gy * p.w + gx;
 
-    // Perform calculation in fp32 for precision
     float v = float(buffer_ld1(bottom_top_blob_data, linear_index));
 
     v = v - mean;
-    // Write back in the native storage format (sfp)
+
     buffer_st1(square_blob_data, linear_index, afp(v * v));
 }

@@ -6,25 +6,30 @@
 layout (binding = 0) readonly buffer sum_blob { float sum_blob_data[]; };
 layout (binding = 1) writeonly buffer mean_blob { float mean_data[]; };
 
-layout (push_constant) uniform parameter {
-    int w; int h; int c; int cstep;
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
     float group_size;
 } p;
 
-void main() {
-    // Each invocation calculates the mean for one group, identified by (gy, gz)
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
-    if (gy >= p.h || gz >= p.c) return;
+    if (gx >= 1 || gy >= p.h || gz >= p.c) // gx >= 1 added as per request
+    return;
 
     float sum = 0.f;
-    // Base offset for the current group's row of data in the 3D sum_blob
     int v_offset = gz * p.cstep + gy * p.w;
-    for (int i = 0; i < p.w; i++) {
+    for (int i = 0; i < p.w; i++)
+    {
         sum += sum_blob_data[v_offset + i];
     }
 
-    // Output is a linear buffer indexed by the flattened group_id
     int group_id = gz * p.h + gy;
     mean_data[group_id] = sum / p.group_size;
 }

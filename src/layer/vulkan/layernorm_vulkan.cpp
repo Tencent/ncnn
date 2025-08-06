@@ -16,6 +16,7 @@ namespace ncnn {
 // =================================================================================================
 static void print_vkmat(const VkMat& m, const char* name, VkCompute& cmd, const Option& opt)
 {
+    return;
     if (m.empty())
     {
         printf("--- %s ---\n", name);
@@ -185,8 +186,12 @@ int LayerNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
-int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int LayerNorm_vulkan::forward_inplace(VkMat& _bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
+    int elemsize_bak = _bottom_top_blob.elemsize;
+    VkMat bottom_top_blob;
+    vkdev->convert_packing(_bottom_top_blob, bottom_top_blob, 1,cmd, opt);
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
@@ -429,10 +434,9 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     coeff_bindings[1] = mean_workspace;
     coeff_bindings[2] = var_workspace;
 
-    std::vector<vk_constant_type> coeff_constants(3);
-    coeff_constants[0].i = 1;
-    coeff_constants[1].i = num_groups_per_channel;
-    coeff_constants[2].i = channels;
+    std::vector<vk_constant_type> coeff_constants(2);
+    coeff_constants[0].i = num_groups_per_channel;
+    coeff_constants[1].i = channels;
 
     VkMat dispatcher_coeffs;
     dispatcher_coeffs.w = 1;
@@ -461,6 +465,8 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     // ================== DEBUG PRINT ==================
     print_vkmat(bottom_top_blob, "===> FINAL OUTPUT of LayerNorm <===", cmd, opt);
     // ===============================================
+
+    vkdev->convert_packing(bottom_top_blob, _bottom_top_blob, elemsize_bak, cmd, opt);
 
     return 0;
 }

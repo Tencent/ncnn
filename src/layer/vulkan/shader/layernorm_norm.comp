@@ -3,12 +3,10 @@
 
 #version 450
 
-// This specialization constant is now used to control the affine transformation
 layout (constant_id = 0) const int affine = 0;
 
 layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
-// Separate bindings for gamma and beta if affine is enabled
 layout (binding = 2) readonly buffer gamma_blob { sfp gamma_data[]; };
 layout (binding = 3) readonly buffer beta_blob { sfp beta_data[]; };
 
@@ -27,47 +25,38 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    // Boundary check against the original tensor dimensions
     if (gx >= p.w || gy >= p.h || gz >= p.c)
-    return;
+        return;
 
     int group_id;
     int inner_id;
 
-    // Determine the group ID and the element's ID within that group.
-    // This logic correctly maps each invocation to its normalization group.
     if (p.affine_size == p.w)
     {
-        // Normalization is performed per row
         group_id = gz * p.h + gy;
         inner_id = gx;
     }
     else // if (p.affine_size == p.w * p.h)
     {
-        // Normalization is performed per channel
         group_id = gz;
         inner_id = gy * p.w + gx;
     }
 
-    // Fetch the pre-calculated normalization coefficients a and b.
-    // There is one (a, b) pair per group.
     afp a = buffer_ld1(coeffs_blob_data, group_id * 2);
     afp b = buffer_ld1(coeffs_blob_data, group_id * 2 + 1);
 
-    // Calculate the correct linear index for the element, respecting cstep.
     int linear_index = gz * p.cstep + gy * p.w + gx;
     afp v = buffer_ld1(bottom_top_blob_data, linear_index);
 
-    // Apply the base normalization: (x - mean) / sqrt(var + eps)
+    // (x - mean) / sqrt(var + eps)
     v = v * a + b;
 
-    // Apply the learned affine transformation if enabled
-    if (affine == 1) {
+    if (affine == 1)
+    {
         afp gamma = buffer_ld1(gamma_data, inner_id);
         afp beta  = buffer_ld1(beta_data, inner_id);
         v = v * gamma + beta;
     }
 
-    // Write the final result back to the same location
     buffer_st1(bottom_top_blob_data, linear_index, v);
 }

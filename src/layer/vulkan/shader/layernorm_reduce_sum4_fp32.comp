@@ -3,50 +3,68 @@
 
 #version 450
 
-// This shader correctly reduces a 3D dispatched problem over non-contiguous memory.
-layout (binding = 0) readonly buffer input_blob { float input_data[]; };
-layout (binding = 1) writeonly buffer output_blob { float output_data[]; };
+layout (binding = 0) readonly buffer bottom_top_blob { float bottom_top_blob_data[]; };
+layout (binding = 1) writeonly buffer sum_blob { float sum_blob_data[]; };
 
-layout (push_constant) uniform parameter {
-    int w; int h; int c; int cstep;
-    int outw; int outh; int outc; int outcstep;
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
 } p;
 
-void main() {
-    // Global invocation IDs map to the output buffer dimensions
+void main()
+{
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc) return;
-
-    // sx is the starting element index for reduction within a group
-    int sx = gx * 4;
-
-    // Correctly calculate the base offset for the group in the input tensor.
-    // gz * p.cstep -> Jumps to the start of the correct channel plane.
-    // gy * p.w      -> Jumps to the start of the correct row (group) within that plane.
-    // The stride between rows is p.w (the width of a row).
-    int base_offset = gz * p.cstep + gy * p.w;
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+        return;
 
     float sum;
-    int r_offset = base_offset + sx;
 
-    if (sx >= p.w - 3) {
-        if (sx >= p.w) {
-            sum = 0.0f;
-        } else if (sx == p.w - 1) {
-            sum = input_data[r_offset];
-        } else if (sx == p.w - 2) {
-            sum = input_data[r_offset] + input_data[r_offset + 1];
-        } else { // sx == p.w - 3
-                 sum = input_data[r_offset] + input_data[r_offset + 1] + input_data[r_offset + 2];
-        }
-    } else {
-        sum = input_data[r_offset] + input_data[r_offset + 1] + input_data[r_offset + 2] + input_data[r_offset + 3];
+    int sx = gx * 4;
+
+    int v_offset = gz * p.cstep + gy * p.w + sx;
+
+    if (sx >= p.w)
+    {
+        sum = 0.0f;
+    }
+    else if (sx == p.w - 1)
+    {
+        float v0 = bottom_top_blob_data[v_offset];
+        sum = v0;
+    }
+    else if (sx == p.w - 2)
+    {
+        float v0 = bottom_top_blob_data[v_offset];
+        float v1 = bottom_top_blob_data[v_offset + 1];
+        sum = v0 + v1;
+    }
+    else if (sx == p.w - 3)
+    {
+        float v0 = bottom_top_blob_data[v_offset];
+        float v1 = bottom_top_blob_data[v_offset + 1];
+        float v2 = bottom_top_blob_data[v_offset + 2];
+        sum = v0 + v1 + v2;
+    }
+    else
+    {
+        float v0 = bottom_top_blob_data[v_offset];
+        float v1 = bottom_top_blob_data[v_offset + 1];
+        float v2 = bottom_top_blob_data[v_offset + 2];
+        float v3 = bottom_top_blob_data[v_offset + 3];
+        sum = v0 + v1 + v2 + v3;
     }
 
-    // Output index is a packed 3D index
-    int out_index = gz * p.outcstep + gy * p.outw + gx;
-    output_data[out_index] = sum;
+    int gi = gz * p.outcstep + gy * p.outw + gx;
+    sum_blob_data[gi] = sum;
 }
