@@ -101,17 +101,25 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     // Determine normalization geometry based on dims and affine_size
     int group_size;
     int num_groups;
-    if (dims == 1) {
+    if (dims == 1)
+    {
         group_size = w;
         num_groups = 1;
-    } else if (dims == 2) {
+    }
+    else if (dims == 2)
+    {
         group_size = w;
         num_groups = h;
-    } else { // dims == 3
-        if (affine_size == w) {
+    }
+    else
+    {   // dims == 3
+        if (affine_size == w)
+        {
             group_size = w;
             num_groups = channels * h;
-        } else { // affine_size == w * h
+        }
+        else
+        {   // affine_size == w * h
             group_size = w * h;
             num_groups = channels;
         }
@@ -149,7 +157,8 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         cmd.record_pipeline(pipeline_layernorm_reduce_sum4_fp16_to_fp32, bindings, constants, sum_workspace);
 
         int pb = 0;
-        while (sum_workspace.w > 4) {
+        while (sum_workspace.w > 4)
+        {
             reduced_w = (sum_workspace.w + 3) / 4;
             VkMat sum_workspace_reduced;
             sum_workspace_reduced.create(reduced_w, 1, num_groups, 4u, 1, opt.workspace_vkallocator);
@@ -233,7 +242,8 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         cmd.record_pipeline(pipeline_layernorm_reduce_sum4_fp32[0], bindings, constants, sqsum_workspace);
 
         int pb = 0;
-        while (sqsum_workspace.w > 4) {
+        while (sqsum_workspace.w > 4)
+        {
             reduced_w = (sqsum_workspace.w + 3) / 4;
             VkMat sum_workspace_reduced;
             sum_workspace_reduced.create(reduced_w, 1, num_groups, 4u, 1, opt.workspace_vkallocator);
