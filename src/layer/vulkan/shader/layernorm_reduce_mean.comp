@@ -1,7 +1,7 @@
-#version 450
-
 // Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
 
 layout (binding = 0) readonly buffer sum_blob { float sum_blob_data[]; };
 layout (binding = 1) writeonly buffer mean_blob { float mean_data[]; };
@@ -12,14 +12,19 @@ layout (push_constant) uniform parameter {
 } p;
 
 void main() {
-    int gx = int(gl_GlobalInvocationID.x);
-    if (gx >= p.c) return;
+    // Each invocation calculates the mean for one group, identified by (gy, gz)
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+    if (gy >= p.h || gz >= p.c) return;
 
     float sum = 0.f;
-    int v_offset = gx * p.cstep;
+    // Base offset for the current group's row of data in the 3D sum_blob
+    int v_offset = gz * p.cstep + gy * p.w;
     for (int i = 0; i < p.w; i++) {
         sum += sum_blob_data[v_offset + i];
     }
 
-    mean_data[gx] = sum / p.group_size;
+    // Output is a linear buffer indexed by the flattened group_id
+    int group_id = gz * p.h + gy;
+    mean_data[group_id] = sum / p.group_size;
 }
