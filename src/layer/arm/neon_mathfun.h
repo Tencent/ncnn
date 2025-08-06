@@ -83,24 +83,24 @@ static inline float32x4_t log_ps(float32x4_t x)
     float32x4_t z = vmulq_f32(x, x);
 
     float32x4_t y = vdupq_n_f32(c_cephes_log_p0);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p1), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p2), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p3), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p4), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p5), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p6), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p7), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_log_p8), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_log_p1), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_log_p2), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_log_p3), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_log_p4), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_log_p5), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_log_p6), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_log_p7), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_log_p8), y, x);
     y = vmulq_f32(y, x);
 
     y = vmulq_f32(y, z);
 
-    y = vmlaq_f32(y, e, vdupq_n_f32(c_cephes_log_q1));
+    y = vfmaq_f32(y, e, vdupq_n_f32(c_cephes_log_q1));
 
-    y = vmlsq_f32(y, z, vdupq_n_f32(0.5f));
+    y = vfmsq_f32(y, z, vdupq_n_f32(0.5f));
 
     x = vaddq_f32(x, y);
-    x = vmlaq_f32(x, e, vdupq_n_f32(c_cephes_log_q2));
+    x = vfmaq_f32(x, e, vdupq_n_f32(c_cephes_log_q2));
     x = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(x), invalid_mask)); // negative arg will be NAN
     return x;
 }
@@ -129,7 +129,7 @@ static inline float32x4_t exp_ps(float32x4_t x)
     x = vmaxq_f32(x, vdupq_n_f32(c_exp_lo));
 
     /* express exp(x) as exp(g + n*log(2)) */
-    fx = vmlaq_f32(vdupq_n_f32(0.5f), x, vdupq_n_f32(c_cephes_LOG2EF));
+    fx = vfmaq_f32(vdupq_n_f32(0.5f), x, vdupq_n_f32(c_cephes_LOG2EF));
 
     /* perform a floorf */
     tmp = vcvtq_f32_s32(vcvtq_s32_f32(fx));
@@ -148,13 +148,13 @@ static inline float32x4_t exp_ps(float32x4_t x)
     z = vmulq_f32(x, x);
 
     float32x4_t y = vdupq_n_f32(c_cephes_exp_p0);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p1), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p2), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p3), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p4), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_exp_p5), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_exp_p1), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_exp_p2), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_exp_p3), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_exp_p4), y, x);
+    y = vfmaq_f32(vdupq_n_f32(c_cephes_exp_p5), y, x);
 
-    y = vmlaq_f32(x, y, z);
+    y = vfmaq_f32(x, y, z);
     y = vaddq_f32(y, one);
 
     /* build 2^n */
@@ -225,9 +225,9 @@ static inline void sincos_ps(float32x4_t x, float32x4_t* ysin, float32x4_t* ycos
 
     /* The magic pass: "Extended precision modular arithmetic"
      *     x = ((x - y * DP1) - y * DP2) - y * DP3; */
-    x = vmlaq_f32(x, y, vdupq_n_f32(c_minus_cephes_DP1));
-    x = vmlaq_f32(x, y, vdupq_n_f32(c_minus_cephes_DP2));
-    x = vmlaq_f32(x, y, vdupq_n_f32(c_minus_cephes_DP3));
+    x = vfmaq_f32(x, y, vdupq_n_f32(c_minus_cephes_DP1));
+    x = vfmaq_f32(x, y, vdupq_n_f32(c_minus_cephes_DP2));
+    x = vfmaq_f32(x, y, vdupq_n_f32(c_minus_cephes_DP3));
 
     sign_mask_sin = veorq_u32(sign_mask_sin, vtstq_u32(emm2, vdupq_n_u32(4)));
     sign_mask_cos = vtstq_u32(vsubq_u32(emm2, vdupq_n_u32(2)), vdupq_n_u32(4));
@@ -237,15 +237,15 @@ static inline void sincos_ps(float32x4_t x, float32x4_t* ysin, float32x4_t* ycos
     float32x4_t z = vmulq_f32(x, x);
     float32x4_t y1, y2;
 
-    y1 = vmlaq_f32(vdupq_n_f32(c_coscof_p1), z, vdupq_n_f32(c_coscof_p0));
-    y2 = vmlaq_f32(vdupq_n_f32(c_sincof_p1), z, vdupq_n_f32(c_sincof_p0));
-    y1 = vmlaq_f32(vdupq_n_f32(c_coscof_p2), y1, z);
-    y2 = vmlaq_f32(vdupq_n_f32(c_sincof_p2), y2, z);
+    y1 = vfmaq_f32(vdupq_n_f32(c_coscof_p1), z, vdupq_n_f32(c_coscof_p0));
+    y2 = vfmaq_f32(vdupq_n_f32(c_sincof_p1), z, vdupq_n_f32(c_sincof_p0));
+    y1 = vfmaq_f32(vdupq_n_f32(c_coscof_p2), y1, z);
+    y2 = vfmaq_f32(vdupq_n_f32(c_sincof_p2), y2, z);
     y1 = vmulq_f32(y1, z);
     y2 = vmulq_f32(y2, z);
     y1 = vmulq_f32(y1, z);
-    y1 = vmlsq_f32(y1, z, vdupq_n_f32(0.5f));
-    y2 = vmlaq_f32(x, y2, x);
+    y1 = vfmsq_f32(y1, z, vdupq_n_f32(0.5f));
+    y2 = vfmaq_f32(x, y2, x);
     y1 = vaddq_f32(y1, vdupq_n_f32(1));
 
     /* select the correct result from the two polynoms */
