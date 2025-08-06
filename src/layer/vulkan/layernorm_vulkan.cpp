@@ -43,7 +43,7 @@ static void print_vkmat(const VkMat& m, const char* name, VkCompute& cmd, const 
     cmd.reset();
 
     Mat cpu_mat;
-    convert_packing(staging_mat,cpu_mat,1);
+    convert_packing(staging_mat, cpu_mat, 1);
 
     printf("--- %s ---\n", name);
     printf("Dims: %d, w: %d, h: %d, d: %d, c: %d, cstep: %zu, elemsize: %zu, elempack: %d\n",
@@ -58,9 +58,9 @@ static void print_vkmat(const VkMat& m, const char* name, VkCompute& cmd, const 
         {
             printf("cpu_mat[%d]: \n", i);
             // 打印矩阵
-            for (int j = 0; j< cpu_mat.h; j++)
+            for (int j = 0; j < cpu_mat.h; j++)
             {
-                for (int k = 0; k< cpu_mat.w;k++)
+                for (int k = 0; k < cpu_mat.w; k++)
                 {
                     printf("%f ", ptr[i * cpu_mat.cstep + j * cpu_mat.w + k]);
                 }
@@ -75,16 +75,15 @@ static void print_vkmat(const VkMat& m, const char* name, VkCompute& cmd, const 
         {
             printf("cpu_mat[%d]: \n", i);
             // 打印矩阵
-            for (int j = 0; j< cpu_mat.h; j++)
+            for (int j = 0; j < cpu_mat.h; j++)
             {
-                for (int k = 0; k< cpu_mat.w;k++)
+                for (int k = 0; k < cpu_mat.w; k++)
                 {
                     printf("%f ", ncnn::float16_to_float32(ptr[i * cpu_mat.cstep + j * cpu_mat.w + k]));
                 }
                 printf("\n");
             }
         }
-
     }
     else if (cpu_mat.elemsize == 1u) // int8
     {
@@ -93,9 +92,9 @@ static void print_vkmat(const VkMat& m, const char* name, VkCompute& cmd, const 
         {
             printf("cpu_mat[%d]: \n", i);
             // 打印矩阵
-            for (int j = 0; j< cpu_mat.h; j++)
+            for (int j = 0; j < cpu_mat.h; j++)
             {
-                for (int k = 0; k< cpu_mat.w;k++)
+                for (int k = 0; k < cpu_mat.w; k++)
                 {
                     printf("%d ", ptr[i * cpu_mat.cstep + j * cpu_mat.w + k]);
                 }
@@ -190,7 +189,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& _bottom_top_blob, VkCompute& cmd, c
 {
     int elemsize_bak = _bottom_top_blob.elemsize;
     VkMat bottom_top_blob;
-    vkdev->convert_packing(_bottom_top_blob, bottom_top_blob, 1,cmd, opt);
+    vkdev->convert_packing(_bottom_top_blob, bottom_top_blob, 1, cmd, opt);
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -208,19 +207,27 @@ int LayerNorm_vulkan::forward_inplace(VkMat& _bottom_top_blob, VkCompute& cmd, c
 
     int group_size;
     int num_groups_per_channel;
-    if (dims == 1) {
+    if (dims == 1)
+    {
         group_size = w;
         num_groups_per_channel = 1;
         channels = 1;
-    } else if (dims == 2) {
+    }
+    else if (dims == 2)
+    {
         group_size = w;
         num_groups_per_channel = h;
         channels = 1;
-    } else { // dims == 3
-        if (affine_size == w) {
+    }
+    else
+    {   // dims == 3
+        if (affine_size == w)
+        {
             group_size = w;
             num_groups_per_channel = h;
-        } else { // affine_size == w * h
+        }
+        else
+        {   // affine_size == w * h
             group_size = w * h;
             num_groups_per_channel = 1;
         }
@@ -258,9 +265,12 @@ int LayerNorm_vulkan::forward_inplace(VkMat& _bottom_top_blob, VkCompute& cmd, c
         dispatcher.c = channels;
 
         int pb = 0;
-        if (elemsize == 4u) {
+        if (elemsize == 4u)
+        {
             cmd.record_pipeline(pipeline_layernorm_reduce_sum4_fp32[pb % 2], bindings, constants, dispatcher);
-        } else {
+        }
+        else
+        {
             cmd.record_pipeline(pipeline_layernorm_reduce_sum4_fp16_to_fp32, bindings, constants, dispatcher);
         }
         pb++;
@@ -269,7 +279,8 @@ int LayerNorm_vulkan::forward_inplace(VkMat& _bottom_top_blob, VkCompute& cmd, c
         print_vkmat(sum_workspace, "1. MEAN: After Initial Reduce", cmd, opt);
         // ===============================================
 
-        while (sum_workspace.w > 1) {
+        while (sum_workspace.w > 1)
+        {
             int current_w = sum_workspace.w;
             reduced_w = (current_w + 3) / 4;
             VkMat sum_workspace_reduced;
@@ -365,9 +376,12 @@ int LayerNorm_vulkan::forward_inplace(VkMat& _bottom_top_blob, VkCompute& cmd, c
         dispatcher.c = channels;
 
         int pb = 0;
-        if (elemsize == 4u) {
+        if (elemsize == 4u)
+        {
             cmd.record_pipeline(pipeline_layernorm_reduce_sum4_fp32[pb % 2], bindings, constants, dispatcher);
-        } else {
+        }
+        else
+        {
             cmd.record_pipeline(pipeline_layernorm_reduce_sum4_fp16_to_fp32, bindings, constants, dispatcher);
         }
         pb++;
@@ -376,7 +390,8 @@ int LayerNorm_vulkan::forward_inplace(VkMat& _bottom_top_blob, VkCompute& cmd, c
         print_vkmat(sqsum_workspace, "2. VAR: After Initial Reduce", cmd, opt);
         // ===============================================
 
-        while (sqsum_workspace.w > 1) {
+        while (sqsum_workspace.w > 1)
+        {
             int current_w = sqsum_workspace.w;
             reduced_w = (current_w + 3) / 4;
             VkMat sum_workspace_reduced;
