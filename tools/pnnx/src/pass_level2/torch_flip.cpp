@@ -49,12 +49,11 @@ pnnx.Output             output      1 0 out
     {
         if (captured_params.at("axes").type == 2)
         {
-            int axis = captured_params.at("axes").i;
             int start = captured_params.at("starts").i;
             int end = captured_params.at("ends").i;
             int step = captured_params.at("steps").i;
 
-            if (axis == 0 && start == -1 && end == INT_MIN + 1 && step == -1)
+            if (start == -1 && end == INT_MIN + 1 && step == -1)
                 return true;
         }
         else // if (captured_params.at("axes").type == 5)
