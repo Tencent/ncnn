@@ -1,0 +1,44 @@
+#version 450
+
+// Copyright 2025 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+layout (binding = 1) readonly buffer mean_blob { float mean_data[]; };
+layout (binding = 2) writeonly buffer square_blob { float square_blob_data[]; };
+
+layout (push_constant) uniform parameter {
+    int w;
+    int h;
+    int c;
+    int cstep;
+    int affine_size;
+} p;
+
+void main() {
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    return;
+
+    int group_id;
+    if (p.affine_size == p.w)
+    {
+        group_id = gz * p.h + gy;
+    }
+    else // if (p.affine_size == p.w * p.h)
+    {
+        group_id = gz;
+    }
+
+    float mean = mean_data[group_id];
+
+    int linear_index = gz * p.cstep + gy * p.w + gx;
+
+    float v = float(buffer_ld1(bottom_top_blob_data, linear_index));
+
+    v = v - mean;
+    square_blob_data[linear_index] = v * v;
+}

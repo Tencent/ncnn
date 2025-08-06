@@ -1,0 +1,32 @@
+#version 450
+
+// Copyright 2025 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+layout (binding = 0) readonly buffer in_blob { float in_blob_data[]; };
+layout (binding = 1) writeonly buffer out_blob { float out_blob_data[]; };
+
+layout (push_constant) uniform parameter {
+    int w; int h; int c; int cstep;
+    int outw; int outh; int outc; int outcstep;
+} p;
+
+void main() {
+    int gx = int(gl_GlobalInvocationID.x), gy = int(gl_GlobalInvocationID.y), gz = int(gl_GlobalInvocationID.z);
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc) return;
+
+    float sum;
+    int sx = gx * 4;
+    int v_offset = gz * p.cstep + sx;
+
+    if (sx >= p.w - 3) {
+        if (sx == p.w - 1) sum = in_blob_data[v_offset];
+        else if (sx == p.w - 2) sum = in_blob_data[v_offset] + in_blob_data[v_offset + 1];
+        else sum = in_blob_data[v_offset] + in_blob_data[v_offset + 1] + in_blob_data[v_offset + 2];
+    } else {
+        sum = in_blob_data[v_offset] + in_blob_data[v_offset + 1] + in_blob_data[v_offset + 2] + in_blob_data[v_offset + 3];
+    }
+
+    int gi = gz * p.outcstep + gx;
+    out_blob_data[gi] = sum;
+}
