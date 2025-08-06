@@ -34,7 +34,20 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& dims = captured_params.at("dims").ai;
 
-        op->params["0"] = dims;
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
+        // drop batch index
+        std::vector<int> new_dims;
+        for (int i = 0; i < (int)dims.size(); i++)
+        {
+            if (dims[i] == batch_index)
+                continue;
+
+            int new_dim = dims[i] > batch_index ? dims[i] - 1 : dims[i];
+            new_dims.push_back(new_dim);
+        }
+
+        op->params["0"] = new_dims;
     }
 };
 
