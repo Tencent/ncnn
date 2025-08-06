@@ -16,7 +16,7 @@ namespace ncnn {
 // =================================================================================================
 static void print_vkmat(const VkMat& m, const char* name, VkCompute& cmd, const Option& opt)
 {
-    return;
+    return; // 暂时禁用打印功能
     if (m.empty())
     {
         printf("--- %s ---\n", name);
