@@ -9,16 +9,19 @@ layout (binding = 0) writeonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
 layout (binding = 1) readonly buffer mean_blob { float mean_data[]; };
 layout (binding = 2) readonly buffer var_blob { float var_data[]; };
 
-layout (push_constant) uniform parameter {
+layout (push_constant) uniform parameter
+{
     int w_dummy; // w is not used, corresponds to gl_GlobalInvocationID.x
     int num_groups_per_channel;
     int num_channels;
 } p;
 
-void main() {
+void main()
+{
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
-    if (gy >= p.num_groups_per_channel || gz >= p.num_channels) return;
+    if (gy >= p.num_groups_per_channel || gz >= p.num_channels)
+        return;
 
     int group_id = gz * p.num_groups_per_channel + gy;
 
