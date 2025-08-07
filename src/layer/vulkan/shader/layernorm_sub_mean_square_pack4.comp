@@ -23,7 +23,7 @@ void main()
     int gz = int(gl_GlobalInvocationID.z);
 
     if (gx >= p.w || gy >= p.h || gz >= p.c)
-    return;
+        return;
 
     int group_id;
     if (p.affine_size == p.w)

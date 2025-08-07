@@ -21,7 +21,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
     if (gx >= 1 || gy >= p.h || gz >= p.c)
-    return;
+        return;
 
     mat2x4 sum = mat2x4(0.f);
     int v_offset = gz * p.cstep + gy * p.w;

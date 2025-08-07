@@ -21,7 +21,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
     if (gx >= 1 || gy >= p.num_groups_per_channel || gz >= p.c)
-    return;
+        return;
 
     int group_id = gz * p.num_groups_per_channel + gy;
 

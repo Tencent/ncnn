@@ -26,7 +26,7 @@ void main()
     int gz = int(gl_GlobalInvocationID.z);
 
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
-    return;
+        return;
 
     mat2x4 sum;
 

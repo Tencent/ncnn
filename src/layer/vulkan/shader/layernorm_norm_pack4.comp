@@ -7,8 +7,8 @@ layout (constant_id = 0) const int affine = 0;
 
 layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
-layout (binding = 2) readonly buffer gamma_blob { sfpvec4 gamma_data[]; };
-layout (binding = 3) readonly buffer beta_blob { sfpvec4 beta_data[]; };
+layout (binding = 2) readonly buffer gamma_blob { sfp gamma_data[]; };
+layout (binding = 3) readonly buffer beta_blob { sfp beta_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -26,7 +26,7 @@ void main()
     int gz = int(gl_GlobalInvocationID.z);
 
     if (gx >= p.w || gy >= p.h || gz >= p.c)
-    return;
+        return;
 
     int group_id;
     int inner_id;
@@ -52,9 +52,9 @@ void main()
 
     if (affine == 1)
     {
-        afpvec4 gamma = buffer_ld4(gamma_data, inner_id);
-        afpvec4 beta  = buffer_ld4(beta_data, inner_id);
-        v = v * gamma + beta;
+        afp gamma = buffer_ld1(gamma_data, inner_id);
+        afp beta  = buffer_ld1(beta_data, inner_id);
+        v = v * afpvec4(gamma) + afpvec4(beta);
     }
 
     buffer_st4(bottom_top_blob_data, linear_index, v);
