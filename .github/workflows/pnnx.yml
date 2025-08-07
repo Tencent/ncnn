@@ -129,7 +129,6 @@ jobs:
         pip3 install -r requirements.txt --break-system-packages
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-mobile-build.patch
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-no-link-system-lib.patch
-        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-pocketfft-build.patch
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
             -DCMAKE_BUILD_TYPE=MinSizeRel \
