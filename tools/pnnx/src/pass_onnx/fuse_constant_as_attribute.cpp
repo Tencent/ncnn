@@ -28,6 +28,8 @@ static constant_as_attribute caas[] = {
     {"If", 0, "cond"},
     {"Pad", 1, "pads"},
     {"Pad", 2, "value"},
+    {"ReduceL1", 1, "axes"},
+    {"ReduceL2", 1, "axes"},
     {"ReduceLogSumExp", 1, "axes"},
     {"ReduceMax", 1, "axes"},
     {"ReduceMean", 1, "axes"},
