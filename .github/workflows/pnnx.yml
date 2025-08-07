@@ -246,7 +246,7 @@ jobs:
           - { python: '3.12', numpy: '2.2.5',  opencv: '4.10.*', torch: '2.5.0',  torchvision: '0.20.0', torchaudio: '2.5.0+cpu'  }
           - { python: '3.12', numpy: '2.2.5',  opencv: '4.11.*', torch: '2.6.0',  torchvision: '0.21.0', torchaudio: '2.6.0+cpu'  }
           - { python: '3.12', numpy: '2.2.5',  opencv: '4.11.*', torch: '2.7.0',  torchvision: '0.22.0', torchaudio: '2.7.0+cpu'  }
-          - { python: '3.13', numpy: '2.3.2',  opencv: '4.12.*', torch: '2.8.0',  torchvision: '0.23.0', torchaudio: '2.8.0+cpu'  }
+          - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.8.0',  torchvision: '0.23.0', torchaudio: '2.8.0+cpu'  }
 
     name: test-${{ matrix.torch }}-py${{ matrix.python }}
 
