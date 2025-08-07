@@ -112,13 +112,11 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         if (affine_size == w)
         {
-            // 每行作为一个组
             group_size = w;
             num_groups_per_channel = h;
         }
         else // if (affine_size == w * h)
         {
-            // 每个通道作为一个组
             group_size = w * h;
             num_groups_per_channel = 1;
         }
@@ -126,12 +124,10 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            // 使用 .channel(q) 获取通道的正确起始指针，这会正确处理 cstep
             float* channel_ptr = bottom_top_blob.channel(q);
 
             for (int i = 0; i < num_groups_per_channel; i++)
             {
-                // 在通道内部进行指针运算是安全的，因为通道内数据是连续的
                 float* ptr = channel_ptr + i * group_size;
                 layernorm(ptr, gamma_data, beta_data, eps, group_size);
             }
