@@ -12,6 +12,8 @@
 #include <string>
 #include <stack>
 
+#include "npy.hpp"
+
 #include "storezip.h"
 #include "utils.h"
 
@@ -2882,6 +2884,77 @@ const Operand* Graph::get_operand(const std::string& name) const
     {
         if (r->name == name)
             return r;
+    }
+
+    return 0;
+}
+
+int Graph::bind_operand(const std::string& path, int index) 
+{
+    std::string name = path;
+    std::string suffix = "";
+    std::string::size_type pos = path.find_last_of('.');
+#ifdef _WIN32
+    std::string::size_type stt = path.find_last_of('\\');
+#else
+    std::string::size_type stt = path.find_last_of('/');
+#endif
+    if (stt == std::string::npos)
+        stt = 0;
+    if (pos != std::string::npos) 
+    {
+        name = path.substr(stt + 1, pos - stt - 1);
+        suffix = path.substr(pos + 1);
+    }
+
+    if (suffix == "npy") 
+    {
+        // load npy
+        npy::npy_data<float> d;
+        try
+        {
+            d = npy::read_npy<float>(path.c_str());
+        }
+        catch (const std::exception& e)
+        {
+            fprintf(stderr, "bind_operand failed to load %s: %s\n", path.c_str(), e.what());
+            // Optionally, you can exit the program here if needed
+            // std::exit(EXIT_FAILURE);
+            return -1;
+        }
+        // find operand in graph & bind data
+        Operand* r = get_operand(name);
+        // try to find operand by index
+        if (!r && index >= 0)
+            if (index < (int)operands.size())
+                r = operands[index];
+        if (!r)
+        {
+            fprintf(stderr, "bind_operand failed to find operand %s\n", name.c_str());
+            return -1;
+        } else if (r->type != 1) // type == 1 means float
+        {
+            fprintf(stderr, "bind_operand failed to bind %s, expected type float(1), got %d\n", name.c_str(), r->type);
+            return -1;
+        } else if (r->shape.size() != d.shape.size())
+        {
+            fprintf(stderr, "bind_operand failed to bind %s, expected shape %ld, got %ld\n", name.c_str(), r->shape.size(), d.shape.size());
+            return -1;
+        } else 
+        {
+            for (size_t i = 0; i < r->shape.size(); i++)
+            {
+                if (r->shape[i] != (int)d.shape[i])
+                {
+                    fprintf(stderr, "bind_operand failed to bind %s, expected shape %d, got %ld in index %ld\n", name.c_str(), r->shape[i], d.shape[i], i);
+                    return -1;
+                }
+            }
+            // new `__data__` parameter for data
+            r->params["__data__"] = Parameter(d.data);
+            // print name
+            printf("bind_operand %s to %s success\n", name.c_str(), r->name.c_str());
+        }
     }
 
     return 0;
