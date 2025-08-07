@@ -213,6 +213,8 @@ static void show_usage()
     fprintf(stderr, "  device=cpu/gpu\n");
     fprintf(stderr, "  inputshape=[1,3,224,224],...\n");
     fprintf(stderr, "  inputshape2=[1,3,320,320],...\n");
+    fprintf(stderr, "  input_npy_paths=ones.npy,...\n");
+    fprintf(stderr, "  input2_npy_paths=ones.npy,...\n");
 #if _WIN32
     fprintf(stderr, "  customop=C:\\Users\\nihui\\AppData\\Local\\torch_extensions\\torch_extensions\\Cache\\fused\\fused.dll,...\n");
 #else
@@ -262,6 +264,8 @@ int main(int argc, char** argv)
     std::vector<std::string> input_types;
     std::vector<std::vector<int64_t> > input_shapes2;
     std::vector<std::string> input_types2;
+    std::vector<std::string> input_npy_paths;
+    std::vector<std::string> input2_npy_paths;
     std::vector<std::string> customop_modules;
     std::vector<std::string> module_operators;
 
@@ -310,6 +314,10 @@ int main(int argc, char** argv)
             parse_string_list(value, customop_modules);
         if (strcmp(key, "moduleop") == 0)
             parse_string_list(value, module_operators);
+        if (strcmp(key, "input_npy_paths") == 0)
+            parse_string_list(value, input_npy_paths);
+        if (strcmp(key, "input2_npy_paths") == 0)
+            parse_string_list(value, input2_npy_paths);
     }
 
     // print options
@@ -335,6 +343,12 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
         fprintf(stderr, "moduleop = ");
         print_string_list(module_operators);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "input_npy_paths = ");
+        print_string_list(input_npy_paths);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "input2_npy_paths = ");
+        print_string_list(input2_npy_paths);
         fprintf(stderr, "\n");
     }
 
@@ -366,6 +380,7 @@ int main(int argc, char** argv)
         load_torchscript(ptpath, pnnx_graph,
                          device, input_shapes, input_types,
                          input_shapes2, input_types2,
+                         input_npy_paths, input2_npy_paths,
                          customop_modules, module_operators,
                          foldable_constants_zippath, foldable_constants);
     }
@@ -404,7 +419,8 @@ int main(int argc, char** argv)
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes);
+    // pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes);
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, input_npy_paths);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
@@ -418,7 +434,8 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
+        // pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, input_npy_paths, fp16);
     }
 
     //     pnnx::Graph pnnx_graph2;

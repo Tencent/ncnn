@@ -1432,7 +1432,7 @@ static std::string make_index_expression(const Operator* op)
     return index_expr;
 }
 
-int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes)
+int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_npy_paths)
 {
     FILE* pyfp = fopen(pypath.c_str(), "wb");
     if (!pyfp)
@@ -2408,61 +2408,84 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
-        fprintf(pyfp, "    torch.manual_seed(0)\n");
 
-        std::vector<std::string> input_names;
-        for (const Operator* op : ops)
+        fprintf(pyfp, "    # Create input tensors, ");
+        if (!input_npy_paths.empty())
         {
-            if (op->type != "pnnx.Input")
-                continue;
-
-            const Operand* r = op->outputs[0];
-            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
-            if (type_is_integer(r->type))
-            {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d", r->shape[i]);
-                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
-                        fprintf(pyfp, ", ");
+            fprintf(pyfp, "load from .npy files\n");
+            int input_idx = 0;
+            for (const Operator* op : ops) {
+                if (op->type != "pnnx.Input") continue;
+                const Operand* r = op->outputs[0];
+                std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+                if (input_idx < input_npy_paths.size()) {
+                    fprintf(pyfp, "    %s = torch.from_numpy(np.load('%s'))\n",
+                            input_name.c_str(),
+                            input_npy_paths[input_idx].c_str());
+                    input_idx++;
                 }
-                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
             }
-            else
-            {
-                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
-                }
-                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
-            }
-
-            input_names.push_back(input_name);
-        }
-
-        fprintf(pyfp, "\n");
-
-        if (input_names.size() == 1)
-        {
-            fprintf(pyfp, "    mod = torch.jit.trace(net, %s)\n", input_names[0].c_str());
         }
         else
         {
-            fprintf(pyfp, "    mod = torch.jit.trace(net, (");
-
-            for (size_t i = 0; i < input_names.size(); i++)
-            {
-                fprintf(pyfp, "%s", input_names[i].c_str());
-                if (i + 1 != input_names.size())
-                    fprintf(pyfp, ", ");
+            fprintf(pyfp, "generate random tensors\n");
+            fprintf(pyfp, "    torch.manual_seed(0)\n");
+            int input_idx = 0;
+            for (const Operator* op : ops) {
+                if (op->type != "pnnx.Input") continue;
+                if (input_idx < input_shapes.size())
+                {
+                    const Operand* r = op->outputs[0];
+                    std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+                    if (type_is_integer(r->type))
+                    {
+                        fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                        for (size_t i = 0; i < r->shape.size(); i++)
+                        {
+                            fprintf(pyfp, "%d", r->shape[i]);
+                            if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                                fprintf(pyfp, ", ");
+                        }
+                        fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                        for (size_t i = 0; i < r->shape.size(); i++)
+                        {
+                            fprintf(pyfp, "%d, ", r->shape[i]);
+                        }
+                        fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+                    }
+                    input_idx++;
+                }
             }
-
-            fprintf(pyfp, "))\n");
         }
 
-        fprintf(pyfp, "    mod.save(\"%s.pt\")\n", pypath.c_str());
+        fprintf(pyfp, "\n");
+        int input_count = 0;
+        for (const Operator* op : ops) {
+            if (op->type == "pnnx.Input") {
+                input_count++;
+            }
+        }
+
+        fprintf(pyfp, "    traced_model = torch.jit.trace(net, ");
+        
+        // 根据 C++ 中的 input_count 变量决定输出格式
+        if (input_count > 1) fprintf(pyfp, "(");
+        int current_input = 0;
+        for (const Operator* op : ops) {
+            if (op->type != "pnnx.Input") continue;
+            const Operand* r = op->outputs[0];
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            if (current_input > 0) fprintf(pyfp, ", ");
+            fprintf(pyfp, "%s", input_name.c_str());
+            current_input++;
+        }
+        if (input_count > 1) fprintf(pyfp, ")");
+        
+        fprintf(pyfp, ")\n");
     }
 
     fprintf(pyfp, "\n");
@@ -2474,62 +2497,82 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
-        fprintf(pyfp, "    torch.manual_seed(0)\n");
 
-        std::vector<std::string> input_names;
-        for (const Operator* op : ops)
+        fprintf(pyfp, "    # Create input tensors, ");
+        if (!input_npy_paths.empty())
         {
-            if (op->type != "pnnx.Input")
-                continue;
-
-            const Operand* r = op->outputs[0];
-            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
-            if (type_is_integer(r->type))
-            {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d", r->shape[i]);
-                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
-                        fprintf(pyfp, ", ");
+            fprintf(pyfp, "load from .npy files\n");
+            int input_idx = 0;
+            for (const Operator* op : ops) {
+                if (op->type != "pnnx.Input") continue;
+                const Operand* r = op->outputs[0];
+                std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+                if (input_idx < input_npy_paths.size()) {
+                    fprintf(pyfp, "    %s = torch.from_numpy(np.load('%s'))\n",
+                            input_name.c_str(),
+                            input_npy_paths[input_idx].c_str());
+                    input_idx++;
                 }
-                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
             }
-            else
-            {
-                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
-                }
-                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
-            }
-
-            input_names.push_back(input_name);
-        }
-
-        fprintf(pyfp, "\n");
-
-        // torch.onnx.export(net, v_0, "test_swin_t.onnx", export_params=True, opset_version=14, input_names=['in0'], output_names=['out0'])
-
-        if (input_names.size() == 1)
-        {
-            fprintf(pyfp, "    torch.onnx.export(net, %s", input_names[0].c_str());
         }
         else
         {
-            fprintf(pyfp, "    torch.onnx.export(net, (");
-
-            for (size_t i = 0; i < input_names.size(); i++)
-            {
-                fprintf(pyfp, "%s", input_names[i].c_str());
-                if (i + 1 != input_names.size())
-                    fprintf(pyfp, ", ");
+            fprintf(pyfp, "generate random tensors\n");
+            fprintf(pyfp, "    torch.manual_seed(0)\n");
+            int input_idx = 0;
+            for (const Operator* op : ops) {
+                if (op->type != "pnnx.Input") continue;
+                if (input_idx < input_shapes.size())
+                {
+                    const Operand* r = op->outputs[0];
+                    std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+                    if (type_is_integer(r->type))
+                    {
+                        fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                        for (size_t i = 0; i < r->shape.size(); i++)
+                        {
+                            fprintf(pyfp, "%d", r->shape[i]);
+                            if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                                fprintf(pyfp, ", ");
+                        }
+                        fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                        for (size_t i = 0; i < r->shape.size(); i++)
+                        {
+                            fprintf(pyfp, "%d, ", r->shape[i]);
+                        }
+                        fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+                    }
+                    input_idx++;
+                }
             }
-
-            fprintf(pyfp, ")");
         }
 
+        fprintf(pyfp, "\n");
+        int input_count = 0;
+        for (const Operator* op : ops) {
+            if (op->type == "pnnx.Input") {
+                input_count++;
+            }
+        }
+
+        fprintf(pyfp, "    torch.onnx.export(net, ");
+        
+        if (input_count > 1) fprintf(pyfp, "(");
+        int current_input = 0;
+        for (const Operator* op : ops) {
+            if (op->type != "pnnx.Input") continue;
+            const Operand* r = op->outputs[0];
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            if (current_input > 0) fprintf(pyfp, ", ");
+            fprintf(pyfp, "%s", input_name.c_str());
+            current_input++;
+        }
+        if (input_count > 1) fprintf(pyfp, ")");
+        
         fprintf(pyfp, ", \"%s.onnx\", export_params=True, operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK, opset_version=13", pypath.c_str());
 
         fprintf(pyfp, ", input_names=[");
@@ -2597,65 +2640,81 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
-        fprintf(pyfp, "    torch.manual_seed(0)\n");
 
-        int input_shapes_i = 0;
-
-        std::vector<std::string> input_names;
-        for (const Operator* op : ops)
+        fprintf(pyfp, "    # Create input tensors, ");
+        if (!input_npy_paths.empty())
         {
-            if (op->type != "pnnx.Input")
-                continue;
-
-            const std::vector<int64_t>& shape0 = input_shapes[input_shapes_i++];
-
-            const Operand* r = op->outputs[0];
-            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
-            if (type_is_integer(r->type))
-            {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
-                {
-                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
-                    fprintf(pyfp, "%d", dimsize);
-                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
-                        fprintf(pyfp, ", ");
+            fprintf(pyfp, "load from .npy files\n");
+            int input_idx = 0;
+            for (const Operator* op : ops) {
+                if (op->type != "pnnx.Input") continue;
+                const Operand* r = op->outputs[0];
+                std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+                if (input_idx < input_npy_paths.size()) {
+                    fprintf(pyfp, "    %s = torch.from_numpy(np.load('%s'))\n",
+                            input_name.c_str(),
+                            input_npy_paths[input_idx].c_str());
+                    input_idx++;
                 }
-                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
             }
-            else
-            {
-                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
-                {
-                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
-                    fprintf(pyfp, "%d, ", dimsize);
-                }
-                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
-            }
-
-            input_names.push_back(input_name);
-        }
-
-        fprintf(pyfp, "\n");
-
-        if (input_names.size() == 1)
-        {
-            fprintf(pyfp, "    return net(%s)\n", input_names[0].c_str());
         }
         else
         {
-            fprintf(pyfp, "    return net(");
-
-            for (size_t i = 0; i < input_names.size(); i++)
-            {
-                fprintf(pyfp, "%s", input_names[i].c_str());
-                if (i + 1 != input_names.size())
-                    fprintf(pyfp, ", ");
+            fprintf(pyfp, "generate random tensors\n");
+            fprintf(pyfp, "    torch.manual_seed(0)\n");
+            int input_idx = 0;
+            for (const Operator* op : ops) {
+                if (op->type != "pnnx.Input") continue;
+                if (input_idx < input_shapes.size())
+                {
+                    const Operand* r = op->outputs[0];
+                    std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+                    if (type_is_integer(r->type))
+                    {
+                        fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                        for (size_t i = 0; i < r->shape.size(); i++)
+                        {
+                            fprintf(pyfp, "%d", r->shape[i]);
+                            if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                                fprintf(pyfp, ", ");
+                        }
+                        fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                        for (size_t i = 0; i < r->shape.size(); i++)
+                        {
+                            fprintf(pyfp, "%d, ", r->shape[i]);
+                        }
+                        fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+                    }
+                    input_idx++;
+                }
             }
-
-            fprintf(pyfp, ")\n");
         }
+
+        fprintf(pyfp, "\n");
+        int input_count = 0;
+        for (const Operator* op : ops) {
+            if (op->type == "pnnx.Input") {
+                input_count++;
+            }
+        }
+
+        fprintf(pyfp, "    return net(");
+        
+        int current_input = 0;
+        for (const Operator* op : ops) {
+            if (op->type != "pnnx.Input") continue;
+            const Operand* r = op->outputs[0];
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            if (current_input > 0) fprintf(pyfp, ", ");
+            fprintf(pyfp, "%s", input_name.c_str());
+            current_input++;
+        }
+        
+        fprintf(pyfp, ")\n");
     }
 
     fprintf(pyfp, "\n");

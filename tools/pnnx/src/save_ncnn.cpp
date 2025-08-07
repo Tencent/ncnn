@@ -124,7 +124,7 @@ static int32_t safe_int64_to_int32(int64_t value)
     return static_cast<int32_t>(value);
 }
 
-int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16)
+int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_npy_paths, int fp16)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
     if (!paramfp)
@@ -396,38 +396,60 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
     // test inference
     {
         fprintf(pyfp, "def test_inference():\n");
-        fprintf(pyfp, "    torch.manual_seed(0)\n");
-
-        for (int input_index = 0;; input_index++)
+        if (!input_npy_paths.empty())
         {
-            std::string input_name = std::string("in") + std::to_string(input_index);
-            const Operand* r = g.get_operand(input_name);
-            if (!r)
-                break;
-
-            const std::vector<int64_t>& shape0 = input_shapes[input_index];
-
-            if (type_is_integer(r->type))
+            fprintf(pyfp, "    # load input from npy\n");
+            for (size_t i = 0; ; ++i)
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
+                std::string input_name = std::string("in") + std::to_string(i);
+                const Operand* r = g.get_operand(input_name);
+                if (!r) break;
+                if (i < input_npy_paths.size())
                 {
-                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
-                    fprintf(pyfp, "%d", dimsize);
-                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
-                        fprintf(pyfp, ", ");
+                    fprintf(pyfp, "    %s = torch.from_numpy(np.load('%s'))\n",
+                            input_name.c_str(),
+                            input_npy_paths[i].c_str());
                 }
-                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+                else
+                {
+                    fprintf(pyfp, "    %s = torch.rand(1, 3, 224, 224) # fallback random\n", input_name.c_str());
+                }
             }
-            else
+        }
+        else
+        {
+            fprintf(pyfp, "    torch.manual_seed(0)\n");
+            for (int input_index = 0;; input_index++)
             {
-                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
+                std::string input_name = std::string("in") + std::to_string(input_index);
+                const Operand* r = g.get_operand(input_name);
+                if (!r)
+                    break;
+
+                const std::vector<int64_t>& shape0 = input_shapes[input_index];
+
+                if (type_is_integer(r->type))
                 {
-                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
-                    fprintf(pyfp, "%d, ", dimsize);
+                    fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                    for (size_t i = 0; i < r->shape.size(); i++)
+                    {
+                        int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                        fprintf(pyfp, "%d", dimsize);
+                        if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                            fprintf(pyfp, ", ");
+                    }
+                    fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
                 }
-                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+                else
+                {
+                    fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                    for (size_t i = 0; i < r->shape.size(); i++)
+                    {
+                        int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                        fprintf(pyfp, "%d, ", dimsize);
+                    }
+                    fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+                }
             }
         }
 

@@ -50,10 +50,13 @@ find_package(Torch REQUIRED)
 
 find_package(TorchVision QUIET)
 
+find_package(ZLIB REQUIRED)
+
 message(STATUS "Torch_VERSION = ${Torch_VERSION}")
 message(STATUS "Torch_VERSION_MAJOR = ${Torch_VERSION_MAJOR}")
 message(STATUS "Torch_VERSION_MINOR = ${Torch_VERSION_MINOR}")
 message(STATUS "Torch_VERSION_PATCH = ${Torch_VERSION_PATCH}")
+message(STATUS "Found ZLIB: ${ZLIB_LIBRARIES}")
 
 if(Torch_VERSION VERSION_LESS "1.8")
     message(FATAL_ERROR "pnnx only supports PyTorch >= 1.8")
