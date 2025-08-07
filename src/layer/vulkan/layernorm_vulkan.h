@@ -1,4 +1,4 @@
-// Copyright 2024 Tencent
+// Copyright 2025 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_LAYERNORM_VULKAN_H
@@ -26,8 +26,6 @@ public:
     // b = -mean * a + beta
     VkMat gamma_data_gpu;
     VkMat beta_data_gpu;
-
-
 
     // pack1 pipelines
     Pipeline* pipeline_layernorm_reduce_sum4_fp16_to_fp32;
