@@ -5,7 +5,8 @@
 
 #include "gpu.h"
 
-#include <fstream>
+#include <cstdio>
+#include <mutex>
 namespace ncnn {
 #if NCNN_VULKAN
 // https://en.wikipedia.org/wiki/MurmurHash
@@ -112,6 +113,7 @@ public:
 
     mutable std::vector<pipeline_cache_digest> cache_digests;
     mutable std::vector<pipeline_cache_artifact> cache_artifacts;
+    mutable VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
     mutable Mutex cache_lock;
 };
 
@@ -214,6 +216,12 @@ void PipelineCache::clear()
         {
             vkDestroyShaderModule(vkdev->vkdevice(), cc.shader_module, 0);
         }
+    }
+
+    if (d->pipeline_cache)
+    {
+        vkDestroyPipelineCache(vkdev->vkdevice(), d->pipeline_cache, 0);
+        d->pipeline_cache = VK_NULL_HANDLE;
     }
 
     d->cache_digests.clear();
@@ -383,49 +391,20 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
 
 struct PipelineCachePrefixHeader
 {
-    uint32_t magic;    // an arbitrary magic header to make sure this is actually our file
-    uint32_t dataSize; // equal to *pDataSize returned by vkGetPipelineCacheData
-    uint64_t dataHash; // a hash of pipeline cache data, including the header
+    uint32_t magic;
+    uint32_t version;
+    uint32_t dataSize;
+    uint64_t dataHash;
 
-    uint32_t vendorID;      // equal to VkPhysicalDeviceProperties::vendorID
-    uint32_t deviceID;      // equal to VkPhysicalDeviceProperties::deviceID
-    uint32_t driverVersion; // equal to VkPhysicalDeviceProperties::driverVersion
-    uint32_t driverABI;     // equal to sizeof(void*)
+    uint32_t vendorID;
+    uint32_t deviceID;
+    uint32_t driverVersion;
+    uint32_t driverABI;
 
-    uint8_t uuid[VK_UUID_SIZE]; // equal to VkPhysicalDeviceProperties::pipelineCacheUUID
+    uint8_t uuid[VK_UUID_SIZE];
+
+    uint32_t reserved[4];
 };
-
-static uint32_t load_little_endian_u32(const void* ptr)
-{
-}
-
-static void store_little_endian_u32(void* ptr, uint32_t host_value)
-{
-
-}
-
-static int load_little_endian_header_version_one(const void* ptr, VkPipelineCacheHeaderVersionOne& header_version_one)
-{
-    header_version_one.deviceID = load_little_endian_u32(ptr);
-    header_version_one.headerSize = load_little_endian_u32(ptr + offsetof(VkPipelineCacheHeaderVersionOne, headerSize));
-    header_version_one.vendorID = load_little_endian_u32(ptr + offsetof(VkPipelineCacheHeaderVersionOne, vendorID));
-    header_version_one.headerVersion = static_cast<VkPipelineCacheHeaderVersion>(
-        load_little_endian_u32(ptr + offsetof(VkPipelineCacheHeaderVersionOne, headerVersion)));
-    std::copy_n((const uint8_t*)ptr + offsetof(VkPipelineCacheHeaderVersionOne, pipelineCacheUUID),
-                 VK_UUID_SIZE, header_version_one.pipelineCacheUUID);
-    return 0;
-}
-
-static int store_little_endian_header_version_one(const VkPipelineCacheHeaderVersionOne& header_version_one, void* ptr)
-{
-    store_little_endian_u32(ptr, header_version_one.deviceID);
-    store_little_endian_u32(ptr + offsetof(VkPipelineCacheHeaderVersionOne, headerSize), header_version_one.headerSize);
-    store_little_endian_u32(ptr + offsetof(VkPipelineCacheHeaderVersionOne, vendorID), header_version_one.vendorID);
-    store_little_endian_u32(ptr + offsetof(VkPipelineCacheHeaderVersionOne, headerVersion), static_cast<uint32_t>(header_version_one.headerVersion));
-    std::copy_n(header_version_one.pipelineCacheUUID, VK_UUID_SIZE,
-                 (uint8_t*)ptr + offsetof(VkPipelineCacheHeaderVersionOne, pipelineCacheUUID));
-    return 0;
-}
 
 static constexpr uint32_t vk_pipeline_cache_header_magic()
 {
@@ -434,170 +413,198 @@ static constexpr uint32_t vk_pipeline_cache_header_magic()
     return magic;
 }
 
-int PipelineCache::try_load_pipeline_cache_from_disk(const char* path, VkPipelineCache* pipeline_cache) const
+static int atomic_rename(const char* old_path, const char* new_path)
 {
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream.is_open())
+#ifdef _WIN32
+    if (MoveFileExA(old_path, new_path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+        return 0;
+    return -1;
+#else
+    return std::rename(old_path, new_path);
+#endif // _WIN32
+}
+
+static bool validate_cache_header(const PipelineCachePrefixHeader& header, const VkPhysicalDeviceProperties& physical_device_properties)
+{
+    if (header.magic != vk_pipeline_cache_header_magic())
+        return false;
+    if (header.vendorID != physical_device_properties.vendorID)
+        return false;
+    if (header.deviceID != physical_device_properties.deviceID)
+        return false;
+    if (header.driverVersion != physical_device_properties.driverVersion)
+        return false;
+    if (header.driverABI != sizeof(void*))
+        return false;
+    if (std::memcmp(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
+        return false;
+    return true;
+}
+
+
+PipelineCache::PipelineCacheIOResult PipelineCache::try_load_pipeline_cache_from_disk(const char* path, VkPipelineCache* pipeline_cache) const
+{
+    FILE* file = fopen(path, "rb");
+    if (!file)
     {
-        NCNN_LOGE("PipelineCache::load_from_disk: failed to open file %s", path);
-        return -1;
+        return PipelineCacheIOResult::FileFailure;
     }
-    stream.seekg(0, std::ios::end);
-    size_t file_size = stream.tellg();
+
+    fseek(file, 0, SEEK_END);
+    size_t file_size = ftell(file);
     if (file_size == -1)
     {
-        stream.close();
-        return -1;
+        fclose(file);
+        return PipelineCacheIOResult::FileFailure;
     }
+    rewind(file);
+
     if (file_size < sizeof(PipelineCachePrefixHeader))
     {
-        stream.close();
-        return -1;
+        fclose(file);
+        return PipelineCacheIOResult::InvalidFile;
     }
 
     std::vector<char> buffer(file_size - sizeof(PipelineCachePrefixHeader));
     PipelineCachePrefixHeader header;
-    stream.seekg(0, std::ios::beg);
-    stream.read(reinterpret_cast<char*>(&header), sizeof(PipelineCachePrefixHeader));
-    if (!stream)
+    if (fread(&header, sizeof(PipelineCachePrefixHeader), 1, file) != 1)
     {
-        return -1;
+        fclose(file);
+        return PipelineCacheIOResult::InvalidFile;
     }
-    stream.read(buffer.data(), file_size - sizeof(PipelineCachePrefixHeader));
-    if (!stream)
+    if (fread(buffer.data(), 1, file_size - sizeof(PipelineCachePrefixHeader), file) != file_size - sizeof(PipelineCachePrefixHeader))
     {
-        return -1;
+        fclose(file);
+        return PipelineCacheIOResult::DataCorruption;
     }
-    stream.close();
-    if (stream.fail())
-    {
-        return -1;
-    }
+    fclose(file);
 
     if (header.magic != vk_pipeline_cache_header_magic())
     {
-        return -1;
+        return PipelineCacheIOResult::InvalidCache;
     }
+
     void* cache_data_begin = buffer.data();
     const VkPhysicalDeviceProperties& device_properties = vkdev->info.physicalDeviceProperties();
-    if (header.vendorID != device_properties.vendorID
-        || header.deviceID != device_properties.deviceID
-        || header.driverVersion != device_properties.driverVersion
-        || header.driverABI != sizeof(void*)
-        || std::memcmp(header.uuid, device_properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
+    if (!validate_cache_header(header, device_properties))
     {
-        return -1;
+        return PipelineCacheIOResult::InvalidCache;
     }
-    size_t cache_data_size = header.dataSize;
 
-    if (cache_data_size == 0) return -1;
-    if (cache_data_size > buffer.size())
+    size_t cache_data_size = header.dataSize;
+    if (cache_data_size == 0 || cache_data_size > buffer.size())
     {
-        return -1;
+        return PipelineCacheIOResult::DataCorruption;
     }
+
     uint32_t hash = fnv1a_32(reinterpret_cast<const uint8_t*>(cache_data_begin), cache_data_size);
     if (hash != header.dataHash)
     {
-        return -1;
+        return PipelineCacheIOResult::DataCorruption;
     }
 
-    VkPipelineCacheCreateInfo pipeline_cache_create_info;
-    pipeline_cache_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-    pipeline_cache_create_info.pNext = nullptr;
-    pipeline_cache_create_info.flags = 0;
-    pipeline_cache_create_info.pInitialData = cache_data_begin;
-    pipeline_cache_create_info.initialDataSize = cache_data_size;
-    if (vkCreatePipelineCache(vkdev->vkdevice(), &pipeline_cache_create_info, nullptr, pipeline_cache) != VK_SUCCESS)
+    if (vkdev->create_pipeline_cache_with_data(cache_data_begin, cache_data_size, &d->pipeline_cache) != VK_SUCCESS)
     {
-        return -1;
+        return PipelineCacheIOResult::CreationFailure;
     }
-    return 0;
+
+    return PipelineCacheIOResult::Success;
 }
 
-int PipelineCache::load_pipeline_cache_from_disk(const char* path, VkPipelineCache* pipeline_cache) const
+int PipelineCache::load_pipeline_cache(const char* path) const
 {
-    if (try_load_pipeline_cache_from_disk(path, pipeline_cache) == 0) return 0;
-    VkPipelineCacheCreateInfo pipeline_cache_create_info;
-    pipeline_cache_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-    pipeline_cache_create_info.pNext = nullptr;
-    pipeline_cache_create_info.flags = VK_PIPELINE_CACHE_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
-    pipeline_cache_create_info.pInitialData = nullptr;
-    pipeline_cache_create_info.initialDataSize = 0;
-    if (vkCreatePipelineCache(vkdev->vkdevice(), &pipeline_cache_create_info, nullptr, pipeline_cache) != VK_SUCCESS)
+    MutexLockGuard lock(d->cache_lock);
+    if (d->pipeline_cache != VK_NULL_HANDLE)
     {
-        NCNN_LOGE("PipelineCache::load_from_disk: failed to create pipeline cache");
+        NCNN_LOGE("a valid pipeline cache already exists, stop loading");
+        return 0;
+    }
+    PipelineCacheIOResult result = try_load_pipeline_cache_from_disk(path, &d->pipeline_cache);
+    if (result == PipelineCacheIOResult::Success) return 0;
+    switch (result)
+    {
+        case PipelineCacheIOResult::FileFailure:
+            NCNN_LOGE("Failed to open pipeline cache file: %s", path);
+            break;
+        case PipelineCacheIOResult::InvalidFile:
+            NCNN_LOGE("File %s is not a valid file for pipeline cache", path);
+            break;
+        case PipelineCacheIOResult::InvalidCache:
+            NCNN_LOGE("The cache in file %s is not valid for current platform", path);
+            break;
+        case PipelineCacheIOResult::DataCorruption:
+            NCNN_LOGE("Data in file %s is corrupted", path);
+            break;
+        case PipelineCacheIOResult::CreationFailure:
+            NCNN_LOGE("Failed to create pipeline cache from data in file %s", path);
+            break;
+        default:;
+        }
+
+    NCNN_LOGE("Failed to load pipeline cache from file %s, fall back to create empty pipeline cache", path);
+    if (vkdev->create_empty_pipeline_cache(&d->pipeline_cache) != 0)
+    {
+        NCNN_LOGE("Failed to create pipeline cache");
         return -1;
     }
+
     return 0;
 }
 
-int PipelineCache::save_pipeline_cache_to_disk(VkPipelineCache pipeline_cache, const char* path) const
+int PipelineCache::save_pipeline_cache(const char* path) const
 {
     size_t cache_data_size;
-    if (vkGetPipelineCacheData(vkdev->vkdevice(), pipeline_cache, &cache_data_size, nullptr) != VK_SUCCESS)
+    if (vkGetPipelineCacheData(vkdev->vkdevice(), d->pipeline_cache, &cache_data_size, nullptr) != VK_SUCCESS)
     {
-        NCNN_LOGE("PipelineCache::save_to_disk: failed to get pipeline cache data size");
-        return -1;
-    }
-    std::vector<char> buffer(cache_data_size);
-    if (vkGetPipelineCacheData(vkdev->vkdevice(), pipeline_cache, &cache_data_size, buffer.data()) != VK_SUCCESS) return -1;
-    VkPipelineCacheHeaderVersionOne header_version_one;
-    int load_result = load_little_endian_header_version_one(buffer.data(), header_version_one);
-    if (load_result != 0)
-    {
-        NCNN_LOGE("PipelineCache::save_to_disk: failed to load pipeline cache header version one");
-        return -1;
-    }
-    if (header_version_one.headerVersion != VK_PIPELINE_CACHE_HEADER_VERSION_ONE)
-    {
-        NCNN_LOGE("PipelineCache::save_to_disk: unsupported pipeline cache header version %d", header_version_one.headerVersion);
-        return -1;
-    }
-    if (header_version_one.headerSize != sizeof(VkPipelineCacheHeaderVersionOne))
-    {
-        NCNN_LOGE("PipelineCache::save_to_disk: unsupported pipeline cache header size %d", header_version_one.headerSize);
-        return -1;
-    }
-    const VkPhysicalDeviceProperties& device_properties = vkdev->info.physicalDeviceProperties();
-    if (device_properties.vendorID != header_version_one.vendorID
-        || device_properties.deviceID != header_version_one.deviceID
-        || std::memcmp(device_properties.pipelineCacheUUID, header_version_one.pipelineCacheUUID, VK_UUID_SIZE) != 0)
-    {
+        NCNN_LOGE("Failed to get pipeline cache data");
         return -1;
     }
 
-    PipelineCachePrefixHeader header;
+    std::vector<char> buffer(cache_data_size);
+    if (vkGetPipelineCacheData(vkdev->vkdevice(), d->pipeline_cache, &cache_data_size, buffer.data()) != VK_SUCCESS)
+    {
+        NCNN_LOGE("Failed to get pipeline cache data");
+        return -1;
+    }
+
+    const VkPhysicalDeviceProperties& device_properties = vkdev->info.physicalDeviceProperties();
+
+    PipelineCachePrefixHeader header = {};
     header.vendorID = device_properties.vendorID;
     header.deviceID = device_properties.deviceID;
     header.driverVersion = device_properties.driverVersion;
     header.driverABI = sizeof(void*);
     std::copy_n(device_properties.pipelineCacheUUID, VK_UUID_SIZE, header.uuid);
-
     header.dataSize = cache_data_size;
     header.magic = vk_pipeline_cache_header_magic();
     header.dataHash = fnv1a_32(reinterpret_cast<const uint8_t*>(buffer.data()), cache_data_size);
 
     std::string expected_path = path;
     std::string temp_file_path = expected_path + ".tmp";
-    std::ofstream stream(temp_file_path, std::ios::binary);
-    stream.write(reinterpret_cast<const char*>(&header), sizeof(PipelineCachePrefixHeader));
-    if (!stream)
+    FILE* file = fopen(temp_file_path.c_str(), "wb");
+    if (!file)
     {
+        NCNN_LOGE("Failed to open temporary file %s for writing pipeline cache", temp_file_path.c_str());
         return -1;
     }
-    stream.write(buffer.data(), cache_data_size);
-    if (!stream)
+
+    size_t header_bytes_written = fwrite(&header, 1, sizeof(PipelineCachePrefixHeader), file);
+    size_t data_bytes_written = fwrite(buffer.data(), 1, cache_data_size, file);
+    if (header_bytes_written != sizeof(PipelineCachePrefixHeader) || data_bytes_written != cache_data_size)
     {
+        NCNN_LOGE("Failed to write pipeline cache data to file %s", temp_file_path.c_str());
+        fclose(file);
         return -1;
     }
-    stream.close();
-    if (stream.fail())
+
+    fclose(file);
+
+    if (atomic_rename(temp_file_path.c_str(), path) != 0)
     {
+        NCNN_LOGE("Failed to rename file %s to %s", temp_file_path.c_str(), path);
         return -1;
     }
-    //TODO: possibly not robust on all platforms
-    if (std::rename(temp_file_path.c_str(), path) != 0)
-        return -1;
+
     return 0;
 }
 
@@ -665,7 +672,13 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
     if (ret != 0)
         goto ERROR_PipelineCache;
 
-    ret = vkdev->create_pipeline(shader_module, pipeline_layout, specializations, subgroup_size, &pipeline);
+    if (!d->pipeline_cache)
+    {
+        ret = vkdev->create_empty_pipeline_cache(&d->pipeline_cache);
+        if (ret != 0)
+            NCNN_LOGE("vkdev->create_empty_pipeline_cache failed, don't use cache");
+    }
+    ret = vkdev->create_pipeline(shader_module, pipeline_layout, specializations, subgroup_size, &d->pipeline_cache, &pipeline);
     if (ret != 0)
         goto ERROR_PipelineCache;
 

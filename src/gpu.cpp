@@ -3734,7 +3734,7 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     return 0;
 }
 
-int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const
+int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipelineCache* vk_pipeline_cache, VkPipeline* pipeline) const
 {
     const int specialization_count = specializations.size();
 
@@ -3792,10 +3792,48 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     computePipelineCreateInfo.basePipelineHandle = 0;
     computePipelineCreateInfo.basePipelineIndex = 0;
 
-    VkResult ret = vkCreateComputePipelines(d->device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
+    VkResult ret;
+    if (vk_pipeline_cache != VK_NULL_HANDLE)
+        ret = vkCreateComputePipelines(d->device, *vk_pipeline_cache, 1, &computePipelineCreateInfo, 0, pipeline);
+    else
+        ret = vkCreateComputePipelines(d->device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, 0, pipeline);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateComputePipelines failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+int VulkanDevice::create_empty_pipeline_cache(VkPipelineCache* vk_pipeline_cache) const
+{
+    VkPipelineCacheCreateInfo info;
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+    info.pNext = 0;
+    info.flags = VK_PIPELINE_CACHE_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
+    info.initialDataSize = 0;
+    info.pInitialData = 0;
+    VkResult ret = vkCreatePipelineCache(d->device, &info, 0, vk_pipeline_cache);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreatePipelineCache failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+int VulkanDevice::create_pipeline_cache_with_data(const void* initial_data, size_t data_size, VkPipelineCache* vk_pipeline_cache) const
+{
+    VkPipelineCacheCreateInfo info;
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+    info.pNext = 0;
+    info.flags = VK_PIPELINE_CACHE_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
+    info.initialDataSize = data_size;
+    info.pInitialData = initial_data;
+    VkResult ret = vkCreatePipelineCache(d->device, &info, 0, vk_pipeline_cache);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreatePipelineCache failed %d", ret);
         return -1;
     }
 
