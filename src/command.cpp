@@ -366,6 +366,14 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         src_fp16 = src;
     }
 
+    // vkdev->convert_packing only handles elempack=1/4/8
+    if (src_fp16.elempack > 8)
+    {
+        Mat src_fp16_pack8;
+        ncnn::convert_packing(src_fp16, src_fp16_pack8, 8, opt);
+        src_fp16 = src_fp16_pack8;
+    }
+
     // upload
     VkMat dst_staging;
     dst_staging.create_like(src_fp16, opt.staging_vkallocator);
