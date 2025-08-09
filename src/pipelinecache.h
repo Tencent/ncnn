@@ -24,6 +24,8 @@ public:
 
     void clear();
 
+    void set_shader_cache_dir(const char* dir);
+
     int get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
                      uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
                      VkShaderModule* shader_module,
