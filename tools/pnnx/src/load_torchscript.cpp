@@ -100,9 +100,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             type = 2;
             int64_t i64 = value_node->i(torch::jit::attr::value);
             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-            if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
             if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-            if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
             i = (int)i64;
             break;
         }
@@ -143,9 +141,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                     type = 2;
                     int64_t i64 = t.item<int64_t>();
                     if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                    if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                     if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-                    if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                     i = (int)i64;
                 }
                 else if (t.scalar_type() == c10::ScalarType::Int)
@@ -197,9 +193,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                 for (auto i64 : i64s)
                 {
                     if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                    if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                     if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-                    if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                     ai.push_back(i64);
                 }
                 break;
@@ -583,8 +577,10 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
                      const std::string& device,
                      const std::vector<std::vector<int64_t> >& input_shapes,
                      const std::vector<std::string>& input_types,
+                     const std::vector<std::vector<char> >& input_contents,
                      const std::vector<std::vector<int64_t> >& input_shapes2,
                      const std::vector<std::string>& input_types2,
+                     const std::vector<std::vector<char> >& input_contents2,
                      const std::vector<std::string>& customop_modules,
                      const std::vector<std::string>& module_operators,
                      const std::string& foldable_constants_zippath,
@@ -646,31 +642,68 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     }
 
     std::vector<at::Tensor> input_tensors;
-    for (size_t i = 0; i < traced_input_shapes.size(); i++)
+    if (input_contents.size() != 0)
     {
-        const std::vector<int64_t>& shape = traced_input_shapes[i];
-        const std::string& type = traced_input_types[i];
+        for (size_t i = 0; i < traced_input_shapes.size(); i++)
+        {
+            const std::vector<int64_t>& shape = traced_input_shapes[i];
+            const std::string& type = traced_input_types[i];
 
-        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
-        if (device == "gpu")
-            t = t.cuda();
+            at::TensorOptions options(input_type_to_c10_ScalarType(type));
+            at::IntArrayRef shape2(shape);
+            at::Tensor t = torch::from_blob((void*)input_contents[i].data(), shape2, options);
+            if (device == "gpu")
+                t = t.cuda();
 
-        input_tensors.push_back(t);
+            input_tensors.push_back(t);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < traced_input_shapes.size(); i++)
+        {
+            const std::vector<int64_t>& shape = traced_input_shapes[i];
+            const std::string& type = traced_input_types[i];
+
+            at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+            if (device == "gpu")
+                t = t.cuda();
+
+            input_tensors.push_back(t);
+        }
     }
 
     std::vector<at::Tensor> input_tensors2;
-    for (size_t i = 0; i < input_shapes2.size(); i++)
+    if (input_contents2.size() != 0)
     {
-        const std::vector<int64_t>& shape = input_shapes2[i];
-        const std::string& type = input_types2[i];
+        for (size_t i = 0; i < input_shapes2.size(); i++)
+        {
+            const std::vector<int64_t>& shape = input_shapes2[i];
+            const std::string& type = input_types2[i];
 
-        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
-        if (device == "gpu")
-            t = t.cuda();
+            at::TensorOptions options(input_type_to_c10_ScalarType(type));
+            at::IntArrayRef shape2(shape);
+            at::Tensor t = torch::from_blob((void*)input_contents2[i].data(), shape2, options);
+            if (device == "gpu")
+                t = t.cuda();
 
-        input_tensors2.push_back(t);
+            input_tensors2.push_back(t);
+        }
     }
+    else if (input_shapes2.size() != 0)
+    {
+        for (size_t i = 0; i < input_shapes2.size(); i++)
+        {
+            const std::vector<int64_t>& shape = input_shapes2[i];
+            const std::string& type = input_types2[i];
 
+            at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+            if (device == "gpu")
+                t = t.cuda();
+
+            input_tensors2.push_back(t);
+        }
+    }
     torch::jit::Module mod;
 
     try
