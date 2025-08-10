@@ -80,7 +80,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
     const int packn = __riscv_vlenb() / 4;
     if (elempack == packn)
     {
-#if C906
+#if C906 || __riscv_xtheadvector
         // C906 128 bits
         static unsigned int index_c906[4 * 4];
 #else
@@ -245,7 +245,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
         if (top_blob.empty())
             return -100;
         const int size = w * h;
-#if C906
+#if C906 || __riscv_xtheadvector
         // C906 128 bits
         for (int i = 0; i < _group; i++)
         {
@@ -276,16 +276,14 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     vfloat32m1_t _p1;
                     vfloat32m1_t _p2;
                     vfloat32m1_t _p3;
-#if __xtheadvector
-                    vlsseg4e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, ptr0, ptrdiff01, vl);
-#else
+
                     vfloat32m1x4_t _ps = __riscv_vlsseg4e32_v_f32m1x4(ptr0, ptrdiff01, vl);
 
                     _p0 = __riscv_vget_v_f32m1x4_f32m1(_ps, 0);
                     _p1 = __riscv_vget_v_f32m1x4_f32m1(_ps, 1);
                     _p2 = __riscv_vget_v_f32m1x4_f32m1(_ps, 2);
                     _p3 = __riscv_vget_v_f32m1x4_f32m1(_ps, 3);
-#endif
+
                     __riscv_vse32_v_f32m1(outptr0, _p0, vl);
                     __riscv_vse32_v_f32m1(outptr1, _p1, vl);
                     __riscv_vse32_v_f32m1(outptr2, _p2, vl);
@@ -329,9 +327,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     vfloat32m1_t _p5;
                     vfloat32m1_t _p6;
                     vfloat32m1_t _p7;
-#if __xtheadvector
-                   vlsseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, ptr0, ptrdiff01, vl);
-#else
+
                     vfloat32m1x8_t _ps = __riscv_vlsseg8e32_v_f32m1x8(ptr0, ptrdiff01, vl);
 
                     _p0 = __riscv_vget_v_f32m1x8_f32m1(_ps, 0);
@@ -342,7 +338,6 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     _p5 = __riscv_vget_v_f32m1x8_f32m1(_ps, 5);
                     _p6 = __riscv_vget_v_f32m1x8_f32m1(_ps, 6);
                     _p7 = __riscv_vget_v_f32m1x8_f32m1(_ps, 7);
-#endif
 
                     __riscv_vse32_v_f32m1(outptr0, _p0, vl);
                     __riscv_vse32_v_f32m1(outptr1, _p1, vl);
@@ -656,7 +651,7 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
     const int packn = __riscv_vlenb() / 2;
     if (elempack == packn)
     {
-#if C906
+#if C906 || __riscv_xtheadvector
         // C906 128 bits
         static unsigned short index_c906[8 * 4];
 #else
@@ -839,7 +834,7 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
         if (top_blob.empty())
             return -100;
         const int size = w * h;
-#if C906
+#if C906 || __riscv_xtheadvector
         // C906 128 bits, pack8
         for (int i = 0; i < _group; i++)
         {
