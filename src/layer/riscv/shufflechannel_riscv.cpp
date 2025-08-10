@@ -869,7 +869,7 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
                 unsigned short* outptr7 = top_blob.channel(q * 8 + 7);
                 for (int i = 0; i < size; i++)
                 {
-                    vuint16m1x8_t _ps = __riscv_vlsseg8e16_v_u16m1x8( ptr0, ptrdiff01, vl);
+                    vuint16m1x8_t _ps = __riscv_vlsseg8e16_v_u16m1x8(ptr0, ptrdiff01, vl);
 
                     vuint16m1_t _p0 = __riscv_vget_v_u16m1x8_u16m1(_ps, 0);
                     vuint16m1_t _p1 = __riscv_vget_v_u16m1x8_u16m1(_ps, 1);
