@@ -330,7 +330,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     vfloat32m1_t _p6;
                     vfloat32m1_t _p7;
 #if __xtheadvector
-                   vlsseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, ptr0, ptrdiff01, vl);
+                    vlsseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, ptr0, ptrdiff01, vl);
 #else
                     vfloat32m1x8_t _ps = __riscv_vlsseg8e32_v_f32m1x8(ptr0, ptrdiff01, vl);
 
@@ -874,7 +874,7 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
                 unsigned short* outptr7 = top_blob.channel(q * 8 + 7);
                 for (int i = 0; i < size; i++)
                 {
-                    vuint16m1x8_t _ps = __riscv_vlsseg8e16_v_u16m1x8( ptr0, ptrdiff01, vl);
+                    vuint16m1x8_t _ps = __riscv_vlsseg8e16_v_u16m1x8(ptr0, ptrdiff01, vl);
 
                     vuint16m1_t _p0 = __riscv_vget_v_u16m1x8_u16m1(_ps, 0);
                     vuint16m1_t _p1 = __riscv_vget_v_u16m1x8_u16m1(_ps, 1);
