@@ -585,6 +585,8 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
                      const std::vector<std::string>& input_types,
                      const std::vector<std::vector<int64_t> >& input_shapes2,
                      const std::vector<std::string>& input_types2,
+                     const std::vector<std::string>& input_npy_paths,
+                     const std::vector<std::string>& input2_npy_paths,
                      const std::vector<std::string>& customop_modules,
                      const std::vector<std::string>& module_operators,
                      const std::string& foldable_constants_zippath,
@@ -646,16 +648,69 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     }
 
     std::vector<at::Tensor> input_tensors;
-    for (size_t i = 0; i < traced_input_shapes.size(); i++)
+    if (!input_npy_paths.empty())
     {
-        const std::vector<int64_t>& shape = traced_input_shapes[i];
-        const std::string& type = traced_input_types[i];
+        if (input_npy_paths.size() != traced_input_shapes.size())
+        {
+            fprintf(stderr, "Error: Number of .npy files (%zu) does not match number of model inputs (%zu).\n",
+                    input_npy_paths.size(), traced_input_shapes.size());
+            return -1;
+        }
 
-        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
-        if (device == "gpu")
-            t = t.cuda();
+        fprintf(stderr, "Loading %zu custom inputs from .npy files...\n", input_npy_paths.size());
+        for (size_t i = 0; i < input_npy_paths.size(); i++)
+        {
+            const std::string& npy_path = input_npy_paths[i];
+            cnpy::NpyArray arr = cnpy::npy_load(npy_path);
 
-        input_tensors.push_back(t);
+            std::vector<int64_t> shape(arr.shape.begin(), arr.shape.end());
+
+            fprintf(stderr, "Loading .npy file %s with shape [", npy_path.c_str());
+            for (size_t k = 0; k < shape.size(); ++k) {
+                fprintf(stderr, "%ld%s", shape[k], k < shape.size() - 1 ? ", " : "");
+            }
+            fprintf(stderr, "] dtype-size:%ld\n", arr.word_size);
+
+            at::ScalarType dtype;
+            switch (arr.word_size) {
+                case 1:
+                    dtype = at::kByte;
+                    break;
+                case 2:
+                    dtype = at::kShort;
+                    break;
+                case 4:
+                    dtype = at::kFloat;
+                    break;
+                case 8:
+                    dtype = at::kDouble;
+                    break;
+                default:
+                    fprintf(stderr, "Error: Unsupported .npy dtype size: %zu\n", arr.word_size);
+                    return -1;
+            }
+
+            at::Tensor t = torch::from_blob(arr.data<char>(), shape, torch::dtype(dtype)).clone();
+            
+            if (device == "gpu")
+                t = t.cuda();
+
+            input_tensors.push_back(t);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < traced_input_shapes.size(); i++)
+        {
+            const std::vector<int64_t>& shape = traced_input_shapes[i];
+            const std::string& type = traced_input_types[i];
+
+            at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+            if (device == "gpu")
+                t = t.cuda();
+
+            input_tensors.push_back(t);
+        }
     }
 
     std::vector<at::Tensor> input_tensors2;
