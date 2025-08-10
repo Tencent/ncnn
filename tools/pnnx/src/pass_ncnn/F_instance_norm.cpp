@@ -13,11 +13,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-F.instance_norm         op_0        1 1 input out weight=None bias=None running_mean=None running_var=None eps=%eps
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               F.instance_norm         op_0        1 1 input out weight=None bias=None running_mean=None running_var=None eps=%eps
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -54,13 +54,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @data
-pnnx.Attribute          op_bias     0 1 bias @data
-F.instance_norm         op_0        3 1 input weight bias out running_mean=None running_var=None eps=%eps
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input       0 1 input
+               pnnx.Attribute          op_weight   0 1 weight @data
+               pnnx.Attribute          op_bias     0 1 bias @data
+               F.instance_norm         op_0        3 1 input weight bias out running_mean=None running_var=None eps=%eps
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

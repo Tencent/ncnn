@@ -13,13 +13,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 mat1
-pnnx.Attribute          op_bias     0 1 bias @data
-pnnx.Attribute          op_weight   0 1 weight @data
-torch.addmm             op_0        3 1 bias mat1 weight out alpha=%alpha beta=%beta
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input_0     0 1 mat1
+               pnnx.Attribute          op_bias     0 1 bias @data
+               pnnx.Attribute          op_weight   0 1 weight @data
+               torch.addmm             op_0        3 1 bias mat1 weight out alpha=%alpha beta=%beta
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -114,13 +114,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 mat1
-pnnx.Input              input_2     0 1 mat2
-torch.addmm             op_0        3 1 input mat1 mat2 out alpha=%alpha beta=%beta
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 mat1
+               pnnx.Input              input_2     0 1 mat2
+               torch.addmm             op_0        3 1 input mat1 mat2 out alpha=%alpha beta=%beta
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

@@ -49,7 +49,6 @@ public:
     int save_pipeline_cache(const char* path) const;
 
 protected:
-
     enum class PipelineCacheIOResult
     {
         Success,
@@ -61,7 +60,6 @@ protected:
     };
 
     PipelineCacheIOResult try_load_pipeline_cache_from_disk(const char* path, VkPipelineCache* pipeline_cache) const;
-
 
     int create_shader_module(int shader_type_index, const Option& opt,
                              uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,

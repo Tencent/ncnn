@@ -16,11 +16,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-nn.MultiheadAttention   op_0        1 1 input out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               nn.MultiheadAttention   op_0        1 1 input out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -114,12 +114,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 attn_mask
-nn.MultiheadAttention   op_0        2 1 input attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 attn_mask
+               nn.MultiheadAttention   op_0        2 1 input attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
@@ -143,11 +143,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-nn.MultiheadAttention   op_0        1 1 input out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               nn.MultiheadAttention   op_0        1 1 input out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -159,12 +159,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 attn_mask
-nn.MultiheadAttention   op_0        2 1 input attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 attn_mask
+               nn.MultiheadAttention   op_0        2 1 input attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -176,13 +176,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
-nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 value
+               nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -309,14 +309,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-6 5
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
-pnnx.Input              input_3     0 1 attn_mask
-nn.MultiheadAttention   op_0        4 1 query key value attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               6 5
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 value
+               pnnx.Input              input_3     0 1 attn_mask
+               nn.MultiheadAttention   op_0        4 1 query key value attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
@@ -340,13 +340,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
-nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 value
+               nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -358,14 +358,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-6 5
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
-pnnx.Input              input_3     0 1 attn_mask
-nn.MultiheadAttention   op_0        4 1 query key value attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               6 5
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 value
+               pnnx.Input              input_3     0 1 attn_mask
+               nn.MultiheadAttention   op_0        4 1 query key value attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -377,12 +377,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -394,13 +394,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 attn_mask
-nn.MultiheadAttention   op_0        3 1 query key attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 attn_mask
+               nn.MultiheadAttention   op_0        3 1 query key attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
@@ -424,12 +424,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -441,13 +441,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 attn_mask
-nn.MultiheadAttention   op_0        3 1 query key attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 attn_mask
+               nn.MultiheadAttention   op_0        3 1 query key attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 

@@ -55,13 +55,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Attribute          op_0        0 1 window @data
-torch.view_as_complex   op_1        1 1 input a
-torchaudio.functional.inverse_spectrogram op_2 2 1 a window out center=%center hop_length=%hop_length length=None n_fft=%n_fft normalized=%normalized onesided=%onesided pad=0 win_length=%win_length
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input       0 1 input
+               pnnx.Attribute          op_0        0 1 window @data
+               torch.view_as_complex   op_1        1 1 input a
+               torchaudio.functional.inverse_spectrogram op_2 2 1 a window out center=%center hop_length=%hop_length length=None n_fft=%n_fft normalized=%normalized onesided=%onesided pad=0 win_length=%win_length
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

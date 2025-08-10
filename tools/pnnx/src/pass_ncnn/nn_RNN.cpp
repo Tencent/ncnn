@@ -13,11 +13,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 3
-pnnx.Input              input       0 1 input
-nn.RNN                  op_0        1 2 input out out_hidden input_size=%input_size hidden_size=%hidden_size num_layers=1 nonlinearity=%nonlinearity bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
-pnnx.Output             output      2 0 out out_hidden
-)PNNXIR";
+               3 3
+               pnnx.Input              input       0 1 input
+               nn.RNN                  op_0        1 2 input out out_hidden input_size=%input_size hidden_size=%hidden_size num_layers=1 nonlinearity=%nonlinearity bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+               pnnx.Output             output      2 0 out out_hidden
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -124,12 +124,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 4
-pnnx.Input              input       0 1 input
-pnnx.Input              in_hidden   0 1 in_hidden
-nn.RNN                  op_0        2 2 input in_hidden out out_hidden input_size=%input_size hidden_size=%hidden_size num_layers=1 nonlinearity=%nonlinearity bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
-pnnx.Output             output      2 0 out out_hidden
-)PNNXIR";
+               4 4
+               pnnx.Input              input       0 1 input
+               pnnx.Input              in_hidden   0 1 in_hidden
+               nn.RNN                  op_0        2 2 input in_hidden out out_hidden input_size=%input_size hidden_size=%hidden_size num_layers=1 nonlinearity=%nonlinearity bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+               pnnx.Output             output      2 0 out out_hidden
+               )PNNXIR";
     }
 };
 
@@ -141,11 +141,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-nn.RNN                  op_0        1 1 input out input_size=%input_size hidden_size=%hidden_size num_layers=1 nonlinearity=%nonlinearity bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               nn.RNN                  op_0        1 1 input out input_size=%input_size hidden_size=%hidden_size num_layers=1 nonlinearity=%nonlinearity bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -157,12 +157,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-pnnx.Input              in_hidden   0 1 in_hidden
-nn.RNN                  op_0        2 1 input in_hidden out input_size=%input_size hidden_size=%hidden_size num_layers=1 nonlinearity=%nonlinearity bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               pnnx.Input              in_hidden   0 1 in_hidden
+               nn.RNN                  op_0        2 1 input in_hidden out input_size=%input_size hidden_size=%hidden_size num_layers=1 nonlinearity=%nonlinearity bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 

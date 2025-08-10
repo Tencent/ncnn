@@ -11,16 +11,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-8 7
-pnnx.Input              input_1     0 1 input
-pnnx.Input              input_2     0 1 weight
-pnnx.Input              input_3     0 1 bias
-prim::Constant          op_0        0 1 num_groups value=%num_groups
-prim::Constant          op_1        0 1 eps value=%eps
-prim::Constant          op_2        0 1 cudnn_enabled value=*
-aten::group_norm        op_3        6 1 input num_groups weight bias eps cudnn_enabled out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               8 7
+               pnnx.Input              input_1     0 1 input
+               pnnx.Input              input_2     0 1 weight
+               pnnx.Input              input_3     0 1 bias
+               prim::Constant          op_0        0 1 num_groups value=%num_groups
+               prim::Constant          op_1        0 1 eps value=%eps
+               prim::Constant          op_2        0 1 cudnn_enabled value=*
+               aten::group_norm        op_3        6 1 input num_groups weight bias eps cudnn_enabled out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -37,15 +37,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-Reshape                 op_0        1 1 input r1 allowzero=0 shape=(0,%num_groups,-1)
-pnnx.Attribute          op_1        0 1 ones @data
-pnnx.Attribute          op_2        0 1 zeros @data
-InstanceNormalization   op_3        3 1 r1 ones zeros in epsilon=%epsilon
-Reshape                 op_4        1 1 in out allowzero=0 shape=%shape
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input_0     0 1 input
+               Reshape                 op_0        1 1 input r1 allowzero=0 shape=(0,%num_groups,-1)
+               pnnx.Attribute          op_1        0 1 ones @data
+               pnnx.Attribute          op_2        0 1 zeros @data
+               InstanceNormalization   op_3        3 1 r1 ones zeros in epsilon=%epsilon
+               Reshape                 op_4        1 1 in out allowzero=0 shape=%shape
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -100,15 +100,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-Reshape                 op_0        1 1 input r1 shape=(0,%num_groups,-1)
-pnnx.Attribute          op_1        0 1 ones @data
-pnnx.Attribute          op_2        0 1 zeros @data
-InstanceNormalization   op_3        3 1 r1 ones zeros in epsilon=%epsilon
-Reshape                 op_4        1 1 in out shape=%shape
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input_0     0 1 input
+               Reshape                 op_0        1 1 input r1 shape=(0,%num_groups,-1)
+               pnnx.Attribute          op_1        0 1 ones @data
+               pnnx.Attribute          op_2        0 1 zeros @data
+               InstanceNormalization   op_3        3 1 r1 ones zeros in epsilon=%epsilon
+               Reshape                 op_4        1 1 in out shape=%shape
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 

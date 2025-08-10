@@ -16,12 +16,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-nn.Linear               op_0        1 1 input a in_features=%in_features out_features=%out_features bias=%bias @weight @bias
-nn.BatchNorm1d          op_1        1 1 a out num_features=%num_features eps=%eps affine=%affine @running_mean @running_var @weight @bias
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               nn.Linear               op_0        1 1 input a in_features=%in_features out_features=%out_features bias=%bias @weight @bias
+               nn.BatchNorm1d          op_1        1 1 a out num_features=%num_features eps=%eps affine=%affine @running_mean @running_var @weight @bias
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

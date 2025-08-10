@@ -11,16 +11,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-8 7
-pnnx.Input              input_0             0 1 input
-pnnx.Input              input_1             0 1 size
-prim::Constant          op_0                0 1 dtype value=%dtype
-prim::Constant          op_1                0 1 layout value=*
-prim::Constant          op_2                0 1 device value=*
-prim::Constant          op_3                0 1 pin_memory value=*
-aten::new_empty         op_4                6 1 input size dtype layout device pin_memory out
-pnnx.Output             output              1 0 out
-)PNNXIR";
+               8 7
+               pnnx.Input              input_0             0 1 input
+               pnnx.Input              input_1             0 1 size
+               prim::Constant          op_0                0 1 dtype value=%dtype
+               prim::Constant          op_1                0 1 layout value=*
+               prim::Constant          op_2                0 1 device value=*
+               prim::Constant          op_3                0 1 pin_memory value=*
+               aten::new_empty         op_4                6 1 input size dtype layout device pin_memory out
+               pnnx.Output             output              1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

@@ -11,15 +11,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input       0 1 input
-torch.norm              op_0        1 1 input 9 p=%p dim=(%dim) keepdim=True
-prim::Constant          op_1        0 1 eps value=%eps
-aten::clamp_min         op_2        2 1 9 eps 11
-Tensor.expand_as        op_3        2 1 11 input denorm
-aten::div               op_4        2 1 input denorm out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input       0 1 input
+               torch.norm              op_0        1 1 input 9 p=%p dim=(%dim) keepdim=True
+               prim::Constant          op_1        0 1 eps value=%eps
+               aten::clamp_min         op_2        2 1 9 eps 11
+               Tensor.expand_as        op_3        2 1 11 input denorm
+               aten::div               op_4        2 1 input denorm out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -34,14 +34,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-6 5
-pnnx.Input              input       0 1 input
-torch.norm              op_0        1 1 input 9 p=%p dim=(%dim) keepdim=True
-torch.clamp             op_1        1 1 9 11 max=None min=%eps
-Tensor.expand           op_2        1 1 11 denorm shape=*
-aten::div               op_3        2 1 input denorm out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               6 5
+               pnnx.Input              input       0 1 input
+               torch.norm              op_0        1 1 input 9 p=%p dim=(%dim) keepdim=True
+               torch.clamp             op_1        1 1 9 11 max=None min=%eps
+               Tensor.expand           op_2        1 1 11 denorm shape=*
+               aten::div               op_3        2 1 input denorm out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -51,14 +51,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-6 5
-pnnx.Input              input       0 1 input
-torch.norm              op_0        1 1 input 3 p=%p dim=%dim keepdim=True
-torch.clamp             op_1        1 1 3 4 max=None min=%eps
-Tensor.expand           op_2        1 1 4 denorm shape=*
-aten::div               op_3        2 1 input denorm out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               6 5
+               pnnx.Input              input       0 1 input
+               torch.norm              op_0        1 1 input 3 p=%p dim=%dim keepdim=True
+               torch.clamp             op_1        1 1 3 4 max=None min=%eps
+               Tensor.expand           op_2        1 1 4 denorm shape=*
+               aten::div               op_3        2 1 input denorm out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -68,15 +68,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input       0 1 input
-torch.norm              op_0        1 1 input 9 p=%p dim=%dim keepdim=True
-prim::Constant          op_1        0 1 eps value=%eps
-aten::clamp_min         op_2        2 1 9 eps 11
-Tensor.expand_as        op_3        2 1 11 input denorm
-aten::div               op_4        2 1 input denorm out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input       0 1 input
+               torch.norm              op_0        1 1 input 9 p=%p dim=%dim keepdim=True
+               prim::Constant          op_1        0 1 eps value=%eps
+               aten::clamp_min         op_2        2 1 9 eps 11
+               Tensor.expand_as        op_3        2 1 11 input denorm
+               aten::div               op_4        2 1 input denorm out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 

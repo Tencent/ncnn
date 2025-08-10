@@ -13,13 +13,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @data
-pnnx.Attribute          op_var      0 1 running_var @data
-F.batch_norm            op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input       0 1 input
+               pnnx.Attribute          op_mean     0 1 running_mean @data
+               pnnx.Attribute          op_var      0 1 running_var @data
+               F.batch_norm            op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -57,15 +57,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @data
-pnnx.Attribute          op_var      0 1 running_var @data
-pnnx.Attribute          op_weight   0 1 weight @data
-pnnx.Attribute          op_bias     0 1 bias @data
-F.batch_norm            op_0        5 1 input running_mean running_var weight bias out eps=%eps
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input       0 1 input
+               pnnx.Attribute          op_mean     0 1 running_mean @data
+               pnnx.Attribute          op_var      0 1 running_var @data
+               pnnx.Attribute          op_weight   0 1 weight @data
+               pnnx.Attribute          op_bias     0 1 bias @data
+               F.batch_norm            op_0        5 1 input running_mean running_var weight bias out eps=%eps
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

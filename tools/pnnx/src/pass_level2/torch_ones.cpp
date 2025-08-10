@@ -11,15 +11,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 size
-prim::Constant          op_0        0 1 dtype value=%dtype
-prim::Constant          op_1        0 1 layout value=*
-prim::Constant          op_2        0 1 device value=*
-prim::Constant          op_3        0 1 requires_grad value=*
-aten::ones              op_4        5 1 size dtype layout device requires_grad out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input_0     0 1 size
+               prim::Constant          op_0        0 1 dtype value=%dtype
+               prim::Constant          op_1        0 1 layout value=*
+               prim::Constant          op_2        0 1 device value=*
+               prim::Constant          op_3        0 1 requires_grad value=*
+               aten::ones              op_4        5 1 size dtype layout device requires_grad out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -60,11 +60,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 size
-ConstantOfShape         op_0        1 1 size out value=1.0
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 size
+               ConstantOfShape         op_0        1 1 size out value=1.0
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

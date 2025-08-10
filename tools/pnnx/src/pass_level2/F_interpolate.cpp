@@ -11,23 +11,23 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-15 14
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale value=%scale
-Tensor.to               op_4        1 1 scale 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 31
-aten::Int               op_9        1 1 31 33
-prim::ListConstruct     op_10       1 1 33 size
-prim::Constant          op_11       0 1 scale_factor value=None
-aten::upsample_nearest1d op_12      3 1 input size scale_factor out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               15 14
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale value=%scale
+               Tensor.to               op_4        1 1 scale 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 31
+               aten::Int               op_9        1 1 31 33
+               prim::ListConstruct     op_10       1 1 33 size
+               prim::Constant          op_11       0 1 scale_factor value=None
+               aten::upsample_nearest1d op_12      3 1 input size scale_factor out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -51,24 +51,24 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-16 15
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale value=%scale
-Tensor.to               op_4        1 1 scale 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 31
-aten::Int               op_9        1 1 31 33
-prim::ListConstruct     op_10       1 1 33 size
-prim::Constant          op_11       0 1 align_corners value=%align_corners
-prim::Constant          op_12       0 1 scale_factor value=None
-aten::upsample_linear1d op_13       4 1 input size align_corners scale_factor out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               16 15
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale value=%scale
+               Tensor.to               op_4        1 1 scale 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 31
+               aten::Int               op_9        1 1 31 33
+               prim::ListConstruct     op_10       1 1 33 size
+               prim::Constant          op_11       0 1 align_corners value=%align_corners
+               prim::Constant          op_12       0 1 scale_factor value=None
+               aten::upsample_linear1d op_13       4 1 input size align_corners scale_factor out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -93,34 +93,34 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-26 25
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale_h value=%scale_h
-Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 30
-aten::Int               op_9        1 1 30 32
-Tensor.size             op_10       1 1 input 35 dim=3
-prim::NumToTensor       op_11       1 1 35 36
-Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
-prim::Constant          op_13       0 1 scale_w value=%scale_w
-Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
-aten::detach            op_15       1 1 48 51
-aten::mul               op_16       2 1 41 51 52
-Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
-aten::floor             op_18       1 1 56 60
-aten::Int               op_19       1 1 60 62
-prim::ListConstruct     op_20       2 1 32 62 size
-prim::Constant          op_21       0 1 scale_h_none value=None
-prim::Constant          op_22       0 1 scale_w_none value=None
-aten::upsample_nearest2d op_23      4 1 input size scale_h_none scale_w_none out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               26 25
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale_h value=%scale_h
+               Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 30
+               aten::Int               op_9        1 1 30 32
+               Tensor.size             op_10       1 1 input 35 dim=3
+               prim::NumToTensor       op_11       1 1 35 36
+               Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+               prim::Constant          op_13       0 1 scale_w value=%scale_w
+               Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
+               aten::detach            op_15       1 1 48 51
+               aten::mul               op_16       2 1 41 51 52
+               Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+               aten::floor             op_18       1 1 56 60
+               aten::Int               op_19       1 1 60 62
+               prim::ListConstruct     op_20       2 1 32 62 size
+               prim::Constant          op_21       0 1 scale_h_none value=None
+               prim::Constant          op_22       0 1 scale_w_none value=None
+               aten::upsample_nearest2d op_23      4 1 input size scale_h_none scale_w_none out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -144,35 +144,35 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-27 26
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale_h value=%scale_h
-Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 30
-aten::Int               op_9        1 1 30 32
-Tensor.size             op_10       1 1 input 35 dim=3
-prim::NumToTensor       op_11       1 1 35 36
-Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
-prim::Constant          op_13       0 1 scale_w value=%scale_w
-Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
-aten::detach            op_15       1 1 48 51
-aten::mul               op_16       2 1 41 51 52
-Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
-aten::floor             op_18       1 1 56 60
-aten::Int               op_19       1 1 60 62
-prim::ListConstruct     op_20       2 1 32 62 size
-prim::Constant          op_21       0 1 align_corners value=%align_corners
-prim::Constant          op_22       0 1 scale_h_none value=None
-prim::Constant          op_23       0 1 scale_w_none value=None
-aten::upsample_bilinear2d op_24     5 1 input size align_corners scale_h_none scale_w_none out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               27 26
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale_h value=%scale_h
+               Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 30
+               aten::Int               op_9        1 1 30 32
+               Tensor.size             op_10       1 1 input 35 dim=3
+               prim::NumToTensor       op_11       1 1 35 36
+               Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+               prim::Constant          op_13       0 1 scale_w value=%scale_w
+               Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
+               aten::detach            op_15       1 1 48 51
+               aten::mul               op_16       2 1 41 51 52
+               Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+               aten::floor             op_18       1 1 56 60
+               aten::Int               op_19       1 1 60 62
+               prim::ListConstruct     op_20       2 1 32 62 size
+               prim::Constant          op_21       0 1 align_corners value=%align_corners
+               prim::Constant          op_22       0 1 scale_h_none value=None
+               prim::Constant          op_23       0 1 scale_w_none value=None
+               aten::upsample_bilinear2d op_24     5 1 input size align_corners scale_h_none scale_w_none out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -197,34 +197,34 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-26 25
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale_h value=%scale_h
-Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 30
-aten::Int               op_9        1 1 30 32
-Tensor.size             op_10       1 1 input 35 dim=3
-prim::NumToTensor       op_11       1 1 35 36
-Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
-prim::Constant          op_13       0 1 scale_w value=%scale_w
-Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
-aten::detach            op_15       1 1 48 51
-aten::mul               op_16       2 1 41 51 52
-Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
-aten::floor             op_18       1 1 56 60
-aten::Int               op_19       1 1 60 62
-prim::ListConstruct     op_20       2 1 32 62 size
-prim::Constant          op_21       0 1 align_corners value=%align_corners
-prim::Constant          op_22       0 1 scale_factor value=None
-aten::upsample_bilinear2d op_23     4 1 input size align_corners scale_factor out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               26 25
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale_h value=%scale_h
+               Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 30
+               aten::Int               op_9        1 1 30 32
+               Tensor.size             op_10       1 1 input 35 dim=3
+               prim::NumToTensor       op_11       1 1 35 36
+               Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+               prim::Constant          op_13       0 1 scale_w value=%scale_w
+               Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
+               aten::detach            op_15       1 1 48 51
+               aten::mul               op_16       2 1 41 51 52
+               Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+               aten::floor             op_18       1 1 56 60
+               aten::Int               op_19       1 1 60 62
+               prim::ListConstruct     op_20       2 1 32 62 size
+               prim::Constant          op_21       0 1 align_corners value=%align_corners
+               prim::Constant          op_22       0 1 scale_factor value=None
+               aten::upsample_bilinear2d op_23     4 1 input size align_corners scale_factor out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -249,35 +249,35 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-27 26
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale_h value=%scale_h
-Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 30
-aten::Int               op_9        1 1 30 32
-Tensor.size             op_10       1 1 input 35 dim=3
-prim::NumToTensor       op_11       1 1 35 36
-Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
-prim::Constant          op_13       0 1 scale_w value=%scale_w
-Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
-aten::detach            op_15       1 1 48 51
-aten::mul               op_16       2 1 41 51 52
-Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
-aten::floor             op_18       1 1 56 60
-aten::Int               op_19       1 1 60 62
-prim::ListConstruct     op_20       2 1 32 62 size
-prim::Constant          op_21       0 1 align_corners value=%align_corners
-prim::Constant          op_22       0 1 scale_h_none value=None
-prim::Constant          op_23       0 1 scale_w_none value=None
-aten::upsample_bicubic2d op_24      5 1 input size align_corners scale_h_none scale_w_none out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               27 26
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale_h value=%scale_h
+               Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 30
+               aten::Int               op_9        1 1 30 32
+               Tensor.size             op_10       1 1 input 35 dim=3
+               prim::NumToTensor       op_11       1 1 35 36
+               Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+               prim::Constant          op_13       0 1 scale_w value=%scale_w
+               Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
+               aten::detach            op_15       1 1 48 51
+               aten::mul               op_16       2 1 41 51 52
+               Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+               aten::floor             op_18       1 1 56 60
+               aten::Int               op_19       1 1 60 62
+               prim::ListConstruct     op_20       2 1 32 62 size
+               prim::Constant          op_21       0 1 align_corners value=%align_corners
+               prim::Constant          op_22       0 1 scale_h_none value=None
+               prim::Constant          op_23       0 1 scale_w_none value=None
+               aten::upsample_bicubic2d op_24      5 1 input size align_corners scale_h_none scale_w_none out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -302,34 +302,34 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-26 25
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale_h value=%scale_h
-Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 30
-aten::Int               op_9        1 1 30 32
-Tensor.size             op_10       1 1 input 35 dim=3
-prim::NumToTensor       op_11       1 1 35 36
-Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
-prim::Constant          op_13       0 1 scale_w value=%scale_w
-Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
-aten::detach            op_15       1 1 48 51
-aten::mul               op_16       2 1 41 51 52
-Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
-aten::floor             op_18       1 1 56 60
-aten::Int               op_19       1 1 60 62
-prim::ListConstruct     op_20       2 1 32 62 size
-prim::Constant          op_21       0 1 align_corners value=%align_corners
-prim::Constant          op_22       0 1 scale_factor value=None
-aten::upsample_bicubic2d op_23      4 1 input size align_corners scale_factor out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               26 25
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale_h value=%scale_h
+               Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 30
+               aten::Int               op_9        1 1 30 32
+               Tensor.size             op_10       1 1 input 35 dim=3
+               prim::NumToTensor       op_11       1 1 35 36
+               Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+               prim::Constant          op_13       0 1 scale_w value=%scale_w
+               Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
+               aten::detach            op_15       1 1 48 51
+               aten::mul               op_16       2 1 41 51 52
+               Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+               aten::floor             op_18       1 1 56 60
+               aten::Int               op_19       1 1 60 62
+               prim::ListConstruct     op_20       2 1 32 62 size
+               prim::Constant          op_21       0 1 align_corners value=%align_corners
+               prim::Constant          op_22       0 1 scale_factor value=None
+               aten::upsample_bicubic2d op_23      4 1 input size align_corners scale_factor out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -354,45 +354,45 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-37 36
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale_d value=%scale_d
-Tensor.to               op_4        1 1 scale_d 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 30
-aten::Int               op_9        1 1 30 32
-Tensor.size             op_10       1 1 input 35 dim=3
-prim::NumToTensor       op_11       1 1 35 36
-Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
-prim::Constant          op_13       0 1 scale_h value=%scale_h
-Tensor.to               op_14       1 1 scale_h 48 copy=False dtype=torch.float
-aten::detach            op_15       1 1 48 51
-aten::mul               op_16       2 1 41 51 52
-Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
-aten::floor             op_18       1 1 56 58
-aten::Int               op_19       1 1 58 60
-Tensor.size             op_20       1 1 input 63 dim=4
-prim::NumToTensor       op_21       1 1 63 64
-Tensor.to               op_22       1 1 64 69 copy=False dtype=torch.float
-prim::Constant          op_23       0 1 scale_w value=%scale_w
-Tensor.to               op_24       1 1 scale_w 76 copy=False dtype=torch.float
-aten::detach            op_25       1 1 76 79
-aten::mul               op_26       2 1 69 79 80
-Tensor.to               op_27       1 1 80 84 copy=False dtype=torch.float
-aten::floor             op_28       1 1 84 89
-aten::Int               op_29       1 1 89 91
-prim::ListConstruct     op_30       3 1 32 60 91 size
-prim::Constant          op_31       0 1 scale_d_none value=None
-prim::Constant          op_32       0 1 scale_h_none value=None
-prim::Constant          op_33       0 1 scale_w_none value=None
-aten::upsample_nearest3d op_34      5 1 input size scale_d_none scale_h_none scale_w_none out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               37 36
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale_d value=%scale_d
+               Tensor.to               op_4        1 1 scale_d 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 30
+               aten::Int               op_9        1 1 30 32
+               Tensor.size             op_10       1 1 input 35 dim=3
+               prim::NumToTensor       op_11       1 1 35 36
+               Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+               prim::Constant          op_13       0 1 scale_h value=%scale_h
+               Tensor.to               op_14       1 1 scale_h 48 copy=False dtype=torch.float
+               aten::detach            op_15       1 1 48 51
+               aten::mul               op_16       2 1 41 51 52
+               Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+               aten::floor             op_18       1 1 56 58
+               aten::Int               op_19       1 1 58 60
+               Tensor.size             op_20       1 1 input 63 dim=4
+               prim::NumToTensor       op_21       1 1 63 64
+               Tensor.to               op_22       1 1 64 69 copy=False dtype=torch.float
+               prim::Constant          op_23       0 1 scale_w value=%scale_w
+               Tensor.to               op_24       1 1 scale_w 76 copy=False dtype=torch.float
+               aten::detach            op_25       1 1 76 79
+               aten::mul               op_26       2 1 69 79 80
+               Tensor.to               op_27       1 1 80 84 copy=False dtype=torch.float
+               aten::floor             op_28       1 1 84 89
+               aten::Int               op_29       1 1 89 91
+               prim::ListConstruct     op_30       3 1 32 60 91 size
+               prim::Constant          op_31       0 1 scale_d_none value=None
+               prim::Constant          op_32       0 1 scale_h_none value=None
+               prim::Constant          op_33       0 1 scale_w_none value=None
+               aten::upsample_nearest3d op_34      5 1 input size scale_d_none scale_h_none scale_w_none out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -416,43 +416,43 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-35 34
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale_d value=%scale_d
-Tensor.to               op_4        1 1 scale_d 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 30
-aten::Int               op_9        1 1 30 32
-Tensor.size             op_10       1 1 input 35 dim=3
-prim::NumToTensor       op_11       1 1 35 36
-Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
-prim::Constant          op_13       0 1 scale_h value=%scale_h
-Tensor.to               op_14       1 1 scale_h 48 copy=False dtype=torch.float
-aten::detach            op_15       1 1 48 51
-aten::mul               op_16       2 1 41 51 52
-Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
-aten::floor             op_18       1 1 56 58
-aten::Int               op_19       1 1 58 60
-Tensor.size             op_20       1 1 input 63 dim=4
-prim::NumToTensor       op_21       1 1 63 64
-Tensor.to               op_22       1 1 64 69 copy=False dtype=torch.float
-prim::Constant          op_23       0 1 scale_w value=%scale_w
-Tensor.to               op_24       1 1 scale_w 76 copy=False dtype=torch.float
-aten::detach            op_25       1 1 76 79
-aten::mul               op_26       2 1 69 79 80
-Tensor.to               op_27       1 1 80 84 copy=False dtype=torch.float
-aten::floor             op_28       1 1 84 89
-aten::Int               op_29       1 1 89 91
-prim::ListConstruct     op_30       3 1 32 60 91 size
-prim::Constant          op_31       0 1 scale_factor value=None
-aten::upsample_nearest3d op_32      3 1 input size scale_factor out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               35 34
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale_d value=%scale_d
+               Tensor.to               op_4        1 1 scale_d 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 30
+               aten::Int               op_9        1 1 30 32
+               Tensor.size             op_10       1 1 input 35 dim=3
+               prim::NumToTensor       op_11       1 1 35 36
+               Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+               prim::Constant          op_13       0 1 scale_h value=%scale_h
+               Tensor.to               op_14       1 1 scale_h 48 copy=False dtype=torch.float
+               aten::detach            op_15       1 1 48 51
+               aten::mul               op_16       2 1 41 51 52
+               Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+               aten::floor             op_18       1 1 56 58
+               aten::Int               op_19       1 1 58 60
+               Tensor.size             op_20       1 1 input 63 dim=4
+               prim::NumToTensor       op_21       1 1 63 64
+               Tensor.to               op_22       1 1 64 69 copy=False dtype=torch.float
+               prim::Constant          op_23       0 1 scale_w value=%scale_w
+               Tensor.to               op_24       1 1 scale_w 76 copy=False dtype=torch.float
+               aten::detach            op_25       1 1 76 79
+               aten::mul               op_26       2 1 69 79 80
+               Tensor.to               op_27       1 1 80 84 copy=False dtype=torch.float
+               aten::floor             op_28       1 1 84 89
+               aten::Int               op_29       1 1 89 91
+               prim::ListConstruct     op_30       3 1 32 60 91 size
+               prim::Constant          op_31       0 1 scale_factor value=None
+               aten::upsample_nearest3d op_32      3 1 input size scale_factor out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -476,46 +476,46 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-38 37
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale_d value=%scale_d
-Tensor.to               op_4        1 1 scale_d 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 30
-aten::Int               op_9        1 1 30 32
-Tensor.size             op_10       1 1 input 35 dim=3
-prim::NumToTensor       op_11       1 1 35 36
-Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
-prim::Constant          op_13       0 1 scale_h value=%scale_h
-Tensor.to               op_14       1 1 scale_h 48 copy=False dtype=torch.float
-aten::detach            op_15       1 1 48 51
-aten::mul               op_16       2 1 41 51 52
-Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
-aten::floor             op_18       1 1 56 58
-aten::Int               op_19       1 1 58 60
-Tensor.size             op_20       1 1 input 63 dim=4
-prim::NumToTensor       op_21       1 1 63 64
-Tensor.to               op_22       1 1 64 69 copy=False dtype=torch.float
-prim::Constant          op_23       0 1 scale_w value=%scale_w
-Tensor.to               op_24       1 1 scale_w 76 copy=False dtype=torch.float
-aten::detach            op_25       1 1 76 79
-aten::mul               op_26       2 1 69 79 80
-Tensor.to               op_27       1 1 80 84 copy=False dtype=torch.float
-aten::floor             op_28       1 1 84 89
-aten::Int               op_29       1 1 89 91
-prim::ListConstruct     op_30       3 1 32 60 91 size
-prim::Constant          op_31       0 1 align_corners value=%align_corners
-prim::Constant          op_32       0 1 scale_d_none value=None
-prim::Constant          op_33       0 1 scale_h_none value=None
-prim::Constant          op_34       0 1 scale_w_none value=None
-aten::upsample_trilinear3d op_35    6 1 input size align_corners scale_d_none scale_h_none scale_w_none out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               38 37
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale_d value=%scale_d
+               Tensor.to               op_4        1 1 scale_d 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 30
+               aten::Int               op_9        1 1 30 32
+               Tensor.size             op_10       1 1 input 35 dim=3
+               prim::NumToTensor       op_11       1 1 35 36
+               Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+               prim::Constant          op_13       0 1 scale_h value=%scale_h
+               Tensor.to               op_14       1 1 scale_h 48 copy=False dtype=torch.float
+               aten::detach            op_15       1 1 48 51
+               aten::mul               op_16       2 1 41 51 52
+               Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+               aten::floor             op_18       1 1 56 58
+               aten::Int               op_19       1 1 58 60
+               Tensor.size             op_20       1 1 input 63 dim=4
+               prim::NumToTensor       op_21       1 1 63 64
+               Tensor.to               op_22       1 1 64 69 copy=False dtype=torch.float
+               prim::Constant          op_23       0 1 scale_w value=%scale_w
+               Tensor.to               op_24       1 1 scale_w 76 copy=False dtype=torch.float
+               aten::detach            op_25       1 1 76 79
+               aten::mul               op_26       2 1 69 79 80
+               Tensor.to               op_27       1 1 80 84 copy=False dtype=torch.float
+               aten::floor             op_28       1 1 84 89
+               aten::Int               op_29       1 1 89 91
+               prim::ListConstruct     op_30       3 1 32 60 91 size
+               prim::Constant          op_31       0 1 align_corners value=%align_corners
+               prim::Constant          op_32       0 1 scale_d_none value=None
+               prim::Constant          op_33       0 1 scale_h_none value=None
+               prim::Constant          op_34       0 1 scale_w_none value=None
+               aten::upsample_trilinear3d op_35    6 1 input size align_corners scale_d_none scale_h_none scale_w_none out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -540,44 +540,44 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-36 35
-pnnx.Input              input       0 1 input
-Tensor.size             op_0        1 1 input 6 dim=2
-prim::NumToTensor       op_1        1 1 6 7
-Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
-prim::Constant          op_3        0 1 scale_d value=%scale_d
-Tensor.to               op_4        1 1 scale_d 20 copy=False dtype=torch.float
-aten::detach            op_5        1 1 20 23
-aten::mul               op_6        2 1 13 23 24
-Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
-aten::floor             op_8        1 1 28 30
-aten::Int               op_9        1 1 30 32
-Tensor.size             op_10       1 1 input 35 dim=3
-prim::NumToTensor       op_11       1 1 35 36
-Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
-prim::Constant          op_13       0 1 scale_h value=%scale_h
-Tensor.to               op_14       1 1 scale_h 48 copy=False dtype=torch.float
-aten::detach            op_15       1 1 48 51
-aten::mul               op_16       2 1 41 51 52
-Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
-aten::floor             op_18       1 1 56 58
-aten::Int               op_19       1 1 58 60
-Tensor.size             op_20       1 1 input 63 dim=4
-prim::NumToTensor       op_21       1 1 63 64
-Tensor.to               op_22       1 1 64 69 copy=False dtype=torch.float
-prim::Constant          op_23       0 1 scale_w value=%scale_w
-Tensor.to               op_24       1 1 scale_w 76 copy=False dtype=torch.float
-aten::detach            op_25       1 1 76 79
-aten::mul               op_26       2 1 69 79 80
-Tensor.to               op_27       1 1 80 84 copy=False dtype=torch.float
-aten::floor             op_28       1 1 84 89
-aten::Int               op_29       1 1 89 91
-prim::ListConstruct     op_30       3 1 32 60 91 size
-prim::Constant          op_31       0 1 align_corners value=%align_corners
-prim::Constant          op_32       0 1 scale_factor value=None
-aten::upsample_trilinear3d op_33    4 1 input size align_corners scale_factor out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               36 35
+               pnnx.Input              input       0 1 input
+               Tensor.size             op_0        1 1 input 6 dim=2
+               prim::NumToTensor       op_1        1 1 6 7
+               Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+               prim::Constant          op_3        0 1 scale_d value=%scale_d
+               Tensor.to               op_4        1 1 scale_d 20 copy=False dtype=torch.float
+               aten::detach            op_5        1 1 20 23
+               aten::mul               op_6        2 1 13 23 24
+               Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+               aten::floor             op_8        1 1 28 30
+               aten::Int               op_9        1 1 30 32
+               Tensor.size             op_10       1 1 input 35 dim=3
+               prim::NumToTensor       op_11       1 1 35 36
+               Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+               prim::Constant          op_13       0 1 scale_h value=%scale_h
+               Tensor.to               op_14       1 1 scale_h 48 copy=False dtype=torch.float
+               aten::detach            op_15       1 1 48 51
+               aten::mul               op_16       2 1 41 51 52
+               Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+               aten::floor             op_18       1 1 56 58
+               aten::Int               op_19       1 1 58 60
+               Tensor.size             op_20       1 1 input 63 dim=4
+               prim::NumToTensor       op_21       1 1 63 64
+               Tensor.to               op_22       1 1 64 69 copy=False dtype=torch.float
+               prim::Constant          op_23       0 1 scale_w value=%scale_w
+               Tensor.to               op_24       1 1 scale_w 76 copy=False dtype=torch.float
+               aten::detach            op_25       1 1 76 79
+               aten::mul               op_26       2 1 69 79 80
+               Tensor.to               op_27       1 1 80 84 copy=False dtype=torch.float
+               aten::floor             op_28       1 1 84 89
+               aten::Int               op_29       1 1 89 91
+               prim::ListConstruct     op_30       3 1 32 60 91 size
+               prim::Constant          op_31       0 1 align_corners value=%align_corners
+               prim::Constant          op_32       0 1 scale_factor value=None
+               aten::upsample_trilinear3d op_33    4 1 input size align_corners scale_factor out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -602,12 +602,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-pnnx.Input              size        0 1 size
-aten::upsample_output_size op_0     2 1 input size out coordinate_transformation_mode=%coordinate_transformation_mode mode=%mode
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               pnnx.Input              size        0 1 size
+               aten::upsample_output_size op_0     2 1 input size out coordinate_transformation_mode=%coordinate_transformation_mode mode=%mode
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -656,11 +656,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-Resize                  op_0        1 1 input out %*=%*
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               Resize                  op_0        1 1 input out %*=%*
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -812,11 +812,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-Upsample                op_0        1 1 input out mode=%mode scales=%scales
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               Upsample                op_0        1 1 input out mode=%mode scales=%scales
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

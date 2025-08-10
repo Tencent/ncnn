@@ -13,22 +13,22 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-F.log_softmax           op          1 1 input out dim=%dim
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               F.log_softmax           op          1 1 input out dim=%dim
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-F.softmax               softmax     1 1 input softmax
-UnaryOp                 log         1 1 softmax out 0=8
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               F.softmax               softmax     1 1 input softmax
+               UnaryOp                 log         1 1 softmax out 0=8
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

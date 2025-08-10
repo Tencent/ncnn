@@ -11,12 +11,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 dim value=%dim
-aten::size              op_1        2 1 input dim out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               prim::Constant          op_0        0 1 dim value=%dim
+               aten::size              op_1        2 1 input dim out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -31,12 +31,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-aten::size              op_1        2 1 input dim out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 dim
+               aten::size              op_1        2 1 input dim out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -49,12 +49,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-aten::size              op_0        1 1 input shape
-Gather                  op_1        1 1 shape out axis=0 indices=%dim
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               aten::size              op_0        1 1 input shape
+               Gather                  op_1        1 1 shape out axis=0 indices=%dim
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -71,12 +71,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-aten::size              op_0        1 1 input shape
-Slice                   op_1        1 1 shape out axes=0 starts=%starts ends=%ends steps=1
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               aten::size              op_0        1 1 input shape
+               Slice                   op_1        1 1 shape out axes=0 starts=%starts ends=%ends steps=1
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

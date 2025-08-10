@@ -11,16 +11,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-8 7
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
-pnnx.Input              input_3     0 1 attn_mask
-prim::Constant          op_0        0 1 dropout_p value=%dropout_p
-prim::Constant          op_1        0 1 is_causal value=%is_causal
-aten::scaled_dot_product_attention  op_2 6 1 query key value attn_mask dropout_p is_causal out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               8 7
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 value
+               pnnx.Input              input_3     0 1 attn_mask
+               prim::Constant          op_0        0 1 dropout_p value=%dropout_p
+               prim::Constant          op_1        0 1 is_causal value=%is_causal
+               aten::scaled_dot_product_attention  op_2 6 1 query key value attn_mask dropout_p is_causal out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -37,17 +37,17 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 8
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
-pnnx.Input              input_3     0 1 attn_mask
-prim::Constant          op_0        0 1 dropout_p value=%dropout_p
-prim::Constant          op_1        0 1 is_causal value=%is_causal
-prim::Constant          op_2        0 1 scale value=%scale
-aten::scaled_dot_product_attention  op_3 7 1 query key value attn_mask dropout_p is_causal scale out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               9 8
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 value
+               pnnx.Input              input_3     0 1 attn_mask
+               prim::Constant          op_0        0 1 dropout_p value=%dropout_p
+               prim::Constant          op_1        0 1 is_causal value=%is_causal
+               prim::Constant          op_2        0 1 scale value=%scale
+               aten::scaled_dot_product_attention  op_3 7 1 query key value attn_mask dropout_p is_causal scale out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -75,18 +75,18 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 9
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
-pnnx.Input              input_3     0 1 attn_mask
-prim::Constant          op_0        0 1 dropout_p value=%dropout_p
-prim::Constant          op_1        0 1 is_causal value=%is_causal
-prim::Constant          op_2        0 1 scale value=%scale
-prim::Constant          op_3        0 1 enable_gqa value=%enable_gqa
-aten::scaled_dot_product_attention  op_4 8 1 query key value attn_mask dropout_p is_causal scale enable_gqa out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               10 9
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 value
+               pnnx.Input              input_3     0 1 attn_mask
+               prim::Constant          op_0        0 1 dropout_p value=%dropout_p
+               prim::Constant          op_1        0 1 is_causal value=%is_causal
+               prim::Constant          op_2        0 1 scale value=%scale
+               prim::Constant          op_3        0 1 enable_gqa value=%enable_gqa
+               aten::scaled_dot_product_attention  op_4 8 1 query key value attn_mask dropout_p is_causal scale enable_gqa out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -133,20 +133,20 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-12 11
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
-Tensor.permute          op_0        1 1 key kt dims=(0,1,3,2)
-prim::Constant          op_1        0 1 scale value=%sqrt_scale
-aten::mul               op_2        2 1 query scale q
-prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
-aten::mul               op_4        2 1 kt scale2 k
-torch.matmul            op_5        2 1 q k qk
-F.softmax               op_6        1 1 qk 4 dim=-1
-torch.matmul            op_7        2 1 4 value out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               12 11
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 value
+               Tensor.permute          op_0        1 1 key kt dims=(0,1,3,2)
+               prim::Constant          op_1        0 1 scale value=%sqrt_scale
+               aten::mul               op_2        2 1 query scale q
+               prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
+               aten::mul               op_4        2 1 kt scale2 k
+               torch.matmul            op_5        2 1 q k qk
+               F.softmax               op_6        1 1 qk 4 dim=-1
+               torch.matmul            op_7        2 1 4 value out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -184,22 +184,22 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-14 13
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
-pnnx.Input              input_3     0 1 attn_mask
-Tensor.permute          op_0        1 1 key kt dims=(0,1,3,2)
-prim::Constant          op_1        0 1 scale value=%sqrt_scale
-aten::mul               op_2        2 1 query scale q
-prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
-aten::mul               op_4        2 1 kt scale2 k
-torch.matmul            op_5        2 1 q k qk
-aten::add               op_6        2 1 qk attn_mask qkm
-F.softmax               op_7        1 1 qkm 4 dim=-1
-torch.matmul            op_8        2 1 4 value out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               14 13
+               pnnx.Input              input_0     0 1 query
+               pnnx.Input              input_1     0 1 key
+               pnnx.Input              input_2     0 1 value
+               pnnx.Input              input_3     0 1 attn_mask
+               Tensor.permute          op_0        1 1 key kt dims=(0,1,3,2)
+               prim::Constant          op_1        0 1 scale value=%sqrt_scale
+               aten::mul               op_2        2 1 query scale q
+               prim::Constant          op_3        0 1 scale2 value=%sqrt_scale
+               aten::mul               op_4        2 1 kt scale2 k
+               torch.matmul            op_5        2 1 q k qk
+               aten::add               op_6        2 1 qk attn_mask qkm
+               F.softmax               op_7        1 1 qkm 4 dim=-1
+               torch.matmul            op_8        2 1 4 value out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 

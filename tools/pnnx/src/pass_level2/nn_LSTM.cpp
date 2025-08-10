@@ -12,14 +12,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-6 5
-pnnx.Input              input_0     0 1 input
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-LSTM                    lstm        3 1 input W R out %*=%*
-torch.squeeze           sqz         1 1 out out1 dim=%dim
-pnnx.Output             output      1 0 out1
-)PNNXIR";
+               6 5
+               pnnx.Input              input_0     0 1 input
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               LSTM                    lstm        3 1 input W R out %*=%*
+               torch.squeeze           sqz         1 1 out out1 dim=%dim
+               pnnx.Output             output      1 0 out1
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -225,15 +225,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-pnnx.Attribute          B           0 1 B @data
-LSTM                    lstm        4 1 input W R B out %*=%*
-torch.squeeze           sqz         1 1 out out1 dim=%dim
-pnnx.Output             output      1 0 out1
-)PNNXIR";
+               7 6
+               pnnx.Input              input_0     0 1 input
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               pnnx.Attribute          B           0 1 B @data
+               LSTM                    lstm        4 1 input W R B out %*=%*
+               torch.squeeze           sqz         1 1 out out1 dim=%dim
+               pnnx.Output             output      1 0 out1
+               )PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -385,16 +385,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-8 9
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 initial_h
-pnnx.Input              input_2     0 1 initial_c
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-LSTM                    lstm        5 3 input W R initial_h initial_c out outh outc %*=%*
-torch.squeeze           sqz         1 1 out out1 dim=%dim
-pnnx.Output             output      3 0 out1 outh outc
-)PNNXIR";
+               8 9
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 initial_h
+               pnnx.Input              input_2     0 1 initial_c
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               LSTM                    lstm        5 3 input W R initial_h initial_c out outh outc %*=%*
+               torch.squeeze           sqz         1 1 out out1 dim=%dim
+               pnnx.Output             output      3 0 out1 outh outc
+               )PNNXIR";
     }
 };
 
@@ -406,17 +406,17 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 10
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 initial_h
-pnnx.Input              input_2     0 1 initial_c
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-pnnx.Attribute          B           0 1 B @data
-LSTM                    lstm        6 3 input W R B initial_h initial_c out outh outc %*=%*
-torch.squeeze           sqz         1 1 out out1 dim=%dim
-pnnx.Output             output      3 0 out1 outh outc
-)PNNXIR";
+               9 10
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 initial_h
+               pnnx.Input              input_2     0 1 initial_c
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               pnnx.Attribute          B           0 1 B @data
+               LSTM                    lstm        6 3 input W R B initial_h initial_c out outh outc %*=%*
+               torch.squeeze           sqz         1 1 out out1 dim=%dim
+               pnnx.Output             output      3 0 out1 outh outc
+               )PNNXIR";
     }
 };
 
@@ -428,16 +428,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-8 7
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 initial_h
-pnnx.Input              input_2     0 1 initial_c
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-LSTM                    lstm        5 1 input W R initial_h initial_c out %*=%*
-torch.squeeze           sqz         1 1 out out1 dim=%dim
-pnnx.Output             output      1 0 out1
-)PNNXIR";
+               8 7
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 initial_h
+               pnnx.Input              input_2     0 1 initial_c
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               LSTM                    lstm        5 1 input W R initial_h initial_c out %*=%*
+               torch.squeeze           sqz         1 1 out out1 dim=%dim
+               pnnx.Output             output      1 0 out1
+               )PNNXIR";
     }
 };
 
@@ -449,17 +449,17 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 8
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 initial_h
-pnnx.Input              input_2     0 1 initial_c
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-pnnx.Attribute          B           0 1 B @data
-LSTM                    lstm        6 1 input W R B initial_h initial_c out %*=%*
-torch.squeeze           sqz         1 1 out out1 dim=%dim
-pnnx.Output             output      1 0 out1
-)PNNXIR";
+               9 8
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 initial_h
+               pnnx.Input              input_2     0 1 initial_c
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               pnnx.Attribute          B           0 1 B @data
+               LSTM                    lstm        6 1 input W R B initial_h initial_c out %*=%*
+               torch.squeeze           sqz         1 1 out out1 dim=%dim
+               pnnx.Output             output      1 0 out1
+               )PNNXIR";
     }
 };
 
@@ -471,15 +471,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-LSTM                    lstm        3 1 input W R out %*=%*
-Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
-Tensor.reshape          reshape     1 1 out1 out2 %*=%*
-pnnx.Output             output      1 0 out2
-)PNNXIR";
+               7 6
+               pnnx.Input              input_0     0 1 input
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               LSTM                    lstm        3 1 input W R out %*=%*
+               Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+               Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+               pnnx.Output             output      1 0 out2
+               )PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -502,16 +502,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-8 7
-pnnx.Input              input_0     0 1 input
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-pnnx.Attribute          B           0 1 B @data
-LSTM                    lstm        4 1 input W R B out %*=%*
-Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
-Tensor.reshape          reshape     1 1 out1 out2 %*=%*
-pnnx.Output             output      1 0 out2
-)PNNXIR";
+               8 7
+               pnnx.Input              input_0     0 1 input
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               pnnx.Attribute          B           0 1 B @data
+               LSTM                    lstm        4 1 input W R B out %*=%*
+               Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+               Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+               pnnx.Output             output      1 0 out2
+               )PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -534,17 +534,17 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 10
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 initial_h
-pnnx.Input              input_2     0 1 initial_c
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-LSTM                    lstm        5 3 input W R initial_h initial_c out outh outc %*=%*
-Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
-Tensor.reshape          reshape     1 1 out1 out2 %*=%*
-pnnx.Output             output      3 0 out2 outh outc
-)PNNXIR";
+               9 10
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 initial_h
+               pnnx.Input              input_2     0 1 initial_c
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               LSTM                    lstm        5 3 input W R initial_h initial_c out outh outc %*=%*
+               Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+               Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+               pnnx.Output             output      3 0 out2 outh outc
+               )PNNXIR";
     }
 };
 
@@ -556,18 +556,18 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 11
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 initial_h
-pnnx.Input              input_2     0 1 initial_c
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-pnnx.Attribute          B           0 1 B @data
-LSTM                    lstm        6 3 input W R B initial_h initial_c out outh outc %*=%*
-Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
-Tensor.reshape          reshape     1 1 out1 out2 %*=%*
-pnnx.Output             output      3 0 out2 outh outc
-)PNNXIR";
+               10 11
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 initial_h
+               pnnx.Input              input_2     0 1 initial_c
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               pnnx.Attribute          B           0 1 B @data
+               LSTM                    lstm        6 3 input W R B initial_h initial_c out outh outc %*=%*
+               Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+               Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+               pnnx.Output             output      3 0 out2 outh outc
+               )PNNXIR";
     }
 };
 
@@ -579,17 +579,17 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 8
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 initial_h
-pnnx.Input              input_2     0 1 initial_c
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-LSTM                    lstm        5 1 input W R initial_h initial_c out %*=%*
-Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
-Tensor.reshape          reshape     1 1 out1 out2 %*=%*
-pnnx.Output             output      1 0 out2
-)PNNXIR";
+               9 8
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 initial_h
+               pnnx.Input              input_2     0 1 initial_c
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               LSTM                    lstm        5 1 input W R initial_h initial_c out %*=%*
+               Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+               Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+               pnnx.Output             output      1 0 out2
+               )PNNXIR";
     }
 };
 
@@ -601,18 +601,18 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 9
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 initial_h
-pnnx.Input              input_2     0 1 initial_c
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-pnnx.Attribute          B           0 1 B @data
-LSTM                    lstm        6 1 input W R B initial_h initial_c out %*=%*
-Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
-Tensor.reshape          reshape     1 1 out1 out2 %*=%*
-pnnx.Output             output      1 0 out2
-)PNNXIR";
+               10 9
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 initial_h
+               pnnx.Input              input_2     0 1 initial_c
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               pnnx.Attribute          B           0 1 B @data
+               LSTM                    lstm        6 1 input W R B initial_h initial_c out %*=%*
+               Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+               Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+               pnnx.Output             output      1 0 out2
+               )PNNXIR";
     }
 };
 
@@ -624,16 +624,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-8 9
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 initial_h
-pnnx.Input              input_2     0 1 initial_c
-pnnx.Attribute          W           0 1 W @data
-pnnx.Attribute          R           0 1 R @data
-pnnx.Attribute          B           0 1 B @data
-tnn.LSTMONNX            lstm        6 3 input W R B initial_h initial_c out outh outc %*=%*
-pnnx.Output             output      3 0 out outh outc
-)PNNXIR";
+               8 9
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 initial_h
+               pnnx.Input              input_2     0 1 initial_c
+               pnnx.Attribute          W           0 1 W @data
+               pnnx.Attribute          R           0 1 R @data
+               pnnx.Attribute          B           0 1 B @data
+               tnn.LSTMONNX            lstm        6 3 input W R B initial_h initial_c out outh outc %*=%*
+               pnnx.Output             output      3 0 out outh outc
+               )PNNXIR";
     }
 
     const char* type_str() const

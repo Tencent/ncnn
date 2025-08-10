@@ -11,15 +11,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-prim::Constant          op_0        0 1 padding_idx value=*
-prim::Constant          op_1        0 1 scale_grad_by_freq value=%scale_grad_by_freq
-prim::Constant          op_2        0 1 sparse value=%sparse
-aten::embedding         op_3        5 1 weight input padding_idx scale_grad_by_freq sparse out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 weight
+               prim::Constant          op_0        0 1 padding_idx value=*
+               prim::Constant          op_1        0 1 scale_grad_by_freq value=%scale_grad_by_freq
+               prim::Constant          op_2        0 1 sparse value=%sparse
+               aten::embedding         op_3        5 1 weight input padding_idx scale_grad_by_freq sparse out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -36,12 +36,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-Gather                  op_0        2 1 weight input out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 weight
+               Gather                  op_0        2 1 weight input out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -64,12 +64,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-tnn.Gather              op_0        2 1 input weight out arg0=0 arg1=1 arg2=0
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 weight
+               tnn.Gather              op_0        2 1 input weight out arg0=0 arg1=1 arg2=0
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

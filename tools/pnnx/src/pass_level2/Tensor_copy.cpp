@@ -11,13 +11,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 self
-pnnx.Input              input_1     0 1 src
-prim::Constant          op_0        0 1 non_blocking value=*
-aten::copy              op_1        3 1 self src non_blocking out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input_0     0 1 self
+               pnnx.Input              input_1     0 1 src
+               prim::Constant          op_0        0 1 non_blocking value=*
+               aten::copy              op_1        3 1 self src non_blocking out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -34,12 +34,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 self
-pnnx.Input              input_1     0 1 src
-aten::copy              op_1        2 1 self src out non_blocking=*
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 self
+               pnnx.Input              input_1     0 1 src
+               aten::copy              op_1        2 1 self src out non_blocking=*
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -56,12 +56,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 self
-pnnx.Input              input_1     0 1 src
-aten::copy              op_1        2 1 self src out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 self
+               pnnx.Input              input_1     0 1 src
+               aten::copy              op_1        2 1 self src out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

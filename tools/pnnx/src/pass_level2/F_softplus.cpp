@@ -11,13 +11,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 beta
-pnnx.Input              input_2     0 1 threshold
-aten::softplus          op_0        3 1 input beta threshold out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 beta
+               pnnx.Input              input_2     0 1 threshold
+               aten::softplus          op_0        3 1 input beta threshold out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -34,11 +34,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-Softplus                op_0        1 1 input out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input_0     0 1 input
+               Softplus                op_0        1 1 input out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -61,15 +61,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-prim::Constant          op_0        0 1 beta value=%beta
-aten::mul               op_1        2 1 input beta a
-Softplus                op_2        1 1 a b
-prim::Constant          op_3        0 1 beta2 value=%beta
-aten::div               op_4        2 1 b beta2 out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input_0     0 1 input
+               prim::Constant          op_0        0 1 beta value=%beta
+               aten::mul               op_1        2 1 input beta a
+               Softplus                op_2        1 1 a b
+               prim::Constant          op_3        0 1 beta2 value=%beta
+               aten::div               op_4        2 1 b beta2 out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

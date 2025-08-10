@@ -11,12 +11,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-prim::Constant          op_0        0 1 dim value=%dim
-aten::unsqueeze         op_1        2 1 input dim out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 input
+               prim::Constant          op_0        0 1 dim value=%dim
+               aten::unsqueeze         op_1        2 1 input dim out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -31,12 +31,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-aten::unsqueeze         op_0        2 1 input dim out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 dim
+               aten::unsqueeze         op_0        2 1 input dim out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 
@@ -49,12 +49,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-Unsqueeze               op_0        2 1 input dim out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 dim
+               Unsqueeze               op_0        2 1 input dim out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -71,11 +71,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-Unsqueeze               op_0        1 1 input out axes=%axes
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               Unsqueeze               op_0        1 1 input out axes=%axes
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -99,11 +99,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-tnn.Unsqueeze           op_0        1 1 input out %*=%*
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               tnn.Unsqueeze           op_0        1 1 input out %*=%*
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

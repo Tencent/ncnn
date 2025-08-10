@@ -11,14 +11,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-6 5
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 unbiased value=%unbiased
-prim::Constant          op_1        0 1 keepdim value=%keepdim
-aten::std               op_2        4 1 input dim unbiased keepdim out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               6 5
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 dim
+               prim::Constant          op_0        0 1 unbiased value=%unbiased
+               prim::Constant          op_1        0 1 keepdim value=%keepdim
+               aten::std               op_2        4 1 input dim unbiased keepdim out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -40,14 +40,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-6 5
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 correction value=%correction
-prim::Constant          op_1        0 1 keepdim value=%keepdim
-aten::std               op_2        4 1 input dim correction keepdim out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               6 5
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 dim
+               prim::Constant          op_0        0 1 correction value=%correction
+               prim::Constant          op_1        0 1 keepdim value=%keepdim
+               aten::std               op_2        4 1 input dim correction keepdim out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const

@@ -7,8 +7,11 @@
 
 #include <chrono>
 #include <cstdio>
+#include <iostream>
 #include <map>
 #include <mutex>
+#include <sstream>
+
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -299,9 +302,12 @@ public:
 
     struct spv_cache_header
     {
-        uint32_t magic;             // magic number, 'SPVC' in host endian
-        uint32_t header_version;    // version of cache header format
-        uint32_t ncnn_version;      // ncnn version when the cache is created
+        uint32_t magic;          // magic number, 'SPVC' in host endian
+        uint32_t header_version; // version of cache header format
+        uint32_t ncnn_version;   // ncnn version when the cache is created
+        // if ncnn upgrade and update glslang, shader code or preprocessing steps
+        // we want the cache to be invalid
+
         uint32_t spv_size;          // size of spv binary data
         uint32_t data_hash_fnv1a;   // hash of spv binary data using fnv1a
         uint32_t data_hash_murmur3; // second hash of spv binary data using murmur3
@@ -317,7 +323,7 @@ public:
 
     int save_spv_code_cache_to_disk(uint64_t shader_key, const VulkanDevice& device, const std::vector<uint32_t>& spirv) const
     {
-        std::string cachepath = shader_cache_dir + "/" + std::to_string(shader_key) + ".spirvcache";
+        std::string cachepath = shader_cache_dir + "/" + std::to_string(shader_key) + ".spvcache";
         std::string tmp_cachepath = cachepath + ".tmp";
 
         make_dir(shader_cache_dir);
@@ -389,7 +395,7 @@ public:
 };
 
 PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
-                                                                   uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size)
+        uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size)
 {
     spv_data_murmur3 = murmur3_32(spv_data, spv_data_size / 4);
 
@@ -430,7 +436,7 @@ static uint64_t shader_spv_key(int shader_type_index, const Option& opt)
 }
 
 PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(int _shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
-                                                                   uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size)
+        uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size)
 {
     shader_type_index = _shader_type_index;
 
@@ -736,8 +742,8 @@ PipelineCache::PipelineCacheIOResult PipelineCache::try_load_pipeline_cache_from
         return PipelineCacheIOResult::DataCorruption;
     }
 
-    uint64_t hash2 = fnv1a_32(reinterpret_cast<const uint8_t*>(cache_data_begin), cache_data_size);
-    if (hash2 != header.data_hash_fnv1a)
+    uint64_t hash = fnv1a_32(reinterpret_cast<const uint8_t*>(cache_data_begin), cache_data_size);
+    if (hash != header.data_hash_fnv1a)
     {
         return PipelineCacheIOResult::DataCorruption;
     }
@@ -777,7 +783,8 @@ int PipelineCache::load_pipeline_cache(const char* path) const
     case PipelineCacheIOResult::CreationFailure:
         NCNN_LOGE("Failed to create pipeline cache from data in file %s", path);
         break;
-    default:;
+    default:
+        ;
     }
 
     NCNN_LOGE("Failed to load pipeline cache from file %s, fall back to create empty pipeline cache", path);
@@ -840,9 +847,7 @@ int PipelineCache::save_pipeline_cache(const char* path) const
 
     fclose(file);
 
-    make_dir(std::string(path).substr(0, std::string(path).find_last_of("/\\")));
-
-    if (atomic_rename(temp_file_path.c_str(), path) != 0)
+    if (atomic_rename(temp_file_path.c_str(), expected_path.c_str()) != 0)
     {
         NCNN_LOGE("Failed to rename file %s to %s", temp_file_path.c_str(), path);
         return -1;
@@ -859,15 +864,15 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
     size_t spv_data_size = 0;
     uint64_t key = shader_spv_key(shader_type_index, opt);
 
-    if (d->spv_code_cache.find(key) != d->spv_code_cache.end() || d->load_spv_code_cache_from_disk(key) != 0)
+    std::vector<uint32_t> spirv;
+    if (d->spv_code_cache.find(key) != d->spv_code_cache.end() || d->load_spv_code_cache_from_disk(*vkdev, key) == 0)
     {
-        const std::vector<uint32_t>& spirv = d->spv_code_cache[key];
-        spv_data = spirv.data();
-        spv_data_size = spirv.size() * 4;
+        const std::vector<uint32_t>& spirv_cache = d->spv_code_cache[key];
+        spv_data = spirv_cache.data();
+        spv_data_size = spirv_cache.size() * 4;
     }
     else
     {
-        std::vector<uint32_t> spirv;
         int retc = compile_spirv_module(shader_type_index, opt, spirv);
         if (retc != 0)
         {
@@ -876,7 +881,7 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
         }
 
         d->spv_code_cache[key] = spirv;
-        int ret = d->save_spv_code_cache_to_disk(key, spirv);
+        int ret = d->save_spv_code_cache_to_disk(key, *vkdev, spirv);
         if (ret != 0)
         {
             NCNN_LOGE("save_spv_code_cache_to_disk failed", ret);

@@ -65,7 +65,7 @@ public:
             if (!mlir::TF::HasCompatibleElementTypes(
                         operand_type, type, /*may_ignore_ref_type_lhs=*/true))
                 return op->emitError() << "requires all operands and results to have "
-                       "compatible element types";
+                                          "compatible element types";
         }
         return success();
     }

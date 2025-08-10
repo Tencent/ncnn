@@ -11,13 +11,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 dim value=%dim
-prim::Constant          op_1        0 1 dtype value=*
-aten::log_softmax       op_2        3 1 input dim dtype out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input       0 1 input
+               prim::Constant          op_0        0 1 dim value=%dim
+               prim::Constant          op_1        0 1 dtype value=*
+               aten::log_softmax       op_2        3 1 input dim dtype out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -34,11 +34,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-LogSoftmax              op_0        1 1 input out axis=%dim
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               LogSoftmax              op_0        1 1 input out axis=%dim
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -55,13 +55,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 input
-Tensor.permute          op_0        1 1 input a dims=%dims
-LogSoftmax              op_1        1 1 a b axis=%axis
-Tensor.permute          op_2        1 1 b out dims=%dims
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input_0     0 1 input
+               Tensor.permute          op_0        1 1 input a dims=%dims
+               LogSoftmax              op_1        1 1 a b axis=%axis
+               Tensor.permute          op_2        1 1 b out dims=%dims
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

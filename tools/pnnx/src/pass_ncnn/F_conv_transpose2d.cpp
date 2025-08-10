@@ -13,12 +13,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-pnnx.Input              weight      0 1 weight
-F.conv_transpose2d      op_0        2 1 input weight out bias=None stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=1
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               pnnx.Input              weight      0 1 weight
+               F.conv_transpose2d      op_0        2 1 input weight out bias=None stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=1
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -64,13 +64,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Input              weight      0 1 weight
-pnnx.Input              bias        0 1 bias
-F.conv_transpose2d      op_0        3 1 input weight bias out stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=1
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input       0 1 input
+               pnnx.Input              weight      0 1 weight
+               pnnx.Input              bias        0 1 bias
+               F.conv_transpose2d      op_0        3 1 input weight bias out stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=1
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -116,12 +116,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-pnnx.Input              weight      0 1 weight
-F.conv_transpose2d      op_0        2 1 input weight out bias=None stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=%groups
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               pnnx.Input              weight      0 1 weight
+               F.conv_transpose2d      op_0        2 1 input weight out bias=None stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=%groups
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -168,13 +168,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Input              weight      0 1 weight
-pnnx.Input              bias        0 1 bias
-F.conv_transpose2d      op_0        3 1 input weight bias out stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=%groups
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input       0 1 input
+               pnnx.Input              weight      0 1 weight
+               pnnx.Input              bias        0 1 bias
+               F.conv_transpose2d      op_0        3 1 input weight bias out stride=%stride output_padding=%output_padding padding=%padding dilation=%dilation groups=%groups
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

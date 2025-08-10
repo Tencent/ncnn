@@ -11,19 +11,19 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-11 10
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 running_mean
-pnnx.Input              input_2     0 1 running_var
-pnnx.Input              input_3     0 1 weight
-pnnx.Input              input_4     0 1 bias
-prim::Constant          op_0        0 1 training value=*
-prim::Constant          op_1        0 1 momentum value=*
-prim::Constant          op_2        0 1 eps value=%eps
-prim::Constant          op_3        0 1 cudnn_enabled value=*
-aten::batch_norm        op_4        9 1 input weight bias running_mean running_var training momentum eps cudnn_enabled out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               11 10
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 running_mean
+               pnnx.Input              input_2     0 1 running_var
+               pnnx.Input              input_3     0 1 weight
+               pnnx.Input              input_4     0 1 bias
+               prim::Constant          op_0        0 1 training value=*
+               prim::Constant          op_1        0 1 momentum value=*
+               prim::Constant          op_2        0 1 eps value=%eps
+               prim::Constant          op_3        0 1 cudnn_enabled value=*
+               aten::batch_norm        op_4        9 1 input weight bias running_mean running_var training momentum eps cudnn_enabled out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -40,17 +40,17 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 10
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 running_mean
-pnnx.Input              input_2     0 1 running_var
-pnnx.Input              input_3     0 1 weight
-pnnx.Input              input_4     0 1 bias
-prim::Constant          op_0        0 1 momentum value=*
-prim::Constant          op_1        0 1 eps value=%eps
-aten::_native_batch_norm_legit_no_training op_2 7 3 input weight bias running_mean running_var momentum eps out save_mean save_invstd
-pnnx.Output             output      3 0 out save_mean save_invstd
-)PNNXIR";
+               9 10
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 running_mean
+               pnnx.Input              input_2     0 1 running_var
+               pnnx.Input              input_3     0 1 weight
+               pnnx.Input              input_4     0 1 bias
+               prim::Constant          op_0        0 1 momentum value=*
+               prim::Constant          op_1        0 1 eps value=%eps
+               aten::_native_batch_norm_legit_no_training op_2 7 3 input weight bias running_mean running_var momentum eps out save_mean save_invstd
+               pnnx.Output             output      3 0 out save_mean save_invstd
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -74,15 +74,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-pnnx.Input              input_2     0 1 bias
-pnnx.Input              input_3     0 1 running_mean
-pnnx.Input              input_4     0 1 running_var
-BatchNormalization      op_0        5 1 input weight bias running_mean running_var out %*=%*
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 weight
+               pnnx.Input              input_2     0 1 bias
+               pnnx.Input              input_3     0 1 running_mean
+               pnnx.Input              input_4     0 1 running_var
+               BatchNormalization      op_0        5 1 input weight bias running_mean running_var out %*=%*
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -116,27 +116,27 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Attribute          op_0        0 1 weight @data=(%num_features)f32
-pnnx.Attribute          op_1        0 1 bias @data=(%num_features)f32
-tnn.BatchNormCxx        op_2        3 1 input weight bias out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               5 4
+               pnnx.Input              input       0 1 input
+               pnnx.Attribute          op_0        0 1 weight @data=(%num_features)f32
+               pnnx.Attribute          op_1        0 1 bias @data=(%num_features)f32
+               tnn.BatchNormCxx        op_2        3 1 input weight bias out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input       0 1 input
-pnnx.Attribute          mean        0 1 running_mean
-pnnx.Attribute          var         0 1 running_var
-pnnx.Attribute          weight      0 1 weight @data=%op_0.data
-pnnx.Attribute          bias        0 1 bias @data=%op_1.data
-F.batch_norm            bn          5 1 input running_mean running_var weight bias out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               7 6
+               pnnx.Input              input       0 1 input
+               pnnx.Attribute          mean        0 1 running_mean
+               pnnx.Attribute          var         0 1 running_var
+               pnnx.Attribute          weight      0 1 weight @data=%op_0.data
+               pnnx.Attribute          bias        0 1 bias @data=%op_1.data
+               F.batch_norm            bn          5 1 input running_mean running_var weight bias out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params) const

@@ -11,14 +11,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-6 5
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 keepdim value=%keepdim
-prim::Constant          op_1        0 1 dtype value=*
-aten::prod              op_2        4 1 input dim keepdim dtype out
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               6 5
+               pnnx.Input              input_0     0 1 input
+               pnnx.Input              input_1     0 1 dim
+               prim::Constant          op_0        0 1 keepdim value=%keepdim
+               prim::Constant          op_1        0 1 dtype value=*
+               aten::prod              op_2        4 1 input dim keepdim dtype out
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -35,11 +35,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-ReduceProd              op_0        1 1 input out %*=%*
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               ReduceProd              op_0        1 1 input out %*=%*
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const

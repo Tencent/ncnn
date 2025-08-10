@@ -13,11 +13,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-F.max_pool3d            op_0        1 1 input out kernel_size=%kernel_size stride=%stride dilation=(1,1,1) padding=%padding ceil_mode=%ceil_mode return_indices=False
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               F.max_pool3d            op_0        1 1 input out kernel_size=%kernel_size stride=%stride dilation=(1,1,1) padding=%padding ceil_mode=%ceil_mode return_indices=False
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
@@ -64,11 +64,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-F.max_pool3d            op_0        1 1 input out kernel_size=%kernel_size stride=%stride padding=%padding ceil_mode=%ceil_mode return_indices=False
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               3 2
+               pnnx.Input              input       0 1 input
+               F.max_pool3d            op_0        1 1 input out kernel_size=%kernel_size stride=%stride padding=%padding ceil_mode=%ceil_mode return_indices=False
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 };
 

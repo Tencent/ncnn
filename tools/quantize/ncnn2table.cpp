@@ -309,7 +309,7 @@ int QuantNet::quantize_KL()
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
-    // initialize conv weight scales
+// initialize conv weight scales
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_layer_count; i++)
     {
@@ -407,7 +407,7 @@ int QuantNet::quantize_KL()
         }
     }
 
-    // count the absmax
+// count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
     for (int i = 0; i < file_count; i++)
     {
@@ -478,7 +478,7 @@ int QuantNet::quantize_KL()
         }
     }
 
-    // initialize histogram
+// initialize histogram
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_bottom_blob_count; i++)
     {
@@ -488,7 +488,7 @@ int QuantNet::quantize_KL()
         stat.histogram_normed.resize(num_histogram_bins, 0);
     }
 
-    // build histogram
+// build histogram
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
     for (int i = 0; i < file_count; i++)
     {
@@ -570,7 +570,7 @@ int QuantNet::quantize_KL()
         }
     }
 
-    // using kld to find the best threshold value
+// using kld to find the best threshold value
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_bottom_blob_count; i++)
     {
@@ -785,7 +785,7 @@ int QuantNet::quantize_ACIQ()
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
-    // initialize conv weight scales
+// initialize conv weight scales
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_layer_count; i++)
     {
@@ -887,7 +887,7 @@ int QuantNet::quantize_ACIQ()
         }
     }
 
-    // count the absmax
+// count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
     for (int i = 0; i < file_count; i++)
     {
@@ -959,7 +959,7 @@ int QuantNet::quantize_ACIQ()
         }
     }
 
-    // alpha gaussian
+// alpha gaussian
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_bottom_blob_count; i++)
     {

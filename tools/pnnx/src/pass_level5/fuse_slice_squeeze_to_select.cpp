@@ -13,12 +13,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-Tensor.slice            op_0        1 1 input a dim=%dim start=%start end=%end step=1
-torch.squeeze           op_1        1 1 a out dim=%squeeze_dim
-pnnx.Output             output      1 0 out
-)PNNXIR";
+               4 3
+               pnnx.Input              input       0 1 input
+               Tensor.slice            op_0        1 1 input a dim=%dim start=%start end=%end step=1
+               torch.squeeze           op_1        1 1 a out dim=%squeeze_dim
+               pnnx.Output             output      1 0 out
+               )PNNXIR";
     }
 
     const char* type_str() const
