@@ -12,13 +12,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 dim
-               prim::Constant          op_1        0 1 dtype value=*
-               aten::cumsum            op_2        3 1 input dim dtype out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 dim
+prim::Constant          op_1        0 1 dtype value=*
+aten::cumsum            op_2        3 1 input dim dtype out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

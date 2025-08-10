@@ -13,11 +13,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               nn.AdaptiveAvgPool3d    op_0        1 1 input out output_size=(1,1,1)
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+nn.AdaptiveAvgPool3d    op_0        1 1 input out output_size=(1,1,1)
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -45,11 +45,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               nn.AdaptiveAvgPool3d    op_0        1 1 input out output_size=%output_size
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+nn.AdaptiveAvgPool3d    op_0        1 1 input out output_size=%output_size
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

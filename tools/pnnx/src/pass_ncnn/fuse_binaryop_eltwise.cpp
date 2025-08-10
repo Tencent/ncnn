@@ -17,14 +17,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_a     0 1 a
-               pnnx.Input              input_b     0 1 b
-               BinaryOp                op_0        1 1 a a2 0=2 1=1 2=%c0
-               BinaryOp                op_1        1 1 b b2 0=2 1=1 2=%c1
-               BinaryOp                op_2        2 1 a2 b2 out 0=0
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_a     0 1 a
+pnnx.Input              input_b     0 1 b
+BinaryOp                op_0        1 1 a a2 0=2 1=1 2=%c0
+BinaryOp                op_1        1 1 b b2 0=2 1=1 2=%c1
+BinaryOp                op_2        2 1 a2 b2 out 0=0
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -70,13 +70,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_a     0 1 a
-               pnnx.Input              input_b     0 1 b
-               BinaryOp                op_0        1 1 a a2 0=2 1=1 2=%c0
-               BinaryOp                op_1        2 1 a2 b out 0=0
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_a     0 1 a
+pnnx.Input              input_b     0 1 b
+BinaryOp                op_0        1 1 a a2 0=2 1=1 2=%c0
+BinaryOp                op_1        2 1 a2 b out 0=0
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -117,13 +117,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_a     0 1 a
-               pnnx.Input              input_b     0 1 b
-               BinaryOp                op_0        1 1 b b2 0=2 1=1 2=%c1
-               BinaryOp                op_1        2 1 a b2 out 0=0
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_a     0 1 a
+pnnx.Input              input_b     0 1 b
+BinaryOp                op_0        1 1 b b2 0=2 1=1 2=%c1
+BinaryOp                op_1        2 1 a b2 out 0=0
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

@@ -13,11 +13,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               F.interpolate           op_0        1 1 input out mode=%mode recompute_scale_factor=* scale_factor=%scale_factor
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+F.interpolate           op_0        1 1 input out mode=%mode recompute_scale_factor=* scale_factor=%scale_factor
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -77,11 +77,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               F.interpolate           op_0        1 1 input out align_corners=%align_corners mode=%mode recompute_scale_factor=* scale_factor=%scale_factor
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+F.interpolate           op_0        1 1 input out align_corners=%align_corners mode=%mode recompute_scale_factor=* scale_factor=%scale_factor
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -141,11 +141,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               F.interpolate           op_0        1 1 input out align_corners=%align_corners mode=%mode size=%size
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+F.interpolate           op_0        1 1 input out align_corners=%align_corners mode=%mode size=%size
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -205,11 +205,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               F.interpolate           op_0        1 1 input out mode=%mode size=%size
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+F.interpolate           op_0        1 1 input out mode=%mode size=%size
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

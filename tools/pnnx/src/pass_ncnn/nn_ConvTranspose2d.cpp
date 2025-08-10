@@ -13,11 +13,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               nn.ConvTranspose2d      op_0        1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=1 bias=%bias @weight @bias
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+nn.ConvTranspose2d      op_0        1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=1 bias=%bias @weight @bias
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -86,11 +86,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               nn.ConvTranspose2d      op_0        1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups bias=%bias @weight @bias
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+nn.ConvTranspose2d      op_0        1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups bias=%bias @weight @bias
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

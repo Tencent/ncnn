@@ -11,13 +11,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 dim
-               prim::Constant          op_0        0 1 keepdim value=%keepdim
-               aten::min               op_1        3 2 input dim keepdim out indices
-               pnnx.Output             output      2 0 out indices
-               )PNNXIR";
+5 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 dim
+prim::Constant          op_0        0 1 keepdim value=%keepdim
+aten::min               op_1        3 2 input dim keepdim out indices
+pnnx.Output             output      2 0 out indices
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -46,11 +46,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input_0     0 1 input
-               aten::min               op_1        1 1 input out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input_0     0 1 input
+aten::min               op_1        1 1 input out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -67,11 +67,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               ReduceMin               op_0        1 1 input out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+ReduceMin               op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -120,12 +120,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               ReduceMin               op_0        1 1 input out %*=%*
-               ArgMin                  op_1        1 1 input indices %*=%*
-               pnnx.Output             output      2 0 out indices
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+ReduceMin               op_0        1 1 input out %*=%*
+ArgMin                  op_1        1 1 input indices %*=%*
+pnnx.Output             output      2 0 out indices
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -183,11 +183,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               tnn.ReduceMin           op_0        1 1 input out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+tnn.ReduceMin           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

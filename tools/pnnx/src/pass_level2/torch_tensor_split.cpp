@@ -11,13 +11,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               prim::Constant          op_0        0 1 dim value=%dim
-               prim::Constant          op_1        0 1 indices value=%indices
-               aten::tensor_split      op_2        3 1 input indices dim out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 indices value=%indices
+aten::tensor_split      op_2        3 1 input indices dim out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -39,13 +39,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               prim::Constant          op_0        0 1 dim value=%dim
-               prim::Constant          op_1        0 1 sections value=%sections
-               aten::tensor_split      op_2        3 1 input sections dim out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 dim value=%dim
+prim::Constant          op_1        0 1 sections value=%sections
+aten::tensor_split      op_2        3 1 input sections dim out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

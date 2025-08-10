@@ -11,15 +11,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               7 6
-               pnnx.Input              input_1     0 1 input
-               pnnx.Input              input_2     0 1 grid
-               prim::Constant          op_0        0 1 mode value=%mode
-               prim::Constant          op_1        0 1 padding_mode value=%padding_mode
-               prim::Constant          op_2        0 1 align_corners value=%align_corners
-               aten::grid_sampler      op_3        5 1 input grid mode padding_mode align_corners out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+7 6
+pnnx.Input              input_1     0 1 input
+pnnx.Input              input_2     0 1 grid
+prim::Constant          op_0        0 1 mode value=%mode
+prim::Constant          op_1        0 1 padding_mode value=%padding_mode
+prim::Constant          op_2        0 1 align_corners value=%align_corners
+aten::grid_sampler      op_3        5 1 input grid mode padding_mode align_corners out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

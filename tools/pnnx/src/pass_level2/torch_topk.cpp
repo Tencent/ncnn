@@ -11,15 +11,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               7 7
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 k
-               pnnx.Input              input_2     0 1 dim
-               pnnx.Input              input_3     0 1 largest
-               pnnx.Input              input_4     0 1 sorted
-               aten::topk              op_0        5 2 input k dim largest sorted values indices
-               pnnx.Output             output      2 0 values indices
-               )PNNXIR";
+7 7
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 k
+pnnx.Input              input_2     0 1 dim
+pnnx.Input              input_3     0 1 largest
+pnnx.Input              input_4     0 1 sorted
+aten::topk              op_0        5 2 input k dim largest sorted values indices
+pnnx.Output             output      2 0 values indices
+)PNNXIR";
     }
 
     const char* type_str() const

@@ -13,22 +13,22 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               torch.roll              op_0        1 1 input out dims=%dims shifts=%shifts
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+torch.roll              op_0        1 1 input out dims=%dims shifts=%shifts
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               Slice                   slice       1 2 input a b
-               Concat                  concat      2 1 b a out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+Slice                   slice       1 2 input a b
+Concat                  concat      2 1 b a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -88,26 +88,26 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               torch.roll              op_0        1 1 input out dims=%dims shifts=%shifts
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+torch.roll              op_0        1 1 input out dims=%dims shifts=%shifts
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               8 7
-               pnnx.Input              input       0 1 input
-               Slice                   slice       1 2 input a b
-               Slice                   slice_a     1 2 a a0 a1
-               Slice                   slice_b     1 2 b b0 b1
-               Concat                  concat_a    2 1 a1 a0 a10
-               Concat                  concat_b    2 1 b1 b0 b10
-               Concat                  concat      2 1 b10 a10 out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+8 7
+pnnx.Input              input       0 1 input
+Slice                   slice       1 2 input a b
+Slice                   slice_a     1 2 a a0 a1
+Slice                   slice_b     1 2 b b0 b1
+Concat                  concat_a    2 1 a1 a0 a10
+Concat                  concat_b    2 1 b1 b0 b10
+Concat                  concat      2 1 b10 a10 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const

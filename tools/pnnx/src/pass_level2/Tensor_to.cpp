@@ -11,15 +11,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               7 6
-               pnnx.Input              input_0     0 1 input
-               prim::Constant          op_0        0 1 dtype value=%dtype
-               prim::Constant          op_1        0 1 non_blocking value=*
-               prim::Constant          op_2        0 1 copy value=%copy
-               prim::Constant          op_3        0 1 memory_format value=%memory_format
-               aten::to                op_4        5 1 input dtype non_blocking copy memory_format out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+7 6
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 dtype value=%dtype
+prim::Constant          op_1        0 1 non_blocking value=*
+prim::Constant          op_2        0 1 copy value=%copy
+prim::Constant          op_3        0 1 memory_format value=%memory_format
+aten::to                op_4        5 1 input dtype non_blocking copy memory_format out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -70,16 +70,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               8 7
-               pnnx.Input              input_0     0 1 input
-               prim::Constant          op_0        0 1 device value=*
-               prim::Constant          op_1        0 1 dtype value=%dtype
-               prim::Constant          op_2        0 1 non_blocking value=*
-               prim::Constant          op_3        0 1 copy value=%copy
-               prim::Constant          op_4        0 1 memory_format value=%memory_format
-               aten::to                op_5        6 1 input device dtype non_blocking copy memory_format out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+8 7
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 device value=*
+prim::Constant          op_1        0 1 dtype value=%dtype
+prim::Constant          op_2        0 1 non_blocking value=*
+prim::Constant          op_3        0 1 copy value=%copy
+prim::Constant          op_4        0 1 memory_format value=%memory_format
+aten::to                op_5        6 1 input device dtype non_blocking copy memory_format out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -89,18 +89,18 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               10 9
-               pnnx.Input              input_0     0 1 input
-               prim::Constant          op_0        0 1 dtype value=%dtype
-               prim::Constant          op_1        0 1 layout value=*
-               prim::Constant          op_2        0 1 device value=*
-               prim::Constant          op_3        0 1 pin_memory value=*
-               prim::Constant          op_4        0 1 non_blocking value=*
-               prim::Constant          op_5        0 1 copy value=%copy
-               prim::Constant          op_6        0 1 memory_format value=%memory_format
-               aten::to                op_7        8 1 input dtype layout device pin_memory non_blocking copy memory_format out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+10 9
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 dtype value=%dtype
+prim::Constant          op_1        0 1 layout value=*
+prim::Constant          op_2        0 1 device value=*
+prim::Constant          op_3        0 1 pin_memory value=*
+prim::Constant          op_4        0 1 non_blocking value=*
+prim::Constant          op_5        0 1 copy value=%copy
+prim::Constant          op_6        0 1 memory_format value=%memory_format
+aten::to                op_7        8 1 input dtype layout device pin_memory non_blocking copy memory_format out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -114,11 +114,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               Cast                    op_0        1 1 input out to=%to
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+Cast                    op_0        1 1 input out to=%to
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -157,11 +157,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               tnn.Cast                op_0        1 1 input out arg0=%to
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+tnn.Cast                op_0        1 1 input out arg0=%to
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

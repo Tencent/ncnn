@@ -15,13 +15,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               pnnx.Input              input_2     0 1 bias
-               tnn.Convolution         op_0        3 1 input weight bias out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+tnn.Convolution         op_0        3 1 input weight bias out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
@@ -29,38 +29,38 @@ public:
         if (this->activation == 1)
         {
             return R"PNNXIR(7767517
-                   6 5
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   pnnx.Input              input_2     0 1 bias
-                   tnn.Convolution         conv2d      3 1 input weight bias a
-                   aten::relu              relu        1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+tnn.Convolution         conv2d      3 1 input weight bias a
+aten::relu              relu        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
         else if (this->activation == 2)
         {
             return R"PNNXIR(7767517
-                   6 5
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   pnnx.Input              input_2     0 1 bias
-                   tnn.Convolution         conv2d      3 1 input weight bias a
-                   aten::relu6             relu6       1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+tnn.Convolution         conv2d      3 1 input weight bias a
+aten::relu6             relu6       1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
         else // if (this->activation == 256)
         {
             return R"PNNXIR(7767517
-                   6 5
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   pnnx.Input              input_2     0 1 bias
-                   tnn.Convolution         conv2d      3 1 input weight bias a
-                   aten::silu              silu        1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+tnn.Convolution         conv2d      3 1 input weight bias a
+aten::silu              silu        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
     }
 
@@ -94,12 +94,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               tnn.Convolution         op_0        2 1 input weight out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Convolution         op_0        2 1 input weight out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
@@ -107,35 +107,35 @@ public:
         if (this->activation == 1)
         {
             return R"PNNXIR(7767517
-                   5 4
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   tnn.Convolution         conv2d      2 1 input weight a
-                   aten::relu              relu        1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Convolution         conv2d      2 1 input weight a
+aten::relu              relu        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
         else if (this->activation == 2)
         {
             return R"PNNXIR(7767517
-                   5 4
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   tnn.Convolution         conv2d      2 1 input weight a
-                   aten::relu6             relu6       1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Convolution         conv2d      2 1 input weight a
+aten::relu6             relu6       1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
         else // if (this->activation == 256)
         {
             return R"PNNXIR(7767517
-                   5 4
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   tnn.Convolution         conv2d      2 1 input weight a
-                   aten::silu              silu        1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Convolution         conv2d      2 1 input weight a
+aten::silu              silu        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
     }
 };
@@ -146,13 +146,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               pnnx.Input              input_2     0 1 bias
-               tnn.Convolution1D       op_0        3 1 input weight bias out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+tnn.Convolution1D       op_0        3 1 input weight bias out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
@@ -160,38 +160,38 @@ public:
         if (this->activation == 1)
         {
             return R"PNNXIR(7767517
-                   6 5
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   pnnx.Input              input_2     0 1 bias
-                   tnn.Convolution1D       conv1d      3 1 input weight bias a
-                   aten::relu              relu        1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+tnn.Convolution1D       conv1d      3 1 input weight bias a
+aten::relu              relu        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
         else if (this->activation == 2)
         {
             return R"PNNXIR(7767517
-                   6 5
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   pnnx.Input              input_2     0 1 bias
-                   tnn.Convolution1D       conv1d      3 1 input weight bias a
-                   aten::relu6             relu6       1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+tnn.Convolution1D       conv1d      3 1 input weight bias a
+aten::relu6             relu6       1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
         else // if (this->activation == 256)
         {
             return R"PNNXIR(7767517
-                   6 5
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   pnnx.Input              input_2     0 1 bias
-                   tnn.Convolution1D       conv1d      3 1 input weight bias a
-                   aten::silu              silu        1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+tnn.Convolution1D       conv1d      3 1 input weight bias a
+aten::silu              silu        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
     }
 
@@ -225,12 +225,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               tnn.Convolution1D       op_0        2 1 input weight out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Convolution1D       op_0        2 1 input weight out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
@@ -238,35 +238,35 @@ public:
         if (this->activation == 1)
         {
             return R"PNNXIR(7767517
-                   5 4
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   tnn.Convolution1D       conv1d      2 1 input weight a
-                   aten::relu              relu        1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Convolution1D       conv1d      2 1 input weight a
+aten::relu              relu        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
         else if (this->activation == 2)
         {
             return R"PNNXIR(7767517
-                   5 4
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   tnn.Convolution1D       conv1d      2 1 input weight a
-                   aten::relu6             relu6       1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Convolution1D       conv1d      2 1 input weight a
+aten::relu6             relu6       1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
         else // if (this->activation == 256)
         {
             return R"PNNXIR(7767517
-                   5 4
-                   pnnx.Input              input_0     0 1 input
-                   pnnx.Input              input_1     0 1 weight
-                   tnn.Convolution1D       conv1d      2 1 input weight a
-                   aten::silu              silu        1 1 a out
-                   pnnx.Output             output      1 0 out
-                   )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+tnn.Convolution1D       conv1d      2 1 input weight a
+aten::silu              silu        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
         }
     }
 };

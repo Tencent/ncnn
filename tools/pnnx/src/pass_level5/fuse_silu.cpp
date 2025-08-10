@@ -13,12 +13,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               F.sigmoid               op_0        1 1 input a
-               pnnx.Expression         op_1        2 1 input a out expr=mul(@0,@1)
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+F.sigmoid               op_0        1 1 input a
+pnnx.Expression         op_1        2 1 input a out expr=mul(@0,@1)
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -38,12 +38,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               nn.Sigmoid              op_0        1 1 input a
-               pnnx.Expression         op_1        2 1 input a out expr=mul(@0,@1)
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+nn.Sigmoid              op_0        1 1 input a
+pnnx.Expression         op_1        2 1 input a out expr=mul(@0,@1)
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 

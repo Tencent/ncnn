@@ -13,16 +13,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               8 7
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 kernel_size value=%kernel_size
-               prim::Constant          op_1        0 1 stride value=%stride
-               prim::Constant          op_2        0 1 padding value=%padding
-               prim::Constant          op_3        0 1 dilation value=%dilation
-               prim::Constant          op_4        0 1 ceil_mode value=%ceil_mode
-               aten::max_pool3d        op_5        6 1 input kernel_size stride padding dilation ceil_mode out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+8 7
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 kernel_size value=%kernel_size
+prim::Constant          op_1        0 1 stride value=%stride
+prim::Constant          op_2        0 1 padding value=%padding
+prim::Constant          op_3        0 1 dilation value=%dilation
+prim::Constant          op_4        0 1 ceil_mode value=%ceil_mode
+aten::max_pool3d        op_5        6 1 input kernel_size stride padding dilation ceil_mode out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -44,16 +44,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               8 8
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 kernel_size value=%kernel_size
-               prim::Constant          op_1        0 1 stride value=%stride
-               prim::Constant          op_2        0 1 padding value=%padding
-               prim::Constant          op_3        0 1 dilation value=%dilation
-               prim::Constant          op_4        0 1 ceil_mode value=%ceil_mode
-               aten::max_pool3d_with_indices op_5  6 2 input kernel_size stride padding dilation ceil_mode out indices
-               pnnx.Output             output      2 0 out indices
-               )PNNXIR";
+8 8
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 kernel_size value=%kernel_size
+prim::Constant          op_1        0 1 stride value=%stride
+prim::Constant          op_2        0 1 padding value=%padding
+prim::Constant          op_3        0 1 dilation value=%dilation
+prim::Constant          op_4        0 1 ceil_mode value=%ceil_mode
+aten::max_pool3d_with_indices op_5  6 2 input kernel_size stride padding dilation ceil_mode out indices
+pnnx.Output             output      2 0 out indices
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -94,11 +94,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               MaxPool                 op_0        1 1 input out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+MaxPool                 op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -246,11 +246,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 3
-               pnnx.Input              input       0 1 input
-               MaxPool                 op_0        1 2 input out indices %*=%*
-               pnnx.Output             output      2 0 out indices
-               )PNNXIR";
+3 3
+pnnx.Input              input       0 1 input
+MaxPool                 op_0        1 2 input out indices %*=%*
+pnnx.Output             output      2 0 out indices
+)PNNXIR";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -269,22 +269,22 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               MaxPool                 op_0        1 1 input out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+MaxPool                 op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               F.pad                   pad         1 1 input pad
-               F.max_pool3d            maxpool     1 1 pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+F.pad                   pad         1 1 input pad
+F.max_pool3d            maxpool     1 1 pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const

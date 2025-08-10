@@ -11,23 +11,23 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               15 14
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               pnnx.Input              input_2     0 1 bias
-               prim::Constant          op_0        0 1 stride value=%stride
-               prim::Constant          op_1        0 1 padding value=%padding
-               prim::Constant          op_2        0 1 dilation value=%dilation
-               prim::Constant          op_3        0 1 transposed value=True
-               prim::Constant          op_4        0 1 output_padding value=%output_padding
-               prim::Constant          op_5        0 1 groups value=%groups
-               prim::Constant          op_6        0 1 benchmark value=*
-               prim::Constant          op_7        0 1 deterministic value=*
-               prim::Constant          op_8        0 1 cudnn_enabled value=*
-               prim::Constant          op_9        0 1 allow_tf32 value=*
-               aten::_convolution      op_10       13 1 input weight bias stride padding dilation transposed output_padding groups benchmark deterministic cudnn_enabled allow_tf32 out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+15 14
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+prim::Constant          op_0        0 1 stride value=%stride
+prim::Constant          op_1        0 1 padding value=%padding
+prim::Constant          op_2        0 1 dilation value=%dilation
+prim::Constant          op_3        0 1 transposed value=True
+prim::Constant          op_4        0 1 output_padding value=%output_padding
+prim::Constant          op_5        0 1 groups value=%groups
+prim::Constant          op_6        0 1 benchmark value=*
+prim::Constant          op_7        0 1 deterministic value=*
+prim::Constant          op_8        0 1 cudnn_enabled value=*
+prim::Constant          op_9        0 1 allow_tf32 value=*
+aten::_convolution      op_10       13 1 input weight bias stride padding dilation transposed output_padding groups benchmark deterministic cudnn_enabled allow_tf32 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -49,26 +49,26 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               F.conv_transpose1d      op_0        2 1 input weight a bias=None stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
-               pnnx.Attribute          op_1        0 1 bias @data=(1,%out_channels,1)f32
-               aten::add               op_2        2 1 a bias out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+F.conv_transpose1d      op_0        2 1 input weight a bias=None stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
+pnnx.Attribute          op_1        0 1 bias @data=(1,%out_channels,1)f32
+aten::add               op_2        2 1 a bias out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               pnnx.Attribute          bias        0 1 bias @data=%op_1.data
-               F.conv_transpose1d      conv        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Attribute          bias        0 1 bias @data=%op_1.data
+F.conv_transpose1d      conv        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -99,13 +99,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               pnnx.Input              input_2     0 1 bias
-               ConvTranspose           op_0        3 1 input weight bias out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+ConvTranspose           op_0        3 1 input weight bias out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -210,12 +210,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               ConvTranspose           op_0        2 1 input weight out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+ConvTranspose           op_0        2 1 input weight out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const

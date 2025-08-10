@@ -11,12 +11,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 memory_format value=%memory_format
-               aten::contiguous        op_1        2 1 input memory_format out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 memory_format value=%memory_format
+aten::contiguous        op_1        2 1 input memory_format out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

@@ -11,19 +11,19 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               11 10
-               pnnx.Input              input_1     0 1 input
-               pnnx.Input              input_2     0 1 running_mean
-               pnnx.Input              input_3     0 1 running_var
-               pnnx.Input              input_4     0 1 weight
-               pnnx.Input              input_5     0 1 bias
-               prim::Constant          op_0        0 1 use_input_stats value=True
-               prim::Constant          op_1        0 1 momentum value=*
-               prim::Constant          op_2        0 1 eps value=%eps
-               prim::Constant          op_3        0 1 cudnn_enabled value=*
-               aten::instance_norm     op_4        9 1 input weight bias running_mean running_var use_input_stats momentum eps cudnn_enabled out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+11 10
+pnnx.Input              input_1     0 1 input
+pnnx.Input              input_2     0 1 running_mean
+pnnx.Input              input_3     0 1 running_var
+pnnx.Input              input_4     0 1 weight
+pnnx.Input              input_5     0 1 bias
+prim::Constant          op_0        0 1 use_input_stats value=True
+prim::Constant          op_1        0 1 momentum value=*
+prim::Constant          op_2        0 1 eps value=%eps
+prim::Constant          op_3        0 1 cudnn_enabled value=*
+aten::instance_norm     op_4        9 1 input weight bias running_mean running_var use_input_stats momentum eps cudnn_enabled out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -40,13 +40,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 weight
-               pnnx.Input              input_2     0 1 bias
-               InstanceNormalization   op_0        3 1 input weight bias out epsilon=%epsilon
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+InstanceNormalization   op_0        3 1 input weight bias out epsilon=%epsilon
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

@@ -11,13 +11,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 size
-               prim::Constant          op_0        0 1 scale_factor value=None
-               aten::upsample_nearest1d op_1       3 1 input size scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 scale_factor value=None
+aten::upsample_nearest1d op_1       3 1 input size scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -39,13 +39,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 scale_factor
-               prim::Constant          op_0        0 1 size value=None
-               aten::upsample_nearest1d op_1       3 1 input size scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 scale_factor
+prim::Constant          op_0        0 1 size value=None
+aten::upsample_nearest1d op_1       3 1 input size scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -67,14 +67,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 size
-               prim::Constant          op_0        0 1 align_corners value=%align_corners
-               prim::Constant          op_1        0 1 scale_factor value=None
-               aten::upsample_linear1d op_2        4 1 input size align_corners scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 align_corners value=%align_corners
+prim::Constant          op_1        0 1 scale_factor value=None
+aten::upsample_linear1d op_2        4 1 input size align_corners scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -97,14 +97,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 scale_factor
-               prim::Constant          op_0        0 1 size value=None
-               prim::Constant          op_1        0 1 align_corners value=%align_corners
-               aten::upsample_linear1d op_2        4 1 input size align_corners scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 scale_factor
+prim::Constant          op_0        0 1 size value=None
+prim::Constant          op_1        0 1 align_corners value=%align_corners
+aten::upsample_linear1d op_2        4 1 input size align_corners scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -127,15 +127,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               7 6
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 size
-               prim::Constant          op_0        0 1 align_corners value=%align_corners
-               prim::Constant          op_1        0 1 scale_h value=None
-               prim::Constant          op_2        0 1 scale_w value=None
-               aten::upsample_bilinear2d op_3      5 1 input size align_corners scale_h scale_w out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 align_corners value=%align_corners
+prim::Constant          op_1        0 1 scale_h value=None
+prim::Constant          op_2        0 1 scale_w value=None
+aten::upsample_bilinear2d op_3      5 1 input size align_corners scale_h scale_w out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -158,14 +158,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 size
-               prim::Constant          op_0        0 1 align_corners value=%align_corners
-               prim::Constant          op_1        0 1 scale_factor value=None
-               aten::upsample_bilinear2d op_2      4 1 input size align_corners scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 align_corners value=%align_corners
+prim::Constant          op_1        0 1 scale_factor value=None
+aten::upsample_bilinear2d op_2      4 1 input size align_corners scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -188,14 +188,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 scale_factor
-               prim::Constant          op_0        0 1 size value=None
-               prim::Constant          op_1        0 1 align_corners value=%align_corners
-               aten::upsample_bilinear2d op_2      4 1 input size align_corners scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 scale_factor
+prim::Constant          op_0        0 1 size value=None
+prim::Constant          op_1        0 1 align_corners value=%align_corners
+aten::upsample_bilinear2d op_2      4 1 input size align_corners scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -218,15 +218,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               7 6
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 size
-               prim::Constant          op_0        0 1 align_corners value=%align_corners
-               prim::Constant          op_1        0 1 scale_h value=None
-               prim::Constant          op_2        0 1 scale_w value=None
-               aten::upsample_bicubic2d op_3       5 1 input size align_corners scale_h scale_w out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 align_corners value=%align_corners
+prim::Constant          op_1        0 1 scale_h value=None
+prim::Constant          op_2        0 1 scale_w value=None
+aten::upsample_bicubic2d op_3       5 1 input size align_corners scale_h scale_w out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -249,14 +249,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 size
-               prim::Constant          op_0        0 1 align_corners value=%align_corners
-               prim::Constant          op_1        0 1 scale_factor value=None
-               aten::upsample_bicubic2d op_2       4 1 input size align_corners scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 align_corners value=%align_corners
+prim::Constant          op_1        0 1 scale_factor value=None
+aten::upsample_bicubic2d op_2       4 1 input size align_corners scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -279,14 +279,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 scale_factor
-               prim::Constant          op_0        0 1 size value=None
-               prim::Constant          op_1        0 1 align_corners value=%align_corners
-               aten::upsample_bicubic2d op_2       4 1 input size align_corners scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 scale_factor
+prim::Constant          op_0        0 1 size value=None
+prim::Constant          op_1        0 1 align_corners value=%align_corners
+aten::upsample_bicubic2d op_2       4 1 input size align_corners scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -309,16 +309,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               8 7
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 size
-               prim::Constant          op_0        0 1 align_corners value=%align_corners
-               prim::Constant          op_1        0 1 scale_d value=None
-               prim::Constant          op_2        0 1 scale_h value=None
-               prim::Constant          op_3        0 1 scale_w value=None
-               aten::upsample_trilinear3d op_4     6 1 input size align_corners scale_d scale_h scale_w out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+8 7
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 align_corners value=%align_corners
+prim::Constant          op_1        0 1 scale_d value=None
+prim::Constant          op_2        0 1 scale_h value=None
+prim::Constant          op_3        0 1 scale_w value=None
+aten::upsample_trilinear3d op_4     6 1 input size align_corners scale_d scale_h scale_w out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -341,14 +341,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 size
-               prim::Constant          op_0        0 1 align_corners value=%align_corners
-               prim::Constant          op_1        0 1 scale_factor value=None
-               aten::upsample_trilinear3d op_2     4 1 input size align_corners scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 align_corners value=%align_corners
+prim::Constant          op_1        0 1 scale_factor value=None
+aten::upsample_trilinear3d op_2     4 1 input size align_corners scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -371,14 +371,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 scale_factor
-               prim::Constant          op_0        0 1 size value=None
-               prim::Constant          op_1        0 1 align_corners value=%align_corners
-               aten::upsample_trilinear3d op_2     4 1 input size align_corners scale_factor out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 scale_factor
+prim::Constant          op_0        0 1 size value=None
+prim::Constant          op_1        0 1 align_corners value=%align_corners
+aten::upsample_trilinear3d op_2     4 1 input size align_corners scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

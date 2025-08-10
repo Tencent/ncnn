@@ -13,12 +13,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               pnnx.Attribute          op_weight   0 1 weight @data
-               F.embedding             op_0        2 1 input weight out scale_grad_by_freq=False sparse=False
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Attribute          op_weight   0 1 weight @data
+F.embedding             op_0        2 1 input weight out scale_grad_by_freq=False sparse=False
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

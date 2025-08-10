@@ -31,29 +31,29 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               9 8
-               pnnx.Input              input_0     0 1 query #query=(%batch,%num_heads,%qsize,%feat_per_head)f32
-               pnnx.Input              input_1     0 1 key #key=(%batch,%num_heads,%kvsize,%feat_per_head)f32
-               pnnx.Input              input_2     0 1 value #value=(%batch,%num_heads,%kvsize,%feat_per_head)f32
-               Tensor.permute          op_0        1 1 key 59 dims=(0,1,3,2)
-               torch.matmul            op_1        2 1 query 59 61
-               pnnx.Expression         op_2        1 1 61 62 expr=div(@0,%sqrt_embed_dim_per_head)
-               F.softmax               op_3        1 1 62 63 dim=-1
-               torch.matmul            op_4        2 1 63 value out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+9 8
+pnnx.Input              input_0     0 1 query #query=(%batch,%num_heads,%qsize,%feat_per_head)f32
+pnnx.Input              input_1     0 1 key #key=(%batch,%num_heads,%kvsize,%feat_per_head)f32
+pnnx.Input              input_2     0 1 value #value=(%batch,%num_heads,%kvsize,%feat_per_head)f32
+Tensor.permute          op_0        1 1 key 59 dims=(0,1,3,2)
+torch.matmul            op_1        2 1 query 59 61
+pnnx.Expression         op_2        1 1 61 62 expr=div(@0,%sqrt_embed_dim_per_head)
+F.softmax               op_3        1 1 62 63 dim=-1
+torch.matmul            op_4        2 1 63 value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 query
-               pnnx.Input              input_1     0 1 key
-               pnnx.Input              input_2     0 1 value
-               F.scaled_dot_product_attention sdpa 3 1 query key value out attn_mask=None dropout_p=0.0 is_causal=False
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+F.scaled_dot_product_attention sdpa 3 1 query key value out attn_mask=None dropout_p=0.0 is_causal=False
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -74,38 +74,38 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               14 13
-               pnnx.Input              input_0     0 1 query #query=(%batch,%qsize,%feat_per_head)f32
-               pnnx.Input              input_1     0 1 key #key=(%batch,%kvsize,%feat_per_head)f32
-               pnnx.Input              input_2     0 1 value #value=(%batch,%kvsize,%feat_per_head)f32
-               pnnx.Input              input_Rh    0 1 Rh #Rh=(%batch,%h,%w,%h,1)f32
-               pnnx.Input              input_Rw    0 1 Rw #Rw=(%batch,%h,%w,1,%w)f32
-               pnnx.Expression         op_0        1 1 query 17 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
-               torch.transpose         op_1        1 1 key 22 dim0=-2 dim1=-1
-               torch.matmul            op_2        2 1 17 22 23
-               Tensor.view             op_3        1 1 23 24 shape=(%batch,%h,%w,%h,%w)
-               pnnx.Expression         op_4        3 1 24 Rh Rw 28 expr=add(add(@0,@1),@2)
-               Tensor.view             op_5        1 1 28 29 shape=(%batch,%qsize,%qsize)
-               F.softmax               op_6        1 1 29 30 dim=-1
-               torch.matmul            op_7        2 1 30 value out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+14 13
+pnnx.Input              input_0     0 1 query #query=(%batch,%qsize,%feat_per_head)f32
+pnnx.Input              input_1     0 1 key #key=(%batch,%kvsize,%feat_per_head)f32
+pnnx.Input              input_2     0 1 value #value=(%batch,%kvsize,%feat_per_head)f32
+pnnx.Input              input_Rh    0 1 Rh #Rh=(%batch,%h,%w,%h,1)f32
+pnnx.Input              input_Rw    0 1 Rw #Rw=(%batch,%h,%w,1,%w)f32
+pnnx.Expression         op_0        1 1 query 17 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
+torch.transpose         op_1        1 1 key 22 dim0=-2 dim1=-1
+torch.matmul            op_2        2 1 17 22 23
+Tensor.view             op_3        1 1 23 24 shape=(%batch,%h,%w,%h,%w)
+pnnx.Expression         op_4        3 1 24 Rh Rw 28 expr=add(add(@0,@1),@2)
+Tensor.view             op_5        1 1 28 29 shape=(%batch,%qsize,%qsize)
+F.softmax               op_6        1 1 29 30 dim=-1
+torch.matmul            op_7        2 1 30 value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               9 8
-               pnnx.Input              input_0     0 1 query
-               pnnx.Input              input_1     0 1 key
-               pnnx.Input              input_2     0 1 value
-               pnnx.Input              input_Rh    0 1 Rh
-               pnnx.Input              input_Rw    0 1 Rw
-               pnnx.Expression         RhRw        2 1 Rh Rw RhRw expr=add(@0,@1) #RhRw=(%batch,%h,%w,%h,%w)f32
-               Tensor.reshape          attn_mask   1 1 RhRw attn_mask shape=(%batch,%qsize,%qsize) #attn_mask=(%batch,%qsize,%qsize)f32
-               F.scaled_dot_product_attention sdpa 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+9 8
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_Rh    0 1 Rh
+pnnx.Input              input_Rw    0 1 Rw
+pnnx.Expression         RhRw        2 1 Rh Rw RhRw expr=add(@0,@1) #RhRw=(%batch,%h,%w,%h,%w)f32
+Tensor.reshape          attn_mask   1 1 RhRw attn_mask shape=(%batch,%qsize,%qsize) #attn_mask=(%batch,%qsize,%qsize)f32
+F.scaled_dot_product_attention sdpa 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -132,36 +132,36 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               12 11
-               pnnx.Input              input_0     0 1 query
-               pnnx.Input              input_1     0 1 key
-               pnnx.Input              input_2     0 1 value
-               pnnx.Input              input_3     0 1 attn_mask
-               Tensor.permute          op_0        1 1 query 13 dims=(0,2,1,3)
-               Tensor.permute          op_1        1 1 key 20 dims=(0,2,3,1)
-               Tensor.permute          op_2        1 1 value 19 dims=(0,2,1,3)
-               torch.matmul            op_3        2 1 13 20 21
-               pnnx.Expression         op_4        2 1 21 attn_mask 23 expr=add(@0,@1)
-               F.softmax               softmax     1 1 23 24 dim=%softmax_dim
-               torch.matmul            op_6        2 1 24 19 out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+12 11
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 attn_mask
+Tensor.permute          op_0        1 1 query 13 dims=(0,2,1,3)
+Tensor.permute          op_1        1 1 key 20 dims=(0,2,3,1)
+Tensor.permute          op_2        1 1 value 19 dims=(0,2,1,3)
+torch.matmul            op_3        2 1 13 20 21
+pnnx.Expression         op_4        2 1 21 attn_mask 23 expr=add(@0,@1)
+F.softmax               softmax     1 1 23 24 dim=%softmax_dim
+torch.matmul            op_6        2 1 24 19 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               9 8
-               pnnx.Input              input_0     0 1 query
-               pnnx.Input              input_1     0 1 key
-               pnnx.Input              input_2     0 1 value
-               pnnx.Input              input_3     0 1 attn_mask
-               Tensor.permute          op_0        1 1 query q dims=(0,2,1,3)
-               Tensor.permute          op_1        1 1 key k dims=(0,2,1,3)
-               Tensor.permute          op_2        1 1 value v dims=(0,2,1,3)
-               F.scaled_dot_product_attention sdpa 4 1 q k v attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+9 8
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 attn_mask
+Tensor.permute          op_0        1 1 query q dims=(0,2,1,3)
+Tensor.permute          op_1        1 1 key k dims=(0,2,1,3)
+Tensor.permute          op_2        1 1 value v dims=(0,2,1,3)
+F.scaled_dot_product_attention sdpa 4 1 q k v attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const

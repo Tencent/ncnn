@@ -11,12 +11,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 equation
-               pnnx.Input              input_1     0 1 operands
-               aten::einsum            op_0        2 1 equation operands out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 equation
+pnnx.Input              input_1     0 1 operands
+aten::einsum            op_0        2 1 equation operands out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -33,13 +33,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 equation
-               pnnx.Input              input_1     0 1 operands
-               pnnx.Input              input_2     0 1 path
-               aten::einsum            op_0        3 1 equation operands path out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 equation
+pnnx.Input              input_1     0 1 operands
+pnnx.Input              input_2     0 1 path
+aten::einsum            op_0        3 1 equation operands path out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -63,11 +63,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 operands
-               aten::einsum            op_0        1 1 operands out equation=%equation
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 operands
+aten::einsum            op_0        1 1 operands out equation=%equation
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

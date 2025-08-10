@@ -23,25 +23,25 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 6
-               pnnx.Input              input       0 1 input #input=(%batch,%c,%h,%w)f32
-               Tensor.reshape          op_0        1 1 input a shape=(%batch_mul_ch_per_group,%groups,%h_mul_w)
-               Tensor.permute          op_1        1 1 a b dims=(1,0,2)
-               Tensor.reshape          op_2        1 1 b c shape=(%groups,%batch,%ch_per_group,%h,%w)
-               torch.unbind            op_3        1 2 c out0 out1 dim=0
-               pnnx.Output             output      2 0 out0 out1
-               )PNNXIR";
+6 6
+pnnx.Input              input       0 1 input #input=(%batch,%c,%h,%w)f32
+Tensor.reshape          op_0        1 1 input a shape=(%batch_mul_ch_per_group,%groups,%h_mul_w)
+Tensor.permute          op_1        1 1 a b dims=(1,0,2)
+Tensor.reshape          op_2        1 1 b c shape=(%groups,%batch,%ch_per_group,%h,%w)
+torch.unbind            op_3        1 2 c out0 out1 dim=0
+pnnx.Output             output      2 0 out0 out1
+)PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 4
-               pnnx.Input              input       0 1 input
-               ShuffleChannel          shufflechannel 1 1 input a 0=%groups 1=1 #a=(%batch,%c,%h,%w)f32
-               Slice                   slice       1 2 a out0 out1 0=(-233,-233) 1=0
-               pnnx.Output             output      2 0 out0 out1
-               )PNNXIR";
+4 4
+pnnx.Input              input       0 1 input
+ShuffleChannel          shufflechannel 1 1 input a 0=%groups 1=1 #a=(%batch,%c,%h,%w)f32
+Slice                   slice       1 2 a out0 out1 0=(-233,-233) 1=0
+pnnx.Output             output      2 0 out0 out1
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -85,14 +85,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 6
-               pnnx.Input              input       0 1 input #input=(%batch,%c,%h,%w)f32
-               Tensor.reshape          op_0        1 1 input a shape=(%batch_mul_ch_per_group,%groups,%h_mul_w)
-               Tensor.permute          op_1        1 1 a b dims=(1,0,2)
-               Tensor.reshape          op_2        1 1 b c shape=(%groups,%batch,%ch_per_group,%h,%w)
-               torch.unbind            op_3        1 2 c out0 out1 dim=0
-               pnnx.Output             output      2 0 out0 out1
-               )PNNXIR";
+6 6
+pnnx.Input              input       0 1 input #input=(%batch,%c,%h,%w)f32
+Tensor.reshape          op_0        1 1 input a shape=(%batch_mul_ch_per_group,%groups,%h_mul_w)
+Tensor.permute          op_1        1 1 a b dims=(1,0,2)
+Tensor.reshape          op_2        1 1 b c shape=(%groups,%batch,%ch_per_group,%h,%w)
+torch.unbind            op_3        1 2 c out0 out1 dim=0
+pnnx.Output             output      2 0 out0 out1
+)PNNXIR";
     }
 };
 

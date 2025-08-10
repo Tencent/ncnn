@@ -12,12 +12,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0       0 1 input0
-               pnnx.Input              input_1       0 1 input1
-               F.grid_sample           op_0          2 1 input0 input1 out mode=%mode padding_mode=%padding_mode align_corners=%align_corners
-               pnnx.Output             output        1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0       0 1 input0
+pnnx.Input              input_1       0 1 input1
+F.grid_sample           op_0          2 1 input0 input1 out mode=%mode padding_mode=%padding_mode align_corners=%align_corners
+pnnx.Output             output        1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -61,13 +61,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_a     0 1 a
-               pnnx.Input              input_b     0 1 b
-               Tensor.permute          op_0        1 1 b b1 dims=%dims
-               F.grid_sample           op_1        2 1 a b1 out mode=%mode padding_mode=%padding_mode align_corners=%align_corners
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_a     0 1 a
+pnnx.Input              input_b     0 1 b
+Tensor.permute          op_0        1 1 b b1 dims=%dims
+F.grid_sample           op_1        2 1 a b1 out mode=%mode padding_mode=%padding_mode align_corners=%align_corners
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

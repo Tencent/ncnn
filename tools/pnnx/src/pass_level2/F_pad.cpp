@@ -11,14 +11,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 pad value=%pad
-               prim::Constant          op_1        0 1 value value=%value
-               prim::Constant          op_2        0 1 mode value=%mode
-               aten::pad               op_3        4 1 input pad mode value out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 pad value=%pad
+prim::Constant          op_1        0 1 value value=%value
+prim::Constant          op_2        0 1 mode value=%mode
+aten::pad               op_3        4 1 input pad mode value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -33,14 +33,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 pad
-               pnnx.Input              input_2     0 1 value
-               prim::Constant          op_0        0 1 mode value=constant
-               aten::pad               op_1        4 1 input pad mode value out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+pnnx.Input              input_2     0 1 value
+prim::Constant          op_0        0 1 mode value=constant
+aten::pad               op_1        4 1 input pad mode value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -60,14 +60,14 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               6 5
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 pad
-               pnnx.Input              input_2     0 1 mode
-               prim::Constant          op_0        0 1 value value=*
-               aten::pad               op_1        4 1 input pad mode value out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+pnnx.Input              input_2     0 1 mode
+prim::Constant          op_0        0 1 value value=*
+aten::pad               op_1        4 1 input pad mode value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -86,13 +86,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 pad value=%pad
-               prim::Constant          op_1        0 1 value value=%value
-               aten::constant_pad_nd   op_2        3 1 input pad value out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 pad value=%pad
+prim::Constant          op_1        0 1 value value=%value
+aten::constant_pad_nd   op_2        3 1 input pad value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -114,13 +114,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 pad
-               pnnx.Input              input_2     0 1 value
-               aten::constant_pad_nd   op_0        3 1 input pad value out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+pnnx.Input              input_2     0 1 value
+aten::constant_pad_nd   op_0        3 1 input pad value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -140,12 +140,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 pad
-               aten::constant_pad_nd   op_0        2 1 input pad out value=%value
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+aten::constant_pad_nd   op_0        2 1 input pad out value=%value
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -169,12 +169,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 pad value=%pad
-               aten::reflection_pad1d  op_1        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 pad value=%pad
+aten::reflection_pad1d  op_1        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -196,12 +196,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 pad value=%pad
-               aten::reflection_pad2d  op_1        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 pad value=%pad
+aten::reflection_pad2d  op_1        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -211,12 +211,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 pad
-               aten::reflection_pad1d  op_0        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+aten::reflection_pad1d  op_0        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -237,12 +237,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 pad
-               aten::reflection_pad2d  op_0        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+aten::reflection_pad2d  op_0        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -257,12 +257,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 pad value=%pad
-               aten::replication_pad1d op_1        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 pad value=%pad
+aten::replication_pad1d op_1        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -284,12 +284,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 pad value=%pad
-               aten::replication_pad2d op_1        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 pad value=%pad
+aten::replication_pad2d op_1        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -299,12 +299,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 pad value=%pad
-               aten::replication_pad3d op_1        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 pad value=%pad
+aten::replication_pad3d op_1        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -314,12 +314,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 pad
-               aten::replication_pad1d op_0        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+aten::replication_pad1d op_0        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -340,12 +340,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 pad
-               aten::replication_pad2d op_0        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+aten::replication_pad2d op_0        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -355,12 +355,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 pad
-               aten::replication_pad3d op_0        2 1 input pad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+aten::replication_pad3d op_0        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -377,11 +377,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               Pad                     op_0        1 1 input out mode=%mode pads=%pads
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+Pad                     op_0        1 1 input out mode=%mode pads=%pads
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -452,11 +452,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               Pad                     op_0        1 1 input out mode=%mode pads=%pads value=%value
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+Pad                     op_0        1 1 input out mode=%mode pads=%pads value=%value
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -475,11 +475,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               tnn.PadV2               op_0        1 1 input out %*=%*
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+tnn.PadV2               op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

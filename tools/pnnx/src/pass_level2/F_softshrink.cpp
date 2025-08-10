@@ -11,12 +11,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input_0     0 1 input
-               pnnx.Input              input_1     0 1 lambd
-               aten::softshrink        op_0        2 1 input lambd out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 lambd
+aten::softshrink        op_0        2 1 input lambd out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -46,23 +46,23 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               15 14
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 lambd value=%lambd
-               torch.gt                op_1        2 1 input lambd 8
-               prim::Constant          op_2        0 1 lambd2 value=%lambd
-               aten::sub               op_3        2 1 input lambd2 9
-               prim::Constant          op_4        0 1 zero value=0
-               torch.where             op_5        3 1 8 9 zero a
-               prim::Constant          op_6        0 1 mlambd value=%lambd2
-               torch.lt                op_7        2 1 input mlambd 11
-               prim::Constant          op_8        0 1 lambd3 value=%lambd
-               aten::add               op_9        2 1 input lambd3 12
-               prim::Constant          op_10       0 1 zero2 value=0
-               torch.where             op_11       3 1 11 12 zero2 b
-               aten::add               op_12       2 1 a b out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+15 14
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 lambd value=%lambd
+torch.gt                op_1        2 1 input lambd 8
+prim::Constant          op_2        0 1 lambd2 value=%lambd
+aten::sub               op_3        2 1 input lambd2 9
+prim::Constant          op_4        0 1 zero value=0
+torch.where             op_5        3 1 8 9 zero a
+prim::Constant          op_6        0 1 mlambd value=%lambd2
+torch.lt                op_7        2 1 input mlambd 11
+prim::Constant          op_8        0 1 lambd3 value=%lambd
+aten::add               op_9        2 1 input lambd3 12
+prim::Constant          op_10       0 1 zero2 value=0
+torch.where             op_11       3 1 11 12 zero2 b
+aten::add               op_12       2 1 a b out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

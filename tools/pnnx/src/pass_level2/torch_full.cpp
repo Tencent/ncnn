@@ -11,16 +11,16 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               8 7
-               pnnx.Input              input_0     0 1 size
-               pnnx.Input              input_1     0 1 fill_value
-               prim::Constant          op_0        0 1 dtype value=%dtype
-               prim::Constant          op_1        0 1 layout value=*
-               prim::Constant          op_2        0 1 device value=*
-               prim::Constant          op_3        0 1 requires_grad value=*
-               aten::full              op_4        6 1 size fill_value dtype layout device requires_grad out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+8 7
+pnnx.Input              input_0     0 1 size
+pnnx.Input              input_1     0 1 fill_value
+prim::Constant          op_0        0 1 dtype value=%dtype
+prim::Constant          op_1        0 1 layout value=*
+prim::Constant          op_2        0 1 device value=*
+prim::Constant          op_3        0 1 requires_grad value=*
+aten::full              op_4        6 1 size fill_value dtype layout device requires_grad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -61,11 +61,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 size
-               ConstantOfShape         op_0        1 1 size out value=%fill_value
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 size
+ConstantOfShape         op_0        1 1 size out value=%fill_value
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -88,12 +88,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               4 3
-               pnnx.Input              input       0 1 size
-               pnnx.Attribute          value       0 1 value @data=(1)f32
-               tnn.ConstantOfShape     op_0        2 1 size value out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+4 3
+pnnx.Input              input       0 1 size
+pnnx.Attribute          value       0 1 value @data=(1)f32
+tnn.ConstantOfShape     op_0        2 1 size value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const

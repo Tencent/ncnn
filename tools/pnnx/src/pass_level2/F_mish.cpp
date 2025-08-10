@@ -11,11 +11,11 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               3 2
-               pnnx.Input              input       0 1 input
-               aten::mish              op_0        1 1 input out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+3 2
+pnnx.Input              input       0 1 input
+aten::mish              op_0        1 1 input out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -32,15 +32,15 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               7 6
-               pnnx.Input              input       0 1 input
-               prim::Constant          op_0        0 1 11 value=1
-               prim::Constant          op_1        0 1 12 value=20
-               aten::softplus          op_2        3 1 input 11 12 a
-               aten::tanh              op_3        1 1 a b
-               aten::mul               op_4        2 1 input b out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+7 6
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 11 value=1
+prim::Constant          op_1        0 1 12 value=20
+aten::softplus          op_2        3 1 input 11 12 a
+aten::tanh              op_3        1 1 a b
+aten::mul               op_4        2 1 input b out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
@@ -57,13 +57,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-               5 4
-               pnnx.Input              input       0 1 input
-               Softplus                op_0        1 1 input a
-               aten::tanh              op_1        1 1 a b
-               aten::mul               op_2        2 1 input b out
-               pnnx.Output             output      1 0 out
-               )PNNXIR";
+5 4
+pnnx.Input              input       0 1 input
+Softplus                op_0        1 1 input a
+aten::tanh              op_1        1 1 a b
+aten::mul               op_2        2 1 input b out
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     const char* type_str() const
