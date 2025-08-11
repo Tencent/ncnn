@@ -10,9 +10,15 @@
 #include <mutex>
 
 #ifdef _WIN32
+#include <windows.h>
 #include <direct.h>
+#else
+#include <sys/stat.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <cstring>
+#include <cerrno>
 #endif
-
 namespace ncnn {
 #if NCNN_VULKAN
 // https://en.wikipedia.org/wiki/MurmurHash
@@ -271,7 +277,7 @@ public:
             return false;
         if (header.driver_abi != sizeof(void*))
             return false;
-        if (std::memcmp(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
+        if (memcmp(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
             return false;
         return true;
     }
@@ -290,7 +296,7 @@ public:
             return false;
         if (header.spv_size % 4 != 0)
             return false;
-        if (std::memcmp(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
+        if (memcmp(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
             return false;
         return true;
     }
@@ -599,7 +605,7 @@ int PipelineCachePrivate::load_spv_code_cache_from_disk(const VulkanDevice& devi
     spv_cache_header header;
     if (fread(&header, sizeof(header), 1, fp) != 1)
     {
-        NCNN_LOGE("load_spv_code_cache_from_disk fread header failed", errno);
+        NCNN_LOGE("load_spv_code_cache_from_disk fread header failed");
         fclose(fp);
         return -1;
     }
@@ -738,18 +744,18 @@ int PipelineCachePrivate::save_spv_code_cache_to_disk(uint64_t shader_key, const
     header.vendor_id = physical_device_properties.vendorID;
     header.device_id = physical_device_properties.deviceID;
     header.driver_version = physical_device_properties.driverVersion;
-    std::memcpy(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE);
-    std::memset(header.reserved, 0, sizeof(header.reserved));
+    memcpy(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE);
+    memset(header.reserved, 0, sizeof(header.reserved));
     if (fwrite(&header, sizeof(header), 1, fp) != 1)
     {
-        NCNN_LOGE("save_spv_code_cache_to_disk fwrite header failed", errno);
+        NCNN_LOGE("save_spv_code_cache_to_disk fwrite header failed");
         fclose(fp);
         return -1;
     }
 
     if (fwrite(spirv.data(), sizeof(uint32_t), spirv.size(), fp) != spirv.size())
     {
-        NCNN_LOGE("save_spv_code_cache_to_disk fwrite spirv data failed", errno);
+        NCNN_LOGE("save_spv_code_cache_to_disk fwrite spirv data failed");
         fclose(fp);
         return -1;
     }
@@ -895,7 +901,7 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
         int ret = d->save_spv_code_cache_to_disk(key, *vkdev, spirv);
         if (ret != 0)
         {
-            NCNN_LOGE("save_spv_code_cache_to_disk failed", ret);
+            NCNN_LOGE("save_spv_code_cache_to_disk failed");
         }
 
         spv_data = spirv.data();
