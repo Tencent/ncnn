@@ -5,12 +5,9 @@
 
 #include "gpu.h"
 
-#include <chrono>
 #include <cstdio>
-#include <iostream>
 #include <map>
 #include <mutex>
-#include <sstream>
 
 #ifdef _WIN32
 #include <direct.h>
