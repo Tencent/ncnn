@@ -59,7 +59,7 @@ bool test_pipeline_creation(const ncnn::Option& opt, double* build_time = nullpt
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(0);
     ncnn::Pipeline pipeline(vkdev);
     double start = ncnn::get_current_time();
-    int ret = pipeline.create(0, opt, std::vector<ncnn::vk_specialization_type>{1});
+    int ret = pipeline.create(0, opt, std::vector<ncnn::vk_specialization_type> {1});
     double end = ncnn::get_current_time();
     if (build_time) *build_time = end - start;
     if (ret != 0) return false;

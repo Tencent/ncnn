@@ -1011,10 +1011,13 @@ static bool clear_directory(const std::string& path)
         if (name == "." || name == "..") continue;
 
         std::string fullPath = path + "\\" + name;
-        if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
             clear_directory(fullPath);
             RemoveDirectoryA(fullPath.c_str());
-        } else {
+        }
+        else
+        {
             DeleteFileA(fullPath.c_str());
         }
     } while (FindNextFileA(hFind, &findData));
@@ -1026,17 +1029,22 @@ static bool clear_directory(const std::string& path)
     if (!dir) return false;
 
     struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
+    while ((entry = readdir(dir)) != nullptr)
+    {
         std::string name = entry->d_name;
         if (name == "." || name == "..") continue;
 
         std::string fullPath = path + "/" + name;
         struct stat st;
-        if (stat(fullPath.c_str(), &st) == 0) {
-            if (S_ISDIR(st.st_mode)) {
+        if (stat(fullPath.c_str(), &st) == 0)
+        {
+            if (S_ISDIR(st.st_mode))
+            {
                 remove_all_in_dir(fullPath);
                 rmdir(fullPath.c_str());
-            } else {
+            }
+            else
+            {
                 unlink(fullPath.c_str());
             }
         }
