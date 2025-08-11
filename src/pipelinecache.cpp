@@ -654,47 +654,48 @@ PipelineCacheIOResult PipelineCachePrivate::try_load_pipeline_cache_from_disk(co
     }
 
     fseek(file, 0, SEEK_END);
-    size_t file_size = ftell(file);
-    if (file_size == -1)
+    long pos = ftell(file);
+    if (pos == -1L)
     {
         fclose(file);
         return PipelineCacheIOResult::FileFailure;
     }
+    size_t file_size = static_cast<size_t>(pos);
     rewind(file);
 
-    if (file_size < sizeof(PipelineCachePrivate::pipeline_cache_prefix_header))
+    if (file_size < sizeof(pipeline_cache_prefix_header))
     {
         fclose(file);
         return PipelineCacheIOResult::InvalidFile;
     }
 
-    std::vector<char> buffer(file_size - sizeof(PipelineCachePrivate::pipeline_cache_prefix_header));
-    PipelineCachePrivate::pipeline_cache_prefix_header header;
-    if (fread(&header, sizeof(PipelineCachePrivate::pipeline_cache_prefix_header), 1, file) != 1)
+    std::vector<char> buffer(file_size - sizeof(pipeline_cache_prefix_header));
+    pipeline_cache_prefix_header header;
+    if (fread(&header, sizeof(pipeline_cache_prefix_header), 1, file) != 1)
     {
         fclose(file);
         return PipelineCacheIOResult::InvalidFile;
     }
-    if (fread(buffer.data(), 1, file_size - sizeof(PipelineCachePrivate::pipeline_cache_prefix_header), file) != file_size - sizeof(PipelineCachePrivate::pipeline_cache_prefix_header))
+    if (fread(buffer.data(), 1, file_size - sizeof(pipeline_cache_prefix_header), file) != file_size - sizeof(PipelineCachePrivate::pipeline_cache_prefix_header))
     {
         fclose(file);
         return PipelineCacheIOResult::DataCorruption;
     }
     fclose(file);
 
-    if (header.magic != PipelineCachePrivate::vk_pipeline_cache_header_magic())
+    if (header.magic != vk_pipeline_cache_header_magic())
     {
         return PipelineCacheIOResult::InvalidCache;
     }
 
-    if (header.version != PipelineCachePrivate::CURRENT_PIPELINE_CACHE_VERSION)
+    if (header.version != CURRENT_PIPELINE_CACHE_VERSION)
     {
         return PipelineCacheIOResult::InvalidCache;
     }
 
     void* cache_data_begin = buffer.data();
     const VkPhysicalDeviceProperties& device_properties = vkdev->info.physicalDeviceProperties();
-    if (!PipelineCachePrivate::validate_pipeline_cache_header(header, device_properties))
+    if (!validate_pipeline_cache_header(header, device_properties))
     {
         return PipelineCacheIOResult::InvalidCache;
     }
