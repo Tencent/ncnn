@@ -1056,7 +1056,7 @@ static bool clear_directory(const std::string& path)
         {
             if (S_ISDIR(st.st_mode))
             {
-                remove_all_in_dir(fullPath);
+                clear_directory(fullPath);
                 rmdir(fullPath.c_str());
             }
             else
