@@ -85,6 +85,12 @@ bool pipeline_cache_test_basic_creation()
     opt.use_shader_pack8 = options[0][5];
 
     double duration_1;
+    if (vkdev->get_pipeline_cache()->clear_shader_cache() != 0)
+    {
+        fprintf(stderr, "clear shader cache failed\n");
+        ncnn::destroy_gpu_instance();
+        return false;
+    }
     if (!test_pipeline_creation(opt, &duration_1))
     {
         fprintf(stderr, "pipeline creation without cache failed\n");
@@ -141,6 +147,12 @@ bool pipeline_cache_test_corrupted_cache_file()
     opt.use_bf16_storage = options[0][4];
     opt.use_shader_pack8 = options[0][5];
 
+    if (vkdev->get_pipeline_cache()->clear_shader_cache() != 0)
+    {
+        fprintf(stderr, "clear shader cache failed\n");
+        ncnn::destroy_gpu_instance();
+        return false;
+    }
     double duration_1;
     if (!test_pipeline_creation(opt, &duration_1))
     {

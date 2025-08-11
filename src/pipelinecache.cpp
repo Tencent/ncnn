@@ -188,7 +188,6 @@ public:
         FILE* fp = fopen(cachepath.c_str(), "rb");
         if (!fp)
         {
-            NCNN_LOGE("load_spv_code_cache_from_disk fopen %s failed", cachepath.c_str());
             return -1;
         }
 
@@ -518,6 +517,8 @@ void PipelineCache::clear()
         vkDestroyPipelineCache(vkdev->vkdevice(), d->pipeline_cache, 0);
         d->pipeline_cache = VK_NULL_HANDLE;
     }
+
+    d->spv_code_cache.clear();
 
     d->cache_digests.clear();
     d->cache_artifacts.clear();
@@ -996,6 +997,62 @@ void PipelineCache::set_shader_cache_dir(const char* dir)
 {
     MutexLockGuard lock(d->cache_lock);
     d->shader_cache_dir = dir;
+}
+
+static bool clear_directory(const std::string& path)
+{
+#ifdef _WIN32
+    WIN32_FIND_DATAA findData;
+    HANDLE hFind = FindFirstFileA((path + "\\*").c_str(), &findData);
+    if (hFind == INVALID_HANDLE_VALUE) return false;
+
+    do {
+        std::string name = findData.cFileName;
+        if (name == "." || name == "..") continue;
+
+        std::string fullPath = path + "\\" + name;
+        if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            clear_directory(fullPath);
+            RemoveDirectoryA(fullPath.c_str());
+        } else {
+            DeleteFileA(fullPath.c_str());
+        }
+    } while (FindNextFileA(hFind, &findData));
+
+    FindClose(hFind);
+    return true;
+#else
+    DIR* dir = opendir(path.c_str());
+    if (!dir) return false;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        std::string name = entry->d_name;
+        if (name == "." || name == "..") continue;
+
+        std::string fullPath = path + "/" + name;
+        struct stat st;
+        if (stat(fullPath.c_str(), &st) == 0) {
+            if (S_ISDIR(st.st_mode)) {
+                remove_all_in_dir(fullPath);
+                rmdir(fullPath.c_str());
+            } else {
+                unlink(fullPath.c_str());
+            }
+        }
+    }
+    closedir(dir);
+    return true;
+#endif
+}
+
+int PipelineCache::clear_shader_cache() const
+{
+    MutexLockGuard lock(d->cache_lock);
+    d->spv_code_cache.clear();
+
+    if (clear_directory(d->shader_cache_dir)) return 0;
+    return -1;
 }
 
 #endif // NCNN_VULKAN
