@@ -124,6 +124,16 @@ static constexpr uint32_t spv_cache_magic()
     return ('S' | 'P' << 8 | 'V' << 16 | 'C' << 24);
 }
 
+enum class PipelineCacheIOResult
+{
+    Success,
+    FileFailure,
+    InvalidFile,
+    InvalidCache,
+    DataCorruption,
+    CreationFailure,
+};
+
 class PipelineCachePrivate
 {
 public:
@@ -155,82 +165,6 @@ public:
 
         uint32_t reserved[4];
     };
-
-    static constexpr uint32_t vk_pipeline_cache_header_magic()
-    {
-        return ('V' | 'P' << 8 | 'C' << 16 | 'H' << 24); // Vulkan Pipeline Cache Header
-    }
-
-    static bool validate_pipeline_cache_header(const pipeline_cache_prefix_header& header, const VkPhysicalDeviceProperties& physical_device_properties)
-    {
-        if (header.magic != vk_pipeline_cache_header_magic())
-            return false;
-        if (header.vendor_id != physical_device_properties.vendorID)
-            return false;
-        if (header.device_id != physical_device_properties.deviceID)
-            return false;
-        if (header.driver_version != physical_device_properties.driverVersion)
-            return false;
-        if (header.driver_abi != sizeof(void*))
-            return false;
-        if (std::memcmp(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
-            return false;
-        return true;
-    }
-
-    int load_spv_code_cache_from_disk(const VulkanDevice& device, uint64_t shader_key) const
-    {
-        std::string cachepath = shader_cache_dir + "/" + std::to_string(shader_key) + ".spvcache";
-
-        FILE* fp = fopen(cachepath.c_str(), "rb");
-        if (!fp)
-        {
-            return -1;
-        }
-
-        spv_cache_header header;
-        if (fread(&header, sizeof(header), 1, fp) != 1)
-        {
-            NCNN_LOGE("load_spv_code_cache_from_disk fread header failed", errno);
-            fclose(fp);
-            return -1;
-        }
-
-        if (!validate_spv_code_cache(header, device.info.physicalDeviceProperties()))
-        {
-            NCNN_LOGE("load_spv_code_cache_from_disk validate_spv_code_cache failed");
-            fclose(fp);
-            return -1;
-        }
-
-        std::vector<uint32_t> spirv;
-        spirv.resize(header.spv_size / 4);
-        size_t nread = fread(spirv.data(), 1, header.spv_size, fp);
-        fclose(fp);
-
-        if (nread != header.spv_size)
-        {
-            NCNN_LOGE("load_spv_code_cache_from_disk fread spirv data failed %zu != %d", nread, header.spv_size);
-            return -1;
-        }
-
-        uint32_t hash_fnv1a = fnv1a_32(reinterpret_cast<const uint8_t*>(spirv.data()), header.spv_size);
-        if (hash_fnv1a != header.data_hash_fnv1a)
-        {
-            NCNN_LOGE("load_spv_code_cache_from_disk data hash1 mismatch %x != %x", hash_fnv1a, header.data_hash_fnv1a);
-            return -1;
-        }
-
-        uint32_t hash_murmur3 = murmur3_32(spirv.data(), spirv.size());
-        if (hash_murmur3 != header.data_hash_murmur3)
-        {
-            NCNN_LOGE("load_spv_code_cache_from_disk data hash2 mismatch %x != %x", hash_murmur3, header.data_hash_murmur3);
-            return -1;
-        }
-
-        spv_code_cache[shader_key] = std::move(spirv);
-        return 0;
-    }
 
     // digest -> artifact
     struct pipeline_cache_digest
@@ -288,14 +222,6 @@ public:
         ShaderInfo shader_info; // TODO use pointer ?
     };
 
-    mutable std::vector<pipeline_cache_digest> cache_digests;
-    mutable std::vector<pipeline_cache_artifact> cache_artifacts;
-    mutable std::map<uint64_t, std::vector<uint32_t> > spv_code_cache;
-    mutable VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
-    mutable Mutex cache_lock;
-
-    std::string shader_cache_dir;
-
     struct spv_cache_header
     {
         uint32_t magic;          // magic number, 'SPVC' in host endian
@@ -317,57 +243,37 @@ public:
         uint32_t reserved[4]; // reserved for future use, must be zero
     };
 
-    int save_spv_code_cache_to_disk(uint64_t shader_key, const VulkanDevice& device, const std::vector<uint32_t>& spirv) const
+    mutable std::vector<pipeline_cache_digest> cache_digests;
+    mutable std::vector<pipeline_cache_artifact> cache_artifacts;
+    mutable std::map<uint64_t, std::vector<uint32_t> > spv_code_cache;
+    mutable VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
+    mutable Mutex cache_lock;
+    mutable std::string shader_cache_dir;
+
+    int load_spv_code_cache_from_disk(const VulkanDevice& device, uint64_t shader_key) const;
+    PipelineCacheIOResult try_load_pipeline_cache_from_disk(const VulkanDevice* vkdev, const char* path);
+    int save_spv_code_cache_to_disk(uint64_t shader_key, const VulkanDevice& device, const std::vector<uint32_t>& spirv) const;
+
+    static constexpr uint32_t vk_pipeline_cache_header_magic()
     {
-        std::string cachepath = shader_cache_dir + "/" + std::to_string(shader_key) + ".spvcache";
-        std::string tmp_cachepath = cachepath + ".tmp";
+        return ('V' | 'P' << 8 | 'C' << 16 | 'H' << 24); // Vulkan Pipeline Cache Header
+    }
 
-        make_dir(shader_cache_dir);
-
-        FILE* fp = fopen(tmp_cachepath.c_str(), "wb");
-        if (!fp)
-        {
-            NCNN_LOGE("save_spv_code_cache_to_disk fopen %s failed", tmp_cachepath.c_str());
-            return -1;
-        }
-
-        spv_cache_header header;
-        header.magic = spv_cache_magic();
-        header.header_version = CURRENT_SPV_CACHE_HEADER_VERSION;
-        header.spv_size = spirv.size() * sizeof(uint32_t);
-
-        header.data_hash_fnv1a = fnv1a_32((const uint8_t*)spirv.data(), header.spv_size);   // fnv1a hash
-        header.data_hash_murmur3 = murmur3_32((const uint32_t*)spirv.data(), spirv.size()); // murmur3 hash
-
-        const VkPhysicalDeviceProperties& physical_device_properties = device.info.physicalDeviceProperties();
-        header.vendor_id = physical_device_properties.vendorID;
-        header.device_id = physical_device_properties.deviceID;
-        header.driver_version = physical_device_properties.driverVersion;
-        std::memcpy(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE);
-        std::memset(header.reserved, 0, sizeof(header.reserved));
-        if (fwrite(&header, sizeof(header), 1, fp) != 1)
-        {
-            NCNN_LOGE("save_spv_code_cache_to_disk fwrite header failed", errno);
-            fclose(fp);
-            return -1;
-        }
-
-        if (fwrite(spirv.data(), sizeof(uint32_t), spirv.size(), fp) != spirv.size())
-        {
-            NCNN_LOGE("save_spv_code_cache_to_disk fwrite spirv data failed", errno);
-            fclose(fp);
-            return -1;
-        }
-
-        fclose(fp);
-
-        if (atomic_rename(tmp_cachepath.c_str(), cachepath.c_str()) != 0)
-        {
-            NCNN_LOGE("save_spv_code_cache_to_disk rename %s to %s failed", tmp_cachepath.c_str(), cachepath.c_str());
-            return -1;
-        }
-
-        return 0;
+    static bool validate_pipeline_cache_header(const pipeline_cache_prefix_header& header, const VkPhysicalDeviceProperties& physical_device_properties)
+    {
+        if (header.magic != vk_pipeline_cache_header_magic())
+            return false;
+        if (header.vendor_id != physical_device_properties.vendorID)
+            return false;
+        if (header.device_id != physical_device_properties.deviceID)
+            return false;
+        if (header.driver_version != physical_device_properties.driverVersion)
+            return false;
+        if (header.driver_abi != sizeof(void*))
+            return false;
+        if (std::memcmp(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
+            return false;
+        return true;
     }
 
     static bool validate_spv_code_cache(const spv_cache_header& header, const VkPhysicalDeviceProperties& physical_device_properties)
@@ -680,7 +586,60 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
     return 0;
 }
 
-PipelineCache::PipelineCacheIOResult PipelineCache::try_load_pipeline_cache_from_disk(const char* path, VkPipelineCache* pipeline_cache) const
+int PipelineCachePrivate::load_spv_code_cache_from_disk(const VulkanDevice& device, uint64_t shader_key) const
+{
+    std::string cachepath = shader_cache_dir + "/" + std::to_string(shader_key) + ".spvcache";
+
+    FILE* fp = fopen(cachepath.c_str(), "rb");
+    if (!fp)
+    {
+        return -1;
+    }
+
+    spv_cache_header header;
+    if (fread(&header, sizeof(header), 1, fp) != 1)
+    {
+        NCNN_LOGE("load_spv_code_cache_from_disk fread header failed", errno);
+        fclose(fp);
+        return -1;
+    }
+
+    if (!validate_spv_code_cache(header, device.info.physicalDeviceProperties()))
+    {
+        NCNN_LOGE("load_spv_code_cache_from_disk validate_spv_code_cache failed");
+        fclose(fp);
+        return -1;
+    }
+
+    std::vector<uint32_t> spirv;
+    spirv.resize(header.spv_size / 4);
+    size_t nread = fread(spirv.data(), 1, header.spv_size, fp);
+    fclose(fp);
+
+    if (nread != header.spv_size)
+    {
+        NCNN_LOGE("load_spv_code_cache_from_disk fread spirv data failed %zu != %d", nread, header.spv_size);
+        return -1;
+    }
+
+    uint32_t hash_fnv1a = fnv1a_32(reinterpret_cast<const uint8_t*>(spirv.data()), header.spv_size);
+    if (hash_fnv1a != header.data_hash_fnv1a)
+    {
+        NCNN_LOGE("load_spv_code_cache_from_disk data hash1 mismatch %x != %x", hash_fnv1a, header.data_hash_fnv1a);
+        return -1;
+    }
+
+    uint32_t hash_murmur3 = murmur3_32(spirv.data(), spirv.size());
+    if (hash_murmur3 != header.data_hash_murmur3)
+    {
+        NCNN_LOGE("load_spv_code_cache_from_disk data hash2 mismatch %x != %x", hash_murmur3, header.data_hash_murmur3);
+        return -1;
+    }
+
+    spv_code_cache[shader_key] = std::move(spirv);
+    return 0;
+}
+PipelineCacheIOResult PipelineCachePrivate::try_load_pipeline_cache_from_disk(const VulkanDevice* vkdev, const char* path)
 {
     FILE* file = fopen(path, "rb");
     if (!file)
@@ -746,12 +705,64 @@ PipelineCache::PipelineCacheIOResult PipelineCache::try_load_pipeline_cache_from
         return PipelineCacheIOResult::DataCorruption;
     }
 
-    if (vkdev->create_pipeline_cache_with_data(cache_data_begin, cache_data_size, &d->pipeline_cache) != VK_SUCCESS)
+    if (vkdev->create_pipeline_cache_with_data(cache_data_begin, cache_data_size, &pipeline_cache) != VK_SUCCESS)
     {
         return PipelineCacheIOResult::CreationFailure;
     }
 
     return PipelineCacheIOResult::Success;
+}
+int PipelineCachePrivate::save_spv_code_cache_to_disk(uint64_t shader_key, const VulkanDevice& device, const std::vector<uint32_t>& spirv) const
+{
+    std::string cachepath = shader_cache_dir + "/" + std::to_string(shader_key) + ".spvcache";
+    std::string tmp_cachepath = cachepath + ".tmp";
+
+    make_dir(shader_cache_dir);
+
+    FILE* fp = fopen(tmp_cachepath.c_str(), "wb");
+    if (!fp)
+    {
+        NCNN_LOGE("save_spv_code_cache_to_disk fopen %s failed", tmp_cachepath.c_str());
+        return -1;
+    }
+
+    spv_cache_header header;
+    header.magic = spv_cache_magic();
+    header.header_version = CURRENT_SPV_CACHE_HEADER_VERSION;
+    header.spv_size = spirv.size() * sizeof(uint32_t);
+
+    header.data_hash_fnv1a = fnv1a_32((const uint8_t*)spirv.data(), header.spv_size);   // fnv1a hash
+    header.data_hash_murmur3 = murmur3_32((const uint32_t*)spirv.data(), spirv.size()); // murmur3 hash
+
+    const VkPhysicalDeviceProperties& physical_device_properties = device.info.physicalDeviceProperties();
+    header.vendor_id = physical_device_properties.vendorID;
+    header.device_id = physical_device_properties.deviceID;
+    header.driver_version = physical_device_properties.driverVersion;
+    std::memcpy(header.uuid, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE);
+    std::memset(header.reserved, 0, sizeof(header.reserved));
+    if (fwrite(&header, sizeof(header), 1, fp) != 1)
+    {
+        NCNN_LOGE("save_spv_code_cache_to_disk fwrite header failed", errno);
+        fclose(fp);
+        return -1;
+    }
+
+    if (fwrite(spirv.data(), sizeof(uint32_t), spirv.size(), fp) != spirv.size())
+    {
+        NCNN_LOGE("save_spv_code_cache_to_disk fwrite spirv data failed", errno);
+        fclose(fp);
+        return -1;
+    }
+
+    fclose(fp);
+
+    if (atomic_rename(tmp_cachepath.c_str(), cachepath.c_str()) != 0)
+    {
+        NCNN_LOGE("save_spv_code_cache_to_disk rename %s to %s failed", tmp_cachepath.c_str(), cachepath.c_str());
+        return -1;
+    }
+
+    return 0;
 }
 
 int PipelineCache::load_pipeline_cache(const char* path) const
@@ -762,7 +773,7 @@ int PipelineCache::load_pipeline_cache(const char* path) const
         NCNN_LOGE("a valid pipeline cache already exists, stop loading");
         return 0;
     }
-    PipelineCacheIOResult result = try_load_pipeline_cache_from_disk(path, &d->pipeline_cache);
+    PipelineCacheIOResult result = d->try_load_pipeline_cache_from_disk(vkdev, path);
     if (result == PipelineCacheIOResult::Success) return 0;
     switch (result)
     {

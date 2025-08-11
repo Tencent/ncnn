@@ -299,7 +299,7 @@ bool pipeline_cache_test_multithread_save()
     }
 
     const int thread_count = 8;
-    std::vector<std::future<int>> futures;
+    std::vector<std::future<int> > futures;
     for (int i = 0; i < thread_count; i++)
     {
         futures.emplace_back(std::async(std::launch::async, [vkdev]() {
@@ -337,7 +337,6 @@ bool pipeline_cache_test_multithread_save()
     fprintf(stdout, "multi-thread save_pipeline_cache passed\n");
     return true;
 }
-
 
 int main()
 {
