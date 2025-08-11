@@ -797,6 +797,8 @@ int PipelineCache::load_pipeline_cache(const char* path) const
 
 int PipelineCache::save_pipeline_cache(const char* path) const
 {
+    MutexLockGuard lock(d->cache_lock);
+    if (d->pipeline_cache == VK_NULL_HANDLE) return 0;
     size_t cache_data_size;
     if (vkGetPipelineCacheData(vkdev->vkdevice(), d->pipeline_cache, &cache_data_size, nullptr) != VK_SUCCESS)
     {
