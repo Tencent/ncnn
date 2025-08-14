@@ -965,8 +965,13 @@ git submodule update --init --recursive
 ```
 Install esp-idf sdk and configure the environment
 ```shell
-sudo sh install.sh
+./install.sh
 source export.sh
+```
+And for Windows, you should use:
+```bash
+install.bat # or `install.ps1`
+export.bat
 ```
 Note: python>=3.8, cmake>=3.24.0
 
