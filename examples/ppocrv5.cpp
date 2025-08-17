@@ -345,7 +345,6 @@ void PPOCRv5::recognize(const cv::Mat& bgr, Object& object)
     ex.extract("out0", out);
 
     // 18385 x len
-
     int last_token = 0;
 
     for (int i = 0; i < out.h; i++)
