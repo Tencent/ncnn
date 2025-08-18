@@ -131,7 +131,9 @@ mp_obj_t mp_ncnn_mat_create_4d(size_t n_args, const mp_obj_t* args)
 mp_obj_t mp_ncnn_mat_create_external_1d(mp_obj_t w_obj, mp_obj_t data_obj, mp_obj_t allocator_obj)
 {
     int w = mp_obj_get_int(w_obj);
-    void* data = (void*)mp_obj_get_int(data_obj);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(data_obj, &bufinfo, MP_BUFFER_READ);
+    void* data = bufinfo.buf;
     ncnn_allocator_t allocator = (ncnn_allocator_t)mp_obj_get_int(allocator_obj);
     ncnn_mat_t mat = ncnn_mat_create_external_1d(w, data, allocator);
     return mp_obj_new_int_from_uint((uintptr_t)mat);
@@ -140,7 +142,9 @@ mp_obj_t mp_ncnn_mat_create_external_2d(size_t n_args, const mp_obj_t* args)
 {
     int w = mp_obj_get_int(args[0]);
     int h = mp_obj_get_int(args[1]);
-    void* data = (void*)mp_obj_get_int(args[2]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_READ);
+    void* data = bufinfo.buf;
     ncnn_allocator_t allocator = (ncnn_allocator_t)mp_obj_get_int(args[3]);
     ncnn_mat_t mat = ncnn_mat_create_external_2d(w, h, data, allocator);
     return mp_obj_new_int_from_uint((uintptr_t)mat);
@@ -150,7 +154,9 @@ mp_obj_t mp_ncnn_mat_create_external_3d(size_t n_args, const mp_obj_t* args)
     int w = mp_obj_get_int(args[0]);
     int h = mp_obj_get_int(args[1]);
     int c = mp_obj_get_int(args[2]);
-    void* data = (void*)mp_obj_get_int(args[3]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[3], &bufinfo, MP_BUFFER_READ);
+    void* data = bufinfo.buf;
     ncnn_allocator_t allocator = (ncnn_allocator_t)mp_obj_get_int(args[4]);
     ncnn_mat_t mat = ncnn_mat_create_external_3d(w, h, c, data, allocator);
     return mp_obj_new_int_from_uint((uintptr_t)mat);
@@ -161,7 +167,9 @@ mp_obj_t mp_ncnn_mat_create_external_4d(size_t n_args, const mp_obj_t* args)
     int h = mp_obj_get_int(args[1]);
     int d = mp_obj_get_int(args[2]);
     int c = mp_obj_get_int(args[3]);
-    void* data = (void*)mp_obj_get_int(args[4]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[4], &bufinfo, MP_BUFFER_READ);
+    void* data = bufinfo.buf;
     ncnn_allocator_t allocator = (ncnn_allocator_t)mp_obj_get_int(args[5]);
     ncnn_mat_t mat = ncnn_mat_create_external_4d(w, h, d, c, data, allocator);
     return mp_obj_new_int_from_uint((uintptr_t)mat);
@@ -211,7 +219,9 @@ mp_obj_t mp_ncnn_mat_create_4d_elem(size_t n_args, const mp_obj_t* args)
 mp_obj_t mp_ncnn_mat_create_external_1d_elem(size_t n_args, const mp_obj_t* args)
 {
     int w = mp_obj_get_int(args[0]);
-    void* data = (void*)mp_obj_get_int(args[1]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[4], &bufinfo, MP_BUFFER_READ);
+    void* data = bufinfo.buf;
     size_t elemsize = (size_t)mp_obj_get_int(args[2]);
     int elempack = mp_obj_get_int(args[3]);
     ncnn_allocator_t allocator = (ncnn_allocator_t)mp_obj_get_int(args[4]);
@@ -222,7 +232,9 @@ mp_obj_t mp_ncnn_mat_create_external_2d_elem(size_t n_args, const mp_obj_t* args
 {
     int w = mp_obj_get_int(args[0]);
     int h = mp_obj_get_int(args[1]);
-    void* data = (void*)mp_obj_get_int(args[2]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_READ);
+    void* data = bufinfo.buf;
     size_t elemsize = (size_t)mp_obj_get_int(args[3]);
     int elempack = mp_obj_get_int(args[4]);
     ncnn_allocator_t allocator = (ncnn_allocator_t)mp_obj_get_int(args[5]);
@@ -234,7 +246,9 @@ mp_obj_t mp_ncnn_mat_create_external_3d_elem(size_t n_args, const mp_obj_t* args
     int w = mp_obj_get_int(args[0]);
     int h = mp_obj_get_int(args[1]);
     int c = mp_obj_get_int(args[2]);
-    void* data = (void*)mp_obj_get_int(args[3]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[3], &bufinfo, MP_BUFFER_READ);
+    void* data = bufinfo.buf;
     size_t elemsize = (size_t)mp_obj_get_int(args[4]);
     int elempack = mp_obj_get_int(args[5]);
     ncnn_allocator_t allocator = (ncnn_allocator_t)mp_obj_get_int(args[6]);
@@ -247,7 +261,9 @@ mp_obj_t mp_ncnn_mat_create_external_4d_elem(size_t n_args, const mp_obj_t* args
     int h = mp_obj_get_int(args[1]);
     int d = mp_obj_get_int(args[2]);
     int c = mp_obj_get_int(args[3]);
-    void* data = (void*)mp_obj_get_int(args[4]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[4], &bufinfo, MP_BUFFER_READ);
+    void* data = bufinfo.buf;
     size_t elemsize = (size_t)mp_obj_get_int(args[5]);
     int elempack = mp_obj_get_int(args[6]);
     ncnn_allocator_t allocator = (ncnn_allocator_t)mp_obj_get_int(args[7]);
@@ -373,7 +389,9 @@ mp_obj_t mp_ncnn_mat_get_channel_data(mp_obj_t mat_obj, mp_obj_t c_obj)
 /* mat pixel api */
 mp_obj_t mp_ncnn_mat_from_pixels(size_t n_args, const mp_obj_t* args)
 {
-    const unsigned char* pixels = (const unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ);
+    const unsigned char* pixels = (const unsigned char*)bufinfo.buf;
     int type = mp_obj_get_int(args[1]);
     int w = mp_obj_get_int(args[2]);
     int h = mp_obj_get_int(args[3]);
@@ -388,7 +406,9 @@ mp_obj_t mp_ncnn_mat_from_pixels(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_mat_from_pixels_resize(size_t n_args, const mp_obj_t* args)
 {
-    const unsigned char* pixels = (const unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int type = mp_obj_get_int(args[1]);
     int w = mp_obj_get_int(args[2]);
     int h = mp_obj_get_int(args[3]);
@@ -405,7 +425,9 @@ mp_obj_t mp_ncnn_mat_from_pixels_resize(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_mat_from_pixels_roi(size_t n_args, const mp_obj_t* args)
 {
-    const unsigned char* pixels = (const unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int type = mp_obj_get_int(args[1]);
     int w = mp_obj_get_int(args[2]);
     int h = mp_obj_get_int(args[3]);
@@ -424,7 +446,9 @@ mp_obj_t mp_ncnn_mat_from_pixels_roi(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_mat_from_pixels_roi_resize(size_t n_args, const mp_obj_t* args)
 {
-    const unsigned char* pixels = (const unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ);
+    const unsigned char* pixels = (const unsigned char*)bufinfo.buf;
     int type = mp_obj_get_int(args[1]);
     int w = mp_obj_get_int(args[2]);
     int h = mp_obj_get_int(args[3]);
@@ -446,7 +470,9 @@ mp_obj_t mp_ncnn_mat_from_pixels_roi_resize(size_t n_args, const mp_obj_t* args)
 mp_obj_t mp_ncnn_mat_to_pixels(size_t n_args, const mp_obj_t* args)
 {
     ncnn_mat_t mat = (ncnn_mat_t)mp_obj_get_int(args[0]);
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[1]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int type = mp_obj_get_int(args[2]);
     int stride = mp_obj_get_int(args[3]);
     ncnn_mat_to_pixels(mat, pixels, type, stride);
@@ -455,7 +481,9 @@ mp_obj_t mp_ncnn_mat_to_pixels(size_t n_args, const mp_obj_t* args)
 mp_obj_t mp_ncnn_mat_to_pixels_resize(size_t n_args, const mp_obj_t* args)
 {
     ncnn_mat_t mat = (ncnn_mat_t)mp_obj_get_int(args[0]);
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[1]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int type = mp_obj_get_int(args[2]);
     int target_width = mp_obj_get_int(args[3]);
     int target_height = mp_obj_get_int(args[4]);
@@ -468,26 +496,48 @@ mp_obj_t mp_ncnn_mat_to_pixels_resize(size_t n_args, const mp_obj_t* args)
 mp_obj_t mp_ncnn_mat_substract_mean_normalize(size_t n_args, const mp_obj_t* args)
 {
     ncnn_mat_t mat = (ncnn_mat_t)mp_obj_get_int(args[0]);
-    const float* mean_vals = (const float*)mp_obj_get_int(args[1]);
-    const float* norm_vals = (const float*)mp_obj_get_int(args[2]);
+    mp_obj_t mean_list = args[1];
+    size_t mean_len;
+    mp_obj_t* mean_items;
+    mp_obj_list_get(mean_list, &mean_len, &mean_items);
+
+    float* mean_vals = (float*)malloc(mean_len * sizeof(float));
+    for (size_t i = 0; i < mean_len; i++)
+    {
+        mean_vals[i] = (float)mp_obj_get_float(mean_items[i]);
+    }
+
+    mp_obj_t norm_list = args[2];
+    size_t norm_len;
+    mp_obj_t* norm_items;
+    mp_obj_list_get(norm_list, &norm_len, &norm_items);
+
+    float* norm_vals = (float*)malloc(norm_len * sizeof(float));
+    for (size_t i = 0; i < norm_len; i++)
+    {
+        norm_vals[i] = (float)mp_obj_get_float(norm_items[i]);
+    }
     ncnn_mat_substract_mean_normalize(mat, mean_vals, norm_vals);
+
+    free(mean_vals);
+    free(norm_vals);
     return mp_const_none;
 }
 mp_obj_t mp_ncnn_convert_packing(size_t n_args, const mp_obj_t* args)
 {
     const ncnn_mat_t src = (ncnn_mat_t)mp_obj_get_int(args[0]);
-    ncnn_mat_t* dst = (ncnn_mat_t*)mp_obj_get_int(args[1]);
+    ncnn_mat_t dst = (ncnn_mat_t)mp_obj_get_int(args[1]);
     int elempack = mp_obj_get_int(args[2]);
     const ncnn_option_t opt = (ncnn_option_t)mp_obj_get_int(args[3]);
-    ncnn_convert_packing(src, dst, elempack, opt);
+    ncnn_convert_packing(src, &dst, elempack, opt);
     return mp_const_none;
 }
 mp_obj_t mp_ncnn_flatten(size_t n_args, const mp_obj_t* args)
 {
     ncnn_mat_t src = (ncnn_mat_t)mp_obj_get_int(args[0]);
-    ncnn_mat_t* dst = (ncnn_mat_t*)mp_obj_get_int(args[1]);
+    ncnn_mat_t dst = (ncnn_mat_t)mp_obj_get_int(args[1]);
     const ncnn_option_t opt = (ncnn_option_t)mp_obj_get_int(args[2]);
-    ncnn_flatten(src, dst, opt);
+    ncnn_flatten(src, &dst, opt);
     return mp_const_none;
 }
 
@@ -513,11 +563,11 @@ mp_obj_t mp_ncnn_blob_get_consumer(mp_obj_t blob_obj)
 mp_obj_t mp_ncnn_blob_get_shape(size_t n_args, const mp_obj_t* args)
 {
     const ncnn_blob_t blob = (ncnn_blob_t)mp_obj_get_int(args[0]);
-    int* dims = (int*)mp_obj_get_int(args[1]);
-    int* w = (int*)mp_obj_get_int(args[2]);
-    int* h = (int*)mp_obj_get_int(args[3]);
-    int* c = (int*)mp_obj_get_int(args[4]);
-    ncnn_blob_get_shape(blob, dims, w, h, c);
+    int dims = mp_obj_get_int(args[1]);
+    int w = mp_obj_get_int(args[2]);
+    int h = mp_obj_get_int(args[3]);
+    int c = mp_obj_get_int(args[4]);
+    ncnn_blob_get_shape(blob, &dims, &w, &h, &c);
     return mp_const_none;
 }
 
@@ -603,7 +653,15 @@ mp_obj_t mp_ncnn_datareader_create_from_stdio(mp_obj_t fp_obj)
 #endif /* NCNN_STDIO */
 mp_obj_t mp_ncnn_datareader_create_from_memory(mp_obj_t mem_obj)
 {
-    ncnn_datareader_t dr = ncnn_datareader_create_from_memory((const unsigned char**)mp_obj_get_int(mem_obj));
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(mem_obj, &bufinfo, MP_BUFFER_READ);
+    if (bufinfo.len == 0 || bufinfo.buf == NULL)
+    {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("Memory buffer is empty or NULL"));
+    }
+    const unsigned char* mem_ptr = (const unsigned char*)bufinfo.buf;
+    const unsigned char** mem = &mem_ptr;
+    ncnn_datareader_t dr = ncnn_datareader_create_from_memory(mem);
     return mp_obj_new_int_from_uint((uintptr_t)dr);
 }
 mp_obj_t mp_ncnn_datareader_destroy(mp_obj_t dr_obj)
@@ -620,9 +678,28 @@ mp_obj_t mp_ncnn_modelbin_create_from_datareader(mp_obj_t dr_obj)
 }
 mp_obj_t mp_ncnn_modelbin_create_from_mat_array(mp_obj_t weights_obj, mp_obj_t n_obj)
 {
-    const ncnn_mat_t* weights = (const ncnn_mat_t*)mp_obj_get_int(weights_obj);
     int n = mp_obj_get_int(n_obj);
+    size_t list_len;
+    mp_obj_t* list_items;
+    mp_obj_list_get(weights_obj, &list_len, &list_items);
+
+    if ((int)list_len != n)
+    {
+        mp_raise_ValueError(MP_ERROR_TEXT("Array length mismatch with parameter n"));
+    }
+
+    ncnn_mat_t* weights = (ncnn_mat_t*)malloc(n * sizeof(ncnn_mat_t));
+    if (weights == NULL)
+    {
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("Failed to allocate memory for weights array"));
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        weights[i] = (ncnn_mat_t)mp_obj_get_int(list_items[i]);
+    }
     ncnn_modelbin_t mb = ncnn_modelbin_create_from_mat_array(weights, n);
+    free(weights);
     return mp_obj_new_int_from_uint((uintptr_t)mb);
 }
 mp_obj_t mp_ncnn_modelbin_destroy(mp_obj_t mb_obj)
@@ -783,22 +860,22 @@ mp_obj_t mp_ncnn_blob_get_bottom_shape(size_t n_args, const mp_obj_t* args)
 {
     const ncnn_layer_t layer = (ncnn_layer_t)mp_obj_get_int(args[0]);
     int i = mp_obj_get_int(args[1]);
-    int* dims = (int*)mp_obj_get_int(args[2]);
-    int* w = (int*)mp_obj_get_int(args[3]);
-    int* h = (int*)mp_obj_get_int(args[4]);
-    int* c = (int*)mp_obj_get_int(args[5]);
-    ncnn_blob_get_bottom_shape(layer, i, dims, w, h, c);
+    int dims = (int)mp_obj_get_int(args[2]);
+    int w = (int)mp_obj_get_int(args[3]);
+    int h = (int)mp_obj_get_int(args[4]);
+    int c = (int)mp_obj_get_int(args[5]);
+    ncnn_blob_get_bottom_shape(layer, i, &dims, &w, &h, &c);
     return mp_const_none;
 }
 mp_obj_t mp_ncnn_blob_get_top_shape(size_t n_args, const mp_obj_t* args)
 {
     const ncnn_layer_t layer = (ncnn_layer_t)mp_obj_get_int(args[0]);
     int i = mp_obj_get_int(args[1]);
-    int* dims = (int*)mp_obj_get_int(args[2]);
-    int* w = (int*)mp_obj_get_int(args[3]);
-    int* h = (int*)mp_obj_get_int(args[4]);
-    int* c = (int*)mp_obj_get_int(args[5]);
-    ncnn_blob_get_top_shape(layer, i, dims, w, h, c);
+    int dims = (int)mp_obj_get_int(args[2]);
+    int w = (int)mp_obj_get_int(args[3]);
+    int h = (int)mp_obj_get_int(args[4]);
+    int c = (int)mp_obj_get_int(args[5]);
+    ncnn_blob_get_top_shape(layer, i, &dims, &w, &h, &c);
     return mp_const_none;
 }
 
@@ -885,22 +962,37 @@ mp_obj_t mp_ncnn_net_load_model(mp_obj_t net_obj, mp_obj_t path_obj)
 mp_obj_t mp_ncnn_net_load_param_memory(mp_obj_t net_obj, mp_obj_t mem_obj)
 {
     ncnn_net_t net = (ncnn_net_t)mp_obj_get_int(net_obj);
-    const char* mem = (const char*)mp_obj_get_int(mem_obj);
-    return mp_obj_new_int(ncnn_net_load_param_memory(net, mem));
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(mem_obj, &bufinfo, MP_BUFFER_READ);
+    if (bufinfo.len == 0 || bufinfo.buf == NULL)
+    {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("Memory buffer is empty or NULL"));
+    }
+    return mp_obj_new_int(ncnn_net_load_param_memory(net, (const char*)bufinfo.buf));
 }
 #endif /* NCNN_STRING */
 #endif /* NCNN_STDIO */
 mp_obj_t mp_ncnn_net_load_param_bin_memory(mp_obj_t net_obj, mp_obj_t mem_obj)
 {
     ncnn_net_t net = (ncnn_net_t)mp_obj_get_int(net_obj);
-    const unsigned char* mem = (const unsigned char*)mp_obj_get_int(mem_obj);
-    return mp_obj_new_int(ncnn_net_load_param_bin_memory(net, mem));
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(mem_obj, &bufinfo, MP_BUFFER_READ);
+    if (bufinfo.len == 0 || bufinfo.buf == NULL)
+    {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("Memory buffer is empty or NULL"));
+    }
+    return mp_obj_new_int(ncnn_net_load_param_bin_memory(net, (const unsigned char*)bufinfo.buf));
 }
 mp_obj_t mp_ncnn_net_load_model_memory(mp_obj_t net_obj, mp_obj_t mem_obj)
 {
     ncnn_net_t net = (ncnn_net_t)mp_obj_get_int(net_obj);
-    const unsigned char* mem = (const unsigned char*)mp_obj_get_int(mem_obj);
-    return mp_obj_new_int(ncnn_net_load_model_memory(net, mem));
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(mem_obj, &bufinfo, MP_BUFFER_READ);
+    if (bufinfo.len == 0 || bufinfo.buf == NULL)
+    {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("Memory buffer is empty or NULL"));
+    }
+    return mp_obj_new_int(ncnn_net_load_model_memory(net, (const unsigned char*)bufinfo.buf));
 }
 
 #if NCNN_STRING
@@ -1001,8 +1093,8 @@ mp_obj_t mp_ncnn_extractor_extract(mp_obj_t ex_obj, mp_obj_t name_obj, mp_obj_t 
 {
     ncnn_extractor_t ex = (ncnn_extractor_t)mp_obj_get_int(ex_obj);
     const char* name = mp_obj_str_get_str(name_obj);
-    ncnn_mat_t* mat = (ncnn_mat_t*)mp_obj_get_int(mat_obj);
-    return mp_obj_new_int(ncnn_extractor_extract(ex, name, mat));
+    ncnn_mat_t mat = (ncnn_mat_t)mp_obj_get_int(mat_obj);
+    return mp_obj_new_int(ncnn_extractor_extract(ex, name, &mat));
 }
 #endif /* NCNN_STRING */
 mp_obj_t mp_ncnn_extractor_input_index(mp_obj_t ex_obj, mp_obj_t index_obj, mp_obj_t mat_obj)
@@ -1016,8 +1108,8 @@ mp_obj_t mp_ncnn_extractor_extract_index(mp_obj_t ex_obj, mp_obj_t index_obj, mp
 {
     ncnn_extractor_t ex = (ncnn_extractor_t)mp_obj_get_int(ex_obj);
     int index = mp_obj_get_int(index_obj);
-    ncnn_mat_t* mat = (ncnn_mat_t*)mp_obj_get_int(mat_obj);
-    return mp_obj_new_int(ncnn_extractor_extract_index(ex, index, mat));
+    ncnn_mat_t mat = (ncnn_mat_t)mp_obj_get_int(mat_obj);
+    return mp_obj_new_int(ncnn_extractor_extract_index(ex, index, &mat));
 }
 
 /* mat process api */
@@ -1082,7 +1174,9 @@ mp_obj_t mp_ncnn_copy_cut_border_3d(size_t n_args, const mp_obj_t* args)
 /* mat pixel drawing api*/
 mp_obj_t mp_ncnn_draw_rectangle_c1(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int rx = mp_obj_get_int(args[3]);
@@ -1096,7 +1190,9 @@ mp_obj_t mp_ncnn_draw_rectangle_c1(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_rectangle_c2(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int rx = mp_obj_get_int(args[3]);
@@ -1110,7 +1206,9 @@ mp_obj_t mp_ncnn_draw_rectangle_c2(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_rectangle_c3(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int rx = mp_obj_get_int(args[3]);
@@ -1124,7 +1222,9 @@ mp_obj_t mp_ncnn_draw_rectangle_c3(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_rectangle_c4(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int rx = mp_obj_get_int(args[3]);
@@ -1138,7 +1238,9 @@ mp_obj_t mp_ncnn_draw_rectangle_c4(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_text_c1(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     const char* text = mp_obj_str_get_str(args[3]);
@@ -1151,7 +1253,9 @@ mp_obj_t mp_ncnn_draw_text_c1(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_text_c2(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     const char* text = mp_obj_str_get_str(args[3]);
@@ -1164,7 +1268,9 @@ mp_obj_t mp_ncnn_draw_text_c2(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_text_c3(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     const char* text = mp_obj_str_get_str(args[3]);
@@ -1177,7 +1283,9 @@ mp_obj_t mp_ncnn_draw_text_c3(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_text_c4(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     const char* text = mp_obj_str_get_str(args[3]);
@@ -1191,7 +1299,9 @@ mp_obj_t mp_ncnn_draw_text_c4(size_t n_args, const mp_obj_t* args)
 
 mp_obj_t mp_ncnn_draw_circle_c1(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int cx = mp_obj_get_int(args[3]);
@@ -1204,7 +1314,9 @@ mp_obj_t mp_ncnn_draw_circle_c1(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_circle_c2(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int cx = mp_obj_get_int(args[3]);
@@ -1217,7 +1329,9 @@ mp_obj_t mp_ncnn_draw_circle_c2(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_circle_c3(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int cx = mp_obj_get_int(args[3]);
@@ -1230,7 +1344,9 @@ mp_obj_t mp_ncnn_draw_circle_c3(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_circle_c4(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int cx = mp_obj_get_int(args[3]);
@@ -1244,7 +1360,9 @@ mp_obj_t mp_ncnn_draw_circle_c4(size_t n_args, const mp_obj_t* args)
 
 mp_obj_t mp_ncnn_draw_line_c1(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int x0 = mp_obj_get_int(args[3]);
@@ -1258,7 +1376,9 @@ mp_obj_t mp_ncnn_draw_line_c1(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_line_c2(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int x0 = mp_obj_get_int(args[3]);
@@ -1272,7 +1392,9 @@ mp_obj_t mp_ncnn_draw_line_c2(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_line_c3(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int x0 = mp_obj_get_int(args[3]);
@@ -1286,7 +1408,9 @@ mp_obj_t mp_ncnn_draw_line_c3(size_t n_args, const mp_obj_t* args)
 }
 mp_obj_t mp_ncnn_draw_line_c4(size_t n_args, const mp_obj_t* args)
 {
-    unsigned char* pixels = (unsigned char*)mp_obj_get_int(args[0]);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
+    unsigned char* pixels = (unsigned char*)bufinfo.buf;
     int w = mp_obj_get_int(args[1]);
     int h = mp_obj_get_int(args[2]);
     int x0 = mp_obj_get_int(args[3]);

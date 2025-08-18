@@ -60,8 +60,8 @@ static MP_DEFINE_CONST_FUN_OBJ_2(ncnn_mat_get_channel_data_obj, mp_ncnn_mat_get_
 #if NCNN_PIXEL
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(ncnn_mat_from_pixels_obj, 6, 6, mp_ncnn_mat_from_pixels);
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(ncnn_mat_from_pixels_resize_obj, 8, 8, mp_ncnn_mat_from_pixels_resize);
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(ncnn_mat_from_pixels_resize_roi_obj, 10, 10, mp_ncnn_mat_from_pixels_roi);
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(ncnn_mat_from_pixels_resize_roi_resize_obj, 12, 12, mp_ncnn_mat_from_pixels_roi_resize);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(ncnn_mat_from_pixels_roi_obj, 10, 10, mp_ncnn_mat_from_pixels_roi);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(ncnn_mat_from_pixels_roi_resize_obj, 12, 12, mp_ncnn_mat_from_pixels_roi_resize);
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(ncnn_mat_to_pixels_obj, 4, 4, mp_ncnn_mat_to_pixels);
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(ncnn_mat_to_pixels_resize_obj, 6, 6, mp_ncnn_mat_to_pixels_resize);
 #endif
@@ -293,8 +293,8 @@ static const mp_rom_map_elem_t ncnn_module_globals_table[] = {
     /* mat pixel api */
     {MP_ROM_QSTR(MP_QSTR_mat_from_pixels), MP_ROM_PTR(&ncnn_mat_from_pixels_obj)},
     {MP_ROM_QSTR(MP_QSTR_mat_from_pixels_resize), MP_ROM_PTR(&ncnn_mat_from_pixels_resize_obj)},
-    {MP_ROM_QSTR(MP_QSTR_mat_from_pixels_resize_roi), MP_ROM_PTR(&ncnn_mat_from_pixels_resize_roi_obj)},
-    {MP_ROM_QSTR(MP_QSTR_mat_from_pixels_resize_roi_resize), MP_ROM_PTR(&ncnn_mat_from_pixels_resize_roi_resize_obj)},
+    {MP_ROM_QSTR(MP_QSTR_mat_from_pixels_roi), MP_ROM_PTR(&ncnn_mat_from_pixels_roi_obj)},
+    {MP_ROM_QSTR(MP_QSTR_mat_from_pixels_roi_resize), MP_ROM_PTR(&ncnn_mat_from_pixels_roi_resize_obj)},
     {MP_ROM_QSTR(MP_QSTR_mat_to_pixels), MP_ROM_PTR(&ncnn_mat_to_pixels_obj)},
     {MP_ROM_QSTR(MP_QSTR_mat_to_pixels_resize), MP_ROM_PTR(&ncnn_mat_to_pixels_resize_obj)},
 #endif

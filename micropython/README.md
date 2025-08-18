@@ -50,7 +50,3 @@ make submodules
 make clean
 make USER_C_MODULES=/path/to/ncnn/micropython
 ```
-
-## Usage
-
-TODO
