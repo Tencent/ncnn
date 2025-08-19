@@ -134,7 +134,8 @@ public:
 
             const float* h_data = h.row(i);
 
-            if (current_x < -tail_bound || current_x > tail_bound) {
+            if (current_x < -tail_bound || current_x > tail_bound)
+            {
                 continue;
             }
 
@@ -143,13 +144,16 @@ public:
             std::vector<float> unnormalized_derivatives(num_bins + 1);
 
             const float inv_sqrt_filter_channels = 1.0f / sqrtf(filter_channels);
-            for (int j = 0; j < num_bins; ++j) {
+            for (int j = 0; j < num_bins; ++j)
+            {
                 unnormalized_widths[j] = h_data[j] * inv_sqrt_filter_channels;
             }
-            for (int j = 0; j < num_bins; ++j) {
+            for (int j = 0; j < num_bins; ++j)
+            {
                 unnormalized_heights[j] = h_data[num_bins + j] * inv_sqrt_filter_channels;
             }
-            for (int j = 0; j < num_bins - 1; ++j) {
+            for (int j = 0; j < num_bins - 1; ++j)
+            {
                 unnormalized_derivatives[j + 1] = h_data[2 * num_bins + j];
             }
 
@@ -165,11 +169,13 @@ public:
             float w_max = -INFINITY;
             for (float val : unnormalized_widths) w_max = std::max(w_max, val);
             float w_sum = 0.f;
-            for (int j = 0; j < num_bins; ++j) {
+            for (int j = 0; j < num_bins; ++j)
+            {
                 widths[j] = expf(unnormalized_widths[j] - w_max);
                 w_sum += widths[j];
             }
-            for (int j = 0; j < num_bins; ++j) {
+            for (int j = 0; j < num_bins; ++j)
+            {
                 widths[j] = DEFAULT_MIN_BIN_WIDTH + (1.f - DEFAULT_MIN_BIN_WIDTH * num_bins) * (widths[j] / w_sum);
             }
 
@@ -177,7 +183,8 @@ public:
             std::vector<float> cumwidths(num_bins + 1);
             cumwidths[0] = left;
             float current_w_sum = 0.f;
-            for (int j = 0; j < num_bins - 1; ++j) {
+            for (int j = 0; j < num_bins - 1; ++j)
+            {
                 current_w_sum += widths[j];
                 cumwidths[j + 1] = left + (right - left) * current_w_sum;
             }
@@ -188,11 +195,13 @@ public:
             float h_max = -INFINITY;
             for (float val : unnormalized_heights) h_max = std::max(h_max, val);
             float h_sum = 0.f;
-            for (int j = 0; j < num_bins; ++j) {
+            for (int j = 0; j < num_bins; ++j)
+            {
                 heights[j] = expf(unnormalized_heights[j] - h_max);
                 h_sum += heights[j];
             }
-            for (int j = 0; j < num_bins; ++j) {
+            for (int j = 0; j < num_bins; ++j)
+            {
                 heights[j] = DEFAULT_MIN_BIN_HEIGHT + (1.f - DEFAULT_MIN_BIN_HEIGHT * num_bins) * (heights[j] / h_sum);
             }
 
@@ -200,7 +209,8 @@ public:
             std::vector<float> cumheights(num_bins + 1);
             cumheights[0] = bottom;
             float current_h_sum = 0.f;
-            for (int j = 0; j < num_bins - 1; ++j) {
+            for (int j = 0; j < num_bins - 1; ++j)
+            {
                 current_h_sum += heights[j];
                 cumheights[j + 1] = bottom + (top - bottom) * current_h_sum;
             }
@@ -208,17 +218,21 @@ public:
 
             // Softplus
             std::vector<float> derivatives(num_bins + 1);
-            for (int j = 0; j < num_bins + 1; ++j) {
+            for (int j = 0; j < num_bins + 1; ++j)
+            {
                 float x = unnormalized_derivatives[j];
                 derivatives[j] = DEFAULT_MIN_DERIVATIVE + (x > 0 ? x + logf(1.f + expf(-x)) : logf(1.f + expf(x)));
             }
 
             // bin_idx
             int bin_idx = 0;
-            if (reverse) {
+            if (reverse)
+            {
                 auto it = std::upper_bound(cumheights.begin(), cumheights.end(), current_x);
                 bin_idx = std::distance(cumheights.begin(), it) - 1;
-            } else {
+            }
+            else
+            {
                 auto it = std::upper_bound(cumwidths.begin(), cumwidths.end(), current_x);
                 bin_idx = std::distance(cumwidths.begin(), it) - 1;
             }
@@ -234,7 +248,8 @@ public:
             const float delta = input_heights / input_bin_widths;
 
             // apply transform
-            if (reverse) {
+            if (reverse)
+            {
                 float a = (current_x - input_cumheights) * (input_derivatives + input_derivatives_plus_one - 2 * delta) + input_heights * (delta - input_derivatives);
                 float b = input_heights * input_derivatives - (current_x - input_cumheights) * (input_derivatives + input_derivatives_plus_one - 2 * delta);
                 float c = -delta * (current_x - input_cumheights);
@@ -242,7 +257,9 @@ public:
                 discriminant = std::max(0.f, discriminant);
                 float root = (2 * c) / (-b - sqrtf(discriminant));
                 out_ptr[i] = root * input_bin_widths + input_cumwidths;
-            } else {
+            }
+            else
+            {
                 float theta = (current_x - input_cumwidths) / input_bin_widths;
                 float theta_one_minus_theta = theta * (1 - theta);
                 float numerator = input_heights * (delta * theta * theta + input_derivatives * theta_one_minus_theta);
@@ -320,9 +337,9 @@ static void simple_phonemize(const char* text, std::vector<int>& sequence_ids)
 
     // phonemize mainpart
     {
-        const int ID_PAD = 0; // interleaved
-        const int ID_BOS = 1; // beginning of sentence
-        const int ID_EOS = 2; // end of sentence
+        const int ID_PAD = 0;   // interleaved
+        const int ID_BOS = 1;   // beginning of sentence
+        const int ID_EOS = 2;   // end of sentence
         const int ID_SPACE = 3; // space
 
         bool last_char_is_control = false;
@@ -632,7 +649,7 @@ static int tts_piper(const char* text, int speaker_id, std::vector<short>& pcm)
 
 static void save_pcm_to_wav(const char* path, const short* pcm, int num_samples, int sample_rate)
 {
-    FILE *f = fopen(path, "wb");
+    FILE* f = fopen(path, "wb");
     if (!f)
         return;
 
