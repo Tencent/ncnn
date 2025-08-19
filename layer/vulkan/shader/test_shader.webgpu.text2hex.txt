@@ -1,0 +1,22 @@
+#version 450
+layout (constant_id = 0) const int w = 0;
+layout (constant_id = 1) const int h = 0;
+layout (binding = 0) buffer bottom_blob { float data[]; };
+struct parameter
+{
+int dims;
+int w;
+int h;
+int c;
+int cstep;
+};
+layout (binding = 1) uniform parameter_blob { parameter p; };
+void main()
+{
+int gx = int(gl_GlobalInvocationID.x);
+int gy = int(gl_GlobalInvocationID.y);
+if (gx >= psc(w) || gy >= psc(h))
+return;
+int gi = gy * psc(w) + gx;
+data[gi] = data[gi] * 2.0;
+}
