@@ -10,7 +10,8 @@
 //      python3 -m pip install -e .[train]
 //  4. download piper checkpoint file (*.ckpt) from https://huggingface.co/datasets/rhasspy/piper-checkpoints
 //  5. install pnnx via pip install -U pnnx
-//  6. python export_ncnn.py en.ckpt
+//  6. obtain export_ncnn.py script from https://github.com/nihui/ncnn-android-piper
+//      python export_ncnn.py en.ckpt
 
 // convert word list to simple phonemizer dict
 //  1. prepare word list from https://github.com/Alexir/CMUdict
