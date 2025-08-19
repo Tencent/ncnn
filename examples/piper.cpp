@@ -694,8 +694,9 @@ int main(int argc, char** argv)
 {
     if (argc != 4)
     {
-        fprintf(stderr, "Usage: %s [sentences] [speaker id] [out path]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [sentences] [speaker id 0~903] [out path]\n", argv[0]);
         fprintf(stderr, "       %s \"Hello World\" 0 out.wav\n", argv[0]);
+        fprintf(stderr, "       %s \"Happy New Year\" 123 out.wav\n", argv[0]);
         return 0;
     }
 
