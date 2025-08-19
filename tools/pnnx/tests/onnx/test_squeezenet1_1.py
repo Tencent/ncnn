@@ -32,7 +32,7 @@ def test():
         return True
 
     # export dynamo onnx
-    torch.onnx.dynamo_export(net, x).save("test_squeezenet1_1_dynamo.onnx")
+    torch.onnx.export(net, (x,), "test_squeezenet1_1_dynamo.onnx", dynamo=True, external_data=False)
 
     # onnx to pnnx
     os.system("../../src/pnnx test_squeezenet1_1_dynamo.onnx inputshape=[1,3,224,224]")

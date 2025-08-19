@@ -48,7 +48,7 @@ jobs:
       NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: arm64
@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     container: linaro/wine-arm64
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: msvc-wine
       env:
         WINEPREFIX: /tmp/wine-x64-prefix/
@@ -99,7 +99,7 @@ jobs:
       UseMultiToolTask: true
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: build
