@@ -302,6 +302,8 @@ static void find_word_id(const std::map<unsigned int, std::vector<const char*> >
 
 static void simple_phonemize(const char* text, std::vector<int>& sequence_ids)
 {
+    // this is a very simple g2p function, it works for english only
+
     // load dict buffer
     std::vector<unsigned char> dictbinbuf;
     {
