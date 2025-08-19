@@ -1,6 +1,25 @@
 // Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+// convert piper checkpoints to ncnn models
+//  1. checkout https://github.com/OHF-Voice/piper1-gpl (113931937cf235fc881afd1ca4be209bc6919bc7)
+//  2. apply patch piper1-gpl.patch from https://github.com/nihui/ncnn-android-piper
+//  3. setup piper with
+//      python3 -m venv .venv
+//      source .venv/bin/activate
+//      python3 -m pip install -e .[train]
+//  4. download piper checkpoint file (*.ckpt) from https://huggingface.co/datasets/rhasspy/piper-checkpoints
+//  5. install pnnx via pip install -U pnnx
+//  6. python export_ncnn.py en.ckpt
+
+// convert word list to simple phonemizer dict
+//  1. prepare word list from https://github.com/Alexir/CMUdict
+//  2. for each word, get phonemes via command "./espeak-ng -q -v en-us --ipa word"
+//  3. obtain config.json file from https://huggingface.co/datasets/rhasspy/piper-checkpoints
+//  4. replace phonemes with ids according to phoneme_id_map in config.json
+//  5. write dict binary
+//      word1 \0x00 ids1 \0xff word2 \0x00 ids2 \0xff .....
+
 #include "layer.h"
 #include "mat.h"
 #include "net.h"
