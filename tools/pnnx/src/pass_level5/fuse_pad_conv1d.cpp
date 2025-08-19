@@ -53,13 +53,16 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 2)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad.size() == 2 && pad[0] != pad[1])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0)
+            return true;
 
-        return true;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0 && pad[4] == 0 && pad[5] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -124,13 +127,16 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 2)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad.size() == 2 && pad[0] != pad[1])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0)
+            return true;
 
-        return true;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0 && pad[4] == 0 && pad[5] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -201,13 +207,16 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 2)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad[0] != pad[1])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0)
+            return true;
 
-        return true;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0 && pad[4] == 0 && pad[5] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -269,13 +278,16 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 2)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad[0] != pad[1])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0)
+            return true;
 
-        return true;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0 && pad[4] == 0 && pad[5] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -337,13 +349,16 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 2)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad[0] != pad[1])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0)
+            return true;
 
-        return true;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == 0 && pad[3] == 0 && pad[4] == 0 && pad[5] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
