@@ -31,7 +31,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     // const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     // int elempack = 1;
-    // if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    // if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
 
     // size_t elemsize;
     // if (opt.use_fp16_storage || opt.use_fp16_packed)
@@ -269,7 +269,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     int out_elempack = 1;
     {
         int outh = output_transpose ? N : M;
-        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
     }
     if (output_elempack)
         out_elempack = output_elempack;

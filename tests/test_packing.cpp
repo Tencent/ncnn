@@ -225,7 +225,6 @@ static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
-    opt.use_shader_pack8 = true;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -309,7 +308,6 @@ static int test_packing_gpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
-    opt.use_shader_pack8 = true;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 

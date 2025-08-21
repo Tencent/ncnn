@@ -3126,9 +3126,6 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     opt.use_fp16_arithmetic = false;
     opt.use_int8_arithmetic = false;
 
-    // enable pack8 for pack8to1/pack8to4
-    opt.use_shader_pack8 = true;
-
     // do not enable spirv-1.3 from cooperative matrix
     opt.use_cooperative_matrix = false;
 
@@ -3189,9 +3186,6 @@ void VulkanDevicePrivate::destroy_utility_operator()
             // to pack1 | pack4 | pack8
             for (int k = 0; k < 3; k++)
             {
-                // enable pack8 for pack8to1/pack8to4
-                opt.use_shader_pack8 = true;
-
                 ncnn::Layer* uop = uop_packing[j0][j1][k];
                 if (!uop)
                     continue;
@@ -3217,9 +3211,6 @@ void VulkanDevicePrivate::destroy_utility_operator()
         // to pack1 | pack4 | pack8
         for (int k = 0; k < 3; k++)
         {
-            // enable pack8 for pack8to1/pack8to4
-            opt.use_shader_pack8 = true;
-
             ncnn::Layer* uop = uop_packing_int8[k];
             if (!uop)
                 continue;
