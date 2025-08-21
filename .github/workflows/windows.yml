@@ -128,7 +128,6 @@ jobs:
         Copy-Item -Path "Windows\*" -Destination "$env:GITHUB_WORKSPACE\swiftshader-install"
 
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
-      if: matrix.vs-version == 'vs2015'
       with:
         sdk-version: ${{ matrix.windows-sdk-version }}
 
