@@ -26,21 +26,16 @@ public:
 
     Pipeline* pipeline_pooling;
     Pipeline* pipeline_pooling_pack4;
-    Pipeline* pipeline_pooling_pack8;
 
     Pipeline* pipeline_pooling_adaptive;
     Pipeline* pipeline_pooling_adaptive_pack4;
-    Pipeline* pipeline_pooling_adaptive_pack8;
 
     Pipeline* pipeline_pooling_global_reduce_first;
     Pipeline* pipeline_pooling_global_reduce_first_pack4;
-    Pipeline* pipeline_pooling_global_reduce_first_pack8;
     Pipeline* pipeline_pooling_global_reduce;
     Pipeline* pipeline_pooling_global_reduce_pack4;
-    Pipeline* pipeline_pooling_global_reduce_pack8;
     Pipeline* pipeline_pooling_global_reduce_last;
     Pipeline* pipeline_pooling_global_reduce_last_pack4;
-    Pipeline* pipeline_pooling_global_reduce_last_pack8;
 };
 
 } // namespace ncnn

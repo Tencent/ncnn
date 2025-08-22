@@ -35,17 +35,11 @@ public:
 
     Pipeline* pipeline_deconvolutiondepthwise;
     Pipeline* pipeline_deconvolutiondepthwise_pack4;
-    Pipeline* pipeline_deconvolutiondepthwise_pack8;
 
     Pipeline* pipeline_deconvolutiondepthwise_group;
     Pipeline* pipeline_deconvolutiondepthwise_group_pack4;
     Pipeline* pipeline_deconvolutiondepthwise_group_pack1to4;
     Pipeline* pipeline_deconvolutiondepthwise_group_pack4to1;
-    Pipeline* pipeline_deconvolutiondepthwise_group_pack8;
-    Pipeline* pipeline_deconvolutiondepthwise_group_pack1to8;
-    Pipeline* pipeline_deconvolutiondepthwise_group_pack4to8;
-    Pipeline* pipeline_deconvolutiondepthwise_group_pack8to4;
-    Pipeline* pipeline_deconvolutiondepthwise_group_pack8to1;
 };
 
 } // namespace ncnn

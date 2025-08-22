@@ -89,8 +89,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
-    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int elempack = num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -178,7 +178,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
     if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && (opt.use_fp16_storage || opt.use_fp16_packed);
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
         if (use_cooperative_matrix)
         {
@@ -446,7 +446,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 int shader_type_index = -1;
                 if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_input;
                 if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_input;
-                if (elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd43_transform_input;
 
                 pipeline_convolution_3x3s1d1_winograd43_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_transform_input->set_local_size_xyz(4, 4, 1);
@@ -498,11 +497,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm;
                 if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_3x3s1d1_winograd_gemm;
                 if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_3x3s1d1_winograd_gemm;
-                if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd_gemm;
-                if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_3x3s1d1_winograd_gemm;
-                if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_3x3s1d1_winograd_gemm;
-                if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_3x3s1d1_winograd_gemm;
-                if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_3x3s1d1_winograd_gemm;
 
                 pipeline_convolution_3x3s1d1_winograd43_gemm = new Pipeline(vkdev);
                 if (opt.use_shader_local_memory)
@@ -533,7 +527,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 int shader_type_index = -1;
                 if (out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_output;
                 if (out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_output;
-                if (out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd43_transform_output;
 
                 pipeline_convolution_3x3s1d1_winograd43_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_transform_output->set_local_size_xyz(4, 4, 1);
@@ -780,7 +773,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 int shader_type_index = -1;
                 if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd23_transform_input;
                 if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_input;
-                if (elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd23_transform_input;
 
                 pipeline_convolution_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
@@ -832,11 +824,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm;
                 if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_3x3s1d1_winograd_gemm;
                 if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_3x3s1d1_winograd_gemm;
-                if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd_gemm;
-                if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_3x3s1d1_winograd_gemm;
-                if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_3x3s1d1_winograd_gemm;
-                if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_3x3s1d1_winograd_gemm;
-                if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_3x3s1d1_winograd_gemm;
 
                 pipeline_convolution_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 if (opt.use_shader_local_memory)
@@ -867,7 +854,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 int shader_type_index = -1;
                 if (out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd23_transform_output;
                 if (out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_output;
-                if (out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd23_transform_output;
 
                 pipeline_convolution_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
@@ -877,7 +863,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && (opt.use_fp16_storage || opt.use_fp16_packed);
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
         if (use_cooperative_matrix)
         {
@@ -1056,7 +1042,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && (opt.use_fp16_storage || opt.use_fp16_packed) && num_input >= 8 && num_output >= 8;
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed) && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
@@ -1322,11 +1308,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_gemm;
             if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_gemm;
             if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_gemm;
-            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_gemm;
-            if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_gemm;
-            if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_gemm;
-            if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_gemm;
-            if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_gemm;
 
             pipeline_convolution_gemm = new Pipeline(vkdev);
             if (opt.use_shader_local_memory)
@@ -1393,11 +1374,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1;
             if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_1x1s1d1;
             if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_1x1s1d1;
-            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_1x1s1d1;
-            if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_1x1s1d1;
-            if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_1x1s1d1;
-            if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_1x1s1d1;
-            if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_1x1s1d1;
 
             pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
             if (opt.use_shader_local_memory)
@@ -1448,11 +1424,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4;
         if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4;
         if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1;
-        if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8;
-        if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8;
-        if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1;
-        if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8;
-        if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4;
 
         pipeline_convolution = new Pipeline(vkdev);
         pipeline_convolution->set_optimal_local_size_xyz(local_size_xyz);
@@ -1680,7 +1651,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     const int maxk = kernel_w * kernel_h;

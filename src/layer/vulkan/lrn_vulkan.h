@@ -26,10 +26,6 @@ public:
     Pipeline* pipeline_lrn_norm_across_channel_pack4;
     Pipeline* pipeline_lrn_square_pad_within_channel_pack4;
     Pipeline* pipeline_lrn_norm_within_channel_pack4;
-    Pipeline* pipeline_lrn_square_pad_across_channel_pack8;
-    Pipeline* pipeline_lrn_norm_across_channel_pack8;
-    Pipeline* pipeline_lrn_square_pad_within_channel_pack8;
-    Pipeline* pipeline_lrn_norm_within_channel_pack8;
 };
 
 } // namespace ncnn

@@ -14,9 +14,6 @@ Flatten_vulkan::Flatten_vulkan()
     pipeline_flatten = 0;
     pipeline_flatten_pack4 = 0;
     pipeline_flatten_pack1to4 = 0;
-    pipeline_flatten_pack8 = 0;
-    pipeline_flatten_pack1to8 = 0;
-    pipeline_flatten_pack4to8 = 0;
 }
 
 int Flatten_vulkan::create_pipeline(const Option& _opt)
@@ -26,12 +23,12 @@ int Flatten_vulkan::create_pipeline(const Option& _opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -99,30 +96,6 @@ int Flatten_vulkan::create_pipeline(const Option& _opt)
         pipeline_flatten_pack1to4->create(LayerShaderType::flatten_pack1to4, opt, specializations);
     }
 
-    // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 8))
-    {
-        pipeline_flatten_pack8 = new Pipeline(vkdev);
-        pipeline_flatten_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_flatten_pack8->create(LayerShaderType::flatten_pack8, opt, specializations);
-    }
-
-    // pack1to8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 1 && out_elempack == 8))
-    {
-        pipeline_flatten_pack1to8 = new Pipeline(vkdev);
-        pipeline_flatten_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_flatten_pack1to8->create(LayerShaderType::flatten_pack1to8, opt, specializations);
-    }
-
-    // pack4to8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 4 && out_elempack == 8))
-    {
-        pipeline_flatten_pack4to8 = new Pipeline(vkdev);
-        pipeline_flatten_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_flatten_pack4to8->create(LayerShaderType::flatten_pack4to8, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -136,15 +109,6 @@ int Flatten_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_flatten_pack1to4;
     pipeline_flatten_pack1to4 = 0;
-
-    delete pipeline_flatten_pack8;
-    pipeline_flatten_pack8 = 0;
-
-    delete pipeline_flatten_pack1to8;
-    pipeline_flatten_pack1to8 = 0;
-
-    delete pipeline_flatten_pack4to8;
-    pipeline_flatten_pack4to8 = 0;
 
     return 0;
 }
@@ -168,7 +132,7 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     int total = w * h * d * channels * elempack;
 
-    int out_elempack = opt.use_shader_pack8 && total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+    int out_elempack = total % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (dims == 2 && elempack == 1)
@@ -215,18 +179,6 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     else if (elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_flatten_pack1to4;
-    }
-    else if (elempack == 8 /*&& out_elempack == 8*/)
-    {
-        pipeline = pipeline_flatten_pack8;
-    }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_flatten_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_flatten_pack4to8;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);

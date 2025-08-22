@@ -23,9 +23,6 @@ public:
     Pipeline* pipeline_concat[2];
     Pipeline* pipeline_concat_pack4[2];
     Pipeline* pipeline_concat_pack4to1[2];
-    Pipeline* pipeline_concat_pack8[2];
-    Pipeline* pipeline_concat_pack8to4[2];
-    Pipeline* pipeline_concat_pack8to1[2];
 };
 
 } // namespace ncnn

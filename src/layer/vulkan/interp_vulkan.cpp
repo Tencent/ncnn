@@ -13,13 +13,11 @@ Interp_vulkan::Interp_vulkan()
 
     pipeline_interp = 0;
     pipeline_interp_pack4 = 0;
-    pipeline_interp_pack8 = 0;
 
     pipeline_interp_bicubic_coeffs_x = 0;
     pipeline_interp_bicubic_coeffs_y = 0;
     pipeline_interp_bicubic = 0;
     pipeline_interp_bicubic_pack4 = 0;
-    pipeline_interp_bicubic_pack8 = 0;
 }
 
 int Interp_vulkan::create_pipeline(const Option& _opt)
@@ -29,14 +27,14 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -105,14 +103,6 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
             pipeline_interp_pack4 = new Pipeline(vkdev);
             pipeline_interp_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp_pack4->create(LayerShaderType::interp_pack4, opt, specializations);
-        }
-
-        // pack8
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
-            pipeline_interp_pack8 = new Pipeline(vkdev);
-            pipeline_interp_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp_pack8->create(LayerShaderType::interp_pack8, opt, specializations);
         }
     }
 
@@ -196,14 +186,6 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
             pipeline_interp_bicubic_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp_bicubic_pack4->create(LayerShaderType::interp_bicubic_pack4, opt, specializations);
         }
-
-        // pack8
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
-            pipeline_interp_bicubic_pack8 = new Pipeline(vkdev);
-            pipeline_interp_bicubic_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp_bicubic_pack8->create(LayerShaderType::interp_bicubic_pack8, opt, specializations);
-        }
     }
 
     return 0;
@@ -217,9 +199,6 @@ int Interp_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_interp_pack4;
     pipeline_interp_pack4 = 0;
 
-    delete pipeline_interp_pack8;
-    pipeline_interp_pack8 = 0;
-
     delete pipeline_interp_bicubic_coeffs_x;
     pipeline_interp_bicubic_coeffs_x = 0;
 
@@ -231,9 +210,6 @@ int Interp_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_interp_bicubic_pack4;
     pipeline_interp_bicubic_pack4 = 0;
-
-    delete pipeline_interp_bicubic_pack8;
-    pipeline_interp_bicubic_pack8 = 0;
 
     return 0;
 }
@@ -323,9 +299,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
         constants[11].f = (resize_type == 2 || output_height) ? h / (float)outh : 1.f / height_scale;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
-                                   : elempack == 4 ? pipeline_interp_pack4
-                                   : pipeline_interp;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_interp_pack4 : pipeline_interp;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -369,9 +343,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 constants[10].f = (w - 1) / (float)(outw - 1);
             }
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
-                                       : elempack == 4 ? pipeline_interp_pack4
-                                       : pipeline_interp;
+            const Pipeline* pipeline = elempack == 4 ? pipeline_interp_pack4 : pipeline_interp;
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
         }
@@ -425,9 +397,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[8].i = top_blob.c;
             constants[9].i = top_blob.cstep;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
-                                       : elempack == 4 ? pipeline_interp_bicubic_pack4
-                                       : pipeline_interp_bicubic;
+            const Pipeline* pipeline = elempack == 4 ? pipeline_interp_bicubic_pack4 : pipeline_interp_bicubic;
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
         }
@@ -471,9 +441,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[11].f = (h - 1) / (float)(outh - 1);
         }
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
-                                   : elempack == 4 ? pipeline_interp_pack4
-                                   : pipeline_interp;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_interp_pack4 : pipeline_interp;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -553,9 +521,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
-                                   : elempack == 4 ? pipeline_interp_bicubic_pack4
-                                   : pipeline_interp_bicubic;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_interp_bicubic_pack4 : pipeline_interp_bicubic;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }

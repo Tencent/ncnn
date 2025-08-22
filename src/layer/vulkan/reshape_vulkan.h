@@ -25,11 +25,6 @@ public:
     Pipeline* pipeline_reshape_pack4;
     Pipeline* pipeline_reshape_pack1to4;
     Pipeline* pipeline_reshape_pack4to1;
-    Pipeline* pipeline_reshape_pack8;
-    Pipeline* pipeline_reshape_pack1to8;
-    Pipeline* pipeline_reshape_pack4to8;
-    Pipeline* pipeline_reshape_pack8to4;
-    Pipeline* pipeline_reshape_pack8to1;
 };
 
 } // namespace ncnn

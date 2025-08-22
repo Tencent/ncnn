@@ -13,7 +13,6 @@ PReLU_vulkan::PReLU_vulkan()
 
     pipeline_prelu = 0;
     pipeline_prelu_pack4 = 0;
-    pipeline_prelu_pack8 = 0;
 }
 
 int PReLU_vulkan::create_pipeline(const Option& opt)
@@ -21,10 +20,10 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 0) elempack = opt.use_shader_pack8 && num_slope % 8 == 0 ? 8 : num_slope % 4 == 0 ? 4 : 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 0) elempack = num_slope % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage || opt.use_fp16_packed)
@@ -86,14 +85,6 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
         pipeline_prelu_pack4->create(LayerShaderType::prelu_pack4, opt, specializations);
     }
 
-    // pack8
-    if ((opt.use_shader_pack8 && num_slope == 1) || elempack == 8)
-    {
-        pipeline_prelu_pack8 = new Pipeline(vkdev);
-        pipeline_prelu_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_prelu_pack8->create(LayerShaderType::prelu_pack8, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -105,9 +96,6 @@ int PReLU_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_prelu_pack4;
     pipeline_prelu_pack4 = 0;
 
-    delete pipeline_prelu_pack8;
-    pipeline_prelu_pack8 = 0;
-
     return 0;
 }
 
@@ -115,7 +103,7 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (num_slope > 1)
     {
-        int elempack = opt.use_shader_pack8 && num_slope % 8 == 0 ? 8 : num_slope % 4 == 0 ? 4 : 1;
+        int elempack = num_slope % 4 == 0 ? 4 : 1;
 
         Mat slope_data_packed;
         convert_packing(slope_data, slope_data_packed, elempack, opt);
@@ -146,9 +134,7 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_prelu_pack8
-                               : elempack == 4 ? pipeline_prelu_pack4
-                               : pipeline_prelu;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_prelu_pack4 : pipeline_prelu;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

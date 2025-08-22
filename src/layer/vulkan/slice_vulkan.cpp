@@ -17,12 +17,6 @@ Slice_vulkan::Slice_vulkan()
     pipeline_slice_pack4[1] = 0;
     pipeline_slice_pack1to4[0] = 0;
     pipeline_slice_pack1to4[1] = 0;
-    pipeline_slice_pack8[0] = 0;
-    pipeline_slice_pack8[1] = 0;
-    pipeline_slice_pack1to8[0] = 0;
-    pipeline_slice_pack1to8[1] = 0;
-    pipeline_slice_pack4to8[0] = 0;
-    pipeline_slice_pack4to8[1] = 0;
 }
 
 int Slice_vulkan::create_pipeline(const Option& opt)
@@ -32,25 +26,25 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     int positive_axis = axis < 0 ? shape.dims + axis : axis;
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
     if (positive_axis == 0)
     {
-        if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-        if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-        if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+        if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
+        if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
+        if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
         for (size_t b = 1; b < top_shapes.size(); b++)
         {
             const Mat& shape1 = top_shapes[b];
 
             int out_elempack1 = 1;
-            if (shape1.dims == 1) out_elempack1 = opt.use_shader_pack8 && shape1.w % 8 == 0 ? 8 : shape1.w % 4 == 0 ? 4 : 1;
-            if (shape1.dims == 2) out_elempack1 = opt.use_shader_pack8 && shape1.h % 8 == 0 ? 8 : shape1.h % 4 == 0 ? 4 : 1;
-            if (shape1.dims == 3 || shape1.dims == 4) out_elempack1 = opt.use_shader_pack8 && shape1.c % 8 == 0 ? 8 : shape1.c % 4 == 0 ? 4 : 1;
+            if (shape1.dims == 1) out_elempack1 = shape1.w % 4 == 0 ? 4 : 1;
+            if (shape1.dims == 2) out_elempack1 = shape1.h % 4 == 0 ? 4 : 1;
+            if (shape1.dims == 3 || shape1.dims == 4) out_elempack1 = shape1.c % 4 == 0 ? 4 : 1;
 
             out_elempack = std::min(out_elempack, out_elempack1);
         }
@@ -144,39 +138,6 @@ int Slice_vulkan::create_pipeline(const Option& opt)
         pipeline_slice_pack1to4[1]->create(LayerShaderType::slice_pack1to4, opt, specializations);
     }
 
-    // pack8
-    if (opt.use_shader_pack8 && (shape.dims == 0 || out_elempack == 8))
-    {
-        pipeline_slice_pack8[0] = new Pipeline(vkdev);
-        pipeline_slice_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack8[0]->create(LayerShaderType::slice_pack8, opt, specializations);
-        pipeline_slice_pack8[1] = new Pipeline(vkdev);
-        pipeline_slice_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack8[1]->create(LayerShaderType::slice_pack8, opt, specializations);
-    }
-
-    // pack1to8
-    if (opt.use_shader_pack8 && ((positive_axis <= 0 && shape.dims == 0) || out_elempack == 1))
-    {
-        pipeline_slice_pack1to8[0] = new Pipeline(vkdev);
-        pipeline_slice_pack1to8[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack1to8[0]->create(LayerShaderType::slice_pack1to8, opt, specializations);
-        pipeline_slice_pack1to8[1] = new Pipeline(vkdev);
-        pipeline_slice_pack1to8[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack1to8[1]->create(LayerShaderType::slice_pack1to8, opt, specializations);
-    }
-
-    // pack4to8
-    if (opt.use_shader_pack8 && ((positive_axis <= 0 && shape.dims == 0) || out_elempack == 4))
-    {
-        pipeline_slice_pack4to8[0] = new Pipeline(vkdev);
-        pipeline_slice_pack4to8[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack4to8[0]->create(LayerShaderType::slice_pack4to8, opt, specializations);
-        pipeline_slice_pack4to8[1] = new Pipeline(vkdev);
-        pipeline_slice_pack4to8[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack4to8[1]->create(LayerShaderType::slice_pack4to8, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -196,21 +157,6 @@ int Slice_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_slice_pack1to4[1];
     pipeline_slice_pack1to4[0] = 0;
     pipeline_slice_pack1to4[1] = 0;
-
-    delete pipeline_slice_pack8[0];
-    delete pipeline_slice_pack8[1];
-    pipeline_slice_pack8[0] = 0;
-    pipeline_slice_pack8[1] = 0;
-
-    delete pipeline_slice_pack1to8[0];
-    delete pipeline_slice_pack1to8[1];
-    pipeline_slice_pack1to8[0] = 0;
-    pipeline_slice_pack1to8[1] = 0;
-
-    delete pipeline_slice_pack4to8[0];
-    delete pipeline_slice_pack4to8[1];
-    pipeline_slice_pack4to8[0] = 0;
-    pipeline_slice_pack4to8[1] = 0;
 
     return 0;
 }
@@ -255,7 +201,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 }
             }
 
-            int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+            int out_elempack = slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             VkMat& top_blob = top_blobs[i];
@@ -315,18 +261,6 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             {
                 pipeline = pipeline_slice_pack1to4[i % 2];
             }
-            else if (out_elempack == 8 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack8[i % 2];
-            }
-            else if (out_elempack == 1 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack1to8[i % 2];
-            }
-            else if (out_elempack == 4 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack4to8[i % 2];
-            }
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -368,7 +302,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 }
             }
 
-            int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+            int out_elempack = slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             VkMat& top_blob = top_blobs[i];
@@ -427,18 +361,6 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             else if (out_elempack == 1 && top_blob.elempack == 4)
             {
                 pipeline = pipeline_slice_pack1to4[i % 2];
-            }
-            else if (out_elempack == 8 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack8[i % 2];
-            }
-            else if (out_elempack == 1 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack1to8[i % 2];
-            }
-            else if (out_elempack == 4 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack4to8[i % 2];
             }
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
@@ -513,9 +435,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             constants[11].i = top_blob.cstep;
             constants[12].i = woffset;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+            const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -558,7 +478,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 }
             }
 
-            int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+            int out_elempack = slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             VkMat& top_blob = top_blobs[i];
@@ -617,18 +537,6 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             else if (out_elempack == 1 && top_blob.elempack == 4)
             {
                 pipeline = pipeline_slice_pack1to4[i % 2];
-            }
-            else if (out_elempack == 8 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack8[i % 2];
-            }
-            else if (out_elempack == 1 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack1to8[i % 2];
-            }
-            else if (out_elempack == 4 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack4to8[i % 2];
             }
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
@@ -704,9 +612,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             constants[11].i = top_blob.cstep;
             constants[12].i = hoffset;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+            const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -781,9 +687,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             constants[11].i = top_blob.cstep;
             constants[12].i = woffset;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+            const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -826,7 +730,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 }
             }
 
-            int out_elempack = opt.use_shader_pack8 && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+            int out_elempack = slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             VkMat& top_blob = top_blobs[i];
@@ -885,18 +789,6 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             else if (out_elempack == 1 && top_blob.elempack == 4)
             {
                 pipeline = pipeline_slice_pack1to4[i % 2];
-            }
-            else if (out_elempack == 8 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack8[i % 2];
-            }
-            else if (out_elempack == 1 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack1to8[i % 2];
-            }
-            else if (out_elempack == 4 && top_blob.elempack == 8)
-            {
-                pipeline = pipeline_slice_pack4to8[i % 2];
             }
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
@@ -972,9 +864,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             constants[11].i = top_blob.cstep;
             constants[12].i = doffset;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+            const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -1049,9 +939,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             constants[11].i = top_blob.cstep;
             constants[12].i = hoffset;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+            const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -1126,9 +1014,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             constants[11].i = top_blob.cstep;
             constants[12].i = woffset;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+            const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
