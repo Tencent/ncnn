@@ -69,7 +69,7 @@ int PixelShuffle_vulkan::create_pipeline(const Option& _opt)
     specializations[2 + 8].i = out_shape_packed.c;
     specializations[2 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz_bottom; // pack4to1 and pack8to1
+    Mat local_size_xyz_bottom; // pack4to1
     if (shape_packed.dims != 3)
     {
         local_size_xyz_bottom.w = std::min(4, shape_packed.w);

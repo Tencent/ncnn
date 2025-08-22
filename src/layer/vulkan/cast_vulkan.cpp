@@ -13,10 +13,8 @@ Cast_vulkan::Cast_vulkan()
 
     pipeline_cast_fp32_to_fp16 = 0;
     pipeline_cast_fp32_to_fp16_pack4 = 0;
-    pipeline_cast_fp32_to_fp16_pack8 = 0;
     pipeline_cast_fp16_to_fp32 = 0;
     pipeline_cast_fp16_to_fp32_pack4 = 0;
-    pipeline_cast_fp16_to_fp32_pack8 = 0;
 }
 
 int Cast_vulkan::create_pipeline(const Option& opt)
@@ -233,15 +231,11 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     if (type_from == 1 && type_to == 2)
     {
-        pipeline = elempack == 8 ? pipeline_cast_fp32_to_fp16_pack8
-                   : elempack == 4 ? pipeline_cast_fp32_to_fp16_pack4
-                   : pipeline_cast_fp32_to_fp16;
+        pipeline = elempack == 4 ? pipeline_cast_fp32_to_fp16_pack4 : pipeline_cast_fp32_to_fp16;
     }
     if (type_from == 2 && type_to == 1)
     {
-        pipeline = elempack == 8 ? pipeline_cast_fp16_to_fp32_pack8
-                   : elempack == 4 ? pipeline_cast_fp16_to_fp32_pack4
-                   : pipeline_cast_fp16_to_fp32;
+        pipeline = elempack == 4 ? pipeline_cast_fp16_to_fp32_pack4 : pipeline_cast_fp16_to_fp32;
     }
 
     // TODO more cast type
