@@ -1,0 +1,36 @@
+// Copyright 2025 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const float eps = 0;
+
+layout (binding = 0) writeonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
+layout (binding = 1) readonly buffer mean_blob { vec4 mean_data[]; };
+layout (binding = 2) readonly buffer var_blob { vec4 var_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int num_groups_per_channel;
+    int c;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+    if (gx >= 1 || gy >= p.num_groups_per_channel || gz >= p.c)
+        return;
+
+    int group_id = gz * p.num_groups_per_channel + gy;
+
+    vec4 mean = mean_data[group_id];
+    vec4 var = var_data[group_id];
+
+    vec4 a = 1.f / (sqrt(var + eps));
+    vec4 b = -mean * a;
+
+    buffer_st4(coeffs_blob_data, group_id * 2, afpvec4(a));
+    buffer_st4(coeffs_blob_data, group_id * 2 + 1, afpvec4(b));
+}
