@@ -96,6 +96,7 @@ jobs:
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
       with:
@@ -108,6 +109,7 @@ jobs:
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
           CFLAGS="-mfpu=neon" CXXFLAGS="-mfpu=neon"
@@ -121,6 +123,7 @@ jobs:
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
       with:
@@ -133,6 +136,7 @@ jobs:
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=4
         CIBW_BEFORE_BUILD: pip install delvewheel
@@ -146,6 +150,7 @@ jobs:
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=4
         CIBW_BEFORE_BUILD: pip install delvewheel
@@ -224,6 +229,7 @@ jobs:
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=3
           CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC ARCHS="x86_64"
@@ -242,6 +248,7 @@ jobs:
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=3
           CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC_ARM64 ARCHS="arm64"

@@ -2042,7 +2042,7 @@ jobs:
 
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
       with:
-        sdk-version: ${{ matrix.windows-sdk-version }}
+        sdk-version: ${{ matrix.opt.windows-sdk-version }}
 
     - name: cache-protobuf
       id: cache-protobuf
