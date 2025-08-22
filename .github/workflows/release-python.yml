@@ -52,10 +52,10 @@ jobs:
           - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
           - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
           - { os: ubuntu-24.04,     arch: i686,       build: 'pp*',            build_id: pp           }
-          - { os: windows-2019,     arch: x86,        build: 'cp*',            build_id: cp           }
-          - { os: windows-2019,     arch: AMD64,      build: 'cp*',            build_id: cp           }
-          - { os: windows-2019,     arch: AMD64,      build: 'pp*',            build_id: pp           }
-          - { os: windows-2019,     arch: ARM64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-2022,     arch: x86,        build: 'cp*',            build_id: cp           }
+          - { os: windows-2022,     arch: AMD64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-2022,     arch: AMD64,      build: 'pp*',            build_id: pp           }
+          - { os: windows-2022,     arch: ARM64,      build: 'cp*',            build_id: cp           }
           - { os: macos-13,         arch: x86_64,     build: 'cp*',            build_id: cp           }
           - { os: macos-13,         arch: x86_64,     build: 'pp*',            build_id: pp           }
           - { os: macos-13,         arch: arm64,      build: 'cp*',            build_id: cp           }
@@ -126,9 +126,9 @@ jobs:
       with:
         output-dir: wheelhouse
 
-    # build wheels for windows-2019
+    # build wheels for windows-2022
     - name: Build wheels for windows
-      if: matrix.os == 'windows-2019' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
+      if: matrix.os == 'windows-2022' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
       uses: pypa/cibuildwheel@v3.1.4
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
@@ -141,7 +141,7 @@ jobs:
         output-dir: wheelhouse
 
     - name: Build wheels for windows ARM64
-      if: matrix.os == 'windows-2019' && matrix.arch == 'ARM64'
+      if: matrix.os == 'windows-2022' && matrix.arch == 'ARM64'
       uses: pypa/cibuildwheel@v3.1.4
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
