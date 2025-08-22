@@ -415,13 +415,8 @@ static int test_packing_gpu(const ncnn::Mat& a)
     return 0
            || test_packing_gpu(a, 1, 1)
            || test_packing_gpu(a, 4, 4)
-           || test_packing_gpu(a, 8, 8)
            || test_packing_gpu(a, 1, 4)
-           || test_packing_gpu(a, 4, 1)
-           || test_packing_gpu(a, 1, 8)
-           || test_packing_gpu(a, 8, 1)
-           || test_packing_gpu(a, 4, 8)
-           || test_packing_gpu(a, 8, 4);
+           || test_packing_gpu(a, 4, 1);
 }
 #endif // NCNN_VULKAN
 

@@ -366,12 +366,12 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         src_fp16 = src;
     }
 
-    // vkdev->convert_packing only handles elempack=1/4/8
-    if (src_fp16.elempack > 8)
+    // vkdev->convert_packing only handles elempack=1/4
+    if (src_fp16.elempack > 4)
     {
-        Mat src_fp16_pack8;
-        ncnn::convert_packing(src_fp16, src_fp16_pack8, 8, opt);
-        src_fp16 = src_fp16_pack8;
+        Mat src_fp16_pack4;
+        ncnn::convert_packing(src_fp16, src_fp16_pack4, 4, opt);
+        src_fp16 = src_fp16_pack4;
     }
 
     // upload
