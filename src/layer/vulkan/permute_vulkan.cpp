@@ -15,11 +15,6 @@ Permute_vulkan::Permute_vulkan()
     pipeline_permute_pack4 = 0;
     pipeline_permute_pack1to4 = 0;
     pipeline_permute_pack4to1 = 0;
-    pipeline_permute_pack8 = 0;
-    pipeline_permute_pack1to8 = 0;
-    pipeline_permute_pack4to8 = 0;
-    pipeline_permute_pack8to4 = 0;
-    pipeline_permute_pack8to1 = 0;
 }
 
 int Permute_vulkan::create_pipeline(const Option& _opt)
@@ -29,14 +24,14 @@ int Permute_vulkan::create_pipeline(const Option& _opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -79,7 +74,7 @@ int Permute_vulkan::create_pipeline(const Option& _opt)
     specializations[2 + 10].i = out_shape_packed.c;
     specializations[2 + 11].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz_bottom; // pack4to1 and pack8to1
+    Mat local_size_xyz_bottom; // pack4to1
     if (shape_packed.dims == 2)
     {
         local_size_xyz_bottom.w = std::min(8, shape_packed.w);
@@ -151,46 +146,6 @@ int Permute_vulkan::create_pipeline(const Option& _opt)
         pipeline_permute_pack4to1->create(LayerShaderType::permute_pack4to1, opt, specializations);
     }
 
-    // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 8))
-    {
-        pipeline_permute_pack8 = new Pipeline(vkdev);
-        pipeline_permute_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_permute_pack8->create(LayerShaderType::permute_pack8, opt, specializations);
-    }
-
-    // pack1to8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 1 && out_elempack == 8))
-    {
-        pipeline_permute_pack1to8 = new Pipeline(vkdev);
-        pipeline_permute_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_permute_pack1to8->create(LayerShaderType::permute_pack1to8, opt, specializations);
-    }
-
-    // pack4to8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 4 && out_elempack == 8))
-    {
-        pipeline_permute_pack4to8 = new Pipeline(vkdev);
-        pipeline_permute_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_permute_pack4to8->create(LayerShaderType::permute_pack4to8, opt, specializations);
-    }
-
-    // pack8to4
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 4))
-    {
-        pipeline_permute_pack8to4 = new Pipeline(vkdev);
-        pipeline_permute_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_permute_pack8to4->create(LayerShaderType::permute_pack8to4, opt, specializations);
-    }
-
-    // pack8to1
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 1))
-    {
-        pipeline_permute_pack8to1 = new Pipeline(vkdev);
-        pipeline_permute_pack8to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
-        pipeline_permute_pack8to1->create(LayerShaderType::permute_pack8to1, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -207,21 +162,6 @@ int Permute_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_permute_pack4to1;
     pipeline_permute_pack4to1 = 0;
-
-    delete pipeline_permute_pack8;
-    pipeline_permute_pack8 = 0;
-
-    delete pipeline_permute_pack1to8;
-    pipeline_permute_pack1to8 = 0;
-
-    delete pipeline_permute_pack4to8;
-    pipeline_permute_pack4to8 = 0;
-
-    delete pipeline_permute_pack8to4;
-    pipeline_permute_pack8to4 = 0;
-
-    delete pipeline_permute_pack8to1;
-    pipeline_permute_pack8to1 = 0;
 
     return 0;
 }
@@ -261,7 +201,7 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             outh = w;
         }
 
-        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
         out_elemsize = elemsize / elempack * out_elempack;
 
         top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
@@ -315,7 +255,7 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             outc = w;
         }
 
-        out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+        out_elempack = outc % 4 == 0 ? 4 : 1;
         out_elemsize = elemsize / elempack * out_elempack;
 
         top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
@@ -519,7 +459,7 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             outc = w;
         }
 
-        out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+        out_elempack = outc % 4 == 0 ? 4 : 1;
         out_elemsize = elemsize / elempack * out_elempack;
 
         top_blob.create(outw, outh, outd, outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
@@ -560,26 +500,6 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     else if (elempack == 4 && out_elempack == 1)
     {
         cmd.record_pipeline(pipeline_permute_pack4to1, bindings, constants, bottom_blob);
-    }
-    else if (elempack == 8 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_permute_pack8, bindings, constants, top_blob);
-    }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_permute_pack1to8, bindings, constants, top_blob);
-    }
-    else if (elempack == 4 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_permute_pack4to8, bindings, constants, top_blob);
-    }
-    else if (elempack == 8 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_permute_pack8to4, bindings, constants, top_blob);
-    }
-    else if (elempack == 8 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_permute_pack8to1, bindings, constants, bottom_blob);
     }
 
     return 0;

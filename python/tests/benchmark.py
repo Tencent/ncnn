@@ -136,7 +136,6 @@ if __name__ == "__main__":
     opt.use_int8_storage = True
     opt.use_int8_arithmetic = True
     opt.use_packing_layout = True
-    opt.use_shader_pack8 = False
 
     ncnn.set_cpu_powersave(powersave)
     ncnn.set_omp_dynamic(0)
