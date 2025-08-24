@@ -81,7 +81,7 @@ jobs:
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/riscv32-elf
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv32-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_XTHEADVECTOR=OFF ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv32-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_RVV=OFF -DNCNN_XTHEADVECTOR=OFF -DNCNN_ZFH=OFF -DNCNN_ZVFH=OFF ..
         cmake --build . -j 4
 
     - name: test
