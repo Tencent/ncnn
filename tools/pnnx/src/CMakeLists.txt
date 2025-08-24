@@ -258,6 +258,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_matmul.cpp
     pass_level2/torch_max.cpp
     pass_level2/torch_mean.cpp
+    pass_level2/torch_median.cpp
     pass_level2/torch_min.cpp
     pass_level2/torch_mm.cpp
     pass_level2/torch_mv.cpp
