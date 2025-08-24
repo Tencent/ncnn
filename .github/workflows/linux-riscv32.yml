@@ -36,7 +36,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { cpu: c907-rv32, QEMU_CPU: c907v,   OPENMP: ON,  RVV: ON,  XTHEADVECTOR: OFF, ZFH: ON, ZVFH: ON  }
+          - { cpu: c907-rv32, QEMU_CPU: c907fdv-rv32,   OPENMP: ON,  RVV: ON,  XTHEADVECTOR: OFF, ZFH: ON, ZVFH: ON  }
 
     steps:
     - uses: actions/checkout@v5
