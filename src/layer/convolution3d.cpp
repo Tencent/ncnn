@@ -36,7 +36,7 @@ int Convolution3D::load_param(const ParamDict& pd)
     weight_data_size = pd.get(6, 0);
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
-
+    impl_type = pd.get(25, 0);
     return 0;
 }
 
@@ -53,6 +53,11 @@ int Convolution3D::load_model(const ModelBin& mb)
             return -100;
     }
 
+    return 0;
+}
+
+int Convolution3D::create_pipeline(const Option& opt)
+{
     return 0;
 }
 
