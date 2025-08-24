@@ -1,0 +1,38 @@
+name: Windows >64 CPU Support Test
+
+on:
+  push:
+    branches: [ feature/support-64plus-cpu ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  windows-build-test:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Build NCNN with MSVC
+      run: |
+        mkdir build-msvc
+        cd build-msvc
+        cmake -G "Visual Studio 17 2022" -A x64 -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . --config Release --parallel 4
+        
+    - name: Test popcount64 linking
+      run: |
+        cd build-msvc
+        if (Test-Path "tests/Release/test_cpu.exe") {
+          echo "✓ test_cpu.exe compiled successfully"
+          .\tests\Release\test_cpu.exe
+        }
+        
+    - name: Run critical tests
+      run: |
+        cd build-msvc
+        ctest -C Release --output-on-failure -R "test_cpu|test_mat" --parallel 2
