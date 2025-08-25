@@ -7,9 +7,9 @@ on:
     - 'toolchains/riscv64-linux-gnu.toolchain.cmake'
     - 'toolchains/riscv64-unknown-linux-gnu.toolchain.cmake'
     - 'toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake'
-    - 'toolchains/c906-v301.toolchain.cmake'
-    - 'toolchains/c908-v301.toolchain.cmake'
-    - 'toolchains/c910-v301.toolchain.cmake'
+    - 'toolchains/c906-v310.toolchain.cmake'
+    - 'toolchains/c908-v310.toolchain.cmake'
+    - 'toolchains/c910-v310.toolchain.cmake'
     - 'toolchains/k1.toolchain.cmake'
     - 'toolchains/k1.llvm.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -25,9 +25,9 @@ on:
     - 'toolchains/riscv64-linux-gnu.toolchain.cmake'
     - 'toolchains/riscv64-unknown-linux-gnu.toolchain.cmake'
     - 'toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake'
-    - 'toolchains/c906-v301.toolchain.cmake'
-    - 'toolchains/c908-v301.toolchain.cmake'
-    - 'toolchains/c910-v301.toolchain.cmake'
+    - 'toolchains/c906-v310.toolchain.cmake'
+    - 'toolchains/c908-v310.toolchain.cmake'
+    - 'toolchains/c910-v310.toolchain.cmake'
     - 'toolchains/k1.toolchain.cmake'
     - 'toolchains/k1.llvm.toolchain.cmake'
     - 'CMakeLists.txt'
@@ -102,6 +102,7 @@ jobs:
           - { cpu: c906, QEMU_CPU: c906fdv, OPENMP: OFF, RVV: OFF, XTHEADVECTOR: ON,  ZFH: ON, ZVFH: OFF }
           - { cpu: c910, QEMU_CPU: c910v,   OPENMP: ON,  RVV: OFF, XTHEADVECTOR: ON,  ZFH: ON, ZVFH: OFF }
           - { cpu: c908, QEMU_CPU: c908v,   OPENMP: ON,  RVV: ON,  XTHEADVECTOR: OFF, ZFH: ON, ZVFH: ON  }
+          - { cpu: c907, QEMU_CPU: c907fdv-rv64,   OPENMP: ON,  RVV: ON,  XTHEADVECTOR: OFF, ZFH: ON, ZVFH: ON  }
 
     steps:
     - uses: actions/checkout@v5
