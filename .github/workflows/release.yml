@@ -1991,14 +1991,14 @@ jobs:
     strategy:
       matrix:
         opt:
-          - { shared-lib: OFF, os: windows-2019, toolset-version: v140, id: vs2015 }
-          - { shared-lib: OFF, os: windows-2019, toolset-version: v141, id: vs2017 }
-          - { shared-lib: OFF, os: windows-2019, toolset-version: v142, id: vs2019 }
-          - { shared-lib: OFF, os: windows-2022, toolset-version: v143, id: vs2022 }
-          - { shared-lib: ON,  os: windows-2019, toolset-version: v140, id: vs2015-shared }
-          - { shared-lib: ON,  os: windows-2019, toolset-version: v141, id: vs2017-shared }
-          - { shared-lib: ON,  os: windows-2019, toolset-version: v142, id: vs2019-shared }
-          - { shared-lib: ON,  os: windows-2022, toolset-version: v143, id: vs2022-shared }
+          - { shared-lib: OFF, os: windows-2022, toolset-version: v140, windows-sdk-version: 22621, id: vs2015 }
+          - { shared-lib: OFF, os: windows-2022, toolset-version: v141, windows-sdk-version: 22621, id: vs2017 }
+          - { shared-lib: OFF, os: windows-2022, toolset-version: v142, windows-sdk-version: 22621, id: vs2019 }
+          - { shared-lib: OFF, os: windows-2022, toolset-version: v143, windows-sdk-version: 26100, id: vs2022 }
+          - { shared-lib: ON,  os: windows-2022, toolset-version: v140, windows-sdk-version: 22621, id: vs2015-shared }
+          - { shared-lib: ON,  os: windows-2022, toolset-version: v141, windows-sdk-version: 22621, id: vs2017-shared }
+          - { shared-lib: ON,  os: windows-2022, toolset-version: v142, windows-sdk-version: 22621, id: vs2019-shared }
+          - { shared-lib: ON,  os: windows-2022, toolset-version: v143, windows-sdk-version: 26100, id: vs2022-shared }
     runs-on: ${{ matrix.opt.os }}
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-${{ matrix.opt.id }}
@@ -2018,6 +2018,32 @@ jobs:
     - uses: actions/checkout@v5
       with:
         submodules: true
+
+    - name: Install VS 2017 (v141) Build Tools
+      if: matrix.opt.toolset-version == 'v141'
+      run: |
+        $vsInstallPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+        Start-Process -FilePath "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe" -ArgumentList "modify --installPath `"$vsInstallPath`" --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 --quiet --norestart --nocache" -Wait
+    - name: Install and Setup VS 2015 (v140) Build Tools
+      if: matrix.opt.toolset-version == 'v140'
+      run: |
+        $vs140Path = "C:/vs140_build_tools"
+        Invoke-WebRequest -Uri "https://aka.ms/vs/15/release/vs_buildtools.exe" -OutFile vs_buildtools.exe
+        Start-Process -FilePath "vs_buildtools.exe" -ArgumentList "--installPath `"$vs140Path`" --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.140 --quiet --wait --norestart --nocache" -Wait
+
+        $vcvarsPath = (Get-ChildItem -Path $vs140Path -Filter "vcvars64.bat" -Recurse | Select-Object -First 1).FullName
+        $cmd = "`"$vcvarsPath`" && powershell -Command `"`$env:PATH;`$env:INCLUDE;`$env:LIB`""
+        $output = cmd.exe /c $cmd
+        $lines = $output -split "`r`n"
+
+        echo "PATH=$($lines[0]);$($env:PATH)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        echo "INCLUDE=$($lines[1])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        echo "LIB=$($lines[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+      with:
+        sdk-version: ${{ matrix.opt.windows-sdk-version }}
+
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v4
@@ -2031,31 +2057,31 @@ jobs:
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
-        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A Win32,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
-        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A Win32 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A Win32,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A x64,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm64
       if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
       run: |
         mkdir build-arm64; cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A arm64 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A arm64,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
