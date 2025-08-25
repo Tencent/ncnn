@@ -129,11 +129,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         output_crop->create_pipeline(opt);
     }
 
-    if (bias_term)
-    {
-        convert_packing(bias_data, bias_data_packed, out_elempack, opt);
-    }
-
     if (opt.use_sgemm_convolution && num_input >= 8 && maxk * num_output >= 8)
     {
         Mat out_shape_col;
@@ -430,7 +425,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         if (opt.lightmode)
         {
             weight_data.release();
-            bias_data.release();
         }
 
         return 0;
@@ -527,7 +521,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     if (opt.lightmode)
     {
         weight_data.release();
-        bias_data.release();
     }
 
     return 0;
@@ -589,9 +582,9 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
 
-        bias_data_packed.release();
+        bias_data.release();
     }
 
     return 0;

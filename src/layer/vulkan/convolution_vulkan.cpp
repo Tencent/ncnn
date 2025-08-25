@@ -1224,11 +1224,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
-    if (bias_term)
-    {
-        convert_packing(bias_data, bias_data_packed, out_elempack, opt);
-    }
-
     if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
         // pass
@@ -1433,7 +1428,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     if (opt.lightmode)
     {
         weight_data.release();
-        bias_data.release();
     }
 
     return 0;
@@ -1538,9 +1532,9 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
 
-        bias_data_packed.release();
+        bias_data.release();
     }
 
     return 0;

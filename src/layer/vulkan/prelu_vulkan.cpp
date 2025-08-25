@@ -103,12 +103,7 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (num_slope > 1)
     {
-        int elempack = num_slope % 4 == 0 ? 4 : 1;
-
-        Mat slope_data_packed;
-        convert_packing(slope_data, slope_data_packed, elempack, opt);
-
-        cmd.record_upload(slope_data_packed, slope_data_gpu, opt);
+        cmd.record_upload(slope_data, slope_data_gpu, opt);
 
         if (opt.lightmode)
         {
