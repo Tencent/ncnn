@@ -280,17 +280,9 @@ int InstanceNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (affine == 0)
         return 0;
 
-    int elempack = channels % 4 == 0 ? 4 : 1;
+    cmd.record_upload(gamma_data, gamma_data_gpu, opt);
 
-    Mat gamma_data_packed;
-    convert_packing(gamma_data, gamma_data_packed, elempack, opt);
-
-    cmd.record_upload(gamma_data_packed, gamma_data_gpu, opt);
-
-    Mat beta_data_packed;
-    convert_packing(beta_data, beta_data_packed, elempack, opt);
-
-    cmd.record_upload(beta_data_packed, beta_data_gpu, opt);
+    cmd.record_upload(beta_data, beta_data_gpu, opt);
 
     return 0;
 }

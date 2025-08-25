@@ -26,7 +26,6 @@ public:
 public:
     Mat weight_data_packed;
     Mat weight_data_packed_groups;
-    Mat bias_data_packed;
 
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;

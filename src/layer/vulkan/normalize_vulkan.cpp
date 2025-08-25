@@ -186,12 +186,7 @@ int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (!channel_shared && !(scale_data_size == 1 && scale_data[0] == 1.f))
     {
-        int elempack = scale_data_size % 4 == 0 ? 4 : 1;
-
-        Mat scale_data_packed;
-        convert_packing(scale_data, scale_data_packed, elempack, opt);
-
-        cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
+        cmd.record_upload(scale_data, scale_data_gpu, opt);
 
         if (opt.lightmode)
             scale_data.release();

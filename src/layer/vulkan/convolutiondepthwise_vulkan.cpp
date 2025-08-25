@@ -160,11 +160,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         Mat weight_data_r2 = weight_data.reshape(maxk, group);
         convert_packing(weight_data_r2, weight_data_packed, elempack, opt);
 
-        if (bias_term)
-        {
-            convert_packing(bias_data, bias_data_packed, out_elempack, opt);
-        }
-
         specializations[11 + 0].i = shape_bordered_packed.dims;
         specializations[11 + 1].i = shape_bordered_packed.w;
         specializations[11 + 2].i = shape_bordered_packed.h;
@@ -203,7 +198,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         if (opt.lightmode)
         {
             weight_data.release();
-            bias_data.release();
         }
 
         return 0;
@@ -247,11 +241,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
                 }
             }
         }
-    }
-
-    if (bias_term)
-    {
-        convert_packing(bias_data, bias_data_packed, out_elempack_g, opt);
     }
 
     specializations[11 + 0].i = shape_bordered_g_packed.dims;
@@ -308,7 +297,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     if (opt.lightmode)
     {
         weight_data.release();
-        bias_data.release();
     }
 
     return 0;
@@ -360,26 +348,19 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
         cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
         weight_data_packed.release();
-
-        if (bias_term)
-        {
-            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-
-            bias_data_packed.release();
-        }
-
-        return 0;
     }
+    else
+    {
+        cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
 
-    cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
-
-    weight_data_packed_groups.release();
+        weight_data_packed_groups.release();
+    }
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
 
-        bias_data_packed.release();
+        bias_data.release();
     }
 
     return 0;
