@@ -453,7 +453,7 @@ macro(ncnn_add_layer class)
             if(NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
                 # linker complains the conflict of v and xtheadvector, so disable generating any riscv attributes
                 ncnn_add_arch_opt_layer(${class} xtheadvector "-march=rv32gc_xtheadvector -mno-riscv-attribute -Wa,-mno-arch-attr")
-                ncnn_add_arch_opt_layer_source(${class} zfh xtheadvector "-march=rv64gc_zfh_xtheadvector -mno-riscv-attribute -Wa,-mno-arch-attr -D__fp16=_Float16")
+                ncnn_add_arch_opt_layer_source(${class} zfh xtheadvector "-march=rv32gc_zfh_xtheadvector -mno-riscv-attribute -Wa,-mno-arch-attr -D__fp16=_Float16")
             endif()
             if(NCNN_RUNTIME_CPU AND NCNN_ZVFH)
                 ncnn_add_arch_opt_layer_source(${class} zfh rvv "-march=rv32gcv_zfh_zvfh -D__fp16=_Float16")
