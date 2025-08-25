@@ -28,7 +28,6 @@ public:
 
     Pipeline* pipeline_scale;
     Pipeline* pipeline_scale_pack4;
-    Pipeline* pipeline_scale_pack8;
 };
 
 } // namespace ncnn

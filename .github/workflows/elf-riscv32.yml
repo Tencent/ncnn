@@ -32,7 +32,7 @@ jobs:
   rv32gc:
     runs-on: [self-hosted, linux, centos]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     #- name: riscv-gnu-toolchain
       #run: |
@@ -41,7 +41,7 @@ jobs:
         #mv riscv riscv32-elf
 
     #- name: checkout-riscv-pk
-      #uses: actions/checkout@v4
+      #uses: actions/checkout@v5
       #with:
         #repository: riscv/riscv-pk
         #path: riscv-pk
@@ -58,7 +58,7 @@ jobs:
         #make install
 
     #- name: checkout-riscv-isa-sim
-      #uses: actions/checkout@v4
+      #uses: actions/checkout@v5
       #with:
         #repository: riscv-software-src/riscv-isa-sim
         #path: riscv-isa-sim
@@ -81,7 +81,7 @@ jobs:
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/riscv32-elf
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv32-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv32-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_RVV=OFF -DNCNN_XTHEADVECTOR=OFF -DNCNN_ZFH=OFF -DNCNN_ZVFH=OFF ..
         cmake --build . -j 4
 
     - name: test

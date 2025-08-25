@@ -26,7 +26,6 @@ public:
 
     Pipeline* pipeline_prelu;
     Pipeline* pipeline_prelu_pack4;
-    Pipeline* pipeline_prelu_pack8;
 };
 
 } // namespace ncnn
