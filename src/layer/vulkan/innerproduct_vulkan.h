@@ -25,7 +25,6 @@ public:
     ncnn::Layer* flatten;
 
     Mat weight_data_packed;
-    Mat bias_data_packed;
 
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;

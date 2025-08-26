@@ -45,7 +45,6 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         opt.use_fp16_storage = false;
         opt.use_fp16_arithmetic = false;
         opt.use_bf16_storage = false;
-        opt.use_shader_pack8 = false;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
@@ -65,7 +64,6 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         opt.use_fp16_storage = true;
         opt.use_fp16_arithmetic = true;
         opt.use_bf16_storage = true;
-        opt.use_shader_pack8 = true;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 

@@ -26,7 +26,6 @@ public:
 
     Pipeline* pipeline_quantize;
     Pipeline* pipeline_quantize_pack4;
-    Pipeline* pipeline_quantize_pack8;
 };
 
 } // namespace ncnn

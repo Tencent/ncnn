@@ -26,8 +26,7 @@ public:
     // enabled by default
     bool lightmode;
 
-    // use pack8 shader
-    bool use_shader_pack8;
+    bool use_reserved_m0;
 
     // enable subgroup in shader
     bool use_subgroup_ops;

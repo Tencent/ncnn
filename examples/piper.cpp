@@ -543,6 +543,7 @@ static int tts_piper(const char* text, int speaker_id, std::vector<short>& pcm)
     ncnn::Mat logs_p;
     {
         ncnn::Net enc_p;
+        enc_p.opt.use_vulkan_compute = true;
         enc_p.register_custom_layer("piper.train.vits.attentions.relative_embeddings_k_module", relative_embeddings_k_module_layer_creator);
         enc_p.register_custom_layer("piper.train.vits.attentions.relative_embeddings_v_module", relative_embeddings_v_module_layer_creator);
         enc_p.load_param("en_enc_p.ncnn.param");
@@ -561,6 +562,7 @@ static int tts_piper(const char* text, int speaker_id, std::vector<short>& pcm)
     ncnn::Mat g;
     {
         ncnn::Net emb_g;
+        emb_g.opt.use_vulkan_compute = true;
         emb_g.load_param("en_emb_g.ncnn.param");
         emb_g.load_model("en_emb_g.ncnn.bin");
 
@@ -583,6 +585,7 @@ static int tts_piper(const char* text, int speaker_id, std::vector<short>& pcm)
     ncnn::Mat logw;
     {
         ncnn::Net dp;
+        dp.opt.use_vulkan_compute = true;
         dp.register_custom_layer("piper.train.vits.modules.piecewise_rational_quadratic_transform_module", piecewise_rational_quadratic_transform_module_layer_creator);
         dp.load_param("en_dp.ncnn.param");
         dp.load_model("en_dp.ncnn.bin");
@@ -612,6 +615,7 @@ static int tts_piper(const char* text, int speaker_id, std::vector<short>& pcm)
     ncnn::Mat z;
     {
         ncnn::Net flow;
+        flow.opt.use_vulkan_compute = true;
         flow.load_param("en_flow.ncnn.param");
         flow.load_model("en_flow.ncnn.bin");
 
@@ -627,6 +631,7 @@ static int tts_piper(const char* text, int speaker_id, std::vector<short>& pcm)
     ncnn::Mat o;
     {
         ncnn::Net dec;
+        dec.opt.use_vulkan_compute = true;
         dec.load_param("en_dec.ncnn.param");
         dec.load_model("en_dec.ncnn.bin");
 

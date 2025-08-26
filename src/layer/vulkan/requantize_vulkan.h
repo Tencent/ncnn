@@ -28,7 +28,6 @@ public:
 
     Pipeline* pipeline_requantize;
     Pipeline* pipeline_requantize_pack4;
-    Pipeline* pipeline_requantize_pack8;
 };
 
 } // namespace ncnn
