@@ -74,9 +74,9 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
 
     if (use_cooperative_matrix)
     {
-        int M = 1024;
-        int N = 1024;
-        int K = 1024;
+        int M = constantM ? constantM : 1024;
+        int N = constantN ? constantN : 1024;
+        int K = constantK ? constantK : 1024;
 
         vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
 
@@ -84,7 +84,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
 
         UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
         UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
-        UNROLL_SG_K = 1; //std::min((K + coopmat_K - 1) / coopmat_K, 2);
+        UNROLL_SG_K = std::min((K + coopmat_K - 1) / coopmat_K, 2);
 
         UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
         UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
