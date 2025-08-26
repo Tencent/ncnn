@@ -4,6 +4,7 @@
 #include <float.h>
 #include <stdio.h>
 #include <string.h>
+#include <unordered_map>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -14,6 +15,8 @@
 #include "datareader.h"
 #include "net.h"
 #include "gpu.h"
+
+#include "../benchmark/model_data_spv_data.h"
 
 #ifndef NCNN_SIMPLESTL
 #include <vector>
@@ -40,6 +43,10 @@ static bool g_enable_cooling_down = true;
 static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
 static ncnn::PoolAllocator g_workspace_pool_allocator;
 
+static const std::unordered_map<std::string, const char*> model_data_registry = {
+    #include "../benchmark/model_data_registry.h"
+};
+
 #if NCNN_VULKAN
 static ncnn::VulkanDevice* g_vkdev = 0;
 static ncnn::VkAllocator* g_blob_vkallocator = 0;
@@ -53,6 +60,13 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
     {
         if (!fixed_path)
             fprintf(stderr, "%20s  skipped (int8+GPU not supported)\n", comment);
+        return;
+    }
+
+    // Skip if comment contains '-'
+    if (strchr(comment, '-') != NULL) {
+        if (!fixed_path)
+            fprintf(stderr, "%20s  skipped (filename shouldn't contains '-')\n", comment);
         return;
     }
 
@@ -84,16 +98,25 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
 #define MODEL_DIR ""
 #endif
 
+    const char* model_data = nullptr;
+
     if (fixed_path)
     {
-        char parampath[256];
-        sprintf(parampath, MODEL_DIR "%s.param", comment);
-        net.load_param(parampath);
+        model_data = model_data_registry.find(comment)->second;
     }
     else
     {
-        net.load_param(comment);
+        // use load_param_mem
+        auto iter = model_data_registry.find(comment);
+        if (iter == model_data_registry.end())
+        {
+            fprintf(stderr, "can't find %s.param in model dir\n", comment);
+            return;
+        }
+        model_data = iter->second;
     }
+
+    net.load_param_mem(model_data);
 
     DataReaderFromEmpty dr;
     net.load_model(dr);
@@ -453,13 +476,13 @@ int main(int argc, char** argv)
 
         benchmark("mobilenetv2_yolov3", ncnn::Mat(352, 352, 3), opt);
 
-        benchmark("yolov4-tiny", ncnn::Mat(416, 416, 3), opt);
+        benchmark("yolov4_tiny", ncnn::Mat(416, 416, 3), opt);
 
         benchmark("nanodet_m", ncnn::Mat(320, 320, 3), opt);
 
-        benchmark("yolo-fastest-1.1", ncnn::Mat(320, 320, 3), opt);
+        benchmark("yolo_fastest_1.1", ncnn::Mat(320, 320, 3), opt);
 
-        benchmark("yolo-fastestv2", ncnn::Mat(352, 352, 3), opt);
+        benchmark("yolo_fastestv2", ncnn::Mat(352, 352, 3), opt);
 
         benchmark("vision_transformer", ncnn::Mat(384, 384, 3), opt);
 
