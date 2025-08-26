@@ -12,6 +12,16 @@ Gemm_vulkan::Gemm_vulkan()
     support_vulkan = true;
 
     pipeline_gemm = 0;
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
 }
 
 int Gemm_vulkan::load_param(const ParamDict& pd)
@@ -59,41 +69,97 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         C_data_packed = C_data;
     }
 
-    std::vector<vk_specialization_type> specializations(15);
-    specializations[0].f = alpha;
-    specializations[1].f = beta;
-    specializations[2].i = transA;
-    specializations[3].i = transB;
-    specializations[4].i = constantA;
-    specializations[5].i = constantB;
-    specializations[6].i = constantC;
-    specializations[7].i = constantM;
-    specializations[8].i = constantN;
-    specializations[9].i = constantK;
-    specializations[10].i = constant_broadcast_type_C;
-    specializations[11].i = output_N1M;
-    specializations[12].i = output_elempack;
-    specializations[13].i = output_elemtype;
-    specializations[14].i = output_transpose;
+    // use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
+    use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && opt.use_fp16_storage;
 
-    Mat local_size_xyz;
-    // if (shape_packed.dims == 2)
-    // {
-    //     local_size_xyz.w = std::min(8, shape_packed.w);
-    //     local_size_xyz.h = std::min(8, shape_packed.h);
-    //     local_size_xyz.c = 1;
-    // }
-
-    // pack1
-    // if (shape.dims == 0 || elempack == 1)
+    if (use_cooperative_matrix)
     {
+        int M = 1024;
+        int N = 1024;
+        int K = 1024;
+
+        vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+
+        // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
+
+        UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
+        UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
+        UNROLL_SG_K = 1;//std::min((K + coopmat_K - 1) / coopmat_K, 2);
+
+        UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+        UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+
+        std::vector<vk_specialization_type> specializations(15 + 8);
+        specializations[0].f = alpha;
+        specializations[1].f = beta;
+        specializations[2].i = transA;
+        specializations[3].i = transB;
+        specializations[4].i = constantA;
+        specializations[5].i = constantB;
+        specializations[6].i = constantC;
+        specializations[7].i = constantM;
+        specializations[8].i = constantN;
+        specializations[9].i = constantK;
+        specializations[10].i = constant_broadcast_type_C;
+        specializations[11].i = output_N1M;
+        specializations[12].i = output_elempack;
+        specializations[13].i = output_elemtype;
+        specializations[14].i = output_transpose;
+
+        specializations[15].u32 = coopmat_M;
+        specializations[16].u32 = coopmat_N;
+        specializations[17].u32 = coopmat_K;
+        specializations[18].u32 = UNROLL_SG_M;
+        specializations[19].u32 = UNROLL_SG_N;
+        specializations[20].u32 = UNROLL_SG_K;
+        specializations[21].u32 = UNROLL_WG_M;
+        specializations[22].u32 = UNROLL_WG_N;
+
+        const int subgroup_size = vkdev->info.subgroup_size();
+
         pipeline_gemm = new Pipeline(vkdev);
-        pipeline_gemm->set_optimal_local_size_xyz(local_size_xyz);
-        if (opt.use_shader_local_memory)
+        pipeline_gemm->set_subgroup_size(subgroup_size);
+        pipeline_gemm->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+        pipeline_gemm->create(LayerShaderType::gemm_cm, opt, specializations);
+    }
+    else
+    {
+        std::vector<vk_specialization_type> specializations(15);
+        specializations[0].f = alpha;
+        specializations[1].f = beta;
+        specializations[2].i = transA;
+        specializations[3].i = transB;
+        specializations[4].i = constantA;
+        specializations[5].i = constantB;
+        specializations[6].i = constantC;
+        specializations[7].i = constantM;
+        specializations[8].i = constantN;
+        specializations[9].i = constantK;
+        specializations[10].i = constant_broadcast_type_C;
+        specializations[11].i = output_N1M;
+        specializations[12].i = output_elempack;
+        specializations[13].i = output_elemtype;
+        specializations[14].i = output_transpose;
+
+        Mat local_size_xyz;
+        // if (shape_packed.dims == 2)
+        // {
+        //     local_size_xyz.w = std::min(8, shape_packed.w);
+        //     local_size_xyz.h = std::min(8, shape_packed.h);
+        //     local_size_xyz.c = 1;
+        // }
+
+        // pack1
+        // if (shape.dims == 0 || elempack == 1)
         {
-            pipeline_gemm->set_local_size_xyz(8, 8, 1);
+            pipeline_gemm = new Pipeline(vkdev);
+            pipeline_gemm->set_optimal_local_size_xyz(local_size_xyz);
+            if (opt.use_shader_local_memory)
+            {
+                pipeline_gemm->set_local_size_xyz(8, 8, 1);
+            }
+            pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
         }
-        pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
     }
 
     if (opt.lightmode)
@@ -258,13 +324,32 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     constants[8].i = top_blob.dims;
     constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
 
-    const Pipeline* pipeline = pipeline_gemm;
+    if (use_cooperative_matrix)
+    {
+        const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+        const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-    VkMat dispatcher;
-    dispatcher.w = (N + 1) / 2;
-    dispatcher.h = (M + 1) / 2;
-    dispatcher.c = 1;
-    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        const int subgroup_size = vkdev->info.subgroup_size();
+
+        VkMat dispatcher;
+        dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+        dispatcher.h = 1;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+
+        // NCNN_LOGE("Gemm_vulkan::forward use_cooperative_matrix  dispatcher.w = %d", dispatcher.w);
+    }
+    else
+    {
+        const Pipeline* pipeline = pipeline_gemm;
+
+        VkMat dispatcher;
+        dispatcher.w = (N + 1) / 2;
+        dispatcher.h = (M + 1) / 2;
+        dispatcher.c = 1;
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+    }
 
     int out_elempack = 1;
     {
