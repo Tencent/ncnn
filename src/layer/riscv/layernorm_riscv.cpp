@@ -185,7 +185,7 @@ static inline int layernorm_rvv_packn_procedure(int size, float* ptr, const floa
     for (int i = 0; i < size; i++)
     {
         vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + vl * i, vl);
-        _sum = __riscv_vfadd_vv_f32m1(_p, _sum, vl);
+        _sum = __riscv_vfadd_vv_f32m1(_sum, _p, vl);
     }
     vfloat32m1_t _mean = __riscv_vfdiv_vf_f32m1(_sum, size, vl);
     for (int i = 0; i < size; i++)

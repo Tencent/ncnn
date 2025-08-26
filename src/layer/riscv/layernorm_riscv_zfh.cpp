@@ -169,7 +169,7 @@ static inline int layernorm_rvv_packn_fp16s_procedure(int size, __fp16* ptr, con
     for (int i = 0; i < size; i++)
     {
         vfloat32m2_t _p = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(ptr + vl * i, vl), vl);
-        _sum = __riscv_vfadd_vv_f32m2(_p, _sum, vl);
+        _sum = __riscv_vfadd_vv_f32m2(_sum, _p, vl);
     }
     vfloat32m2_t _mean = __riscv_vfdiv_vf_f32m2(_sum, (float)size, vl);
     for (int i = 0; i < size; i++)
@@ -365,7 +365,7 @@ static inline int layernorm_rvv_packn_fp16sa_procedure(int size, __fp16* ptr, co
     for (int i = 0; i < size; i++)
     {
         vfloat16m1_t _p = __riscv_vle16_v_f16m1(ptr + vl * i, vl);
-        _sum = __riscv_vfadd_vv_f16m1(_p, _sum, vl);
+        _sum = __riscv_vfadd_vv_f16m1(_sum, _p, vl);
     }
 
     vfloat16m1_t _mean = __riscv_vfdiv_vf_f16m1(_sum, size, vl);
