@@ -13,3 +13,15 @@ endif()
 
 # add benchncnn to a virtual project group
 set_property(TARGET benchncnn PROPERTY FOLDER "benchmark")
+
+# generate model data
+include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_model_data_header.cmake)
+
+file(GLOB MODEL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.param")
+
+foreach(MODEL_FILE ${MODEL_FILES})
+    ncnn_convert_model_file(${MODEL_FILE})
+endforeach()
+
+configure_file(model_data_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/model_data_registry.h)
+configure_file(model_data_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/model_data_spv_data.h)
