@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "utils.h"
+
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -152,6 +154,40 @@ static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, c
     }
 }
 
+static bool file_maybe_numpy(const std::string& path)
+{
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "open failed %s\n", path.c_str());
+        return false;
+    }
+
+    char signature[7];
+    fread(signature, sizeof(char), 6, fp);
+    signature[6] = '\0';
+
+    fclose(fp);
+
+    return strcmp(signature, "\x93NUMPY") == 0;
+}
+
+static void prase_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector<std::vector<char> >& contents)
+{
+    std::vector<std::string> list;
+    parse_string_list(s, list);
+
+    for (auto& s : list)
+    {
+        if (!file_maybe_numpy(s))
+        {
+            fprintf(stderr, "%s is not a vaild numpy file", s.c_str());
+            return;
+        }
+        pnnx::prase_numpy_file(s.c_str(), shapes, types, contents);
+    }
+}
+
 static bool model_file_maybe_torchscript(const std::string& path)
 {
     FILE* fp = fopen(path.c_str(), "rb");
@@ -213,6 +249,8 @@ static void show_usage()
     fprintf(stderr, "  device=cpu/gpu\n");
     fprintf(stderr, "  inputshape=[1,3,224,224],...\n");
     fprintf(stderr, "  inputshape2=[1,3,320,320],...\n");
+    fprintf(stderr, "  input=file1.npy,file2.npy,...(conflict with inputshape)\n");
+    fprintf(stderr, "  inputshape2=file1.npy,file2.npy,...(conflict with inputshape2)\n");
 #if _WIN32
     fprintf(stderr, "  customop=C:\\Users\\nihui\\AppData\\Local\\torch_extensions\\torch_extensions\\Cache\\fused\\fused.dll,...\n");
 #else
@@ -260,8 +298,10 @@ int main(int argc, char** argv)
     std::string device = "cpu";
     std::vector<std::vector<int64_t> > input_shapes;
     std::vector<std::string> input_types;
+    std::vector<std::vector<char> > input_contents;
     std::vector<std::vector<int64_t> > input_shapes2;
     std::vector<std::string> input_types2;
+    std::vector<std::vector<char> > input_contents2;
     std::vector<std::string> customop_modules;
     std::vector<std::string> module_operators;
 
@@ -310,6 +350,24 @@ int main(int argc, char** argv)
             parse_string_list(value, customop_modules);
         if (strcmp(key, "moduleop") == 0)
             parse_string_list(value, module_operators);
+        if (strcmp(key, "input") == 0)
+        {
+            if (input_shapes.size() != 0)
+            {
+                fprintf(stderr, "parameter conflict: input and input_shape cannot be used at the same time.");
+                exit(1);
+            }
+            prase_numpy_file_list(value, input_shapes, input_types, input_contents);
+        }
+        if (strcmp(key, "input2") == 0)
+        {
+            if (input_shapes2.size() != 0)
+            {
+                fprintf(stderr, "parameter conflict: input2 and input_shape2 cannot be used at the same time.");
+                exit(1);
+            }
+            prase_numpy_file_list(value, input_shapes2, input_types2, input_contents2);
+        }
     }
 
     // print options
@@ -363,9 +421,9 @@ int main(int argc, char** argv)
     else
 #endif
     {
-        load_torchscript(ptpath, pnnx_graph,
-                         device, input_shapes, input_types,
-                         input_shapes2, input_types2,
+        load_torchscript(ptpath, pnnx_graph, device, 
+                         input_shapes, input_types, input_contents,
+                         input_shapes2, input_types2, input_contents2,
                          customop_modules, module_operators,
                          foldable_constants_zippath, foldable_constants);
     }
