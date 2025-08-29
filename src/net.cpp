@@ -2218,6 +2218,10 @@ int Extractor::input(int blob_index, const Mat& in)
     if (blob_index < 0 || blob_index >= (int)d->blob_mats.size())
         return -1;
 
+    Mat shape = d->net->blobs()[blob_index].shape;
+    if (shape.total() && (shape.w != in.w) && (shape.h != in.h) && (shape.d != in.d) && (shape.c != in.c))
+        return -1;
+
     d->blob_mats[blob_index] = in;
 
     return 0;
