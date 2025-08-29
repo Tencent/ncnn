@@ -199,25 +199,54 @@ void main()
     }
     if (broadcast_type_C == 3)
     {
+        const uint M_N_USGM_USGN = M * N * UNROLL_SG_M * UNROLL_SG_N;
+        const uint M_N_USGM_USGN_d_subgroupsize = (M_N_USGM_USGN + ncnn_subgroupSize - 1) / ncnn_subgroupSize;
+        [[unroll]] for (uint q = 0; q < M_N_USGM_USGN_d_subgroupsize; q++)
+        {
+            const uint siq = si + q * ncnn_subgroupSize;
+
+            if (M_N_USGM_USGN % ncnn_subgroupSize == 0 || siq < M_N_USGM_USGN)
+            {
+                const uint zn = siq / (M * N * UNROLL_SG_M);
+                const uint zmij = siq % (M * N * UNROLL_SG_M);
+                const uint zm = zmij / (M * N);
+                const uint ij = zmij % (M * N);
+                const uint i = ij / M;
+                const uint j = ij % M;
+
+                const uint gn = (ni + zn) * N + i;
+                const uint gm = (mi + zm) * M + j;
+
+                if (gn < psc(GN) && gm < psc(GM))
+                {
+                    const uint ci = gm * psc(GN) + gn;
+
+                    tmp_o[sgi][siq] = C_blob_data[ci];
+                }
+            }
+        }
+
+        barrier();
+
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> bias;
-                coopMatLoad(bias, C_blob_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * N + ((wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M + zm) * M * GN, GN, gl_CooperativeMatrixLayoutRowMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-                fcoopmatNV<16, gl_ScopeSubgroup, M, N> bias;
-                coopMatLoadNV(bias, C_blob_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * N + ((wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M + zm) * M * GN, GN, false);
-#endif
-
 #if NCNN_fp16_arithmetic
-                sum[zn][zm] = bias;
+                coopMatLoad(sum[zn][zm], tmp_o[sgi], (zn * UNROLL_SG_M + zm) * (M * N), M, gl_CooperativeMatrixLayoutColumnMajor);
 #else
-#if ncnn_VK_KHR_cooperative_matrix
-                sum[zn][zm] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(bias);
+                coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16;
+                coopMatLoad(sum_fp16, tmp_o[sgi], (zn * UNROLL_SG_M + zm) * (M * N), M, gl_CooperativeMatrixLayoutColumnMajor);
+                sum[zn][zm] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum_fp16);
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                sum[zn][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(bias);
+#if NCNN_fp16_arithmetic
+                coopMatLoadNV(sum[zn][zm], tmp_o[sgi], (zn * UNROLL_SG_M + zm) * (M * N), M, true);
+#else
+                fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16;
+                coopMatLoadNV(sum_fp16, tmp_o[sgi], (zn * UNROLL_SG_M + zm) * (M * N), M, true);
+                sum[zn][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(sum_fp16);
 #endif
 #endif
             }
