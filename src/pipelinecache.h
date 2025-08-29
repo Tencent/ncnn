@@ -31,7 +31,7 @@ public:
                      VkPipelineLayout* pipeline_layout,
                      VkPipeline* pipeline,
                      VkDescriptorUpdateTemplateKHR* descriptor_update_template,
-                     ShaderInfo& shader_info) const;
+                     ShaderInfo& shader_info, uint32_t fast_math_flag = 0) const;
 
     int get_pipeline(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
                      uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
