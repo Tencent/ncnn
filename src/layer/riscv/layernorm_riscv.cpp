@@ -42,93 +42,128 @@ reset_tails(vfloat32m8_t x, size_t vl, float v)
 }
 #endif // __riscv_vector
 
-static int layernorm(float* ptr, const float* gamma_data, const float* beta_data, float eps, int elementcount, int elementpack)
+static int layernorm(float* ptr, const float* gamma_data, const float* beta_data, float eps, int elementcount, int elementpack, size_t vl)
 {
     float mean = 0.f;
     float var = 0.f;
+    float a = 0.f;
+    float b = 0.f;
 
     size_t size = elementcount * elementpack;
     int remain = elementcount;
 #if __riscv_vector
-    size_t vl_max = __riscv_vsetvlmax_e32m8();
-    remain = elementcount % vl_max;
+    vfloat32m1_t _sum0 = __riscv_vfmv_v_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
+    vfloat32m1_t _sqsum0 = __riscv_vfmv_v_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
+    vfloat32m1_t _a, _b;
+    vfloat32m8_t _sum, _sqsum;
 #endif
 
     int i = 0;
     float* ptr_sum = ptr;
+
 #if __riscv_vector
-    vfloat32m8_t _sum = __riscv_vfmv_v_f_f32m8(0.f, vl_max);
-    for (; i + vl_max - 1 < size; i += vl_max)
+    if (elementpack != 1)
     {
-        vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_sum, vl_max);
-        _sum = __riscv_vfadd_vv_f32m8(_sum, _p, vl_max);
-        ptr_sum += vl_max;
+        for (; i < elementcount; i++) _sum0 = __riscv_vfadd_vv_f32m1(_sum0, __riscv_vle32_v_f32m1(ptr + vl * i, vl), vl);
+        _sum0 = __riscv_vfdiv_vf_f32m1(_sum0, elementcount, vl);
     }
-
-    if (i < size)
-    {
-        size_t vlr = __riscv_vsetvl_e32m8(remain);
-        vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_sum, vlr);
-#if __riscv_xtheadvector
-        _p = reset_tails(_p, vlr, 0.f);
-        _sum = __riscv_vfadd_vv_f32m8(_sum, _p, vl_max);
-#else
-        _sum = __riscv_vfadd_vv_f32m8_tu(_sum, _sum, _p, vlr);
-#endif // __riscv_xtheadvector
-        i += remain;
-    }
-
-    vfloat32m1_t _sum0 = __riscv_vfmv_v_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
-    _sum0 = __riscv_vfredusum_vs_f32m8_f32m1(_sum, _sum0, vl_max);
-    mean += __riscv_vfmv_f_s_f32m1_f32(_sum0);
 #endif // __riscv_vector
-    for (; i < size; i++) mean += *ptr_sum++;
-    mean /= elementcount;
+
+    if (elementpack == 1)
+    {
+#if __riscv_vector
+        remain = remain % vl;
+        _sum = __riscv_vfmv_v_f_f32m8(0.f, vl);
+        for (; i + vl - 1 < size; i += vl)
+        {
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_sum, vl);
+            _sum = __riscv_vfadd_vv_f32m8(_sum, _p, vl);
+            ptr_sum += vl;
+        }
+
+        if (i < size)
+        {
+            size_t vlr = __riscv_vsetvl_e32m8(remain);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_sum, vlr);
+#if __riscv_xtheadvector
+            _p = reset_tails(_p, vlr, 0.f);
+            _sum = __riscv_vfadd_vv_f32m8(_sum, _p, vl);
+#else
+            _sum = __riscv_vfadd_vv_f32m8_tu(_sum, _sum, _p, vlr);
+#endif // __riscv_xtheadvector
+            i += remain;
+        }
+
+        _sum0 = __riscv_vfredusum_vs_f32m8_f32m1(_sum, _sum0, vl);
+        mean += __riscv_vfmv_f_s_f32m1_f32(_sum0);
+#endif // __riscv_vector
+        for (; i < size; i++) mean += *ptr_sum++;
+        mean /= elementcount;
+    }
 
     i = 0;
     ptr_sum = ptr;
+
 #if __riscv_vector
-    vfloat32m8_t _sqsum = __riscv_vfmv_v_f_f32m8(0.f, vl_max);
-    for (; i + vl_max - 1 < size; i += vl_max)
+    if (elementpack != 1)
     {
-        vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_sum, vl_max);
-        vfloat32m8_t _temp = __riscv_vfsub_vf_f32m8(_p, mean, vl_max);
-        _temp = __riscv_vfmul_vv_f32m8(_temp, _temp, vl_max);
-        _sqsum = __riscv_vfadd_vv_f32m8(_sqsum, _temp, vl_max);
-
-        ptr_sum += vl_max;
+        for (; i < elementcount; i++)
+        {
+            vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + vl * i, vl);
+            _p = __riscv_vfsub_vv_f32m1(_p, _sum0, vl);
+            _sqsum0 = __riscv_vfmacc_vv_f32m1(_sqsum0, _p, _p, vl);
+        }
+        _sqsum0 = __riscv_vfdiv_vf_f32m1(_sqsum0, elementcount, vl);
+        _a = __riscv_vfrdiv_vf_f32m1(__riscv_vfsqrt_v_f32m1(__riscv_vfadd_vf_f32m1(_sqsum0, eps, vl), vl), 1.f, vl);
+        _b = __riscv_vfmul_vv_f32m1(__riscv_vfsgnjn_vv_f32m1(_sum0, _sum0, vl), _a, vl);
     }
+#endif // __riscv_vector
 
-    if (i < size)
+    if (elementpack == 1)
     {
-        size_t vlr = __riscv_vsetvl_e32m8(remain);
-        vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_sum, vlr);
-        vfloat32m8_t _temp = __riscv_vfsub_vf_f32m8(_p, mean, vlr);
-        _temp = __riscv_vfmul_vv_f32m8(_temp, _temp, vlr);
+#if __riscv_vector
+        _sqsum = __riscv_vfmv_v_f_f32m8(0.f, vl);
+        for (; i + vl - 1 < size; i += vl)
+        {
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_sum, vl);
+            vfloat32m8_t _temp = __riscv_vfsub_vf_f32m8(_p, mean, vl);
+            _temp = __riscv_vfmul_vv_f32m8(_temp, _temp, vl);
+            _sqsum = __riscv_vfadd_vv_f32m8(_sqsum, _temp, vl);
+
+            ptr_sum += vl;
+        }
+
+        if (i < size)
+        {
+            size_t vlr = __riscv_vsetvl_e32m8(remain);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_sum, vlr);
+            vfloat32m8_t _temp = __riscv_vfsub_vf_f32m8(_p, mean, vlr);
+            _temp = __riscv_vfmul_vv_f32m8(_temp, _temp, vlr);
 
 #if __riscv_xtheadvector
-        _temp = reset_tails(_temp, vlr, 0.f);
-        _sqsum = __riscv_vfadd_vv_f32m8(_sqsum, _temp, vl_max);
+            _temp = reset_tails(_temp, vlr, 0.f);
+            _sqsum = __riscv_vfadd_vv_f32m8(_sqsum, _temp, vl);
 #else
-        _sqsum = __riscv_vfadd_vv_f32m8_tu(_sqsum, _sqsum, _temp, vlr);
+            _sqsum = __riscv_vfadd_vv_f32m8_tu(_sqsum, _sqsum, _temp, vlr);
 #endif // __riscv_xtheadvector
-        i += remain;
-    }
+            i += remain;
+        }
 
-    vfloat32m1_t _sqsum0 = __riscv_vfmv_v_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
-    _sqsum0 = __riscv_vfredusum_vs_f32m8_f32m1(_sqsum, _sqsum0, vl_max);
-    var += __riscv_vfmv_f_s_f32m1_f32(_sqsum0);
+        _sqsum0 = __riscv_vfredusum_vs_f32m8_f32m1(_sqsum, _sqsum0, vl);
+        var += __riscv_vfmv_f_s_f32m1_f32(_sqsum0);
 #endif // __riscv_vector
-    for (; i < size; i++)
-    {
-        float tmp = *ptr_sum++ - mean;
-        var += tmp * tmp;
+        for (; i < size; i++)
+        {
+            float tmp = *ptr_sum++ - mean;
+            var += tmp * tmp;
+        }
+
+        var /= elementcount;
+        a = static_cast<float>(1.f / (sqrt(var + eps)));
+        b = -mean * a;
     }
 
-    var /= elementcount;
-    float a = static_cast<float>(1.f / (sqrt(var + eps)));
-    float b = -mean * a;
-
+    i = 0;
     int n = size;
     float* ptr_store = ptr;
     if (gamma_data && beta_data)
@@ -136,93 +171,79 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
         const float* ptr_gamma = gamma_data;
         const float* ptr_beta = beta_data;
 #if __riscv_vector
-        while (n > 0)
+        if (elementpack != 1)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
-            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_store, vl);
-            _p = __riscv_vfmul_vf_f32m8(_p, a, vl);
-            _p = __riscv_vfadd_vf_f32m8(_p, b, vl);
-
-            vfloat32m8_t _gamma = __riscv_vle32_v_f32m8(ptr_gamma, vl);
-            vfloat32m8_t _beta = __riscv_vle32_v_f32m8(ptr_beta, vl);
-            _p = __riscv_vfmadd_vv_f32m8(_p, _gamma, _beta, vl);
-            __riscv_vse32_v_f32m8(ptr_store, _p, vl);
-
-            n -= vl;
-            ptr_store += vl;
-            ptr_gamma += vl;
-            ptr_beta += vl;
+            for (; i < elementcount; i++)
+            {
+                const int offset = vl * i;
+                vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + offset, vl);
+                _p = __riscv_vfmadd_vv_f32m1(_p, _a, _b, vl);
+                _p = __riscv_vfmul_vf_f32m1(_p, *ptr_gamma++, vl);
+                _p = __riscv_vfadd_vf_f32m1(_p, *ptr_beta++, vl);
+                __riscv_vse32_v_f32m1(ptr + offset, _p, vl);
+            }
         }
-
 #endif // __riscv_vector
-        while (n-- > 0) *ptr_store++ = (*ptr_store * a + b) * *ptr_gamma++ + *ptr_beta++;
+
+        if (elementpack == 1)
+        {
+#if __riscv_vector
+            while (n > 0)
+            {
+                size_t vlr = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_store, vlr);
+                _p = __riscv_vfmul_vf_f32m8(_p, a, vlr);
+                _p = __riscv_vfadd_vf_f32m8(_p, b, vlr);
+
+                vfloat32m8_t _gamma = __riscv_vle32_v_f32m8(ptr_gamma, vlr);
+                vfloat32m8_t _beta = __riscv_vle32_v_f32m8(ptr_beta, vlr);
+                _p = __riscv_vfmadd_vv_f32m8(_p, _gamma, _beta, vlr);
+                __riscv_vse32_v_f32m8(ptr_store, _p, vlr);
+
+                n -= vlr;
+                ptr_store += vlr;
+                ptr_gamma += vlr;
+                ptr_beta += vlr;
+            }
+#endif // __riscv_vector
+            while (n-- > 0) *ptr_store++ = (*ptr_store * a + b) * *ptr_gamma++ + *ptr_beta++;
+        }
     }
     else
     {
 #if __riscv_vector
-        while (n > 0)
+        if (elementpack != 1)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
-            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_store, vl);
-            _p = __riscv_vfmul_vf_f32m8(_p, a, vl);
-            _p = __riscv_vfadd_vf_f32m8(_p, b, vl);
-            __riscv_vse32_v_f32m8(ptr_store, _p, vl);
-
-            n -= vl;
-            ptr_store += vl;
+            for (; i < elementcount; i++)
+            {
+                const int offset = vl * i;
+                vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + offset, vl);
+                _p = __riscv_vfmadd_vv_f32m1(_p, _a, _b, vl);
+                __riscv_vse32_v_f32m1(ptr + offset, _p, vl);
+            }
         }
 #endif // __riscv_vector
-        while (n-- > 0) *ptr_store++ = (*ptr_store * a + b);
-    }
-    return 0;
-}
 
+        if (elementpack == 1)
+        {
 #if __riscv_vector
-static inline int layernorm_rvv_packn_procedure(int size, float* ptr, const float* gamma_data, const float* beta_data, float eps, const size_t vl)
-{
-    vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
-    vfloat32m1_t _sqsum = __riscv_vfmv_v_f_f32m1(0.f, vl);
-    for (int i = 0; i < size; i++)
-    {
-        vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + vl * i, vl);
-        _sum = __riscv_vfadd_vv_f32m1(_sum, _p, vl);
-    }
-    vfloat32m1_t _mean = __riscv_vfdiv_vf_f32m1(_sum, size, vl);
-    for (int i = 0; i < size; i++)
-    {
-        vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + vl * i, vl);
-        _p = __riscv_vfsub_vv_f32m1(_p, _mean, vl);
-        _sqsum = __riscv_vfmacc_vv_f32m1(_sqsum, _p, _p, vl);
-    }
-    vfloat32m1_t _var = __riscv_vfdiv_vf_f32m1(_sqsum, size, vl);
-    vfloat32m1_t _a = __riscv_vfrdiv_vf_f32m1(__riscv_vfsqrt_v_f32m1(__riscv_vfadd_vf_f32m1(_var, eps, vl), vl), 1.f, vl);
-    vfloat32m1_t _b = __riscv_vfmul_vv_f32m1(__riscv_vfsgnjn_vv_f32m1(_mean, _mean, vl), _a, vl);
-    if (gamma_data && beta_data)
-    {
-        for (int i = 0; i < size; i++)
-        {
-            const int offset = vl * i;
-            vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + offset, vl);
-            _p = __riscv_vfmadd_vv_f32m1(_p, _a, _b, vl);
-            _p = __riscv_vfmul_vf_f32m1(_p, gamma_data[i], vl);
-            _p = __riscv_vfadd_vf_f32m1(_p, beta_data[i], vl);
-            __riscv_vse32_v_f32m1(ptr + offset, _p, vl);
-        }
-    }
-    else
-    {
-        for (int i = 0; i < size; i++)
-        {
-            const int offset = vl * i;
-            vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + offset, vl);
-            _p = __riscv_vfmadd_vv_f32m1(_p, _a, _b, vl);
-            __riscv_vse32_v_f32m1(ptr + offset, _p, vl);
-        }
-    }
+            while (n > 0)
+            {
+                size_t vlr = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_store, vlr);
+                _p = __riscv_vfmul_vf_f32m8(_p, a, vlr);
+                _p = __riscv_vfadd_vf_f32m8(_p, b, vlr);
+                __riscv_vse32_v_f32m8(ptr_store, _p, vlr);
 
+                n -= vlr;
+                ptr_store += vlr;
+            }
+#endif // __riscv_vector
+            while (n-- > 0) *ptr_store++ = (*ptr_store * a + b);
+        }
+    }
     return 0;
 }
-#endif // __riscv_vector
 
 int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
@@ -242,38 +263,25 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
+    size_t vl = 1;
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
+    vl = (elempack == packn) ? __riscv_vsetvl_e32m1(packn) : __riscv_vsetvlmax_e32m8();
+#endif // __riscv_vector
 
     if (dims == 1)
     {
         float* ptr = bottom_top_blob;
-        return layernorm(ptr, gamma_data, beta_data, eps, w * elempack, 1);
+        return layernorm(ptr, gamma_data, beta_data, eps, w * elempack, 1, vl);
     }
-#if __riscv_vector
-    const int packn = csrr_vlenb() / 4;
-    const size_t vl = __riscv_vsetvl_e32m1(packn);
-#endif // __riscv_vector
+
     if (dims == 2)
     {
-        // assert affine_size == w
-#if __riscv_vector
-        if (elempack == packn)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                float* ptr = bottom_top_blob.row(i);
-                layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, vl);
-            }
-        }
-#endif // __riscv_vector
-        if (elempack == 1)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                float* ptr = bottom_top_blob.row(i);
-                layernorm(ptr, gamma_data, beta_data, eps, w, elempack);
-            }
+            float* ptr = bottom_top_blob.row(i);
+            layernorm(ptr, gamma_data, beta_data, eps, w, elempack, vl);
         }
     }
 
@@ -281,54 +289,23 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     {
         if (affine_size == w)
         {
-#if __riscv_vector
-            if (elempack == packn)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                for (int i = 0; i < h; i++)
                 {
-                    for (int i = 0; i < h; i++)
-                    {
-                        float* ptr = bottom_top_blob.channel(q).row(i);
-                        layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, vl);
-                    }
-                }
-            }
-#endif // __riscv_vector
-            if (elempack == 1)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    for (int i = 0; i < h; i++)
-                    {
-                        float* ptr = bottom_top_blob.channel(q).row(i);
-                        layernorm(ptr, gamma_data, beta_data, eps, w, elempack);
-                    }
+                    float* ptr = bottom_top_blob.channel(q).row(i);
+                    layernorm(ptr, gamma_data, beta_data, eps, w, elempack, vl);
                 }
             }
         }
         else // if (affine_size == size)
         {
-#if __riscv_vector
-            if (elempack == packn)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    float* ptr = bottom_top_blob.channel(q);
-                    layernorm_rvv_packn_procedure(w * h, ptr, gamma_data, beta_data, eps, vl);
-                }
-            }
-#endif // __riscv_vector
-            if (elempack == 1)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    float* ptr = bottom_top_blob.channel(q);
-                    layernorm(ptr, gamma_data, beta_data, eps, w * h, elempack);
-                }
+                float* ptr = bottom_top_blob.channel(q);
+                layernorm(ptr, gamma_data, beta_data, eps, w * h, elempack, vl);
             }
         }
     }
