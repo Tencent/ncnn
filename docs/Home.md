@@ -57,6 +57,23 @@ void pretty_print(const ncnn::Mat& m)
 }
 ```
 
+### print VkMat content
+```cpp
+void pretty_print(const ncnn::VkMat& m, VkCompute& cmd, const Option& opt)
+{
+    ncnn::Mat m_cpu;
+    cmd.record_download(m, m_cpu, opt);
+    cmd.submit_and_wait();
+    cmd.reset();
+
+    ncnn::Mat m_cpu_unpacked;
+    ncnn::convert_packing(m_cpu, m_cpu_unpacked, 1, opt);
+
+    // print Mat content
+    pretty_print(m_cpu_unpacked);
+}
+```
+
 ### visualize Mat content
 ```cpp
 void visualize(const char* title, const ncnn::Mat& m)
