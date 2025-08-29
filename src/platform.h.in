@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_PLATFORM_H
 #define NCNN_PLATFORM_H
@@ -40,6 +29,9 @@
 #cmakedefine01 NCNN_F16C
 #cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_AVXVNNI
+#cmakedefine01 NCNN_AVXVNNIINT8
+#cmakedefine01 NCNN_AVXVNNIINT16
+#cmakedefine01 NCNN_AVXNECONVERT
 #cmakedefine01 NCNN_AVX512
 #cmakedefine01 NCNN_AVX512VNNI
 #cmakedefine01 NCNN_AVX512BF16
@@ -59,6 +51,9 @@
 #cmakedefine01 NCNN_LSX
 #cmakedefine01 NCNN_MMI
 #cmakedefine01 NCNN_RVV
+#cmakedefine01 NCNN_ZFH
+#cmakedefine01 NCNN_ZVFH
+#cmakedefine01 NCNN_XTHEADVECTOR
 #cmakedefine01 NCNN_INT8
 #cmakedefine01 NCNN_BF16
 #cmakedefine01 NCNN_FORCE_INLINE
@@ -72,6 +67,9 @@
 #if NCNN_THREADS
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#endif
 #include <windows.h>
 #include <process.h>
 #else
@@ -80,13 +78,16 @@
 #endif // NCNN_THREADS
 
 #if __ANDROID_API__ >= 26
+#ifndef VK_USE_PLATFORM_ANDROID_KHR
 #define VK_USE_PLATFORM_ANDROID_KHR
+#endif
 #endif // __ANDROID_API__ >= 26
 
 namespace ncnn {
 
 #if NCNN_THREADS
 #if defined _WIN32
+#if _WIN32_WINNT > _WIN32_WINNT_WINXP // Windows Vista and later
 class NCNN_EXPORT Mutex
 {
 public:
@@ -96,7 +97,6 @@ public:
     void unlock() { ReleaseSRWLockExclusive(&srwlock); }
 private:
     friend class ConditionVariable;
-    // NOTE SRWLock is available from windows vista
     SRWLOCK srwlock;
 };
 
@@ -111,6 +111,56 @@ public:
 private:
     CONDITION_VARIABLE condvar;
 };
+
+#else // Windows XP compatibility
+
+class NCNN_EXPORT Mutex
+{
+public:
+    Mutex() { InitializeCriticalSection(&cs); }
+    ~Mutex() { DeleteCriticalSection(&cs); }
+    void lock() { EnterCriticalSection(&cs); }
+    void unlock() { LeaveCriticalSection(&cs); }
+private:
+    friend class ConditionVariable;
+    CRITICAL_SECTION cs;
+};
+
+class NCNN_EXPORT ConditionVariable
+{
+public:
+    ConditionVariable() 
+    { 
+        signal_event = CreateEvent(0, FALSE, FALSE, 0); // Auto-reset event for signal()
+        broadcast_event = CreateEvent(0, TRUE, FALSE, 0); // Manual-reset event for broadcast()
+    }
+    ~ConditionVariable() 
+    { 
+        CloseHandle(signal_event); 
+        CloseHandle(broadcast_event); 
+    }
+    void wait(Mutex& mutex)
+    {
+        mutex.unlock();
+        HANDLE events[2] = { signal_event, broadcast_event };
+        WaitForMultipleObjects(2, events, FALSE, INFINITE); // Wait for either signal or broadcast
+        mutex.lock();
+    }
+    void broadcast() 
+    { 
+        SetEvent(broadcast_event); // Wake all threads
+        ResetEvent(broadcast_event); // Reset after waking all threads
+    }
+    void signal() 
+    { 
+        SetEvent(signal_event); // Wake one thread
+    }
+private:
+    HANDLE signal_event;
+    HANDLE broadcast_event;
+};
+
+#endif // _WIN32_WINNT > _WIN32_WINNT_WINXP
 
 static unsigned __stdcall start_wrapper(void* args);
 class NCNN_EXPORT Thread
@@ -266,6 +316,7 @@ static inline void swap_endianness_32(void* x)
 #include <algorithm>
 #include <list>
 #include <vector>
+#include <stack>
 #include <string>
 #endif
 

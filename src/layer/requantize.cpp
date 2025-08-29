@@ -1,17 +1,6 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 BUG1989. All rights reserved.
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 BUG1989
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "requantize.h"
 #include "fused_activation.h"
@@ -34,11 +23,6 @@ Requantize::Requantize()
 
 int Requantize::load_param(const ParamDict& pd)
 {
-    //     scale_in = pd.get(0, 1.f);  // bottom_blob_scale * weight_scale
-    //     scale_out = pd.get(1, 1.f); // top_blob_scale
-    //     bias_term = pd.get(2, 0);
-    //     bias_data_size = pd.get(3, 0);
-
     scale_in_data_size = pd.get(0, 1);
     scale_out_data_size = pd.get(1, 1);
     bias_data_size = pd.get(2, 0);
@@ -68,253 +52,82 @@ int Requantize::load_model(const ModelBin& mb)
     return 0;
 }
 
+static void requantize(const int* intptr, signed char* ptr, float scale_in, float bias, float scale_out, int activation_type, const Mat& activation_params, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        float v = *intptr * scale_in + bias;
+        v = activation_ss(v, activation_type, activation_params);
+        *ptr = float2int8(v * scale_out);
+        intptr++;
+        ptr++;
+    }
+}
+
 int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int dims = bottom_blob.dims;
+    const int dims = bottom_blob.dims;
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
 
     if (dims == 1)
     {
-        int w = bottom_blob.w;
-
         top_blob.create(w, (size_t)1u, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
+        // assert scale_in_data_size == 1
+        // assert bias_data_size == 0 || bias_data_size == 1
+        // assert scale_out_data_size == 1
+
         const int* intptr = bottom_blob;
         signed char* ptr = top_blob;
 
-        if (scale_in_data_size == 1 && scale_out_data_size == 1)
-        {
-            const float scale_in = scale_in_data[0];
-            const float scale_out = scale_out_data[0];
+        const float scale_in = scale_in_data[0];
+        const float bias = bias_data_size == 0 ? 0.f : bias_data[0];
+        const float scale_out = scale_out_data[0];
 
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-            else if (bias_data_size == 1)
-            {
-                const float bias = bias_data[0];
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in + bias_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-        }
-        else if (scale_in_data_size == 1 && scale_out_data_size > 1)
-        {
-            const float scale_in = scale_in_data[0];
-
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-            else if (bias_data_size == 1)
-            {
-                const float bias = bias_data[0];
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in + bias_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-        }
-        else if (scale_in_data_size > 1 && scale_out_data_size == 1)
-        {
-            const float scale_out = scale_out_data[0];
-
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-            else if (bias_data_size == 1)
-            {
-                const float bias = bias_data[0];
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i] + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i] + bias_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-        }
-        else // if (scale_in_data_size > 1 && scale_out_data_size > 1)
-        {
-            if (bias_data_size == 0)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-            else if (bias_data_size == 1)
-            {
-                const float bias = bias_data[0];
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i] + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
-                {
-                    float v = intptr[i] * scale_in_data[i] + bias_data[i];
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out_data[i]);
-                }
-            }
-        }
+        requantize(intptr, ptr, scale_in, bias, scale_out, activation_type, activation_params, w);
     }
 
     if (dims == 2)
     {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-
         top_blob.create(w, h, (size_t)1u, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        if (bias_data_size == 0)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const int* intptr = bottom_blob.row<const int>(i);
-                signed char* ptr = top_blob.row<signed char>(i);
+            const int* intptr = bottom_blob.row<const int>(i);
+            signed char* ptr = top_blob.row<signed char>(i);
 
-                const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[i];
-                const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[i];
+            const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[i];
+            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0] : bias_data[i];
+            const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[i];
 
-                for (int j = 0; j < w; j++)
-                {
-                    float v = intptr[j] * scale_in;
-                    ptr[j] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                const int* intptr = bottom_blob.row<const int>(i);
-                signed char* ptr = top_blob.row<signed char>(i);
-
-                const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[i];
-                const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[i];
-                const float bias = bias_data_size == 1 ? bias_data[0] : bias_data[i];
-
-                for (int j = 0; j < w; j++)
-                {
-                    float v = intptr[j] * scale_in + bias;
-                    ptr[j] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
+            requantize(intptr, ptr, scale_in, bias, scale_out, activation_type, activation_params, w);
         }
     }
 
     if (dims == 3)
     {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-        int channels = bottom_blob.c;
-        int size = w * h;
-
         top_blob.create(w, h, channels, (size_t)1u, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        if (bias_data_size == 0)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const int* intptr = bottom_blob.channel(q);
-                signed char* ptr = top_blob.channel(q);
+            const int* intptr = bottom_blob.channel(q);
+            signed char* ptr = top_blob.channel(q);
 
-                const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[q];
-                const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[q];
+            const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[q];
+            const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0] : bias_data[q];
+            const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[q];
 
-                for (int i = 0; i < size; i++)
-                {
-                    float v = intptr[i] * scale_in;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
-        }
-        else
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const int* intptr = bottom_blob.channel(q);
-                signed char* ptr = top_blob.channel(q);
-
-                const float scale_in = scale_in_data_size == 1 ? scale_in_data[0] : scale_in_data[q];
-                const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[q];
-                const float bias = bias_data_size == 1 ? bias_data[0] : bias_data[q];
-
-                for (int i = 0; i < size; i++)
-                {
-                    float v = intptr[i] * scale_in + bias;
-                    ptr[i] = float2int8(activation_ss(v, activation_type, activation_params) * scale_out);
-                }
-            }
+            requantize(intptr, ptr, scale_in, bias, scale_out, activation_type, activation_params, w * h);
         }
     }
 

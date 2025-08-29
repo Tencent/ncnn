@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "gemm_arm.h"
 
@@ -26,6 +15,10 @@ namespace ncnn {
 
 #include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
+
+#if NCNN_INT8
+#include "gemm_int8_fp16s.h"
+#endif
 
 extern void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 
@@ -708,5 +701,52 @@ int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     return ret;
 }
+
+#if NCNN_INT8
+void compute_A_tile_fp16_int8_scales_vfpv4(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
+{
+    compute_A_tile_fp16_int8_scales(A, scales, B_scale, out_descales, i, max_ii);
+}
+
+void transpose_compute_A_tile_fp16_int8_scales_vfpv4(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
+{
+    transpose_compute_A_tile_fp16_int8_scales(A, scales, B_scale, out_descales, i, max_ii);
+}
+
+void pack_A_tile_fp16_to_int8_vfpv4(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
+{
+    pack_A_tile_fp16_to_int8(A, AT, i, max_ii, k, max_kk, scales);
+}
+
+void transpose_pack_A_tile_fp16_to_int8_vfpv4(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
+{
+    transpose_pack_A_tile_fp16_to_int8(A, AT, i, max_ii, k, max_kk, scales);
+}
+
+void compute_B_fp16_int8_scale_vfpv4(const Mat& B, float& scale)
+{
+    compute_B_fp16_int8_scale(B, scale);
+}
+
+void pack_B_tile_fp16_to_int8_vfpv4(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+{
+    pack_B_tile_fp16_to_int8(B, BT, j, max_jj, k, max_kk, scale);
+}
+
+void transpose_pack_B_tile_fp16_to_int8_vfpv4(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+{
+    transpose_pack_B_tile_fp16_to_int8(B, BT, j, max_jj, k, max_kk, scale);
+}
+
+void unpack_output_tile_int32_to_fp16_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta)
+{
+    unpack_output_tile_int32_to_fp16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
+}
+
+void transpose_unpack_output_tile_int32_to_fp16_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta)
+{
+    transpose_unpack_output_tile_int32_to_fp16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
+}
+#endif // NCNN_INT8
 
 } // namespace ncnn

@@ -1,21 +1,10 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -57,11 +46,11 @@ static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, c
         {
             for (int j = 0; j < outw; j++)
             {
-                vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
+                vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(0.f, vl);
 
                 if (bias_data_ptr)
                 {
-                    _sum = vle32_v_f32m2(bias_data_ptr + p * packn, vl);
+                    _sum = __riscv_vle32_v_f32m2(bias_data_ptr + p * packn, vl);
                 }
 
                 const __fp16* kptr = weight_data_fp16.channel(p);
@@ -79,11 +68,11 @@ static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, c
                         for (int l = 0; l < packn; l++)
                         {
                             float val = (float)*slptr++;
-                            vfloat16m1_t _w0 = vle16_v_f16m1(kptr, vl);
-                            // _sum = vfwmacc_vf_f32m2(_sum, val, _w0, vl);
+                            vfloat16m1_t _w0 = __riscv_vle16_v_f16m1(kptr, vl);
+                            // _sum = __riscv_vfwmacc_vf_f32m2(_sum, val, _w0, vl);
 
-                            vfloat32m2_t _qwq = vfwmul_vf_f32m2(_w0, val, vl);
-                            _sum = vfadd_vv_f32m2(_sum, _qwq, vl);
+                            vfloat32m2_t _qwq = __riscv_vfwmul_vf_f32m2(_w0, val, vl);
+                            _sum = __riscv_vfadd_vv_f32m2(_sum, _qwq, vl);
 
                             kptr += packn;
                         }
@@ -92,7 +81,7 @@ static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, c
 
                 _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                vse16_v_f16m1(outptr + j * packn, vfncvt_f_f_w_f16m1(_sum, vl), vl);
+                __riscv_vse16_v_f16m1(outptr + j * packn, __riscv_vfncvt_f_f_w_f16m1(_sum, vl), vl);
             }
 
             outptr += outw * packn;
@@ -103,7 +92,7 @@ static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, c
 static void convolution_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const size_t vl = vsetvl_e16m1(packn);
+    const size_t vl = __riscv_vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -145,11 +134,11 @@ static void convolution_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, 
         {
             for (int j = 0; j < outw; j++)
             {
-                vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
 
                 if (bias_data_ptr)
                 {
-                    _sum = vle16_v_f16m1(bias_data_ptr + p * packn, vl);
+                    _sum = __riscv_vle16_v_f16m1(bias_data_ptr + p * packn, vl);
                 }
 
                 const __fp16* kptr = weight_data_fp16.channel(p);
@@ -167,8 +156,8 @@ static void convolution_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, 
                         for (int l = 0; l < packn; l++)
                         {
                             __fp16 val = *slptr++;
-                            vfloat16m1_t _w0 = vle16_v_f16m1(kptr, vl);
-                            _sum = vfmacc_vf_f16m1(_sum, val, _w0, vl);
+                            vfloat16m1_t _w0 = __riscv_vle16_v_f16m1(kptr, vl);
+                            _sum = __riscv_vfmacc_vf_f16m1(_sum, val, _w0, vl);
 
                             kptr += packn;
                         }
@@ -177,7 +166,7 @@ static void convolution_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, 
 
                 _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                vse16_v_f16m1(outptr + j * packn, _sum, vl);
+                __riscv_vse16_v_f16m1(outptr + j * packn, _sum, vl);
             }
 
             outptr += outw * packn;

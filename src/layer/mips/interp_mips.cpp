@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "interp_mips.h"
 
@@ -52,6 +41,16 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     int outw = reference_blob.w;
     int outh = reference_blob.h;
+
+    if (!size_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_size_expr(bottom_blob_shapes, outw, outh);
+    }
 
     if (dims == 1)
     {
@@ -102,7 +101,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         {
             if (resize_type == 1) // nearest
             {
-                const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+                const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -209,7 +208,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
         if (resize_type == 1) // nearest
         {
-            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -304,8 +303,8 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     {
         if (resize_type == 1) // nearest
         {
-            const float hs = output_height ? h / (float)outh : 1.f / height_scale;
-            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+            const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -388,8 +387,8 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     if (resize_type == 1) // nearest
     {
-        const float hs = output_height ? h / (float)outh : 1.f / height_scale;
-        const float ws = output_width ? w / (float)outw : 1.f / width_scale;
+        const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+        const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

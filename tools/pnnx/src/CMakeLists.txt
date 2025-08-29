@@ -11,6 +11,8 @@ set(pnnx_pass_level0_SRCS
 )
 
 set(pnnx_pass_level1_SRCS
+    pass_level1/fuse_module_pass.cpp
+
     pass_level1/nn_AdaptiveAvgPool1d.cpp
     pass_level1/nn_AdaptiveAvgPool2d.cpp
     pass_level1/nn_AdaptiveAvgPool3d.cpp
@@ -108,6 +110,10 @@ set(pnnx_pass_level1_SRCS
 )
 
 set(pnnx_pass_level2_SRCS
+    pass_level2/eliminate_size_numtotensor_int.cpp
+    pass_level2/functionize.cpp
+    pass_level2/fuse_constantlist.cpp
+
     pass_level2/F_adaptive_avg_pool1d.cpp
     pass_level2/F_adaptive_avg_pool2d.cpp
     pass_level2/F_adaptive_avg_pool3d.cpp
@@ -124,7 +130,6 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_conv1d.cpp
     pass_level2/F_conv2d.cpp
     pass_level2/F_conv3d.cpp
-    pass_level2/F_conv_transpose123d.cpp
     pass_level2/F_conv_transpose1d.cpp
     pass_level2/F_conv_transpose2d.cpp
     pass_level2/F_conv_transpose3d.cpp
@@ -196,7 +201,9 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_permute.cpp
     pass_level2/Tensor_repeat.cpp
     pass_level2/Tensor_reshape.cpp
+    pass_level2/Tensor_reshape_as.cpp
     pass_level2/Tensor_select.cpp
+    pass_level2/Tensor_size.cpp
     pass_level2/Tensor_slice.cpp
     pass_level2/Tensor_to.cpp
     pass_level2/Tensor_type_as.cpp
@@ -207,6 +214,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_arange.cpp
     pass_level2/torch_argmax.cpp
     pass_level2/torch_argmin.cpp
+    pass_level2/torch_as_strided.cpp
     pass_level2/torch_baddbmm.cpp
     pass_level2/torch_bmm.cpp
     pass_level2/torch_bitwise_not.cpp
@@ -240,6 +248,10 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
     pass_level2/torch_lgamma.cpp
+    pass_level2/torch_logical_not.cpp
+    pass_level2/torch_logical_and.cpp
+    pass_level2/torch_logical_or.cpp
+    pass_level2/torch_logical_xor.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_lt.cpp
     pass_level2/torch_masked_select.cpp
@@ -306,6 +318,9 @@ set(pnnx_pass_level2_SRCS
 
     pass_level2/nn_quantized_FloatFunctional.cpp
 
+    pass_level2/torchaudio_F_inverse_spectrogram.cpp
+    pass_level2/torchaudio_F_spectrogram.cpp
+
     pass_level2/nn_GRU.cpp
     pass_level2/nn_LSTM.cpp
     pass_level2/nn_RNN.cpp
@@ -314,6 +329,7 @@ set(pnnx_pass_level2_SRCS
 set(pnnx_pass_level3_SRCS
     pass_level3/assign_unique_name.cpp
     pass_level3/eliminate_noop_math.cpp
+    pass_level3/eliminate_squeeze_unsqueeze_pair.cpp
     pass_level3/eliminate_tuple_pair.cpp
     pass_level3/expand_quantization_modules.cpp
     pass_level3/fuse_opnto1_tensors.cpp
@@ -325,8 +341,6 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_maxpool_unpack.cpp
     pass_level3/fuse_multiheadattention_unpack.cpp
     pass_level3/fuse_rnn_unpack.cpp
-    pass_level3/rename_F_conv_transposend.cpp
-    pass_level3/rename_F_convmode.cpp
     pass_level3/rename_F_dropoutnd.cpp
 )
 
@@ -369,6 +383,8 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_pixel_unshuffle.cpp
     pass_level5/fuse_layernorm.cpp
     pass_level5/fuse_multiheadattention.cpp
+    pass_level5/fuse_multiheadattention_sameqkv.cpp
+    pass_level5/fuse_rmsnorm.cpp
     pass_level5/fuse_scaled_dot_product_attention.cpp
     pass_level5/fuse_select_to_unbind.cpp
     pass_level5/fuse_silu.cpp
@@ -386,6 +402,8 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_static_linear.cpp
     pass_level5/fuse_static_prelu.cpp
     pass_level5/fuse_static_rmsnorm.cpp
+    pass_level5/fuse_transformers_multiheadattention.cpp
+    pass_level5/fuse_transformers_scaled_dot_product_attention.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
 )
@@ -396,6 +414,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_module_op.cpp
     pass_ncnn/convert_half_to_float.cpp
     pass_ncnn/convert_input.cpp
+    pass_ncnn/convert_reshape_interp_expression.cpp
+    pass_ncnn/convert_slice_expression.cpp
     pass_ncnn/convert_torch_cat.cpp
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_einsum.cpp
@@ -422,6 +442,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_deconvolution_activation.cpp
     pass_ncnn/fuse_deconvolutiondepthwise_activation.cpp
     pass_ncnn/fuse_innerproduct_activation.cpp
+    pass_ncnn/fuse_padding_convolution.cpp
+    pass_ncnn/fuse_padding_convolutiondepthwise.cpp
     pass_ncnn/fuse_transpose_matmul.cpp
     pass_ncnn/fuse_binaryop_eltwise.cpp
     pass_ncnn/insert_reshape_numpy_binaryop_broadcast.cpp
@@ -558,6 +580,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_contiguous.cpp
     pass_ncnn/Tensor_permute.cpp
     pass_ncnn/Tensor_reshape.cpp
+    pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_addmm.cpp
@@ -569,6 +592,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_cumsum.cpp
     pass_ncnn/torch_diag.cpp
     pass_ncnn/torch_flatten.cpp
+    pass_ncnn/torch_flip.cpp
+    pass_ncnn/torch_istft.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp
     pass_ncnn/torch_max.cpp
@@ -581,9 +606,12 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_slice_scatter.cpp
     pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_sum.cpp
+    pass_ncnn/torch_stft.cpp
     pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
+    pass_ncnn/torchaudio_F_inverse_spectrogram.cpp
+    pass_ncnn/torchaudio_F_spectrogram.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 
@@ -614,6 +642,10 @@ if(PROTOBUF_FOUND)
         else()
             set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR})
             set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_LINK_LIBRARIES protobuf::libprotobuf)
+        endif()
+
+        if(APPLE)
+            set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_LINK_LIBRARIES "-framework CoreFoundation")
         endif()
     endif()
 endif()
@@ -661,6 +693,7 @@ if(onnxruntime_FOUND)
     set(pnnx_pass_onnx_SRCS
         pass_onnx/canonicalize.cpp
         pass_onnx/dead_code_elimination.cpp
+        pass_onnx/eliminate_initializer_input.cpp
         pass_onnx/eliminate_noop.cpp
         pass_onnx/fold_constants.cpp
         pass_onnx/inline_containers.cpp
@@ -669,20 +702,20 @@ if(onnxruntime_FOUND)
         pass_onnx/shape_inference.cpp
         pass_onnx/fuse_constant_as_attribute.cpp
 
-        pass_onnx/nn_AdaptiveAvgPool2d.cpp
-        pass_onnx/nn_AdaptiveAvgPool3d.cpp
-        pass_onnx/nn_AvgPool2d.cpp
-        pass_onnx/nn_AvgPool3d.cpp
-        pass_onnx/nn_BatchNorm2d.cpp
-        pass_onnx/nn_BatchNorm3d.cpp
-        pass_onnx/nn_Conv2d.cpp
-        pass_onnx/nn_Conv3d.cpp
-        pass_onnx/nn_GELU.cpp
-        pass_onnx/nn_LayerNorm.cpp
-        pass_onnx/nn_Linear.cpp
-        pass_onnx/nn_MaxPool2d.cpp
-        pass_onnx/nn_MaxPool3d.cpp
-        pass_onnx/nn_MultiheadAttention.cpp
+        # pass_onnx/nn_AdaptiveAvgPool2d.cpp
+        # pass_onnx/nn_AdaptiveAvgPool3d.cpp
+        # pass_onnx/nn_AvgPool2d.cpp
+        # pass_onnx/nn_AvgPool3d.cpp
+        # pass_onnx/nn_BatchNorm2d.cpp
+        # pass_onnx/nn_BatchNorm3d.cpp
+        # pass_onnx/nn_Conv2d.cpp
+        # pass_onnx/nn_Conv3d.cpp
+        # pass_onnx/nn_GELU.cpp
+        # pass_onnx/nn_LayerNorm.cpp
+        # pass_onnx/nn_Linear.cpp
+        # pass_onnx/nn_MaxPool2d.cpp
+        # pass_onnx/nn_MaxPool3d.cpp
+        # pass_onnx/nn_MultiheadAttention.cpp
     )
 
     set(onnx2pnnx_SRCS
@@ -698,6 +731,29 @@ if(onnxruntime_FOUND)
     message(STATUS "Building with onnx2pnnx")
 else()
     message(STATUS "Building without onnx2pnnx")
+endif()
+
+if(PNNX_TNN2PNNX)
+    set(pnnx_pass_tnn_SRCS
+        pass_tnn/fuse_shape_size.cpp
+        pass_tnn/fuse_shape_list_construct.cpp
+        pass_tnn/lower_concat.cpp
+        pass_tnn/lower_convolution_activation.cpp
+        pass_tnn/lower_power.cpp
+    )
+
+    set(tnn2pnnx_SRCS
+        ${pnnx_pass_tnn_SRCS}
+        load_tnn.cpp
+    )
+
+    add_library(tnn2pnnx OBJECT ${tnn2pnnx_SRCS})
+    target_compile_definitions(tnn2pnnx PRIVATE BUILD_TNN2PNNX)
+    target_compile_options(tnn2pnnx PUBLIC "${TORCH_CXX_FLAGS}")
+
+    message(STATUS "Building with tnn2pnnx")
+else()
+    message(STATUS "Building without tnn2pnnx")
 endif()
 
 if(NOT MSVC)
@@ -748,6 +804,11 @@ endif()
 if(onnxruntime_FOUND)
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_ONNX2PNNX)
     target_link_libraries(pnnx PRIVATE onnx2pnnx)
+endif()
+
+if(PNNX_TNN2PNNX)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TNN2PNNX)
+    target_link_libraries(pnnx PRIVATE tnn2pnnx)
 endif()
 
 if(PNNX_COVERAGE)

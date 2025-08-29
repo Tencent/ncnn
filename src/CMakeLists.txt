@@ -22,6 +22,7 @@ set(ncnn_SRCS
     command.cpp
     cpu.cpp
     datareader.cpp
+    expression.cpp
     gpu.cpp
     layer.cpp
     mat.cpp
@@ -167,6 +168,9 @@ ncnn_add_layer(Diag)
 ncnn_add_layer(CELU)
 ncnn_add_layer(Shrink)
 ncnn_add_layer(RMSNorm)
+ncnn_add_layer(Spectrogram)
+ncnn_add_layer(InverseSpectrogram)
+ncnn_add_layer(Flip)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
@@ -243,8 +247,6 @@ if(NCNN_OPENMP)
         elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
             target_compile_options(ncnn PRIVATE -fopenmp)
             target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
-            # see cpu.cpp __wrap___kmp_abort_process comment for the linker magic
-            target_link_libraries(ncnn PUBLIC -Wl,-wrap,__kmp_affinity_determine_capable)
         elseif(OpenMP_CXX_FOUND)
             target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
         else()
@@ -346,6 +348,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang
         target_compile_options(ncnn PRIVATE /fp:fast)
     endif()
 
+    if(NCNN_TARGET_ARCH STREQUAL "arm")
+        # disable msvc svml optimization on arm target as it produces wrong result
+        target_compile_options(ncnn PRIVATE /d2Qvec-mathlib-)
+    endif()
+
     if(NCNN_SHARED_LIB)
         # msvc argues about stl string and vector uses in exported functions
         target_compile_options(ncnn PRIVATE /wd4251)
@@ -403,6 +410,11 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
                 target_compile_options(ncnn PRIVATE -msimd128)
             endif()
         endif()
+
+        if(NCNN_COMPILER_SUPPORT_X86_RECIP_NONE)
+            # recip optimization causes precision loss
+            target_compile_options(ncnn PRIVATE -mrecip=none)
+        endif()
     endif()
 
     if(NOT NCNN_RUNTIME_CPU AND NCNN_AVX512)
@@ -441,6 +453,15 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
             else()
                 target_compile_options(ncnn PRIVATE /arch:AVX /D__SSSE3__ /D__SSE4_1__ /D__FMA__)
             endif()
+            if(NCNN_AVXVNNIINT8)
+                target_compile_options(ncnn PRIVATE /D__AVXVNNIINT8__)
+            endif()
+            if(NCNN_AVXVNNIINT16)
+                target_compile_options(ncnn PRIVATE /D__AVXVNNIINT16__)
+            endif()
+            if(NCNN_AVXNECONVERT)
+                target_compile_options(ncnn PRIVATE /D__AVXNECONVERT__)
+            endif()
             if(NCNN_AVXVNNI)
                 target_compile_options(ncnn PRIVATE /D__AVXVNNI__)
             elseif(NCNN_XOP)
@@ -455,6 +476,15 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
             else()
                 target_compile_options(ncnn PRIVATE /arch:AVX -mfma /D__SSSE3__ /D__SSE4_1__ /D__FMA__)
             endif()
+            if(NCNN_AVXVNNIINT8)
+                target_compile_options(ncnn PRIVATE -mavxvnniint8 /D__AVXVNNIINT8__)
+            endif()
+            if(NCNN_AVXVNNIINT16)
+                target_compile_options(ncnn PRIVATE -mavxvnniint16 /D__AVXVNNIINT16__)
+            endif()
+            if(NCNN_AVXNECONVERT)
+                target_compile_options(ncnn PRIVATE -mavxneconvert /D__AVXNECONVERT__)
+            endif()
             if(NCNN_AVXVNNI)
                 target_compile_options(ncnn PRIVATE -mavxvnni /D__AVXVNNI__)
             elseif(NCNN_XOP)
@@ -468,6 +498,15 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
                 target_compile_options(ncnn PRIVATE -mavx2 -mfma)
             else()
                 target_compile_options(ncnn PRIVATE -mavx -mfma)
+            endif()
+            if(NCNN_AVXVNNIINT8)
+                target_compile_options(ncnn PRIVATE -mavxvnniint8)
+            endif()
+            if(NCNN_AVXVNNIINT16)
+                target_compile_options(ncnn PRIVATE -mavxvnniint16)
+            endif()
+            if(NCNN_AVXNECONVERT)
+                target_compile_options(ncnn PRIVATE -mavxneconvert)
             endif()
             if(NCNN_AVXVNNI)
                 target_compile_options(ncnn PRIVATE -mavxvnni)
@@ -600,6 +639,8 @@ if(NCNN_TARGET_ARCH STREQUAL "arm" AND (CMAKE_SIZEOF_VOID_P EQUAL 8 OR NCNN_TARG
             endif()
             if(NCNN_ARM82FP16FML)
                 set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+fp16fml")
+                # clang 9.0.9 shipped with android ndk-r21 is missing __ARM_FEATURE_FP16_FML macro for asimdfhm target
+                target_compile_options(ncnn PRIVATE -D__ARM_FEATURE_FP16_FML)
             endif()
         endif()
     endif()
@@ -631,14 +672,42 @@ if(NCNN_TARGET_ARCH STREQUAL "loongarch")
 endif()
 
 if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
-    if(NOT NCNN_RUNTIME_CPU AND NCNN_RVV)
-        if(NCNN_COMPILER_SUPPORT_RVV_ZFH)
-            target_compile_options(ncnn PRIVATE -march=rv64gcv_zfh)
-        elseif(NCNN_COMPILER_SUPPORT_RVV_ZVFH)
-            target_compile_options(ncnn PRIVATE -march=rv64gcv_zfh_zvfh0p1 -menable-experimental-extensions -D__fp16=_Float16)
-        elseif(NCNN_COMPILER_SUPPORT_RVV)
-            target_compile_options(ncnn PRIVATE -march=rv64gcv)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        if(NOT NCNN_RUNTIME_CPU AND NCNN_RVV)
+            set(RISCV_MARCH_FLAG "-march=rv64gcv")
+            if(NCNN_ZFH)
+                set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zfh")
+                target_compile_options(ncnn PRIVATE -D__fp16=_Float16)
+            endif()
+            if(NCNN_ZVFH)
+                set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfh")
+            endif()
+        elseif(NOT NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
+            set(RISCV_MARCH_FLAG "-march=rv64gc_xtheadvector")
+            if(NCNN_ZFH)
+                set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zfh")
+                target_compile_options(ncnn PRIVATE -D__riscv_zvfh=1 -D__fp16=_Float16)
+            endif()
         endif()
+        target_compile_options(ncnn PRIVATE ${RISCV_MARCH_FLAG})
+    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        if(NOT NCNN_RUNTIME_CPU AND NCNN_RVV)
+            set(RISCV_MARCH_FLAG "-march=rv32gcv")
+            if(NCNN_ZFH)
+                set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zfh")
+                target_compile_options(ncnn PRIVATE -D__fp16=_Float16)
+            endif()
+            if(NCNN_ZVFH)
+                set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfh")
+            endif()
+        elseif(NOT NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
+            set(RISCV_MARCH_FLAG "-march=rv32gc_xtheadvector")
+            if(NCNN_ZFH)
+                set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zfh")
+                target_compile_options(ncnn PRIVATE -D__riscv_zvfh=1 -D__fp16=_Float16)
+            endif()
+        endif()
+        target_compile_options(ncnn PRIVATE ${RISCV_MARCH_FLAG})
     endif()
 endif()
 
@@ -669,6 +738,13 @@ add_dependencies(ncnn ncnn-generate-spirv)
 if(NCNN_INSTALL_SDK)
     include(GNUInstallDirs)
 
+    include(CMakePackageConfigHelpers)
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfigVersion.cmake
+        VERSION ${NCNN_VERSION}
+        COMPATIBILITY AnyNewerVersion
+    )
+
     install(TARGETS ncnn EXPORT ncnn
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -682,6 +758,7 @@ if(NCNN_INSTALL_SDK)
         command.h
         cpu.h
         datareader.h
+        expression.h
         gpu.h
         layer.h
         layer_shader_type.h
@@ -707,7 +784,10 @@ if(NCNN_INSTALL_SDK)
     )
     install(EXPORT ncnn DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in ncnnConfig.cmake @ONLY)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
     # pkgconfig
     configure_file(ncnn.pc.in ${CMAKE_CURRENT_BINARY_DIR}/ncnn.pc @ONLY)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnn.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "layer.h"
 
@@ -32,18 +21,19 @@ Layer::Layer()
     support_bf16_storage = false;
     support_fp16_storage = false;
     support_int8_storage = false;
-    support_image_storage = false;
     support_tensor_storage = false;
 
+    support_reserved_000 = false;
     support_reserved_00 = false;
 
-    typeindex = -1;
+    featmask = 0;
 
 #if NCNN_VULKAN
     vkdev = 0;
 #endif // NCNN_VULKAN
 
     userdata = 0;
+    typeindex = -1;
 }
 
 Layer::~Layer()
@@ -138,46 +128,12 @@ int Layer::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, co
     return forward_inplace(top_blob, cmd, opt);
 }
 
-int Layer::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
-{
-    if (!support_inplace)
-        return -1;
-
-    top_blobs.resize(bottom_blobs.size());
-    for (int i = 0; i < (int)top_blobs.size(); i++)
-    {
-        cmd.record_clone(bottom_blobs[i], top_blobs[i], opt);
-    }
-
-    return forward_inplace(top_blobs, cmd, opt);
-}
-
-int Layer::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    if (!support_inplace)
-        return -1;
-
-    cmd.record_clone(bottom_blob, top_blob, opt);
-
-    return forward_inplace(top_blob, cmd, opt);
-}
-
 int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
 int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
-{
-    return -1;
-}
-
-int Layer::forward_inplace(std::vector<VkImageMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
-{
-    return -1;
-}
-
-int Layer::forward_inplace(VkImageMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
@@ -284,14 +240,12 @@ public:
         support_int8_storage = layer_cpu->support_int8_storage;
 
         support_vulkan = 0;
-        support_image_storage = 0;
         support_tensor_storage = 0;
 
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
             support_vulkan = layer_vulkan->support_vulkan;
-            support_image_storage = layer_vulkan->support_image_storage;
             support_tensor_storage = layer_vulkan->support_tensor_storage;
         }
 #endif
@@ -430,32 +384,12 @@ public:
         return layer_vulkan ? layer_vulkan->forward(bottom_blob, top_blob, cmd, opt) : -1;
     }
 
-    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
-    {
-        return layer_vulkan ? layer_vulkan->forward(bottom_blobs, top_blobs, cmd, opt) : -1;
-    }
-
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
-    {
-        return layer_vulkan ? layer_vulkan->forward(bottom_blob, top_blob, cmd, opt) : -1;
-    }
-
     virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
     {
         return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt) : -1;
     }
 
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
-    {
-        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt) : -1;
-    }
-
-    virtual int forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
-    {
-        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt) : -1;
-    }
-
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
     {
         return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt) : -1;
     }
@@ -546,6 +480,13 @@ Layer* create_layer_cpu(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_MSA
+#if NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
+    if (ncnn::cpu_support_riscv_xtheadvector())
+    {
+        layer_creator = layer_registry_xtheadvector[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
 #if NCNN_RUNTIME_CPU && NCNN_RVV
     if (ncnn::cpu_support_riscv_v())
     {

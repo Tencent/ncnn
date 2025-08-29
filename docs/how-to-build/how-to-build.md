@@ -16,9 +16,14 @@ git submodule update --init
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for Windows x64 using MinGW-w64](#build-for-windows-x64-using-mingw-w64)
+- [Build for Windows XP (x86)](#build-for-windows-xp-x86)
+  - [Using MinGW-w64](#using-mingw-w64)
+  - [Using Clang](#using-clang)
+  - [Using Visual Studio (MSVC)](#using-visual-studio-msvc)
 - [Build for macOS](#build-for-macos)
 - [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
 - [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
+- [Build for AnyCloud platform with cross-compiling](#build-for-AnyCloud-platform-with-cross-compiling)
 - [Build for Android](#build-for-android)
 - [Build for iOS on macOS with xcode](#build-for-ios-on-macos-with-xcode)
 - [Build for WebAssembly](#build-for-webassembly)
@@ -40,33 +45,20 @@ Install required build dependencies:
 * g++
 * cmake
 * protocol buffer (protobuf) headers files and protobuf compiler
-* glslang
 * (optional) LLVM OpenMP header files # If building with Clang, and multithreaded CPU inference is desired
-* (optional) vulkan header files and loader library # If building with Vulkan, without simplevk
 * (optional) opencv  # For building examples
 
 Generally if you have Intel, AMD or Nvidia GPU from last 10 years, Vulkan can be easily used.
 
 On some systems there are no Vulkan drivers easily available at the moment (October 2020), so you might need to disable use of Vulkan on them. This applies to Raspberry Pi 3 (but there is experimental open source Vulkan driver in the works, which is not ready yet). Nvidia Tegra series devices (like Nvidia Jetson) should support Vulkan. Ensure you have most recent software installed for best experience.
 
-On Debian 10+, Ubuntu 20.04+, or Raspberry Pi OS, you can install all required dependencies using:
+On Debian, Ubuntu, or Raspberry Pi OS, you can install all required dependencies using:
 ```shell
-sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-tools libopencv-dev
-```
-On earlier Debian or Ubuntu, you can install all required dependencies using:
-```shell
-sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-utils libopencv-dev
+sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libopencv-dev
 ```
 On Redhat or Centos, you can install all required dependencies using:
 ```shell
-sudo yum install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev
-```
-To use Vulkan backend install Vulkan header files, a vulkan driver loader, GLSL to SPIR-V compiler and vulkaninfo tool. Preferably from your distribution repositories. Alternatively download and install full Vulkan SDK (about 200MB in size; it contains all header files, documentation and prebuilt loader, as well some extra tools and source code of everything) from https://vulkan.lunarg.com/sdk/home
-
-```shell
-wget https://sdk.lunarg.com/sdk/download/1.2.189.0/linux/vulkansdk-linux-x86_64-1.2.189.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.189.0.tar.gz
-tar -xf vulkansdk-linux-x86_64-1.2.189.0.tar.gz
-export VULKAN_SDK=$(pwd)/1.2.189.0/x86_64
+sudo yum install build-essential git cmake libprotobuf-dev protobuf-compiler libopencv-dev
 ```
 
 To use Vulkan after building ncnn later, you will also need to have Vulkan driver for your GPU. For AMD and Intel GPUs these can be found in Mesa graphics driver, which usually is installed by default on all distros (i.e. `sudo apt install mesa-vulkan-drivers` on Debian/Ubuntu). For Nvidia GPUs the proprietary Nvidia driver must be downloaded and installed (some distros will allow easier installation in some way). After installing Vulkan driver, confirm Vulkan libraries and driver are working, by using `vulkaninfo` or `vulkaninfo | grep deviceType`, it should list GPU device type. If there are more than one GPU installed (including the case of integrated GPU and discrete GPU, commonly found in laptops), you might need to note the order of devices to use later on.
@@ -205,7 +197,6 @@ cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_BUILD_TESTS=OFF -Dpr
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
 ```
-(optional) Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
 
 Build ncnn library (replace `<protobuf-root-dir>` with a proper path):
 
@@ -273,6 +264,57 @@ cmake -DNCNN_VULKAN=ON -G "MinGW Makefiles" ..
 cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
+
+***
+
+### Build for Windows XP (x86)
+
+> **Note:** Windows XP support is provided through collaborative contributions from [@Sugar-Baby](https://github.com/Sugar-Baby) and [@AtomAlpaca](https://github.com/AtomAlpaca).
+
+#### Using MinGW-w64
+
+Download mingw toolchain targeting 32 bit from [sourceforge](https://jaist.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/8.1.0/threads-posix/dwarf/i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z), extract and add environment variable named `MINGW32_ROOT_PATH` valued by `<your-path-to-mingw-root-path>`, and add `<your-path-to-mingw-root-path>/bin` to `PATH`.
+
+```shell
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-mingw.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_VULKAN=OFF .. -G "MinGW Makefiles"
+cmake --build . --config Release -j 4
+cmake --build . --config Release --target install
+```
+
+#### Using Clang
+
+Clang requires libraries from mingw. Configure mingw toolchain targeting 32-bit as described in the [MinGW-w64 section](#using-mingw-w64).
+
+Install Clang 6.0 or later.
+
+```shell
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
+cmake --build . --config Release -j 4
+cmake --build . --config Release --target install
+```
+
+#### Using Visual Studio (MSVC)
+
+Install v141_xp toolset for Windows XP:
+
+1. Bring up the Visual Studio installer (Tools → Get Tools and Features)
+2. Select Desktop development with C++
+3. Select Windows XP support for C++ from the Summary section
+4. Click Modify
+
+```shell
+mkdir build
+cd build
+cmake -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
+**Note:** The MSVC toolchain uses the `v141_xp` platform toolset for Windows XP compatibility. Vulkan is disabled for XP compatibility, and advanced CPU features (AVX, AVX2, AVX512) are disabled to ensure compatibility with older processors.
 
 ***
 
@@ -363,7 +405,8 @@ make -j$(nproc)
 ***
 
 ### Build for Hisilicon platform with cross-compiling
-Download and install Hisilicon SDK. The toolchain should be in `/opt/hisi-linux/x86-arm`
+Download and install Hisilicon SDK. The toolchain should be in `/opt/hisi-linux/x86-arm` 
+new version of Hisilicon toolchain should be in `/opt/linux/x86-arm/` 
 
 ```shell
 cd <ncnn-root-dir>
@@ -375,6 +418,24 @@ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/hisiv300.toolchain.cmake ..
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/hisiv500.toolchain.cmake ..
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix100.toolchain.cmake ..
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix200.toolchain.cmake ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/himix210.toolchain.cmake ..
+
+make -j$(nproc)
+make install
+```
+
+***
+
+### Build for AnyCloud platform with cross-compiling
+Download and install AnyCloud SDK. And load env to set toolchain can access in shell
+
+```shell
+cd <ncnn-root-dir>
+mkdir -p build
+cd build
+
+# Choose one cmake toolchain file depends on your target platform
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/anykav500.toolchain.cmake ..
 
 make -j$(nproc)
 make install
@@ -579,7 +640,7 @@ ln -s A glslang.framework/Versions/Current
 ln -s Versions/Current/Headers glslang.framework/Headers
 ln -s Versions/Current/Resources glslang.framework/Resources
 ln -s Versions/Current/glslang glslang.framework/glslang
-libtool -static build-ios/install/lib/libglslang.a build-ios/install/lib/libMachineIndependent.a build-ios/install/lib/libGenericCodeGen.a build-ios/install/lib/libSPIRV.a build-ios/install/lib/libOGLCompiler.a build-ios/install/lib/libOSDependent.a -o build-ios/install/lib/libglslang_combined.a
+libtool -static build-ios/install/lib/libglslang.a build-ios/install/lib/libSPIRV.a -o build-ios/install/lib/libglslang_combined.a
 lipo -create build-ios/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
 cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
 sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
@@ -667,19 +728,19 @@ Pick `build-XYZ/install` folder for further usage.
 
 ### Build for AllWinner D1
 
-Download c906 toolchain package from https://xuantie.t-head.cn/community/download?id=4224193099938729984
+Download c906 toolchain package from https://www.xrvm.cn/community/download?id=4453617141140230144
 
 ```shell
-tar -xf Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1-20220906.tar.gz
-export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1
+tar -xf Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.1.0-20250522.tar.gz
+export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.1.0
 ```
 
 Build ncnn with riscv-v vector and simpleocv enabled:
 ```shell
 mkdir -p build-c906
 cd build-c906
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v226.toolchain.cmake \
-    -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON \
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v310.toolchain.cmake \
+    -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=OFF -DNCNN_XTHEADVECTOR=ON -DNCNN_ZFH=ON -DNCNN_ZVFH=OFF \
     -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON ..
 cmake --build . -j 4
 cmake --build . --target install
@@ -780,21 +841,27 @@ cd ../examples
 
 ### Build for QNX
 
-Set QNX environment variables
+Request license and download SDP from QNX Software Center: https://www.qnx.com/products/everywhere/ .
 
-```shell
-export QNX_HOST=/opt/qnx710/host/linux/x86_64
-export QNX_TARGET=/opt/qnx710/target/qnx7
+Setup QNX environment by invoking SDP's bundled script:
+
+on Windows, open cmd and run
+```batch
+call C:\Users\zz\qnx800\qnxsdp-env.bat
 ```
 
-Create ld link to solve 'cannot find ld' issue
+on Linux, use /bin/bash and run
+```shell
+source /home/zz/qnx800/qnxsdp-env.sh
+```
 
+If it gives error `cannot find ld` on Linux, solve it by creaing link file:
 ```shell
 cd ${QNX_HOST}/usr/bin/
 ln -s aarch64-unknown-nto-qnx7.1.0-ld ld
 ```
 
-Build ncnn with cmake
+Build ncnn with cmake in same shell:
 
 ```shell
 git clone https://github.com/Tencent/ncnn.git
@@ -802,7 +869,7 @@ cd ncnn
 git submodule update --init
 mkdir -p build-qnx
 cd build-qnx
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/qnx710.toolchain.cmake ..
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-qnx.toolchain.cmake ..
 make -j$(nproc)
 make install
 ```
@@ -898,8 +965,13 @@ git submodule update --init --recursive
 ```
 Install esp-idf sdk and configure the environment
 ```shell
-sudo sh install.sh
+./install.sh
 source export.sh
+```
+And for Windows, you should use:
+```bash
+install.bat # or `install.ps1`
+export.bat
 ```
 Note: python>=3.8, cmake>=3.24.0
 

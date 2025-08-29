@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level5.h"
 
@@ -42,8 +31,10 @@
 #include "pass_level5/fuse_layernorm.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
 #include "pass_level5/fuse_multiheadattention.h"
+#include "pass_level5/fuse_multiheadattention_sameqkv.h"
 #include "pass_level5/fuse_pad_conv1d.h"
 #include "pass_level5/fuse_pad_conv2d.h"
+#include "pass_level5/fuse_rmsnorm.h"
 #include "pass_level5/fuse_scaled_dot_product_attention.h"
 #include "pass_level5/fuse_select_to_unbind.h"
 #include "pass_level5/fuse_silu.h"
@@ -61,6 +52,8 @@
 #include "pass_level5/fuse_static_linear.h"
 #include "pass_level5/fuse_static_prelu.h"
 #include "pass_level5/fuse_static_rmsnorm.h"
+#include "pass_level5/fuse_transformers_multiheadattention.h"
+#include "pass_level5/fuse_transformers_scaled_dot_product_attention.h"
 #include "pass_level5/normalize_einsum_equation.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
@@ -145,7 +138,14 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
 
     fuse_channel_shuffle(g);
     fuse_layernorm(g);
+    fuse_rmsnorm(g);
+
+    fuse_transformers_multiheadattention(g);
     fuse_multiheadattention(g);
+
+    fuse_multiheadattention_sameqkv(g);
+
+    fuse_transformers_scaled_dot_product_attention(g);
     fuse_scaled_dot_product_attention(g);
 
     fuse_silu(g);

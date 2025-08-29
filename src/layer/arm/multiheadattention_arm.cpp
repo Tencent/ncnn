@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "multiheadattention_arm.h"
 
@@ -28,7 +17,7 @@ MultiHeadAttention_arm::MultiHeadAttention_arm()
 #endif
 #endif // __ARM_NEON
 
-    support_bf16_storage = false;
+    support_bf16_storage = false; // TODO enable bf16 when gemm has proper out_elemtype support
 
     q_gemm = 0;
     k_gemm = 0;
@@ -76,10 +65,16 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
         pd.set(14, 0);        // output_transpose
+#if NCNN_INT8
+        pd.set(18, int8_scale_term);
+#endif
         q_gemm->load_param(pd);
-        Mat weights[2];
+        Mat weights[3];
         weights[0] = q_weight_data;
         weights[1] = q_bias_data;
+#if NCNN_INT8
+        weights[2] = q_weight_data_int8_scales;
+#endif
         q_gemm->load_model(ModelBinFromMatArray(weights));
         q_gemm->create_pipeline(opt);
 
@@ -105,10 +100,16 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
         pd.set(14, 0);        // output_transpose
+#if NCNN_INT8
+        pd.set(18, int8_scale_term);
+#endif
         k_gemm->load_param(pd);
-        Mat weights[2];
+        Mat weights[3];
         weights[0] = k_weight_data;
         weights[1] = k_bias_data;
+#if NCNN_INT8
+        weights[2] = k_weight_data_int8_scales;
+#endif
         k_gemm->load_model(ModelBinFromMatArray(weights));
         k_gemm->create_pipeline(opt);
 
@@ -134,10 +135,16 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
         pd.set(14, 0);        // output_transpose
+#if NCNN_INT8
+        pd.set(18, int8_scale_term);
+#endif
         v_gemm->load_param(pd);
-        Mat weights[2];
+        Mat weights[3];
         weights[0] = v_weight_data;
         weights[1] = v_bias_data;
+#if NCNN_INT8
+        weights[2] = v_weight_data_int8_scales;
+#endif
         v_gemm->load_model(ModelBinFromMatArray(weights));
         v_gemm->create_pipeline(opt);
 
@@ -161,10 +168,18 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
         pd.set(9, embed_dim); // K = maxk*inch
         pd.set(10, 4);        // constant_broadcast_type_C = null
         pd.set(11, 0);        // output_N1M
+#if NCNN_INT8
+        pd.set(18, int8_scale_term);
+#endif
         o_gemm->load_param(pd);
-        Mat weights[2];
+        Mat weights[3];
         weights[0] = out_weight_data;
         weights[1] = out_bias_data;
+#if NCNN_INT8
+        Mat out_weight_data_int8_scales(1);
+        out_weight_data_int8_scales[0] = out_weight_data_int8_scale;
+        weights[2] = out_weight_data_int8_scales;
+#endif
         o_gemm->load_model(ModelBinFromMatArray(weights));
         o_gemm->create_pipeline(opt);
 
@@ -189,6 +204,9 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
         pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
+#if NCNN_INT8
+        pd.set(18, int8_scale_term);
+#endif
         qk_gemm->load_param(pd);
         qk_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
@@ -211,6 +229,9 @@ int MultiHeadAttention_arm::create_pipeline(const Option& _opt)
         pd.set(11, 0);  // output_N1M
         pd.set(12, 1);  // output_elempack
         pd.set(14, 1);  // output_transpose
+#if NCNN_INT8
+        pd.set(18, int8_scale_term);
+#endif
         qkv_gemm->load_param(pd);
         qkv_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;

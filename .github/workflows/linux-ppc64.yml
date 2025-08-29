@@ -1,0 +1,114 @@
+name: linux-ppc64
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-ppc64.yml'
+    - 'toolchains/powerpc64le-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/*'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-ppc64.yml'
+    - 'toolchains/powerpc64le-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/*'
+    - 'tests/**'
+concurrency:
+  group: linux-ppc64-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  ppc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: powerpc-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-powerpc-linux-gnu qemu-user-static
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/powerpc-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-ppc-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j $(nproc)
+
+  ppc64le:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: powerpc64le-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-powerpc64le-linux-gnu qemu-user-static
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/powerpc64le-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
+
+  power8le-vsx:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: powerpc64le-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-powerpc64le-linux-gnu qemu-user-static
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/power8le-linux-gnu-vsx.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
+
+  power9le-vsx:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: powerpc64le-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-powerpc64le-linux-gnu qemu-user-static
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/power9le-linux-gnu-vsx.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power9_v2.0" ctest --output-on-failure -j $(nproc)

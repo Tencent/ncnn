@@ -1,22 +1,8 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "pass_level1.h"
-
-// #include "../pass_level3/fuse_expression.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
+#include "utils.h"
 
 namespace pnnx {
 
@@ -33,7 +19,7 @@ public:
         return "nn.Conv1d";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
     {
         //         {
         //             pnnx::Graph pnnx_graph;
@@ -45,18 +31,18 @@ public:
         //             pnnx_graph.save("tmp.param", "tmp.bin");
         //         }
 
-        const torch::jit::Node* convolution = find_node_by_kind(graph, "aten::_convolution");
-        const torch::jit::Node* convolution_mode = find_node_by_kind(graph, "aten::_convolution_mode");
-        const torch::jit::Node* pad = find_node_by_kind(graph, "aten::pad");
-        const torch::jit::Node* reflection_pad1d = find_node_by_kind(graph, "aten::reflection_pad1d");
-        const torch::jit::Node* replication_pad1d = find_node_by_kind(graph, "aten::replication_pad1d");
+        const TorchNodeProxy* convolution = graph.find_node_by_kind("aten::_convolution");
+        const TorchNodeProxy* convolution_mode = graph.find_node_by_kind("aten::_convolution_mode");
+        const TorchNodeProxy* pad = graph.find_node_by_kind("aten::pad");
+        const TorchNodeProxy* reflection_pad1d = graph.find_node_by_kind("aten::reflection_pad1d");
+        const TorchNodeProxy* replication_pad1d = graph.find_node_by_kind("aten::replication_pad1d");
 
         if (convolution_mode)
         {
             convolution = convolution_mode;
         }
 
-        const auto& weight = mod.attr("weight").toTensor();
+        const TorchTensorProxy& weight = mod.hasattr("weight") ? mod.attr("weight") : mod.attr("weight_v");
 
         op->params["groups"] = convolution->namedInput("groups");
         op->params["in_channels"] = weight.size(1) * op->params["groups"].i;
@@ -129,9 +115,24 @@ public:
         op->params["bias"] = mod.hasattr("bias");
 
         op->attrs["weight"] = weight;
+        if (!mod.hasattr("weight"))
+        {
+            // weight norm
+            Attribute weight_g = mod.attr("weight_g");
+            std::vector<float> weight_data = op->attrs["weight"].get_float32_data();
+            std::vector<float> weight_g_data = weight_g.get_float32_data();
+            int outch = op->params.at("out_channels").i;
+            int inch = op->params.at("in_channels").i * op->params.at("kernel_size").ai[0];
+            apply_weight_norm(weight_data, weight_g_data, outch, inch);
+            op->attrs["weight"].set_float32_data(weight_data);
+
+            // drop the additional weight input
+            op->inputs[1]->remove_consumer(op);
+            op->inputs.resize(1);
+        }
         if (mod.hasattr("bias"))
         {
-            op->attrs["bias"] = mod.attr("bias").toTensor();
+            op->attrs["bias"] = mod.attr("bias");
         }
     }
 };

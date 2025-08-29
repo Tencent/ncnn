@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_onnx.h"
 
@@ -693,6 +682,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::size";
             }
 
+            if (op_type == "Einsum")
+            {
+                sim_op_type = "aten::einsum";
+            }
+
             // unaryop
             if (op_type == "Abs") sim_op_type = "aten::abs";
             if (op_type == "Acos") sim_op_type = "aten::acos";
@@ -718,6 +712,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Sqrt") sim_op_type = "aten::sqrt";
             if (op_type == "Tan") sim_op_type = "aten::tan";
             if (op_type == "Tanh") sim_op_type = "aten::tanh";
+            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
+            if (op_type == "Not") sim_op_type = "aten::logical_not";
 
             // binaryop
             if (op_type == "Add") sim_op_type = "aten::add";
@@ -733,15 +729,14 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Greater") sim_op_type = "aten::gt";
             if (op_type == "GreaterOrEqual") sim_op_type = "aten::ge";
             if (op_type == "BitwiseAnd") sim_op_type = "aten::bitwise_and";
-            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
             if (op_type == "BitwiseOr") sim_op_type = "aten::bitwise_or";
             if (op_type == "BitwiseXor") sim_op_type = "aten::bitwise_xor";
-            if (op_type == "And") sim_op_type = "aten::__and__";
-            if (op_type == "Or") sim_op_type = "aten::__or__";
-            if (op_type == "Xor") sim_op_type = "aten::__xor__";
+            if (op_type == "And") sim_op_type = "aten::logical_and";
+            if (op_type == "Or") sim_op_type = "aten::logical_or";
+            if (op_type == "Xor") sim_op_type = "aten::logical_xor";
+            if (op_type == "Mod" && onnx2pnnx::OnnxNodeProxy(node).attribute("fmod").value_i() == 1) sim_op_type = "aten::fmod";
 
             // trinaryop
-            if (op_type == "Clip") sim_op_type = "aten::clamp";
             if (op_type == "Where") sim_op_type = "aten::where";
         }
         else if (string_starts_with(op_type, "aten_"))
@@ -880,7 +875,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                             i64 = tensor.int64_data().at(0);
                         }
                         if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                        if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                         if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                        if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                         op_const->params["value"] = (int)i64;
                     }
                     else if (tensor.data_type() == onnx::TensorProto::FLOAT)
@@ -966,7 +963,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         {
                             int64_t i64 = ai[k];
                             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                            if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                             if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                            if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                             expr += std::to_string(i64);
                             if (k != (int)ai.size() - 1)
                                 expr += ",";
@@ -1091,6 +1090,24 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 }
                 op->outputs.clear();
                 op->outputs.push_back(op1_in);
+            }
+
+            if (op_type == "Einsum")
+            {
+                // insert for einsum prim::ListConstruct
+                Operator* opm1 = pnnx_graph.new_operator_before("prim::ListConstruct", op->name + "_listconstruct", op);
+                Operand* opm1_out = pnnx_graph.new_operand(op->name + "_in");
+                opm1_out->producer = opm1;
+                opm1->outputs.push_back(opm1_out);
+                for (auto& x : op->inputs)
+                {
+                    opm1->inputs.push_back(x);
+                    x->remove_consumer(op);
+                    x->consumers.push_back(opm1);
+                }
+                opm1_out->consumers.push_back(op);
+                op->inputs.clear();
+                op->inputs.push_back(opm1_out);
             }
         }
         else if (is_prim_op)

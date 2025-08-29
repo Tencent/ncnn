@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "unaryop_x86.h"
 
@@ -61,8 +50,6 @@ static int unary_op_inplace(Mat& a, const Option& opt)
         float* ptr = a.channel(q);
 
         int i = 0;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
         for (; i + 15 < size; i += 16)
         {
@@ -71,7 +58,17 @@ static int unary_op_inplace(Mat& a, const Option& opt)
             _mm512_storeu_ps(ptr, _p);
             ptr += 16;
         }
-#endif // __AVX512F__
+        if (i < size)
+        {
+            const unsigned int remain = size - i;
+            __mmask16 _mask = (__mmask16)((1u << remain) - 1);
+            __m512 _p = _mm512_maskz_loadu_ps(_mask, ptr);
+            _p = op.func_pack16(_p);
+            _mm512_mask_storeu_ps(ptr, _mask, _p);
+        }
+#else // __AVX512F__
+#if __SSE2__
+#if __AVX__
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
@@ -93,6 +90,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
             *ptr = op.func(*ptr);
             ptr++;
         }
+#endif // __AVX512F__
     }
 
     return 0;
@@ -278,7 +276,7 @@ struct unary_op_rsqrt
         __m256 _x1 = _mm512_extractf32x8_ps(x, 1);
         _x0 = _mm256_rsqrt_ps(_x0);
         _x1 = _mm256_rsqrt_ps(_x1);
-        return _mm512_insertf32x8(_mm512_castps256_ps512(_x0), _x1, 1);
+        return combine8x2_ps(_x0, _x1);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -575,17 +573,8 @@ struct unary_op_round
 {
     NCNN_FORCEINLINE float func(const float& x) const
     {
-        // round to nearest even
         // return (x + 12582912.f) - 12582912.f;
-#ifdef FE_TONEAREST
-        int old_rm = fegetround();
-        fesetround(FE_TONEAREST);
-#endif
-        float y = nearbyintf(x);
-#ifdef FE_TONEAREST
-        fesetround(old_rm);
-#endif
-        return y;
+        return nearbyintf(x);
     }
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x) const
@@ -701,7 +690,18 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
 
     if (op_type == Operation_ROUND)
-        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+    {
+        // round to nearest even
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        int ret = unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return ret;
+    }
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);

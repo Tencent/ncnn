@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "shape_inference.h"
 #include <unordered_set>
@@ -418,12 +407,14 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 std::vector<c10::ShapeSymbol> sizes1 = type1->symbolic_sizes().sizes().value();
                 std::vector<c10::ShapeSymbol> sizes2 = type2->symbolic_sizes().sizes().value();
 
+                bool is_shape_static = true;
                 for (size_t i = 0; i < sizes1.size(); i++)
                 {
                     if (sizes1[i] == sizes2[i])
                         continue;
 
                     sizes1[i] = c10::ShapeSymbol::fromStaticSize(-1);
+                    is_shape_static = false;
                 }
 
                 auto finaltype = type1->withSymbolicShapes(c10::SymbolicShape(sizes1));
@@ -431,7 +422,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 v->setType(finaltype);
 
                 // check if value that does not depend on inputs
-                if (value_link_input_map.find(v->debugName()) == value_link_input_map.end() && value_link_output(v, g_outputs))
+                if (is_shape_static && value_link_input_map.find(v->debugName()) == value_link_input_map.end() && value_link_output(v, g_outputs))
                 {
                     // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
                     foldable_constants.insert(v->debugName());

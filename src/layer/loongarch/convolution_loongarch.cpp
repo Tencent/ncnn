@@ -1,16 +1,5 @@
-// yala is pleased to support the open source community by making ncnn available.
-//
-//
-// Copyright (C) 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>. All rights reserved.
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution_loongarch.h"
 
@@ -282,7 +271,7 @@ int Convolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const 
             top_blob.w = top_blob_3d.c;
             top_blob.h = 1;
             top_blob.c = 1;
-            bottom_blob_3d.cstep = top_blob_3d.c;
+            top_blob.cstep = top_blob_3d.c;
         }
         else
         {
@@ -949,6 +938,29 @@ int Convolution_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& t
             convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
     }
+
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+        // NCNN_LOGE("top_blob_int32  %d  %d", top_blob_int32.c, top_blob_int32.elempack);
+        if (use_int8_requantize)
+        {
+            // TODO implement winograd sgemm packed int8 pack1 output
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 1)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 1, opt);
+                top_blob_int32 = tmp;
+            }
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 0)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 8, opt);
+                top_blob_int32 = tmp;
+            }
+        }
+    }
+#endif
 
     if (use_int8_requantize)
     {

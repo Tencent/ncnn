@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -123,6 +112,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "atan"
                  || t == "ceil"
                  || t == "cos"
+                 || t == "erf"
                  || t == "exp"
                  || t == "floor"
                  || t == "log"
@@ -154,6 +144,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "ceil") op_unary->params["0"] = 3;
             if (t == "cos") op_unary->params["0"] = 10;
             if (t == "exp") op_unary->params["0"] = 7;
+            if (t == "erf") fprintf(stderr, "UnaryOp erf not supported yet\n"); // TODO
             if (t == "floor") op_unary->params["0"] = 2;
             if (t == "log") op_unary->params["0"] = 8;
             if (t == "log10") op_unary->params["0"] = 17;

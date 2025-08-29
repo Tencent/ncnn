@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_SIMPLEMATH_H
 #define NCNN_SIMPLEMATH_H
@@ -39,6 +28,7 @@ NCNN_EXPORT float ceilf(float);
 NCNN_EXPORT float fmaxf(float, float);
 NCNN_EXPORT float truncf(float);
 NCNN_EXPORT float frac(float);
+NCNN_EXPORT float fmodf(float, float);
 /*
 * ====================================================
 * trigonometric functions
@@ -51,7 +41,12 @@ NCNN_EXPORT float asinf(float);
 NCNN_EXPORT float acosf(float);
 NCNN_EXPORT float atanf(float);
 NCNN_EXPORT float atan2f(float, float);
+NCNN_EXPORT float sinhf(float);
+NCNN_EXPORT float coshf(float);
 NCNN_EXPORT float tanhf(float);
+NCNN_EXPORT float asinhf(float);
+NCNN_EXPORT float acoshf(float);
+NCNN_EXPORT float atanhf(float);
 
 /*
 * ====================================================

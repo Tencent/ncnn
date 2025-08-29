@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "load_torchscript.h"
 
@@ -22,6 +11,7 @@
 
 #include <torch/script.h>
 #include <torch/csrc/api/include/torch/version.h>
+#include <torch/csrc/jit/serialization/import_read.h>
 #ifdef PNNX_TORCHVISION
 namespace vision {
 int64_t cuda_version();
@@ -30,6 +20,7 @@ int64_t cuda_version();
 
 #include "pass_level0.h"
 #include "pass_level1.h"
+#include "pass_level1/fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -109,7 +100,9 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             type = 2;
             int64_t i64 = value_node->i(torch::jit::attr::value);
             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+            if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
             if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+            if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
             i = (int)i64;
             break;
         }
@@ -150,7 +143,9 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                     type = 2;
                     int64_t i64 = t.item<int64_t>();
                     if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                    if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                     if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                    if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                     i = (int)i64;
                 }
                 else if (t.scalar_type() == c10::ScalarType::Int)
@@ -202,7 +197,9 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                 for (auto i64 : i64s)
                 {
                     if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                    if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                     if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                    if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                     ai.push_back(i64);
                 }
                 break;
@@ -371,6 +368,11 @@ Attribute::Attribute(const at::Tensor& t)
     }
 }
 
+Attribute::Attribute(const TorchTensorProxy& t)
+    : Attribute(t.t())
+{
+}
+
 Operand* Graph::new_operand(const torch::jit::Value* v)
 {
     // Operand* r = new Operand;
@@ -421,15 +423,160 @@ static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
     return torch::kFloat32;
 }
 
-const torch::jit::Node* find_node_by_kind(const std::shared_ptr<torch::jit::Graph>& graph, const std::string& kind)
+static const char* get_at_tensor_type_str(const at::ScalarType& st)
 {
-    for (const auto& n : graph->nodes())
+    if (st == c10::ScalarType::Float) return "f32";
+    if (st == c10::ScalarType::Double) return "f64";
+    if (st == c10::ScalarType::Half) return "f16";
+    if (st == c10::ScalarType::Int) return "i32";
+    if (st == c10::ScalarType::Long) return "i64";
+    if (st == c10::ScalarType::Short) return "i16";
+    if (st == c10::ScalarType::Char) return "i8";
+    if (st == c10::ScalarType::Byte) return "u8";
+    if (st == c10::ScalarType::ComplexFloat) return "c64";
+    if (st == c10::ScalarType::ComplexDouble) return "c128";
+    if (st == c10::ScalarType::ComplexHalf) return "c32";
+    if (st == c10::ScalarType::BFloat16) return "bf16";
+
+    // unknown
+    fprintf(stderr, "unsupported tensor elem data type %d\n", (int)st);
+    return "";
+}
+
+static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, const std::vector<std::string>& types)
+{
+    for (size_t i = 0; i < shapes.size(); i++)
     {
-        if (n->kind().toDisplayString() == kind)
-            return n;
+        const std::vector<int64_t>& s = shapes[i];
+        const std::string& t = types[i];
+        fprintf(stderr, "[");
+        for (size_t j = 0; j < s.size(); j++)
+        {
+            fprintf(stderr, "%ld", s[j]);
+            if (j != s.size() - 1)
+                fprintf(stderr, ",");
+        }
+        fprintf(stderr, "]");
+        fprintf(stderr, "%s", t.c_str());
+        if (i != shapes.size() - 1)
+            fprintf(stderr, ",");
+    }
+}
+
+static void append_input(std::vector<std::vector<int64_t> >& input_shapes, std::vector<std::string>& input_types, const torch::jit::IValue& v)
+{
+    if (v.isTensor())
+    {
+        const auto& tensor = v.toTensor();
+        input_shapes.push_back(tensor.sizes().vec());
+        input_types.push_back(get_at_tensor_type_str(tensor.scalar_type()));
+    }
+    else if (v.isList())
+    {
+        for (const auto& v2 : v.toList())
+            append_input(input_shapes, input_types, v2);
+    }
+    else if (v.isTuple())
+    {
+        for (const auto& v2 : v.toTuple()->elements())
+            append_input(input_shapes, input_types, v2);
+    }
+    else if (v.isGenericDict())
+    {
+        for (const auto& kv2 : v.toGenericDict())
+            append_input(input_shapes, input_types, kv2.value());
+    }
+    else
+    {
+        fprintf(stderr, "unsupported traced input type %s\n", v.tagKind().c_str());
+    }
+}
+
+static void get_traced_input_shape(const std::string& ptpath, std::vector<std::vector<int64_t> >& input_shapes, std::vector<std::string>& input_types)
+{
+    try
+    {
+        // read traced_inputs.pkl
+        caffe2::serialize::PyTorchStreamReader reader(ptpath);
+        auto v = torch::jit::readArchiveAndTensors("traced_inputs", "", "traced_inputs/", c10::nullopt, c10::nullopt, c10::nullopt, reader);
+
+        if (!v.isGenericDict())
+            return;
+
+        for (const auto& entry : v.toGenericDict())
+        {
+            if (entry.key() != "forward")
+                continue;
+
+            append_input(input_shapes, input_types, entry.value());
+            break;
+        }
+    }
+    catch (...)
+    {
+        // no traced_inputs.pkl pass
+    }
+}
+
+static bool check_input_shape(const std::vector<std::vector<int64_t> >& traced_input_shapes, const std::vector<std::string>& traced_input_types, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types)
+{
+    if (input_shapes.size() != traced_input_shapes.size())
+    {
+        fprintf(stderr, "input_shape expect %d tensors but got %d\n", (int)traced_input_shapes.size(), (int)input_shapes.size());
+        return false;
     }
 
-    return 0;
+    for (size_t i = 0; i < traced_input_shapes.size(); i++)
+    {
+        bool matched = true;
+
+        if (input_shapes[i].size() != traced_input_shapes[i].size())
+        {
+            matched = false;
+        }
+        else
+        {
+            for (size_t j = 0; j < traced_input_shapes[i].size(); j++)
+            {
+                if (input_shapes[i][j] != traced_input_shapes[i][j])
+                    matched = false;
+            }
+        }
+
+        if (input_types[i] != traced_input_types[i])
+            matched = false;
+
+        if (!matched)
+        {
+            fprintf(stderr, "input_shapes[%d] expect [", (int)i);
+            for (size_t j = 0; j < traced_input_shapes[i].size(); j++)
+            {
+                fprintf(stderr, "%ld", traced_input_shapes[i][j]);
+                if (j + 1 != traced_input_shapes[i].size())
+                    fprintf(stderr, ",");
+            }
+            fprintf(stderr, "]%s but got ", traced_input_types[i].c_str());
+            if (input_shapes.empty())
+            {
+                fprintf(stderr, "nothing\n");
+            }
+            else
+            {
+                fprintf(stderr, "[");
+                for (size_t j = 0; j < input_shapes[i].size(); j++)
+                {
+                    fprintf(stderr, "%ld", input_shapes[i][j]);
+                    if (j + 1 != input_shapes[i].size())
+                        fprintf(stderr, ",");
+                }
+                fprintf(stderr, "]%s\n", input_types[i].c_str());
+            }
+
+            return false;
+        }
+    }
+
+    return true;
 }
 
 int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
@@ -443,6 +590,38 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
                      const std::string& foldable_constants_zippath,
                      std::set<std::string>& foldable_constants)
 {
+    // get input shape from traced torchscript
+    std::vector<std::vector<int64_t> > traced_input_shapes;
+    std::vector<std::string> traced_input_types;
+    get_traced_input_shape(ptpath, traced_input_shapes, traced_input_types);
+
+    if (!traced_input_shapes.empty())
+    {
+        fprintf(stderr, "get inputshape from traced inputs\n");
+        fprintf(stderr, "inputshape = ");
+        print_shape_list(traced_input_shapes, traced_input_types);
+        fprintf(stderr, "\n");
+
+        if (!input_shapes.empty())
+        {
+            // input shape sanity check
+            if (!check_input_shape(traced_input_shapes, traced_input_types, input_shapes, input_types))
+            {
+                return -1;
+            }
+        }
+        // traced torchscript always has static input shapes
+        // if (!input_shapes2.empty() && !check_input_shape(ptpath, input_shapes2, input_types2))
+        // {
+        //     return -1;
+        // }
+    }
+    else
+    {
+        traced_input_shapes = input_shapes;
+        traced_input_types = input_types;
+    }
+
 #ifdef PNNX_TORCHVISION
     // call some vision api to register vision ops  :P
     (void)vision::cuda_version();
@@ -467,10 +646,10 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     }
 
     std::vector<at::Tensor> input_tensors;
-    for (size_t i = 0; i < input_shapes.size(); i++)
+    for (size_t i = 0; i < traced_input_shapes.size(); i++)
     {
-        const std::vector<int64_t>& shape = input_shapes[i];
-        const std::string& type = input_types[i];
+        const std::vector<int64_t>& shape = traced_input_shapes[i];
+        const std::string& type = traced_input_types[i];
 
         at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
         if (device == "gpu")

@@ -76,13 +76,6 @@ You can write shader code with ncnn glsl extension, compiled to spir-v using ncn
 static const char my_glsl_data[] = R"(
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
 layout (binding = 1) writeonly buffer b_blob { sfpvec4 b_blob_data[]; };
 
@@ -139,10 +132,9 @@ layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 
 |storage type|fp32|fp16p|fp16s|
 |---|---|---|---|
-|sfp|float|float|float16_t|
+|sfp|float|uint|float16_t|
 |sfpvec2|vec2|uint|f16vec2|
 |sfpvec4|vec4|uvec2|f16vec4|
-|sfpvec8|mat2x4|uvec4|f16mat2x4|
 
 ## arithmetic type
 
@@ -160,7 +152,6 @@ void main()
 |afp|float|float16_t|
 |afpvec2|vec2|f16vec2|
 |afpvec4|vec4|f16vec4|
-|afpvec8|mat2x4|f16mat2x4|
 
 ## local type
 
@@ -175,24 +166,6 @@ shared lfp tmp_a[8][4][2];
 |lfp|float|float|float|float16_t|
 |lfpvec4|vec4|uvec2|uint64_t|f16vec4|
 
-## image format and precision hint type
-
-declare image format in descriptor binding
-
-```c
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-```
-
-|format type|fp32|fp16p|fp16s|
-|---|---|---|---|
-|imfmt1|r32f|f32f|r16f|
-|imfmt4|rgba32f|rgba16f|rgba16f|
-
-|precision hint type|fp32|fp16p|fp16s|
-|---|---|---|---|
-|unfp|highp|mediump|mediump|
-
 # buffer functions
 
 - load typed value from src[offset]
@@ -201,7 +174,6 @@ layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 afp buffer_ld1(sfp src, int offset);
 afpvec2 buffer_ld2(sfpvec2 src, int offset);
 afpvec4 buffer_ld4(sfpvec4 src, int offset);
-afpvec8 buffer_ld8(sfpvec8 src, int offset);
 ```
 
 - store typed value to dst[offset]
@@ -210,7 +182,6 @@ afpvec8 buffer_ld8(sfpvec8 src, int offset);
 void buffer_st1(sfp dst, int offset, afp v);
 void buffer_st2(sfpvec2 dst, int offset, afpvec2 v);
 void buffer_st4(sfpvec4 dst, int offset, afpvec4 v);
-void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 ```
 
 - copy typed value from src[src_offset] to dst[dst_offset]
@@ -219,71 +190,19 @@ void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 void buffer_cp1(sfp dst, int dst_offset, sfp src, int src_offset);
 void buffer_cp2(sfpvec2 dst, int dst_offset, sfpvec2 src, int src_offset);
 void buffer_cp4(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
-void buffer_cp8(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
 ```
 
 - copy and pack value from src[src_offsets[0],src_offsets[1],...] to dst[dst_offset]
 
 ```c
 void buffer_cp1to4(sfpvec4 dst, int dst_offset, sfp src, ivec4 src_offsets);
-void buffer_cp1to8(sfpvec8 dst, int dst_offset, sfp src, ivec4 src_offsets_0, ivec4 src_offsets_1);
-void buffer_cp4to8(sfpvec8 dst, int dst_offset, sfpvec4 src, ivec2 src_offsets);
 ```
 
 - copy and unpack value from src[src_offset] to dst[dst_offsets[0],dst_offsets[1],...]
 
 ```c
 void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
-void buffer_cp8to1(sfp dst, ivec4 dst_offsets_0, ivec4 dst_offsets_1, sfpvec8 src, int src_offset);
-void buffer_cp8to4(sfpvec4 dst, ivec2 dst_offsets, sfpvec8 src, int src_offset);
 ```
-
-# image functions
-
-- load typed value from src at pos
-
-```c
-afp image1d_ld1(sampler1D src, float pos);
-afp image2d_ld1(sampler2D src, vec2 pos);
-afp image3d_ld1(sampler3D src, vec3 pos);
-afpvec4 image1d_ld4(sampler1D src, float pos);
-afpvec4 image2d_ld4(sampler2D src, vec2 pos);
-afpvec4 image3d_ld4(sampler3D src, vec3 pos);
-afpvec8 image1d_ld8(sampler1D src, float pos);
-afpvec8 image2d_ld8(sampler2D src, vec2 pos);
-afpvec8 image3d_ld8(sampler3D src, vec3 pos);
-```
-
-- store typed value to dst at pos
-
-```c
-void image1d_st1(image1D dst, int pos, afp v);
-void image2d_st1(image2D dst, ivec2 pos, afp v);
-void image3d_st1(image3D dst, ivec3 pos, afp v);
-void image1d_st4(image1D dst, int pos, afpvec4 v);
-void image2d_st4(image2D dst, ivec2 pos, afpvec4 v);
-void image3d_st4(image3D dst, ivec3 pos, afpvec4 v);
-void image1d_st8(image1D dst, int pos, afpvec8 v);
-void image2d_st8(image2D dst, ivec2 pos, afpvec8 v);
-void image3d_st8(image3D dst, ivec3 pos, afpvec8 v);
-```
-
-- copy typed value from src at src_pos to dst at dst_pos
-
-```c
-void image1d_cp1(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp1(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp1(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp4(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp4(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp4(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp8(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp8(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp8(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-```
-
-Note: Since image is an opaque data structure, no copy and pack/unpack functions are provided. To achieve this operation, you need to load first and then store.
-
 # local data conversion functions
 
 - storage buffer to local memory
@@ -336,27 +255,114 @@ judge if the current platform is moltenvk, for enabling some platform-specific w
 #endif
 ```
 
-# option macros
-
-enable glsl extension only if user enable some options
+ncnn adds additional macro definitions in the new version, which may conflict or confuse the existing glsl code. In order to obtain cross-version compatibility of ncnn, you can switch between the old and new codes according to the `ncnn_glsl_version` macro version.
 
 ```c
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#if ncnn_glsl_version >= 1
+// use device macros introduced since version 1
 #endif
 ```
 
-declare descriptor binding for image or buffer
+ncnn additionally defines most of the vulkan device-related features as macros, which we can use to distinguish different platforms, device extensions, features, and properties
+
+### extension macros
+
+When the device supports an extension, `ncnn_<extension_name>` is defined as the extension version
 
 ```c
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-#else
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+void main()
+{
+#if ncnn_VK_KHR_16bit_storage
+    // here is the code for any device that supports VK_KHR_16bit_storage
 #endif
+
+#if ncnn_VK_KHR_sampler_ycbcr_conversion >= 10
+    // here is the code for any device that supports VK_KHR_sampler_ycbcr_conversion and version >= 10
+#endif
+}
+```
+
+### device feature and property macros
+
+ncnn will query device features and properties and then define them as macros.
+
+The macro name is `ncnn_<feature_name>` or `ncnn_<property_name>`
+
+The `GL_EXT_shader_explicit_arithmetic_types_int64` extension will be automatically enabled without explicit code indication when the device supports `shaderInt64`
+
+```c
+void main()
+{
+#if ncnn_robustBufferAccess
+    // here is the code for any device that supports robustBufferAccess feature
+#endif
+
+#if ncnn_vendorID == 4318
+    // here is the vendor specific code, 4318 is nvidia graphics
+#endif
+
+#if ncnn_subgroupSize == 32
+    // here is the code path optimized for subgroup_size == 32
+#endif
+
+    // use macro definitions
+    uint size; // dynamic value from some previous routines
+    if (size < ncnn_subgroupSize)
+    {
+#if ncnn_supportedOperations & 4
+        // subgroup support arithmetic
+#endif
+
+#if ncnn_subgroup_arithmetic
+        // shorthand style for checking subgroup arithmetic :P
+#endif
+    }
+}
+```
+
+### validation layer macros
+
+ncnn will define some additional convenient macros when the vulkan validation layer enabled
+
+* `ncnn_enable_validation_layer`
+* `NCNN_LOGE`
+
+currently, you have to modify the `ENABLE_VALIDATION_LAYER` definition at the beginning of `src/gpu.cpp` to `1` to enable these macros.
+
+The `GL_EXT_debug_printf` extension will be enabled automatically without explicitly specifying it in your code.
+
+```c
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+
+#if ncnn_enable_validation_layer
+    NCNN_LOGE("gx = %d\n", gx);
+#endif
+}
+```
+
+At runtime, `NCNN_LOGE` will print out the value of `gx`
+
+### option macros
+
+enable glsl extension only if user enable some options
+
+The `GL_EXT_shader_16bit_storage` extension will be automatically enabled without explicit code indication when the device supports 16-bit storage and the user turns on `opt.use_fp16_storage`
+
+The `GL_EXT_shader_explicit_arithmetic_types_float16` extension will be automatically enabled without explicit code indication when the device supports 16-bit arithmetic and the user turns on `opt.use_fp16_arithmetic`
+
+```c
+void main()
+{
+#if NCNN_fp16_storage
+    // the user enable fp16 storage option and the device has fp16 storage support
+#endif
+
+#if NCNN_fp16_arithmetic
+    // the user enable fp16 arithmetic option and the device has fp16 arithmetic support
+#endif
+}
 ```
 
 |macro|defined by option|
@@ -367,5 +373,4 @@ layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; }
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
-|NCNN_image_shader|opt.use_image_storage|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|

@@ -1,0 +1,68 @@
+// Copyright 2025 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const int cast_type_from = 0;
+layout (constant_id = 1) const int cast_type_to = 1;
+
+#define shape_constant_id_offset 2
+layout (constant_id = shape_constant_id_offset + 0) const uint n = 0;
+layout (constant_id = shape_constant_id_offset + 1) const uint c = 0;
+layout (constant_id = shape_constant_id_offset + 2) const uint stride = 0;
+
+layout (binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_data[]; };
+layout (binding = 1) readonly buffer bottom_blob_int32 { ivec4 bottom_blob_int32_data[]; };
+layout (binding = 2) writeonly buffer top_blob { sint8 top_blob_data[]; };
+layout (binding = 3) writeonly buffer top_blob_int32 { int top_blob_int32_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    uint n;
+    uint c;
+    uint stride;
+} p;
+
+void main()
+{
+    const uint gx = gl_GlobalInvocationID.x;
+    const uint gy = gl_GlobalInvocationID.y;
+
+    if (gx >= psc(n) || gy >= psc(c))
+        return;
+
+    const uint gi = gy * psc(n) + gx;
+
+    const uvec4 gi4 = (gy * 4 + uvec4(0, 1, 2, 3)) * psc(stride) + gx;
+
+//     if (cast_type_from == cast_type_to)
+//     {
+//         buffer_cp4to1(top_blob_data, gi4, bottom_blob_data, gi);
+//         return;
+//     }
+
+    ivec4 v;
+    if (cast_type_from == 3)
+    {
+        v = bottom_blob_int32_data[gi];
+    }
+    else
+    {
+        v = i8buffer_ld4(bottom_blob_data, gi);
+    }
+
+    if (cast_type_to == 3)
+    {
+        top_blob_int32_data[gi4.r] = v.r;
+        top_blob_int32_data[gi4.g] = v.g;
+        top_blob_int32_data[gi4.b] = v.b;
+        top_blob_int32_data[gi4.a] = v.a;
+    }
+    else
+    {
+        i8buffer_st1(top_blob_data, gi4.r, v.r);
+        i8buffer_st1(top_blob_data, gi4.g, v.g);
+        i8buffer_st1(top_blob_data, gi4.b, v.b);
+        i8buffer_st1(top_blob_data, gi4.a, v.a);
+    }
+}

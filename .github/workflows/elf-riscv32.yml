@@ -1,0 +1,91 @@
+name: elf-riscv32
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/elf-riscv32.yml'
+    - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/elf-riscv32.yml'
+    - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+concurrency:
+  group: elf-riscv32-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  rv32gc:
+    runs-on: [self-hosted, linux, centos]
+    steps:
+    - uses: actions/checkout@v5
+
+    #- name: riscv-gnu-toolchain
+      #run: |
+        #wget -c https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2025.01.20/riscv32-elf-ubuntu-22.04-gcc-nightly-2025.01.20-nightly.tar.xz
+        #tar -xf riscv32-elf-ubuntu-22.04-gcc-nightly-2025.01.20-nightly.tar.xz
+        #mv riscv riscv32-elf
+
+    #- name: checkout-riscv-pk
+      #uses: actions/checkout@v5
+      #with:
+        #repository: riscv/riscv-pk
+        #path: riscv-pk
+        #ref: d8659a4e8e888bdc9caf840ad17bfe83239b1d64
+    #- name: riscv-pk
+      #run: |
+        #cd riscv-pk
+        #mkdir build && cd build
+        #export PATH=$GITHUB_WORKSPACE/riscv32-elf/bin:$PATH
+        #export CFLAGS="-O3"
+        #export CXXFLAGS="-O3"
+        #../configure --prefix=$GITHUB_WORKSPACE/riscv32-elf --with-arch=rv32gc_zicsr_zifencei --host=riscv32-unknown-elf --with-abi=ilp32d
+        #make -j4
+        #make install
+
+    #- name: checkout-riscv-isa-sim
+      #uses: actions/checkout@v5
+      #with:
+        #repository: riscv-software-src/riscv-isa-sim
+        #path: riscv-isa-sim
+        #ref: 5ef9a61f5fecdb9bf77da155172c8018ce820308
+    #- name: riscv-isa-sim
+      #run: |
+        #cd riscv-isa-sim
+        #mkdir build && cd build
+        #export PATH=$GITHUB_WORKSPACE/riscv32-elf/bin:$PATH
+        #export CFLAGS="-O3"
+        #export CXXFLAGS="-O3"
+        #../configure --prefix=$GITHUB_WORKSPACE/riscv32-elf
+        #make -j4
+        #make install
+
+    #- name: riscv-strip-install
+      #run: find $GITHUB_WORKSPACE/riscv32-elf -type f | xargs -i strip -g {} || true
+
+    - name: build
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/riscv32-elf
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv32-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_RVV=OFF -DNCNN_XTHEADVECTOR=OFF -DNCNN_ZFH=OFF -DNCNN_ZVFH=OFF ..
+        cmake --build . -j 4
+
+    - name: test
+      run: |
+        export PATH=/data/action/osd/riscv32-elf/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS="--isa=rv32gc;/data/action/osd/riscv32-elf/riscv32-unknown-elf/bin/pk" ctest --output-on-failure -j 4

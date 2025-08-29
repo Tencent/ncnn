@@ -1,19 +1,5 @@
-// Xavier Hsinyuan is pleased to support the open source community by making
-// ncnn available.
-//
-// Copyright (C) 2021 Xavier Hsinyuan <me@lstlx.com>. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this
-// file except in compliance with the License. You may obtain a copy of the
-// License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations under
-// the License.
+// Copyright 2021 Xavier Hsinyuan <me@lstlx.com>
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "dropout_riscv.h"
 
@@ -53,11 +39,11 @@ int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         int n = size;
         while (n > 0)
         {
-            size_t vl = vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(n);
 
-            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-            _p = vfmul_vf_f32m8(_p, scale, vl);
-            vse32_v_f32m8(ptr, _p, vl);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+            _p = __riscv_vfmul_vf_f32m8(_p, scale, vl);
+            __riscv_vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
             n -= vl;

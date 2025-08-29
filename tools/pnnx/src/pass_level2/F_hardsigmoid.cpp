@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -35,7 +24,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid, 100)
 
 class F_hardsigmoid_2 : public GraphRewriterPass
 {
@@ -50,7 +39,7 @@ prim::Constant          op_1        0 1 412 value=1
 aten::add               op_2        3 1 input 410 412 a
 prim::Constant          op_3        0 1 413 value=0
 prim::Constant          op_4        0 1 414 value=6
-aten::clamp             op_5        3 1 a 413 414 b
+torch.clamp             op_5        3 1 a 413 414 b
 prim::Constant          op_6        0 1 409 value=6
 aten::div               op_7        2 1 b 409 out
 pnnx.Output             output      1 0 out
@@ -63,7 +52,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_2, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_2, 100)
 
 class F_hardsigmoid_2_1 : public F_hardsigmoid_2
 {
@@ -77,7 +66,7 @@ prim::Constant          op_0        0 1 410 value=3
 aten::add               op_1        2 1 input 410 a
 prim::Constant          op_2        0 1 413 value=0
 prim::Constant          op_3        0 1 414 value=6
-aten::clamp             op_4        3 1 a 413 414 b
+torch.clamp             op_4        3 1 a 413 414 b
 prim::Constant          op_5        0 1 409 value=6
 aten::div               op_6        2 1 b 409 out
 pnnx.Output             output      1 0 out
@@ -85,7 +74,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_2_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_2_1, 100)
 
 class F_hardsigmoid_3 : public GraphRewriterPass
 {
@@ -113,7 +102,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_3, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_3, 100)
 
 class F_hardsigmoid_4 : public GraphRewriterPass
 {
@@ -139,7 +128,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_4, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_4, 100)
 
 class F_hardsigmoid_5 : public GraphRewriterPass
 {
@@ -165,7 +154,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_5, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_5, 100)
 
 static bool NearlyEqual(float a, float b, float epsilon)
 {
@@ -209,7 +198,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx, 101)
 
 class F_hardsigmoid_onnx_1 : public GraphRewriterPass
 {
@@ -241,7 +230,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_1, 101)
 
 class F_hardsigmoid_onnx_2 : public GraphRewriterPass
 {
@@ -281,7 +270,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_2, 101)
 
 class F_hardsigmoid_onnx_3 : public F_hardsigmoid_onnx_2
 {
@@ -304,6 +293,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_3, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_3, 101)
 
 } // namespace pnnx

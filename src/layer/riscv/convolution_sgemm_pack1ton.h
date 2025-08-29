@@ -1,21 +1,10 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void im2col_sgemm_pack1ton_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const size_t vl = vsetvl_e32m1(packn);
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
 
     // Mat bottom_im2col(size, maxk, inch, 4u, 1, opt.workspace_allocator);
 
@@ -63,23 +52,23 @@ static void im2col_sgemm_pack1ton_rvv(const Mat& bottom_im2col, Mat& top_blob, c
 
             int nn = inch * maxk; // inch always > 0
 
-            vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+            vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
             if (bias)
             {
-                _sum = vle32_v_f32m1(bias + p * packn, vl);
+                _sum = __riscv_vle32_v_f32m1(bias + p * packn, vl);
             }
 
             for (int j = 0; j < nn; j++)
             {
                 float val = *tmpptr++;
-                vfloat32m1_t _w0 = vle32_v_f32m1(kptr0, vl);
-                _sum = vfmacc_vf_f32m1(_sum, val, _w0, vl);
+                vfloat32m1_t _w0 = __riscv_vle32_v_f32m1(kptr0, vl);
+                _sum = __riscv_vfmacc_vf_f32m1(_sum, val, _w0, vl);
 
                 kptr0 += packn;
             }
 
-            vse32_v_f32m1(outptr0, _sum, vl);
+            __riscv_vse32_v_f32m1(outptr0, _sum, vl);
 
             outptr0 += packn;
         }

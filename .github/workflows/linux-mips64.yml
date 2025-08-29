@@ -1,0 +1,74 @@
+name: linux-mips64
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-mips64.yml'
+    - 'toolchains/mips64el-linux-gnuabi64.toolchain.cmake'
+    - 'toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/mips/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-mips64.yml'
+    - 'toolchains/mips64el-linux-gnuabi64.toolchain.cmake'
+    - 'toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/mips/**'
+    - 'tests/**'
+concurrency:
+  group: linux-mips64-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  mips64el:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: mips64el-gnuabi64-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-mips64el-linux-gnuabi64 qemu-user-static
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mips64el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mips64el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)
+
+  mipsisa64r6el:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: mipsisa64r6el-gnuabi64-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-mipsisa64r6el-linux-gnuabi64 qemu-user-static
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)

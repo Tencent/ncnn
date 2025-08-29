@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_expression.h"
 
@@ -44,7 +33,7 @@ static bool operand_maybe_tensor(const Operand* operand)
     if (op->type == "prim::Constant")
     {
         const Parameter& param = op->params.at("value");
-        if (param.type == 0 || param.type == 1 || param.type == 2 || param.type == 3 || param.type == 4 || param.type == 10)
+        if (param.type == 0 || param.type == 1 || param.type == 2 || param.type == 3 || param.type == 4 || param.type == 5 || param.type == 6 || param.type == 7 || param.type == 10)
         {
             return false;
         }
@@ -72,6 +61,11 @@ static bool operand_maybe_tensor(const Operand* operand)
     if (op->type == "aten::size")
     {
         return op->inputs.size() == 1;
+    }
+
+    if (op->type == "Tensor.size")
+    {
+        return !op->has_param("dim");
     }
 
     if (op->type == "Tensor.slice")
@@ -130,6 +124,7 @@ static bool operand_maybe_tensor(const Operand* operand)
             || op->type == "aten::ceil"
             || op->type == "aten::cos"
             || op->type == "aten::cosh"
+            || op->type == "aten::erf"
             || op->type == "aten::exp"
             || op->type == "aten::floor"
             || op->type == "aten::log"
@@ -568,6 +563,22 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             expr += ")";
         }
     }
+    else if (op->type == "Tensor.size")
+    {
+        if (op->has_param("dim") && op->params.at("dim").type == 2)
+        {
+            const int dim = op->params.at("dim").i;
+            expr += "size(";
+            fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
+            expr += ",";
+            expr += std::to_string(dim);
+            expr += ")";
+        }
+        else
+        {
+            fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
+        }
+    }
     else if (op->type == "Tensor.slice" && !operand_maybe_tensor(operand))
     {
         int start = op->inputs.size() == 3 ? op->inputs[1]->producer->params.at("value").i : op->inputs[2]->producer->params.at("value").i;
@@ -627,6 +638,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
              || op->type == "aten::ceil"
              || op->type == "aten::cos"
              || op->type == "aten::cosh"
+             || op->type == "aten::erf"
              || op->type == "aten::exp"
              || op->type == "aten::floor"
              || op->type == "aten::log"
@@ -839,6 +851,10 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             {
                 need_fuse = true;
             }
+            if (op->type == "Tensor.size")
+            {
+                need_fuse = true;
+            }
             if (op->type == "Tensor.to")
             {
                 // fuse noop type cast only
@@ -863,6 +879,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
                     || op->type == "aten::cos"
                     || op->type == "aten::cosh"
                     || op->type == "aten::div"
+                    || op->type == "aten::erf"
                     || op->type == "aten::exp"
                     || op->type == "aten::floor"
                     || op->type == "aten::floor_divide"

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -39,7 +28,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice, 70)
 
 class Tensor_slice_onnx : public GraphRewriterPass
 {
@@ -93,7 +82,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice_onnx, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice_onnx, 70)
 
 class Tensor_slice_onnx_1 : public GraphRewriterPass
 {
@@ -148,6 +137,80 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice_onnx_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice_onnx_1, 70)
+
+class Tensor_slice_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.StridedSliceV2      op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.slice";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int nbegins = captured_params.at("op_0.arg0").i;
+        std::vector<int> begins(nbegins);
+        for (int i = 0; i < nbegins; i++)
+        {
+            begins[i] = captured_params.at("op_0.arg" + std::to_string(i + 1)).i;
+        }
+        const int nends = captured_params.at("op_0.arg" + std::to_string(nbegins + 1)).i;
+        std::vector<int> ends(nends);
+        for (int i = 0; i < nends; i++)
+        {
+            ends[i] = captured_params.at("op_0.arg" + std::to_string(i + 2 + nbegins)).i;
+        }
+        const int naxes = captured_params.at("op_0.arg" + std::to_string(nbegins + nends + 2)).i;
+        std::vector<int> axes(naxes);
+        for (int i = 0; i < naxes; i++)
+        {
+            axes[i] = captured_params.at("op_0.arg" + std::to_string(i + 3 + nbegins + nends)).i;
+        }
+
+        std::vector<int> strides;
+        if (captured_params.find("op_0.arg" + std::to_string(nbegins + nends + naxes + 3)) != captured_params.end())
+        {
+            const int nstrides = captured_params.at("op_0.arg" + std::to_string(nbegins + nends + naxes + 3)).i;
+            strides.resize(nstrides);
+            for (int i = 0; i < nstrides; i++)
+            {
+                strides[i] = captured_params.at("op_0.arg" + std::to_string(i + 4 + nbegins + nends + naxes)).i;
+            }
+        }
+        else
+        {
+            strides.resize(naxes, 1);
+        }
+
+        if (axes.size() == 1)
+        {
+            op->params["dim"] = axes[0];
+            op->params["start"] = begins[0];
+            op->params["end"] = ends[0];
+            op->params["step"] = strides[0];
+        }
+        else
+        {
+            op->params["dims"] = axes;
+            op->params["starts"] = begins;
+            op->params["ends"] = ends;
+            op->params["steps"] = strides;
+            op->params["selects"] = std::vector<int>(axes.size(), INT_MAX);
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_slice_tnn, 70)
 
 } // namespace pnnx

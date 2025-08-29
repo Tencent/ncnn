@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_VULKAN_HEADER_FIX_H
 #define NCNN_VULKAN_HEADER_FIX_H
@@ -1218,5 +1207,439 @@ typedef struct VkPhysicalDeviceCooperativeMatrixPropertiesKHR
 } VkPhysicalDeviceCooperativeMatrixPropertiesKHR;
 typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixPropertiesKHR* pProperties);
 #endif // VK_KHR_cooperative_matrix
+
+#ifndef VK_KHR_driver_properties
+#define VK_KHR_driver_properties                                1
+#define VK_MAX_DRIVER_NAME_SIZE                                 256U
+#define VK_MAX_DRIVER_INFO_SIZE                                 256U
+#define VK_MAX_DRIVER_NAME_SIZE_KHR                             VK_MAX_DRIVER_NAME_SIZE
+#define VK_MAX_DRIVER_INFO_SIZE_KHR                             VK_MAX_DRIVER_INFO_SIZE
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES     (VkStructureType)1000196000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES
+typedef enum VkDriverId
+{
+    VK_DRIVER_ID_AMD_PROPRIETARY = 1,
+    VK_DRIVER_ID_AMD_OPEN_SOURCE = 2,
+    VK_DRIVER_ID_MESA_RADV = 3,
+    VK_DRIVER_ID_NVIDIA_PROPRIETARY = 4,
+    VK_DRIVER_ID_INTEL_PROPRIETARY_WINDOWS = 5,
+    VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA = 6,
+    VK_DRIVER_ID_IMAGINATION_PROPRIETARY = 7,
+    VK_DRIVER_ID_QUALCOMM_PROPRIETARY = 8,
+    VK_DRIVER_ID_ARM_PROPRIETARY = 9,
+    VK_DRIVER_ID_GOOGLE_SWIFTSHADER = 10,
+    VK_DRIVER_ID_GGP_PROPRIETARY = 11,
+    VK_DRIVER_ID_BROADCOM_PROPRIETARY = 12,
+    VK_DRIVER_ID_MESA_LLVMPIPE = 13,
+    VK_DRIVER_ID_MOLTENVK = 14,
+    VK_DRIVER_ID_COREAVI_PROPRIETARY = 15,
+    VK_DRIVER_ID_JUICE_PROPRIETARY = 16,
+    VK_DRIVER_ID_VERISILICON_PROPRIETARY = 17,
+    VK_DRIVER_ID_MESA_TURNIP = 18,
+    VK_DRIVER_ID_MESA_V3DV = 19,
+    VK_DRIVER_ID_MESA_PANVK = 20,
+    VK_DRIVER_ID_SAMSUNG_PROPRIETARY = 21,
+    VK_DRIVER_ID_MESA_VENUS = 22,
+    VK_DRIVER_ID_MESA_DOZEN = 23,
+    VK_DRIVER_ID_MESA_NVK = 24,
+    VK_DRIVER_ID_IMAGINATION_OPEN_SOURCE_MESA = 25,
+    VK_DRIVER_ID_MESA_AGXV = 26,
+    VK_DRIVER_ID_MAX_ENUM = 0x7FFFFFFF
+} VkDriverId;
+typedef struct VkConformanceVersion
+{
+    uint8_t major;
+    uint8_t minor;
+    uint8_t subminor;
+    uint8_t patch;
+} VkConformanceVersion;
+typedef struct VkPhysicalDeviceDriverProperties
+{
+    VkStructureType sType;
+    void* pNext;
+    VkDriverId driverID;
+    char driverName[VK_MAX_DRIVER_NAME_SIZE];
+    char driverInfo[VK_MAX_DRIVER_INFO_SIZE];
+    VkConformanceVersion conformanceVersion;
+} VkPhysicalDeviceDriverProperties;
+typedef VkDriverId VkDriverIdKHR;
+typedef VkConformanceVersion VkConformanceVersionKHR;
+typedef VkPhysicalDeviceDriverProperties VkPhysicalDeviceDriverPropertiesKHR;
+#endif // VK_KHR_driver_properties
+
+#ifndef VK_EXT_subgroup_size_control
+#define VK_EXT_subgroup_size_control                                                   1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES               (VkStructureType)1000225002
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES             (VkStructureType)1000225000
+#define VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO     (VkStructureType)1000225001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT           VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES
+#define VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO
+typedef enum VkPipelineShaderStageCreateFlagBits
+{
+    VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT = 0x00000001,
+    VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT = 0x00000002,
+    VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT = VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT,
+    VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT = VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT,
+    VK_PIPELINE_SHADER_STAGE_CREATE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
+} VkPipelineShaderStageCreateFlagBits;
+typedef VkFlags VkPipelineShaderStageCreateFlags;
+typedef struct VkPhysicalDeviceSubgroupSizeControlFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 subgroupSizeControl;
+    VkBool32 computeFullSubgroups;
+} VkPhysicalDeviceSubgroupSizeControlFeatures;
+typedef struct VkPhysicalDeviceSubgroupSizeControlProperties
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t minSubgroupSize;
+    uint32_t maxSubgroupSize;
+    uint32_t maxComputeWorkgroupSubgroups;
+    VkShaderStageFlags requiredSubgroupSizeStages;
+} VkPhysicalDeviceSubgroupSizeControlProperties;
+typedef struct VkPipelineShaderStageRequiredSubgroupSizeCreateInfo
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t requiredSubgroupSize;
+} VkPipelineShaderStageRequiredSubgroupSizeCreateInfo;
+typedef VkPhysicalDeviceSubgroupSizeControlFeatures VkPhysicalDeviceSubgroupSizeControlFeaturesEXT;
+typedef VkPhysicalDeviceSubgroupSizeControlProperties VkPhysicalDeviceSubgroupSizeControlPropertiesEXT;
+typedef VkPipelineShaderStageRequiredSubgroupSizeCreateInfo VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT;
+#endif // VK_EXT_subgroup_size_control
+
+#ifndef VK_KHR_shader_subgroup_rotate
+#define VK_KHR_shader_subgroup_rotate                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES     (VkStructureType)1000416000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES
+#define VK_SUBGROUP_FEATURE_ROTATE_BIT                                        (VkSubgroupFeatureFlagBits)0x00000200
+#define VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT                              (VkSubgroupFeatureFlagBits)0x00000400
+#define VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR                                    VK_SUBGROUP_FEATURE_ROTATE_BIT
+#define VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR                          VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT
+typedef struct VkPhysicalDeviceShaderSubgroupRotateFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderSubgroupRotate;
+    VkBool32 shaderSubgroupRotateClustered;
+} VkPhysicalDeviceShaderSubgroupRotateFeatures;
+typedef VkPhysicalDeviceShaderSubgroupRotateFeatures VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR;
+#endif // VK_KHR_shader_subgroup_rotate
+
+#ifndef VK_EXT_shader_atomic_float
+#define VK_EXT_shader_atomic_float                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT (VkStructureType)1000260000
+typedef struct VkPhysicalDeviceShaderAtomicFloatFeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderBufferFloat32Atomics;
+    VkBool32 shaderBufferFloat32AtomicAdd;
+    VkBool32 shaderBufferFloat64Atomics;
+    VkBool32 shaderBufferFloat64AtomicAdd;
+    VkBool32 shaderSharedFloat32Atomics;
+    VkBool32 shaderSharedFloat32AtomicAdd;
+    VkBool32 shaderSharedFloat64Atomics;
+    VkBool32 shaderSharedFloat64AtomicAdd;
+    VkBool32 shaderImageFloat32Atomics;
+    VkBool32 shaderImageFloat32AtomicAdd;
+    VkBool32 sparseImageFloat32Atomics;
+    VkBool32 sparseImageFloat32AtomicAdd;
+} VkPhysicalDeviceShaderAtomicFloatFeaturesEXT;
+#endif // VK_EXT_shader_atomic_float
+
+#ifndef VK_EXT_shader_atomic_float2
+#define VK_EXT_shader_atomic_float2                                          1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_2_FEATURES_EXT (VkStructureType)1000273000
+typedef struct VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderBufferFloat16Atomics;
+    VkBool32 shaderBufferFloat16AtomicAdd;
+    VkBool32 shaderBufferFloat16AtomicMinMax;
+    VkBool32 shaderBufferFloat32AtomicMinMax;
+    VkBool32 shaderBufferFloat64AtomicMinMax;
+    VkBool32 shaderSharedFloat16Atomics;
+    VkBool32 shaderSharedFloat16AtomicAdd;
+    VkBool32 shaderSharedFloat16AtomicMinMax;
+    VkBool32 shaderSharedFloat32AtomicMinMax;
+    VkBool32 shaderSharedFloat64AtomicMinMax;
+    VkBool32 shaderImageFloat32AtomicMinMax;
+    VkBool32 sparseImageFloat32AtomicMinMax;
+} VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT;
+#endif // VK_EXT_shader_atomic_float2
+
+#ifndef VK_KHR_shader_integer_dot_product
+#define VK_KHR_shader_integer_dot_product                                           1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES       (VkStructureType)1000280000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES     (VkStructureType)1000280001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES_KHR   VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES
+typedef struct VkPhysicalDeviceShaderIntegerDotProductFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderIntegerDotProduct;
+} VkPhysicalDeviceShaderIntegerDotProductFeatures;
+typedef struct VkPhysicalDeviceShaderIntegerDotProductProperties
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 integerDotProduct8BitUnsignedAccelerated;
+    VkBool32 integerDotProduct8BitSignedAccelerated;
+    VkBool32 integerDotProduct8BitMixedSignednessAccelerated;
+    VkBool32 integerDotProduct4x8BitPackedUnsignedAccelerated;
+    VkBool32 integerDotProduct4x8BitPackedSignedAccelerated;
+    VkBool32 integerDotProduct4x8BitPackedMixedSignednessAccelerated;
+    VkBool32 integerDotProduct16BitUnsignedAccelerated;
+    VkBool32 integerDotProduct16BitSignedAccelerated;
+    VkBool32 integerDotProduct16BitMixedSignednessAccelerated;
+    VkBool32 integerDotProduct32BitUnsignedAccelerated;
+    VkBool32 integerDotProduct32BitSignedAccelerated;
+    VkBool32 integerDotProduct32BitMixedSignednessAccelerated;
+    VkBool32 integerDotProduct64BitUnsignedAccelerated;
+    VkBool32 integerDotProduct64BitSignedAccelerated;
+    VkBool32 integerDotProduct64BitMixedSignednessAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating8BitUnsignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating8BitSignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating8BitMixedSignednessAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating4x8BitPackedUnsignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating4x8BitPackedSignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating4x8BitPackedMixedSignednessAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating16BitUnsignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating16BitSignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating16BitMixedSignednessAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating32BitUnsignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating32BitSignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating32BitMixedSignednessAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating64BitUnsignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating64BitSignedAccelerated;
+    VkBool32 integerDotProductAccumulatingSaturating64BitMixedSignednessAccelerated;
+} VkPhysicalDeviceShaderIntegerDotProductProperties;
+typedef VkPhysicalDeviceShaderIntegerDotProductFeatures VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR;
+typedef VkPhysicalDeviceShaderIntegerDotProductProperties VkPhysicalDeviceShaderIntegerDotProductPropertiesKHR;
+#endif // VK_KHR_shader_integer_dot_product
+
+#ifndef VK_KHR_shader_bfloat16
+#define VK_KHR_shader_bfloat16                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR (VkStructureType)1000141000
+#define VK_COMPONENT_TYPE_BFLOAT16_KHR                                 (VkComponentTypeKHR)1000141000
+typedef struct VkPhysicalDeviceShaderBfloat16FeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderBFloat16Type;
+    VkBool32 shaderBFloat16DotProduct;
+    VkBool32 shaderBFloat16CooperativeMatrix;
+} VkPhysicalDeviceShaderBfloat16FeaturesKHR;
+#endif // VK_KHR_shader_bfloat16
+
+#ifndef VK_KHR_shader_float_controls
+#define VK_KHR_shader_float_controls                                    1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES     (VkStructureType)1000197000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES
+typedef enum VkShaderFloatControlsIndependence
+{
+    VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY = 0,
+    VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL = 1,
+    VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_NONE = 2,
+    VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY_KHR = VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY,
+    VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL_KHR = VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL,
+    VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_NONE_KHR = VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_NONE,
+    VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_MAX_ENUM = 0x7FFFFFFF
+} VkShaderFloatControlsIndependence;
+typedef struct VkPhysicalDeviceFloatControlsProperties
+{
+    VkStructureType sType;
+    void* pNext;
+    VkShaderFloatControlsIndependence denormBehaviorIndependence;
+    VkShaderFloatControlsIndependence roundingModeIndependence;
+    VkBool32 shaderSignedZeroInfNanPreserveFloat16;
+    VkBool32 shaderSignedZeroInfNanPreserveFloat32;
+    VkBool32 shaderSignedZeroInfNanPreserveFloat64;
+    VkBool32 shaderDenormPreserveFloat16;
+    VkBool32 shaderDenormPreserveFloat32;
+    VkBool32 shaderDenormPreserveFloat64;
+    VkBool32 shaderDenormFlushToZeroFloat16;
+    VkBool32 shaderDenormFlushToZeroFloat32;
+    VkBool32 shaderDenormFlushToZeroFloat64;
+    VkBool32 shaderRoundingModeRTEFloat16;
+    VkBool32 shaderRoundingModeRTEFloat32;
+    VkBool32 shaderRoundingModeRTEFloat64;
+    VkBool32 shaderRoundingModeRTZFloat16;
+    VkBool32 shaderRoundingModeRTZFloat32;
+    VkBool32 shaderRoundingModeRTZFloat64;
+} VkPhysicalDeviceFloatControlsProperties;
+typedef VkShaderFloatControlsIndependence VkShaderFloatControlsIndependenceKHR;
+typedef VkPhysicalDeviceFloatControlsProperties VkPhysicalDeviceFloatControlsPropertiesKHR;
+#endif // VK_KHR_shader_float_controls
+
+#ifndef VK_KHR_shader_float_controls2
+#define VK_KHR_shader_float_controls2                                          1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT_CONTROLS_2_FEATURES     (VkStructureType)1000528000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT_CONTROLS_2_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT_CONTROLS_2_FEATURES
+typedef struct VkPhysicalDeviceShaderFloatControls2Features
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderFloatControls2;
+} VkPhysicalDeviceShaderFloatControls2Features;
+typedef VkPhysicalDeviceShaderFloatControls2Features VkPhysicalDeviceShaderFloatControls2FeaturesKHR;
+#endif // VK_KHR_shader_float_controls2
+
+#ifndef VK_NV_cooperative_vector
+#define VK_NV_cooperative_vector                                           1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV   (VkStructureType)1000491000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_PROPERTIES_NV (VkStructureType)1000491001
+#define VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV                 (VkStructureType)1000491002
+#define VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV        (VkStructureType)1000491004
+#define VK_COMPONENT_TYPE_SINT8_PACKED_NV                                  (VkComponentTypeKHR)1000491000
+#define VK_COMPONENT_TYPE_UINT8_PACKED_NV                                  (VkComponentTypeKHR)1000491001
+#define VK_COMPONENT_TYPE_FLOAT_E4M3_NV                                    (VkComponentTypeKHR)1000491002
+#define VK_COMPONENT_TYPE_FLOAT_E5M2_NV                                    (VkComponentTypeKHR)1000491003
+typedef enum VkCooperativeVectorMatrixLayoutNV
+{
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_ROW_MAJOR_NV = 0,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_COLUMN_MAJOR_NV = 1,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_INFERENCING_OPTIMAL_NV = 2,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL_NV = 3,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_MAX_ENUM_NV = 0x7FFFFFFF
+} VkCooperativeVectorMatrixLayoutNV;
+#ifndef VK_KHR_acceleration_structure
+typedef union VkDeviceOrHostAddressConstKHR
+{
+    VkDeviceAddress deviceAddress;
+    const void* hostAddress;
+} VkDeviceOrHostAddressConstKHR;
+typedef union VkDeviceOrHostAddressKHR
+{
+    VkDeviceAddress deviceAddress;
+    void* hostAddress;
+} VkDeviceOrHostAddressKHR;
+#endif // VK_KHR_acceleration_structure
+typedef struct VkPhysicalDeviceCooperativeVectorPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkShaderStageFlags cooperativeVectorSupportedStages;
+    VkBool32 cooperativeVectorTrainingFloat16Accumulation;
+    VkBool32 cooperativeVectorTrainingFloat32Accumulation;
+    uint32_t maxCooperativeVectorComponents;
+} VkPhysicalDeviceCooperativeVectorPropertiesNV;
+typedef struct VkPhysicalDeviceCooperativeVectorFeaturesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeVector;
+    VkBool32 cooperativeVectorTraining;
+} VkPhysicalDeviceCooperativeVectorFeaturesNV;
+typedef struct VkCooperativeVectorPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkComponentTypeKHR inputType;
+    VkComponentTypeKHR inputInterpretation;
+    VkComponentTypeKHR matrixInterpretation;
+    VkComponentTypeKHR biasInterpretation;
+    VkComponentTypeKHR resultType;
+    VkBool32 transpose;
+} VkCooperativeVectorPropertiesNV;
+typedef struct VkConvertCooperativeVectorMatrixInfoNV
+{
+    VkStructureType sType;
+    const void* pNext;
+    size_t srcSize;
+    VkDeviceOrHostAddressConstKHR srcData;
+    size_t* pDstSize;
+    VkDeviceOrHostAddressKHR dstData;
+    VkComponentTypeKHR srcComponentType;
+    VkComponentTypeKHR dstComponentType;
+    uint32_t numRows;
+    uint32_t numColumns;
+    VkCooperativeVectorMatrixLayoutNV srcLayout;
+    size_t srcStride;
+    VkCooperativeVectorMatrixLayoutNV dstLayout;
+    size_t dstStride;
+} VkConvertCooperativeVectorMatrixInfoNV;
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeVectorPropertiesNV* pProperties);
+typedef VkResult(VKAPI_PTR* PFN_vkConvertCooperativeVectorMatrixNV)(VkDevice device, const VkConvertCooperativeVectorMatrixInfoNV* pInfo);
+typedef void(VKAPI_PTR* PFN_vkCmdConvertCooperativeVectorMatrixNV)(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkConvertCooperativeVectorMatrixInfoNV* pInfos);
+#endif // VK_NV_cooperative_vector
+
+#ifndef VK_NV_cooperative_matrix2
+#define VK_NV_cooperative_matrix2                                              1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV     (VkStructureType)1000593000
+#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_FLEXIBLE_DIMENSIONS_PROPERTIES_NV (VkStructureType)1000593001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_PROPERTIES_NV   (VkStructureType)1000593002
+typedef struct VkCooperativeMatrixFlexibleDimensionsPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t MGranularity;
+    uint32_t NGranularity;
+    uint32_t KGranularity;
+    VkComponentTypeKHR AType;
+    VkComponentTypeKHR BType;
+    VkComponentTypeKHR CType;
+    VkComponentTypeKHR ResultType;
+    VkBool32 saturatingAccumulation;
+    VkScopeKHR scope;
+    uint32_t workgroupInvocations;
+} VkCooperativeMatrixFlexibleDimensionsPropertiesNV;
+typedef struct VkPhysicalDeviceCooperativeMatrix2FeaturesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrixWorkgroupScope;
+    VkBool32 cooperativeMatrixFlexibleDimensions;
+    VkBool32 cooperativeMatrixReductions;
+    VkBool32 cooperativeMatrixConversions;
+    VkBool32 cooperativeMatrixPerElementOperations;
+    VkBool32 cooperativeMatrixTensorAddressing;
+    VkBool32 cooperativeMatrixBlockLoads;
+} VkPhysicalDeviceCooperativeMatrix2FeaturesNV;
+typedef struct VkPhysicalDeviceCooperativeMatrix2PropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t cooperativeMatrixWorkgroupScopeMaxWorkgroupSize;
+    uint32_t cooperativeMatrixFlexibleDimensionsMaxDimension;
+    uint32_t cooperativeMatrixWorkgroupScopeReservedSharedMemory;
+} VkPhysicalDeviceCooperativeMatrix2PropertiesNV;
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixFlexibleDimensionsPropertiesNV* pProperties);
+#endif // VK_NV_cooperative_matrix2
+
+#ifndef VK_EXT_shader_float8
+#define VK_EXT_shader_float8                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT (VkStructureType)1000567000
+#define VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT                            (VkComponentTypeKHR)1000491002
+#define VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT                            (VkComponentTypeKHR)1000491003
+typedef struct VkPhysicalDeviceShaderFloat8FeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderFloat8;
+    VkBool32 shaderFloat8CooperativeMatrix;
+} VkPhysicalDeviceShaderFloat8FeaturesEXT;
+#endif // VK_EXT_shader_float8
+
+#ifndef VK_KHR_vulkan_memory_model
+#define VK_KHR_vulkan_memory_model                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES     (VkStructureType)1000211000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES
+typedef struct VkPhysicalDeviceVulkanMemoryModelFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 vulkanMemoryModel;
+    VkBool32 vulkanMemoryModelDeviceScope;
+    VkBool32 vulkanMemoryModelAvailabilityVisibilityChains;
+} VkPhysicalDeviceVulkanMemoryModelFeatures;
+typedef VkPhysicalDeviceVulkanMemoryModelFeatures VkPhysicalDeviceVulkanMemoryModelFeaturesKHR;
+#endif // VK_KHR_vulkan_memory_model
 
 #endif // NCNN_VULKAN_HEADER_FIX_H

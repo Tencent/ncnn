@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "allocator.h"
 
@@ -741,7 +730,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
 
             // on amd integrated gpu, there is a faster and larger device-only heap
             uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physical_device_memory_properties();
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
             uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
             uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
             if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
@@ -898,6 +887,13 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
         if (elempack == 4) format = VK_FORMAT_R16G16B16A16_SFLOAT;
         if (elempack == 8) format = VK_FORMAT_R16G16B16A16_SFLOAT;
     }
+    if (elemsize / elempack == 1)
+    {
+        // int8
+        if (elempack == 1) format = VK_FORMAT_R8_SINT;
+        if (elempack == 4) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 8) format = VK_FORMAT_R8G8B8A8_SINT;
+    }
 
     // resolve image width height depth
     int width = w;
@@ -1009,7 +1005,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
             // on amd integrated gpu, there is a faster and larger device-only heap
             uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physical_device_memory_properties();
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
             uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
             uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
             if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
@@ -1334,7 +1330,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 
                     // on amd integrated gpu, there is a faster and larger device-only heap
                     uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-                    const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physical_device_memory_properties();
+                    const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
                     uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
                     uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
                     if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
@@ -1399,7 +1395,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 
             // on amd integrated gpu, there is a faster and larger device-only heap
             uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physical_device_memory_properties();
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
             uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
             uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
             if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
@@ -1492,6 +1488,16 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         if (elempack == 32) format = VK_FORMAT_R16G16B16A16_SFLOAT;
         if (elempack == 64) format = VK_FORMAT_R16G16B16A16_SFLOAT;
     }
+    if (elemsize / elempack == 1)
+    {
+        // int8
+        if (elempack == 1) format = VK_FORMAT_R8_SINT;
+        if (elempack == 4) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 8) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 16) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 32) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 64) format = VK_FORMAT_R8G8B8A8_SINT;
+    }
 
     // resolve image width height depth
     int width = w;
@@ -1551,7 +1557,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
                     // on amd integrated gpu, there is a faster and larger device-only heap
                     uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-                    const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physical_device_memory_properties();
+                    const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
                     uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
                     uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
                     if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
@@ -1661,7 +1667,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
             // on amd integrated gpu, there is a faster and larger device-only heap
             uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physical_device_memory_properties();
+            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
             uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
             uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
             if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)

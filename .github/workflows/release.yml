@@ -39,7 +39,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-full-source
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: package
@@ -58,17 +58,15 @@ jobs:
     strategy:
       matrix:
         opt:
-          - { shared-lib: OFF, os: ubuntu-20.04, id: ubuntu-2004        }
           - { shared-lib: OFF, os: ubuntu-22.04, id: ubuntu-2204        }
           - { shared-lib: OFF, os: ubuntu-24.04, id: ubuntu-2404        }
-          - { shared-lib: ON,  os: ubuntu-20.04, id: ubuntu-2004-shared }
           - { shared-lib: ON,  os: ubuntu-22.04, id: ubuntu-2204-shared }
           - { shared-lib: ON,  os: ubuntu-24.04, id: ubuntu-2404-shared }
     runs-on: ${{ matrix.opt.os }}
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: apt
@@ -119,7 +117,7 @@ jobs:
         key: openmp-macos-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -194,11 +192,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: download-openmp-macos
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-macos
         path: openmp-macos
@@ -242,19 +240,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create build-x86_64/install/lib/libglslang_combined.a build-arm64/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
@@ -312,7 +302,7 @@ jobs:
         key: openmp-ios-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -374,11 +364,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: download-openmp-ios
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-ios
         path: openmp-ios
@@ -416,11 +406,7 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
         cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
@@ -478,7 +464,7 @@ jobs:
         key: openmp-ios-simulator-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -551,11 +537,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-ios-simulator
         path: openmp-ios-simulator
@@ -599,19 +585,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -675,7 +653,7 @@ jobs:
         key: openmp-mac-catalyst-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -748,11 +726,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-mac-catalyst
         path: openmp-mac-catalyst
@@ -796,19 +774,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -872,7 +842,7 @@ jobs:
         key: openmp-watchos-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -939,9 +909,9 @@ jobs:
         -DNCNN_BUILD_BENCHMARK=OFF \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: download-openmp-watchos
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-watchos
         path: openmp-watchos
@@ -1021,7 +991,7 @@ jobs:
         key: openmp-watchos-simulator-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1088,9 +1058,9 @@ jobs:
         -DNCNN_BUILD_BENCHMARK=OFF \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: download-openmp-watchos-simulator
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-watchos-simulator
         path: openmp-watchos-simulator
@@ -1170,7 +1140,7 @@ jobs:
         key: openmp-tvos-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1243,11 +1213,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: download-openmp-tvos
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-tvos
         path: openmp-tvos
@@ -1291,19 +1261,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64e/install/lib/libglslang.a \
-            build-arm64e/install/lib/libMachineIndependent.a \
-            build-arm64e/install/lib/libGenericCodeGen.a \
             build-arm64e/install/lib/libSPIRV.a \
-            build-arm64e/install/lib/libOGLCompiler.a \
-            build-arm64e/install/lib/libOSDependent.a \
             -o build-arm64e/install/lib/libglslang_combined.a
         lipo -create \
             build-arm64/install/lib/libglslang_combined.a \
@@ -1367,7 +1329,7 @@ jobs:
         key: openmp-tvos-simulator-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1440,11 +1402,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: download-openmp-tvos-simulator
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-tvos-simulator
         path: openmp-tvos-simulator
@@ -1488,19 +1450,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -1564,7 +1518,7 @@ jobs:
         key: openmp-visionos-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1626,11 +1580,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: download-openmp-visionos
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-visionos
         path: openmp-visionos
@@ -1668,11 +1622,7 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
         cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
@@ -1730,7 +1680,7 @@ jobs:
         key: openmp-visionos-simulator-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1803,11 +1753,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: download-openmp-visionos-simulator
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: openmp-visionos-simulator
         path: openmp-visionos-simulator
@@ -1851,19 +1801,11 @@ jobs:
         ln -s Versions/Current/glslang glslang.framework/glslang
         libtool -static \
             build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
             build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
             -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static \
             build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
             build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
         lipo -create \
             build-x86_64/install/lib/libglslang_combined.a \
@@ -1916,17 +1858,18 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake \
+        -DANDROID_PLATFORM=android-21 \
         -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False \
+        -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=install \
         -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
         -DNCNN_BUILD_BENCHMARK=OFF \
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
         -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} \
-        -DNCNN_AVX512BF16=OFF \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: ndk-fix-debug
@@ -1934,25 +1877,31 @@ jobs:
     - name: build-armeabi-v7a
       run: |
         mkdir build-armeabi-v7a && cd build-armeabi-v7a
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-arm64-v8a
       run: |
         mkdir build-arm64-v8a && cd build-arm64-v8a
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="arm64-v8a" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="x86_64" ..
+        cmake --build . -j $(nproc)
+        cmake --build . --target install/strip
+    - name: build-riscv64
+      run: |
+        mkdir build-riscv64 && cd build-riscv64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }}-DANDROID_ABI="riscv64" ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
@@ -1963,6 +1912,7 @@ jobs:
         cp -a build-arm64-v8a/install ${{ env.PACKAGENAME }}/arm64-v8a
         cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
         cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
+        cp -a build-riscv64/install ${{ env.PACKAGENAME }}/riscv64
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
@@ -1977,7 +1927,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: emsdk
       run: |
         git clone https://github.com/emscripten-core/emsdk.git
@@ -2041,14 +1991,14 @@ jobs:
     strategy:
       matrix:
         opt:
-          - { shared-lib: OFF, os: windows-2019, toolset-version: v140, id: vs2015 }
-          - { shared-lib: OFF, os: windows-2019, toolset-version: v141, id: vs2017 }
-          - { shared-lib: OFF, os: windows-2019, toolset-version: v142, id: vs2019 }
-          - { shared-lib: OFF, os: windows-2022, toolset-version: v143, id: vs2022 }
-          - { shared-lib: ON,  os: windows-2019, toolset-version: v140, id: vs2015-shared }
-          - { shared-lib: ON,  os: windows-2019, toolset-version: v141, id: vs2017-shared }
-          - { shared-lib: ON,  os: windows-2019, toolset-version: v142, id: vs2019-shared }
-          - { shared-lib: ON,  os: windows-2022, toolset-version: v143, id: vs2022-shared }
+          - { shared-lib: OFF, os: windows-2022, toolset-version: v140, windows-sdk-version: 22621, id: vs2015 }
+          - { shared-lib: OFF, os: windows-2022, toolset-version: v141, windows-sdk-version: 22621, id: vs2017 }
+          - { shared-lib: OFF, os: windows-2022, toolset-version: v142, windows-sdk-version: 22621, id: vs2019 }
+          - { shared-lib: OFF, os: windows-2022, toolset-version: v143, windows-sdk-version: 26100, id: vs2022 }
+          - { shared-lib: ON,  os: windows-2022, toolset-version: v140, windows-sdk-version: 22621, id: vs2015-shared }
+          - { shared-lib: ON,  os: windows-2022, toolset-version: v141, windows-sdk-version: 22621, id: vs2017-shared }
+          - { shared-lib: ON,  os: windows-2022, toolset-version: v142, windows-sdk-version: 22621, id: vs2019-shared }
+          - { shared-lib: ON,  os: windows-2022, toolset-version: v143, windows-sdk-version: 26100, id: vs2022-shared }
     runs-on: ${{ matrix.opt.os }}
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-${{ matrix.opt.id }}
@@ -2065,9 +2015,35 @@ jobs:
         -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} `
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
+
+    - name: Install VS 2017 (v141) Build Tools
+      if: matrix.opt.toolset-version == 'v141'
+      run: |
+        $vsInstallPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+        Start-Process -FilePath "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe" -ArgumentList "modify --installPath `"$vsInstallPath`" --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 --quiet --norestart --nocache" -Wait
+    - name: Install and Setup VS 2015 (v140) Build Tools
+      if: matrix.opt.toolset-version == 'v140'
+      run: |
+        $vs140Path = "C:/vs140_build_tools"
+        Invoke-WebRequest -Uri "https://aka.ms/vs/15/release/vs_buildtools.exe" -OutFile vs_buildtools.exe
+        Start-Process -FilePath "vs_buildtools.exe" -ArgumentList "--installPath `"$vs140Path`" --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.140 --quiet --wait --norestart --nocache" -Wait
+
+        $vcvarsPath = (Get-ChildItem -Path $vs140Path -Filter "vcvars64.bat" -Recurse | Select-Object -First 1).FullName
+        $cmd = "`"$vcvarsPath`" && powershell -Command `"`$env:PATH;`$env:INCLUDE;`$env:LIB`""
+        $output = cmd.exe /c $cmd
+        $lines = $output -split "`r`n"
+
+        echo "PATH=$($lines[0]);$($env:PATH)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        echo "INCLUDE=$($lines[1])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        echo "LIB=$($lines[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+      with:
+        sdk-version: ${{ matrix.opt.windows-sdk-version }}
+
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v4
@@ -2081,38 +2057,31 @@ jobs:
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
-        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A Win32,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
-        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A Win32 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A Win32,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" ..
-        cmake --build . --config Release -j 4
-        cmake --build . --config Release --target install
-    - name: build-arm
-      if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
-      run: |
-        mkdir build-arm; cd build-arm
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A arm ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A x64,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm64
       if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
       run: |
         mkdir build-arm64; cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A arm64 ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A arm64,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 ..
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
@@ -2130,11 +2099,9 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/arm
         mkdir ${{ env.PACKAGENAME }}/arm64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
@@ -2151,7 +2118,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_15.2.app
     - name: download
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         path: artifacts
 
@@ -2289,7 +2256,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: download
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         path: artifacts
 

@@ -1,0 +1,93 @@
+name: linux-aarch64
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-aarch64.yml'
+    - 'toolchains/aarch64-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-aarch64.yml'
+    - 'toolchains/aarch64-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'tests/**'
+concurrency:
+  group: linux-aarch64-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  aarch64-native:
+    runs-on: ubuntu-24.04-arm
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: cd build && ctest --output-on-failure -j $(nproc)
+
+    - name: build-noint8
+      run: |
+        mkdir build-noint8 && cd build-noint8
+        cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_INT8=OFF ..
+        cmake --build . -j $(nproc)
+    - name: test-noint8
+      run: cd build-noint8 && ctest --output-on-failure -j $(nproc)
+
+    - name: build-simplestl-simplemath
+      run: |
+        mkdir build-simplestl-simplemath && cd build-simplestl-simplemath 
+        cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEMATH=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j $(nproc)
+    - name: test-simplestl-simplemath
+      run: cd build-simplestl-simplemath && ctest --output-on-failure -j $(nproc)
+
+  aarch64:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: aarch64-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-aarch64-linux-gnu qemu-user-static
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: test-a53
+      run: cd build && TESTS_EXECUTABLE_LOADER=qemu-aarch64-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu;-cpu;cortex-a53" ctest --output-on-failure -j $(nproc)
+
+    - name: test-a55
+      run: cd build && TESTS_EXECUTABLE_LOADER=qemu-aarch64-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu;-cpu;cortex-a55" ctest --output-on-failure -j $(nproc)
+
+    - name: test-a72
+      run: cd build && TESTS_EXECUTABLE_LOADER=qemu-aarch64-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu;-cpu;cortex-a72" ctest --output-on-failure -j $(nproc)
+
+    - name: test-a76
+      run: cd build && TESTS_EXECUTABLE_LOADER=qemu-aarch64-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu;-cpu;cortex-a76" ctest --output-on-failure -j $(nproc)
+
+    - name: test-a710
+      run: cd build && TESTS_EXECUTABLE_LOADER=qemu-aarch64-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu;-cpu;cortex-a710" ctest --output-on-failure -j $(nproc)
+
+    - name: test-max
+      run: cd build && TESTS_EXECUTABLE_LOADER=qemu-aarch64-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu;-cpu;max" ctest --output-on-failure -j $(nproc)

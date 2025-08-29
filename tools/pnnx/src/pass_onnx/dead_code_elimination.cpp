@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "dead_code_elimination.h"
 
@@ -44,16 +33,25 @@ static void collect_dead_nodes(const onnx::GraphProto& graph, std::vector<std::s
 
         if (is_outputs_live)
         {
-            for (int j = node.output_size() - 1; j >= 0; j--)
+            bool is_outputs_optional = true;
+
+            // some operator output be discarded even if not used
+            const std::string& op_type = node.op_type();
+            if (op_type == "Split") is_outputs_optional = false;
+
+            if (is_outputs_optional)
             {
-                if (live_inputs.find(node.output(j)) == live_inputs.end())
+                for (int j = node.output_size() - 1; j >= 0; j--)
                 {
-                    dead_outputs.push_back(node.output(j));
-                }
-                else
-                {
-                    // leading outputs cannot be optional
-                    break;
+                    if (live_inputs.find(node.output(j)) == live_inputs.end())
+                    {
+                        dead_outputs.push_back(node.output(j));
+                    }
+                    else
+                    {
+                        // leading outputs cannot be optional
+                        break;
+                    }
                 }
             }
 
@@ -65,6 +63,11 @@ static void collect_dead_nodes(const onnx::GraphProto& graph, std::vector<std::s
         else
         {
             dead_node_indexes.push_back(i);
+
+            for (int j = node.output_size() - 1; j >= 0; j--)
+            {
+                dead_outputs.push_back(node.output(j));
+            }
         }
 
         if (is_outputs_live)

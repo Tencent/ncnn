@@ -1,24 +1,14 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "concat_riscv.h"
 
 #if __riscv_vector
 #include <riscv_vector.h>
+#include "riscv_usability.h"
 #endif // __riscv_vector
 
-#include "riscv_usability.h"
+#include "cpu.h"
 
 namespace ncnn {
 
@@ -26,10 +16,10 @@ Concat_riscv::Concat_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
-    support_fp16_storage = true;
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -40,7 +30,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 {
     int elembits = bottom_blobs[0].elembits();
 
-#if __riscv_vector && __riscv_zfh
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 #endif
@@ -143,7 +133,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const size_t vl = vsetvl_e32m1(packn);
+                const size_t vl = __riscv_vsetvl_e32m1(packn);
 
                 for (int i = 0; i < bottom_blob.h; i++)
                 {
@@ -153,8 +143,8 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
                     for (int j = 0; j < w; j++)
                     {
-                        vfloat32m1_t _p = vle32_v_f32m1(r0, vl);
-                        vsse32_v_f32m1(outptr0, w * sizeof(float), _p, vl);
+                        vfloat32m1_t _p = __riscv_vle32_v_f32m1(r0, vl);
+                        __riscv_vsse32_v_f32m1(outptr0, w * sizeof(float), _p, vl);
 
                         r0 += packn;
                         outptr0 += 1;
@@ -271,7 +261,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const size_t vl = vsetvl_e32m1(packn);
+                const size_t vl = __riscv_vsetvl_e32m1(packn);
 
                 int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
 
@@ -283,8 +273,8 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
                     for (int i = 0; i < size; i++)
                     {
-                        vfloat32m1_t _p = vle32_v_f32m1(r0, vl);
-                        vsse32_v_f32m1(outptr0, top_blob_unpacked.cstep * sizeof(float), _p, vl);
+                        vfloat32m1_t _p = __riscv_vle32_v_f32m1(r0, vl);
+                        __riscv_vsse32_v_f32m1(outptr0, top_blob_unpacked.cstep * sizeof(float), _p, vl);
 
                         r0 += packn;
                         outptr0 += 1;
@@ -545,7 +535,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 for (int i = 0; i < bottom_blob.h; i++)
                 {
@@ -555,8 +545,8 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 
                     for (int j = 0; j < w; j++)
                     {
-                        vuint16m1_t _p = vle16_v_u16m1(r0, vl);
-                        vsse16_v_u16m1(outptr0, w * sizeof(unsigned short), _p, vl);
+                        vuint16m1_t _p = __riscv_vle16_v_u16m1(r0, vl);
+                        __riscv_vsse16_v_u16m1(outptr0, w * sizeof(unsigned short), _p, vl);
 
                         r0 += packn;
                         outptr0 += 1;
@@ -673,7 +663,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const size_t vl = vsetvl_e16m1(packn);
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
 
                 int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
 
@@ -685,8 +675,8 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 
                     for (int i = 0; i < size; i++)
                     {
-                        vuint16m1_t _p = vle16_v_u16m1(r0, vl);
-                        vsse16_v_u16m1(outptr0, top_blob_unpacked.cstep * sizeof(unsigned short), _p, vl);
+                        vuint16m1_t _p = __riscv_vle16_v_u16m1(r0, vl);
+                        __riscv_vsse16_v_u16m1(outptr0, top_blob_unpacked.cstep * sizeof(unsigned short), _p, vl);
 
                         r0 += packn;
                         outptr0 += 1;

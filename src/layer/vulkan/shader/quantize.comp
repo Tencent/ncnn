@@ -1,0 +1,52 @@
+// Copyright 2025 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const int scale_data_size = 0;
+layout (constant_id = 1) const float scale_value = 1.f;
+
+#define shape_constant_id_offset 2
+layout (constant_id = shape_constant_id_offset + 0) const uint c = 0;
+layout (constant_id = shape_constant_id_offset + 1) const uint in_stride = 0;
+layout (constant_id = shape_constant_id_offset + 2) const uint out_stride = 0;
+
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sint8 top_blob_data[]; };
+layout (binding = 2) readonly buffer scale_blob { sfp scale_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    uint c;
+    uint in_stride;
+    uint out_stride;
+} p;
+
+void main()
+{
+    const uint gi = gl_GlobalInvocationID.x;
+
+    if (gi >= psc(in_stride) * psc(c))
+        return;
+
+    const uint gy = gi / psc(in_stride);
+    const uint gx = gi % psc(in_stride);
+
+    afp v = buffer_ld1(bottom_blob_data, gi);
+
+    afp scale;
+    if (scale_data_size == 1)
+    {
+        scale = afp(scale_value);
+    }
+    else
+    {
+        scale = buffer_ld1(scale_blob_data, gy);
+    }
+
+    int v_int = int(round(clamp(v * scale, afp(-127.f), afp(127.f))));
+
+    const uint outgi = gy * psc(out_stride) + gx;
+
+    i8buffer_st1(top_blob_data, outgi, v_int);
+}

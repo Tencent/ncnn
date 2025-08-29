@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -40,7 +29,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm, 130)
 
 class F_layer_norm_onnx : public GraphRewriterPass
 {
@@ -83,7 +72,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx, 130)
 
 class F_layer_norm_onnx_1 : public F_layer_norm_onnx
 {
@@ -114,7 +103,7 @@ pnnx.Output             output      3 0 out Mean InvStdDev
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 130)
 
 class F_layer_norm_onnx_2 : public F_layer_norm_onnx
 {
@@ -132,7 +121,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_2, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_2, 130)
 
 class F_layer_norm_onnx_3 : public GraphRewriterPass
 {
@@ -168,7 +157,11 @@ pnnx.Output             output      1 0 out
             return false;
 
         // dim must be the last N dimensions
-        std::vector<int> dim = captured_params.at("dim").ai;
+        std::vector<int> dim;
+        if (captured_params.at("dim").type == 2)
+            dim.push_back(captured_params.at("dim").i);
+        else // if (captured_params.at("dim").type == 5)
+            dim = captured_params.at("dim").ai;
 
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
@@ -194,7 +187,11 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& inputshape = op->inputs[0]->shape;
-        const std::vector<int>& dim = captured_params.at("dim").ai;
+        std::vector<int> dim;
+        if (captured_params.at("dim").type == 2)
+            dim.push_back(captured_params.at("dim").i);
+        else // if (captured_params.at("dim").type == 5)
+            dim = captured_params.at("dim").ai;
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
 
@@ -211,7 +208,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_3, 30)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_3, 131)
 
 class F_layer_norm_onnx_4 : public GraphRewriterPass
 {
@@ -251,7 +248,11 @@ pnnx.Output             output      1 0 out
             return false;
 
         // dim must be the last N dimensions
-        std::vector<int> dim = captured_params.at("dim").ai;
+        std::vector<int> dim;
+        if (captured_params.at("dim").type == 2)
+            dim.push_back(captured_params.at("dim").i);
+        else // if (captured_params.at("dim").type == 5)
+            dim = captured_params.at("dim").ai;
 
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
@@ -289,7 +290,11 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& inputshape = op->inputs[0]->shape;
-        const std::vector<int>& dim = captured_params.at("dim").ai;
+        std::vector<int> dim;
+        if (captured_params.at("dim").type == 2)
+            dim.push_back(captured_params.at("dim").i);
+        else // if (captured_params.at("dim").type == 5)
+            dim = captured_params.at("dim").ai;
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
 
@@ -304,6 +309,6 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_4, 29)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_4, 130)
 
 } // namespace pnnx

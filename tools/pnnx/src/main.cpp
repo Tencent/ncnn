@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <stdio.h>
 #include <stdint.h>
@@ -19,6 +8,11 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+
+#if defined _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 #include "ir.h"
 #include "pass_level2.h"
@@ -31,6 +25,9 @@
 #endif
 #if BUILD_ONNX2PNNX
 #include "load_onnx.h"
+#endif
+#if BUILD_TNN2PNNX
+#include "load_tnn.h"
 #endif
 
 #include "pass_ncnn.h"
@@ -173,6 +170,34 @@ static bool model_file_maybe_torchscript(const std::string& path)
     return signature == 0x04034b50;
 }
 
+static bool model_file_maybe_tnnproto(const std::string& path)
+{
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "open failed %s\n", path.c_str());
+        return false;
+    }
+
+    char line[256];
+    char* s = fgets(line, 256, fp);
+    if (!s)
+    {
+        fclose(fp);
+        return false;
+    }
+
+    uint32_t signature = 0;
+    if (line[0] == '\"')
+    {
+        sscanf(line + 1, "%*d %*d %*d %d", &signature);
+    }
+
+    fclose(fp);
+
+    return signature == 4206624772;
+}
+
 static void show_usage()
 {
     fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
@@ -200,6 +225,10 @@ static void show_usage()
 
 int main(int argc, char** argv)
 {
+#if defined _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
     if (argc < 2)
     {
         show_usage();
@@ -313,6 +342,17 @@ int main(int argc, char** argv)
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
     pnnx::Graph pnnx_graph;
+
+    // clang-format off
+    // *INDENT-OFF*
+
+#if BUILD_TNN2PNNX
+    if (model_file_maybe_tnnproto(ptpath))
+    {
+        load_tnn(ptpath, pnnx_graph);
+    }
+    else
+#endif
 #if BUILD_ONNX2PNNX
     if (!model_file_maybe_torchscript(ptpath))
     {
@@ -330,11 +370,14 @@ int main(int argc, char** argv)
                          foldable_constants_zippath, foldable_constants);
     }
 
+    // *INDENT-ON*
+    // clang-format on
+
     fprintf(stderr, "############# pass_level2\n");
 
     pnnx::pass_level2(pnnx_graph);
 
-    pnnx_graph.save("debug.param", "debug.bin");
+    // pnnx_graph.save("debug.param", "debug.bin");
 
     if (optlevel >= 1)
     {
@@ -347,7 +390,7 @@ int main(int argc, char** argv)
         pnnx::pass_level4(pnnx_graph);
     }
 
-    pnnx_graph.save("debug2.param", "debug2.bin");
+    // pnnx_graph.save("debug2.param", "debug2.bin");
 
     if (optlevel >= 2)
     {
@@ -361,7 +404,7 @@ int main(int argc, char** argv)
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath);
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
@@ -375,7 +418,7 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
     }
 
     //     pnnx::Graph pnnx_graph2;

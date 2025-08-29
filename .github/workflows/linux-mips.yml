@@ -1,0 +1,74 @@
+name: linux-mips
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-mips.yml'
+    - 'toolchains/mipsel-linux-gnu.toolchain.cmake'
+    - 'toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/mips/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-mips.yml'
+    - 'toolchains/mipsel-linux-gnu.toolchain.cmake'
+    - 'toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/mips/**'
+    - 'tests/**'
+concurrency:
+  group: linux-mips-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  mipsel:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: mipsel-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-mipsel-linux-gnu qemu-user-static
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsel-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mipsel-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsel-linux-gnu" ctest --output-on-failure -j $(nproc)
+
+  mipsisa32r6el:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: mipsisa32r6el-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-mipsisa32r6el-linux-gnu qemu-user-static
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mipsel-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j $(nproc)
