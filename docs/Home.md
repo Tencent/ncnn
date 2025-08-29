@@ -61,16 +61,16 @@ void pretty_print(const ncnn::Mat& m)
 ```cpp
 void pretty_print(const ncnn::VkMat& m, VkCompute& cmd, const Option& opt)
 {
+    Option opt_unpack = opt;
+    opt_unpack.use_packing_layout = false;
+
     ncnn::Mat m_cpu;
-    cmd.record_download(m, m_cpu, opt);
+    cmd.record_download(m, m_cpu, opt_unpack);
     cmd.submit_and_wait();
     cmd.reset();
 
-    ncnn::Mat m_cpu_unpacked;
-    ncnn::convert_packing(m_cpu, m_cpu_unpacked, 1, opt);
-
     // print Mat content
-    pretty_print(m_cpu_unpacked);
+    pretty_print(m_cpu);
 }
 ```
 
