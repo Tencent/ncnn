@@ -104,7 +104,6 @@ static int layernorm_fp16s(__fp16* ptr, const float* gamma_data, const float* be
     }
 
     i = 0;
-    int n = size;
     __fp16* ptr_store = ptr;
     if (gamma_data && beta_data)
     {
@@ -128,25 +127,23 @@ static int layernorm_fp16s(__fp16* ptr, const float* gamma_data, const float* be
         if (elementpack == 1)
         {
 #if __riscv_vector
-            while (n > 0)
+            for (; i + vl - 1 < size; i += vl)
             {
-                size_t vlr = __riscv_vsetvl_e16m4(n);
-                vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr_store, vlr), vlr);
-                _p = __riscv_vfmul_vf_f32m8(_p, a, vlr);
-                _p = __riscv_vfadd_vf_f32m8(_p, b, vlr);
+                vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr_store, vl), vl);
+                _p = __riscv_vfmul_vf_f32m8(_p, a, vl);
+                _p = __riscv_vfadd_vf_f32m8(_p, b, vl);
 
-                vfloat32m8_t _gamma = __riscv_vle32_v_f32m8(ptr_gamma, vlr);
-                vfloat32m8_t _beta = __riscv_vle32_v_f32m8(ptr_beta, vlr);
-                _p = __riscv_vfmadd_vv_f32m8(_p, _gamma, _beta, vlr);
-                __riscv_vse16_v_f16m4(ptr_store, __riscv_vfncvt_f_f_w_f16m4(_p, vlr), vlr);
+                vfloat32m8_t _gamma = __riscv_vle32_v_f32m8(ptr_gamma, vl);
+                vfloat32m8_t _beta = __riscv_vle32_v_f32m8(ptr_beta, vl);
+                _p = __riscv_vfmadd_vv_f32m8(_p, _gamma, _beta, vl);
+                __riscv_vse16_v_f16m4(ptr_store, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
-                n -= vlr;
-                ptr_store += vlr;
-                ptr_gamma += vlr;
-                ptr_beta += vlr;
+                ptr_store += vl;
+                ptr_gamma += vl;
+                ptr_beta += vl;
             }
 #endif // __riscv_vector
-            while (n-- > 0) *ptr_store++ = (__fp16)((float)*ptr_store * a + b) * *ptr_gamma++ + *ptr_beta++;
+            for (; i < size; i++) *ptr_store++ = (__fp16)((float)*ptr_store * a + b) * *ptr_gamma++ + *ptr_beta++;
         }
     }
     else
@@ -166,18 +163,16 @@ static int layernorm_fp16s(__fp16* ptr, const float* gamma_data, const float* be
         if (elementpack == 1)
         {
 #if __riscv_vector
-            while (n > 0)
+            for (; i + vl - 1 < size; i += vl)
             {
-                size_t vlr = __riscv_vsetvl_e16m4(n);
-                vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr_store, vlr), vlr);
-                _p = __riscv_vfmul_vf_f32m8(_p, a, vlr);
-                _p = __riscv_vfadd_vf_f32m8(_p, b, vlr);
-                __riscv_vse16_v_f16m4(ptr_store, __riscv_vfncvt_f_f_w_f16m4(_p, vlr), vlr);
-                n -= vlr;
-                ptr_store += vlr;
+                vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr_store, vl), vl);
+                _p = __riscv_vfmul_vf_f32m8(_p, a, vl);
+                _p = __riscv_vfadd_vf_f32m8(_p, b, vl);
+                __riscv_vse16_v_f16m4(ptr_store, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
+                ptr_store += vl;
             }
 #endif // __riscv_vector
-            while (n-- > 0) *ptr_store++ = (__fp16)((float)*ptr_store * a + b);
+            for (; i < size; i++) *ptr_store++ = (__fp16)((float)*ptr_store * a + b);
         }
     }
     return 0;
@@ -272,7 +267,6 @@ static int layernorm_fp16sa(__fp16* ptr, const float* gamma_data, const float* b
     }
 
     i = 0;
-    int n = size;
     __fp16* ptr_store = ptr;
     if (gamma_data && beta_data)
     {
@@ -296,25 +290,23 @@ static int layernorm_fp16sa(__fp16* ptr, const float* gamma_data, const float* b
         if (elementpack == 1)
         {
 #if __riscv_zvfh
-            while (n > 0)
+            for (; i + vl - 1 < size; i += vl)
             {
-                size_t vlr = __riscv_vsetvl_e16m4(n);
-                vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr_store, vlr);
-                _p = __riscv_vfmul_vf_f16m4(_p, a, vlr);
-                _p = __riscv_vfadd_vf_f16m4(_p, b, vlr);
+                vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr_store, vl);
+                _p = __riscv_vfmul_vf_f16m4(_p, a, vl);
+                _p = __riscv_vfadd_vf_f16m4(_p, b, vl);
 
-                vfloat16m4_t _gamma = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_gamma, vlr), vlr);
-                vfloat16m4_t _beta = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_beta, vlr), vlr);
-                _p = __riscv_vfmadd_vv_f16m4(_p, _gamma, _beta, vlr);
-                __riscv_vse16_v_f16m4(ptr_store, _p, vlr);
+                vfloat16m4_t _gamma = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_gamma, vl), vl);
+                vfloat16m4_t _beta = __riscv_vfncvt_f_f_w_f16m4(__riscv_vle32_v_f32m8(ptr_beta, vl), vl);
+                _p = __riscv_vfmadd_vv_f16m4(_p, _gamma, _beta, vl);
+                __riscv_vse16_v_f16m4(ptr_store, _p, vl);
 
-                n -= vlr;
-                ptr_store += vlr;
-                ptr_gamma += vlr;
-                ptr_beta += vlr;
+                ptr_store += vl;
+                ptr_gamma += vl;
+                ptr_beta += vl;
             }
 #endif // __riscv_zvfh
-            while (n-- > 0) *ptr_store++ = (*ptr_store * a + b) * (__fp16)*ptr_gamma++ + (__fp16)*ptr_beta++;
+            for (; i < size; i++) *ptr_store++ = (*ptr_store * a + b) * (__fp16)*ptr_gamma++ + (__fp16)*ptr_beta++;
         }
     }
     else
@@ -335,19 +327,16 @@ static int layernorm_fp16sa(__fp16* ptr, const float* gamma_data, const float* b
         if (elementpack == 1)
         {
 #if __riscv_zvfh
-            while (n > 0)
+            for (; i + vl - 1 < size; i += vl)
             {
-                size_t vlr = __riscv_vsetvl_e16m8(n);
-                vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr_store, vlr);
-                _p = __riscv_vfmul_vf_f16m8(_p, a, vlr);
-                _p = __riscv_vfadd_vf_f16m8(_p, b, vlr);
-                __riscv_vse16_v_f16m8(ptr_store, _p, vlr);
-
-                n -= vlr;
-                ptr_store += vlr;
+                vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr_store, vl);
+                _p = __riscv_vfmul_vf_f16m8(_p, a, vl);
+                _p = __riscv_vfadd_vf_f16m8(_p, b, vl);
+                __riscv_vse16_v_f16m8(ptr_store, _p, vl);
+                ptr_store += vl;
             }
 #endif // __riscv_zvfh
-            while (n-- > 0) *ptr_store++ = (*ptr_store * a + b);
+            for (; i < size; i++) *ptr_store++ = (*ptr_store * a + b);
         }
     }
     return 0;

@@ -118,7 +118,6 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
     }
 
     i = 0;
-    int n = size;
     float* ptr_store = ptr;
     if (gamma_data && beta_data)
     {
@@ -142,25 +141,23 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
         if (elementpack == 1)
         {
 #if __riscv_vector
-            while (n > 0)
+            for (; i + vl - 1 < size; i += vl)
             {
-                size_t vlr = __riscv_vsetvl_e32m8(n);
-                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_store, vlr);
-                _p = __riscv_vfmul_vf_f32m8(_p, a, vlr);
-                _p = __riscv_vfadd_vf_f32m8(_p, b, vlr);
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_store, vl);
+                _p = __riscv_vfmul_vf_f32m8(_p, a, vl);
+                _p = __riscv_vfadd_vf_f32m8(_p, b, vl);
 
-                vfloat32m8_t _gamma = __riscv_vle32_v_f32m8(ptr_gamma, vlr);
-                vfloat32m8_t _beta = __riscv_vle32_v_f32m8(ptr_beta, vlr);
-                _p = __riscv_vfmadd_vv_f32m8(_p, _gamma, _beta, vlr);
-                __riscv_vse32_v_f32m8(ptr_store, _p, vlr);
+                vfloat32m8_t _gamma = __riscv_vle32_v_f32m8(ptr_gamma, vl);
+                vfloat32m8_t _beta = __riscv_vle32_v_f32m8(ptr_beta, vl);
+                _p = __riscv_vfmadd_vv_f32m8(_p, _gamma, _beta, vl);
+                __riscv_vse32_v_f32m8(ptr_store, _p, vl);
 
-                n -= vlr;
-                ptr_store += vlr;
-                ptr_gamma += vlr;
-                ptr_beta += vlr;
+                ptr_store += vl;
+                ptr_gamma += vl;
+                ptr_beta += vl;
             }
 #endif // __riscv_vector
-            while (n-- > 0) *ptr_store++ = (*ptr_store * a + b) * *ptr_gamma++ + *ptr_beta++;
+            for (; i < size; i++) *ptr_store++ = (*ptr_store * a + b) * *ptr_gamma++ + *ptr_beta++;
         }
     }
     else
@@ -181,19 +178,16 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
         if (elementpack == 1)
         {
 #if __riscv_vector
-            while (n > 0)
+            for (; i + vl - 1 < size; i += vl)
             {
-                size_t vlr = __riscv_vsetvl_e32m8(n);
-                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_store, vlr);
-                _p = __riscv_vfmul_vf_f32m8(_p, a, vlr);
-                _p = __riscv_vfadd_vf_f32m8(_p, b, vlr);
-                __riscv_vse32_v_f32m8(ptr_store, _p, vlr);
-
-                n -= vlr;
-                ptr_store += vlr;
+                vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr_store, vl);
+                _p = __riscv_vfmul_vf_f32m8(_p, a, vl);
+                _p = __riscv_vfadd_vf_f32m8(_p, b, vl);
+                __riscv_vse32_v_f32m8(ptr_store, _p, vl);
+                ptr_store += vl;
             }
 #endif // __riscv_vector
-            while (n-- > 0) *ptr_store++ = (*ptr_store * a + b);
+            for (; i < size; i++) *ptr_store++ = (*ptr_store * a + b);
         }
     }
     return 0;
