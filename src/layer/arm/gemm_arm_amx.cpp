@@ -117,9 +117,6 @@ static void gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, const Mat& BT
                 amx_ldx(false, 0, pB);
                 amx_ldy(false, 0, pA);
                 amx_fma16_masked(false, 0, 0, 0, 0x2, 32, 0x2, 8, false, false, (k == 0 && pC == nullptr && kk == 0));
-                // amx_ldx(false, 0, pA);
-                // amx_ldy(false, 0, pB);
-                // amx_fma16_masked(false, 0, 0, 0, 0x2, 8, 0x2, 12, false, false, (k == 0 && pC == nullptr && kk == 0));
 
                 pA += 8;
                 pB += 32;
@@ -129,12 +126,9 @@ static void gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, const Mat& BT
             {
                 if (out_elempack == 1)
                 {
-                    // __fp16 tmp[32];
                     for (int r = 0; r < 8; r++)
                     {
                         amx_stz(false, 2 * r, outptr0 + out_hstep * r);
-                        // amx_stz(false, 2 * r, tmp);
-                        // memcpy(outptr0 + out_hstep * r, tmp, 32 * sizeof(__fp16));
                     }
 
                     outptr0 += 32;
@@ -152,99 +146,279 @@ static void gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, const Mat& BT
         }
         for (; jj + 11 < max_jj; jj += 12)
         {
+            float16x8_t _sum0;
+            float16x8_t _sum1;
+            float16x8_t _sum2;
+            float16x8_t _sum3;
+            float16x8_t _sum4;
+            float16x8_t _sum5;
+            float16x8_t _sum6;
+            float16x8_t _sum7;
+            float16x8_t _sum8;
+            float16x8_t _sum9;
+            float16x8_t _suma;
+            float16x8_t _sumb;
+
             if (k == 0)
             {
+                _sum0 = vdupq_n_f16(0.f);
+                _sum1 = vdupq_n_f16(0.f);
+                _sum2 = vdupq_n_f16(0.f);
+                _sum3 = vdupq_n_f16(0.f);
+                _sum4 = vdupq_n_f16(0.f);
+                _sum5 = vdupq_n_f16(0.f);
+                _sum6 = vdupq_n_f16(0.f);
+                _sum7 = vdupq_n_f16(0.f);
+                _sum8 = vdupq_n_f16(0.f);
+                _sum9 = vdupq_n_f16(0.f);
+                _suma = vdupq_n_f16(0.f);
+                _sumb = vdupq_n_f16(0.f);
+
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        __fp16 tmp[32];
-                        for (int r = 0; r < 12; r++)
-                        {
-                            tmp[r] = pC[0];
-                        }
-                        for (int r = 0; r < 8; r++)
-                        {
-                            amx_ldz(false, 2 * r, tmp);
-                        }
+                        _sum0 = vdupq_n_f16(pC[0]);
+                        _sum1 = vdupq_n_f16(pC[0]);
+                        _sum2 = vdupq_n_f16(pC[0]);
+                        _sum3 = vdupq_n_f16(pC[0]);
+                        _sum4 = vdupq_n_f16(pC[0]);
+                        _sum5 = vdupq_n_f16(pC[0]);
+                        _sum6 = vdupq_n_f16(pC[0]);
+                        _sum7 = vdupq_n_f16(pC[0]);
+                        _sum8 = vdupq_n_f16(pC[0]);
+                        _sum9 = vdupq_n_f16(pC[0]);
+                        _suma = vdupq_n_f16(pC[0]);
+                        _sumb = vdupq_n_f16(pC[0]);
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        __fp16 tmp[32];
-                        for (int r = 0; r < 8; r++)
-                        {
-                            for (int s = 0; s < 12; s++)
-                            {
-                                tmp[s] = pC[r];
-                            }
-                            amx_ldz(false, 2 * r, tmp);
-                        }
+                        _sum0 = vld1q_f16(pC);
+                        _sum1 = _sum0;
+                        _sum2 = _sum0;
+                        _sum3 = _sum0;
+                        _sum4 = _sum0;
+                        _sum5 = _sum0;
+                        _sum6 = _sum0;
+                        _sum7 = _sum0;
+                        _sum8 = _sum0;
+                        _sum9 = _sum0;
+                        _suma = _sum0;
+                        _sumb = _sum0;
                     }
                     if (broadcast_type_C == 3)
                     {
-                        for (int r = 0; r < 8; r++)
-                        {
-                            amx_ldz(false, 2 * r, pC + 12 * r);
-                        }
+                        _sum0 = vld1q_f16(pC);
+                        _sum1 = vld1q_f16(pC + 8);
+                        _sum2 = vld1q_f16(pC + 8 * 2);
+                        _sum3 = vld1q_f16(pC + 8 * 3);
+                        _sum4 = vld1q_f16(pC + 8 * 4);
+                        _sum5 = vld1q_f16(pC + 8 * 5);
+                        _sum6 = vld1q_f16(pC + 8 * 6);
+                        _sum7 = vld1q_f16(pC + 8 * 7);
+                        _sum8 = vld1q_f16(pC + 8 * 8);
+                        _sum9 = vld1q_f16(pC + 8 * 9);
+                        _suma = vld1q_f16(pC + 8 * 10);
+                        _sumb = vld1q_f16(pC + 8 * 11);
                         pC += 96;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        for (int s = 0; s < 8; s++)
-                        {
-                            __fp16 tmp[32];
-                            for (int r = 0; r < 12; r++)
-                            {
-                                tmp[r] = pC[s];
-                            }
-                            amx_ldz(false, 2 * s, tmp);
-                        }
-                        pC += 8;
+                        _sum0 = vdupq_n_f16(pC[0]);
+                        _sum1 = vdupq_n_f16(pC[1]);
+                        _sum2 = vdupq_n_f16(pC[2]);
+                        _sum3 = vdupq_n_f16(pC[3]);
+                        _sum4 = vdupq_n_f16(pC[4]);
+                        _sum5 = vdupq_n_f16(pC[5]);
+                        _sum6 = vdupq_n_f16(pC[6]);
+                        _sum7 = vdupq_n_f16(pC[7]);
+                        _sum8 = vdupq_n_f16(pC[8]);
+                        _sum9 = vdupq_n_f16(pC[9]);
+                        _suma = vdupq_n_f16(pC[10]);
+                        _sumb = vdupq_n_f16(pC[11]);
+                        pC += 12;
                     }
                 }
             }
             else
             {
-                for (int r = 0; r < 8; r++)
-                    amx_ldz(false, 2 * r, outptr + 12 * r);
+                _sum0 = vld1q_f16(outptr);
+                _sum1 = vld1q_f16(outptr + 8 * 1);
+                _sum2 = vld1q_f16(outptr + 8 * 2);
+                _sum3 = vld1q_f16(outptr + 8 * 3);
+                _sum4 = vld1q_f16(outptr + 8 * 4);
+                _sum5 = vld1q_f16(outptr + 8 * 5);
+                _sum6 = vld1q_f16(outptr + 8 * 6);
+                _sum7 = vld1q_f16(outptr + 8 * 7);
+                _sum8 = vld1q_f16(outptr + 8 * 8);
+                _sum9 = vld1q_f16(outptr + 8 * 9);
+                _suma = vld1q_f16(outptr + 8 * 10);
+                _sumb = vld1q_f16(outptr + 8 * 11);
             }
 
             const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                amx_ldx(false, 0, pB);
-                amx_ldy(false, 0, pA);
-                amx_fma16_masked(false, 0, 0, 0, 0x2, 12, 0x2, 8, false, false, (k == 0 && pC == nullptr && kk == 0));
-                // amx_ldx(false, 0, pA);
-                // amx_ldy(false, 0, pB);
-                // amx_fma16_masked(false, 0, 0, 0, 0x2, 8, 0x2, 12, false, false, (k == 0 && pC == nullptr && kk == 0));
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "ld1    {v3.8h}, [%0], #16      \n"
+                    "ld1    {v0.4h, v1.4h, v2.4h}, [%1], #24 \n"
+                    "fmla   %2.8h, v3.8h, v0.h[0]   \n"
+                    "fmla   %3.8h, v3.8h, v0.h[1]   \n"
+                    "fmla   %4.8h, v3.8h, v0.h[2]   \n"
+                    "fmla   %5.8h, v3.8h, v0.h[3]   \n"
+                    "fmla   %6.8h, v3.8h, v1.h[0]   \n"
+                    "fmla   %7.8h, v3.8h, v1.h[1]   \n"
+                    "fmla   %8.8h, v3.8h, v1.h[2]   \n"
+                    "fmla   %9.8h, v3.8h, v1.h[3]   \n"
+                    "fmla   %10.8h, v3.8h, v2.h[0]  \n"
+                    "fmla   %11.8h, v3.8h, v2.h[1]  \n"
+                    "fmla   %12.8h, v3.8h, v2.h[2]  \n"
+                    "fmla   %13.8h, v3.8h, v2.h[3]  \n"
+                    : "=r"(pA),
+                    "=r"(pB),
+                    "=w"(_sum0),
+                    "=w"(_sum1),
+                    "=w"(_sum2),
+                    "=w"(_sum3),
+                    "=w"(_sum4),
+                    "=w"(_sum5),
+                    "=w"(_sum6),
+                    "=w"(_sum7),
+                    "=w"(_sum8),
+                    "=w"(_sum9),
+                    "=w"(_suma),
+                    "=w"(_sumb)
+                    : "0"(pA),
+                    "1"(pB),
+                    "2"(_sum0),
+                    "3"(_sum1),
+                    "4"(_sum2),
+                    "5"(_sum3),
+                    "6"(_sum4),
+                    "7"(_sum5),
+                    "8"(_sum6),
+                    "9"(_sum7),
+                    "10"(_sum8),
+                    "11"(_sum9),
+                    "12"(_suma),
+                    "13"(_sumb)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else
+                float16x8_t _pA = vld1q_f16(pA);
+
+                float16x4_t _pB0 = vld1_f16(pB);
+                float16x4_t _pB1 = vld1_f16(pB + 4);
+                float16x4_t _pB2 = vld1_f16(pB + 8);
+
+                _sum0 = vfmaq_lane_f16(_sum0, _pA, _pB0, 0);
+                _sum1 = vfmaq_lane_f16(_sum1, _pA, _pB0, 1);
+                _sum2 = vfmaq_lane_f16(_sum2, _pA, _pB0, 2);
+                _sum3 = vfmaq_lane_f16(_sum3, _pA, _pB0, 3);
+                _sum4 = vfmaq_lane_f16(_sum4, _pA, _pB1, 0);
+                _sum5 = vfmaq_lane_f16(_sum5, _pA, _pB1, 1);
+                _sum6 = vfmaq_lane_f16(_sum6, _pA, _pB1, 2);
+                _sum7 = vfmaq_lane_f16(_sum7, _pA, _pB1, 3);
+                _sum8 = vfmaq_lane_f16(_sum8, _pA, _pB2, 0);
+                _sum9 = vfmaq_lane_f16(_sum9, _pA, _pB2, 1);
+                _suma = vfmaq_lane_f16(_suma, _pA, _pB2, 2);
+                _sumb = vfmaq_lane_f16(_sumb, _pA, _pB2, 3);
 
                 pA += 8;
                 pB += 12;
+#endif
             }
 
             if (k_end)
             {
+                if (out_elempack == 8)
+                {
+                    vst1q_f16(outptr0, _sum0);
+                    vst1q_f16(outptr0 + 8 * 1, _sum1);
+                    vst1q_f16(outptr0 + 8 * 2, _sum2);
+                    vst1q_f16(outptr0 + 8 * 3, _sum3);
+                    vst1q_f16(outptr0 + 8 * 4, _sum4);
+                    vst1q_f16(outptr0 + 8 * 5, _sum5);
+                    vst1q_f16(outptr0 + 8 * 6, _sum6);
+                    vst1q_f16(outptr0 + 8 * 7, _sum7);
+                    vst1q_f16(outptr0 + 8 * 8, _sum8);
+                    vst1q_f16(outptr0 + 8 * 9, _sum9);
+                    vst1q_f16(outptr0 + 8 * 10, _suma);
+                    vst1q_f16(outptr0 + 8 * 11, _sumb);
+                    outptr0 += 96;
+                }
+                if (out_elempack == 4)
+                {
+                    vst1_f16(outptr0, vget_low_f16(_sum0));
+                    vst1_f16(outptr0 + 4, vget_low_f16(_sum1));
+                    vst1_f16(outptr0 + 4 * 2, vget_low_f16(_sum2));
+                    vst1_f16(outptr0 + 4 * 3, vget_low_f16(_sum3));
+                    vst1_f16(outptr0 + 4 * 4, vget_low_f16(_sum4));
+                    vst1_f16(outptr0 + 4 * 5, vget_low_f16(_sum5));
+                    vst1_f16(outptr0 + 4 * 6, vget_low_f16(_sum6));
+                    vst1_f16(outptr0 + 4 * 7, vget_low_f16(_sum7));
+                    vst1_f16(outptr0 + 4 * 8, vget_low_f16(_sum8));
+                    vst1_f16(outptr0 + 4 * 9, vget_low_f16(_sum9));
+                    vst1_f16(outptr0 + 4 * 10, vget_low_f16(_suma));
+                    vst1_f16(outptr0 + 4 * 11, vget_low_f16(_sumb));
+
+                    vst1_f16(outptr0 + out_hstep * 4, vget_high_f16(_sum0));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4, vget_high_f16(_sum1));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 2, vget_high_f16(_sum2));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 3, vget_high_f16(_sum3));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 4, vget_high_f16(_sum4));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 5, vget_high_f16(_sum5));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 6, vget_high_f16(_sum6));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 7, vget_high_f16(_sum7));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 8, vget_high_f16(_sum8));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 9, vget_high_f16(_sum9));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 10, vget_high_f16(_suma));
+                    vst1_f16(outptr0 + out_hstep * 4 + 4 * 11, vget_high_f16(_sumb));
+
+                    outptr0 += 48;
+                }
                 if (out_elempack == 1)
                 {
-                    __fp16 tmp[32];
-                    for (int r = 0; r < 8; r++)
-                    {
-                        // amx_stz(false, 2 * r, outptr + 8 * r);
-                        amx_stz(false, 2 * r, tmp);
-                        memcpy(outptr0 + out_hstep * r, tmp, 12 * sizeof(__fp16));
-                    }
+                    transpose8x8_ph(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
+
+                    vst1q_f16(outptr0, _sum0);
+                    vst1q_f16(outptr0 + out_hstep * 1, _sum1);
+                    vst1q_f16(outptr0 + out_hstep * 2, _sum2);
+                    vst1q_f16(outptr0 + out_hstep * 3, _sum3);
+                    vst1q_f16(outptr0 + out_hstep * 4, _sum4);
+                    vst1q_f16(outptr0 + out_hstep * 5, _sum5);
+                    vst1q_f16(outptr0 + out_hstep * 6, _sum6);
+                    vst1q_f16(outptr0 + out_hstep * 7, _sum7);
+
+                    transpose8x4_ph(_sum8, _sum9, _suma, _sumb);
+
+                    vst1_f16(outptr0 + 8, vget_low_f16(_sum8));
+                    vst1_f16(outptr0 + out_hstep * 1 + 8, vget_high_f16(_sum8));
+                    vst1_f16(outptr0 + out_hstep * 2 + 8, vget_low_f16(_sum9));
+                    vst1_f16(outptr0 + out_hstep * 3 + 8, vget_high_f16(_sum9));
+                    vst1_f16(outptr0 + out_hstep * 4 + 8, vget_low_f16(_suma));
+                    vst1_f16(outptr0 + out_hstep * 5 + 8, vget_high_f16(_suma));
+                    vst1_f16(outptr0 + out_hstep * 6 + 8, vget_low_f16(_sumb));
+                    vst1_f16(outptr0 + out_hstep * 7 + 8, vget_high_f16(_sumb));
 
                     outptr0 += 12;
                 }
             }
             else
             {
-                for (int r = 0; r < 8; r++)
-                {
-                    amx_stz(false, 2 * r, outptr + 12 * r);
-                }
+                vst1q_f16(outptr, _sum0);
+                vst1q_f16(outptr + 8 * 1, _sum1);
+                vst1q_f16(outptr + 8 * 2, _sum2);
+                vst1q_f16(outptr + 8 * 3, _sum3);
+                vst1q_f16(outptr + 8 * 4, _sum4);
+                vst1q_f16(outptr + 8 * 5, _sum5);
+                vst1q_f16(outptr + 8 * 6, _sum6);
+                vst1q_f16(outptr + 8 * 7, _sum7);
+                vst1q_f16(outptr + 8 * 8, _sum8);
+                vst1q_f16(outptr + 8 * 9, _sum9);
+                vst1q_f16(outptr + 8 * 10, _suma);
+                vst1q_f16(outptr + 8 * 11, _sumb);
             }
 
             outptr += 96;
@@ -828,9 +1002,6 @@ static void gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, const Mat& BT
                 amx_ldx(false, 0, pB);
                 amx_ldy(false, 0, pA);
                 amx_fma16_masked(false, 0, 0, 0, 0x2, 32, 0x2, 4, false, false, (k == 0 && pC == nullptr && kk == 0));
-                // amx_ldx(false, 0, pA);
-                // amx_ldy(false, 0, pB);
-                // amx_fma16_masked(false, 0, 0, 0, 0x2, 8, 0x2, 12, false, false, (k == 0 && pC == nullptr && kk == 0));
 
                 pA += 4;
                 pB += 32;
@@ -1558,9 +1729,6 @@ static void gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, const Mat& BT
                 amx_ldx(false, 0, pB);
                 amx_ldy(false, 0, pA);
                 amx_fma16_masked(false, 0, 0, 0, 0x2, 32, 0x2, 2, false, false, (k == 0 && pC == nullptr && kk == 0));
-                // amx_ldx(false, 0, pA);
-                // amx_ldy(false, 0, pB);
-                // amx_fma16_masked(false, 0, 0, 0, 0x2, 8, 0x2, 12, false, false, (k == 0 && pC == nullptr && kk == 0));
 
                 pA += 2;
                 pB += 32;
@@ -1570,12 +1738,9 @@ static void gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, const Mat& BT
             {
                 if (out_elempack == 1)
                 {
-                    // __fp16 tmp[32];
                     for (int r = 0; r < 2; r++)
                     {
                         amx_stz(false, 2 * r, outptr0 + out_hstep * r);
-                        // amx_stz(false, 2 * r, tmp);
-                        // memcpy(outptr0 + out_hstep * r, tmp, 32 * sizeof(__fp16));
                     }
 
                     outptr0 += 32;
@@ -2150,10 +2315,6 @@ static void gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, const Mat& BT
                 amx_ldx(false, 0, pB);
                 amx_ldy(false, 0, pA);
                 amx_fma16_masked(false, 0, 0, 0, 0x2, 32, 0x2, 1, false, false, (k == 0 && pC == nullptr && kk == 0));
-                // amx_ldx(false, 0, pA);
-                // amx_ldy(false, 0, pB);
-                // amx_fma16_masked(false, 0, 0, 0, 0x2, 8, 0x2, 12, false, false, (k == 0 && pC == nullptr && kk == 0));
-
                 pA += 1;
                 pB += 32;
             }
@@ -2162,12 +2323,9 @@ static void gemm_transB_packed_tile_fp16sa_amx(const Mat& AT_tile, const Mat& BT
             {
                 if (out_elempack == 1)
                 {
-                    // __fp16 tmp[32];
                     for (int r = 0; r < 1; r++)
                     {
                         amx_stz(false, 2 * r, outptr0 + out_hstep * r);
-                        // amx_stz(false, 2 * r, tmp);
-                        // memcpy(outptr0 + out_hstep * r, tmp, 32 * sizeof(__fp16));
                     }
 
                     outptr0 += 32;
@@ -3162,11 +3320,11 @@ int Gemm_arm::forward_fp16sa_amx(const std::vector<Mat>& bottom_blobs, std::vect
     }
 
     int out_elempack = 1;
-    // if (opt.use_packing_layout)
-    // {
-    //     int outh = output_transpose ? N : M;
-    //     out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-    // }
+    if (opt.use_packing_layout)
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+    }
     if (output_elempack)
         out_elempack = output_elempack;
     size_t out_elemsize = 2u * out_elempack;

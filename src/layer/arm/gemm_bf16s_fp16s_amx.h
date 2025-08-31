@@ -9,6 +9,226 @@ static void pack_A_tile_bf16_fp16_amx(const Mat& A, Mat& AT, int i, int max_ii, 
     unsigned short* pp = AT;
 
     int ii = 0;
+    if (0)
+    // for (; ii + 31 < max_ii; ii += 32)
+    {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 8;
+            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k * 8;
+            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 8) * A_hstep + k * 8;
+            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 12) * A_hstep + k * 8;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                vst1q_u16(pp, vld1q_u16(p0));
+                vst1q_u16(pp + 8, vld1q_u16(p1));
+                vst1q_u16(pp + 16, vld1q_u16(p2));
+                vst1q_u16(pp + 24, vld1q_u16(p3));
+                pp += 32;
+                p0 += 8;
+                p1 += 8;
+                p2 += 8;
+                p3 += 8;
+            }
+        }
+        if (elempack == 4)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
+            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k * 4;
+            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 8) * A_hstep + k * 4;
+            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 12) * A_hstep + k * 4;
+            const unsigned short* p4 = (const unsigned short*)A + (i + ii + 16) * A_hstep + k * 4;
+            const unsigned short* p5 = (const unsigned short*)A + (i + ii + 20) * A_hstep + k * 4;
+            const unsigned short* p6 = (const unsigned short*)A + (i + ii + 24) * A_hstep + k * 4;
+            const unsigned short* p7 = (const unsigned short*)A + (i + ii + 28) * A_hstep + k * 4;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                uint16x8_t _r0 = vcombine_u16(vld1_u16(p0), vld1_u16(p1));
+                uint16x8_t _r1 = vcombine_u16(vld1_u16(p2), vld1_u16(p3));
+                uint16x8_t _r2 = vcombine_u16(vld1_u16(p4), vld1_u16(p5));
+                uint16x8_t _r3 = vcombine_u16(vld1_u16(p6), vld1_u16(p7));
+                vst1q_u16(pp, _r0);
+                vst1q_u16(pp + 8, _r1);
+                vst1q_u16(pp + 16, _r2);
+                vst1q_u16(pp + 24, _r3);
+                pp += 32;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+                p4 += 4;
+                p5 += 4;
+                p6 += 4;
+                p7 += 4;
+            }
+        }
+        if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
+            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
+            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
+            const unsigned short* p4 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k;
+            const unsigned short* p5 = (const unsigned short*)A + (i + ii + 5) * A_hstep + k;
+            const unsigned short* p6 = (const unsigned short*)A + (i + ii + 6) * A_hstep + k;
+            const unsigned short* p7 = (const unsigned short*)A + (i + ii + 7) * A_hstep + k;
+            const unsigned short* p8 = (const unsigned short*)A + (i + ii + 8) * A_hstep + k;
+            const unsigned short* p9 = (const unsigned short*)A + (i + ii + 9) * A_hstep + k;
+            const unsigned short* pa = (const unsigned short*)A + (i + ii + 10) * A_hstep + k;
+            const unsigned short* pb = (const unsigned short*)A + (i + ii + 11) * A_hstep + k;
+            const unsigned short* pc = (const unsigned short*)A + (i + ii + 12) * A_hstep + k;
+            const unsigned short* pd = (const unsigned short*)A + (i + ii + 13) * A_hstep + k;
+            const unsigned short* pe = (const unsigned short*)A + (i + ii + 14) * A_hstep + k;
+            const unsigned short* pf = (const unsigned short*)A + (i + ii + 15) * A_hstep + k;
+            const unsigned short* pg = (const unsigned short*)A + (i + ii + 16) * A_hstep + k;
+            const unsigned short* ph = (const unsigned short*)A + (i + ii + 17) * A_hstep + k;
+            const unsigned short* pi = (const unsigned short*)A + (i + ii + 18) * A_hstep + k;
+            const unsigned short* pj = (const unsigned short*)A + (i + ii + 19) * A_hstep + k;
+            const unsigned short* pk = (const unsigned short*)A + (i + ii + 20) * A_hstep + k;
+            const unsigned short* pl = (const unsigned short*)A + (i + ii + 21) * A_hstep + k;
+            const unsigned short* pm = (const unsigned short*)A + (i + ii + 22) * A_hstep + k;
+            const unsigned short* pn = (const unsigned short*)A + (i + ii + 23) * A_hstep + k;
+            const unsigned short* po = (const unsigned short*)A + (i + ii + 24) * A_hstep + k;
+            const unsigned short* _pp = (const unsigned short*)A + (i + ii + 25) * A_hstep + k;
+            const unsigned short* pq = (const unsigned short*)A + (i + ii + 26) * A_hstep + k;
+            const unsigned short* pr = (const unsigned short*)A + (i + ii + 27) * A_hstep + k;
+            const unsigned short* ps = (const unsigned short*)A + (i + ii + 28) * A_hstep + k;
+            const unsigned short* pt = (const unsigned short*)A + (i + ii + 29) * A_hstep + k;
+            const unsigned short* pu = (const unsigned short*)A + (i + ii + 30) * A_hstep + k;
+            const unsigned short* pv = (const unsigned short*)A + (i + ii + 31) * A_hstep + k;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _r0 = vld1q_u16(p0);
+                uint16x8_t _r1 = vld1q_u16(p1);
+                uint16x8_t _r2 = vld1q_u16(p2);
+                uint16x8_t _r3 = vld1q_u16(p3);
+                uint16x8_t _r4 = vld1q_u16(p4);
+                uint16x8_t _r5 = vld1q_u16(p5);
+                uint16x8_t _r6 = vld1q_u16(p6);
+                uint16x8_t _r7 = vld1q_u16(p7);
+                uint16x8_t _r8 = vld1q_u16(p8);
+                uint16x8_t _r9 = vld1q_u16(p9);
+                uint16x8_t _ra = vld1q_u16(pa);
+                uint16x8_t _rb = vld1q_u16(pb);
+                uint16x8_t _rc = vld1q_u16(pc);
+                uint16x8_t _rd = vld1q_u16(pd);
+                uint16x8_t _re = vld1q_u16(pe);
+                uint16x8_t _rf = vld1q_u16(pf);
+                uint16x8_t _rg = vld1q_u16(pg);
+                uint16x8_t _rh = vld1q_u16(ph);
+                uint16x8_t _ri = vld1q_u16(pi);
+                uint16x8_t _rj = vld1q_u16(pj);
+                uint16x8_t _rk = vld1q_u16(pk);
+                uint16x8_t _rl = vld1q_u16(pl);
+                uint16x8_t _rm = vld1q_u16(pm);
+                uint16x8_t _rn = vld1q_u16(pn);
+                uint16x8_t _ro = vld1q_u16(po);
+                uint16x8_t _rp = vld1q_u16(_pp);
+                uint16x8_t _rq = vld1q_u16(pq);
+                uint16x8_t _rr = vld1q_u16(pr);
+                uint16x8_t _rs = vld1q_u16(ps);
+                uint16x8_t _rt = vld1q_u16(pt);
+                uint16x8_t _ru = vld1q_u16(pu);
+                uint16x8_t _rv = vld1q_u16(pv);
+
+                transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                transpose8x8_u16(_r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                transpose8x8_u16(_rg, _rh, _ri, _rj, _rk, _rl, _rm, _rn);
+                transpose8x8_u16(_ro, _rp, _rq, _rr, _rs, _rt, _ru, _rv);
+
+                vst1q_u16(pp, _r0);
+                vst1q_u16(pp + 8, _r8);
+                vst1q_u16(pp + 8 * 2, _rg);
+                vst1q_u16(pp + 8 * 3, _ro);
+                vst1q_u16(pp + 8 * 4, _r1);
+                vst1q_u16(pp + 8 * 5, _r9);
+                vst1q_u16(pp + 8 * 6, _rh);
+                vst1q_u16(pp + 8 * 7, _rp);
+                vst1q_u16(pp + 8 * 8, _r2);
+                vst1q_u16(pp + 8 * 9, _ra);
+                vst1q_u16(pp + 8 * 10, _ri);
+                vst1q_u16(pp + 8 * 11, _rq);
+                vst1q_u16(pp + 8 * 12, _r3);
+                vst1q_u16(pp + 8 * 13, _rb);
+                vst1q_u16(pp + 8 * 14, _rj);
+                vst1q_u16(pp + 8 * 15, _rr);
+                vst1q_u16(pp + 8 * 16, _r4);
+                vst1q_u16(pp + 8 * 17, _rc);
+                vst1q_u16(pp + 8 * 18, _rk);
+                vst1q_u16(pp + 8 * 19, _rs);
+                vst1q_u16(pp + 8 * 20, _r5);
+                vst1q_u16(pp + 8 * 21, _rd);
+                vst1q_u16(pp + 8 * 22, _rl);
+                vst1q_u16(pp + 8 * 23, _rt);
+                vst1q_u16(pp + 8 * 24, _r6);
+                vst1q_u16(pp + 8 * 25, _re);
+                vst1q_u16(pp + 8 * 26, _rm);
+                vst1q_u16(pp + 8 * 27, _ru);
+                vst1q_u16(pp + 8 * 28, _r7);
+                vst1q_u16(pp + 8 * 29, _rf);
+                vst1q_u16(pp + 8 * 30, _rn);
+                vst1q_u16(pp + 8 * 31, _rv);
+
+                pp += 256;
+                p0 += 8;
+                p1 += 8;
+                p2 += 8;
+                p3 += 8;
+                p4 += 8;
+                p5 += 8;
+                p6 += 8;
+                p7 += 8;
+                p8 += 8;
+                p9 += 8;
+                pa += 8;
+                pb += 8;
+                pc += 8;
+                pd += 8;
+                pe += 8;
+                pf += 8;
+                pg += 8;
+                ph += 8;
+                pi += 8;
+                pj += 8;
+                pk += 8;
+                pl += 8;
+                pm += 8;
+                pn += 8;
+                po += 8;
+                _pp += 8;
+                pq += 8;
+                pr += 8;
+                ps += 8;
+                pt += 8;
+                pu += 8;
+                pv += 8;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p4[0];
+                pp[5] = p5[0];
+                pp[6] = p6[0];
+                pp[7] = p7[0];
+                pp += 8;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+                p4++;
+                p5++;
+                p6++;
+                p7++;
+            }
+        }
+    }
 #if __ARM_NEON
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
@@ -252,6 +472,136 @@ static void transpose_pack_A_tile_bf16_fp16_amx(const Mat& A, Mat& AT, int i, in
     unsigned short* pp = AT;
 
     int ii = 0;
+    if (0)
+    // for (; ii + 31 < max_ii; ii += 32)
+    {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8x4_t _r0123 = vld4q_u16(p0);
+                uint16x8x4_t _r4567 = vld4q_u16(p0 + 32);
+
+                uint16x8x4_t _r89ab = vld4q_u16(p0 + 64);
+                uint16x8x4_t _rcdef = vld4q_u16(p0 + 96);
+
+                uint16x8x4_t _rghij = vld4q_u16(p0 + 128);
+                uint16x8x4_t _rklmn = vld4q_u16(p0 + 160);
+
+                uint16x8x4_t _ropqr = vld4q_u16(p0 + 192);
+                uint16x8x4_t _rstuv = vld4q_u16(p0 + 224);
+
+                uint16x8x2_t _r04 = vuzpq_u16(_r0123.val[0], _r4567.val[0]);
+                uint16x8x2_t _r15 = vuzpq_u16(_r0123.val[1], _r4567.val[1]);
+                uint16x8x2_t _r26 = vuzpq_u16(_r0123.val[2], _r4567.val[2]);
+                uint16x8x2_t _r37 = vuzpq_u16(_r0123.val[3], _r4567.val[3]);
+
+                uint16x8x2_t _r8c = vuzpq_u16(_r89ab.val[0], _rcdef.val[0]);
+                uint16x8x2_t _r9d = vuzpq_u16(_r89ab.val[1], _rcdef.val[1]);
+                uint16x8x2_t _rae = vuzpq_u16(_r89ab.val[2], _rcdef.val[2]);
+                uint16x8x2_t _rbf = vuzpq_u16(_r89ab.val[3], _rcdef.val[3]);
+
+                uint16x8x2_t _rgk = vuzpq_u16(_rghij.val[0], _rklmn.val[0]);
+                uint16x8x2_t _rhl = vuzpq_u16(_rghij.val[1], _rklmn.val[1]);
+                uint16x8x2_t _rim = vuzpq_u16(_rghij.val[2], _rklmn.val[2]);
+                uint16x8x2_t _rjn = vuzpq_u16(_rghij.val[3], _rklmn.val[3]);
+
+                uint16x8x2_t _ros = vuzpq_u16(_ropqr.val[0], _rstuv.val[0]);
+                uint16x8x2_t _rpt = vuzpq_u16(_ropqr.val[1], _rstuv.val[1]);
+                uint16x8x2_t _rqu = vuzpq_u16(_ropqr.val[2], _rstuv.val[2]);
+                uint16x8x2_t _rrv = vuzpq_u16(_ropqr.val[3], _rstuv.val[3]);
+
+                vst1q_u16(pp, _r04.val[0]);
+                vst1q_u16(pp + 8, _r8c.val[0]);
+                vst1q_u16(pp + 16, _rgk.val[0]);
+                vst1q_u16(pp + 24, _ros.val[0]);
+                vst1q_u16(pp + 32, _r15.val[0]);
+                vst1q_u16(pp + 40, _r9d.val[0]);
+                vst1q_u16(pp + 48, _rhl.val[0]);
+                vst1q_u16(pp + 56, _rpt.val[0]);
+                vst1q_u16(pp + 64, _r26.val[0]);
+                vst1q_u16(pp + 72, _rae.val[0]);
+                vst1q_u16(pp + 80, _rim.val[0]);
+                vst1q_u16(pp + 88, _rqu.val[0]);
+                vst1q_u16(pp + 96, _r37.val[0]);
+                vst1q_u16(pp + 104, _rbf.val[0]);
+                vst1q_u16(pp + 112, _rjn.val[0]);
+                vst1q_u16(pp + 120, _rrv.val[0]);
+                vst1q_u16(pp + 128, _r04.val[1]);
+                vst1q_u16(pp + 136, _r8c.val[1]);
+                vst1q_u16(pp + 144, _rgk.val[1]);
+                vst1q_u16(pp + 152, _ros.val[1]);
+                vst1q_u16(pp + 160, _r15.val[1]);
+                vst1q_u16(pp + 168, _r9d.val[1]);
+                vst1q_u16(pp + 176, _rhl.val[1]);
+                vst1q_u16(pp + 184, _rpt.val[1]);
+                vst1q_u16(pp + 192, _r26.val[1]);
+                vst1q_u16(pp + 200, _rae.val[1]);
+                vst1q_u16(pp + 208, _rim.val[1]);
+                vst1q_u16(pp + 216, _rqu.val[1]);
+                vst1q_u16(pp + 224, _r37.val[1]);
+                vst1q_u16(pp + 232, _rbf.val[1]);
+                vst1q_u16(pp + 240, _rjn.val[1]);
+                vst1q_u16(pp + 248, _rrv.val[1]);
+
+                pp += 256;
+                p0 += A_hstep * 8;
+            }
+        }
+        if (elempack == 4)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x8x4_t _r0123 = vld4q_u16(p0);
+                uint16x8x4_t _r4567 = vld4q_u16(p0 + 32);
+                uint16x8x4_t _r89ab = vld4q_u16(p0 + 64);
+                uint16x8x4_t _rcdef = vld4q_u16(p0 + 96);
+
+                vst1q_u16(pp, _r0123.val[0]);
+                vst1q_u16(pp + 8, _r4567.val[0]);
+                vst1q_u16(pp + 16, _r89ab.val[0]);
+                vst1q_u16(pp + 24, _rcdef.val[0]);
+
+                vst1q_u16(pp + 32, _r0123.val[1]);
+                vst1q_u16(pp + 40, _r4567.val[1]);
+                vst1q_u16(pp + 48, _r89ab.val[1]);
+                vst1q_u16(pp + 56, _rcdef.val[1]);
+
+                vst1q_u16(pp + 64, _r0123.val[2]);
+                vst1q_u16(pp + 72, _r4567.val[2]);
+                vst1q_u16(pp + 80, _r89ab.val[2]);
+                vst1q_u16(pp + 88, _rcdef.val[2]);
+
+                vst1q_u16(pp + 96, _r0123.val[3]);
+                vst1q_u16(pp + 104, _r4567.val[3]);
+                vst1q_u16(pp + 112, _r89ab.val[3]);
+                vst1q_u16(pp + 120, _rcdef.val[3]);
+                pp += 128;
+                p0 += A_hstep * 4;
+            }
+        }
+        if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
+
+            int kk = 0;
+            for (; kk < max_kk; kk++)
+            {
+                vst1q_u16(pp, vld1q_u16(p0));
+                vst1q_u16(pp + 8, vld1q_u16(p0 + 8));
+                vst1q_u16(pp + 16, vld1q_u16(p0 + 16));
+                vst1q_u16(pp + 24, vld1q_u16(p0 + 24));
+                pp += 32;
+                p0 += A_hstep;
+            }
+        }
+    }
 #if __ARM_NEON
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
@@ -458,7 +808,6 @@ static void pack_B_tile_bf16_fp16_amx(const Mat& B, Mat& BT, int j, int max_jj, 
 
     int jj = 0;
     for (; jj + 31 < max_jj; jj += 32)
-    // if (false)
     {
         if (elempack == 8)
         {
@@ -493,14 +842,14 @@ static void pack_B_tile_bf16_fp16_amx(const Mat& B, Mat& BT, int j, int max_jj, 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-                vst1_u16(pp, vld1_u16(p0));
-                vst1_u16(pp + 4, vld1_u16(p1));
-                vst1_u16(pp + 8, vld1_u16(p2));
-                vst1_u16(pp + 12, vld1_u16(p3));
-                vst1_u16(pp + 16, vld1_u16(p4));
-                vst1_u16(pp + 20, vld1_u16(p5));
-                vst1_u16(pp + 24, vld1_u16(p6));
-                vst1_u16(pp + 28, vld1_u16(p7));
+                uint16x8_t _r0 = vcombine_u16(vld1_u16(p0), vld1_u16(p1));
+                uint16x8_t _r1 = vcombine_u16(vld1_u16(p2), vld1_u16(p3));
+                uint16x8_t _r2 = vcombine_u16(vld1_u16(p4), vld1_u16(p5));
+                uint16x8_t _r3 = vcombine_u16(vld1_u16(p6), vld1_u16(p7));
+                vst1q_u16(pp, _r0);
+                vst1q_u16(pp + 8, _r1);
+                vst1q_u16(pp + 16, _r2);
+                vst1q_u16(pp + 24, _r3);
                 pp += 32;
                 p0 += 4;
                 p1 += 4;
@@ -548,115 +897,115 @@ static void pack_B_tile_bf16_fp16_amx(const Mat& B, Mat& BT, int j, int max_jj, 
             const unsigned short* pv = (const unsigned short*)B + (j + jj + 31) * B_hstep + k;
 
             int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
+            for (; kk + 7 < max_kk; kk += 8)
             {
-                uint16x4_t _r0 = vld1_u16(p0);
-                uint16x4_t _r1 = vld1_u16(p1);
-                uint16x4_t _r2 = vld1_u16(p2);
-                uint16x4_t _r3 = vld1_u16(p3);
-                uint16x4_t _r4 = vld1_u16(p4);
-                uint16x4_t _r5 = vld1_u16(p5);
-                uint16x4_t _r6 = vld1_u16(p6);
-                uint16x4_t _r7 = vld1_u16(p7);
-                uint16x4_t _r8 = vld1_u16(p8);
-                uint16x4_t _r9 = vld1_u16(p9);
-                uint16x4_t _ra = vld1_u16(pa);
-                uint16x4_t _rb = vld1_u16(pb);
-                uint16x4_t _rc = vld1_u16(pc);
-                uint16x4_t _rd = vld1_u16(pd);
-                uint16x4_t _re = vld1_u16(pe);
-                uint16x4_t _rf = vld1_u16(pf);
-                uint16x4_t _rg = vld1_u16(pg);
-                uint16x4_t _rh = vld1_u16(ph);
-                uint16x4_t _ri = vld1_u16(pi);
-                uint16x4_t _rj = vld1_u16(pj);
-                uint16x4_t _rk = vld1_u16(pk);
-                uint16x4_t _rl = vld1_u16(pl);
-                uint16x4_t _rm = vld1_u16(pm);
-                uint16x4_t _rn = vld1_u16(pn);
-                uint16x4_t _ro = vld1_u16(po);
-                uint16x4_t _rp = vld1_u16(_pp);
-                uint16x4_t _rq = vld1_u16(pq);
-                uint16x4_t _rr = vld1_u16(pr);
-                uint16x4_t _rs = vld1_u16(ps);
-                uint16x4_t _rt = vld1_u16(pt);
-                uint16x4_t _ru = vld1_u16(pu);
-                uint16x4_t _rv = vld1_u16(pv);
+                uint16x8_t _r0 = vld1q_u16(p0);
+                uint16x8_t _r1 = vld1q_u16(p1);
+                uint16x8_t _r2 = vld1q_u16(p2);
+                uint16x8_t _r3 = vld1q_u16(p3);
+                uint16x8_t _r4 = vld1q_u16(p4);
+                uint16x8_t _r5 = vld1q_u16(p5);
+                uint16x8_t _r6 = vld1q_u16(p6);
+                uint16x8_t _r7 = vld1q_u16(p7);
+                uint16x8_t _r8 = vld1q_u16(p8);
+                uint16x8_t _r9 = vld1q_u16(p9);
+                uint16x8_t _ra = vld1q_u16(pa);
+                uint16x8_t _rb = vld1q_u16(pb);
+                uint16x8_t _rc = vld1q_u16(pc);
+                uint16x8_t _rd = vld1q_u16(pd);
+                uint16x8_t _re = vld1q_u16(pe);
+                uint16x8_t _rf = vld1q_u16(pf);
+                uint16x8_t _rg = vld1q_u16(pg);
+                uint16x8_t _rh = vld1q_u16(ph);
+                uint16x8_t _ri = vld1q_u16(pi);
+                uint16x8_t _rj = vld1q_u16(pj);
+                uint16x8_t _rk = vld1q_u16(pk);
+                uint16x8_t _rl = vld1q_u16(pl);
+                uint16x8_t _rm = vld1q_u16(pm);
+                uint16x8_t _rn = vld1q_u16(pn);
+                uint16x8_t _ro = vld1q_u16(po);
+                uint16x8_t _rp = vld1q_u16(_pp);
+                uint16x8_t _rq = vld1q_u16(pq);
+                uint16x8_t _rr = vld1q_u16(pr);
+                uint16x8_t _rs = vld1q_u16(ps);
+                uint16x8_t _rt = vld1q_u16(pt);
+                uint16x8_t _ru = vld1q_u16(pu);
+                uint16x8_t _rv = vld1q_u16(pv);
 
-                transpose4x4_u16(_r0, _r1, _r2, _r3);
-                transpose4x4_u16(_r4, _r5, _r6, _r7);
-                transpose4x4_u16(_r8, _r9, _ra, _rb);
-                transpose4x4_u16(_rc, _rd, _re, _rf);
-                transpose4x4_u16(_rg, _rh, _ri, _rj);
-                transpose4x4_u16(_rk, _rl, _rm, _rn);
-                transpose4x4_u16(_ro, _rp, _rq, _rr);
-                transpose4x4_u16(_rs, _rt, _ru, _rv);
+                transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                transpose8x8_u16(_r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                transpose8x8_u16(_rg, _rh, _ri, _rj, _rk, _rl, _rm, _rn);
+                transpose8x8_u16(_ro, _rp, _rq, _rr, _rs, _rt, _ru, _rv);
 
-                vst1_u16(pp, _r0);
-                vst1_u16(pp + 4, _r4);
-                vst1_u16(pp + 4 * 2, _r8);
-                vst1_u16(pp + 4 * 3, _rc);
-                vst1_u16(pp + 4 * 4, _rg);
-                vst1_u16(pp + 4 * 5, _rk);
-                vst1_u16(pp + 4 * 6, _ro);
-                vst1_u16(pp + 4 * 7, _rs);
-                vst1_u16(pp + 4 * 8, _r1);
-                vst1_u16(pp + 4 * 9, _r5);
-                vst1_u16(pp + 4 * 10, _r9);
-                vst1_u16(pp + 4 * 11, _rd);
-                vst1_u16(pp + 4 * 12, _rh);
-                vst1_u16(pp + 4 * 13, _rl);
-                vst1_u16(pp + 4 * 14, _rp);
-                vst1_u16(pp + 4 * 15, _rt);
-                vst1_u16(pp + 4 * 16, _r2);
-                vst1_u16(pp + 4 * 17, _r6);
-                vst1_u16(pp + 4 * 18, _ra);
-                vst1_u16(pp + 4 * 19, _re);
-                vst1_u16(pp + 4 * 20, _ri);
-                vst1_u16(pp + 4 * 21, _rm);
-                vst1_u16(pp + 4 * 22, _rq);
-                vst1_u16(pp + 4 * 23, _ru);
-                vst1_u16(pp + 4 * 24, _r3);
-                vst1_u16(pp + 4 * 25, _r7);
-                vst1_u16(pp + 4 * 26, _rb);
-                vst1_u16(pp + 4 * 27, _rf);
-                vst1_u16(pp + 4 * 28, _rj);
-                vst1_u16(pp + 4 * 29, _rn);
-                vst1_u16(pp + 4 * 30, _rr);
-                vst1_u16(pp + 4 * 31, _rv);
-                pp += 128;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
-                p4 += 4;
-                p5 += 4;
-                p6 += 4;
-                p7 += 4;
-                p8 += 4;
-                p9 += 4;
-                pa += 4;
-                pb += 4;
-                pc += 4;
-                pd += 4;
-                pe += 4;
-                pf += 4;
-                pg += 4;
-                ph += 4;
-                pi += 4;
-                pj += 4;
-                pk += 4;
-                pl += 4;
-                pm += 4;
-                pn += 4;
-                po += 4;
-                _pp += 4;
-                pq += 4;
-                pr += 4;
-                ps += 4;
-                pt += 4;
-                pu += 4;
-                pv += 4;
+                vst1q_u16(pp, _r0);
+                vst1q_u16(pp + 8, _r8);
+                vst1q_u16(pp + 8 * 2, _rg);
+                vst1q_u16(pp + 8 * 3, _ro);
+                vst1q_u16(pp + 8 * 4, _r1);
+                vst1q_u16(pp + 8 * 5, _r9);
+                vst1q_u16(pp + 8 * 6, _rh);
+                vst1q_u16(pp + 8 * 7, _rp);
+
+                vst1q_u16(pp + 8 * 8, _r2);
+                vst1q_u16(pp + 8 * 9, _ra);
+                vst1q_u16(pp + 8 * 10, _ri);
+                vst1q_u16(pp + 8 * 11, _rq);
+                vst1q_u16(pp + 8 * 12, _r3);
+                vst1q_u16(pp + 8 * 13, _rb);
+                vst1q_u16(pp + 8 * 14, _rj);
+                vst1q_u16(pp + 8 * 15, _rr);
+
+                vst1q_u16(pp + 8 * 16, _r4);
+                vst1q_u16(pp + 8 * 17, _rc);
+                vst1q_u16(pp + 8 * 18, _rk);
+                vst1q_u16(pp + 8 * 19, _rs);
+                vst1q_u16(pp + 8 * 20, _r5);
+                vst1q_u16(pp + 8 * 21, _rd);
+                vst1q_u16(pp + 8 * 22, _rl);
+                vst1q_u16(pp + 8 * 23, _rt);
+
+                vst1q_u16(pp + 8 * 24, _r6);
+                vst1q_u16(pp + 8 * 25, _re);
+                vst1q_u16(pp + 8 * 26, _rm);
+                vst1q_u16(pp + 8 * 27, _ru);
+                vst1q_u16(pp + 8 * 28, _r7);
+                vst1q_u16(pp + 8 * 29, _rf);
+                vst1q_u16(pp + 8 * 30, _rn);
+                vst1q_u16(pp + 8 * 31, _rv);
+
+                pp += 256;
+                p0 += 8;
+                p1 += 8;
+                p2 += 8;
+                p3 += 8;
+                p4 += 8;
+                p5 += 8;
+                p6 += 8;
+                p7 += 8;
+                p8 += 8;
+                p9 += 8;
+                pa += 8;
+                pb += 8;
+                pc += 8;
+                pd += 8;
+                pe += 8;
+                pf += 8;
+                pg += 8;
+                ph += 8;
+                pi += 8;
+                pj += 8;
+                pk += 8;
+                pl += 8;
+                pm += 8;
+                pn += 8;
+                po += 8;
+                _pp += 8;
+                pq += 8;
+                pr += 8;
+                ps += 8;
+                pt += 8;
+                pu += 8;
+                pv += 8;
             }
             for (; kk < max_kk; kk++)
             {
@@ -1178,7 +1527,6 @@ static void transpose_pack_B_tile_bf16_fp16_amx(const Mat& B, Mat& BT, int j, in
     unsigned short* pp = BT;
 
     int jj = 0;
-    // if (false)
     for (; jj + 31 < max_jj; jj += 32)
     {
         if (elempack == 8)
@@ -1588,6 +1936,7 @@ static void transpose_unpack_output_tile_bf16_fp16_amx(const Mat& topT, Mat& top
     const unsigned short* pp = topT;
 
     int ii = 0;
+    // TODO unpack 32
 #if __ARM_NEON
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
