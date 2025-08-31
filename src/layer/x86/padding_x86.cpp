@@ -52,6 +52,11 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+    if (type == 2)
+    {
+        if (top >= h || bottom >= h || left >= w || right >= w || front >= channels || behind >= channels)
+            return -100;
+    }
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
