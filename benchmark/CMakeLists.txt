@@ -17,11 +17,11 @@ set_property(TARGET benchncnn PROPERTY FOLDER "benchmark")
 # generate model data
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_model_data_header.cmake)
 
-file(GLOB MODEL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.param")
+file(GLOB PARAM_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.param")
 
-foreach(MODEL_FILE ${MODEL_FILES})
-    ncnn_convert_model_file(${MODEL_FILE})
+foreach(PARAM_FILE ${PARAM_FILES})
+    ncnn_convert_param_file(${PARAM_FILE})
 endforeach()
 
-configure_file(model_data_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/model_data_registry.h)
-configure_file(model_data_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/model_data_spv_data.h)
+configure_file(model_param_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/model_param_registry.h)
+configure_file(model_param_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/model_param_spv_data.h)

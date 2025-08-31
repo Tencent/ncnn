@@ -1,24 +1,36 @@
 
-macro(ncnn_convert_model_file MODEL_FILE)
-    # Use macro to convert single model file to mem content
-    file(READ ${MODEL_FILE} model_file_data)
+macro(ncnn_convert_param_file PARAM_FILE)
+    # Use a macro to convert the contents of a single parameter file into memory content
+    file(READ ${PARAM_FILE} param_file_data)
 
     # remove whitespace
-    string(REGEX REPLACE "\n +" "\n" model_file_data ${model_file_data})
+    string(REGEX REPLACE "\n +" "\n" param_file_data ${param_file_data})
 
     # remove empty line
-    string(REGEX REPLACE "\n\n" "\n" model_file_data ${model_file_data})
+    string(REGEX REPLACE "\n\n" "\n" param_file_data ${param_file_data})
 
-    get_filename_component(MODEL_FILE_NAME_WE ${MODEL_FILE} NAME_WE)
+    # Get the file name with extension
+    get_filename_component(PARAM_FILE_NAME ${PARAM_FILE} NAME)
+    # Manually remove ".param" since NAME_WE treats ".1.param" as a multi-extension
+    string(REPLACE ".param" "" PARAM_FILE_NAME_WE "${PARAM_FILE_NAME}")
+    # Check if the result is empty
+    if (NOT PARAM_FILE_NAME_WE)
+        message(FATAL_ERROR "Failed to extract valid filename from '${PARAM_FILE}'")
+    endif()
+    # Check if the extracted filename is a valid C identifier
+    string(REGEX MATCH "^[A-Za-z_][A-Za-z0-9_]*$" is_valid "${PARAM_FILE_NAME_WE}")
+    if (NOT is_valid)
+        message(FATAL_ERROR "Extracted filename '${PARAM_FILE_NAME_WE}' is not a valid C identifier")
+    endif()
 
     # text to hex
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/model_hex_data/${MODEL_FILE_NAME_WE}.text2hex.txt "${model_file_data}")
-    file(READ ${CMAKE_CURRENT_BINARY_DIR}/model_hex_data/${MODEL_FILE_NAME_WE}.text2hex.txt model_file_data_hex HEX)
-    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," model_file_data_hex ${model_file_data_hex})
-    string(FIND "${model_file_data_hex}" "," tail_comma REVERSE)
-    string(SUBSTRING "${model_file_data_hex}" 0 ${tail_comma} model_file_data_hex)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/param_hex_data/${PARAM_FILE_NAME_WE}.text2hex.txt "${param_file_data}")
+    file(READ ${CMAKE_CURRENT_BINARY_DIR}/param_hex_data/${PARAM_FILE_NAME_WE}.text2hex.txt param_file_data_hex HEX)
+    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," param_file_data_hex ${param_file_data_hex})
+    string(FIND "${param_file_data_hex}" "," tail_comma REVERSE)
+    string(SUBSTRING "${param_file_data_hex}" 0 ${tail_comma} param_file_data_hex)
 
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/model_data_header/${MODEL_FILE_NAME_WE}.comp.hex.h "static const char ${MODEL_FILE_NAME_WE}_param_data[] = {${model_file_data_hex},0x00};\n")
-    string(APPEND model_data_spv_data "#include \"model_data_header/${MODEL_FILE_NAME_WE}.comp.hex.h\"\n")
-    string(APPEND model_data_registry "{\"${MODEL_FILE_NAME_WE}\", ${MODEL_FILE_NAME_WE}_param_data},\n")
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/model_param_header/${PARAM_FILE_NAME_WE}.comp.hex.h "static const char ${PARAM_FILE_NAME_WE}_param_data[] = {${param_file_data_hex},0x00};\n")
+    string(APPEND model_param_spv_data "#include \"model_param_header/${PARAM_FILE_NAME_WE}.comp.hex.h\"\n")
+    string(APPEND model_param_registry "{\"${PARAM_FILE_NAME_WE}\", ${PARAM_FILE_NAME_WE}_param_data},\n")
 endmacro()

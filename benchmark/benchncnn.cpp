@@ -4,7 +4,6 @@
 #include <float.h>
 #include <stdio.h>
 #include <string.h>
-#include <unordered_map>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -16,7 +15,7 @@
 #include "net.h"
 #include "gpu.h"
 
-#include "../benchmark/model_data_spv_data.h"
+#include "../benchmark/model_param_spv_data.h"
 
 #ifndef NCNN_SIMPLESTL
 #include <vector>
@@ -43,8 +42,14 @@ static bool g_enable_cooling_down = true;
 static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
 static ncnn::PoolAllocator g_workspace_pool_allocator;
 
-static const std::unordered_map<std::string, const char*> model_data_registry = {
-    #include "../benchmark/model_data_registry.h"
+struct model_param_registry_entry
+{
+    const char* model_name;
+    const char* model_param;
+};
+
+static const model_param_registry_entry model_param_registry[] = {
+#include "../benchmark/model_param_registry.h"
 };
 
 #if NCNN_VULKAN
@@ -53,6 +58,21 @@ static ncnn::VkAllocator* g_blob_vkallocator = 0;
 static ncnn::VkAllocator* g_staging_vkallocator = 0;
 #endif // NCNN_VULKAN
 
+const char* find_model_param(const char* model_name)
+{
+    int param_num = sizeof(model_param_registry) / sizeof(model_param_registry_entry);
+    const char* model_param = NULL;
+    for (int i = 0; i < param_num; i++)
+    {
+        if (!strcmp(model_name, model_param_registry[i].model_name))
+        {
+            model_param = model_param_registry[i].model_param;
+            break;
+        }
+    }
+    return model_param;
+}
+
 void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fixed_path = true)
 {
     // Skip if int8 model name and using GPU
@@ -60,13 +80,6 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
     {
         if (!fixed_path)
             fprintf(stderr, "%20s  skipped (int8+GPU not supported)\n", comment);
-        return;
-    }
-
-    // Skip if comment contains '-'
-    if (strchr(comment, '-') != NULL) {
-        if (!fixed_path)
-            fprintf(stderr, "%20s  skipped (filename shouldn't contains '-')\n", comment);
         return;
     }
 
@@ -98,25 +111,24 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
 #define MODEL_DIR ""
 #endif
 
-    const char* model_data = nullptr;
+    const char* model_param = NULL;
 
     if (fixed_path)
     {
-        model_data = model_data_registry.find(comment)->second;
+        model_param = find_model_param(comment);
     }
     else
     {
         // use load_param_mem
-        auto iter = model_data_registry.find(comment);
-        if (iter == model_data_registry.end())
+        model_param = find_model_param(comment);
+        if (model_param == NULL)
         {
             fprintf(stderr, "can't find %s.param in model dir\n", comment);
             return;
         }
-        model_data = iter->second;
     }
 
-    net.load_param_mem(model_data);
+    net.load_param_mem(model_param);
 
     DataReaderFromEmpty dr;
     net.load_model(dr);
@@ -479,7 +491,7 @@ int main(int argc, char** argv)
 
         benchmark("nanodet_m", ncnn::Mat(320, 320, 3), opt);
 
-        benchmark("yolo_fastest_1.1", ncnn::Mat(320, 320, 3), opt);
+        benchmark("yolo_fastest_1_1", ncnn::Mat(320, 320, 3), opt);
 
         benchmark("yolo_fastestv2", ncnn::Mat(352, 352, 3), opt);
 
