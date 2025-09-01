@@ -84,7 +84,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
 
         UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
         UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
-        UNROLL_SG_K = 1; //std::min((K + coopmat_K - 1) / coopmat_K, 2);
+        UNROLL_SG_K = std::min((K + coopmat_K - 1) / coopmat_K, 2);
 
         UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
         UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
