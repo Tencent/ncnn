@@ -68,7 +68,7 @@ const uint Nd4 = N / 4;
 const uint Kd4 = K / 4;
 
 // avoid bank conflict
-#define PAD 1
+#define PAD 0
 
 const uint Md4p = Md4 + PAD;
 const uint Nd4p = Nd4 + PAD;
@@ -323,6 +323,7 @@ void main()
 
     uint k = 0;
 
+#if 0
     if (kk >= UNROLL_SG_K * 2)
     {
         // local stack and shared memory ping-pong
@@ -1558,6 +1559,7 @@ void main()
 
         k += UNROLL_SG_K;
     }
+#endif
 
     for (; k < kk; k++)
     {
