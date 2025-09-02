@@ -27,7 +27,135 @@
 
 // There is known issue that vkDestroyDebugUtilsMessengerEXT crash on exit when vulkan validation layer enabled
 // upstream fix https://github.com/KhronosGroup/Vulkan-Loader/pull/539
-#define ENABLE_VALIDATION_LAYER 0
+#define ENABLE_VALIDATION_LAYER 1
+
+#if NCNN_ENABLE_RENDERDOC_PROFILING
+
+#define PLATFORM_WINDOWS 0
+#define PLATFORM_LINUX   0
+#define PLATFORM_APPLE   0
+#define PLATFORM_IOS     0
+#define PLATFORM_ANDROID 0
+// Check for Windows
+#if defined(WIN32) || defined(__WIN32__) || defined(_WIN32) || defined(_MSC_VER)
+    #undef  PLATFORM_WINDOWS
+    #define PLATFORM_WINDOWS 1
+// Check for Apple platforms
+#elif defined(__APPLE__)
+    #undef  PLATFORM_APPLE
+    #define PLATFORM_APPLE 1
+// Check for Android
+#elif defined(__ANDROID__)
+    #undef  PLATFORM_ANDROID
+    #define PLATFORM_ANDROID 1
+// Check for Linux (but not Android, since Android also defines __linux__)
+#elif defined(__linux__)
+    #undef  PLATFORM_LINUX
+    #define PLATFORM_LINUX 1
+#else
+    #error "Unsupported platform detected."
+#endif
+
+#if !PLATFORM_WINDOWS
+#include <dlfcn.h>
+#endif // !PLATFORM_WINDOWS
+
+#include "third_party/renderdoc/renderdoc_app.h"
+#define RENDERDOC_API_LATEST RENDERDOC_API_1_6_0
+#define eRENDERDOC_API_Version_LATEST eRENDERDOC_API_Version_1_6_0
+
+static RENDERDOC_API_LATEST* ncnn_vulkan_renderdoc_api(VkInstance ins) {
+    (void)ins;
+
+    pRENDERDOC_GetAPI RENDERDOC_GetAPI = NULL;
+
+#if PLATFORM_WINDOWS
+    if(HMODULE mod = GetModuleHandleA("renderdoc.dll"))
+    {
+        RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)GetProcAddress(mod, "RENDERDOC_GetAPI");
+    }
+#elif PLATFORM_LINUX
+    void *mod = dlopen("librenderdoc.so", RTLD_NOW | RTLD_LAZY);
+    if(mod)
+    {
+        RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)dlsym(mod, "RENDERDOC_GetAPI");
+    }
+#elif PLATFORM_ANDROID
+    void *mod = dlopen("libVkLayer_GLES_RenderDoc.so", RTLD_NOW | RTLD_LAZY);
+    if(mod)
+    {
+        RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)dlsym(mod, "RENDERDOC_GetAPI");
+    }
+#elif PLATFORM_APPLE
+    void *mod = dlopen("librenderdoc.dylib", RTLD_NOW | RTLD_LAZY);
+    if(mod)
+    {
+        RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)dlsym(mod, "RENDERDOC_GetAPI");
+    }
+#else
+#error "RenderDoc profiling not supported on this platform"
+#endif
+
+    if(RENDERDOC_GetAPI)
+    {
+        RENDERDOC_API_LATEST* rdoc_api = NULL;
+        int ret = RENDERDOC_GetAPI(eRENDERDOC_API_Version_LATEST, (void **)&rdoc_api);
+        if(ret == 1 && rdoc_api) {
+            rdoc_api->SetCaptureOptionU32(eRENDERDOC_Option_DebugOutputMute, 0);
+            NCNN_LOGE("RenderDoc API initialized successfully");
+            return rdoc_api;
+        } else {
+            NCNN_LOGE("Failed to get RenderDoc API, ret=%d", ret);
+        }
+    } else {
+        NCNN_LOGE("Failed to get RENDERDOC_GetAPI function");
+    }
+
+    return NULL;
+}
+
+static void ncnn_vulkan_begin_renderdoc_capture(
+    RENDERDOC_API_LATEST* renderdoc_api, VkInstance instance) {
+    if (!renderdoc_api) {
+        NCNN_LOGE("RenderDoc API is NULL, cannot begin capture");
+        return;
+    }
+
+    NCNN_LOGE("Starting RenderDoc capture...");
+    renderdoc_api->StartFrameCapture(
+        RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE(instance), NULL);
+}
+
+static void ncnn_vulkan_end_renderdoc_capture(
+    RENDERDOC_API_LATEST* renderdoc_api, VkInstance instance) {
+    if (!renderdoc_api) {
+        NCNN_LOGE("RenderDoc API is NULL, cannot end capture");
+        return;
+    }
+    NCNN_LOGE("Ending RenderDoc capture...");
+    renderdoc_api->EndFrameCapture(
+        RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE(instance), NULL);
+}
+
+static void configure_renderdoc_headless(RENDERDOC_API_LATEST* rdoc_api) {
+    if (!rdoc_api) return;
+    
+    // set capture options
+    rdoc_api->SetCaptureOptionU32(eRENDERDOC_Option_AllowVSync, 0);
+    rdoc_api->SetCaptureOptionU32(eRENDERDOC_Option_AllowFullscreen, 0);
+    rdoc_api->SetCaptureOptionU32(eRENDERDOC_Option_APIValidation, 1);
+    rdoc_api->SetCaptureOptionU32(eRENDERDOC_Option_CaptureCallstacks, 1);
+    rdoc_api->SetCaptureOptionU32(eRENDERDOC_Option_DebugOutputMute, 0);
+    
+    // capture file path
+    const char* capture_path = getenv("NCNN_RENDERDOC_CAPTURE_PATH");
+    if (!capture_path) {
+        capture_path = "./ncnn_capture";
+    }
+    rdoc_api->SetCaptureFilePathTemplate(capture_path);
+}
+
+#endif
 
 namespace ncnn {
 
@@ -70,6 +198,9 @@ public:
     uint32_t instance_api_version;
     int created;
     bool glslang_initialized;
+    #if NCNN_ENABLE_RENDERDOC_PROFILING
+    RENDERDOC_API_LATEST* renderdoc_api;
+    #endif
 
 #if ENABLE_VALIDATION_LAYER
     VkDebugUtilsMessengerEXT callback;
@@ -504,8 +635,22 @@ void GpuInfoPrivate::query_properties()
     }
 }
 
-static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
+static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties, bool prefer_graphics_for_renderdoc = false)
 {
+    if (prefer_graphics_for_renderdoc) {
+        // RenderDoc works better with graphics+compute queue
+        for (uint32_t i = 0; i < queueFamilyProperties.size(); i++)
+        {
+            const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+            if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
+                    && (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+            {
+                return i;
+            }
+        }
+    }
+
     // first try, compute only queue
     for (uint32_t i = 0; i < queueFamilyProperties.size(); i++)
     {
@@ -584,6 +729,10 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
 
 void GpuInfoPrivate::query_queue_properties()
 {
+    bool prefer_graphics_for_renderdoc = false;
+    #if NCNN_ENABLE_RENDERDOC_PROFILING && ENABLE_VALIDATION_LAYER
+    prefer_graphics_for_renderdoc = true;
+    #endif
     // find compute queue
     uint32_t queueFamilyPropertiesCount;
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, 0);
@@ -591,7 +740,7 @@ void GpuInfoPrivate::query_queue_properties()
     std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
 
-    compute_queue_family_index = find_device_compute_queue(queueFamilyProperties);
+    compute_queue_family_index = find_device_compute_queue(queueFamilyProperties, prefer_graphics_for_renderdoc);
     transfer_queue_family_index = find_device_transfer_queue(queueFamilyProperties);
 
     compute_queue_count = queueFamilyProperties[compute_queue_family_index].queueCount;
@@ -2253,8 +2402,8 @@ static int init_instance_extension()
 
 #if ENABLE_VALIDATION_LAYER
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
-    VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* /*pUserData*/)
 {
@@ -2539,6 +2688,10 @@ int create_gpu_instance(const char* driver_path)
 
     g_instance.instance = instance;
     g_instance.instance_api_version = instance_api_version;
+
+    #if NCNN_ENABLE_RENDERDOC_PROFILING
+    g_instance.renderdoc_api = ncnn_vulkan_renderdoc_api(g_instance.instance);
+    #endif
 
     init_instance_core();
 
@@ -2844,6 +2997,21 @@ int create_gpu_instance(const char* driver_path)
 
     return 0;
 }
+
+#if NCNN_ENABLE_RENDERDOC_PROFILING
+void start_renderdoc_capture() {
+    if (g_instance.renderdoc_api && g_instance.instance) {
+        configure_renderdoc_headless(g_instance.renderdoc_api);
+        ncnn_vulkan_begin_renderdoc_capture(g_instance.renderdoc_api, g_instance.instance);
+    }
+}
+
+void end_renderdoc_capture() {
+    if (g_instance.renderdoc_api && g_instance.instance) {
+        ncnn_vulkan_end_renderdoc_capture(g_instance.renderdoc_api, g_instance.instance);
+    }
+}
+#endif
 
 VkInstance get_gpu_instance()
 {

@@ -29,6 +29,11 @@ NCNN_EXPORT VkInstance get_gpu_instance();
 // The function will internally ensure that all vulkan devices are idle before proceeding with destruction.
 NCNN_EXPORT void destroy_gpu_instance();
 
+#if NCNN_ENABLE_RENDERDOC_PROFILING
+NCNN_EXPORT void start_renderdoc_capture();
+NCNN_EXPORT void end_renderdoc_capture();
+#endif
+
 // vulkan core
 extern PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers;
 extern PFN_vkAllocateDescriptorSets vkAllocateDescriptorSets;

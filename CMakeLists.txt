@@ -89,6 +89,11 @@ option(NCNN_PYTHON "build python api" OFF)
 option(NCNN_INT8 "int8 inference" ON)
 option(NCNN_BF16 "bf16 inference" ON)
 option(NCNN_FORCE_INLINE "force inline some function" ON)
+option(NCNN_ENABLE_RENDERDOC_PROFILING "Enables profiling with the RenderDoc tool." ON)
+
+if(NCNN_ENABLE_RENDERDOC_PROFILING)
+    add_definitions(-DNCNN_ENABLE_RENDERDOC_PROFILING=1)
+endif()
 
 if(ANDROID OR IOS OR NCNN_SIMPLESTL)
     option(NCNN_DISABLE_RTTI "disable rtti" ON)
