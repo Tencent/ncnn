@@ -54,7 +54,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
         pipeline_layernorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::layernorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
-
     }
 
     {
@@ -65,7 +64,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_reduce_mean_pack4 = new Pipeline(vkdev);
         pipeline_layernorm_reduce_mean_pack4->set_optimal_local_size_xyz(1, 8, 8);
         pipeline_layernorm_reduce_mean_pack4->create(LayerShaderType::layernorm_reduce_mean_pack4, opt, std::vector<vk_specialization_type>());
-
     }
 
     {
@@ -76,7 +74,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_sub_mean_square_pack4 = new Pipeline(vkdev);
         pipeline_layernorm_sub_mean_square_pack4->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_sub_mean_square_pack4->create(LayerShaderType::layernorm_sub_mean_square_pack4, opt, std::vector<vk_specialization_type>());
-
     }
 
     {
@@ -90,7 +87,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_coeffs_pack4 = new Pipeline(vkdev);
         pipeline_layernorm_coeffs_pack4->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_coeffs_pack4->create(LayerShaderType::layernorm_coeffs_pack4, opt, specializations);
-
     }
 
     {
@@ -104,7 +100,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_norm_pack4 = new Pipeline(vkdev);
         pipeline_layernorm_norm_pack4->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_norm_pack4->create(LayerShaderType::layernorm_norm_pack4, opt, specializations);
-
     }
 
     return 0;
