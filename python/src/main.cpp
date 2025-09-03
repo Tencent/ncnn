@@ -1,17 +1,5 @@
-/* Tencent is pleased to support the open source community by making ncnn available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
- *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- *
- * https://opensource.org/licenses/BSD-3-Clause
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- */
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -213,9 +201,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_int8_storage", &Option::use_int8_storage)
     .def_readwrite("use_int8_arithmetic", &Option::use_int8_arithmetic)
     .def_readwrite("use_packing_layout", &Option::use_packing_layout)
-    .def_readwrite("use_shader_pack8", &Option::use_shader_pack8)
     .def_readwrite("use_subgroup_ops", &Option::use_subgroup_ops)
-    .def_readwrite("use_image_storage", &Option::use_image_storage)
     .def_readwrite("use_tensor_storage", &Option::use_tensor_storage);
 
     py::class_<Mat> mat(m, "Mat", py::buffer_protocol());
@@ -889,7 +875,6 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("support_packing", &Layer::support_packing)
     .def_readwrite("support_bf16_storage", &Layer::support_bf16_storage)
     .def_readwrite("support_fp16_storage", &Layer::support_fp16_storage)
-    .def_readwrite("support_image_storage", &Layer::support_image_storage)
     .def("forward", (int (Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
          py::arg("bottom_blobs"), py::arg("top_blobs"), py::arg("opt"))
     .def("forward", (int (Layer::*)(const Mat&, Mat&, const Option&) const) & Layer::forward,

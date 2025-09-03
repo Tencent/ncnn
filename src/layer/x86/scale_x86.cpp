@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "scale_x86.h"
 
@@ -161,9 +150,9 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #if __SSE2__
             __m128 _s128 = (elempack == 4) ? _mm_loadu_ps(scale + i * 4) : _mm_set1_ps(s);
 #if __AVX__
-            __m256 _s256 = (elempack == 8) ? _mm256_loadu_ps(scale + i * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_s128), _s128, 1);
+            __m256 _s256 = (elempack == 8) ? _mm256_loadu_ps(scale + i * 8) : combine4x2_ps(_s128, _s128);
 #if __AVX512F__
-            __m512 _s512 = (elempack == 16) ? _mm512_loadu_ps(scale + i * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_s256), _s256, 1);
+            __m512 _s512 = (elempack == 16) ? _mm512_loadu_ps(scale + i * 16) : combine8x2_ps(_s256, _s256);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -174,9 +163,9 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #if __SSE2__
                 __m128 _b128 = (elempack == 4) ? _mm_loadu_ps(bias + i * 4) : _mm_set1_ps(b);
 #if __AVX__
-                __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps(bias + i * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_b128), _b128, 1);
+                __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps(bias + i * 8) : combine4x2_ps(_b128, _b128);
 #if __AVX512F__
-                __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps(bias + i * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_b256), _b256, 1);
+                __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps(bias + i * 16) : combine8x2_ps(_b256, _b256);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -261,9 +250,9 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #if __SSE2__
             __m128 _s128 = (elempack == 4) ? _mm_loadu_ps(scale + q * 4) : _mm_set1_ps(s);
 #if __AVX__
-            __m256 _s256 = (elempack == 8) ? _mm256_loadu_ps(scale + q * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_s128), _s128, 1);
+            __m256 _s256 = (elempack == 8) ? _mm256_loadu_ps(scale + q * 8) : combine4x2_ps(_s128, _s128);
 #if __AVX512F__
-            __m512 _s512 = (elempack == 16) ? _mm512_loadu_ps(scale + q * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_s256), _s256, 1);
+            __m512 _s512 = (elempack == 16) ? _mm512_loadu_ps(scale + q * 16) : combine8x2_ps(_s256, _s256);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -274,9 +263,9 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #if __SSE2__
                 __m128 _b128 = (elempack == 4) ? _mm_loadu_ps(bias + q * 4) : _mm_set1_ps(b);
 #if __AVX__
-                __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps(bias + q * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_b128), _b128, 1);
+                __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps(bias + q * 8) : combine4x2_ps(_b128, _b128);
 #if __AVX512F__
-                __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps(bias + q * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_b256), _b256, 1);
+                __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps(bias + q * 16) : combine8x2_ps(_b256, _b256);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef X86_USABILITY_H
 #define X86_USABILITY_H
@@ -882,7 +871,11 @@ static NCNN_FORCEINLINE __m256 combine4x2_ps(__m128 a, __m128 b)
 
 static NCNN_FORCEINLINE __m256i combine4x2_epi32(__m128i a, __m128i b)
 {
+#if __AVX2__
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(a), b, 1);
+#else
     return _mm256_insertf128_si256(_mm256_castsi128_si256(a), b, 1);
+#endif
 }
 
 static NCNN_FORCEINLINE float _mm256_reduce_add_ps(__m256 x)

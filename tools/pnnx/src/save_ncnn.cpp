@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "save_ncnn.h"
 #include <cstdint>
@@ -135,7 +124,7 @@ static int32_t safe_int64_to_int32(int64_t value)
     return static_cast<int32_t>(value);
 }
 
-int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, int fp16)
+int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
     if (!paramfp)
@@ -416,13 +405,28 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (!r)
                 break;
 
+            std::vector<int> input_shape;
+            if (input_shapes.empty())
+            {
+                input_shape = r->shape;
+            }
+            else
+            {
+                const std::vector<int64_t>& s = input_shapes[input_index];
+                for (int64_t d : s)
+                {
+                    input_shape.push_back((int)d);
+                }
+            }
+
             if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
+                for (size_t i = 0; i < input_shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", r->shape[i]);
-                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                    int dimsize = input_shape[i];
+                    fprintf(pyfp, "%d", dimsize);
+                    if (i + 1 != input_shape.size() || input_shape.size() == 1)
                         fprintf(pyfp, ", ");
                 }
                 fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
@@ -430,9 +434,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
+                for (size_t i = 0; i < input_shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
+                    int dimsize = input_shape[i];
+                    fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }

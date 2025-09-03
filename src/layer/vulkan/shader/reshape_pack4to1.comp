@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -31,13 +20,8 @@ layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
 layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
-#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -83,63 +67,6 @@ void main()
         i4 = (gz * 4) * psc(d) * psc(h) * psc(w) + gy * psc(w) + gx + ivec4(0, 1, 2, 3) * psc(d) * psc(h) * psc(w);
     }
 
-#if NCNN_image_shader
-    ivec4 x4;
-    ivec4 y4;
-    ivec4 z4;
-
-    if (ndim == 1)
-    {
-        z4 = ivec4(0);
-        y4 = ivec4(0);
-        x4 = i4;
-    }
-    if (ndim == 2)
-    {
-        z4 = ivec4(0);
-        y4 = i4 / psc(outw);
-        x4 = i4 % psc(outw);
-    }
-    if (ndim == 3)
-    {
-        int size = psc(outw) * psc(outh);
-
-        z4 = i4 / size;
-        y4 = i4 % size / psc(outw);
-        x4 = i4 % size % psc(outw);
-    }
-    if (ndim == 4)
-    {
-        int size = psc(outw) * psc(outh) * psc(outd);
-        int dsize = psc(outw) * psc(outh);
-
-        z4 = i4 / size;
-        ivec4 yd4 = i4 % size / dsize;
-        ivec4 yh4 = i4 % size % dsize / psc(outw);
-        x4 = i4 % size % dsize % psc(outw);
-
-        y4 = yd4 * psc(outh) + yh4;
-    }
-
-    afpvec4 v;
-    if (psc(dims) == 1)
-    {
-        v = image3d_ld4(bottom_blob_3d, ivec3(gx, 0, 0));
-    }
-    else if (psc(dims) == 2)
-    {
-        v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, 0));
-    }
-    else // if (psc(dims) == 3 || psc(dims) == 4)
-    {
-        v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
-    }
-
-    image3d_st1(top_blob_3d, ivec3(x4.r, y4.r, z4.r), v.r);
-    image3d_st1(top_blob_3d, ivec3(x4.g, y4.g, z4.g), v.g);
-    image3d_st1(top_blob_3d, ivec3(x4.b, y4.b, z4.b), v.b);
-    image3d_st1(top_blob_3d, ivec3(x4.a, y4.a, z4.a), v.a);
-#else
     ivec4 v_offset;
 
     if (ndim == 1)
@@ -181,5 +108,4 @@ void main()
     int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     buffer_cp4to1(top_blob_data, v_offset, bottom_blob_data, gi);
-#endif
 }

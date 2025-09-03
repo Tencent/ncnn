@@ -17,7 +17,7 @@ jobs:
     name: Build SDist
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
 
@@ -52,10 +52,10 @@ jobs:
           - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
           - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
           - { os: ubuntu-24.04,     arch: i686,       build: 'pp*',            build_id: pp           }
-          - { os: windows-2019,     arch: x86,        build: 'cp*',            build_id: cp           }
-          - { os: windows-2019,     arch: AMD64,      build: 'cp*',            build_id: cp           }
-          - { os: windows-2019,     arch: AMD64,      build: 'pp*',            build_id: pp           }
-          - { os: windows-2019,     arch: ARM64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-2022,     arch: x86,        build: 'cp*',            build_id: cp           }
+          - { os: windows-2022,     arch: AMD64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-2022,     arch: AMD64,      build: 'pp*',            build_id: pp           }
+          - { os: windows-2022,     arch: ARM64,      build: 'cp*',            build_id: cp           }
           - { os: macos-13,         arch: x86_64,     build: 'cp*',            build_id: cp           }
           - { os: macos-13,         arch: x86_64,     build: 'pp*',            build_id: pp           }
           - { os: macos-13,         arch: arm64,      build: 'cp*',            build_id: cp           }
@@ -81,7 +81,7 @@ jobs:
         -DLIBOMP_USE_HWLOC=OFF \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
 
@@ -92,10 +92,11 @@ jobs:
     # build wheels for ubuntu-24.04
     - name: Build wheels for ubuntu
       if: matrix.os == 'ubuntu-24.04'
-      uses: pypa/cibuildwheel@v2.23.2
+      uses: pypa/cibuildwheel@v3.1.4
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
       with:
@@ -104,10 +105,11 @@ jobs:
     # build wheels for ubuntu-24.04 armv7l
     - name: Build wheels for ubuntu armv7l
       if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'armv7l')
-      uses: pypa/cibuildwheel@v2.23.2
+      uses: pypa/cibuildwheel@v3.1.4
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
           CFLAGS="-mfpu=neon" CXXFLAGS="-mfpu=neon"
@@ -117,22 +119,24 @@ jobs:
     # build wheels for ubuntu-24.04 aarch64
     - name: Build wheels for ubuntu aarch64
       if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'aarch64')
-      uses: pypa/cibuildwheel@v2.23.2
+      uses: pypa/cibuildwheel@v3.1.4
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
       with:
         output-dir: wheelhouse
 
-    # build wheels for windows-2019
+    # build wheels for windows-2022
     - name: Build wheels for windows
-      if: matrix.os == 'windows-2019' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
-      uses: pypa/cibuildwheel@v2.23.2
+      if: matrix.os == 'windows-2022' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
+      uses: pypa/cibuildwheel@v3.1.4
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=4
         CIBW_BEFORE_BUILD: pip install delvewheel
@@ -141,11 +145,12 @@ jobs:
         output-dir: wheelhouse
 
     - name: Build wheels for windows ARM64
-      if: matrix.os == 'windows-2019' && matrix.arch == 'ARM64'
-      uses: pypa/cibuildwheel@v2.23.2
+      if: matrix.os == 'windows-2022' && matrix.arch == 'ARM64'
+      uses: pypa/cibuildwheel@v3.1.4
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=4
         CIBW_BEFORE_BUILD: pip install delvewheel
@@ -220,10 +225,11 @@ jobs:
 
     - name: Build wheels for macos x86_64
       if: matrix.os == 'macos-13' && matrix.arch == 'x86_64'
-      uses: pypa/cibuildwheel@v2.23.2
+      uses: pypa/cibuildwheel@v3.1.4
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=3
           CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC ARCHS="x86_64"
@@ -238,10 +244,11 @@ jobs:
 
     - name: Build wheels for macos arm64
       if: matrix.os == 'macos-13' && matrix.arch == 'arm64'
-      uses: pypa/cibuildwheel@v2.23.2
+      uses: pypa/cibuildwheel@v3.1.4
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=3
           CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC_ARM64 ARCHS="arm64"
@@ -280,7 +287,7 @@ jobs:
       with:
         python-version: '3.x'
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         path: dist
         merge-multiple: true

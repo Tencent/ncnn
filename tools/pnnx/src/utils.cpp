@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "utils.h"
+
+#include <math.h>
 
 namespace pnnx {
 
@@ -119,6 +110,27 @@ float float16_to_float32(unsigned short value)
     }
 
     return tmp.f;
+}
+
+void apply_weight_norm(std::vector<float>& weight, const std::vector<float>& weight_g, int dim0, int size)
+{
+    for (int i = 0; i < dim0; i++)
+    {
+        float* pw = weight.data() + i * size;
+
+        double norm = 0.f;
+        for (int j = 0; j < size; j++)
+        {
+            float w = pw[j];
+            norm += w * w;
+        }
+        norm = sqrt(norm);
+
+        for (int j = 0; j < size; j++)
+        {
+            pw[j] = pw[j] * (weight_g[i] / norm);
+        }
+    }
 }
 
 } // namespace pnnx

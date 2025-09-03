@@ -1,16 +1,5 @@
-// Copyright (c) 2022 Xiaomi Corp.        (author: Fangjun Kuang)
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this
-// file except in compliance with the License. You may obtain a copy of the
-// License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations under
-// the License.
+// Copyright 2022 Xiaomi Corp.   (author: Fangjun Kuang)
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "glu.h"
 
@@ -133,7 +122,7 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
 
         top_blob.create(out_w, out_h, out_c, sizeof(float), opt.blob_allocator);
 
-        int offset = out_c * bottom_blob.cstep;
+        size_t offset = out_c * bottom_blob.cstep;
         int size = w * h;
 
         #pragma omp parallel for num_threads(opt.num_threads)

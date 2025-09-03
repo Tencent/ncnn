@@ -1,17 +1,5 @@
-/* Tencent is pleased to support the open source community by making ncnn available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
- *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- *
- * https://opensource.org/licenses/BSD-3-Clause
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- */
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "platform.h"
 
@@ -1130,11 +1118,6 @@ int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer)
     return ((const Layer*)layer->pthis)->support_fp16_storage;
 }
 
-int ncnn_layer_get_support_image_storage(const ncnn_layer_t layer)
-{
-    return ((const Layer*)layer->pthis)->support_image_storage;
-}
-
 void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable)
 {
     ((Layer*)layer->pthis)->one_blob_only = enable;
@@ -1163,11 +1146,6 @@ void ncnn_layer_set_support_bf16_storage(ncnn_layer_t layer, int enable)
 void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable)
 {
     ((Layer*)layer->pthis)->support_fp16_storage = enable;
-}
-
-void ncnn_layer_set_support_image_storage(ncnn_layer_t layer, int enable)
-{
-    ((Layer*)layer->pthis)->support_image_storage = enable;
 }
 
 int ncnn_layer_get_bottom_count(const ncnn_layer_t layer)
@@ -1264,7 +1242,6 @@ static ::ncnn::Layer* __Layer_c_api_layer_creator(void* userdata)
 
     layer->support_bf16_storage = ncnn_layer_get_support_bf16_storage(layer0);
     layer->support_fp16_storage = ncnn_layer_get_support_fp16_storage(layer0);
-    layer->support_image_storage = ncnn_layer_get_support_image_storage(layer0);
 
     return layer;
 }
