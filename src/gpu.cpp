@@ -350,6 +350,7 @@ public:
     int support_VK_EXT_shader_atomic_float;
     int support_VK_EXT_shader_atomic_float2;
     int support_VK_EXT_subgroup_size_control;
+    int support_VK_EXT_robustness2;
     int support_VK_AMD_device_coherent_memory;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer;
@@ -368,6 +369,7 @@ public:
     VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR queryShaderSubgroupRotateFeatures;
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT queryShaderAtomicFloatFeatures;
     VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT queryShaderAtomicFloat2Features;
+    VkPhysicalDeviceRobustness2FeaturesEXT queryRobustness2Features;
 
     // extension properties
     void* queryDeviceProperties;
@@ -687,6 +689,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_EXT_shader_atomic_float = 0;
     support_VK_EXT_shader_atomic_float2 = 0;
     support_VK_EXT_subgroup_size_control = 0;
+    support_VK_EXT_robustness2 = 0;
     support_VK_AMD_device_coherent_memory = 0;
 #if __ANDROID_API__ >= 26
     support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
@@ -765,6 +768,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_shader_atomic_float2 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_subgroup_size_control") == 0)
             support_VK_EXT_subgroup_size_control = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_robustness2") == 0)
+            support_VK_EXT_robustness2 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_AMD_device_coherent_memory") == 0)
             support_VK_AMD_device_coherent_memory = exp.specVersion;
 #if __ANDROID_API__ >= 26
@@ -890,6 +895,16 @@ void GpuInfoPrivate::query_extension_features()
     {
         queryShaderAtomicFloat2Features.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryShaderAtomicFloat2Features;
+    }
+
+    // query robustness2
+    memset(&queryRobustness2Features, 0, sizeof(queryRobustness2Features));
+    queryRobustness2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT;
+    queryRobustness2Features.pNext = 0;
+    if (support_VK_EXT_robustness2)
+    {
+        queryRobustness2Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryRobustness2Features;
     }
 
     if (support_VK_KHR_get_physical_device_properties2)
@@ -1652,6 +1667,11 @@ int GpuInfo::support_VK_EXT_shader_atomic_float2() const
 int GpuInfo::support_VK_EXT_subgroup_size_control() const
 {
     return d->support_VK_EXT_subgroup_size_control;
+}
+
+int GpuInfo::support_VK_EXT_robustness2() const
+{
+    return d->support_VK_EXT_robustness2;
 }
 
 int GpuInfo::support_VK_AMD_device_coherent_memory() const
@@ -2779,6 +2799,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_shader_atomic_float2");
     if (info.support_VK_EXT_subgroup_size_control())
         enabledExtensions.push_back("VK_EXT_subgroup_size_control");
+    if (info.support_VK_EXT_robustness2())
+        enabledExtensions.push_back("VK_EXT_robustness2");
     if (info.support_VK_AMD_device_coherent_memory())
         enabledExtensions.push_back("VK_AMD_device_coherent_memory");
 #if __ANDROID_API__ >= 26

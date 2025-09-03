@@ -335,6 +335,7 @@ public:
     int support_VK_EXT_shader_atomic_float() const;
     int support_VK_EXT_shader_atomic_float2() const;
     int support_VK_EXT_subgroup_size_control() const;
+    int support_VK_EXT_robustness2() const;
     int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer() const;
