@@ -28,15 +28,6 @@ LayerNorm_vulkan::LayerNorm_vulkan()
     pipeline_layernorm_sub_mean_square_pack4 = 0;
     pipeline_layernorm_coeffs_pack4 = 0;
     pipeline_layernorm_norm_pack4 = 0;
-
-    // pack8
-    pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack8 = 0;
-    pipeline_layernorm_reduce_sum4_fp32_pack8[0] = 0;
-    pipeline_layernorm_reduce_sum4_fp32_pack8[1] = 0;
-    pipeline_layernorm_reduce_mean_pack8 = 0;
-    pipeline_layernorm_sub_mean_square_pack8 = 0;
-    pipeline_layernorm_coeffs_pack8 = 0;
-    pipeline_layernorm_norm_pack8 = 0;
 }
 
 int LayerNorm_vulkan::create_pipeline(const Option& opt)
@@ -64,16 +55,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::layernorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
 
-        pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
-        pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(16, 4, 1);
-        pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack8->create(LayerShaderType::layernorm_reduce_sum4_fp16_to_fp32_pack8, opt, std::vector<vk_specialization_type>());
-
-        pipeline_layernorm_reduce_sum4_fp32_pack8[0] = new Pipeline(vkdev);
-        pipeline_layernorm_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_layernorm_reduce_sum4_fp32_pack8[0]->create(LayerShaderType::layernorm_reduce_sum4_fp32_pack8, opt, std::vector<vk_specialization_type>());
-        pipeline_layernorm_reduce_sum4_fp32_pack8[1] = new Pipeline(vkdev);
-        pipeline_layernorm_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_layernorm_reduce_sum4_fp32_pack8[1]->create(LayerShaderType::layernorm_reduce_sum4_fp32_pack8, opt, std::vector<vk_specialization_type>());
     }
 
     {
@@ -85,9 +66,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_reduce_mean_pack4->set_optimal_local_size_xyz(1, 8, 8);
         pipeline_layernorm_reduce_mean_pack4->create(LayerShaderType::layernorm_reduce_mean_pack4, opt, std::vector<vk_specialization_type>());
 
-        pipeline_layernorm_reduce_mean_pack8 = new Pipeline(vkdev);
-        pipeline_layernorm_reduce_mean_pack8->set_optimal_local_size_xyz(1, 8, 8);
-        pipeline_layernorm_reduce_mean_pack8->create(LayerShaderType::layernorm_reduce_mean_pack8, opt, std::vector<vk_specialization_type>());
     }
 
     {
@@ -99,9 +77,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_sub_mean_square_pack4->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_sub_mean_square_pack4->create(LayerShaderType::layernorm_sub_mean_square_pack4, opt, std::vector<vk_specialization_type>());
 
-        pipeline_layernorm_sub_mean_square_pack8 = new Pipeline(vkdev);
-        pipeline_layernorm_sub_mean_square_pack8->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_layernorm_sub_mean_square_pack8->create(LayerShaderType::layernorm_sub_mean_square_pack8, opt, std::vector<vk_specialization_type>());
     }
 
     {
@@ -116,9 +91,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_coeffs_pack4->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_coeffs_pack4->create(LayerShaderType::layernorm_coeffs_pack4, opt, specializations);
 
-        pipeline_layernorm_coeffs_pack8 = new Pipeline(vkdev);
-        pipeline_layernorm_coeffs_pack8->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_layernorm_coeffs_pack8->create(LayerShaderType::layernorm_coeffs_pack8, opt, specializations);
     }
 
     {
@@ -133,9 +105,6 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_layernorm_norm_pack4->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_layernorm_norm_pack4->create(LayerShaderType::layernorm_norm_pack4, opt, specializations);
 
-        pipeline_layernorm_norm_pack8 = new Pipeline(vkdev);
-        pipeline_layernorm_norm_pack8->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_layernorm_norm_pack8->create(LayerShaderType::layernorm_norm_pack8, opt, specializations);
     }
 
     return 0;
@@ -174,22 +143,6 @@ int LayerNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
     pipeline_layernorm_sub_mean_square_pack4 = 0;
     pipeline_layernorm_coeffs_pack4 = 0;
     pipeline_layernorm_norm_pack4 = 0;
-
-    // pack8
-    delete pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack8;
-    delete pipeline_layernorm_reduce_sum4_fp32_pack8[0];
-    delete pipeline_layernorm_reduce_sum4_fp32_pack8[1];
-    delete pipeline_layernorm_reduce_mean_pack8;
-    delete pipeline_layernorm_sub_mean_square_pack8;
-    delete pipeline_layernorm_coeffs_pack8;
-    delete pipeline_layernorm_norm_pack8;
-    pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack8 = 0;
-    pipeline_layernorm_reduce_sum4_fp32_pack8[0] = 0;
-    pipeline_layernorm_reduce_sum4_fp32_pack8[1] = 0;
-    pipeline_layernorm_reduce_mean_pack8 = 0;
-    pipeline_layernorm_sub_mean_square_pack8 = 0;
-    pipeline_layernorm_coeffs_pack8 = 0;
-    pipeline_layernorm_norm_pack8 = 0;
 
     return 0;
 }
@@ -290,8 +243,8 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         dispatcher.c = channels;
 
         const Pipeline* pipeline_reduce_sum4 = (elemsize / elempack == 2)
-                                               ? (elempack == 8 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack8 : elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32)
-                                               : (elempack == 8 ? pipeline_layernorm_reduce_sum4_fp32_pack8[0] : elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[0] : pipeline_layernorm_reduce_sum4_fp32[0]);
+                                               ? (elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32)
+                                               : (elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[0] : pipeline_layernorm_reduce_sum4_fp32[0]);
 
         cmd.record_pipeline(pipeline_reduce_sum4, bindings, constants, dispatcher);
 
@@ -319,7 +272,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
             dispatcher.w = reduced_w;
 
-            const Pipeline* pipeline_reduce_iter = elempack == 8 ? pipeline_layernorm_reduce_sum4_fp32_pack8[pb % 2] : elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_layernorm_reduce_sum4_fp32[pb % 2];
+            const Pipeline* pipeline_reduce_iter = elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_layernorm_reduce_sum4_fp32[pb % 2];
             cmd.record_pipeline(pipeline_reduce_iter, bindings_iter, constants_iter, dispatcher);
             pb++;
             sum_workspace = sum_workspace_reduced;
@@ -337,7 +290,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         mean_constants[4].f = (float)group_size;
 
         dispatcher.w = 1;
-        const Pipeline* pipeline_reduce_mean = elempack == 8 ? pipeline_layernorm_reduce_mean_pack8 : elempack == 4 ? pipeline_layernorm_reduce_mean_pack4 : pipeline_layernorm_reduce_mean;
+        const Pipeline* pipeline_reduce_mean = elempack == 4 ? pipeline_layernorm_reduce_mean_pack4 : pipeline_layernorm_reduce_mean;
         cmd.record_pipeline(pipeline_reduce_mean, mean_bindings, mean_constants, dispatcher);
     }
 
@@ -356,7 +309,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         sq_constants[3].i = cstep;
         sq_constants[4].i = affine_size;
 
-        const Pipeline* pipeline_sub_mean_square = elempack == 8 ? pipeline_layernorm_sub_mean_square_pack8 : elempack == 4 ? pipeline_layernorm_sub_mean_square_pack4 : pipeline_layernorm_sub_mean_square;
+        const Pipeline* pipeline_sub_mean_square = elempack == 4 ? pipeline_layernorm_sub_mean_square_pack4 : pipeline_layernorm_sub_mean_square;
         cmd.record_pipeline(pipeline_sub_mean_square, sq_bindings, sq_constants, square_workspace);
 
         // Reduce sum of squares
@@ -384,8 +337,8 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         dispatcher.c = channels;
 
         const Pipeline* pipeline_reduce_sum4 = (square_workspace.elemsize / elempack == 2)
-                                               ? (elempack == 8 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack8 : elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32)
-                                               : (elempack == 8 ? pipeline_layernorm_reduce_sum4_fp32_pack8[0] : elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[0] : pipeline_layernorm_reduce_sum4_fp32[0]);
+                                               ? (elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32)
+                                               : (elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[0] : pipeline_layernorm_reduce_sum4_fp32[0]);
 
         cmd.record_pipeline(pipeline_reduce_sum4, bindings, constants, dispatcher);
 
@@ -412,7 +365,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
             dispatcher.w = reduced_w;
 
-            const Pipeline* pipeline_reduce_iter = elempack == 8 ? pipeline_layernorm_reduce_sum4_fp32_pack8[pb % 2] : elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_layernorm_reduce_sum4_fp32[pb % 2];
+            const Pipeline* pipeline_reduce_iter = elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_layernorm_reduce_sum4_fp32[pb % 2];
             cmd.record_pipeline(pipeline_reduce_iter, bindings_iter, constants_iter, dispatcher);
             pb++;
             sqsum_workspace = sum_workspace_reduced;
@@ -430,7 +383,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
         dispatcher.w = 1;
 
-        const Pipeline* pipeline_reduce_mean = elempack == 8 ? pipeline_layernorm_reduce_mean_pack8 : elempack == 4 ? pipeline_layernorm_reduce_mean_pack4 : pipeline_layernorm_reduce_mean;
+        const Pipeline* pipeline_reduce_mean = elempack == 4 ? pipeline_layernorm_reduce_mean_pack4 : pipeline_layernorm_reduce_mean;
         cmd.record_pipeline(pipeline_reduce_mean, var_bindings, var_constants, dispatcher);
     }
 
@@ -453,7 +406,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     dispatcher_coeffs.h = num_groups_per_channel;
     dispatcher_coeffs.c = channels;
 
-    const Pipeline* pipeline_coeffs = elempack == 8 ? pipeline_layernorm_coeffs_pack8 : elempack == 4 ? pipeline_layernorm_coeffs_pack4 : pipeline_layernorm_coeffs;
+    const Pipeline* pipeline_coeffs = elempack == 4 ? pipeline_layernorm_coeffs_pack4 : pipeline_layernorm_coeffs;
     cmd.record_pipeline(pipeline_coeffs, coeff_bindings, coeff_constants, dispatcher_coeffs);
 
     // apply norm
@@ -470,7 +423,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     norm_constants[3].i = cstep;
     norm_constants[4].i = affine_size;
 
-    const Pipeline* pipeline_norm = elempack == 8 ? pipeline_layernorm_norm_pack8 : elempack == 4 ? pipeline_layernorm_norm_pack4 : pipeline_layernorm_norm;
+    const Pipeline* pipeline_norm = elempack == 4 ? pipeline_layernorm_norm_pack4 : pipeline_layernorm_norm;
     cmd.record_pipeline(pipeline_norm, norm_bindings, norm_constants, bottom_top_blob);
 
     if (bottom_top_blob.dims == 1 && old_elempack != 0 && old_elempack != bottom_top_blob.elempack) // dim 1 is forbidden for pack
