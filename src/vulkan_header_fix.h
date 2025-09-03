@@ -1387,12 +1387,13 @@ typedef struct VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT
 #ifndef VK_EXT_robustness2
 #define VK_EXT_robustness2                                          1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT (VkStructureType)1000286000
-typedef struct VkPhysicalDeviceRobustness2FeaturesEXT {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           robustBufferAccess2;
-    VkBool32           robustImageAccess2;
-    VkBool32           nullDescriptor;
+typedef struct VkPhysicalDeviceRobustness2FeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 robustBufferAccess2;
+    VkBool32 robustImageAccess2;
+    VkBool32 nullDescriptor;
 } VkPhysicalDeviceRobustness2FeaturesEXT;
 #endif // VK_EXT_robustness2
 
