@@ -1,0 +1,77 @@
+name: Unix
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'examples/test_api.py'
+      - 'modules/**'
+      - '!modules/stub/ncnn_mp.pyi'
+      - '.github/workflows/unix-test.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'examples/test_api.py'
+      - 'modules/**'
+      - '!modules/stub/ncnn_mp.pyi'
+      - '.github/workflows/unix-test.yml'
+
+jobs:
+  build-and-test-unix:
+    name: Build and Test on Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y build-essential libprotobuf-dev protobuf-compiler libomp-dev libopencv-dev mesa-vulkan-drivers
+
+      - name: Get ncnn commit hash
+        id: get_ncnn_hash
+        run: echo "hash=$(git rev-parse HEAD:ncnn)" >> $GITHUB_OUTPUT
+      - name: Cache ncnn library
+        id: cache-ncnn
+        uses: actions/cache@v4
+        with:
+          path: ncnn/build/install
+          key: ${{ runner.os }}-ncnn-${{ steps.get_ncnn_hash.outputs.hash }}
+          restore-keys: |
+            ${{ runner.os }}-ncnn-
+
+      - name: Get micropython commit hash
+        id: get_mpy_hash
+        run: echo "hash=$(git rev-parse HEAD:micropython)" >> $GITHUB_OUTPUT
+      - name: Cache mpy-cross
+        id: cache-mpy-cross
+        uses: actions/cache@v4
+        with:
+          path: micropython/mpy-cross/build
+          key: ${{ runner.os }}-mpy-cross-${{ steps.get_mpy_hash.outputs.hash }}
+          restore-keys: |
+            ${{ runner.os }}-mpy-cross-
+
+      - name: Build ncnn for unix
+        if: steps.cache-ncnn.outputs.cache-hit != 'true'
+        run: |
+          cd ncnn
+          mkdir build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLESTL=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=ON -DNCNN_BUILD_TESTS=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=./install ..
+          make -j$(nproc)
+          make install
+
+      - name: Build MicroPython
+        run: |
+          cd micropython/ports/unix/
+          if [ "${{ steps.cache-mpy-cross.outputs.cache-hit }}" != "true" ]; then
+            make -C ../../mpy-cross -j$(nproc)
+          fi
+          make submodules -j$(nproc)
+          make USER_C_MODULES=../../../modules USE_VULKAN=1 -j$(nproc)
+
+      - name: Run test
+        run: |
+          micropython/ports/unix/build-standard/micropython examples/test_api.py

@@ -1,0 +1,6 @@
+[submodule "ncnn"]
+	path = ncnn
+	url = https://github.com/Tencent/ncnn.git
+[submodule "micropython"]
+	path = micropython
+	url = https://github.com/micropython/micropython.git

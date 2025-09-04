@@ -1,0 +1,8 @@
+7767517
+6 7
+Input           in      0 1 data 0=28 1=28 2=1
+Convolution     conv0   1 1 data conv0 0=8 1=5 4=2 5=1 6=200 9=1
+Pooling         pool0   1 1 conv0 pool0 1=2 2=2 5=1
+Convolution     conv1   1 1 pool0 conv1 0=16 1=5 4=2 5=1 6=3200 9=1
+Pooling         pool1   1 1 conv1 pool1 1=3 2=3 5=1
+InnerProduct    fc      1 1 pool1 fc 0=10 1=1 2=2560
