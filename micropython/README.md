@@ -1,4 +1,4 @@
-# ncnn_mp
+# Originally from [ncnn_mp](https://github.com/Willaaaaaaa/ncnn_mp)
 
 [中文](./README_zh.md)
 
@@ -34,7 +34,6 @@ git submodule update --init --recursive
 1.  **Build ncnn**
 
 ```bash
-cd ncnn
 mkdir build && cd build
 # Example: a relatively feature-rich configuration
 cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=ON -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=./install ..
@@ -45,14 +44,14 @@ make install
 2.  **Build MicroPython Firmware**
 
 ```bash
-cd micropython/ports/unix/
+cd micropython/micropython/ports/unix/
 make -C ../../mpy-cross -j4
 make submodules -j4
 make USER_C_MODULES=../../../modules USE_VULKAN=1 -j4
 ./build-standard/micropython ../../../examples/main.py
 ```
 
-> **For Debugging**: Change `CMAKE_BUILD_TYPE` to `DEBUG` in the ncnn build. Then, build MicroPython with `make USER_C_MODULES=../../../modules USE_VULKAN=1 NCNN_INSTALL_PREFIX=../../../ncnn/build-debug/install DEBUG=1 COPT=-O0 -j4`.
+> **For Debugging**: Change `CMAKE_BUILD_TYPE` to `DEBUG` in the ncnn build. Then, build MicroPython with `make USER_C_MODULES=../../../modules USE_VULKAN=1 NCNN_INSTALL_PREFIX=../../../../build-debug/install DEBUG=1 COPT=-O0 -j4`.
 
 ### Build for ESP32-S3 (Cross-compilation, CMake)
 
@@ -82,7 +81,7 @@ source ./export.sh
 cd ncnn
 mkdir build-esp32s3 && cd build-esp32s3
 # You should add configs here to minimize your ncnn lib
-cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/esp32s3.toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=./install ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../micropython/toolchains/esp32s3.toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=./install ..
 make -j4
 make install
 ```
@@ -90,10 +89,10 @@ make install
 2.  **Build MicroPython Firmware**
 
 ```bash
-cd micropython/ports/esp32
+cd micropython/micropython/ports/esp32
 make -C ../../mpy-cross -j4
 make submodules BOARD=ESP32_GENERIC_S3 -j4
-idf.py -D MICROPY_BOARD=ESP32_GENERIC_S3 -D USER_C_MODULES=../../../../modules/ncnn_mp/micropython.cmake -D NCNN_INSTALL_PREFIX=../../../../ncnn/build-esp32s3/install build
+idf.py -D MICROPY_BOARD=ESP32_GENERIC_S3 -D USER_C_MODULES=../../../../modules/ncnn_mp/micropython.cmake -D NCNN_INSTALL_PREFIX=../../../../../build-esp32s3/install build
 ```
 
 3.  **Flash to Device**

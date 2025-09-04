@@ -1,4 +1,4 @@
-# ncnn_mp
+# 原仓库为 [ncnn_mp](https://github.com/Willaaaaaaa/ncnn_mp)
 
 **ncnn_mp** 是一个为 MicroPython 打造的外部 C 模块，它将腾讯的 [ncnn](https://github.com/Tencent/ncnn) 高性能神经网络推理框架引入到资源受限的微控制器中。本仓库提供了 **ncnn C API** 的绑定，让你可以直接在 ESP32、STM32 等嵌入式设备上运行 AI 推理。
 
@@ -32,7 +32,6 @@ git submodule update --init --recursive
 1.  **构建 ncnn**
 
 ```bash
-cd ncnn
 mkdir build && cd build
 # 一个功能相对完整的示例配置
 cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=ON -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=./install ..
@@ -43,14 +42,14 @@ make install
 2.  **构建 MicroPython 固件**
 
 ```bash
-cd micropython/ports/unix/
+cd micropython/micropython/ports/unix/
 make -C ../../mpy-cross -j4
 make submodules -j4
 make USER_C_MODULES=../../../modules USE_VULKAN=1 -j4
 ./build-standard/micropython ../../../examples/main.py
 ```
 
-> **调试**: 在构建 ncnn 时，将 `CMAKE_BUILD_TYPE` 更改为 `DEBUG`。然后使用 `make USER_C_MODULES=../../../modules USE_VULKAN=1 NCNN_INSTALL_PREFIX=../../../ncnn/build-debug/install DEBUG=1 COPT=-O0 -j4` 命令构建 MicroPython。
+> **调试**: 在构建 ncnn 时，将 `CMAKE_BUILD_TYPE` 更改为 `DEBUG`。然后使用 `make USER_C_MODULES=../../../modules USE_VULKAN=1 NCNN_INSTALL_PREFIX=../../../../build-debug/install DEBUG=1 COPT=-O0 -j4` 命令构建 MicroPython。
 
 ### 为 ESP32-S3 构建 (交叉编译, 使用 CMake)
 
@@ -80,7 +79,7 @@ source ./export.sh
 cd ncnn
 mkdir build-esp32s3 && cd build-esp32s3
 # 你可以在此处添加配置以最小化 ncnn 库的大小
-cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/esp32s3.toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=./install ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../micropython/toolchains/esp32s3.toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=./install ..
 make -j4
 make install
 ```
@@ -88,10 +87,10 @@ make install
 2.  **构建 MicroPython 固件**
 
 ```bash
-cd micropython/ports/esp32
+cd micropython/micropython/ports/esp32
 make -C ../../mpy-cross -j4
 make submodules BOARD=ESP32_GENERIC_S3 -j4
-idf.py -D MICROPY_BOARD=ESP32_GENERIC_S3 -D USER_C_MODULES=../../../../modules/ncnn_mp/micropython.cmake -D NCNN_INSTALL_PREFIX=../../../../ncnn/build-esp32s3/install build
+idf.py -D MICROPY_BOARD=ESP32_GENERIC_S3 -D USER_C_MODULES=../../../../modules/ncnn_mp/micropython.cmake -D NCNN_INSTALL_PREFIX=../../../../../build-esp32s3/install build
 ```
 
 3.  **烧录到设备**

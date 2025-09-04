@@ -27,7 +27,7 @@ else()
     message(STATUS "ncnn not found via find_package.")
     if(NOT DEFINED NCNN_INSTALL_PREFIX)
         message(STATUS "NCNN_INSTALL_PREFIX not specified, using ncnn/build/install")
-        set(NCNN_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../ncnn/build/install" CACHE PATH "Path to the ncnn installation directory.")
+        set(NCNN_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../../build/install" CACHE PATH "Path to the ncnn installation directory.")
     endif()
 
     get_filename_component(NCNN_ABSOLUTE_INSTALL_DIR ${NCNN_INSTALL_PREFIX} ABSOLUTE)

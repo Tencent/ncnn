@@ -1,5 +1,5 @@
 NCNN_MP_MOD_DIR := $(USERMOD_DIR)
-NCNN_INSTALL_PREFIX ?= $(NCNN_MP_MOD_DIR)/../../ncnn/build/install
+NCNN_INSTALL_PREFIX ?= $(NCNN_MP_MOD_DIR)/../../../build/install
 
 SRC_USERMOD_C += $(NCNN_MP_MOD_DIR)/ncnn_mp.c
 
