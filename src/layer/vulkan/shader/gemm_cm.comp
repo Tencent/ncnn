@@ -43,11 +43,10 @@ layout (constant_id = 22) const uint UNROLL_WG_N = 2;
 
 // TODO psc more
 
-// layout (binding = 0) writeonly buffer top_blob { uvec2 top_blob_data[]; };
-layout (binding = 0) writeonly buffer top_blob { float16_t top_blob_data[]; };
+layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 1) readonly buffer A_blob { uvec4 A_blob_data[]; };
 layout (binding = 2) readonly buffer B_blob { uvec4 B_blob_data[]; };
-layout (binding = 3) readonly buffer C_blob { uvec4 C_blob_data[]; };
+layout (binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -68,9 +67,7 @@ const uint Nd8 = N / 8;
 const uint Kd8 = K / 8;
 
 // avoid bank conflict
-// #define PAD 0
 #define PAD 1
-// #define PAD 2
 
 const uint Md8p = Md8 + PAD;
 const uint Nd8p = Nd8 + PAD;
@@ -82,11 +79,9 @@ const uint tmp_o_size = UNROLL_WG_N * UNROLL_WG_M * UNROLL_SG_N * UNROLL_SG_M * 
 
 shared uvec4 tmp_abo[tmp_a_size + tmp_b_size > tmp_o_size ? tmp_a_size + tmp_b_size : tmp_o_size];
 
-
 void main()
 {
-    // assert gl_WorkGroupSize.x == gl_SubgroupSize
-    // but neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
+    // neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
     const uint local_size = ncnn_subgroupSize * UNROLL_WG_M * UNROLL_WG_N;
 
     // [ WG_UN * WG_UM * [ SG_UN * SG_UM * subgroup ] ]
@@ -164,12 +159,11 @@ void main()
         }
     }
 
-#if 1
     const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
 
     if (broadcast_type_C == 0)
     {
-        afp bias_value = afp(unpackHalf2x16(C_blob_data[0].r)[0]);
+        afp bias_value = buffer_ld1(C_blob_data, 0);
 
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
@@ -193,10 +187,20 @@ void main()
         {
 #if ncnn_VK_KHR_cooperative_matrix
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> bias;
-            coopMatLoad(bias, C_blob_data, ((wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M + zm) * Md8, 0, gl_CooperativeMatrixLayoutColumnMajor);
+#if NCNN_fp16_storage
+            coopMatLoad(bias, C_blob_data, ((wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M + zm) * M, 0, gl_CooperativeMatrixLayoutColumnMajor);
+#else
+            // fp16p sfp is uint, fix offset
+            coopMatLoad(bias, C_blob_data, ((wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M + zm) * M / 2, 0, gl_CooperativeMatrixLayoutColumnMajor);
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
             fcoopmatNV<16, gl_ScopeSubgroup, M, N> bias;
-            coopMatLoadNV(bias, C_blob_data, ((wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M + zm) * Md8, 0, true);
+#if NCNN_fp16_storage
+            coopMatLoadNV(bias, C_blob_data, ((wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M + zm) * M, 0, true);
+#else
+            // fp16p sfp is uint, fix offset
+            coopMatLoadNV(bias, C_blob_data, ((wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M + zm) * M / 2, 0, true);
+#endif
 #endif
 
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
@@ -215,53 +219,45 @@ void main()
     }
     if (broadcast_type_C == 3)
     {
-        const uint Md8_N_USGM_USGN = Md8 * N * UNROLL_SG_M * UNROLL_SG_N;
-        const uint Md8_N_USGM_USGN_d_subgroupsize = (Md8_N_USGM_USGN + ncnn_subgroupSize - 1) / ncnn_subgroupSize;
-        [[unroll]] for (uint q = 0; q < Md8_N_USGM_USGN_d_subgroupsize; q++)
+        const uint Nd8_M_USGM_USGN = Nd8 * M * UNROLL_SG_M * UNROLL_SG_N;
+        const uint Nd8_M_USGM_USGN_d_subgroupsize = (Nd8_M_USGM_USGN + ncnn_subgroupSize - 1) / ncnn_subgroupSize;
+        [[unroll]] for (uint q = 0; q < Nd8_M_USGM_USGN_d_subgroupsize; q++)
         {
             const uint siq = si + q * ncnn_subgroupSize;
 
-            if (Md8_N_USGM_USGN % ncnn_subgroupSize == 0 || siq < Md8_N_USGM_USGN)
+            if (Nd8_M_USGM_USGN % ncnn_subgroupSize == 0 || siq < Nd8_M_USGM_USGN)
             {
-                const uint zn = siq / (Md8 * N * UNROLL_SG_M);
-                const uint zmij = siq % (Md8 * N * UNROLL_SG_M);
-                const uint zm = zmij / (Md8 * N);
-                const uint ij = zmij % (Md8 * N);
-                const uint i = ij / Md8;
-                const uint j = ij % Md8;
+                const uint zn = siq / (Nd8 * M * UNROLL_SG_M);
+                const uint zmij = siq % (Nd8 * M * UNROLL_SG_M);
+                const uint zm = zmij / (Nd8 * M);
+                const uint ij = zmij % (Nd8 * M);
+                const uint i = ij / Nd8;
+                const uint j = ij % Nd8;
 
-                const uint gn = (ni + zn) * N + i;
-                const uint gm = (mi + zm) * Md8 + j;
+                const uint gm = (mi + zm) * M + i;
+                const uint gn = (ni + zn) * Nd8 + j;
 
-                if (gn < psc(GN))
+                if (gm < psc(GM))
                 {
-                    const uvec4 gm4 = gm * 8 + uvec4(0, 1, 2, 3);
-                    const uvec4 gm8 = gm * 8 + uvec4(4, 5, 6, 7);
+                    const uvec4 ci4 = gm * psc(GN) + gn * 8 + uvec4(0, 1, 2, 3);
+                    const uvec4 ci8 = ci4 + 4;
 
-                    vec4 v4 = vec4(0.f);
-                    vec4 v8 = vec4(0.f);
+                    vec2 va;
+                    vec2 vb;
+                    vec2 vc;
+                    vec2 vd;
+                    if (gn * 8 < psc(GN)) va.r = buffer_ld1(C_blob_data, ci4.r);
+                    if (gn * 8 + 1 < psc(GN)) va.g = buffer_ld1(C_blob_data, ci4.g);
+                    if (gn * 8 + 2 < psc(GN)) vb.r = buffer_ld1(C_blob_data, ci4.b);
+                    if (gn * 8 + 3 < psc(GN)) vb.g = buffer_ld1(C_blob_data, ci4.a);
+                    if (gn * 8 + 4 < psc(GN)) vc.r = buffer_ld1(C_blob_data, ci8.r);
+                    if (gn * 8 + 5 < psc(GN)) vc.g = buffer_ld1(C_blob_data, ci8.g);
+                    if (gn * 8 + 6 < psc(GN)) vd.r = buffer_ld1(C_blob_data, ci8.b);
+                    if (gn * 8 + 7 < psc(GN)) vd.g = buffer_ld1(C_blob_data, ci8.a);
 
-                    const uvec4 ci4 = gm4 * psc(GN) + gn;
-                    const uvec4 ci4d8 = ci4 / 8;
-                    const uvec4 ci4m8d2 = (ci4 % 8) / 2;
-                    const uvec4 ci4m2 = ci4 % 2;
+                    uvec4 v = uvec4(packHalf2x16(va),packHalf2x16(vb),packHalf2x16(vc),packHalf2x16(vd));
 
-                    const uvec4 ci8 = gm8 * psc(GN) + gn;
-                    const uvec4 ci8d8 = ci8 / 8;
-                    const uvec4 ci8m8d2 = (ci8 % 8) / 2;
-                    const uvec4 ci8m2 = ci8 % 2;
-
-                    if (gm4.r < psc(GM)) v4.r = unpackHalf2x16(C_blob_data[ci4d8.r][ci4m8d2.r])[ci4m2.r];
-                    if (gm4.g < psc(GM)) v4.g = unpackHalf2x16(C_blob_data[ci4d8.g][ci4m8d2.g])[ci4m2.g];
-                    if (gm4.b < psc(GM)) v4.b = unpackHalf2x16(C_blob_data[ci4d8.b][ci4m8d2.b])[ci4m2.b];
-                    if (gm4.a < psc(GM)) v4.a = unpackHalf2x16(C_blob_data[ci4d8.a][ci4m8d2.a])[ci4m2.a];
-
-                    if (gm8.r < psc(GM)) v8.r = unpackHalf2x16(C_blob_data[ci8d8.r][ci8m8d2.r])[ci8m2.r];
-                    if (gm8.g < psc(GM)) v8.g = unpackHalf2x16(C_blob_data[ci8d8.g][ci8m8d2.g])[ci8m2.g];
-                    if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(C_blob_data[ci8d8.b][ci8m8d2.b])[ci8m2.b];
-                    if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(C_blob_data[ci8d8.a][ci8m8d2.a])[ci8m2.a];
-
-                    tmp_abo[sgi * UNROLL_SG_N * UNROLL_SG_M * M * N / 8 + siq] = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                    tmp_abo[(((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * M + i) * Nd8p + j] = v;
                 }
             }
         }
@@ -274,18 +270,18 @@ void main()
             {
 #if ncnn_VK_KHR_cooperative_matrix
 #if NCNN_fp16_arithmetic
-                coopMatLoad(sum[zn][zm], tmp_abo, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md8 * N), Md8, gl_CooperativeMatrixLayoutColumnMajor);
+                coopMatLoad(sum[zn][zm], tmp_abo, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd8p * M), Nd8p, gl_CooperativeMatrixLayoutRowMajor);
 #else
                 coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16;
-                coopMatLoad(sum_fp16, tmp_abo, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md8 * N), Md8, gl_CooperativeMatrixLayoutColumnMajor);
+                coopMatLoad(sum_fp16, tmp_abo, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd8p * M), Nd8p, gl_CooperativeMatrixLayoutRowMajor);
                 sum[zn][zm] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum_fp16);
 #endif
 #elif ncnn_VK_NV_cooperative_matrix
 #if NCNN_fp16_arithmetic
-                coopMatLoadNV(sum[zn][zm], tmp_abo, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md8 * N), Md8, true);
+                coopMatLoadNV(sum[zn][zm], tmp_abo, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd8p * M), Nd8p, false);
 #else
                 fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16;
-                coopMatLoadNV(sum_fp16, tmp_abo, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md8 * N), Md8, true);
+                coopMatLoadNV(sum_fp16, tmp_abo, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd8p * M), Nd8p, false);
                 sum[zn][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(sum_fp16);
 #endif
 #endif
@@ -298,10 +294,20 @@ void main()
         {
 #if ncnn_VK_KHR_cooperative_matrix
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> bias;
-            coopMatLoad(bias, C_blob_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * Nd8, 0, gl_CooperativeMatrixLayoutRowMajor);
+#if NCNN_fp16_storage
+            coopMatLoad(bias, C_blob_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * N, 0, gl_CooperativeMatrixLayoutRowMajor);
+#else
+            // fp16p sfp is uint, fix offset
+            coopMatLoad(bias, C_blob_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * N / 2, 0, gl_CooperativeMatrixLayoutRowMajor);
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
             fcoopmatNV<16, gl_ScopeSubgroup, M, N> bias;
-            coopMatLoadNV(bias, C_blob_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * Nd8, 0, false);
+#if NCNN_fp16_storage
+            coopMatLoadNV(bias, C_blob_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * N, 0, false);
+#else
+            // fp16p sfp is uint, fix offset
+            coopMatLoadNV(bias, C_blob_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * N / 2, 0, false);
+#endif
 #endif
 
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
@@ -318,7 +324,6 @@ void main()
             }
         }
     }
-#endif
 
     if (beta != 1.f)
     {
@@ -333,7 +338,6 @@ void main()
 
     uint k = 0;
 
-#if 1
     if (kk >= UNROLL_SG_K * 2)
     {
         // local stack and shared memory ping-pong
@@ -385,7 +389,6 @@ void main()
                         const uint gk = ki / 8 + zk * Kd8 + i;
                         const uint gm = (mi + zm) * M + j;
 
-                        // FIXME
                         uvec4 v = uvec4(0);
                         if (gm < psc(GM))
                         {
@@ -394,45 +397,44 @@ void main()
 
                             if (p.A_hstep % 8 == 0)
                             {
-                            const uint ai = gm * (p.A_hstep / 8) + gk;
+                                const uint ai = gm * (p.A_hstep / 8) + gk;
 
-                            v = A_blob_data[ai];
+                                v = A_blob_data[ai];
 
-                            uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
-                            uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
-                            uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
-                            uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
+                                uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                                uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
+                                uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+                                uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
 
-                            v.rg = v.rg & packed_mask4;
-                            v.ba = v.ba & packed_mask8;
+                                v.rg = v.rg & packed_mask4;
+                                v.ba = v.ba & packed_mask8;
                             }
                             else
                             {
+                                vec4 v4 = vec4(0.f);
+                                vec4 v8 = vec4(0.f);
 
-                            vec4 v4 = vec4(0.f);
-                            vec4 v8 = vec4(0.f);
+                                const uvec4 ai4 = gm * p.A_hstep + gk4;
+                                const uvec4 ai4d8 = ai4 / 8;
+                                const uvec4 ai4m8d2 = (ai4 % 8) / 2;
+                                const uvec4 ai4m2 = ai4 % 2;
 
-                            const uvec4 ai4 = gm * p.A_hstep + gk4;
-                            const uvec4 ai4d8 = ai4 / 8;
-                            const uvec4 ai4m8d2 = (ai4 % 8) / 2;
-                            const uvec4 ai4m2 = ai4 % 2;
+                                const uvec4 ai8 = gm * p.A_hstep + gk8;
+                                const uvec4 ai8d8 = ai8 / 8;
+                                const uvec4 ai8m8d2 = (ai8 % 8) / 2;
+                                const uvec4 ai8m2 = ai8 % 2;
 
-                            const uvec4 ai8 = gm * p.A_hstep + gk8;
-                            const uvec4 ai8d8 = ai8 / 8;
-                            const uvec4 ai8m8d2 = (ai8 % 8) / 2;
-                            const uvec4 ai8m2 = ai8 % 2;
+                                if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
+                                if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
+                                if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
+                                if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
 
-                            if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
-                            if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
-                            if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
-                            if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
+                                if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
+                                if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
+                                if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
+                                if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                            if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
-                            if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
-                            if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
-                            if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
-
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                             }
                         }
 
@@ -478,45 +480,44 @@ void main()
                         const uint gk = ki + zk * K + i;
                         const uint gm = (mi + zm) * Md8 + j;
 
-                        // FIXME
                         uvec4 v = uvec4(0);
                         if (gk < psc(GK))
                         {
                             if (p.A_hstep % 8 == 0)
                             {
-                            const uint ai = gk * (p.A_hstep / 8) + gm;
+                                const uint ai = gk * (p.A_hstep / 8) + gm;
 
-                            if (gm * 8 < psc(GM)) v = A_blob_data[ai];
+                                if (gm * 8 < psc(GM)) v = A_blob_data[ai];
                             }
                             else
                             {
-                            const uvec4 gm4 = gm * 8 + uvec4(0, 1, 2, 3);
-                            const uvec4 gm8 = gm * 8 + uvec4(4, 5, 6, 7);
+                                const uvec4 gm4 = gm * 8 + uvec4(0, 1, 2, 3);
+                                const uvec4 gm8 = gm4 + 4;
 
-                            vec4 v4 = vec4(0.f);
-                            vec4 v8 = vec4(0.f);
+                                vec4 v4 = vec4(0.f);
+                                vec4 v8 = vec4(0.f);
 
-                            const uvec4 ai4 = gk * p.A_hstep + gm4;
-                            const uvec4 ai4d8 = ai4 / 8;
-                            const uvec4 ai4m8d2 = (ai4 % 8) / 2;
-                            const uvec4 ai4m2 = ai4 % 2;
+                                const uvec4 ai4 = gk * p.A_hstep + gm4;
+                                const uvec4 ai4d8 = ai4 / 8;
+                                const uvec4 ai4m8d2 = (ai4 % 8) / 2;
+                                const uvec4 ai4m2 = ai4 % 2;
 
-                            const uvec4 ai8 = gk * p.A_hstep + gm8;
-                            const uvec4 ai8d8 = ai8 / 8;
-                            const uvec4 ai8m8d2 = (ai8 % 8) / 2;
-                            const uvec4 ai8m2 = ai8 % 2;
+                                const uvec4 ai8 = gk * p.A_hstep + gm8;
+                                const uvec4 ai8d8 = ai8 / 8;
+                                const uvec4 ai8m8d2 = (ai8 % 8) / 2;
+                                const uvec4 ai8m2 = ai8 % 2;
 
-                            if (gm4.r < psc(GM)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
-                            if (gm4.g < psc(GM)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
-                            if (gm4.b < psc(GM)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
-                            if (gm4.a < psc(GM)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
+                                if (gm4.r < psc(GM)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
+                                if (gm4.g < psc(GM)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
+                                if (gm4.b < psc(GM)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
+                                if (gm4.a < psc(GM)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
 
-                            if (gm8.r < psc(GM)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
-                            if (gm8.g < psc(GM)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
-                            if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
-                            if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
+                                if (gm8.r < psc(GM)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
+                                if (gm8.g < psc(GM)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
+                                if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
+                                if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                             }
                         }
 
@@ -564,7 +565,6 @@ void main()
                         const uint gk = ki + zk * K + i;
                         const uint gn = (ni + zn) * Nd8 + j;
 
-                        // FIXME
                         uvec4 v = uvec4(0);
                         if (gk < psc(GK))
                         {
@@ -648,53 +648,52 @@ void main()
                         const uint gk = ki / 8 + zk * Kd8 + i;
                         const uint gn = (ni + zn) * N + j;
 
-                        // FIXME
                         uvec4 v = uvec4(0);
                         if (gn < psc(GN))
                         {
                             const uvec4 gk4 = gk * 8 + uvec4(0, 1, 2, 3);
-                            const uvec4 gk8 = gk * 8 + uvec4(4, 5, 6, 7);
+                            const uvec4 gk8 = gk4 + 4;
 
                             if (p.B_hstep % 8 == 0)
                             {
-                            const uint bi = gn * (p.B_hstep / 8) + gk;
+                                const uint bi = gn * (p.B_hstep / 8) + gk;
 
-                            v = B_blob_data[bi];
+                                v = B_blob_data[bi];
 
-                            uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
-                            uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
-                            uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
-                            uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
+                                uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                                uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
+                                uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+                                uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
 
-                            v.rg = v.rg & packed_mask4;
-                            v.ba = v.ba & packed_mask8;
+                                v.rg = v.rg & packed_mask4;
+                                v.ba = v.ba & packed_mask8;
                             }
                             else
                             {
-                            vec4 v4 = vec4(0.f);
-                            vec4 v8 = vec4(0.f);
+                                vec4 v4 = vec4(0.f);
+                                vec4 v8 = vec4(0.f);
 
-                            const uvec4 bi4 = gn * p.B_hstep + gk4;
-                            const uvec4 bi4d8 = bi4 / 8;
-                            const uvec4 bi4m8d2 = (bi4 % 8) / 2;
-                            const uvec4 bi4m2 = bi4 % 2;
+                                const uvec4 bi4 = gn * p.B_hstep + gk4;
+                                const uvec4 bi4d8 = bi4 / 8;
+                                const uvec4 bi4m8d2 = (bi4 % 8) / 2;
+                                const uvec4 bi4m2 = bi4 % 2;
 
-                            const uvec4 bi8 = gn * p.B_hstep + gk8;
-                            const uvec4 bi8d8 = bi8 / 8;
-                            const uvec4 bi8m8d2 = (bi8 % 8) / 2;
-                            const uvec4 bi8m2 = bi8 % 2;
+                                const uvec4 bi8 = gn * p.B_hstep + gk8;
+                                const uvec4 bi8d8 = bi8 / 8;
+                                const uvec4 bi8m8d2 = (bi8 % 8) / 2;
+                                const uvec4 bi8m2 = bi8 % 2;
 
-                            if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
-                            if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
-                            if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
-                            if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(B_blob_data[bi4d8.a][bi4m8d2.a])[bi4m2.a];
+                                if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
+                                if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
+                                if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
+                                if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(B_blob_data[bi4d8.a][bi4m8d2.a])[bi4m2.a];
 
-                            if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(B_blob_data[bi8d8.r][bi8m8d2.r])[bi8m2.r];
-                            if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(B_blob_data[bi8d8.g][bi8m8d2.g])[bi8m2.g];
-                            if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
-                            if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
+                                if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(B_blob_data[bi8d8.r][bi8m8d2.r])[bi8m2.r];
+                                if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(B_blob_data[bi8d8.g][bi8m8d2.g])[bi8m2.g];
+                                if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
+                                if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                             }
                         }
 
@@ -830,7 +829,6 @@ void main()
                             const uint gk = ki / 8 + zk * Kd8 + i;
                             const uint gm = (mi + zm) * M + j;
 
-                            // FIXME
                             uvec4 v = uvec4(0);
                             if (gm < psc(GM))
                             {
@@ -839,45 +837,44 @@ void main()
 
                                 if (p.A_hstep % 8 == 0)
                                 {
-                                const uint ai = gm * (p.A_hstep / 8) + gk;
+                                    const uint ai = gm * (p.A_hstep / 8) + gk;
 
-                                v = A_blob_data[ai];
+                                    v = A_blob_data[ai];
 
-                                uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
-                                uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
-                                uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
-                                uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
+                                    uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                                    uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
+                                    uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+                                    uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
 
-                                v.rg = v.rg & packed_mask4;
-                                v.ba = v.ba & packed_mask8;
+                                    v.rg = v.rg & packed_mask4;
+                                    v.ba = v.ba & packed_mask8;
                                 }
                                 else
                                 {
+                                    vec4 v4 = vec4(0.f);
+                                    vec4 v8 = vec4(0.f);
 
-                                vec4 v4 = vec4(0.f);
-                                vec4 v8 = vec4(0.f);
+                                    const uvec4 ai4 = gm * p.A_hstep + gk4;
+                                    const uvec4 ai4d8 = ai4 / 8;
+                                    const uvec4 ai4m8d2 = (ai4 % 8) / 2;
+                                    const uvec4 ai4m2 = ai4 % 2;
 
-                                const uvec4 ai4 = gm * p.A_hstep + gk4;
-                                const uvec4 ai4d8 = ai4 / 8;
-                                const uvec4 ai4m8d2 = (ai4 % 8) / 2;
-                                const uvec4 ai4m2 = ai4 % 2;
+                                    const uvec4 ai8 = gm * p.A_hstep + gk8;
+                                    const uvec4 ai8d8 = ai8 / 8;
+                                    const uvec4 ai8m8d2 = (ai8 % 8) / 2;
+                                    const uvec4 ai8m2 = ai8 % 2;
 
-                                const uvec4 ai8 = gm * p.A_hstep + gk8;
-                                const uvec4 ai8d8 = ai8 / 8;
-                                const uvec4 ai8m8d2 = (ai8 % 8) / 2;
-                                const uvec4 ai8m2 = ai8 % 2;
+                                    if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
+                                    if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
+                                    if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
+                                    if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
 
-                                if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
-                                if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
-                                if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
-                                if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
+                                    if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
+                                    if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
+                                    if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
+                                    if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                                if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
-                                if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
-                                if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
-                                if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
-
-                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                    v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                                 }
                             }
 
@@ -923,45 +920,44 @@ void main()
                             const uint gk = ki + zk * K + i;
                             const uint gm = (mi + zm) * Md8 + j;
 
-                            // FIXME
                             uvec4 v = uvec4(0);
                             if (gk < psc(GK))
                             {
                                 if (p.A_hstep % 8 == 0)
                                 {
-                                const uint ai = gk * (p.A_hstep / 8) + gm;
+                                    const uint ai = gk * (p.A_hstep / 8) + gm;
 
-                                if (gm * 8 < psc(GM)) v = A_blob_data[ai];
+                                    if (gm * 8 < psc(GM)) v = A_blob_data[ai];
                                 }
                                 else
                                 {
-                                const uvec4 gm4 = gm * 8 + uvec4(0, 1, 2, 3);
-                                const uvec4 gm8 = gm * 8 + uvec4(4, 5, 6, 7);
+                                    const uvec4 gm4 = gm * 8 + uvec4(0, 1, 2, 3);
+                                    const uvec4 gm8 = gm4 + 4;
 
-                                vec4 v4 = vec4(0.f);
-                                vec4 v8 = vec4(0.f);
+                                    vec4 v4 = vec4(0.f);
+                                    vec4 v8 = vec4(0.f);
 
-                                const uvec4 ai4 = gk * p.A_hstep + gm4;
-                                const uvec4 ai4d8 = ai4 / 8;
-                                const uvec4 ai4m8d2 = (ai4 % 8) / 2;
-                                const uvec4 ai4m2 = ai4 % 2;
+                                    const uvec4 ai4 = gk * p.A_hstep + gm4;
+                                    const uvec4 ai4d8 = ai4 / 8;
+                                    const uvec4 ai4m8d2 = (ai4 % 8) / 2;
+                                    const uvec4 ai4m2 = ai4 % 2;
 
-                                const uvec4 ai8 = gk * p.A_hstep + gm8;
-                                const uvec4 ai8d8 = ai8 / 8;
-                                const uvec4 ai8m8d2 = (ai8 % 8) / 2;
-                                const uvec4 ai8m2 = ai8 % 2;
+                                    const uvec4 ai8 = gk * p.A_hstep + gm8;
+                                    const uvec4 ai8d8 = ai8 / 8;
+                                    const uvec4 ai8m8d2 = (ai8 % 8) / 2;
+                                    const uvec4 ai8m2 = ai8 % 2;
 
-                                if (gm4.r < psc(GM)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
-                                if (gm4.g < psc(GM)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
-                                if (gm4.b < psc(GM)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
-                                if (gm4.a < psc(GM)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
+                                    if (gm4.r < psc(GM)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
+                                    if (gm4.g < psc(GM)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
+                                    if (gm4.b < psc(GM)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
+                                    if (gm4.a < psc(GM)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
 
-                                if (gm8.r < psc(GM)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
-                                if (gm8.g < psc(GM)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
-                                if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
-                                if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
+                                    if (gm8.r < psc(GM)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
+                                    if (gm8.g < psc(GM)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
+                                    if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
+                                    if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                    v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                                 }
                             }
 
@@ -1009,7 +1005,6 @@ void main()
                             const uint gk = ki + zk * K + i;
                             const uint gn = (ni + zn) * Nd8 + j;
 
-                            // FIXME
                             uvec4 v = uvec4(0);
                             if (gk < psc(GK))
                             {
@@ -1093,53 +1088,52 @@ void main()
                             const uint gk = ki / 8 + zk * Kd8 + i;
                             const uint gn = (ni + zn) * N + j;
 
-                            // FIXME
                             uvec4 v = uvec4(0);
                             if (gn < psc(GN))
                             {
                                 const uvec4 gk4 = gk * 8 + uvec4(0, 1, 2, 3);
-                                const uvec4 gk8 = gk * 8 + uvec4(4, 5, 6, 7);
+                                const uvec4 gk8 = gk4 + 4;
 
                                 if (p.B_hstep % 8 == 0)
                                 {
-                                const uint bi = gn * (p.B_hstep / 8) + gk;
+                                    const uint bi = gn * (p.B_hstep / 8) + gk;
 
-                                v = B_blob_data[bi];
+                                    v = B_blob_data[bi];
 
-                                uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
-                                uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
-                                uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
-                                uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
+                                    uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                                    uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
+                                    uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+                                    uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
 
-                                v.rg = v.rg & packed_mask4;
-                                v.ba = v.ba & packed_mask8;
+                                    v.rg = v.rg & packed_mask4;
+                                    v.ba = v.ba & packed_mask8;
                                 }
                                 else
                                 {
-                                vec4 v4 = vec4(0.f);
-                                vec4 v8 = vec4(0.f);
+                                    vec4 v4 = vec4(0.f);
+                                    vec4 v8 = vec4(0.f);
 
-                                const uvec4 bi4 = gn * p.B_hstep + gk4;
-                                const uvec4 bi4d8 = bi4 / 8;
-                                const uvec4 bi4m8d2 = (bi4 % 8) / 2;
-                                const uvec4 bi4m2 = bi4 % 2;
+                                    const uvec4 bi4 = gn * p.B_hstep + gk4;
+                                    const uvec4 bi4d8 = bi4 / 8;
+                                    const uvec4 bi4m8d2 = (bi4 % 8) / 2;
+                                    const uvec4 bi4m2 = bi4 % 2;
 
-                                const uvec4 bi8 = gn * p.B_hstep + gk8;
-                                const uvec4 bi8d8 = bi8 / 8;
-                                const uvec4 bi8m8d2 = (bi8 % 8) / 2;
-                                const uvec4 bi8m2 = bi8 % 2;
+                                    const uvec4 bi8 = gn * p.B_hstep + gk8;
+                                    const uvec4 bi8d8 = bi8 / 8;
+                                    const uvec4 bi8m8d2 = (bi8 % 8) / 2;
+                                    const uvec4 bi8m2 = bi8 % 2;
 
-                                if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
-                                if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
-                                if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
-                                if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(B_blob_data[bi4d8.a][bi4m8d2.a])[bi4m2.a];
+                                    if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
+                                    if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
+                                    if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
+                                    if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(B_blob_data[bi4d8.a][bi4m8d2.a])[bi4m2.a];
 
-                                if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(B_blob_data[bi8d8.r][bi8m8d2.r])[bi8m2.r];
-                                if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(B_blob_data[bi8d8.g][bi8m8d2.g])[bi8m2.g];
-                                if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
-                                if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
+                                    if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(B_blob_data[bi8d8.r][bi8m8d2.r])[bi8m2.r];
+                                    if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(B_blob_data[bi8d8.g][bi8m8d2.g])[bi8m2.g];
+                                    if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
+                                    if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                    v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                                 }
                             }
 
@@ -1356,10 +1350,7 @@ void main()
             }
         }
     }
-    else
-#endif
-#if 1
-    if (kk >= UNROLL_SG_K)
+    else if (kk >= UNROLL_SG_K)
     {
         // no ping-pong version
 
@@ -1404,7 +1395,6 @@ void main()
                     const uint gk = ki / 8 + zk * Kd8 + i;
                     const uint gm = (mi + zm) * M + j;
 
-                    // FIXME
                     uvec4 v = uvec4(0);
                     if (gm < psc(GM))
                     {
@@ -1413,45 +1403,44 @@ void main()
 
                         if (p.A_hstep % 8 == 0)
                         {
-                        const uint ai = gm * (p.A_hstep / 8) + gk;
+                            const uint ai = gm * (p.A_hstep / 8) + gk;
 
-                        v = A_blob_data[ai];
+                            v = A_blob_data[ai];
 
-                        uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
-                        uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
-                        uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
-                        uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
+                            uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                            uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
+                            uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+                            uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
 
-                        v.rg = v.rg & packed_mask4;
-                        v.ba = v.ba & packed_mask8;
+                            v.rg = v.rg & packed_mask4;
+                            v.ba = v.ba & packed_mask8;
                         }
                         else
                         {
+                            vec4 v4 = vec4(0.f);
+                            vec4 v8 = vec4(0.f);
 
-                        vec4 v4 = vec4(0.f);
-                        vec4 v8 = vec4(0.f);
+                            const uvec4 ai4 = gm * p.A_hstep + gk4;
+                            const uvec4 ai4d8 = ai4 / 8;
+                            const uvec4 ai4m8d2 = (ai4 % 8) / 2;
+                            const uvec4 ai4m2 = ai4 % 2;
 
-                        const uvec4 ai4 = gm * p.A_hstep + gk4;
-                        const uvec4 ai4d8 = ai4 / 8;
-                        const uvec4 ai4m8d2 = (ai4 % 8) / 2;
-                        const uvec4 ai4m2 = ai4 % 2;
+                            const uvec4 ai8 = gm * p.A_hstep + gk8;
+                            const uvec4 ai8d8 = ai8 / 8;
+                            const uvec4 ai8m8d2 = (ai8 % 8) / 2;
+                            const uvec4 ai8m2 = ai8 % 2;
 
-                        const uvec4 ai8 = gm * p.A_hstep + gk8;
-                        const uvec4 ai8d8 = ai8 / 8;
-                        const uvec4 ai8m8d2 = (ai8 % 8) / 2;
-                        const uvec4 ai8m2 = ai8 % 2;
+                            if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
+                            if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
+                            if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
+                            if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
 
-                        if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
-                        if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
-                        if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
-                        if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
+                            if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
+                            if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
+                            if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
+                            if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                        if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
-                        if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
-                        if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
-                        if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
-
-                        v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                         }
                     }
 
@@ -1497,45 +1486,44 @@ void main()
                     const uint gk = ki + zk * K + i;
                     const uint gm = (mi + zm) * Md8 + j;
 
-                    // FIXME
                     uvec4 v = uvec4(0);
                     if (gk < psc(GK))
                     {
                         if (p.A_hstep % 8 == 0)
                         {
-                        const uint ai = gk * (p.A_hstep / 8) + gm;
+                            const uint ai = gk * (p.A_hstep / 8) + gm;
 
-                        if (gm * 8 < psc(GM)) v = A_blob_data[ai];
+                            if (gm * 8 < psc(GM)) v = A_blob_data[ai];
                         }
                         else
                         {
-                        const uvec4 gm4 = gm * 8 + uvec4(0, 1, 2, 3);
-                        const uvec4 gm8 = gm * 8 + uvec4(4, 5, 6, 7);
+                            const uvec4 gm4 = gm * 8 + uvec4(0, 1, 2, 3);
+                            const uvec4 gm8 = gm4 + 4;
 
-                        vec4 v4 = vec4(0.f);
-                        vec4 v8 = vec4(0.f);
+                            vec4 v4 = vec4(0.f);
+                            vec4 v8 = vec4(0.f);
 
-                        const uvec4 ai4 = gk * p.A_hstep + gm4;
-                        const uvec4 ai4d8 = ai4 / 8;
-                        const uvec4 ai4m8d2 = (ai4 % 8) / 2;
-                        const uvec4 ai4m2 = ai4 % 2;
+                            const uvec4 ai4 = gk * p.A_hstep + gm4;
+                            const uvec4 ai4d8 = ai4 / 8;
+                            const uvec4 ai4m8d2 = (ai4 % 8) / 2;
+                            const uvec4 ai4m2 = ai4 % 2;
 
-                        const uvec4 ai8 = gk * p.A_hstep + gm8;
-                        const uvec4 ai8d8 = ai8 / 8;
-                        const uvec4 ai8m8d2 = (ai8 % 8) / 2;
-                        const uvec4 ai8m2 = ai8 % 2;
+                            const uvec4 ai8 = gk * p.A_hstep + gm8;
+                            const uvec4 ai8d8 = ai8 / 8;
+                            const uvec4 ai8m8d2 = (ai8 % 8) / 2;
+                            const uvec4 ai8m2 = ai8 % 2;
 
-                        if (gm4.r < psc(GM)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
-                        if (gm4.g < psc(GM)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
-                        if (gm4.b < psc(GM)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
-                        if (gm4.a < psc(GM)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
+                            if (gm4.r < psc(GM)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
+                            if (gm4.g < psc(GM)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
+                            if (gm4.b < psc(GM)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
+                            if (gm4.a < psc(GM)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
 
-                        if (gm8.r < psc(GM)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
-                        if (gm8.g < psc(GM)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
-                        if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
-                        if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
+                            if (gm8.r < psc(GM)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
+                            if (gm8.g < psc(GM)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
+                            if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
+                            if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                        v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                         }
                     }
 
@@ -1583,7 +1571,6 @@ void main()
                     const uint gk = ki + zk * K + i;
                     const uint gn = (ni + zn) * Nd8 + j;
 
-                    // FIXME
                     uvec4 v = uvec4(0);
                     if (gk < psc(GK))
                     {
@@ -1667,53 +1654,52 @@ void main()
                     const uint gk = ki / 8 + zk * Kd8 + i;
                     const uint gn = (ni + zn) * N + j;
 
-                    // FIXME
                     uvec4 v = uvec4(0);
                     if (gn < psc(GN))
                     {
                         const uvec4 gk4 = gk * 8 + uvec4(0, 1, 2, 3);
-                        const uvec4 gk8 = gk * 8 + uvec4(4, 5, 6, 7);
+                        const uvec4 gk8 = gk4 + 4;
 
                         if (p.B_hstep % 8 == 0)
                         {
-                        const uint bi = gn * (p.B_hstep / 8) + gk;
+                            const uint bi = gn * (p.B_hstep / 8) + gk;
 
-                        v = B_blob_data[bi];
+                            v = B_blob_data[bi];
 
-                        uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
-                        uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
-                        uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
-                        uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
+                            uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                            uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
+                            uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+                            uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
 
-                        v.rg = v.rg & packed_mask4;
-                        v.ba = v.ba & packed_mask8;
+                            v.rg = v.rg & packed_mask4;
+                            v.ba = v.ba & packed_mask8;
                         }
                         else
                         {
-                        vec4 v4 = vec4(0.f);
-                        vec4 v8 = vec4(0.f);
+                            vec4 v4 = vec4(0.f);
+                            vec4 v8 = vec4(0.f);
 
-                        const uvec4 bi4 = gn * p.B_hstep + gk4;
-                        const uvec4 bi4d8 = bi4 / 8;
-                        const uvec4 bi4m8d2 = (bi4 % 8) / 2;
-                        const uvec4 bi4m2 = bi4 % 2;
+                            const uvec4 bi4 = gn * p.B_hstep + gk4;
+                            const uvec4 bi4d8 = bi4 / 8;
+                            const uvec4 bi4m8d2 = (bi4 % 8) / 2;
+                            const uvec4 bi4m2 = bi4 % 2;
 
-                        const uvec4 bi8 = gn * p.B_hstep + gk8;
-                        const uvec4 bi8d8 = bi8 / 8;
-                        const uvec4 bi8m8d2 = (bi8 % 8) / 2;
-                        const uvec4 bi8m2 = bi8 % 2;
+                            const uvec4 bi8 = gn * p.B_hstep + gk8;
+                            const uvec4 bi8d8 = bi8 / 8;
+                            const uvec4 bi8m8d2 = (bi8 % 8) / 2;
+                            const uvec4 bi8m2 = bi8 % 2;
 
-                        if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
-                        if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
-                        if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
-                        if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(B_blob_data[bi4d8.a][bi4m8d2.a])[bi4m2.a];
+                            if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
+                            if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
+                            if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
+                            if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(B_blob_data[bi4d8.a][bi4m8d2.a])[bi4m2.a];
 
-                        if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(B_blob_data[bi8d8.r][bi8m8d2.r])[bi8m2.r];
-                        if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(B_blob_data[bi8d8.g][bi8m8d2.g])[bi8m2.g];
-                        if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
-                        if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
+                            if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(B_blob_data[bi8d8.r][bi8m8d2.r])[bi8m2.r];
+                            if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(B_blob_data[bi8d8.g][bi8m8d2.g])[bi8m2.g];
+                            if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
+                            if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                        v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                         }
                     }
 
@@ -1790,7 +1776,6 @@ void main()
 
         k += UNROLL_SG_K;
     }
-#endif
 
     for (; k < kk; k++)
     {
@@ -1798,7 +1783,6 @@ void main()
 
         barrier();
 
-#if 1
         // load A
         if (transA == 0)
         {
@@ -1830,7 +1814,6 @@ void main()
 
                     uvec4 v = uvec4(0);
 
-                    // FIXME
                     if (gm < psc(GM))
                     {
                         const uvec4 gk4 = gk * 8 + uvec4(0, 1, 2, 3);
@@ -1911,45 +1894,44 @@ void main()
                     const uint gk = ki + i;
                     const uint gm = (mi + zm) * Md8 + j;
 
-                    // FIXME
                     uvec4 v = uvec4(0);
                     if (gk < psc(GK))
                     {
                         if (p.A_hstep % 8 == 0)
                         {
-                        const uint ai = gk * (p.A_hstep / 8) + gm;
+                            const uint ai = gk * (p.A_hstep / 8) + gm;
 
-                        if (gm * 8 < psc(GM)) v = A_blob_data[ai];
+                            if (gm * 8 < psc(GM)) v = A_blob_data[ai];
                         }
                         else
                         {
-                        const uvec4 gm4 = gm * 8 + uvec4(0, 1, 2, 3);
-                        const uvec4 gm8 = gm * 8 + uvec4(4, 5, 6, 7);
+                            const uvec4 gm4 = gm * 8 + uvec4(0, 1, 2, 3);
+                            const uvec4 gm8 = gm4 + 4;
 
-                        vec4 v4 = vec4(0.f);
-                        vec4 v8 = vec4(0.f);
+                            vec4 v4 = vec4(0.f);
+                            vec4 v8 = vec4(0.f);
 
-                        const uvec4 ai4 = gk * p.A_hstep + gm4;
-                        const uvec4 ai4d8 = ai4 / 8;
-                        const uvec4 ai4m8d2 = (ai4 % 8) / 2;
-                        const uvec4 ai4m2 = ai4 % 2;
+                            const uvec4 ai4 = gk * p.A_hstep + gm4;
+                            const uvec4 ai4d8 = ai4 / 8;
+                            const uvec4 ai4m8d2 = (ai4 % 8) / 2;
+                            const uvec4 ai4m2 = ai4 % 2;
 
-                        const uvec4 ai8 = gk * p.A_hstep + gm8;
-                        const uvec4 ai8d8 = ai8 / 8;
-                        const uvec4 ai8m8d2 = (ai8 % 8) / 2;
-                        const uvec4 ai8m2 = ai8 % 2;
+                            const uvec4 ai8 = gk * p.A_hstep + gm8;
+                            const uvec4 ai8d8 = ai8 / 8;
+                            const uvec4 ai8m8d2 = (ai8 % 8) / 2;
+                            const uvec4 ai8m2 = ai8 % 2;
 
-                        if (gm4.r < psc(GM)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
-                        if (gm4.g < psc(GM)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
-                        if (gm4.b < psc(GM)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
-                        if (gm4.a < psc(GM)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
+                            if (gm4.r < psc(GM)) v4.r = unpackHalf2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
+                            if (gm4.g < psc(GM)) v4.g = unpackHalf2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
+                            if (gm4.b < psc(GM)) v4.b = unpackHalf2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
+                            if (gm4.a < psc(GM)) v4.a = unpackHalf2x16(A_blob_data[ai4d8.a][ai4m8d2.a])[ai4m2.a];
 
-                        if (gm8.r < psc(GM)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
-                        if (gm8.g < psc(GM)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
-                        if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
-                        if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
+                            if (gm8.r < psc(GM)) v8.r = unpackHalf2x16(A_blob_data[ai8d8.r][ai8m8d2.r])[ai8m2.r];
+                            if (gm8.g < psc(GM)) v8.g = unpackHalf2x16(A_blob_data[ai8d8.g][ai8m8d2.g])[ai8m2.g];
+                            if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
+                            if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                        v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                         }
                     }
 
@@ -1957,9 +1939,7 @@ void main()
                 }
             }
         }
-#endif
 
-#if 1
         // load B
         if (transB == 0)
         {
@@ -1989,7 +1969,6 @@ void main()
                     const uint gk = ki + i;
                     const uint gn = (ni + zn) * Nd8 + j;
 
-                    // FIXME
                     uvec4 v = uvec4(0);
                     if (gk < psc(GK))
                     {
@@ -2063,53 +2042,52 @@ void main()
                     const uint gk = ki / 8 + i;
                     const uint gn = (ni + zn) * N + j;
 
-                    // FIXME
                     uvec4 v = uvec4(0);
                     if (gn < psc(GN))
                     {
                         const uvec4 gk4 = gk * 8 + uvec4(0, 1, 2, 3);
-                        const uvec4 gk8 = gk * 8 + uvec4(4, 5, 6, 7);
+                        const uvec4 gk8 = gk4 + 4;
 
                         if (p.B_hstep % 8 == 0)
                         {
-                        const uint bi = gn * (p.B_hstep / 8) + gk;
+                            const uint bi = gn * (p.B_hstep / 8) + gk;
 
-                        v = B_blob_data[bi];
+                            v = B_blob_data[bi];
 
-                        uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
-                        uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
-                        uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
-                        uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
+                            uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                            uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
+                            uvec2 packed_mask4 = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+                            uvec2 packed_mask8 = uvec2(mask8.x | (mask8.y << 16), mask8.z | (mask8.w << 16));
 
-                        v.rg = v.rg & packed_mask4;
-                        v.ba = v.ba & packed_mask8;
+                            v.rg = v.rg & packed_mask4;
+                            v.ba = v.ba & packed_mask8;
                         }
                         else
                         {
-                        vec4 v4 = vec4(0.f);
-                        vec4 v8 = vec4(0.f);
+                            vec4 v4 = vec4(0.f);
+                            vec4 v8 = vec4(0.f);
 
-                        const uvec4 bi4 = gn * p.B_hstep + gk4;
-                        const uvec4 bi4d8 = bi4 / 8;
-                        const uvec4 bi4m8d2 = (bi4 % 8) / 2;
-                        const uvec4 bi4m2 = bi4 % 2;
+                            const uvec4 bi4 = gn * p.B_hstep + gk4;
+                            const uvec4 bi4d8 = bi4 / 8;
+                            const uvec4 bi4m8d2 = (bi4 % 8) / 2;
+                            const uvec4 bi4m2 = bi4 % 2;
 
-                        const uvec4 bi8 = gn * p.B_hstep + gk8;
-                        const uvec4 bi8d8 = bi8 / 8;
-                        const uvec4 bi8m8d2 = (bi8 % 8) / 2;
-                        const uvec4 bi8m2 = bi8 % 2;
+                            const uvec4 bi8 = gn * p.B_hstep + gk8;
+                            const uvec4 bi8d8 = bi8 / 8;
+                            const uvec4 bi8m8d2 = (bi8 % 8) / 2;
+                            const uvec4 bi8m2 = bi8 % 2;
 
-                        if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
-                        if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
-                        if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
-                        if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(B_blob_data[bi4d8.a][bi4m8d2.a])[bi4m2.a];
+                            if (gk4.r < psc(GK)) v4.r = unpackHalf2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
+                            if (gk4.g < psc(GK)) v4.g = unpackHalf2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
+                            if (gk4.b < psc(GK)) v4.b = unpackHalf2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
+                            if (gk4.a < psc(GK)) v4.a = unpackHalf2x16(B_blob_data[bi4d8.a][bi4m8d2.a])[bi4m2.a];
 
-                        if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(B_blob_data[bi8d8.r][bi8m8d2.r])[bi8m2.r];
-                        if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(B_blob_data[bi8d8.g][bi8m8d2.g])[bi8m2.g];
-                        if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
-                        if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
+                            if (gk8.r < psc(GK)) v8.r = unpackHalf2x16(B_blob_data[bi8d8.r][bi8m8d2.r])[bi8m2.r];
+                            if (gk8.g < psc(GK)) v8.g = unpackHalf2x16(B_blob_data[bi8d8.g][bi8m8d2.g])[bi8m2.g];
+                            if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
+                            if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                        v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
                         }
                     }
 
@@ -2117,7 +2095,6 @@ void main()
                 }
             }
         }
-#endif
 
         barrier();
 
@@ -2294,39 +2271,26 @@ void main()
                 const uint gm = (mi + zm) * M + i;
                 const uint gn = (ni + zn) * Nd8 + j;
 
-                // FIXME
                 if (gm < psc(GM))
                 {
                     uvec4 v = tmp_abo[(((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * M + i) * Nd8p + j];
-//                     uvec4 v = tmp_o[sgi][siq];
 
-//                     if (p.outhstep % 8 == 0)
-//                     {
-//                         const uint oi = gm * (p.outhstep / 8) + gn;
-//
-//                         top_blob_data[oi] = v;
-//                     }
-//                     else
-                    {
+                    vec2 va = unpackHalf2x16(v.r);
+                    vec2 vb = unpackHalf2x16(v.g);
+                    vec2 vc = unpackHalf2x16(v.b);
+                    vec2 vd = unpackHalf2x16(v.a);
 
-                        vec2 va = unpackHalf2x16(v.r);
-                        vec2 vb = unpackHalf2x16(v.g);
-                        vec2 vc = unpackHalf2x16(v.b);
-                        vec2 vd = unpackHalf2x16(v.a);
+                    const uvec4 oi4 = gm * p.outhstep + gn * 8 + uvec4(0, 1, 2, 3);
+                    const uvec4 oi8 = oi4 + 4;
 
-                        const uvec4 oi4 = gm * p.outhstep + gn * 8 + uvec4(0, 1, 2, 3);
-                        const uvec4 oi8 = gm * p.outhstep + gn * 8 + uvec4(4, 5, 6, 7);
-
-                        if (gn * 8 < psc(GN)) top_blob_data[oi4.r] = float16_t(va.r);
-                        if (gn * 8 + 1 < psc(GN)) top_blob_data[oi4.g] = float16_t(va.g);
-                        if (gn * 8 + 2 < psc(GN)) top_blob_data[oi4.b] = float16_t(vb.r);
-                        if (gn * 8 + 3 < psc(GN)) top_blob_data[oi4.a] = float16_t(vb.g);
-                        if (gn * 8 + 4 < psc(GN)) top_blob_data[oi8.r] = float16_t(vc.r);
-                        if (gn * 8 + 5 < psc(GN)) top_blob_data[oi8.g] = float16_t(vc.g);
-                        if (gn * 8 + 6 < psc(GN)) top_blob_data[oi8.b] = float16_t(vd.r);
-                        if (gn * 8 + 7 < psc(GN)) top_blob_data[oi8.a] = float16_t(vd.g);
-
-                    }
+                    if (gn * 8 < psc(GN)) buffer_st1(top_blob_data, oi4.r, va.r);
+                    if (gn * 8 + 1 < psc(GN)) buffer_st1(top_blob_data, oi4.g, va.g);
+                    if (gn * 8 + 2 < psc(GN)) buffer_st1(top_blob_data, oi4.b, vb.r);
+                    if (gn * 8 + 3 < psc(GN)) buffer_st1(top_blob_data, oi4.a, vb.g);
+                    if (gn * 8 + 4 < psc(GN)) buffer_st1(top_blob_data, oi8.r, vc.r);
+                    if (gn * 8 + 5 < psc(GN)) buffer_st1(top_blob_data, oi8.g, vc.g);
+                    if (gn * 8 + 6 < psc(GN)) buffer_st1(top_blob_data, oi8.b, vd.r);
+                    if (gn * 8 + 7 < psc(GN)) buffer_st1(top_blob_data, oi8.a, vd.g);
                 }
             }
         }
@@ -2385,36 +2349,26 @@ void main()
                 const uint gn = (ni + zn) * N + i;
                 const uint gm = (mi + zm) * Md8 + j;
 
-                // FIXME
                 if (gn < psc(GN))
                 {
                     uvec4 v = tmp_abo[(((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * N + i) * Md8p + j];
-//                     uvec4 v = tmp_o[sgi][siq];
 
-//                     if (p.outhstep % 8 == 0)
-//                     {
-//                     }
-//                     else
-                    {
+                    vec2 va = unpackHalf2x16(v.r);
+                    vec2 vb = unpackHalf2x16(v.g);
+                    vec2 vc = unpackHalf2x16(v.b);
+                    vec2 vd = unpackHalf2x16(v.a);
 
-                        vec2 va = unpackHalf2x16(v.r);
-                        vec2 vb = unpackHalf2x16(v.g);
-                        vec2 vc = unpackHalf2x16(v.b);
-                        vec2 vd = unpackHalf2x16(v.a);
+                    const uvec4 oi4 = gn * p.outhstep + (gm * 8 + uvec4(0, 1, 2, 3));
+                    const uvec4 oi8 = oi4 + 4;
 
-                        const uvec4 oi4 = gn * p.outhstep + (gm * 8 + uvec4(0, 1, 2, 3));
-                        const uvec4 oi8 = gn * p.outhstep + (gm * 8 + uvec4(4, 5, 6, 7));
-
-                        if (gm * 8 < psc(GM)) top_blob_data[oi4.r] = float16_t(va.r);
-                        if (gm * 8 + 1 < psc(GM)) top_blob_data[oi4.g] = float16_t(va.g);
-                        if (gm * 8 + 2 < psc(GM)) top_blob_data[oi4.b] = float16_t(vb.r);
-                        if (gm * 8 + 3 < psc(GM)) top_blob_data[oi4.a] = float16_t(vb.g);
-                        if (gm * 8 + 4 < psc(GM)) top_blob_data[oi8.r] = float16_t(vc.r);
-                        if (gm * 8 + 5 < psc(GM)) top_blob_data[oi8.g] = float16_t(vc.g);
-                        if (gm * 8 + 6 < psc(GM)) top_blob_data[oi8.b] = float16_t(vd.r);
-                        if (gm * 8 + 7 < psc(GM)) top_blob_data[oi8.a] = float16_t(vd.g);
-
-                    }
+                    if (gm * 8 < psc(GM)) buffer_st1(top_blob_data, oi4.r, va.r);
+                    if (gm * 8 + 1 < psc(GM)) buffer_st1(top_blob_data, oi4.g, va.g);
+                    if (gm * 8 + 2 < psc(GM)) buffer_st1(top_blob_data, oi4.b, vb.r);
+                    if (gm * 8 + 3 < psc(GM)) buffer_st1(top_blob_data, oi4.a, vb.g);
+                    if (gm * 8 + 4 < psc(GM)) buffer_st1(top_blob_data, oi8.r, vc.r);
+                    if (gm * 8 + 5 < psc(GM)) buffer_st1(top_blob_data, oi8.g, vc.g);
+                    if (gm * 8 + 6 < psc(GM)) buffer_st1(top_blob_data, oi8.b, vd.r);
+                    if (gm * 8 + 7 < psc(GM)) buffer_st1(top_blob_data, oi8.a, vd.g);
                 }
             }
         }

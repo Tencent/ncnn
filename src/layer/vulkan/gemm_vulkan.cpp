@@ -69,8 +69,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         C_data_packed = C_data;
     }
 
-    // use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
-    use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && opt.use_fp16_storage;
+    use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
     if (use_cooperative_matrix)
     {
