@@ -27,7 +27,11 @@
 
 // There is known issue that vkDestroyDebugUtilsMessengerEXT crash on exit when vulkan validation layer enabled
 // upstream fix https://github.com/KhronosGroup/Vulkan-Loader/pull/539
+#if NCNN_ENABLE_RENDERDOC_PROFILING
 #define ENABLE_VALIDATION_LAYER 1
+#else
+#define ENABLE_VALIDATION_LAYER 0
+#endif
 
 #if NCNN_ENABLE_RENDERDOC_PROFILING
 
@@ -2415,8 +2419,8 @@ static int init_instance_extension()
 
 #if ENABLE_VALIDATION_LAYER
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    VkDebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
+    VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* /*pUserData*/)
 {
