@@ -336,8 +336,6 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         dispatcher.c = 1;
 
         cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
-
-        // NCNN_LOGE("Gemm_vulkan::forward use_cooperative_matrix  dispatcher.w = %d", dispatcher.w);
     }
     else
     {

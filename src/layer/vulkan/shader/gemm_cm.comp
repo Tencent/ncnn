@@ -75,7 +75,7 @@ const uint Kd8p = Kd8 + PAD;
 
 const uint tmp_a_size = UNROLL_WG_M * UNROLL_SG_K * UNROLL_SG_M * (transA == 0 ? M * Kd8p : K * Md8p);
 const uint tmp_b_size = UNROLL_WG_N * UNROLL_SG_K * UNROLL_SG_N * (transB == 0 ? K * Nd8p : N * Kd8p);
-const uint tmp_o_size = UNROLL_WG_N * UNROLL_WG_M * UNROLL_SG_N * UNROLL_SG_M * (output_transpose == 0 ? M * Nd8p : N * Md8p);
+const uint tmp_o_size = UNROLL_WG_N * UNROLL_WG_M * UNROLL_SG_N * UNROLL_SG_M * (output_transpose == 0 ? M * Nd8p : (M * Nd8p > N * Md8p ? M * Nd8p : N * Md8p));
 
 shared uvec4 tmp_abo[tmp_a_size + tmp_b_size > tmp_o_size ? tmp_a_size + tmp_b_size : tmp_o_size];
 
