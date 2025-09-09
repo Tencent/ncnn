@@ -26,6 +26,8 @@ cmake -DCMAKE_BUILD_TYPE=Release \
       -DNCNN_C_API=ON \
       -DNCNN_BUILD_EXAMPLES=OFF \
       -DNCNN_BUILD_TOOLS=OFF \
+      -DNCNN_OPENMP=OFF \
+      -DNCNN_BUILD_TESTS=OFF \
       ..
 make -j$(nproc)
 make install

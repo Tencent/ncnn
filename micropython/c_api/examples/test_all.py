@@ -615,7 +615,6 @@ class NCNNTester:
         return self.failed == 0
 
 def main():
-    """Main test function"""
     tester = NCNNTester()
     tester.run_all_tests()
 

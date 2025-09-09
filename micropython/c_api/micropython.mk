@@ -5,8 +5,6 @@ NCNN_INSTALL_DIR := $(NCNN_MOD_DIR)/../../build_micropython/install
 NCNN_LIB_PATH := $(shell find $(NCNN_INSTALL_DIR) -name "libncnn.*" -type f | head -1 | xargs dirname)
 NCNN_INCLUDE_PATH := $(NCNN_INSTALL_DIR)/include
 
-NCNN_CFLAGS = -DNCNN_STRING=1 -DNCNN_STDIO=1 -DNCNN_PIXEL=1 -DNCNN_PIXEL_DRAWING=1
-
 SRC_USERMOD += $(NCNN_MOD_DIR)/src/core/ncnn_module.c
 SRC_USERMOD_CXX += $(NCNN_MOD_DIR)/src/api/version.cpp
 SRC_USERMOD_CXX += $(NCNN_MOD_DIR)/src/api/allocator.cpp
@@ -23,8 +21,12 @@ SRC_USERMOD_CXX += $(NCNN_MOD_DIR)/src/api/paramdict.cpp
 SRC_USERMOD_CXX += $(NCNN_MOD_DIR)/src/api/modelbin.cpp
 SRC_USERMOD_CXX += $(NCNN_MOD_DIR)/src/api/blob.cpp
 
-CFLAGS_USERMOD += -I$(NCNN_MOD_DIR)/include -I$(NCNN_INCLUDE_PATH) -fopenmp $(NCNN_CFLAGS)
+CFLAGS_USERMOD += -I$(NCNN_MOD_DIR)/include -I$(NCNN_INCLUDE_PATH) $(NCNN_CFLAGS)
 
-LDFLAGS_USERMOD += -L$(NCNN_LIB_PATH) -lncnn -fopenmp -lstdc++
+ifdef IDF_TARGET
+    LDFLAGS_USERMOD += -Wl,--allow-multiple-definition
+endif
 
-CXXFLAGS_USERMOD += -I$(NCNN_MOD_DIR)/include -I$(NCNN_INCLUDE_PATH) -fopenmp $(NCNN_CFLAGS)
+LDFLAGS_USERMOD += -L$(NCNN_LIB_PATH) -lncnn -lstdc++
+
+CXXFLAGS_USERMOD += -I$(NCNN_MOD_DIR)/include -I$(NCNN_INCLUDE_PATH) $(NCNN_CFLAGS)
