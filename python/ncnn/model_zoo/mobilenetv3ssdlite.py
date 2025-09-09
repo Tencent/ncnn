@@ -26,6 +26,7 @@ class MobileNetV3_SSDLite:
         self.norm_vals = [1.0, 1.0, 1.0]
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # converted ncnn model from https://github.com/ujsyehao/mobilenetv3-ssd
@@ -76,8 +77,6 @@ class MobileNetV3_SSDLite:
         mat_in.substract_mean_normalize(self.mean_vals, [])
 
         ex = self.net.create_extractor()
-        ex.set_light_mode(True)
-        ex.set_num_threads(self.num_threads)
 
         ex.input("input", mat_in)
 
