@@ -3,7 +3,7 @@
 
 #version 450
 
-#extension GL_GOOGLE_include_directive: require
+#extension GL_GOOGLE_include_directive: enable
 #include "vulkan_activation.comp"
 
 #extension GL_EXT_control_flow_attributes: require
