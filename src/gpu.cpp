@@ -326,6 +326,7 @@ public:
     int support_VK_KHR_multiview;
     int support_VK_KHR_portability_subset;
     int support_VK_KHR_push_descriptor;
+    int support_VK_KHR_robustness2;
     int support_VK_KHR_sampler_ycbcr_conversion;
     int support_VK_KHR_shader_bfloat16;
     int support_VK_KHR_shader_float16_int8;
@@ -344,11 +345,11 @@ public:
     int support_VK_EXT_memory_budget;
     int support_VK_EXT_memory_priority;
     int support_VK_EXT_queue_family_foreign;
+    int support_VK_EXT_robustness2;
     int support_VK_EXT_shader_atomic_float;
     int support_VK_EXT_shader_atomic_float2;
     int support_VK_EXT_shader_float8;
     int support_VK_EXT_subgroup_size_control;
-    int support_VK_EXT_robustness2;
     int support_VK_AMD_device_coherent_memory;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer;
@@ -366,6 +367,8 @@ public:
     VkPhysicalDeviceCooperativeMatrixFeaturesKHR queryCooperativeMatrixFeatures;
     VkPhysicalDeviceCooperativeMatrixFeaturesNV queryCooperativeMatrixFeaturesNV;
     VkPhysicalDeviceCooperativeMatrix2FeaturesNV queryCooperativeMatrix2FeaturesNV;
+    VkPhysicalDeviceCooperativeVectorFeaturesNV queryCooperativeVectorFeaturesNV;
+    VkPhysicalDeviceRobustness2FeaturesKHR queryRobustness2Features;
     VkPhysicalDeviceShaderBfloat16FeaturesKHR queryShaderBfloat16Features;
     VkPhysicalDeviceShaderFloat8FeaturesEXT queryShaderFloat8Features;
     VkPhysicalDeviceShaderFloatControls2FeaturesKHR queryShaderFloatControls2Features;
@@ -374,13 +377,12 @@ public:
     VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR queryShaderSubgroupRotateFeatures;
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT queryShaderAtomicFloatFeatures;
     VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT queryShaderAtomicFloat2Features;
-    VkPhysicalDeviceRobustness2FeaturesEXT queryRobustness2Features;
-    VkPhysicalDeviceCooperativeVectorFeaturesNV queryCooperativeVectorFeaturesNV;
     VkPhysicalDeviceVulkanMemoryModelFeaturesKHR queryVulkanMemoryModelFeatures;
 
     // extension properties
     void* queryExtensionProperties;
     VkPhysicalDeviceFloatControlsPropertiesKHR queryFloatControlsProperties;
+    VkPhysicalDeviceRobustness2PropertiesKHR queryRobustness2Properties;
     VkPhysicalDeviceShaderIntegerDotProductProperties queryShaderIntegerDotProductProperties;
     VkPhysicalDeviceSubgroupProperties querySubgroupProperties;
     VkPhysicalDeviceDriverPropertiesKHR queryDriverProperties;
@@ -639,6 +641,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_multiview = 0;
     support_VK_KHR_portability_subset = 0;
     support_VK_KHR_push_descriptor = 0;
+    support_VK_KHR_robustness2 = 0;
     support_VK_KHR_sampler_ycbcr_conversion = 0;
     support_VK_KHR_shader_bfloat16 = 0;
     support_VK_KHR_shader_float16_int8 = 0;
@@ -657,11 +660,11 @@ int GpuInfoPrivate::query_extensions()
     support_VK_EXT_memory_budget = 0;
     support_VK_EXT_memory_priority = 0;
     support_VK_EXT_queue_family_foreign = 0;
+    support_VK_EXT_robustness2 = 0;
     support_VK_EXT_shader_atomic_float = 0;
     support_VK_EXT_shader_atomic_float2 = 0;
     support_VK_EXT_shader_float8 = 0;
     support_VK_EXT_subgroup_size_control = 0;
-    support_VK_EXT_robustness2 = 0;
     support_VK_AMD_device_coherent_memory = 0;
 #if __ANDROID_API__ >= 26
     support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
@@ -708,6 +711,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_KHR_portability_subset = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_push_descriptor") == 0)
             support_VK_KHR_push_descriptor = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_robustness2") == 0)
+            support_VK_KHR_robustness2 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_sampler_ycbcr_conversion") == 0)
             support_VK_KHR_sampler_ycbcr_conversion = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_bfloat16") == 0)
@@ -744,6 +749,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_memory_priority = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_queue_family_foreign") == 0)
             support_VK_EXT_queue_family_foreign = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_robustness2") == 0)
+            support_VK_EXT_robustness2 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_shader_atomic_float") == 0)
             support_VK_EXT_shader_atomic_float = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_shader_atomic_float2") == 0)
@@ -752,8 +759,6 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_shader_float8 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_subgroup_size_control") == 0)
             support_VK_EXT_subgroup_size_control = exp.specVersion;
-        else if (strcmp(exp.extensionName, "VK_EXT_robustness2") == 0)
-            support_VK_EXT_robustness2 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_AMD_device_coherent_memory") == 0)
             support_VK_AMD_device_coherent_memory = exp.specVersion;
 #if __ANDROID_API__ >= 26
@@ -778,6 +783,12 @@ int GpuInfoPrivate::query_extensions()
     {
         // we prefer khr extension
         support_VK_NV_cooperative_matrix = 0;
+    }
+
+    if (support_VK_KHR_robustness2)
+    {
+        // we prefer khr extension
+        support_VK_EXT_robustness2 = 0;
     }
 
     return 0;
@@ -855,6 +866,26 @@ void GpuInfoPrivate::query_extension_features()
     {
         queryCooperativeMatrix2FeaturesNV.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryCooperativeMatrix2FeaturesNV;
+    }
+
+    // query nv cooperative vector
+    memset(&queryCooperativeVectorFeaturesNV, 0, sizeof(queryCooperativeVectorFeaturesNV));
+    queryCooperativeVectorFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV;
+    queryCooperativeVectorFeaturesNV.pNext = 0;
+    if (support_VK_NV_cooperative_vector)
+    {
+        queryCooperativeVectorFeaturesNV.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryCooperativeVectorFeaturesNV;
+    }
+
+    // query robustness2
+    memset(&queryRobustness2Features, 0, sizeof(queryRobustness2Features));
+    queryRobustness2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR;
+    queryRobustness2Features.pNext = 0;
+    if (support_VK_KHR_robustness2 || support_VK_EXT_robustness2)
+    {
+        queryRobustness2Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryRobustness2Features;
     }
 
     // query bfloat16
@@ -937,16 +968,6 @@ void GpuInfoPrivate::query_extension_features()
         queryExtensionFeatures = &queryShaderAtomicFloat2Features;
     }
 
-    // query robustness2
-    memset(&queryRobustness2Features, 0, sizeof(queryRobustness2Features));
-    queryRobustness2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT;
-    queryRobustness2Features.pNext = 0;
-    if (support_VK_EXT_robustness2)
-    {
-        queryRobustness2Features.pNext = queryExtensionFeatures;
-        queryExtensionFeatures = &queryRobustness2Features;
-    }
-
     // query vulkan memory model
     memset(&queryVulkanMemoryModelFeatures, 0, sizeof(queryVulkanMemoryModelFeatures));
     queryVulkanMemoryModelFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR;
@@ -955,16 +976,6 @@ void GpuInfoPrivate::query_extension_features()
     {
         queryVulkanMemoryModelFeatures.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryVulkanMemoryModelFeatures;
-    }
-
-    // query nv cooperative vector
-    memset(&queryCooperativeVectorFeaturesNV, 0, sizeof(queryCooperativeVectorFeaturesNV));
-    queryCooperativeVectorFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV;
-    queryCooperativeVectorFeaturesNV.pNext = 0;
-    if (support_VK_NV_cooperative_vector)
-    {
-        queryCooperativeVectorFeaturesNV.pNext = queryExtensionFeatures;
-        queryExtensionFeatures = &queryCooperativeVectorFeaturesNV;
     }
 
     if (support_VK_KHR_get_physical_device_properties2)
@@ -1060,6 +1071,16 @@ void GpuInfoPrivate::query_extension_properties()
     {
         queryDriverProperties.pNext = queryExtensionProperties;
         queryExtensionProperties = &queryDriverProperties;
+    }
+
+    // query robustness2
+    memset(&queryRobustness2Properties, 0, sizeof(queryRobustness2Properties));
+    queryRobustness2Properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_KHR;
+    queryRobustness2Properties.pNext = 0;
+    if (support_VK_KHR_robustness2 || support_VK_EXT_robustness2)
+    {
+        queryRobustness2Properties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryRobustness2Properties;
     }
 
     // query subgroup size control
@@ -1743,6 +1764,11 @@ int GpuInfo::support_VK_KHR_push_descriptor() const
     return d->support_VK_KHR_push_descriptor;
 }
 
+int GpuInfo::support_VK_KHR_robustness2() const
+{
+    return d->support_VK_KHR_robustness2;
+}
+
 int GpuInfo::support_VK_KHR_sampler_ycbcr_conversion() const
 {
     return d->support_VK_KHR_sampler_ycbcr_conversion;
@@ -1833,6 +1859,11 @@ int GpuInfo::support_VK_EXT_queue_family_foreign() const
     return d->support_VK_EXT_queue_family_foreign;
 }
 
+int GpuInfo::support_VK_EXT_robustness2() const
+{
+    return d->support_VK_EXT_robustness2;
+}
+
 int GpuInfo::support_VK_EXT_shader_atomic_float() const
 {
     return d->support_VK_EXT_shader_atomic_float;
@@ -1851,11 +1882,6 @@ int GpuInfo::support_VK_EXT_shader_float8() const
 int GpuInfo::support_VK_EXT_subgroup_size_control() const
 {
     return d->support_VK_EXT_subgroup_size_control;
-}
-
-int GpuInfo::support_VK_EXT_robustness2() const
-{
-    return d->support_VK_EXT_robustness2;
 }
 
 int GpuInfo::support_VK_AMD_device_coherent_memory() const
@@ -1930,6 +1956,11 @@ const VkPhysicalDeviceCooperativeVectorFeaturesNV& GpuInfo::queryCooperativeVect
     return d->queryCooperativeVectorFeaturesNV;
 }
 
+const VkPhysicalDeviceRobustness2FeaturesKHR& GpuInfo::queryRobustness2Features() const
+{
+    return d->queryRobustness2Features;
+}
+
 const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& GpuInfo::querySubgroupSizeControlFeatures() const
 {
     return d->querySubgroupSizeControlFeatures;
@@ -1998,6 +2029,11 @@ const VkPhysicalDeviceDriverPropertiesKHR& GpuInfo::queryDriverProperties() cons
 const VkPhysicalDeviceFloatControlsPropertiesKHR& GpuInfo::queryFloatControlsProperties() const
 {
     return d->queryFloatControlsProperties;
+}
+
+const VkPhysicalDeviceRobustness2PropertiesKHR& GpuInfo::queryRobustness2Properties() const
+{
+    return d->queryRobustness2Properties;
 }
 
 const VkPhysicalDeviceShaderIntegerDotProductProperties& GpuInfo::queryShaderIntegerDotProductProperties() const
@@ -3284,6 +3320,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_portability_subset");
     if (info.support_VK_KHR_push_descriptor())
         enabledExtensions.push_back("VK_KHR_push_descriptor");
+    if (info.support_VK_KHR_robustness2())
+        enabledExtensions.push_back("VK_KHR_robustness2");
     if (info.support_VK_KHR_sampler_ycbcr_conversion())
         enabledExtensions.push_back("VK_KHR_sampler_ycbcr_conversion");
     if (info.support_VK_KHR_shader_bfloat16())
@@ -3320,6 +3358,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_memory_priority");
     if (info.support_VK_EXT_queue_family_foreign())
         enabledExtensions.push_back("VK_EXT_queue_family_foreign");
+    if (info.support_VK_EXT_robustness2())
+        enabledExtensions.push_back("VK_EXT_robustness2");
     if (info.support_VK_EXT_shader_atomic_float())
         enabledExtensions.push_back("VK_EXT_shader_atomic_float");
     if (info.support_VK_EXT_shader_atomic_float2())
@@ -3328,8 +3368,6 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_shader_float8");
     if (info.support_VK_EXT_subgroup_size_control())
         enabledExtensions.push_back("VK_EXT_subgroup_size_control");
-    if (info.support_VK_EXT_robustness2())
-        enabledExtensions.push_back("VK_EXT_robustness2");
     if (info.support_VK_AMD_device_coherent_memory())
         enabledExtensions.push_back("VK_AMD_device_coherent_memory");
 #if __ANDROID_API__ >= 26
@@ -4968,6 +5006,13 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_FEATURE(storagePushConstant16)
             DD_APPEND_FEATURE(storageInputOutput16)
         }
+        if (info.support_VK_KHR_robustness2() || info.support_VK_EXT_robustness2())
+        {
+            const VkPhysicalDeviceRobustness2FeaturesKHR& features = info.queryRobustness2Features();
+            DD_APPEND_FEATURE(robustBufferAccess2)
+            DD_APPEND_FEATURE(robustImageAccess2)
+            DD_APPEND_FEATURE(nullDescriptor)
+        }
         if (info.support_VK_KHR_shader_float16_int8())
         {
             const VkPhysicalDeviceFloat16Int8FeaturesKHR& features = info.queryFloat16Int8Features();
@@ -5274,6 +5319,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             device_defines.append("conformanceVersion_minor", properties.conformanceVersion.minor);
             device_defines.append("conformanceVersion_subminor", properties.conformanceVersion.subminor);
             device_defines.append("conformanceVersion_patch", properties.conformanceVersion.patch);
+        }
+        if (info.support_VK_KHR_robustness2() || info.support_VK_EXT_robustness2())
+        {
+            const VkPhysicalDeviceRobustness2PropertiesKHR& properties = info.queryRobustness2Properties();
+            DD_APPEND_PROPERTY(robustStorageBufferAccessSizeAlignment)
+            DD_APPEND_PROPERTY(robustUniformBufferAccessSizeAlignment)
         }
         if (info.support_VK_KHR_shader_integer_dot_product())
         {
