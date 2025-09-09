@@ -28,6 +28,7 @@ class RFCN:
         self.norm_vals = []
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # original pretrained model from https://github.com/YuwenXiong/py-R-FCN
@@ -96,7 +97,7 @@ class RFCN:
 
         # step1, extract feature and all rois
         ex1 = self.net.create_extractor()
-        ex1.set_num_threads(self.num_threads)
+
         ex1.input("data", mat_in)
         ex1.input("im_info", im_info)
 
