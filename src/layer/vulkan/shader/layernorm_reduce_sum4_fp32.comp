@@ -34,11 +34,7 @@ void main()
 
     int v_offset = gz * p.cstep + gy * p.w + sx;
 
-    if (sx >= p.w)
-    {
-        sum = 0.0f;
-    }
-    else if (sx == p.w - 1)
+    if (sx == p.w - 1)
     {
         float v0 = bottom_top_blob_data[v_offset];
         sum = v0;
