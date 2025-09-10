@@ -2136,12 +2136,6 @@ void Extractor::set_light_mode(bool enable)
     d->opt.lightmode = enable;
 }
 
-void Extractor::set_num_threads(int num_threads)
-{
-    NCNN_LOGE("ex.set_num_threads() is no-op, please set net.opt.num_threads=N before net.load_param()");
-    NCNN_LOGE("If you want to use single thread for only some layer, see https://github.com/Tencent/ncnn/wiki/layer-feat-mask");
-}
-
 void Extractor::set_blob_allocator(Allocator* allocator)
 {
     d->opt.blob_allocator = allocator;
@@ -2153,12 +2147,6 @@ void Extractor::set_workspace_allocator(Allocator* allocator)
 }
 
 #if NCNN_VULKAN
-void Extractor::set_vulkan_compute(bool enable)
-{
-    NCNN_LOGE("ex.set_vulkan_compute() is no-op, please set net.opt.use_vulkan_compute=true/false before net.load_param()");
-    NCNN_LOGE("If you want to disable vulkan for only some layer, see https://github.com/Tencent/ncnn/wiki/layer-feat-mask");
-}
-
 void Extractor::set_blob_vkallocator(VkAllocator* allocator)
 {
     d->opt.blob_vkallocator = allocator;
