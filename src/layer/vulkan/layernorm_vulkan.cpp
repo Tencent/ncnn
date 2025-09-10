@@ -233,9 +233,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         dispatcher.h = num_groups_per_channel;
         dispatcher.c = channels;
 
-        const Pipeline* pipeline_reduce_sum4 = (elemsize / elempack == 2)
-                                               ? (elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32)
-                                               : (elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[0] : pipeline_layernorm_reduce_sum4_fp32[0]);
+        const Pipeline* pipeline_reduce_sum4 = elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32;
 
         cmd.record_pipeline(pipeline_reduce_sum4, bindings, constants, dispatcher);
 
@@ -327,9 +325,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         dispatcher.h = num_groups_per_channel;
         dispatcher.c = channels;
 
-        const Pipeline* pipeline_reduce_sum4 = (square_workspace.elemsize / elempack == 2)
-                                               ? (elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32)
-                                               : (elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[0] : pipeline_layernorm_reduce_sum4_fp32[0]);
+        const Pipeline* pipeline_reduce_sum4 = elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32;
 
         cmd.record_pipeline(pipeline_reduce_sum4, bindings, constants, dispatcher);
 
