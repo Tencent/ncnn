@@ -54,7 +54,7 @@ def test():
         return True
 
     # export dynamo onnx
-    torch.onnx.dynamo_export(net, x, y, z, w).save("test_nn_ReLU_dynamo.onnx")
+    torch.onnx.export(net, (x, y, z, w), "test_nn_ReLU_dynamo.onnx", dynamo=True, external_data=False)
 
     # onnx to pnnx
     os.system("../../src/pnnx test_nn_ReLU_dynamo.onnx inputshape=[1,12],[1,12,64],[1,12,24,64],[1,12,24,32,64]")

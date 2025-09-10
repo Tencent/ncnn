@@ -22,10 +22,8 @@ public:
 public:
     Pipeline* pipeline_cast_fp32_to_fp16;
     Pipeline* pipeline_cast_fp32_to_fp16_pack4;
-    Pipeline* pipeline_cast_fp32_to_fp16_pack8;
     Pipeline* pipeline_cast_fp16_to_fp32;
     Pipeline* pipeline_cast_fp16_to_fp32_pack4;
-    Pipeline* pipeline_cast_fp16_to_fp32_pack8;
 };
 
 } // namespace ncnn

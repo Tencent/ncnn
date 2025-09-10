@@ -3,6 +3,8 @@
 
 #include "utils.h"
 
+#include <math.h>
+
 namespace pnnx {
 
 unsigned short float32_to_float16(float value)
@@ -108,6 +110,27 @@ float float16_to_float32(unsigned short value)
     }
 
     return tmp.f;
+}
+
+void apply_weight_norm(std::vector<float>& weight, const std::vector<float>& weight_g, int dim0, int size)
+{
+    for (int i = 0; i < dim0; i++)
+    {
+        float* pw = weight.data() + i * size;
+
+        double norm = 0.f;
+        for (int j = 0; j < size; j++)
+        {
+            float w = pw[j];
+            norm += w * w;
+        }
+        norm = sqrt(norm);
+
+        for (int j = 0; j < size; j++)
+        {
+            pw[j] = pw[j] * (weight_g[i] / norm);
+        }
+    }
 }
 
 } // namespace pnnx
