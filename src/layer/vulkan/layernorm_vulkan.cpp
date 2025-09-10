@@ -147,13 +147,9 @@ int LayerNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (affine == 0)
         return 0;
 
-    Mat gamma_data_packed;
-    convert_packing(gamma_data, gamma_data_packed, 1, opt);
-    cmd.record_upload(gamma_data_packed, gamma_data_gpu, opt);
+    cmd.record_upload(gamma_data, gamma_data_gpu, opt);
 
-    Mat beta_data_packed;
-    convert_packing(beta_data, beta_data_packed, 1, opt);
-    cmd.record_upload(beta_data_packed, beta_data_gpu, opt);
+    cmd.record_upload(beta_data, beta_data_gpu, opt);
 
     return 0;
 }

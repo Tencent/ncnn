@@ -5,7 +5,6 @@
 #define LAYER_LAYERNORM_VULKAN_H
 
 #include "layernorm.h"
-#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -16,6 +15,7 @@ public:
 
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
+
     virtual int upload_model(VkTransfer& cmd, const Option& opt);
 
     using LayerNorm::forward_inplace;
