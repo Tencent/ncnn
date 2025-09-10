@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "innerproduct_vulkan.h"
 
@@ -41,8 +30,8 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
 
     const int num_input = weight_data_size / num_output;
 
-    int in_elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int in_elempack = num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
 
     // src = inch-outch
     // dst = pa-pb-inch/pa-outch/pb
@@ -73,15 +62,10 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
-    if (bias_term)
-    {
-        convert_packing(bias_data, bias_data_packed, out_elempack, opt);
-    }
-
     if (shape.dims == 2 && shape.w == num_input)
     {
         // gemm
-        int elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+        int elempack = shape.h % 4 == 0 ? 4 : 1;
 
         size_t elemsize;
         if (opt.use_fp16_storage || opt.use_fp16_packed)
@@ -125,11 +109,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp4;
         if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp1to4;
         if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm_wp4to1;
-        if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp8;
-        if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp1to8;
-        if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm_wp8to1;
-        if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp4to8;
-        if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp8to4;
 
         pipeline_innerproduct_gemm = new Pipeline(vkdev);
         pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
@@ -138,7 +117,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         if (opt.lightmode)
         {
             weight_data.release();
-            bias_data.release();
         }
 
         return 0;
@@ -202,11 +180,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
             if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_sum8_pack4;
             if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_sum8_pack1to4;
             if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_sum8_pack4to1;
-            if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_sum8_pack8;
-            if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_sum8_pack1to8;
-            if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_sum8_pack8to1;
-            if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_sum8_pack4to8;
-            if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_sum8_pack8to4;
 
             pipeline_innerproduct_sum8 = new Pipeline(vkdev);
             pipeline_innerproduct_sum8->set_local_size_xyz(8, std::min(8, num_output / out_elempack), 1);
@@ -227,7 +200,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
             int shader_type_index = -1;
             if (out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_reduce_sum8;
             if (out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_reduce_sum8_pack4;
-            if (out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_reduce_sum8_pack8;
 
             pipeline_innerproduct_reduce_sum8 = new Pipeline(vkdev);
             pipeline_innerproduct_reduce_sum8->set_local_size_xyz(std::min(64, num_output / out_elempack), 1, 1);
@@ -265,11 +237,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack4;
         if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack1to4;
         if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_pack4to1;
-        if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack8;
-        if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack1to8;
-        if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_pack8to1;
-        if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack4to8;
-        if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack8to4;
 
         pipeline_innerproduct = new Pipeline(vkdev);
         pipeline_innerproduct->set_optimal_local_size_xyz(local_size_xyz);
@@ -302,11 +269,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp4;
         if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp1to4;
         if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm_wp4to1;
-        if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp8;
-        if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp1to8;
-        if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm_wp8to1;
-        if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp4to8;
-        if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp8to4;
 
         pipeline_innerproduct_gemm = new Pipeline(vkdev);
         pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
@@ -315,7 +277,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         if (opt.lightmode)
         {
             weight_data.release();
-            bias_data.release();
         }
 
         return 0;
@@ -324,7 +285,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     if (opt.lightmode)
     {
         weight_data.release();
-        bias_data.release();
     }
 
     return 0;
@@ -361,9 +321,9 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
 
-        bias_data_packed.release();
+        bias_data.release();
     }
 
     return 0;
@@ -373,8 +333,8 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
 {
     const int num_input = weight_data_size / num_output;
 
-    int in_elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int in_elempack = num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
 
     if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {

@@ -1,30 +1,18 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
 layout (constant_id = 0) const int batch = 1;
+layout (constant_id = 1) const int c = 0;
+layout (constant_id = 2) const int outc = 0;
 
-#define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
-
-layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+#define shape_constant_id_offset 3
+layout (constant_id = shape_constant_id_offset + 0) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
 
 layout (binding = 0) readonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
 layout (binding = 1) writeonly buffer top_tm_blob { sfpvec4 top_tm_blob_data[]; };
@@ -32,11 +20,8 @@ layout (binding = 2) readonly buffer weight_tm_blob { sfpvec4 weight_tm_data[]; 
 
 layout (push_constant) uniform parameter
 {
-    int c;
     int cstep;
-
     int outw;
-    int outc;
     int outcstep;
 } p;
 
@@ -52,7 +37,7 @@ void main()
     int gz = int(gl_GlobalInvocationID.z);
 
 #if !NCNN_shader_local_memory
-    if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
+    if (gx >= psc(outw) || gy >= outc || gz >= batch)
         return;
 #endif
 
@@ -61,21 +46,21 @@ void main()
     afpvec4 sum2 = afpvec4(0.f);
     afpvec4 sum3 = afpvec4(0.f);
 
-    int v_offset = gz * psc(cstep) + gx;
-    int w_offset = (gz * psc(c) * psc(outc) + gy * psc(c)) * 4;
+    int v_offset = gz * c * psc(cstep) + gx;
+    int w_offset = (gz * c * outc + gy * c) * 4;
 
 #if NCNN_shader_local_memory
     const int lx = int(gl_LocalInvocationID.x);
     const int ly = int(gl_LocalInvocationID.y);
 
     int z = 0;
-    for (; z + (LOCAL_MEMORY_UNROLL_INCH - 1) < psc(c); z += LOCAL_MEMORY_UNROLL_INCH)
+    for (; z + (LOCAL_MEMORY_UNROLL_INCH - 1) < c; z += LOCAL_MEMORY_UNROLL_INCH)
     {
         if (ly < 4)
         {
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
-                tmp_v[lx][z4][ly] = sfp2lfpvec4(bottom_tm_blob_data[v_offset + z4 * psc(outw) + ly]);
+                tmp_v[lx][z4][ly] = sfp2lfpvec4(bottom_tm_blob_data[v_offset + z4 * psc(cstep) + ly]);
             }
         }
 
@@ -109,21 +94,21 @@ void main()
             sum3 += v3 * k;
         }
 
-        v_offset += LOCAL_MEMORY_UNROLL_INCH * psc(outw);
+        v_offset += LOCAL_MEMORY_UNROLL_INCH * psc(cstep);
         w_offset += LOCAL_MEMORY_UNROLL_INCH * 4;
 
         barrier();
     }
 
-    if (z < psc(c))
+    if (z < c)
     {
-        const int remain = psc(c) - z;
+        const int remain = c - z;
 
         if (ly < 4)
         {
             for (int z4 = 0; z4 < remain; z4++)
             {
-                tmp_v[lx][z4][ly] = sfp2lfpvec4(bottom_tm_blob_data[v_offset + z4 * psc(outw) + ly]);
+                tmp_v[lx][z4][ly] = sfp2lfpvec4(bottom_tm_blob_data[v_offset + z4 * psc(cstep) + ly]);
             }
         }
 
@@ -158,7 +143,7 @@ void main()
         }
     }
 #else
-    for (int z = 0; z < psc(c); z++)
+    for (int z = 0; z < c; z++)
     {
         afpvec4 v0 = buffer_ld4(bottom_tm_blob_data, v_offset + 0);
         afpvec4 v1 = buffer_ld4(bottom_tm_blob_data, v_offset + 1);
@@ -177,17 +162,17 @@ void main()
         sum2 += v2 * k;
         sum3 += v3 * k;
 
-        v_offset += psc(outw);
+        v_offset += psc(cstep);
         w_offset += 4;
     }
 #endif
 
 #if NCNN_shader_local_memory
-    if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
+    if (gx >= psc(outw) || gy >= outc || gz >= batch)
         return;
 #endif
 
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    int gi = gz * outc * psc(outcstep) + gy * psc(outcstep) + gx;
 
     buffer_st4(top_tm_blob_data, gi + 0, sum0);
     if (gx + 1 < psc(outw)) buffer_st4(top_tm_blob_data, gi + 1, sum1);

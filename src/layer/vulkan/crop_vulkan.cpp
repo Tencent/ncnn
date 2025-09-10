@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "crop_vulkan.h"
 
@@ -27,11 +16,6 @@ Crop_vulkan::Crop_vulkan()
     pipeline_crop_pack4 = 0;
     pipeline_crop_pack1to4 = 0;
     pipeline_crop_pack4to1 = 0;
-    pipeline_crop_pack8 = 0;
-    pipeline_crop_pack1to8 = 0;
-    pipeline_crop_pack4to8 = 0;
-    pipeline_crop_pack8to4 = 0;
-    pipeline_crop_pack8to1 = 0;
 }
 
 int Crop_vulkan::create_pipeline(const Option& opt)
@@ -40,14 +24,14 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     int offset_elempack = 1;
     bool numpy_style_slice = !starts.empty() && !ends.empty();
@@ -63,21 +47,21 @@ int Crop_vulkan::create_pipeline(const Option& opt)
             if (_woffset == 0)
                 offset_elempack = elempack;
             else
-                offset_elempack = opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
+                offset_elempack = _woffset % 4 == 0 ? 4 : 1;
         }
         else if (shape.dims == 2)
         {
             if (_hoffset == 0)
                 offset_elempack = elempack;
             else
-                offset_elempack = opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
+                offset_elempack = _hoffset % 4 == 0 ? 4 : 1;
         }
         else // if (shape.dims == 3 || shape.dims == 4)
         {
             if (_coffset == 0)
                 offset_elempack = elempack;
             else
-                offset_elempack = opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+                offset_elempack = _coffset % 4 == 0 ? 4 : 1;
         }
     }
     else if (numpy_style_slice)
@@ -112,17 +96,17 @@ int Crop_vulkan::create_pipeline(const Option& opt)
             if (shape.dims == 1 && axis == 0)
             {
                 int _woffset = start >= 0 ? start : shape.w + start;
-                offset_elempack = opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
+                offset_elempack = _woffset % 4 == 0 ? 4 : 1;
             }
             if (shape.dims == 2 && axis == 0)
             {
                 int _hoffset = start >= 0 ? start : shape.h + start;
-                offset_elempack = opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
+                offset_elempack = _hoffset % 4 == 0 ? 4 : 1;
             }
             if ((shape.dims == 3 || shape.dims == 4) && axis == 0)
             {
                 int _coffset = start >= 0 ? start : shape.c + start;
-                offset_elempack = opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+                offset_elempack = _coffset % 4 == 0 ? 4 : 1;
             }
         }
     }
@@ -133,21 +117,21 @@ int Crop_vulkan::create_pipeline(const Option& opt)
             if (woffset == 0)
                 offset_elempack = elempack;
             else
-                offset_elempack = opt.use_shader_pack8 && woffset % 8 == 0 ? 8 : woffset % 4 == 0 ? 4 : 1;
+                offset_elempack = woffset % 4 == 0 ? 4 : 1;
         }
         else if (shape.dims == 2)
         {
             if (hoffset == 0)
                 offset_elempack = elempack;
             else
-                offset_elempack = opt.use_shader_pack8 && hoffset % 8 == 0 ? 8 : hoffset % 4 == 0 ? 4 : 1;
+                offset_elempack = hoffset % 4 == 0 ? 4 : 1;
         }
         else // if (shape.dims == 3 || shape.dims == 4)
         {
             if (coffset == 0)
                 offset_elempack = elempack;
             else
-                offset_elempack = opt.use_shader_pack8 && coffset % 8 == 0 ? 8 : coffset % 4 == 0 ? 4 : 1;
+                offset_elempack = coffset % 4 == 0 ? 4 : 1;
         }
     }
 
@@ -270,46 +254,6 @@ int Crop_vulkan::create_pipeline(const Option& opt)
         pipeline_crop_pack4to1->create(LayerShaderType::crop_pack4to1, opt, specializations);
     }
 
-    // pack8
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && out_elempack == 8))
-    {
-        pipeline_crop_pack8 = new Pipeline(vkdev);
-        pipeline_crop_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack8->create(LayerShaderType::crop_pack8, opt, specializations);
-    }
-
-    // pack1to8
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || out_elempack == 8)
-    {
-        pipeline_crop_pack1to8 = new Pipeline(vkdev);
-        pipeline_crop_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack1to8->create(LayerShaderType::crop_pack1to8, opt, specializations);
-    }
-
-    // pack4to8
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || out_elempack == 8)
-    {
-        pipeline_crop_pack4to8 = new Pipeline(vkdev);
-        pipeline_crop_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack4to8->create(LayerShaderType::crop_pack4to8, opt, specializations);
-    }
-
-    // pack8to4
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && out_elempack == 4))
-    {
-        pipeline_crop_pack8to4 = new Pipeline(vkdev);
-        pipeline_crop_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack8to4->create(LayerShaderType::crop_pack8to4, opt, specializations);
-    }
-
-    // pack8to1
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && out_elempack == 1))
-    {
-        pipeline_crop_pack8to1 = new Pipeline(vkdev);
-        pipeline_crop_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack8to1->create(LayerShaderType::crop_pack8to1, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -326,21 +270,6 @@ int Crop_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_crop_pack4to1;
     pipeline_crop_pack4to1 = 0;
-
-    delete pipeline_crop_pack8;
-    pipeline_crop_pack8 = 0;
-
-    delete pipeline_crop_pack1to8;
-    pipeline_crop_pack1to8 = 0;
-
-    delete pipeline_crop_pack4to8;
-    pipeline_crop_pack4to8 = 0;
-
-    delete pipeline_crop_pack8to4;
-    pipeline_crop_pack8to4 = 0;
-
-    delete pipeline_crop_pack8to1;
-    pipeline_crop_pack8to1 = 0;
 
     return 0;
 }
@@ -375,8 +304,8 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             return 0;
         }
 
-        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+        offset_elempack = _woffset == 0 ? elempack : _woffset % 4 == 0 ? 4 : 1;
+        out_elempack = _outw % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -386,8 +315,8 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             return 0;
         }
 
-        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+        offset_elempack = _hoffset == 0 ? elempack : _hoffset % 4 == 0 ? 4 : 1;
+        out_elempack = _outh % 4 == 0 ? 4 : 1;
     }
     else if (dims == 3)
     {
@@ -397,8 +326,8 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             return 0;
         }
 
-        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+        offset_elempack = _coffset == 0 ? elempack : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = _outc % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 4)
     {
@@ -408,8 +337,8 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             return 0;
         }
 
-        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+        offset_elempack = _coffset == 0 ? elempack : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = _outc % 4 == 0 ? 4 : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);
@@ -487,34 +416,6 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     else if (elempack == 4 && out_elempack == 1)
     {
         pipeline = pipeline_crop_pack4to1;
-    }
-    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack8;
-    }
-    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack4to8;
-    }
-    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack1to8;
-    }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack4to8;
-    }
-    else if (elempack == 8 && out_elempack == 4)
-    {
-        pipeline = pipeline_crop_pack8to4;
-    }
-    else if (elempack == 8 && out_elempack == 1)
-    {
-        pipeline = pipeline_crop_pack8to1;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
@@ -563,8 +464,8 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             return 0;
         }
 
-        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+        offset_elempack = _woffset == 0 ? elempack : _woffset % 4 == 0 ? 4 : 1;
+        out_elempack = _outw % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -574,8 +475,8 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             return 0;
         }
 
-        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+        offset_elempack = _hoffset == 0 ? elempack : _hoffset % 4 == 0 ? 4 : 1;
+        out_elempack = _outh % 4 == 0 ? 4 : 1;
     }
     else if (dims == 3)
     {
@@ -585,8 +486,8 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             return 0;
         }
 
-        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+        offset_elempack = _coffset == 0 ? elempack : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = _outc % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 4)
     {
@@ -596,8 +497,8 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             return 0;
         }
 
-        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+        offset_elempack = _coffset == 0 ? elempack : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = _outc % 4 == 0 ? 4 : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);
@@ -675,34 +576,6 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     else if (elempack == 4 && out_elempack == 1)
     {
         pipeline = pipeline_crop_pack4to1;
-    }
-    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack8;
-    }
-    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack4to8;
-    }
-    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack1to8;
-    }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_crop_pack4to8;
-    }
-    else if (elempack == 8 && out_elempack == 4)
-    {
-        pipeline = pipeline_crop_pack8to4;
-    }
-    else if (elempack == 8 && out_elempack == 1)
-    {
-        pipeline = pipeline_crop_pack8to1;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);

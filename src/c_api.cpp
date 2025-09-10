@@ -1,17 +1,5 @@
-/* Tencent is pleased to support the open source community by making ncnn available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
- *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- *
- * https://opensource.org/licenses/BSD-3-Clause
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- */
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "platform.h"
 
@@ -1396,10 +1384,8 @@ void ncnn_extractor_destroy(ncnn_extractor_t ex)
 
 void ncnn_extractor_set_option(ncnn_extractor_t ex, const ncnn_option_t opt)
 {
-    ((Extractor*)ex)->set_num_threads(((const Option*)opt)->num_threads);
-#if NCNN_VULKAN
-    ((Extractor*)ex)->set_vulkan_compute(((const Option*)opt)->use_vulkan_compute);
-#endif
+    (void)ex;
+    (void)opt;
 }
 
 #if NCNN_STRING

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "command.h"
 
@@ -377,6 +366,14 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         src_fp16 = src;
     }
 
+    // vkdev->convert_packing only handles elempack=1/4
+    if (src_fp16.elempack > 4)
+    {
+        Mat src_fp16_pack4;
+        ncnn::convert_packing(src_fp16, src_fp16_pack4, 4, opt);
+        src_fp16 = src_fp16_pack4;
+    }
+
     // upload
     VkMat dst_staging;
     dst_staging.create_like(src_fp16, opt.staging_vkallocator);
@@ -403,11 +400,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     if (dims == 2) elemcount = src_fp16.elempack * src_fp16.h;
     if (dims == 3 || dims == 4) elemcount = src_fp16.elempack * src_fp16.c;
 
-    int dst_elempack = 1;
-    if (opt.use_shader_pack8)
-        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
-    else
-        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+    int dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
     // gpu cast to fp16 on the fly (integrated gpu)
     int cast_type_to = 0;

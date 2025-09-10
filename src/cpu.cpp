@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "cpu.h"
 
@@ -164,7 +153,11 @@ __attribute__((constructor)) void ncnn_kmp_env_initializer()
     // and cpu core goes offline in powersave mode on android, which triggers abort
     // disable affinity capability, we handle thread affinity for openmp threads
 #if defined _WIN32
+#if _WIN32_WINNT >= 0x0600
     _putenv_s("KMP_AFFINITY", "disabled");
+#else
+    _putenv("KMP_AFFINITY=disabled");
+#endif
 #else
     setenv("KMP_AFFINITY", "disabled", 1);
 #endif
@@ -174,7 +167,11 @@ __attribute__((constructor)) void ncnn_kmp_env_initializer()
     // this happens when loading multiple libraries that are static linked openmp
     // just let it continue to work, it works well in most cases, at least it won't crash unexpectedly
 #if defined _WIN32
+#if _WIN32_WINNT >= 0x0600
     _putenv_s("KMP_DUPLICATE_LIB_OK", "1");
+#else
+    _putenv("KMP_DUPLICATE_LIB_OK=1");
+#endif
 #else
     setenv("KMP_DUPLICATE_LIB_OK", "1", 1);
 #endif
@@ -1747,8 +1744,7 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         DWORD bufferSize = 0;
         glpie(RelationProcessorCore, nullptr, &bufferSize);
         std::vector<BYTE> buffer(bufferSize);
-        if (!GetLogicalProcessorInformationEx(RelationProcessorCore,
-                                              (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
+        if (!glpie(RelationProcessorCore, (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
         {
             NCNN_LOGE("GetLogicalProcessorInformationEx failed");
             return;

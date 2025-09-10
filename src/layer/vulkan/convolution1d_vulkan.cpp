@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution1d_vulkan.h"
 
@@ -47,8 +36,8 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     const int maxk = kernel_w;
     int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int elempack = num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
 
     {
         padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
@@ -96,11 +85,6 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
-    if (bias_term)
-    {
-        convert_packing(bias_data, bias_data_packed, out_elempack, opt);
-    }
-
     {
         std::vector<vk_specialization_type> specializations(7 + 4);
         specializations[0].i = kernel_w;
@@ -120,11 +104,6 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution1d_pack4;
         if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution1d_pack1to4;
         if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution1d_pack4to1;
-        if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution1d_pack8;
-        if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution1d_pack1to8;
-        if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution1d_pack8to1;
-        if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution1d_pack4to8;
-        if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution1d_pack8to4;
 
         pipeline_convolution1d = new Pipeline(vkdev);
         pipeline_convolution1d->set_optimal_local_size_xyz(1, 1, 1);
@@ -134,7 +113,6 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     if (opt.lightmode)
     {
         weight_data.release();
-        bias_data.release();
     }
 
     return 0;
@@ -168,9 +146,9 @@ int Convolution1D_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
 
-        bias_data_packed.release();
+        bias_data.release();
     }
 
     return 0;
@@ -248,7 +226,7 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     int outw = (bottom_blob_bordered.w - kernel_extent_w) / stride_w + 1;
 
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 

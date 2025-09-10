@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "ir.h"
 
@@ -2618,18 +2607,31 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             if (op->type != "pnnx.Input")
                 continue;
 
-            const std::vector<int64_t>& shape0 = input_shapes[input_shapes_i++];
-
             const Operand* r = op->outputs[0];
+
+            std::vector<int> input_shape;
+            if (input_shapes.empty())
+            {
+                input_shape = r->shape;
+            }
+            else
+            {
+                const std::vector<int64_t>& s = input_shapes[input_shapes_i++];
+                for (int64_t d : s)
+                {
+                    input_shape.push_back((int)d);
+                }
+            }
+
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
+                for (size_t i = 0; i < input_shape.size(); i++)
                 {
-                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                    int dimsize = input_shape[i];
                     fprintf(pyfp, "%d", dimsize);
-                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                    if (i + 1 != input_shape.size() || input_shape.size() == 1)
                         fprintf(pyfp, ", ");
                 }
                 fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
@@ -2637,9 +2639,9 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
+                for (size_t i = 0; i < input_shape.size(); i++)
                 {
-                    int dimsize = r->shape[i] == -1 ? shape0[i] : r->shape[i];
+                    int dimsize = input_shape[i];
                     fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));

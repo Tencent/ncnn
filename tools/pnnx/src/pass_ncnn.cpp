@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -39,7 +28,6 @@
 #include "pass_ncnn/solve_batch_index.h"
 
 #include "pass_ncnn/eliminate_noop.h"
-#include "pass_ncnn/eliminate_tail_reshape_permute.h"
 #include "pass_ncnn/fuse_convolution_activation.h"
 #include "pass_ncnn/fuse_convolution1d_activation.h"
 #include "pass_ncnn/fuse_convolutiondepthwise_activation.h"
@@ -144,7 +132,6 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::fuse_deconvolution_activation(g);
     ncnn::fuse_deconvolutiondepthwise_activation(g);
     ncnn::fuse_innerproduct_activation(g);
-    ncnn::eliminate_tail_reshape_permute(g);
 
     dead_code_elimination(g);
 

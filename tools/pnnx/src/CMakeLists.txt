@@ -434,7 +434,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/solve_batch_index.cpp
 
     pass_ncnn/eliminate_noop.cpp
-    pass_ncnn/eliminate_tail_reshape_permute.cpp
     pass_ncnn/fuse_convolution_activation.cpp
     pass_ncnn/fuse_convolution1d_activation.cpp
     pass_ncnn/fuse_convolutiondepthwise_activation.cpp
@@ -592,6 +591,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_cumsum.cpp
     pass_ncnn/torch_diag.cpp
     pass_ncnn/torch_flatten.cpp
+    pass_ncnn/torch_flip.cpp
     pass_ncnn/torch_istft.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp
