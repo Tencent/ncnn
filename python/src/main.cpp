@@ -201,7 +201,6 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_int8_storage", &Option::use_int8_storage)
     .def_readwrite("use_int8_arithmetic", &Option::use_int8_arithmetic)
     .def_readwrite("use_packing_layout", &Option::use_packing_layout)
-    .def_readwrite("use_shader_pack8", &Option::use_shader_pack8)
     .def_readwrite("use_subgroup_ops", &Option::use_subgroup_ops)
     .def_readwrite("use_tensor_storage", &Option::use_tensor_storage);
 
@@ -840,7 +839,6 @@ PYBIND11_MODULE(ncnn, m)
     })
     .def("clear", &Extractor::clear)
     .def("set_light_mode", &Extractor::set_light_mode, py::arg("enable"))
-    .def("set_num_threads", &Extractor::set_num_threads, py::arg("num_threads"))
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
 #if NCNN_STRING

@@ -10,7 +10,7 @@ namespace ncnn {
 Option::Option()
 {
     lightmode = true;
-    use_shader_pack8 = false;
+    use_reserved_m0 = false;
     use_subgroup_ops = false;
     use_reserved_0 = false;
 

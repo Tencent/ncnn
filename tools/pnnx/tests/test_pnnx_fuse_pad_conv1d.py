@@ -35,7 +35,7 @@ class Model(nn.Module):
         x = F.pad(x, pad=(1,1), mode='replicate')
         x = self.conv_2(x)
 
-        x = F.pad(x, pad=(2,2))
+        x = F.pad(x, pad=(2,2,0,0,0,0))
         x = self.conv_3(x)
 
         return x

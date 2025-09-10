@@ -366,6 +366,14 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         src_fp16 = src;
     }
 
+    // vkdev->convert_packing only handles elempack=1/4
+    if (src_fp16.elempack > 4)
+    {
+        Mat src_fp16_pack4;
+        ncnn::convert_packing(src_fp16, src_fp16_pack4, 4, opt);
+        src_fp16 = src_fp16_pack4;
+    }
+
     // upload
     VkMat dst_staging;
     dst_staging.create_like(src_fp16, opt.staging_vkallocator);
@@ -392,11 +400,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     if (dims == 2) elemcount = src_fp16.elempack * src_fp16.h;
     if (dims == 3 || dims == 4) elemcount = src_fp16.elempack * src_fp16.c;
 
-    int dst_elempack = 1;
-    if (opt.use_shader_pack8)
-        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
-    else
-        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+    int dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
     // gpu cast to fp16 on the fly (integrated gpu)
     int cast_type_to = 0;

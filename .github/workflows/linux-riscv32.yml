@@ -1,0 +1,62 @@
+name: linux-riscv32
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-riscv32.yml'
+    - 'toolchains/c907-rv32-v310.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-riscv32.yml'
+    - 'toolchains/c907-rv32-v310.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+concurrency:
+  group: linux-riscv32-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  xuantie:
+    name: xuantie-${{ matrix.cpu }}
+    runs-on: [self-hosted, linux, ubuntu]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cpu: c907-rv32, QEMU_CPU: c907fdv-rv32,   OPENMP: ON,  RVV: ON,  XTHEADVECTOR: OFF, ZFH: ON, ZVFH: ON  }
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: build
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.0-glibc-x86_64-V3.2.0
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/${{ matrix.cpu }}-v310.toolchain.cmake -DCMAKE_BUILD_TYPE=release \
+            -DNCNN_OPENMP=${{ matrix.OPENMP }} -DNCNN_THREADS=${{ matrix.OPENMP }} \
+            -DNCNN_RUNTIME_CPU=OFF \
+            -DNCNN_RVV=${{ matrix.RVV }} \
+            -DNCNN_XTHEADVECTOR=${{ matrix.XTHEADVECTOR }} \
+            -DNCNN_ZFH=${{ matrix.ZFH }} \
+            -DNCNN_ZVFH=${{ matrix.ZVFH }} \
+            -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 8
+
+    - name: test
+      run: |
+        export PATH=/data/action/osd/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.2.8-B20250721-0303/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv32 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }}" ctest --output-on-failure -j 8

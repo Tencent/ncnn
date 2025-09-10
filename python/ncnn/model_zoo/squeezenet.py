@@ -16,6 +16,7 @@ class SqueezeNet:
         self.norm_vals = []
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
@@ -40,7 +41,6 @@ class SqueezeNet:
         mat_in.substract_mean_normalize(self.mean_vals, self.norm_vals)
 
         ex = self.net.create_extractor()
-        ex.set_num_threads(self.num_threads)
 
         ex.input("data", mat_in)
 
