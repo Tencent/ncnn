@@ -1097,7 +1097,8 @@ typedef enum VkCommandBufferResetFlagBits
 } VkCommandBufferResetFlagBits;
 typedef VkFlags VkCommandBufferResetFlags;
 
-typedef enum VkPipelineCacheCreateFlagBits {
+typedef enum VkPipelineCacheCreateFlagBits
+{
     VK_PIPELINE_CACHE_CREATE_EXTERNALLY_SYNCHRONIZED_BIT = 0x00000001,
     VK_PIPELINE_CACHE_CREATE_INTERNALLY_SYNCHRONIZED_MERGE_BIT_KHR = 0x00000008,
     VK_PIPELINE_CACHE_CREATE_EXTERNALLY_SYNCHRONIZED_BIT_EXT = VK_PIPELINE_CACHE_CREATE_EXTERNALLY_SYNCHRONIZED_BIT,

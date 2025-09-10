@@ -563,7 +563,8 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
             NCNN_LOGE("create_shader_module failed");
             return -1;
         }
-    } else
+    }
+    else
         shader_module = *_shader_module;
 
     ret = new_pipeline(shader_module, shader_info, specializations, subgroup_size, descriptorset_layout, pipeline_layout, pipeline, descriptor_update_template);
@@ -1024,10 +1025,12 @@ bool clear_directory(const std::string& path)
 {
 #ifdef _WIN32
     DWORD attrs = GetFileAttributesA(path.c_str());
-    if (attrs == INVALID_FILE_ATTRIBUTES) {
+    if (attrs == INVALID_FILE_ATTRIBUTES)
+    {
         return true;
     }
-    if (!(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+    if (!(attrs & FILE_ATTRIBUTE_DIRECTORY))
+    {
         return false;
     }
 
@@ -1035,25 +1038,29 @@ bool clear_directory(const std::string& path)
     HANDLE hFind = FindFirstFileA((path + "\\*").c_str(), &findData);
     if (hFind == INVALID_HANDLE_VALUE) return false;
 
-    do {
+    do
+    {
         std::string name = findData.cFileName;
         if (name == "." || name == "..") continue;
 
         std::string fullPath = path + "\\" + name;
         if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            if (!clear_directory(fullPath)) {
+            if (!clear_directory(fullPath))
+            {
                 FindClose(hFind);
                 return false;
             }
-            if (!RemoveDirectoryA(fullPath.c_str())) {
+            if (!RemoveDirectoryA(fullPath.c_str()))
+            {
                 FindClose(hFind);
                 return false;
             }
         }
         else
         {
-            if (!DeleteFileA(fullPath.c_str())) {
+            if (!DeleteFileA(fullPath.c_str()))
+            {
                 FindClose(hFind);
                 return false;
             }
@@ -1065,10 +1072,12 @@ bool clear_directory(const std::string& path)
 
 #else
     struct stat st;
-    if (lstat(path.c_str(), &st) != 0) {
+    if (lstat(path.c_str(), &st) != 0)
+    {
         return true;
     }
-    if (!S_ISDIR(st.st_mode)) {
+    if (!S_ISDIR(st.st_mode))
+    {
         return false;
     }
 
@@ -1087,18 +1096,21 @@ bool clear_directory(const std::string& path)
         {
             if (S_ISDIR(stEntry.st_mode))
             {
-                if (!clear_directory(fullPath)) {
+                if (!clear_directory(fullPath))
+                {
                     closedir(dir);
                     return false;
                 }
-                if (rmdir(fullPath.c_str()) != 0) {
+                if (rmdir(fullPath.c_str()) != 0)
+                {
                     closedir(dir);
                     return false;
                 }
             }
             else
             {
-                if (unlink(fullPath.c_str()) != 0) {
+                if (unlink(fullPath.c_str()) != 0)
+                {
                     closedir(dir);
                     return false;
                 }
