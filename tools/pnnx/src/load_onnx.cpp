@@ -76,9 +76,7 @@ Parameter::Parameter(const onnx::AttributeProto& attr)
         type = 2;
         int64_t i64 = attr.i();
         if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-        if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
         if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-        if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
         i = (int)i64;
         break;
     }
@@ -101,9 +99,7 @@ Parameter::Parameter(const onnx::AttributeProto& attr)
         {
             int64_t i64 = attr.ints().at(i);
             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-            if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
             if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-            if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
             ai.push_back(i64);
         }
         break;
@@ -169,9 +165,7 @@ Parameter::Parameter(const onnx::AttributeProto& attr)
                     i64 = tensor.int64_data().at(0);
                 }
                 if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                 if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-                if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                 i = (int)i64;
             }
             else if (tensor.data_type() == onnx::TensorProto::FLOAT)

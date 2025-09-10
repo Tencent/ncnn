@@ -28,7 +28,10 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(PNNXPyTorch)
 
 # c++14 is required for using torch headers
-set(CMAKE_CXX_STANDARD 14)
+# set(CMAKE_CXX_STANDARD 14)
+
+# use c++17 for torch 2.x compatibility and std::as_const
+set(CMAKE_CXX_STANDARD 17)
 
 # set(CMAKE_BUILD_TYPE debug)
 # set(CMAKE_BUILD_TYPE relwithdebinfo)
