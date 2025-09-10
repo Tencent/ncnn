@@ -84,7 +84,6 @@ bool pipeline_cache_test_basic_creation()
     opt.use_fp16_storage = options[0][2];
     opt.use_fp16_arithmetic = options[0][3];
     opt.use_bf16_storage = options[0][4];
-    opt.use_shader_pack8 = options[0][5];
 
     double duration_1;
     if (vkdev->get_pipeline_cache()->clear_shader_cache() != 0)
@@ -147,7 +146,6 @@ bool pipeline_cache_test_corrupted_cache_file()
     opt.use_fp16_storage = options[0][2];
     opt.use_fp16_arithmetic = options[0][3];
     opt.use_bf16_storage = options[0][4];
-    opt.use_shader_pack8 = options[0][5];
 
     if (vkdev->get_pipeline_cache()->clear_shader_cache() != 0)
     {
@@ -207,7 +205,6 @@ bool pipeline_cache_test_multithread_creation()
     opt.use_fp16_storage = 0;
     opt.use_fp16_arithmetic = 0;
     opt.use_bf16_storage = 1;
-    opt.use_shader_pack8 = 0;
 
     if (vkdev->get_pipeline_cache()->clear_shader_cache() != 0)
     {
@@ -282,7 +279,6 @@ bool pipeline_cache_test_multithread_save()
     opt.use_fp16_storage = 0;
     opt.use_fp16_arithmetic = 0;
     opt.use_bf16_storage = 0;
-    opt.use_shader_pack8 = 0;
 
     if (vkdev->get_pipeline_cache()->clear_shader_cache() != 0)
     {

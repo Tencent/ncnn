@@ -338,7 +338,6 @@ static uint64_t shader_spv_key(int shader_type_index, const Option& opt)
            | static_cast<uint64_t>(opt.use_int8_uniform) << 30
            | static_cast<uint64_t>(opt.use_int8_packed) << 29
            | static_cast<uint64_t>(opt.use_subgroup_ops) << 28
-           | static_cast<uint64_t>(opt.use_shader_pack8) << 27
            | static_cast<uint64_t>(opt.use_shader_local_memory) << 26
            | encode_opt_bits(opt);
 }
@@ -554,13 +553,18 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
     int ret = 0;
 
     // create new pipeline
+
     VkShaderModule shader_module = 0;
-    ret = create_shader_module(shader_type_index, opt, local_size_x, local_size_y, local_size_z, &shader_module, shader_info);
-    if (ret != 0)
+    if (*_shader_module == VK_NULL_HANDLE)
     {
-        NCNN_LOGE("create_shader_module failed");
-        return -1;
-    }
+        ret = create_shader_module(shader_type_index, opt, local_size_x, local_size_y, local_size_z, &shader_module, shader_info);
+        if (ret != 0)
+        {
+            NCNN_LOGE("create_shader_module failed");
+            return -1;
+        }
+    } else
+        shader_module = *_shader_module;
 
     ret = new_pipeline(shader_module, shader_info, specializations, subgroup_size, descriptorset_layout, pipeline_layout, pipeline, descriptor_update_template);
     if (ret != 0)
@@ -1016,9 +1020,17 @@ void PipelineCache::set_shader_cache_dir(const char* dir)
     d->shader_cache_dir = dir;
 }
 
-static bool clear_directory(const std::string& path)
+bool clear_directory(const std::string& path)
 {
 #ifdef _WIN32
+    DWORD attrs = GetFileAttributesA(path.c_str());
+    if (attrs == INVALID_FILE_ATTRIBUTES) {
+        return true;
+    }
+    if (!(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+        return false;
+    }
+
     WIN32_FIND_DATAA findData;
     HANDLE hFind = FindFirstFileA((path + "\\*").c_str(), &findData);
     if (hFind == INVALID_HANDLE_VALUE) return false;
@@ -1030,18 +1042,36 @@ static bool clear_directory(const std::string& path)
         std::string fullPath = path + "\\" + name;
         if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            clear_directory(fullPath);
-            RemoveDirectoryA(fullPath.c_str());
+            if (!clear_directory(fullPath)) {
+                FindClose(hFind);
+                return false;
+            }
+            if (!RemoveDirectoryA(fullPath.c_str())) {
+                FindClose(hFind);
+                return false;
+            }
         }
         else
         {
-            DeleteFileA(fullPath.c_str());
+            if (!DeleteFileA(fullPath.c_str())) {
+                FindClose(hFind);
+                return false;
+            }
         }
     } while (FindNextFileA(hFind, &findData));
 
     FindClose(hFind);
     return true;
+
 #else
+    struct stat st;
+    if (lstat(path.c_str(), &st) != 0) {
+        return true;
+    }
+    if (!S_ISDIR(st.st_mode)) {
+        return false;
+    }
+
     DIR* dir = opendir(path.c_str());
     if (!dir) return false;
 
@@ -1052,17 +1082,26 @@ static bool clear_directory(const std::string& path)
         if (name == "." || name == "..") continue;
 
         std::string fullPath = path + "/" + name;
-        struct stat st;
-        if (stat(fullPath.c_str(), &st) == 0)
+        struct stat stEntry;
+        if (lstat(fullPath.c_str(), &stEntry) == 0)
         {
-            if (S_ISDIR(st.st_mode))
+            if (S_ISDIR(stEntry.st_mode))
             {
-                clear_directory(fullPath);
-                rmdir(fullPath.c_str());
+                if (!clear_directory(fullPath)) {
+                    closedir(dir);
+                    return false;
+                }
+                if (rmdir(fullPath.c_str()) != 0) {
+                    closedir(dir);
+                    return false;
+                }
             }
             else
             {
-                unlink(fullPath.c_str());
+                if (unlink(fullPath.c_str()) != 0) {
+                    closedir(dir);
+                    return false;
+                }
             }
         }
     }
