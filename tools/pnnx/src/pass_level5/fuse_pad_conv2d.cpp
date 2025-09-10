@@ -53,16 +53,19 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 2 && pad.size() != 4)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad.size() == 2 && pad[0] != pad[1])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == pad[3])
+            return true;
 
-        if (pad.size() == 4 && (pad[0] != pad[1] || pad[2] != pad[3]))
-            return false;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0)
+            return true;
 
-        return true;
+        if (pad.size() == 8 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0 && pad[6] == 0 && pad[7] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -74,7 +77,7 @@ pnnx.Output             output      1 0 out
         {
             padding[1] += pad[0];
         }
-        else if (pad.size() == 4)
+        else // if (pad.size() == 4 || pad.size() == 6 || pad.size() == 8)
         {
             padding[0] += pad[2];
             padding[1] += pad[0];
@@ -136,16 +139,19 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 2 && pad.size() != 4)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad.size() == 2 && pad[0] != pad[1])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == pad[3])
+            return true;
 
-        if (pad.size() == 4 && (pad[0] != pad[1] || pad[2] != pad[3]))
-            return false;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0)
+            return true;
 
-        return true;
+        if (pad.size() == 8 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0 && pad[6] == 0 && pad[7] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -158,7 +164,7 @@ pnnx.Output             output      1 0 out
             padding[0] = 0;
             padding[1] = pad[0];
         }
-        else if (pad.size() == 4)
+        else // if (pad.size() == 4 || pad.size() == 6 || pad.size() == 8)
         {
             padding[0] = pad[2];
             padding[1] = pad[0];
@@ -226,21 +232,35 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 4)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad[0] != pad[1] || pad[2] != pad[3])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == pad[3])
+            return true;
 
-        return true;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0)
+            return true;
+
+        if (pad.size() == 8 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0 && pad[6] == 0 && pad[7] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         std::vector<int> padding = captured_params.at("padding").ai;
         const std::vector<int>& pad = captured_params.at("pad").ai;
-        padding[0] += pad[2];
-        padding[1] += pad[0];
+
+        if (pad.size() == 2)
+        {
+            padding[1] += pad[0];
+        }
+        else // if (pad.size() == 4 || pad.size() == 6 || pad.size() == 8)
+        {
+            padding[0] += pad[2];
+            padding[1] += pad[0];
+        }
 
         op->params["in_channels"] = captured_params.at("in_channels");
         op->params["out_channels"] = captured_params.at("out_channels");
@@ -295,21 +315,35 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 4)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad[0] != pad[1] || pad[2] != pad[3])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == pad[3])
+            return true;
 
-        return true;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0)
+            return true;
+
+        if (pad.size() == 8 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0 && pad[6] == 0 && pad[7] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         std::vector<int> padding = captured_params.at("padding").ai;
         const std::vector<int>& pad = captured_params.at("pad").ai;
-        padding[0] += pad[2];
-        padding[1] += pad[0];
+
+        if (pad.size() == 2)
+        {
+            padding[1] += pad[0];
+        }
+        else // if (pad.size() == 4 || pad.size() == 6 || pad.size() == 8)
+        {
+            padding[0] += pad[2];
+            padding[1] += pad[0];
+        }
 
         op->params["in_channels"] = captured_params.at("in_channels");
         op->params["out_channels"] = captured_params.at("out_channels");
@@ -364,21 +398,35 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 4)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad[0] != pad[1] || pad[2] != pad[3])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == pad[3])
+            return true;
 
-        return true;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0)
+            return true;
+
+        if (pad.size() == 8 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0 && pad[6] == 0 && pad[7] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         std::vector<int> padding(2);
         const std::vector<int>& pad = captured_params.at("pad").ai;
-        padding[0] = pad[2];
-        padding[1] = pad[0];
+
+        if (pad.size() == 2)
+        {
+            padding[1] += pad[0];
+        }
+        else // if (pad.size() == 4 || pad.size() == 6 || pad.size() == 8)
+        {
+            padding[0] += pad[2];
+            padding[1] += pad[0];
+        }
 
         op->params["in_channels"] = captured_params.at("in_channels");
         op->params["out_channels"] = captured_params.at("out_channels");
@@ -433,21 +481,35 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
-        if (pad.size() != 4)
-            return false;
+        if (pad.size() == 2 && pad[0] == pad[1])
+            return true;
 
-        if (pad[0] != pad[1] || pad[2] != pad[3])
-            return false;
+        if (pad.size() == 4 && pad[0] == pad[1] && pad[2] == pad[3])
+            return true;
 
-        return true;
+        if (pad.size() == 6 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0)
+            return true;
+
+        if (pad.size() == 8 && pad[0] == pad[1] && pad[2] == pad[3] && pad[4] == 0 && pad[5] == 0 && pad[6] == 0 && pad[7] == 0)
+            return true;
+
+        return false;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         std::vector<int> padding(2);
         const std::vector<int>& pad = captured_params.at("pad").ai;
-        padding[0] = pad[2];
-        padding[1] = pad[0];
+
+        if (pad.size() == 2)
+        {
+            padding[1] += pad[0];
+        }
+        else // if (pad.size() == 4 || pad.size() == 6 || pad.size() == 8)
+        {
+            padding[0] += pad[2];
+            padding[1] += pad[0];
+        }
 
         op->params["in_channels"] = captured_params.at("in_channels");
         op->params["out_channels"] = captured_params.at("out_channels");

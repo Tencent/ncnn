@@ -35,7 +35,7 @@ permissions:
   contents: read
 
 jobs:
-  windows-gpu:
+  msvc:
     name: ${{ matrix.vs-version }}
     runs-on: windows-2022
     strategy:
@@ -43,17 +43,21 @@ jobs:
         include:
           - vs-version: vs2015
             toolset-version: v140
+            windows-sdk-version: 22621
           - vs-version: vs2017
             toolset-version: v141
+            windows-sdk-version: 22621
           - vs-version: vs2019
             toolset-version: v142
+            windows-sdk-version: 26100
           - vs-version: vs2022
             toolset-version: v143
+            windows-sdk-version: 26100
 
     env:
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
         
@@ -103,7 +107,7 @@ jobs:
         key: swiftshader-${{ matrix.vs-version }}-x64-install-20240622
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -123,10 +127,14 @@ jobs:
         mkdir "$env:GITHUB_WORKSPACE/swiftshader-install"
         Copy-Item -Path "Windows\*" -Destination "$env:GITHUB_WORKSPACE\swiftshader-install"
 
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+      with:
+        sdk-version: ${{ matrix.windows-sdk-version }}
+
     - name: x64
       run: |
         mkdir build-x64; cd build-x64
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 4
     - name: x64-test
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017'
@@ -138,7 +146,7 @@ jobs:
     - name: x64-sse2
       run: |
         mkdir build-x64-sse2; cd build-x64-sse2
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 4
     - name: x64-sse2-test
       run: cd build-x64-sse2; ctest -C Release --output-on-failure -j 4
@@ -146,7 +154,7 @@ jobs:
     - name: x64-avx
       run: |
         mkdir build-x64-avx; cd build-x64-avx
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=ON -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=ON -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 4
     - name: x64-avx-test
       run: cd build-x64-avx; ctest -C Release --output-on-failure -j 4
@@ -154,7 +162,7 @@ jobs:
     - name: x86
       run: |
         mkdir build-x86; cd build-x86
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A Win32 -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A Win32,version=10.0.${{ matrix.windows-sdk-version }}.0 -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 4
     - name: x86-test
       run: |

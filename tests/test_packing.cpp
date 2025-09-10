@@ -225,7 +225,6 @@ static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
-    opt.use_shader_pack8 = true;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -309,7 +308,6 @@ static int test_packing_gpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
-    opt.use_shader_pack8 = true;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -417,13 +415,8 @@ static int test_packing_gpu(const ncnn::Mat& a)
     return 0
            || test_packing_gpu(a, 1, 1)
            || test_packing_gpu(a, 4, 4)
-           || test_packing_gpu(a, 8, 8)
            || test_packing_gpu(a, 1, 4)
-           || test_packing_gpu(a, 4, 1)
-           || test_packing_gpu(a, 1, 8)
-           || test_packing_gpu(a, 8, 1)
-           || test_packing_gpu(a, 4, 8)
-           || test_packing_gpu(a, 8, 4);
+           || test_packing_gpu(a, 4, 1);
 }
 #endif // NCNN_VULKAN
 

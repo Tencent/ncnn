@@ -27,6 +27,7 @@ class Faster_RCNN:
         self.norm_vals = []
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # original pretrained model from https://github.com/rbgirshick/py-faster-rcnn
@@ -97,7 +98,6 @@ class Faster_RCNN:
         im_info[2] = scale
 
         ex1 = self.net.create_extractor()
-        ex1.set_num_threads(self.num_threads)
 
         ex1.input("data", mat_in)
         ex1.input("im_info", im_info)
