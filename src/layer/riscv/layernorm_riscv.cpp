@@ -27,14 +27,18 @@ LayerNorm_riscv::LayerNorm_riscv()
 #endif
 }
 
-static int layernorm(float* ptr, const float* gamma_data, const float* beta_data, float eps, int elementcount, int elementpack, size_t vl)
+static void layernorm(float* ptr, const float* gamma_data, const float* beta_data, float eps, int elemcount, int elempack)
 {
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
+    size_t vl = (elempack == packn) ? __riscv_vsetvl_e32m1(packn) : __riscv_vsetvlmax_e32m8();
+#endif // __riscv_vector
     float mean = 0.f;
     float var = 0.f;
     float a = 0.f;
     float b = 0.f;
 
-    size_t size = elementcount * elementpack;
+    size_t size = elemcount * elempack;
 #if __riscv_vector
     vfloat32m1_t _sum0 = __riscv_vfmv_v_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
     vfloat32m1_t _sqsum0 = __riscv_vfmv_v_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
@@ -46,14 +50,14 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
     float* ptr_sum = ptr;
 
 #if __riscv_vector
-    if (elementpack != 1)
+    if (elempack != 1)
     {
-        for (; i < elementcount; i++) _sum0 = __riscv_vfadd_vv_f32m1(_sum0, __riscv_vle32_v_f32m1(ptr + vl * i, vl), vl);
-        _sum0 = __riscv_vfdiv_vf_f32m1(_sum0, elementcount, vl);
+        for (; i < elemcount; i++) _sum0 = __riscv_vfadd_vv_f32m1(_sum0, __riscv_vle32_v_f32m1(ptr + vl * i, vl), vl);
+        _sum0 = __riscv_vfdiv_vf_f32m1(_sum0, elemcount, vl);
     }
 #endif // __riscv_vector
 
-    if (elementpack == 1)
+    if (elempack == 1)
     {
 #if __riscv_vector
         _sum = __riscv_vfmv_v_f_f32m8(0.f, vl);
@@ -68,28 +72,28 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
         mean += __riscv_vfmv_f_s_f32m1_f32(_sum0);
 #endif // __riscv_vector
         for (; i < size; i++) mean += *ptr_sum++;
-        mean /= elementcount;
+        mean /= elemcount;
     }
 
     i = 0;
     ptr_sum = ptr;
 
 #if __riscv_vector
-    if (elementpack != 1)
+    if (elempack != 1)
     {
-        for (; i < elementcount; i++)
+        for (; i < elemcount; i++)
         {
             vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + vl * i, vl);
             _p = __riscv_vfsub_vv_f32m1(_p, _sum0, vl);
             _sqsum0 = __riscv_vfmacc_vv_f32m1(_sqsum0, _p, _p, vl);
         }
-        _sqsum0 = __riscv_vfdiv_vf_f32m1(_sqsum0, elementcount, vl);
+        _sqsum0 = __riscv_vfdiv_vf_f32m1(_sqsum0, elemcount, vl);
         _a = __riscv_vfrdiv_vf_f32m1(__riscv_vfsqrt_v_f32m1(__riscv_vfadd_vf_f32m1(_sqsum0, eps, vl), vl), 1.f, vl);
         _b = __riscv_vfmul_vv_f32m1(__riscv_vfsgnjn_vv_f32m1(_sum0, _sum0, vl), _a, vl);
     }
 #endif // __riscv_vector
 
-    if (elementpack == 1)
+    if (elempack == 1)
     {
 #if __riscv_vector
         _sqsum = __riscv_vfmv_v_f_f32m8(0.f, vl);
@@ -112,7 +116,7 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
             var += tmp * tmp;
         }
 
-        var /= elementcount;
+        var /= elemcount;
         a = static_cast<float>(1.f / (sqrt(var + eps)));
         b = -mean * a;
     }
@@ -124,9 +128,9 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
         const float* ptr_gamma = gamma_data;
         const float* ptr_beta = beta_data;
 #if __riscv_vector
-        if (elementpack != 1)
+        if (elempack != 1)
         {
-            for (; i < elementcount; i++)
+            for (; i < elemcount; i++)
             {
                 const int offset = vl * i;
                 vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + offset, vl);
@@ -138,7 +142,7 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
         }
 #endif // __riscv_vector
 
-        if (elementpack == 1)
+        if (elempack == 1)
         {
 #if __riscv_vector
             for (; i + vl - 1 < size; i += vl)
@@ -163,9 +167,9 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
     else
     {
 #if __riscv_vector
-        if (elementpack != 1)
+        if (elempack != 1)
         {
-            for (; i < elementcount; i++)
+            for (; i < elemcount; i++)
             {
                 const int offset = vl * i;
                 vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr + offset, vl);
@@ -175,7 +179,7 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
         }
 #endif // __riscv_vector
 
-        if (elementpack == 1)
+        if (elempack == 1)
         {
 #if __riscv_vector
             for (; i + vl - 1 < size; i += vl)
@@ -190,7 +194,6 @@ static int layernorm(float* ptr, const float* gamma_data, const float* beta_data
             for (; i < size; i++) *ptr_store++ = (*ptr_store * a + b);
         }
     }
-    return 0;
 }
 
 int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -211,16 +214,11 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
-    size_t vl = 1;
-#if __riscv_vector
-    const int packn = csrr_vlenb() / 4;
-    vl = (elempack == packn) ? __riscv_vsetvl_e32m1(packn) : __riscv_vsetvlmax_e32m8();
-#endif // __riscv_vector
 
     if (dims == 1)
     {
         float* ptr = bottom_top_blob;
-        return layernorm(ptr, gamma_data, beta_data, eps, w * elempack, 1, vl);
+        layernorm(ptr, gamma_data, beta_data, eps, w * elempack, 1);
     }
 
     if (dims == 2)
@@ -229,7 +227,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
-            layernorm(ptr, gamma_data, beta_data, eps, w, elempack, vl);
+            layernorm(ptr, gamma_data, beta_data, eps, w, elempack);
         }
     }
 
@@ -243,7 +241,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.channel(q).row(i);
-                    layernorm(ptr, gamma_data, beta_data, eps, w, elempack, vl);
+                    layernorm(ptr, gamma_data, beta_data, eps, w, elempack);
                 }
             }
         }
@@ -253,7 +251,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
-                layernorm(ptr, gamma_data, beta_data, eps, w * h, elempack, vl);
+                layernorm(ptr, gamma_data, beta_data, eps, w * h, elempack);
             }
         }
     }
