@@ -20,7 +20,7 @@ void main()
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
-    if (gx >= 1 || gy >= p.h || gz >= p.c) // gx >= 1 added as per request
+    if (gx >= 1 || gy >= p.h || gz >= p.c)
         return;
 
     float sum = 0.f;

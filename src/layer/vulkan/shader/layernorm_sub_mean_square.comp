@@ -16,7 +16,8 @@ layout (push_constant) uniform parameter {
     int affine_size;
 } p;
 
-void main() {
+void main()
+{
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
