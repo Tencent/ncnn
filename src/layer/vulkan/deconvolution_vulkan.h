@@ -25,7 +25,6 @@ public:
 
 public:
     Mat weight_data_packed;
-    Mat bias_data_packed;
 
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
@@ -37,6 +36,17 @@ public:
 
     Pipeline* pipeline_deconvolution_gemm;
     Pipeline* pipeline_deconvolution_col2im;
+
+    // cooperative matrix
+    bool use_cooperative_matrix;
+    int coopmat_M;
+    int coopmat_N;
+    int coopmat_K;
+    int UNROLL_SG_M;
+    int UNROLL_SG_N;
+    int UNROLL_SG_K;
+    int UNROLL_WG_M;
+    int UNROLL_WG_N;
 };
 
 } // namespace ncnn

@@ -900,7 +900,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     const int elempack = bottom_blob.elempack;
     const int inch = bottom_blob.c * elempack;
 
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;
@@ -942,8 +942,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         // shadowed variable for less openmp task args
         const int outw = top_blob.w;
         const int outh = top_blob.h;
-        const int N = bottom_blob.cstep * elempack;
-        const int M = top_blob.cstep * out_elempack;
+        const size_t N = bottom_blob.cstep * elempack;
+        const size_t M = top_blob.cstep * out_elempack;
 
         int* outptr = top_blob.channel(p / out_elempack);
 
@@ -1695,8 +1695,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         // shadowed variable for less openmp task args
         const int outw = top_blob.w;
         const int outh = top_blob.h;
-        const int N = bottom_blob.cstep * elempack;
-        const int M = top_blob.cstep * out_elempack;
+        const size_t N = bottom_blob.cstep * elempack;
+        const size_t M = top_blob.cstep * out_elempack;
 
         int* outptr = top_blob.channel(p / out_elempack);
 
@@ -2575,8 +2575,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         // shadowed variable for less openmp task args
         const int outw = top_blob.w;
         const int outh = top_blob.h;
-        const int N = bottom_blob.cstep * elempack;
-        const int M = top_blob.cstep * out_elempack;
+        const size_t N = bottom_blob.cstep * elempack;
+        const size_t M = top_blob.cstep * out_elempack;
 
         int* outptr = top_blob.channel(p / out_elempack);
 
@@ -3571,7 +3571,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         // shadowed variable for less openmp task args
         const int outw = top_blob.w;
         const int outh = top_blob.h;
-        const int N = bottom_blob.cstep * elempack;
+        const size_t N = bottom_blob.cstep * elempack;
 
         int* outptr0 = top_blob.channel(p);
         int* outptr1 = top_blob.channel(p + 1);

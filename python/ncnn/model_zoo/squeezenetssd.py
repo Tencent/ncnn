@@ -16,6 +16,7 @@ class SqueezeNet_SSD:
         self.norm_vals = []
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # original pretrained model from https://github.com/chuanqi305/SqueezeNet-SSD
@@ -67,7 +68,6 @@ class SqueezeNet_SSD:
         mat_in.substract_mean_normalize(self.mean_vals, self.norm_vals)
 
         ex = self.net.create_extractor()
-        ex.set_num_threads(self.num_threads)
 
         ex.input("data", mat_in)
 

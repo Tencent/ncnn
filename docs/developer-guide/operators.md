@@ -33,6 +33,7 @@
 * [Embed](#embed)
 * [Exp](#exp)
 * [Flatten](#flatten)
+* [Flip](#flip)
 * [Fold](#fold)
 * [GELU](#gelu)
 * [GLU](#glu)
@@ -869,6 +870,14 @@ else            y = pow(base, (shift + x * scale))
 Reshape blob to 1 dimension
 
 * one_blob_only
+
+# Flip
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axes          | array | [ ]       |                   |
 
 # Fold
 ```

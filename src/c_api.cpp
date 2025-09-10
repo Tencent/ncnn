@@ -1384,10 +1384,8 @@ void ncnn_extractor_destroy(ncnn_extractor_t ex)
 
 void ncnn_extractor_set_option(ncnn_extractor_t ex, const ncnn_option_t opt)
 {
-    ((Extractor*)ex)->set_num_threads(((const Option*)opt)->num_threads);
-#if NCNN_VULKAN
-    ((Extractor*)ex)->set_vulkan_compute(((const Option*)opt)->use_vulkan_compute);
-#endif
+    (void)ex;
+    (void)opt;
 }
 
 #if NCNN_STRING

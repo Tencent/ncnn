@@ -1,0 +1,56 @@
+name: windows-xp-msvc
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-xp-msvc.yml'
+    - 'toolchains/windows-xp-msvc.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-xp-msvc.yml'
+    - 'toolchains/windows-xp-msvc.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+concurrency:
+  group: windows-xp-msvc-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: MSVC
+    runs-on: windows-2022
+
+    env:
+      VS_INSTALL_DIR: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON
+
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: true
+    - name: config
+      shell: cmd
+      run: |
+        "C:\Program Files (x86)\Microsoft Visual Studio\Installer\setup.exe" modify --installPath "${{ env.VS_INSTALL_DIR }}" --channelId VisualStudio.17.Release --add Microsoft.VisualStudio.Component.WinXP  --add Microsoft.VisualStudio.Component.VC.Tools.X86.X64.Spectre --add Microsoft.VisualStudio.Component.VC.Tools.X86.X64 --add Microsoft.VisualStudio.Component.VC.Tools.X86.X64 --add Microsoft.VisualStudio.Component.VC.v141.xp --nocache --quiet
+        call "${{ env.VS_INSTALL_DIR }}\VC\Auxiliary\Build\vcvarsall.bat" x86
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
+        cmake --build . --config Release -j 4
+    - name: test
+      run: cd build; ctest -C Release --output-on-failure -j 4

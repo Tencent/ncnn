@@ -29,13 +29,12 @@ if(NOT CMAKE_FIND_ROOT_PATH_MODE_PACKAGE)
     set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 endif()
 
-set(CMAKE_FIND_LIBRARY_SUFFIXES_INIT ".a")
-set(CMAKE_C_FLAGS "-march=rv64gc_zba_zbb_zbc_zbs_zicbop -mabi=lp64d -mtune=spacemit-x60 -static")
-set(CMAKE_CXX_FLAGS "-march=rv64gc_zba_zbb_zbc_zbs_zicbop -mabi=lp64d -mtune=spacemit-x60 -static")
+set(CMAKE_C_FLAGS "-march=rv64gc_zba_zbb_zbc_zbs_zicbop -mabi=lp64d -mtune=spacemit-x60")
+set(CMAKE_CXX_FLAGS "-march=rv64gc_zba_zbb_zbc_zbs_zicbop -mabi=lp64d -mtune=spacemit-x60")
 
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")
 
-# export RISCV_ROOT_PATH=/home/nihui/osd/spacemit-toolchain-linux-glibc-x86_64-v1.0.5
+# export RISCV_ROOT_PATH=/home/nihui/osd/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
 # cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/k1.llvm.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_BUILD_TESTS=ON -DNCNN_OPENMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_XTHEADVECTOR=OFF -DNCNN_ZFH=ON -DNCNN_ZVFH=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON ..

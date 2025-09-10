@@ -1,0 +1,62 @@
+name: windows-xp-clang
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-xp-clang.yml'
+    - 'toolchains/windows-xp-clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-xp-clang.yml'
+    - 'toolchains/windows-xp-clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+concurrency:
+  group: windows-xp-clang-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Clang
+    runs-on: windows-2022
+
+    env:
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON
+
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: true
+    - name: Set up Clang
+      run: choco install llvm --version=6.0.0 --allow-downgrade
+    - name: Verify Clang
+      run: |
+        clang --version
+        clang++ --version
+    - name: config
+      run: |
+        Invoke-WebRequest -Uri https://jaist.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/8.1.0/threads-posix/dwarf/i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z -OutFile i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z
+        7z x ./i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z
+        Add-Content -Path $env:GITHUB_ENV -Value "MINGW32_ROOT_PATH=${{ github.workspace }}\mingw32"
+        echo "${{ github.workspace }}\mingw32\bin;$env:PATH" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
+        cmake --build . --config Release -j 4
+    - name: test
+      run: cd build; ctest -C Release --output-on-failure -j 4
