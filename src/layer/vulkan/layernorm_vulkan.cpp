@@ -156,23 +156,22 @@ int LayerNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int old_elempack = 0;
-    if (bottom_top_blob.dims == 1 && bottom_top_blob.elempack != 1) // dim 1 is forbidden for pack
+    if (bottom_top_blob.dims == 1)
     {
-        // cast
-        old_elempack = bottom_top_blob.elempack;
-        VkMat buffer_blob;
-        vkdev->convert_packing(bottom_top_blob, buffer_blob, 1, cmd, opt);
-        bottom_top_blob = buffer_blob;
+        // treat 1d as plain pack1 to use reduce pack1 pipelines
+        int elempack = bottom_top_blob.elempack;
+        bottom_top_blob.w *= elempack;
+        bottom_top_blob.elemsize *= elempack;
+        bottom_top_blob.elempack = 1;
     }
 
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-    int dims = bottom_top_blob.dims;
-    size_t elemsize = bottom_top_blob.elemsize;
-    int elempack = bottom_top_blob.elempack;
-    size_t cstep = bottom_top_blob.cstep;
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int channels = bottom_top_blob.c;
+    const int dims = bottom_top_blob.dims;
+    const size_t elemsize = bottom_top_blob.elemsize;
+    const int elempack = bottom_top_blob.elempack;
+    const size_t cstep = bottom_top_blob.cstep;
 
     if (affine_size == 0)
         return 0;
@@ -413,12 +412,13 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         cmd.record_pipeline(pipeline_norm, norm_bindings, norm_constants, bottom_top_blob);
     }
 
-    if (bottom_top_blob.dims == 1 && old_elempack != 0 && old_elempack != bottom_top_blob.elempack) // dim 1 is forbidden for pack
+    if (dims == 1)
     {
-        // cast back
-        VkMat buffer_blob;
-        vkdev->convert_packing(bottom_top_blob, buffer_blob, old_elempack, cmd, opt);
-        bottom_top_blob = buffer_blob;
+        // restore 1d packing
+        int out_elempack = bottom_top_blob.w % 4 == 0 ? 4 : 1;
+        bottom_top_blob.elempack = out_elempack;
+        bottom_top_blob.w /= out_elempack;
+        bottom_top_blob.elemsize /= out_elempack;
     }
 
     return 0;
