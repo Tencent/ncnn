@@ -204,11 +204,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     }
     int num_groups_total = num_groups_per_channel * channels;
 
-    VkMat mean_workspace;
-    mean_workspace.create(num_groups_total, 4u * elempack, elempack, opt.workspace_vkallocator);
-    VkMat var_workspace;
-    var_workspace.create(num_groups_total, 4u * elempack, elempack, opt.workspace_vkallocator);
-
+    VkMat mean_workspace(num_groups_total, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
         int reduced_w = (group_size + 3) / 4;
         VkMat sum_workspace;
@@ -283,6 +279,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         cmd.record_pipeline(pipeline_reduce_mean, mean_bindings, mean_constants, dispatcher);
     }
 
+    VkMat var_workspace(num_groups_total, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
         VkMat square_workspace;
         square_workspace.create(w, h, channels, elemsize, elempack, opt.workspace_vkallocator);
@@ -378,40 +375,43 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     VkMat coeffs_workspace;
     // coeffs_workspace stores {a, b} for each group, so size is num_groups_total * 2
     coeffs_workspace.create(num_groups_total * 2, elemsize, elempack, opt.workspace_vkallocator);
+    {
+        std::vector<VkMat> coeff_bindings(3);
+        coeff_bindings[0] = coeffs_workspace;
+        coeff_bindings[1] = mean_workspace;
+        coeff_bindings[2] = var_workspace;
 
-    std::vector<VkMat> coeff_bindings(3);
-    coeff_bindings[0] = coeffs_workspace;
-    coeff_bindings[1] = mean_workspace;
-    coeff_bindings[2] = var_workspace;
+        std::vector<vk_constant_type> coeff_constants(2);
+        coeff_constants[0].i = num_groups_per_channel;
+        coeff_constants[1].i = channels;
 
-    std::vector<vk_constant_type> coeff_constants(2);
-    coeff_constants[0].i = num_groups_per_channel;
-    coeff_constants[1].i = channels;
+        VkMat dispatcher_coeffs;
+        dispatcher_coeffs.w = 1;
+        dispatcher_coeffs.h = num_groups_per_channel;
+        dispatcher_coeffs.c = channels;
 
-    VkMat dispatcher_coeffs;
-    dispatcher_coeffs.w = 1;
-    dispatcher_coeffs.h = num_groups_per_channel;
-    dispatcher_coeffs.c = channels;
-
-    const Pipeline* pipeline_coeffs = elempack == 4 ? pipeline_layernorm_coeffs_pack4 : pipeline_layernorm_coeffs;
-    cmd.record_pipeline(pipeline_coeffs, coeff_bindings, coeff_constants, dispatcher_coeffs);
+        const Pipeline* pipeline_coeffs = elempack == 4 ? pipeline_layernorm_coeffs_pack4 : pipeline_layernorm_coeffs;
+        cmd.record_pipeline(pipeline_coeffs, coeff_bindings, coeff_constants, dispatcher_coeffs);
+    }
 
     // apply norm
-    std::vector<VkMat> norm_bindings(4);
-    norm_bindings[0] = bottom_top_blob;
-    norm_bindings[1] = coeffs_workspace;
-    norm_bindings[2] = gamma_data_gpu;
-    norm_bindings[3] = beta_data_gpu;
+    {
+        std::vector<VkMat> norm_bindings(4);
+        norm_bindings[0] = bottom_top_blob;
+        norm_bindings[1] = coeffs_workspace;
+        norm_bindings[2] = gamma_data_gpu;
+        norm_bindings[3] = beta_data_gpu;
 
-    std::vector<vk_constant_type> norm_constants(5);
-    norm_constants[0].i = w;
-    norm_constants[1].i = h;
-    norm_constants[2].i = channels;
-    norm_constants[3].i = cstep;
-    norm_constants[4].i = affine_size;
+        std::vector<vk_constant_type> norm_constants(5);
+        norm_constants[0].i = w;
+        norm_constants[1].i = h;
+        norm_constants[2].i = channels;
+        norm_constants[3].i = cstep;
+        norm_constants[4].i = affine_size;
 
-    const Pipeline* pipeline_norm = elempack == 4 ? pipeline_layernorm_norm_pack4 : pipeline_layernorm_norm;
-    cmd.record_pipeline(pipeline_norm, norm_bindings, norm_constants, bottom_top_blob);
+        const Pipeline* pipeline_norm = elempack == 4 ? pipeline_layernorm_norm_pack4 : pipeline_layernorm_norm;
+        cmd.record_pipeline(pipeline_norm, norm_bindings, norm_constants, bottom_top_blob);
+    }
 
     if (bottom_top_blob.dims == 1 && old_elempack != 0 && old_elempack != bottom_top_blob.elempack) // dim 1 is forbidden for pack
     {
