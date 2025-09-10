@@ -3,7 +3,6 @@
 
 #include "layernorm_vulkan.h"
 #include "layer_shader_type.h"
-#include "command.h"
 
 namespace ncnn {
 
