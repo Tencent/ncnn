@@ -16,6 +16,7 @@ class MobileNetV2_YoloV3:
         self.norm_vals = [0.007843, 0.007843, 0.007843]
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # original pretrained model from https://github.com/eric612/MobileNet-YOLO
@@ -67,7 +68,7 @@ class MobileNetV2_YoloV3:
         mat_in.substract_mean_normalize(self.mean_vals, self.norm_vals)
 
         ex = self.net.create_extractor()
-        ex.set_num_threads(self.num_threads)
+
         ex.input("data", mat_in)
 
         ret, mat_out = ex.extract("detection_out")
