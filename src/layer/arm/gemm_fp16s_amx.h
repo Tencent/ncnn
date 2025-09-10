@@ -249,7 +249,7 @@ static void transpose_pack_A_tile_fp32_to_fp16_amx(const Mat& A, Mat& AT, int i,
 static void pack_B_tile_fp32_to_fp16_amx(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
-    NCNN_LOGE("pack_B_tile_fp32_to_fp16_amx");
+    // NCNN_LOGE("pack_B_tile_fp32_to_fp16_amx");
 
     unsigned short* pp = BT;
 
@@ -861,7 +861,7 @@ static void pack_B_tile_fp32_to_fp16_amx(const Mat& B, Mat& BT, int j, int max_j
 static void transpose_pack_B_tile_fp32_to_fp16_amx(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
-    NCNN_LOGE("transpose_pack_B_tile_fp32_to_fp16_amx");
+    // NCNN_LOGE("transpose_pack_B_tile_fp32_to_fp16_amx");
 
     unsigned short* pp = BT;
 
