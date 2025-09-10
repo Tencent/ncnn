@@ -38,11 +38,11 @@ def test():
     if not torch.allclose(a, b, 1e-4, 1e-4):
         return False
 
-    if version.parse(torch.__version__) < version.parse('2.9'):
+    if version.parse(torch.__version__) < version.parse('2.8'):
         return True
 
     # export dynamo onnx
-    torch.onnx.export(net, (x,), "test_swin_t_dynamo.onnx", dynamo=True, external_data=False)
+    torch.onnx.dynamo_export(net, x).save("test_swin_t_dynamo.onnx")
 
     # onnx to pnnx
     os.system("../../src/pnnx test_swin_t_dynamo.onnx inputshape=[1,3,224,224]")

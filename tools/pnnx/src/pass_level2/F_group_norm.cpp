@@ -39,11 +39,11 @@ public:
         return R"PNNXIR(7767517
 7 6
 pnnx.Input              input_0     0 1 input
-Tensor.reshape          op_0        1 1 input r1 shape=(0,%num_groups,-1)
+Reshape                 op_0        1 1 input r1 allowzero=0 shape=(0,%num_groups,-1)
 pnnx.Attribute          op_1        0 1 ones @data
 pnnx.Attribute          op_2        0 1 zeros @data
 InstanceNormalization   op_3        3 1 r1 ones zeros in epsilon=%epsilon
-Tensor.reshape          op_4        1 1 in out shape=%shape
+Reshape                 op_4        1 1 in out allowzero=0 shape=%shape
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -89,86 +89,29 @@ pnnx.Output             output      1 0 out
     {
         op->params["num_groups"] = captured_params.at("num_groups");
         op->params["eps"] = captured_params.at("epsilon");
-
-        op->params["weight"] = Parameter();
-        op->params["bias"] = Parameter();
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx, 130)
 
-class F_group_norm_onnx_1 : public GraphRewriterPass
+class F_group_norm_onnx_1 : public F_group_norm_onnx
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
 7 6
-pnnx.Input              input       0 1 input
-pnnx.Attribute          weight      0 1 weight @data
-pnnx.Attribute          bias        0 1 bias @data
-F.group_norm            op_2        1 1 input a num_groups=%num_groups eps=%eps weight=None bias=None
-aten::mul               op_3        2 1 a weight b
-aten::add               op_4        2 1 b bias out
+pnnx.Input              input_0     0 1 input
+Reshape                 op_0        1 1 input r1 shape=(0,%num_groups,-1)
+pnnx.Attribute          op_1        0 1 ones @data
+pnnx.Attribute          op_2        0 1 zeros @data
+InstanceNormalization   op_3        3 1 r1 ones zeros in epsilon=%epsilon
+Reshape                 op_4        1 1 in out shape=%shape
 pnnx.Output             output      1 0 out
 )PNNXIR";
-    }
-
-    const char* replace_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Attribute          weight      0 1 weight @data=%weight.data
-pnnx.Attribute          bias        0 1 bias @data=%bias.data
-F.group_norm            gn_affine   3 1 input weight bias out num_groups=%num_groups eps=%eps
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
-    {
-        const Operator* op_group_norm = matched_operators.at("op_2");
-        const Operator* op_mul = matched_operators.at("op_3");
-        const Operator* op_add = matched_operators.at("op_4");
-        const std::vector<int>& inputshape = op_group_norm->inputs[0]->shape;
-        const std::vector<int>& weight_shape = op_mul->inputs[1]->shape;
-        const std::vector<int>& bias_shape = op_add->inputs[1]->shape;
-
-        if (weight_shape.size() != bias_shape.size())
-            return false;
-        if (weight_shape.size() + 1 != inputshape.size())
-            return false;
-        if (weight_shape[0] != inputshape[1])
-            return false;
-        for (size_t i = 1; i < weight_shape.size(); i++)
-        {
-            if (weight_shape[i] != 1 || bias_shape[i] != 1)
-                return false;
-        }
-
-        return true;
-    }
-
-    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        GraphRewriterPass::write(ops, captured_params, captured_attrs);
-
-        // fix weight bias shape
-        // (N,1,1) -> (N)
-        ops.at("weight")->attrs["data"].shape.resize(1);
-        ops.at("bias")->attrs["data"].shape.resize(1);
-        ops.at("weight")->outputs[0]->shape.resize(1);
-        ops.at("bias")->outputs[0]->shape.resize(1);
-
-        Operator* gn = ops.at("gn_affine");
-        gn->inputnames.resize(3);
-        gn->inputnames[0] = "input";
-        gn->inputnames[1] = "weight";
-        gn->inputnames[2] = "bias";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx_1, 131)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx_1, 130)
 
 } // namespace pnnx
