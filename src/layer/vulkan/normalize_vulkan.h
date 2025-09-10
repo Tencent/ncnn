@@ -33,11 +33,6 @@ public:
     Pipeline* pipeline_normalize_reduce_sum4_fp32_pack4[2];
     Pipeline* pipeline_normalize_coeffs_pack4;
     Pipeline* pipeline_normalize_norm_pack4;
-
-    Pipeline* pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8;
-    Pipeline* pipeline_normalize_reduce_sum4_fp32_pack8[2];
-    Pipeline* pipeline_normalize_coeffs_pack8;
-    Pipeline* pipeline_normalize_norm_pack8;
 };
 
 } // namespace ncnn

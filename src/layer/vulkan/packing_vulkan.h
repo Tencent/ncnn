@@ -21,14 +21,8 @@ public:
 
 public:
     Pipeline* pipeline_packing;
-    Pipeline* pipeline_packing_pack4;
-    Pipeline* pipeline_packing_pack8;
     Pipeline* pipeline_packing_pack1to4;
     Pipeline* pipeline_packing_pack4to1;
-    Pipeline* pipeline_packing_pack1to8;
-    Pipeline* pipeline_packing_pack4to8;
-    Pipeline* pipeline_packing_pack8to4;
-    Pipeline* pipeline_packing_pack8to1;
 };
 
 } // namespace ncnn

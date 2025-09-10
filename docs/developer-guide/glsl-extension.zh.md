@@ -135,7 +135,6 @@ layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 |sfp|float|uint|float16_t|
 |sfpvec2|vec2|uint|f16vec2|
 |sfpvec4|vec4|uvec2|f16vec4|
-|sfpvec8|mat2x4|uvec4|f16mat2x4|
 
 ## 算术类型(arithmetic type)
 
@@ -153,7 +152,6 @@ void main()
 |afp|float|float16_t|
 |afpvec2|vec2|f16vec2|
 |afpvec4|vec4|f16vec4|
-|afpvec8|mat2x4|f16mat2x4|
 
 ## 本地类型(local type)
 
@@ -176,7 +174,6 @@ shared lfp tmp_a[8][4][2];
 afp buffer_ld1(sfp src, int offset);
 afpvec2 buffer_ld2(sfpvec2 src, int offset);
 afpvec4 buffer_ld4(sfpvec4 src, int offset);
-afpvec8 buffer_ld8(sfpvec8 src, int offset);
 ```
 
 - 将已确定类型的值存储到 dst[偏移量]
@@ -185,7 +182,6 @@ afpvec8 buffer_ld8(sfpvec8 src, int offset);
 void buffer_st1(sfp dst, int offset, afp v);
 void buffer_st2(sfpvec2 dst, int offset, afpvec2 v);
 void buffer_st4(sfpvec4 dst, int offset, afpvec4 v);
-void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 ```
 
 - 从已确定类型 src[src_offset] 的值拷贝到 dst[dst_offset]
@@ -194,23 +190,18 @@ void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 void buffer_cp1(sfp dst, int dst_offset, sfp src, int src_offset);
 void buffer_cp2(sfpvec2 dst, int dst_offset, sfpvec2 src, int src_offset);
 void buffer_cp4(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
-void buffer_cp8(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
 ```
 
 - 从 src[src_offsets[0],src_offsets[1],...] 的值拷贝并打包到 dst[dst_offset]
 
 ```c
 void buffer_cp1to4(sfpvec4 dst, int dst_offset, sfp src, ivec4 src_offsets);
-void buffer_cp1to8(sfpvec8 dst, int dst_offset, sfp src, ivec4 src_offsets_0, ivec4 src_offsets_1);
-void buffer_cp4to8(sfpvec8 dst, int dst_offset, sfpvec4 src, ivec2 src_offsets);
 ```
 
 - 从 src[src_offset] 的值拷贝并解包到 dst[dst_offsets[0],dst_offsets[1],...]
 
 ```c
 void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
-void buffer_cp8to1(sfp dst, ivec4 dst_offsets_0, ivec4 dst_offsets_1, sfpvec8 src, int src_offset);
-void buffer_cp8to4(sfpvec4 dst, ivec2 dst_offsets, sfpvec8 src, int src_offset);
 ```
 
 # 本地数据转换函数

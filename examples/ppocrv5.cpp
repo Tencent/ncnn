@@ -345,6 +345,8 @@ void PPOCRv5::recognize(const cv::Mat& bgr, Object& object)
     ex.extract("out0", out);
 
     // 18385 x len
+    int last_token = 0;
+
     for (int i = 0; i < out.h; i++)
     {
         const float* p = out.row(i);
@@ -360,6 +362,11 @@ void PPOCRv5::recognize(const cv::Mat& bgr, Object& object)
                 index = j;
             }
         }
+
+        if (last_token == index) // CTC rule, if index is same as last one, they will be merged into one token
+            continue;
+
+        last_token = index;
 
         if (index <= 0)
             continue;
