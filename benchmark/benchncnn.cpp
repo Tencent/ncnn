@@ -109,7 +109,7 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
 
     if (input_names.size() > _in.size())
     {
-        fprintf(stderr, "input %ld tensors while model has %ld inputs\n", _in.size(), input_names.size());
+        fprintf(stderr, "input %lld tensors while model has %lld inputs\n", _in.size(), input_names.size());
         return;
     }
 
@@ -242,7 +242,7 @@ static std::vector<ncnn::Mat> parse_shape_list(char* s)
             mats.push_back(ncnn::Mat(shape[0]));
             break;
         default:
-            fprintf(stderr, "unsupported input shape size %ld\n", shape.size());
+            fprintf(stderr, "unsupported input shape size %lld\n", shape.size());
             break;
         }
     }
