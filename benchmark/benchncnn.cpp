@@ -15,6 +15,8 @@
 #include "net.h"
 #include "gpu.h"
 
+#include "../benchmark/model_param_spv_data.h"
+
 #ifndef NCNN_SIMPLESTL
 #include <vector>
 #endif
@@ -40,11 +42,36 @@ static bool g_enable_cooling_down = true;
 static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
 static ncnn::PoolAllocator g_workspace_pool_allocator;
 
+struct model_param_registry_entry
+{
+    const char* model_name;
+    const char* model_param;
+};
+
+static const model_param_registry_entry model_param_registry[] = {
+#include "../benchmark/model_param_registry.h"
+};
+
 #if NCNN_VULKAN
 static ncnn::VulkanDevice* g_vkdev = 0;
 static ncnn::VkAllocator* g_blob_vkallocator = 0;
 static ncnn::VkAllocator* g_staging_vkallocator = 0;
 #endif // NCNN_VULKAN
+
+const char* find_model_param(const char* model_name)
+{
+    int param_num = sizeof(model_param_registry) / sizeof(model_param_registry_entry);
+    const char* model_param = NULL;
+    for (int i = 0; i < param_num; i++)
+    {
+        if (!strcmp(model_name, model_param_registry[i].model_name))
+        {
+            model_param = model_param_registry[i].model_param;
+            break;
+        }
+    }
+    return model_param;
+}
 
 void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fixed_path = true)
 {
@@ -84,16 +111,24 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
 #define MODEL_DIR ""
 #endif
 
+    const char* model_param = NULL;
+
     if (fixed_path)
     {
-        char parampath[256];
-        sprintf(parampath, MODEL_DIR "%s.param", comment);
-        net.load_param(parampath);
+        model_param = find_model_param(comment);
     }
     else
     {
-        net.load_param(comment);
+        // use load_param_mem
+        model_param = find_model_param(comment);
+        if (model_param == NULL)
+        {
+            fprintf(stderr, "can't find %s.param in model dir\n", comment);
+            return;
+        }
     }
+
+    net.load_param_mem(model_param);
 
     DataReaderFromEmpty dr;
     net.load_model(dr);
@@ -452,13 +487,13 @@ int main(int argc, char** argv)
 
         benchmark("mobilenetv2_yolov3", ncnn::Mat(352, 352, 3), opt);
 
-        benchmark("yolov4-tiny", ncnn::Mat(416, 416, 3), opt);
+        benchmark("yolov4_tiny", ncnn::Mat(416, 416, 3), opt);
 
         benchmark("nanodet_m", ncnn::Mat(320, 320, 3), opt);
 
-        benchmark("yolo-fastest-1.1", ncnn::Mat(320, 320, 3), opt);
+        benchmark("yolo_fastest_1_1", ncnn::Mat(320, 320, 3), opt);
 
-        benchmark("yolo-fastestv2", ncnn::Mat(352, 352, 3), opt);
+        benchmark("yolo_fastestv2", ncnn::Mat(352, 352, 3), opt);
 
         benchmark("vision_transformer", ncnn::Mat(384, 384, 3), opt);
 
