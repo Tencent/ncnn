@@ -1,4 +1,4 @@
-// Copyright 2024 Tencent
+// Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "layernorm_riscv.h"
@@ -11,7 +11,7 @@
 namespace ncnn {
 
 #if NCNN_ZFH
-static void layernorm_fp16s(__fp16* ptr, const float* gamma_data, const float* beta_data, float eps, int elemcount, int elempack)
+static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2; // fp16
@@ -108,10 +108,10 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_data, const float* b
 
     i = 0;
     __fp16* ptr_store = ptr;
-    if (gamma_data && beta_data)
+    if (gamma_ptr && beta_ptr)
     {
-        const float* ptr_gamma = gamma_data;
-        const float* ptr_beta = beta_data;
+        const float* ptr_gamma = gamma_ptr;
+        const float* ptr_beta = beta_ptr;
 #if __riscv_vector
         if (elempack != 1)
         {

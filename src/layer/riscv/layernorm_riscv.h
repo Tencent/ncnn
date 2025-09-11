@@ -1,4 +1,4 @@
-// Copyright 2024 Tencent
+// Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_LAYERNORM_RISCV_H
@@ -7,6 +7,7 @@
 #include "layernorm.h"
 
 namespace ncnn {
+
 class LayerNorm_riscv : public LayerNorm
 {
 public:
