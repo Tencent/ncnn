@@ -155,22 +155,14 @@ int LayerNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    if (bottom_top_blob.dims == 1)
-    {
-        // treat 1d as plain pack1 to use reduce pack1 pipelines
-        int elempack = bottom_top_blob.elempack;
-        bottom_top_blob.w *= elempack;
-        bottom_top_blob.elemsize *= elempack;
-        bottom_top_blob.elempack = 1;
-    }
-
-    const int w = bottom_top_blob.w;
+    // treat 1d blob as unpacked layout
+    const int dims = bottom_top_blob.dims;
+    const int w = dims == 1 ? bottom_top_blob.w * bottom_top_blob.elempack : bottom_top_blob.w;
     const int h = bottom_top_blob.h;
     const int channels = bottom_top_blob.c;
-    const int dims = bottom_top_blob.dims;
-    const size_t elemsize = bottom_top_blob.elemsize;
-    const int elempack = bottom_top_blob.elempack;
-    const size_t cstep = bottom_top_blob.cstep;
+    const size_t elemsize = dims == 1 ? bottom_top_blob.elemsize * bottom_top_blob.elempack : bottom_top_blob.elemsize;
+    const int elempack = dims == 1 ? 1 : bottom_top_blob.elempack;
+    const size_t cstep = dims == 1 ? bottom_top_blob.cstep * bottom_top_blob.elempack : bottom_top_blob.cstep;
 
     if (affine_size == 0)
         return 0;
@@ -178,17 +170,20 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     int group_size;
     int num_groups_per_channel;
     if (dims == 1)
-    {   // (w)
+    {
+        // (w)
         group_size = w;
         num_groups_per_channel = 1;
     }
     else if (dims == 2)
-    {   // (w, h)
+    {
+        // (w, h)
         group_size = w;
         num_groups_per_channel = h;
     }
     else
-    {   // dims == 3, (w, h, c)
+    {
+        // (w, h, c)
         if (affine_size == w)
         {
             group_size = w;
@@ -370,9 +365,8 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     }
 
     // coeffs a and b ---
-    VkMat coeffs_workspace;
     // coeffs_workspace stores {a, b} for each group, so size is num_groups_total * 2
-    coeffs_workspace.create(num_groups_total * 2, elemsize, elempack, opt.workspace_vkallocator);
+    VkMat coeffs_workspace(num_groups_total * 2, elemsize, elempack, opt.workspace_vkallocator);
     {
         std::vector<VkMat> coeff_bindings(3);
         coeff_bindings[0] = coeffs_workspace;
@@ -408,16 +402,13 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         norm_constants[4].i = affine_size;
 
         const Pipeline* pipeline_norm = elempack == 4 ? pipeline_layernorm_norm_pack4 : pipeline_layernorm_norm;
-        cmd.record_pipeline(pipeline_norm, norm_bindings, norm_constants, bottom_top_blob);
-    }
 
-    if (dims == 1)
-    {
-        // restore 1d packing
-        int out_elempack = bottom_top_blob.w % 4 == 0 ? 4 : 1;
-        bottom_top_blob.elempack = out_elempack;
-        bottom_top_blob.w /= out_elempack;
-        bottom_top_blob.elemsize /= out_elempack;
+        VkMat dispatcher;
+        dispatcher.w = w;
+        dispatcher.h = h;
+        dispatcher.c = channels;
+
+        cmd.record_pipeline(pipeline_norm, norm_bindings, norm_constants, dispatcher);
     }
 
     return 0;

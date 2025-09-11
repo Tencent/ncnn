@@ -42,5 +42,6 @@ void main()
     vec4 v = vec4(buffer_ld4(bottom_top_blob_data, linear_index));
 
     v = v - mean;
+
     buffer_st4(square_blob_data, linear_index, afpvec4(v * v));
 }
