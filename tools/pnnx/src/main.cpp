@@ -172,7 +172,7 @@ static bool file_maybe_numpy(const std::string& path)
     return strcmp(signature, "\x93NUMPY") == 0;
 }
 
-static void prase_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector<std::vector<char> >& contents)
+static void parse_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector<std::vector<char> >& contents)
 {
     std::vector<std::string> list;
     parse_string_list(s, list);
@@ -184,7 +184,7 @@ static void prase_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& s
             fprintf(stderr, "%s is not a vaild numpy file", s.c_str());
             return;
         }
-        pnnx::prase_numpy_file(s.c_str(), shapes, types, contents);
+        pnnx::parse_numpy_file(s.c_str(), shapes, types, contents);
     }
 }
 
@@ -357,7 +357,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "parameter conflict: input and input_shape cannot be used at the same time.");
                 exit(1);
             }
-            prase_numpy_file_list(value, input_shapes, input_types, input_contents);
+            parse_numpy_file_list(value, input_shapes, input_types, input_contents);
         }
         if (strcmp(key, "input2") == 0)
         {
@@ -366,7 +366,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "parameter conflict: input2 and input_shape2 cannot be used at the same time.");
                 exit(1);
             }
-            prase_numpy_file_list(value, input_shapes2, input_types2, input_contents2);
+            parse_numpy_file_list(value, input_shapes2, input_types2, input_contents2);
         }
     }
 
