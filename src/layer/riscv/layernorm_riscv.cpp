@@ -30,7 +30,6 @@ LayerNorm_riscv::LayerNorm_riscv()
 #if __riscv_xtheadvector
 // FIXME inline causes illegal instruction :(
 __attribute__((noinline))
-#endif // __riscv_xtheadvector
 static vfloat32m8_t
 reset_tails(vfloat32m8_t x, size_t vl, float v)
 {
@@ -39,6 +38,7 @@ reset_tails(vfloat32m8_t x, size_t vl, float v)
     x = __riscv_vfmerge_vfm_f32m8(x, v, _vl_mask, vlm8);
     return x;
 }
+#endif // __riscv_xtheadvector
 #endif // __riscv_vector
 
 static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)
