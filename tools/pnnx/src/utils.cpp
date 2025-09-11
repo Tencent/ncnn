@@ -312,7 +312,7 @@ void parse_numpy_file(const char* path,
     char* header_str = (char*)malloc(header_len + 1);
     if (header_str == NULL)
     {
-        fprintf(stderr, "malloc filed");
+        fprintf(stderr, "malloc failed");
         fclose(fp);
         return;
     }
