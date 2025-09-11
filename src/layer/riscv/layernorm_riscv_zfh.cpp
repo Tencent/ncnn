@@ -14,8 +14,7 @@ namespace ncnn {
 #if __riscv_vector
 #if __riscv_xtheadvector
 // FIXME inline causes illegal instruction :(
-__attribute__((noinline))
-static vfloat32m8_t
+__attribute__((noinline)) static vfloat32m8_t
 reset_tails(vfloat32m8_t x, size_t vl, float v)
 {
     const size_t vlm8 = __riscv_vsetvlmax_e32m8();
