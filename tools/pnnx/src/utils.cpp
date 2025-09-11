@@ -242,7 +242,7 @@ void convert_to_c_order(void* src, const std::vector<int64_t>& shape, size_t typ
     }
 
     // todo: optimize this?
-    for (int i = 1; i <= content_len; ++i)
+    for (int i = 0; i < content_len; ++i)
     {
         int64_t c_index = 0;
         int64_t f_index = 0;
@@ -254,7 +254,6 @@ void convert_to_c_order(void* src, const std::vector<int64_t>& shape, size_t typ
 
         memcpy((char*)dst + c_index * type_size, (char*)src + f_index * type_size, type_size);
 
-        ++index[dims - 1];
         for (int j = dims - 1; j >= 0; --j)
         {
             index[j]++;
