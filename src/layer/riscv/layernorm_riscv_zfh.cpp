@@ -149,6 +149,8 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
         if (elempack == packn)
         {
 #if !__riscv_xtheadvector
+            // xtheadvector mixing vl in fp16 intrinsics leads to incorrect result
+            // ref https://github.com/XUANTIE-RV/xuantie-gnu-toolchain/issues/28
             const size_t vlm4 = __riscv_vsetvlmax_e16m4();
             const size_t vlm2 = __riscv_vsetvlmax_e16m2();
             const size_t vlm1 = __riscv_vsetvlmax_e16m1();
