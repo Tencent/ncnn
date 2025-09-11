@@ -199,21 +199,18 @@ static void layernorm(float* ptr, const float* gamma_data, const float* beta_dat
 int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
 #if NCNN_ZFH
-    int elembits = bottom_top_blob.elembits();
+    const int elembits = bottom_top_blob.elembits();
     if (opt.use_fp16_storage && elembits == 16)
     {
-        if (opt.use_fp16_arithmetic)
-            return forward_inplace_fp16sa(bottom_top_blob, opt);
-        else
-            return forward_inplace_fp16s(bottom_top_blob, opt);
+        return forward_inplace_fp16s(bottom_top_blob, opt);
     }
 #endif // NCNN_ZFH
 
-    int elempack = bottom_top_blob.elempack;
-    int dims = bottom_top_blob.dims;
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
+    const int elempack = bottom_top_blob.elempack;
+    const int dims = bottom_top_blob.dims;
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int channels = bottom_top_blob.c;
 
     if (dims == 1)
     {
@@ -255,6 +252,8 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             }
         }
     }
+
     return 0;
 }
+
 } // namespace ncnn
