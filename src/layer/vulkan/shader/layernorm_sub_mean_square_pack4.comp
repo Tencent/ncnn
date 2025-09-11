@@ -3,6 +3,8 @@
 
 #version 450
 
+layout (constant_id = 0) const int affine_size = 0;
+
 layout (binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer mean_blob { vec4 mean_data[]; };
 layout (binding = 2) writeonly buffer square_blob { sfpvec4 square_blob_data[]; };
@@ -13,7 +15,6 @@ layout (push_constant) uniform parameter
     int h;
     int c;
     int cstep;
-    int affine_size;
 } p;
 
 void main()
@@ -26,11 +27,11 @@ void main()
         return;
 
     int group_id;
-    if (p.affine_size == p.w)
+    if (affine_size == p.w)
     {
         group_id = gz * p.h + gy;
     }
-    else // if (p.affine_size == p.w * p.h)
+    else // if (affine_size == p.w * p.h)
     {
         group_id = gz;
     }

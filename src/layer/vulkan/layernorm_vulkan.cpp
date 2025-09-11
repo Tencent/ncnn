@@ -66,13 +66,16 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     {
+        std::vector<vk_specialization_type> specializations(1);
+        specializations[0].i = affine_size;
+
         pipeline_layernorm_sub_mean_square = new Pipeline(vkdev);
         pipeline_layernorm_sub_mean_square->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_layernorm_sub_mean_square->create(LayerShaderType::layernorm_sub_mean_square, opt, std::vector<vk_specialization_type>());
+        pipeline_layernorm_sub_mean_square->create(LayerShaderType::layernorm_sub_mean_square, opt, specializations);
 
         pipeline_layernorm_sub_mean_square_pack4 = new Pipeline(vkdev);
         pipeline_layernorm_sub_mean_square_pack4->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_layernorm_sub_mean_square_pack4->create(LayerShaderType::layernorm_sub_mean_square_pack4, opt, std::vector<vk_specialization_type>());
+        pipeline_layernorm_sub_mean_square_pack4->create(LayerShaderType::layernorm_sub_mean_square_pack4, opt, specializations);
     }
 
     {
@@ -89,8 +92,9 @@ int LayerNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        std::vector<vk_specialization_type> specializations(1);
+        std::vector<vk_specialization_type> specializations(2);
         specializations[0].i = affine;
+        specializations[1].i = affine_size;
 
         pipeline_layernorm_norm = new Pipeline(vkdev);
         pipeline_layernorm_norm->set_optimal_local_size_xyz(8, 8, 1);
@@ -274,22 +278,22 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
     VkMat var_workspace(num_groups_total, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
-        VkMat square_workspace;
-        square_workspace.create(w, h, channels, elemsize, elempack, opt.workspace_vkallocator);
+        VkMat square_workspace(w, h, channels, elemsize, elempack, opt.workspace_vkallocator);
+        {
+            std::vector<VkMat> sq_bindings(3);
+            sq_bindings[0] = bottom_top_blob;
+            sq_bindings[1] = mean_workspace;
+            sq_bindings[2] = square_workspace;
 
-        std::vector<VkMat> sq_bindings(3);
-        sq_bindings[0] = bottom_top_blob;
-        sq_bindings[1] = mean_workspace;
-        sq_bindings[2] = square_workspace;
-        std::vector<vk_constant_type> sq_constants(5);
-        sq_constants[0].i = w;
-        sq_constants[1].i = h;
-        sq_constants[2].i = channels;
-        sq_constants[3].i = cstep;
-        sq_constants[4].i = affine_size;
+            std::vector<vk_constant_type> sq_constants(4);
+            sq_constants[0].i = w;
+            sq_constants[1].i = h;
+            sq_constants[2].i = channels;
+            sq_constants[3].i = cstep;
 
-        const Pipeline* pipeline_sub_mean_square = elempack == 4 ? pipeline_layernorm_sub_mean_square_pack4 : pipeline_layernorm_sub_mean_square;
-        cmd.record_pipeline(pipeline_sub_mean_square, sq_bindings, sq_constants, square_workspace);
+            const Pipeline* pipeline_sub_mean_square = elempack == 4 ? pipeline_layernorm_sub_mean_square_pack4 : pipeline_layernorm_sub_mean_square;
+            cmd.record_pipeline(pipeline_sub_mean_square, sq_bindings, sq_constants, square_workspace);
+        }
 
         // Reduce sum of squares
         int reduced_w = (group_size + 3) / 4;
@@ -394,12 +398,11 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         norm_bindings[2] = gamma_data_gpu;
         norm_bindings[3] = beta_data_gpu;
 
-        std::vector<vk_constant_type> norm_constants(5);
+        std::vector<vk_constant_type> norm_constants(4);
         norm_constants[0].i = w;
         norm_constants[1].i = h;
         norm_constants[2].i = channels;
         norm_constants[3].i = cstep;
-        norm_constants[4].i = affine_size;
 
         const Pipeline* pipeline_norm = elempack == 4 ? pipeline_layernorm_norm_pack4 : pipeline_layernorm_norm;
 
