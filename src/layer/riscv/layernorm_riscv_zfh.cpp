@@ -148,11 +148,14 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
     {
         if (elempack == packn)
         {
+#if !__riscv_xtheadvector
             const size_t vlm4 = __riscv_vsetvlmax_e16m4();
             const size_t vlm2 = __riscv_vsetvlmax_e16m2();
             const size_t vlm1 = __riscv_vsetvlmax_e16m1();
+#endif // !__riscv_xtheadvector
 
             int i = 0;
+#if !__riscv_xtheadvector
             for (; i + 3 < elemcount; i += 4)
             {
                 vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vlm4), vlm4);
@@ -189,8 +192,12 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
                 gamma_ptr += 2;
                 beta_ptr += 2;
             }
+#endif // !__riscv_xtheadvector
             for (; i < elemcount; i++)
             {
+#if __riscv_xtheadvector
+                size_t vlm1 = __riscv_vsetvlmax_e16m1();
+#endif // __riscv_xtheadvector
                 vfloat32m2_t _p = __riscv_vfwcvt_f_f_v_f32m2(__riscv_vle16_v_f16m1(ptr, vlm1), vlm1);
                 _p = __riscv_vfmadd_vv_f32m2(_p, __riscv_vget_v_f32m8_f32m2(_a, 0), __riscv_vget_v_f32m8_f32m2(_b, 0), vlm1);
                 _p = __riscv_vfmul_vf_f32m2(_p, gamma_ptr[0], vlm1);
