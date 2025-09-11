@@ -181,7 +181,7 @@ static void parse_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& s
     {
         if (!file_maybe_numpy(s))
         {
-            fprintf(stderr, "%s is not a vaild numpy file", s.c_str());
+            fprintf(stderr, "%s is not a valid numpy file", s.c_str());
             return;
         }
         pnnx::parse_numpy_file(s.c_str(), shapes, types, contents);
@@ -250,7 +250,8 @@ static void show_usage()
     fprintf(stderr, "  inputshape=[1,3,224,224],...\n");
     fprintf(stderr, "  inputshape2=[1,3,320,320],...\n");
     fprintf(stderr, "  input=file1.npy,file2.npy,...(conflict with inputshape)\n");
-    fprintf(stderr, "  inputshape2=file1.npy,file2.npy,...(conflict with inputshape2)\n");
+    fprintf(stderr, "  input2=file1.npy,file2.npy,...(conflict with inputshape2)\n");
+
 #if _WIN32
     fprintf(stderr, "  customop=C:\\Users\\nihui\\AppData\\Local\\torch_extensions\\torch_extensions\\Cache\\fused\\fused.dll,...\n");
 #else
