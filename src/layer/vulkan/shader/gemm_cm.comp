@@ -246,14 +246,14 @@ void main()
                     vec2 vb;
                     vec2 vc;
                     vec2 vd;
-                    if (gn * 8 < psc(GN)) va.r = buffer_ld1(C_blob_data, ci4.r);
-                    if (gn * 8 + 1 < psc(GN)) va.g = buffer_ld1(C_blob_data, ci4.g);
-                    if (gn * 8 + 2 < psc(GN)) vb.r = buffer_ld1(C_blob_data, ci4.b);
-                    if (gn * 8 + 3 < psc(GN)) vb.g = buffer_ld1(C_blob_data, ci4.a);
-                    if (gn * 8 + 4 < psc(GN)) vc.r = buffer_ld1(C_blob_data, ci8.r);
-                    if (gn * 8 + 5 < psc(GN)) vc.g = buffer_ld1(C_blob_data, ci8.g);
-                    if (gn * 8 + 6 < psc(GN)) vd.r = buffer_ld1(C_blob_data, ci8.b);
-                    if (gn * 8 + 7 < psc(GN)) vd.g = buffer_ld1(C_blob_data, ci8.a);
+                    if (gn * 8 < psc(GN)) va.r = float(buffer_ld1(C_blob_data, ci4.r));
+                    if (gn * 8 + 1 < psc(GN)) va.g = float(buffer_ld1(C_blob_data, ci4.g));
+                    if (gn * 8 + 2 < psc(GN)) vb.r = float(buffer_ld1(C_blob_data, ci4.b));
+                    if (gn * 8 + 3 < psc(GN)) vb.g = float(buffer_ld1(C_blob_data, ci4.a));
+                    if (gn * 8 + 4 < psc(GN)) vc.r = float(buffer_ld1(C_blob_data, ci8.r));
+                    if (gn * 8 + 5 < psc(GN)) vc.g = float(buffer_ld1(C_blob_data, ci8.g));
+                    if (gn * 8 + 6 < psc(GN)) vd.r = float(buffer_ld1(C_blob_data, ci8.b));
+                    if (gn * 8 + 7 < psc(GN)) vd.g = float(buffer_ld1(C_blob_data, ci8.a));
 
                     uvec4 v = uvec4(packHalf2x16(va),packHalf2x16(vb),packHalf2x16(vc),packHalf2x16(vd));
 
@@ -2275,22 +2275,20 @@ void main()
                 {
                     uvec4 v = tmp_abo[(((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * M + i) * Nd8p + j];
 
-                    vec2 va = unpackHalf2x16(v.r);
-                    vec2 vb = unpackHalf2x16(v.g);
-                    vec2 vc = unpackHalf2x16(v.b);
-                    vec2 vd = unpackHalf2x16(v.a);
+                    afpvec4 vab = afpvec4(unpackHalf2x16(v.r), unpackHalf2x16(v.g));
+                    afpvec4 vcd = afpvec4(unpackHalf2x16(v.b), unpackHalf2x16(v.a));
 
                     const uvec4 oi4 = gm * p.outhstep + gn * 8 + uvec4(0, 1, 2, 3);
                     const uvec4 oi8 = oi4 + 4;
 
-                    if (gn * 8 < psc(GN)) buffer_st1(top_blob_data, oi4.r, va.r);
-                    if (gn * 8 + 1 < psc(GN)) buffer_st1(top_blob_data, oi4.g, va.g);
-                    if (gn * 8 + 2 < psc(GN)) buffer_st1(top_blob_data, oi4.b, vb.r);
-                    if (gn * 8 + 3 < psc(GN)) buffer_st1(top_blob_data, oi4.a, vb.g);
-                    if (gn * 8 + 4 < psc(GN)) buffer_st1(top_blob_data, oi8.r, vc.r);
-                    if (gn * 8 + 5 < psc(GN)) buffer_st1(top_blob_data, oi8.g, vc.g);
-                    if (gn * 8 + 6 < psc(GN)) buffer_st1(top_blob_data, oi8.b, vd.r);
-                    if (gn * 8 + 7 < psc(GN)) buffer_st1(top_blob_data, oi8.a, vd.g);
+                    if (gn * 8 < psc(GN)) buffer_st1(top_blob_data, oi4.r, vab.r);
+                    if (gn * 8 + 1 < psc(GN)) buffer_st1(top_blob_data, oi4.g, vab.g);
+                    if (gn * 8 + 2 < psc(GN)) buffer_st1(top_blob_data, oi4.b, vab.b);
+                    if (gn * 8 + 3 < psc(GN)) buffer_st1(top_blob_data, oi4.a, vab.a);
+                    if (gn * 8 + 4 < psc(GN)) buffer_st1(top_blob_data, oi8.r, vcd.r);
+                    if (gn * 8 + 5 < psc(GN)) buffer_st1(top_blob_data, oi8.g, vcd.g);
+                    if (gn * 8 + 6 < psc(GN)) buffer_st1(top_blob_data, oi8.b, vcd.b);
+                    if (gn * 8 + 7 < psc(GN)) buffer_st1(top_blob_data, oi8.a, vcd.a);
                 }
             }
         }
@@ -2353,22 +2351,20 @@ void main()
                 {
                     uvec4 v = tmp_abo[(((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * N + i) * Md8p + j];
 
-                    vec2 va = unpackHalf2x16(v.r);
-                    vec2 vb = unpackHalf2x16(v.g);
-                    vec2 vc = unpackHalf2x16(v.b);
-                    vec2 vd = unpackHalf2x16(v.a);
+                    afpvec4 vab = afpvec4(unpackHalf2x16(v.r), unpackHalf2x16(v.g));
+                    afpvec4 vcd = afpvec4(unpackHalf2x16(v.b), unpackHalf2x16(v.a));
 
                     const uvec4 oi4 = gn * p.outhstep + (gm * 8 + uvec4(0, 1, 2, 3));
                     const uvec4 oi8 = oi4 + 4;
 
-                    if (gm * 8 < psc(GM)) buffer_st1(top_blob_data, oi4.r, va.r);
-                    if (gm * 8 + 1 < psc(GM)) buffer_st1(top_blob_data, oi4.g, va.g);
-                    if (gm * 8 + 2 < psc(GM)) buffer_st1(top_blob_data, oi4.b, vb.r);
-                    if (gm * 8 + 3 < psc(GM)) buffer_st1(top_blob_data, oi4.a, vb.g);
-                    if (gm * 8 + 4 < psc(GM)) buffer_st1(top_blob_data, oi8.r, vc.r);
-                    if (gm * 8 + 5 < psc(GM)) buffer_st1(top_blob_data, oi8.g, vc.g);
-                    if (gm * 8 + 6 < psc(GM)) buffer_st1(top_blob_data, oi8.b, vd.r);
-                    if (gm * 8 + 7 < psc(GM)) buffer_st1(top_blob_data, oi8.a, vd.g);
+                    if (gm * 8 < psc(GM)) buffer_st1(top_blob_data, oi4.r, vab.r);
+                    if (gm * 8 + 1 < psc(GM)) buffer_st1(top_blob_data, oi4.g, vab.g);
+                    if (gm * 8 + 2 < psc(GM)) buffer_st1(top_blob_data, oi4.b, vab.b);
+                    if (gm * 8 + 3 < psc(GM)) buffer_st1(top_blob_data, oi4.a, vab.a);
+                    if (gm * 8 + 4 < psc(GM)) buffer_st1(top_blob_data, oi8.r, vcd.r);
+                    if (gm * 8 + 5 < psc(GM)) buffer_st1(top_blob_data, oi8.g, vcd.g);
+                    if (gm * 8 + 6 < psc(GM)) buffer_st1(top_blob_data, oi8.b, vcd.b);
+                    if (gm * 8 + 7 < psc(GM)) buffer_st1(top_blob_data, oi8.a, vcd.a);
                 }
             }
         }
