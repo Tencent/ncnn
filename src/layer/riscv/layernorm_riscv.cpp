@@ -280,7 +280,7 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
             beta_ptr += vl;
         }
     }
-#else // __riscv_vector
+#else  // __riscv_vector
     float sum = 0.f;
     for (int i = 0; i < size; i++)
     {
