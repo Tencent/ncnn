@@ -8,6 +8,8 @@
 #include "riscv_usability.h"
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 LayerNorm_riscv::LayerNorm_riscv()
