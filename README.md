@@ -626,15 +626,15 @@ https://github.com/Tencent/ncnn/releases/latest
 
 |            | Windows | Linux | Android | macOS | iOS |
 | ---------- | ------- | ----- | ------- | ----- | --- |
-| intel-cpu  | ✔️      | ✔️    | ❔      | ✔️    | /   |
-| intel-gpu  | ✔️      | ✔️    | ❔      | ❔    | /   |
-| amd-cpu    | ✔️      | ✔️    | ❔      | ✔️    | /   |
-| amd-gpu    | ✔️      | ✔️    | ❔      | ❔    | /   |
-| nvidia-gpu | ✔️      | ✔️    | ❔      | ❔    | /   |
-| qcom-cpu   | ❔      | ✔️    | ✅      | /     | /   |
-| qcom-gpu   | ❔      | ✔️    | ✔️      | /     | /   |
-| arm-cpu    | ❔      | ❔    | ✅      | /     | /   |
-| arm-gpu    | ❔      | ❔    | ✔️      | /     | /   |
+| intel-cpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| intel-gpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| amd-cpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| amd-gpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| nvidia-gpu | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| qcom-cpu   | ✅      | ✅    | ✅      | /     | /   |
+| qcom-gpu   | ✔️      | ✔️    | ✔️      | /     | /   |
+| arm-cpu    | ✅      | ✅    | ✅      | /     | /   |
+| arm-gpu    | ❔      | ✔️    | ✔️      | /     | /   |
 | apple-cpu  | /       | /     | /       | ✔️    | ✅  |
 | apple-gpu  | /       | /     | /       | ✔️    | ✔️  |
 | ibm-cpu    | /       | ✔️     | /       | /    | /  |
