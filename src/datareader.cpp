@@ -190,6 +190,7 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
         if (remain_length > 1 && ((const char*)d->mem)[0] == '\n')
         {
             // skip the leading newline
+            // however, it is fine to create "\nXYZ 123 abc" as sscanf will skip the leading newline silently
             newline_pos = (const char*)memchr((const char*)d->mem + 1, '\n', remain_length - 1);
         }
         else
