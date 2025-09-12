@@ -1424,6 +1424,35 @@ typedef VkPhysicalDeviceShaderIntegerDotProductFeatures VkPhysicalDeviceShaderIn
 typedef VkPhysicalDeviceShaderIntegerDotProductProperties VkPhysicalDeviceShaderIntegerDotProductPropertiesKHR;
 #endif // VK_KHR_shader_integer_dot_product
 
+#ifndef VK_KHR_robustness2
+#define VK_KHR_robustness2                                            1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR   (VkStructureType)1000286000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_KHR (VkStructureType)1000286001
+typedef struct VkPhysicalDeviceRobustness2FeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 robustBufferAccess2;
+    VkBool32 robustImageAccess2;
+    VkBool32 nullDescriptor;
+} VkPhysicalDeviceRobustness2FeaturesKHR;
+typedef struct VkPhysicalDeviceRobustness2PropertiesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkDeviceSize robustStorageBufferAccessSizeAlignment;
+    VkDeviceSize robustUniformBufferAccessSizeAlignment;
+} VkPhysicalDeviceRobustness2PropertiesKHR;
+#endif // VK_KHR_robustness2
+
+#ifndef VK_EXT_robustness2
+#define VK_EXT_robustness2                                            1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT   VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_EXT VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_KHR
+typedef VkPhysicalDeviceRobustness2FeaturesKHR VkPhysicalDeviceRobustness2FeaturesEXT;
+typedef VkPhysicalDeviceRobustness2PropertiesKHR VkPhysicalDeviceRobustness2PropertiesEXT;
+#endif // VK_EXT_robustness2
+
 #ifndef VK_KHR_shader_bfloat16
 #define VK_KHR_shader_bfloat16                                         1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR (VkStructureType)1000141000

@@ -839,7 +839,6 @@ PYBIND11_MODULE(ncnn, m)
     })
     .def("clear", &Extractor::clear)
     .def("set_light_mode", &Extractor::set_light_mode, py::arg("enable"))
-    .def("set_num_threads", &Extractor::set_num_threads, py::arg("num_threads"))
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
 #if NCNN_STRING

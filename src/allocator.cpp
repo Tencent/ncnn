@@ -595,6 +595,12 @@ VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev, size_t preferred_bl
         d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.non_coherent_atom_size());
     }
 
+    if (vkdev->info.support_VK_KHR_robustness2() || vkdev->info.support_VK_EXT_robustness2())
+    {
+        size_t robust_storage_buffer_access_size_alignment = vkdev->info.queryRobustness2Properties().robustStorageBufferAccessSizeAlignment;
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, robust_storage_buffer_access_size_alignment);
+    }
+
     d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
 }
 
@@ -1182,6 +1188,12 @@ VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, size_t preferre
         // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
         d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.memory_map_alignment());
         d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.non_coherent_atom_size());
+    }
+
+    if (vkdev->info.support_VK_KHR_robustness2() || vkdev->info.support_VK_EXT_robustness2())
+    {
+        size_t robust_storage_buffer_access_size_alignment = vkdev->info.queryRobustness2Properties().robustStorageBufferAccessSizeAlignment;
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, robust_storage_buffer_access_size_alignment);
     }
 
     d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
