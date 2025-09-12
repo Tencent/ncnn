@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_module_pass.h"
+#include "utils.h"
 
 namespace pnnx {
 
@@ -41,7 +42,7 @@ public:
             convolution = convolution_mode;
         }
 
-        const TorchTensorProxy& weight = mod.attr("weight");
+        const TorchTensorProxy& weight = mod.hasattr("weight") ? mod.attr("weight") : mod.attr("weight_v");
 
         op->params["groups"] = convolution->namedInput("groups");
         op->params["in_channels"] = weight.size(1) * op->params["groups"].i;
@@ -114,6 +115,21 @@ public:
         op->params["bias"] = mod.hasattr("bias");
 
         op->attrs["weight"] = weight;
+        if (!mod.hasattr("weight"))
+        {
+            // weight norm
+            Attribute weight_g = mod.attr("weight_g");
+            std::vector<float> weight_data = op->attrs["weight"].get_float32_data();
+            std::vector<float> weight_g_data = weight_g.get_float32_data();
+            int outch = op->params.at("out_channels").i;
+            int inch = op->params.at("in_channels").i * op->params.at("kernel_size").ai[0];
+            apply_weight_norm(weight_data, weight_g_data, outch, inch);
+            op->attrs["weight"].set_float32_data(weight_data);
+
+            // drop the additional weight input
+            op->inputs[1]->remove_consumer(op);
+            op->inputs.resize(1);
+        }
         if (mod.hasattr("bias"))
         {
             op->attrs["bias"] = mod.attr("bias");

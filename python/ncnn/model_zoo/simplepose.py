@@ -19,6 +19,7 @@ class SimplePose:
         self.norm_vals = [1 / 0.229 / 255.0, 1 / 0.224 / 255.0, 1 / 0.225 / 255.0]
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # the simple baseline human pose estimation from gluon-cv
@@ -49,7 +50,7 @@ class SimplePose:
         mat_in.substract_mean_normalize(self.mean_vals, self.norm_vals)
 
         ex = self.net.create_extractor()
-        ex.set_num_threads(self.num_threads)
+
         ex.input("data", mat_in)
 
         ret, mat_out = ex.extract("conv3_fwd")

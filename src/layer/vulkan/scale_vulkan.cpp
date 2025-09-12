@@ -13,7 +13,6 @@ Scale_vulkan::Scale_vulkan()
 
     pipeline_scale = 0;
     pipeline_scale_pack4 = 0;
-    pipeline_scale_pack8 = 0;
 }
 
 int Scale_vulkan::create_pipeline(const Option& opt)
@@ -21,9 +20,9 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage || opt.use_fp16_packed)
@@ -86,18 +85,10 @@ int Scale_vulkan::create_pipeline(const Option& opt)
             pipeline_scale_pack4->create(LayerShaderType::scale_pack4, opt, specializations);
         }
 
-        // pack8
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
-            pipeline_scale_pack8 = new Pipeline(vkdev);
-            pipeline_scale_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_scale_pack8->create(LayerShaderType::scale_pack8, opt, specializations);
-        }
-
         return 0;
     }
 
-    if (shape.dims == 0) elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
+    if (shape.dims == 0) elempack = scale_data_size % 4 == 0 ? 4 : 1;
 
     std::vector<vk_specialization_type> specializations(1 + 5);
     specializations[0].i = bias_term;
@@ -143,14 +134,6 @@ int Scale_vulkan::create_pipeline(const Option& opt)
         pipeline_scale_pack4->create(LayerShaderType::scale_pack4, opt, specializations);
     }
 
-    // pack8
-    if (elempack == 8)
-    {
-        pipeline_scale_pack8 = new Pipeline(vkdev);
-        pipeline_scale_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_scale_pack8->create(LayerShaderType::scale_pack8, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -162,9 +145,6 @@ int Scale_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_scale_pack4;
     pipeline_scale_pack4 = 0;
 
-    delete pipeline_scale_pack8;
-    pipeline_scale_pack8 = 0;
-
     return 0;
 }
 
@@ -173,19 +153,11 @@ int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (scale_data_size == -233)
         return 0;
 
-    int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
-
-    Mat scale_data_packed;
-    convert_packing(scale_data, scale_data_packed, elempack, opt);
-
-    cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
+    cmd.record_upload(scale_data, scale_data_gpu, opt);
 
     if (bias_term)
     {
-        Mat bias_data_packed;
-        convert_packing(bias_data, bias_data_packed, elempack, opt);
-
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
     }
 
     if (opt.lightmode)
@@ -216,9 +188,7 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_scale_pack8
-                               : elempack == 4 ? pipeline_scale_pack4
-                               : pipeline_scale;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_scale_pack4 : pipeline_scale;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

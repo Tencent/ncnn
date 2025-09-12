@@ -135,7 +135,6 @@ layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 |sfp|float|uint|float16_t|
 |sfpvec2|vec2|uint|f16vec2|
 |sfpvec4|vec4|uvec2|f16vec4|
-|sfpvec8|mat2x4|uvec4|f16mat2x4|
 
 ## 算术类型(arithmetic type)
 
@@ -153,7 +152,6 @@ void main()
 |afp|float|float16_t|
 |afpvec2|vec2|f16vec2|
 |afpvec4|vec4|f16vec4|
-|afpvec8|mat2x4|f16mat2x4|
 
 ## 本地类型(local type)
 
@@ -168,24 +166,6 @@ shared lfp tmp_a[8][4][2];
 |lfp|float|float|float|float16_t|
 |lfpvec4|vec4|uvec2|uint64_t|f16vec4|
 
-## 图像格式类型(image format type)和精度类型(precision hint type)
-
-在描述符绑定中声明图像格式
-
-```c
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-```
-
-|格式类型|fp32|fp16p|fp16s|
-|---|---|---|---|
-|imfmt1|r32f|f32f|r16f|
-|imfmt4|rgba32f|rgba16f|rgba16f|
-
-|精度类型|fp32|fp16p|fp16s|
-|---|---|---|---|
-|unfp|highp|mediump|mediump|
-
 # 缓冲区函数(buffer functions)
 
 - 从 src[offset] 加载已经确定类型的值
@@ -194,7 +174,6 @@ layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 afp buffer_ld1(sfp src, int offset);
 afpvec2 buffer_ld2(sfpvec2 src, int offset);
 afpvec4 buffer_ld4(sfpvec4 src, int offset);
-afpvec8 buffer_ld8(sfpvec8 src, int offset);
 ```
 
 - 将已确定类型的值存储到 dst[偏移量]
@@ -203,7 +182,6 @@ afpvec8 buffer_ld8(sfpvec8 src, int offset);
 void buffer_st1(sfp dst, int offset, afp v);
 void buffer_st2(sfpvec2 dst, int offset, afpvec2 v);
 void buffer_st4(sfpvec4 dst, int offset, afpvec4 v);
-void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 ```
 
 - 从已确定类型 src[src_offset] 的值拷贝到 dst[dst_offset]
@@ -212,70 +190,19 @@ void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 void buffer_cp1(sfp dst, int dst_offset, sfp src, int src_offset);
 void buffer_cp2(sfpvec2 dst, int dst_offset, sfpvec2 src, int src_offset);
 void buffer_cp4(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
-void buffer_cp8(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
 ```
 
 - 从 src[src_offsets[0],src_offsets[1],...] 的值拷贝并打包到 dst[dst_offset]
 
 ```c
 void buffer_cp1to4(sfpvec4 dst, int dst_offset, sfp src, ivec4 src_offsets);
-void buffer_cp1to8(sfpvec8 dst, int dst_offset, sfp src, ivec4 src_offsets_0, ivec4 src_offsets_1);
-void buffer_cp4to8(sfpvec8 dst, int dst_offset, sfpvec4 src, ivec2 src_offsets);
 ```
 
 - 从 src[src_offset] 的值拷贝并解包到 dst[dst_offsets[0],dst_offsets[1],...]
 
 ```c
 void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
-void buffer_cp8to1(sfp dst, ivec4 dst_offsets_0, ivec4 dst_offsets_1, sfpvec8 src, int src_offset);
-void buffer_cp8to4(sfpvec4 dst, ivec2 dst_offsets, sfpvec8 src, int src_offset);
 ```
-
-# 图像函数
-
-- 根据 sampler?D 图像(透过 src 和 pos) 来加载数据
-
-```c
-afp image1d_ld1(sampler1D src, float pos);
-afp image2d_ld1(sampler2D src, vec2 pos);
-afp image3d_ld1(sampler3D src, vec3 pos);
-afpvec4 image1d_ld4(sampler1D src, float pos);
-afpvec4 image2d_ld4(sampler2D src, vec2 pos);
-afpvec4 image3d_ld4(sampler3D src, vec3 pos);
-afpvec8 image1d_ld8(sampler1D src, float pos);
-afpvec8 image2d_ld8(sampler2D src, vec2 pos);
-afpvec8 image3d_ld8(sampler3D src, vec3 pos);
-```
-
-- 存储确定类型的值到 image?D (透过 dst 和 pos 参数)
-
-```c
-void image1d_st1(image1D dst, int pos, afp v);
-void image2d_st1(image2D dst, ivec2 pos, afp v);
-void image3d_st1(image3D dst, ivec3 pos, afp v);
-void image1d_st4(image1D dst, int pos, afpvec4 v);
-void image2d_st4(image2D dst, ivec2 pos, afpvec4 v);
-void image3d_st4(image3D dst, ivec3 pos, afpvec4 v);
-void image1d_st8(image1D dst, int pos, afpvec8 v);
-void image2d_st8(image2D dst, ivec2 pos, afpvec8 v);
-void image3d_st8(image3D dst, ivec3 pos, afpvec8 v);
-```
-
-- 把 sampler?D 的值的内容(透过 src 和 src_pos 参数) 拷贝到 image?D (透过 dst 和 dst_pos 参数)
-
-```c
-void image1d_cp1(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp1(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp1(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp4(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp4(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp4(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp8(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp8(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp8(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-```
-
-注意：由于图像是不透明的数据结构，因此不提供复制和打包/解包功能。要实现此操作，您需要先加载，然后再存储。
 
 # 本地数据转换函数
 
@@ -437,16 +364,6 @@ void main()
     // 用户启用 fp16 算术选项，且设备支持 fp16 算术运算
 #endif
 }
-```
-
-声明图像或缓冲区的描述符绑定
-
-```c
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-#else
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-#endif
 ```
 
 |宏定义|option中所定义的变量|

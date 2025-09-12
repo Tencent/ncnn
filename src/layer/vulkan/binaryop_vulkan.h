@@ -25,14 +25,11 @@ public:
 public:
     Pipeline* pipeline_binaryop;
     Pipeline* pipeline_binaryop_pack4;
-    Pipeline* pipeline_binaryop_pack8;
 
     // broadcast
     Pipeline* pipeline_binaryop_broadcast[2];
     Pipeline* pipeline_binaryop_broadcast_pack4[2];
     Pipeline* pipeline_binaryop_broadcast_pack1to4[2];
-    Pipeline* pipeline_binaryop_broadcast_pack8[2];
-    Pipeline* pipeline_binaryop_broadcast_pack1to8[2];
 };
 
 } // namespace ncnn

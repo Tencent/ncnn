@@ -499,14 +499,14 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     const int elempack = bottom_blob.elempack;
     const int inch = bottom_blob.c * elempack;
 
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
     const int outch = top_blob.c * out_elempack;
 
-    const int M = top_blob.cstep * out_elempack;
+    const size_t M = top_blob.cstep * out_elempack;
 
     const int maxk = kernel_w * kernel_h;
 

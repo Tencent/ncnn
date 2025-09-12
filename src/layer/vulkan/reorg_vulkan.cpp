@@ -14,9 +14,6 @@ Reorg_vulkan::Reorg_vulkan()
     pipeline_reorg = 0;
     pipeline_reorg_pack4 = 0;
     pipeline_reorg_pack1to4 = 0;
-    pipeline_reorg_pack8 = 0;
-    pipeline_reorg_pack1to8 = 0;
-    pipeline_reorg_pack4to8 = 0;
 }
 
 int Reorg_vulkan::create_pipeline(const Option& _opt)
@@ -26,14 +23,14 @@ int Reorg_vulkan::create_pipeline(const Option& _opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -104,30 +101,6 @@ int Reorg_vulkan::create_pipeline(const Option& _opt)
         pipeline_reorg_pack1to4->create(LayerShaderType::reorg_pack1to4, opt, specializations);
     }
 
-    // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 8))
-    {
-        pipeline_reorg_pack8 = new Pipeline(vkdev);
-        pipeline_reorg_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reorg_pack8->create(LayerShaderType::reorg_pack8, opt, specializations);
-    }
-
-    // pack1to8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 1 && out_elempack == 8))
-    {
-        pipeline_reorg_pack1to8 = new Pipeline(vkdev);
-        pipeline_reorg_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reorg_pack1to8->create(LayerShaderType::reorg_pack1to8, opt, specializations);
-    }
-
-    // pack4to8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 4 && out_elempack == 8))
-    {
-        pipeline_reorg_pack4to8 = new Pipeline(vkdev);
-        pipeline_reorg_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reorg_pack4to8->create(LayerShaderType::reorg_pack4to8, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -141,15 +114,6 @@ int Reorg_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_reorg_pack1to4;
     pipeline_reorg_pack1to4 = 0;
-
-    delete pipeline_reorg_pack8;
-    pipeline_reorg_pack8 = 0;
-
-    delete pipeline_reorg_pack1to8;
-    pipeline_reorg_pack1to8 = 0;
-
-    delete pipeline_reorg_pack4to8;
-    pipeline_reorg_pack4to8 = 0;
 
     return 0;
 }
@@ -166,7 +130,7 @@ int Reorg_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     int outh = h / stride;
     int outc = channels * elempack * stride * stride;
 
-    int out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+    int out_elempack = outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
@@ -201,18 +165,6 @@ int Reorg_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     else if (elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_reorg_pack1to4;
-    }
-    else if (elempack == 8) // assert out_elempack == 8
-    {
-        pipeline = pipeline_reorg_pack8;
-    }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_reorg_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_reorg_pack4to8;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);

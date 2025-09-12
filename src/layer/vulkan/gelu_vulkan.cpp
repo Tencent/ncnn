@@ -12,8 +12,6 @@ GELU_vulkan::GELU_vulkan()
     support_vulkan = true;
 
     pipeline_gelu = 0;
-    pipeline_gelu_pack4 = 0;
-    pipeline_gelu_pack8 = 0;
 }
 
 int GELU_vulkan::create_pipeline(const Option& opt)
@@ -21,9 +19,9 @@ int GELU_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage || opt.use_fp16_packed)
@@ -41,62 +39,14 @@ int GELU_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
 
-    std::vector<vk_specialization_type> specializations(0 + 5);
-    specializations[0 + 0].i = shape_packed.dims;
-    specializations[0 + 1].i = shape_packed.w;
-    specializations[0 + 2].i = shape_packed.h * shape_packed.d;
-    specializations[0 + 3].i = shape_packed.c;
-    specializations[0 + 4].i = shape_packed.cstep;
+    std::vector<vk_specialization_type> specializations(1);
+    specializations[0].u32 = shape_packed.total() * elempack / 4;
 
-    Mat local_size_xyz;
-    if (shape_packed.dims == 1)
-    {
-        local_size_xyz.w = std::min(64, shape_packed.w);
-        local_size_xyz.h = 1;
-        local_size_xyz.c = 1;
-    }
-    if (shape_packed.dims == 2)
-    {
-        local_size_xyz.w = std::min(8, shape_packed.w);
-        local_size_xyz.h = std::min(8, shape_packed.h);
-        local_size_xyz.c = 1;
-    }
-    if (shape_packed.dims == 3)
-    {
-        local_size_xyz.w = std::min(4, shape_packed.w);
-        local_size_xyz.h = std::min(4, shape_packed.h);
-        local_size_xyz.c = std::min(4, shape_packed.c);
-    }
-    if (shape_packed.dims == 4)
-    {
-        local_size_xyz.w = std::min(4, shape_packed.w);
-        local_size_xyz.h = std::min(4, shape_packed.h * shape_packed.d);
-        local_size_xyz.c = std::min(4, shape_packed.c);
-    }
+    const int local_size_x = vkdev->info.subgroup_size();
 
-    // pack1
-    if (shape.dims == 0 || elempack == 1)
-    {
-        pipeline_gelu = new Pipeline(vkdev);
-        pipeline_gelu->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_gelu->create(LayerShaderType::gelu, opt, specializations);
-    }
-
-    // pack4
-    if (shape.dims == 0 || elempack == 4)
-    {
-        pipeline_gelu_pack4 = new Pipeline(vkdev);
-        pipeline_gelu_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_gelu_pack4->create(LayerShaderType::gelu_pack4, opt, specializations);
-    }
-
-    // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-    {
-        pipeline_gelu_pack8 = new Pipeline(vkdev);
-        pipeline_gelu_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_gelu_pack8->create(LayerShaderType::gelu_pack8, opt, specializations);
-    }
+    pipeline_gelu = new Pipeline(vkdev);
+    pipeline_gelu->set_optimal_local_size_xyz(local_size_x, 1, 1);
+    pipeline_gelu->create(LayerShaderType::gelu, opt, specializations);
 
     return 0;
 }
@@ -106,34 +56,24 @@ int GELU_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_gelu;
     pipeline_gelu = 0;
 
-    delete pipeline_gelu_pack4;
-    pipeline_gelu_pack4 = 0;
-
-    delete pipeline_gelu_pack8;
-    pipeline_gelu_pack8 = 0;
-
     return 0;
 }
 
 int GELU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
-    int elempack = bottom_top_blob.elempack;
+    const size_t n = bottom_top_blob.total() * bottom_top_blob.elempack / 4;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
 
-    std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h * bottom_top_blob.d;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = bottom_top_blob.cstep;
+    std::vector<vk_constant_type> constants(1);
+    constants[0].u32 = n;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_gelu_pack8
-                               : elempack == 4 ? pipeline_gelu_pack4
-                               : pipeline_gelu;
-
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    VkMat dispatcher;
+    dispatcher.w = n;
+    dispatcher.h = 1;
+    dispatcher.c = 1;
+    cmd.record_pipeline(pipeline_gelu, bindings, constants, dispatcher);
 
     return 0;
 }

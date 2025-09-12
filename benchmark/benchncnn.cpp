@@ -48,6 +48,14 @@ static ncnn::VkAllocator* g_staging_vkallocator = 0;
 
 void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fixed_path = true)
 {
+    // Skip if int8 model name and using GPU
+    if (opt.use_vulkan_compute && strstr(comment, "int8") != NULL)
+    {
+        if (!fixed_path)
+            fprintf(stderr, "%20s  skipped (int8+GPU not supported)\n", comment);
+        return;
+    }
+
     g_blob_pool_allocator.clear();
     g_workspace_pool_allocator.clear();
 
@@ -369,7 +377,6 @@ int main(int argc, char** argv)
     opt.use_int8_storage = true;
     opt.use_int8_arithmetic = true;
     opt.use_packing_layout = true;
-    opt.use_shader_pack8 = false;
 
     fprintf(stderr, "loop_count = %d\n", g_loop_count);
     fprintf(stderr, "num_threads = %d\n", num_threads);

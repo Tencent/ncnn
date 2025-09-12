@@ -16,11 +16,6 @@ Reshape_vulkan::Reshape_vulkan()
     pipeline_reshape_pack4 = 0;
     pipeline_reshape_pack1to4 = 0;
     pipeline_reshape_pack4to1 = 0;
-    pipeline_reshape_pack8 = 0;
-    pipeline_reshape_pack1to8 = 0;
-    pipeline_reshape_pack4to8 = 0;
-    pipeline_reshape_pack8to4 = 0;
-    pipeline_reshape_pack8to1 = 0;
 }
 
 int Reshape_vulkan::create_pipeline(const Option& _opt)
@@ -30,14 +25,14 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -79,7 +74,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
     specializations[1 + 10].i = out_shape_packed.c;
     specializations[1 + 11].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz_bottom; // pack4to1 and pack8to1
+    Mat local_size_xyz_bottom; // pack4to1
     if (shape_packed.dims == 1)
     {
         local_size_xyz_bottom.w = std::min(64, shape_packed.w);
@@ -163,46 +158,6 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
         pipeline_reshape_pack4to1->create(LayerShaderType::reshape_pack4to1, opt, specializations);
     }
 
-    // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 8))
-    {
-        pipeline_reshape_pack8 = new Pipeline(vkdev);
-        pipeline_reshape_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reshape_pack8->create(LayerShaderType::reshape_pack8, opt, specializations);
-    }
-
-    // pack1to8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 1 && out_elempack == 8))
-    {
-        pipeline_reshape_pack1to8 = new Pipeline(vkdev);
-        pipeline_reshape_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reshape_pack1to8->create(LayerShaderType::reshape_pack1to8, opt, specializations);
-    }
-
-    // pack4to8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 4 && out_elempack == 8))
-    {
-        pipeline_reshape_pack4to8 = new Pipeline(vkdev);
-        pipeline_reshape_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reshape_pack4to8->create(LayerShaderType::reshape_pack4to8, opt, specializations);
-    }
-
-    // pack8to4
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 4))
-    {
-        pipeline_reshape_pack8to4 = new Pipeline(vkdev);
-        pipeline_reshape_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reshape_pack8to4->create(LayerShaderType::reshape_pack8to4, opt, specializations);
-    }
-
-    // pack8to1
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 1))
-    {
-        pipeline_reshape_pack8to1 = new Pipeline(vkdev);
-        pipeline_reshape_pack8to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
-        pipeline_reshape_pack8to1->create(LayerShaderType::reshape_pack8to1, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -219,21 +174,6 @@ int Reshape_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_reshape_pack4to1;
     pipeline_reshape_pack4to1 = 0;
-
-    delete pipeline_reshape_pack8;
-    pipeline_reshape_pack8 = 0;
-
-    delete pipeline_reshape_pack1to8;
-    pipeline_reshape_pack1to8 = 0;
-
-    delete pipeline_reshape_pack4to8;
-    pipeline_reshape_pack4to8 = 0;
-
-    delete pipeline_reshape_pack8to4;
-    pipeline_reshape_pack8to4 = 0;
-
-    delete pipeline_reshape_pack8to1;
-    pipeline_reshape_pack8to1 = 0;
 
     return 0;
 }
@@ -286,7 +226,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (outw == -1)
             outw = total;
 
-        out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
+        out_elempack = outw % 4 == 0 ? 4 : 1;
 
         if (dims == 1 && bottom_blob.w * elempack == outw && elempack == out_elempack)
         {
@@ -306,7 +246,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (outh == -1)
             outh = total / outw;
 
-        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
 
         if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
         {
@@ -330,7 +270,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (outc == -1)
             outc = total / outh / outw;
 
-        out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+        out_elempack = outc % 4 == 0 ? 4 : 1;
 
         if (dims == 3 && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
@@ -360,7 +300,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (outc == -1)
             outc = total / outd / outh / outw;
 
-        out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+        out_elempack = outc % 4 == 0 ? 4 : 1;
 
         if (dims == 4 && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
@@ -427,26 +367,6 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     else if (elempack == 4 && out_elempack == 1)
     {
         cmd.record_pipeline(pipeline_reshape_pack4to1, bindings, constants, bottom_blob);
-    }
-    else if (elempack == 8 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_reshape_pack8, bindings, constants, top_blob);
-    }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_reshape_pack1to8, bindings, constants, top_blob);
-    }
-    else if (elempack == 4 && out_elempack == 8)
-    {
-        cmd.record_pipeline(pipeline_reshape_pack4to8, bindings, constants, top_blob);
-    }
-    else if (elempack == 8 && out_elempack == 4)
-    {
-        cmd.record_pipeline(pipeline_reshape_pack8to4, bindings, constants, top_blob);
-    }
-    else if (elempack == 8 && out_elempack == 1)
-    {
-        cmd.record_pipeline(pipeline_reshape_pack8to1, bindings, constants, bottom_blob);
     }
 
     return 0;

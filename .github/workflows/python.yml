@@ -46,7 +46,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
 
@@ -59,7 +59,7 @@ jobs:
         key: swiftshader-linux-install-20240622
     - name: checkout-swiftshader
       if: matrix.os == 'ubuntu-latest' && steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -80,7 +80,7 @@ jobs:
         cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
 
     - name: setup-python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
     - name: install-deps
