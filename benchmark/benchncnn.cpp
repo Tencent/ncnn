@@ -109,7 +109,7 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
 
     if (input_names.size() > _in.size())
     {
-        fprintf(stderr, "input %lld tensors while model has %lld inputs\n", _in.size(), input_names.size());
+        fprintf(stderr, "input %zu tensors while model has %zu inputs\n", _in.size(), input_names.size());
         return;
     }
 
