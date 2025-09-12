@@ -17,6 +17,7 @@ class RetinaFace:
         self.use_gpu = use_gpu
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # model is converted from
@@ -38,7 +39,6 @@ class RetinaFace:
         )
 
         ex = self.net.create_extractor()
-        ex.set_num_threads(self.num_threads)
 
         ex.input("data", mat_in)
 

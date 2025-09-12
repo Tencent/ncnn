@@ -23,6 +23,12 @@ class Model(nn.Module):
         self.conv_6 = nn.Conv2d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, dilation=1, groups=1, bias=False, padding_mode='replicate')
         #self.conv_7 = nn.Conv2d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6), dilation=2, groups=1, bias=True, padding_mode='circular')
 
+        self.conv_8 = nn.Conv2d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6), dilation=2, groups=1, bias=True)
+        if version.parse(torch.__version__) < version.parse('2.1'):
+            self.conv_8 = torch.nn.utils.weight_norm(self.conv_8)
+        else:
+            self.conv_8 = torch.nn.utils.parametrizations.weight_norm(self.conv_8)
+
     def forward(self, x):
         x = self.conv_0(x)
         x = self.conv_1(x)
@@ -32,6 +38,7 @@ class Model(nn.Module):
         x = self.conv_5(x)
         x = self.conv_6(x)
         #x = self.conv_7(x)
+        x = self.conv_8(x)
 
         return x
 
@@ -56,7 +63,7 @@ def test():
     import test_nn_Conv2d_pnnx
     b = test_nn_Conv2d_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    return torch.allclose(a, b, 1e-3, 1e-3)
 
 if __name__ == "__main__":
     if test():

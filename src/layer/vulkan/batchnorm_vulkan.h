@@ -27,7 +27,6 @@ public:
 
     Pipeline* pipeline_batchnorm;
     Pipeline* pipeline_batchnorm_pack4;
-    Pipeline* pipeline_batchnorm_pack8;
 };
 
 } // namespace ncnn

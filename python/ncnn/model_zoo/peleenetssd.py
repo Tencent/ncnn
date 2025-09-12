@@ -16,6 +16,7 @@ class PeleeNet_SSD:
         self.norm_vals = [0.017, 0.017, 0.017]
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # model is converted from https://github.com/eric612/MobileNet-YOLO
@@ -56,7 +57,6 @@ class PeleeNet_SSD:
         mat_in.substract_mean_normalize(self.mean_vals, self.norm_vals)
 
         ex = self.net.create_extractor()
-        ex.set_num_threads(self.num_threads)
 
         ex.input("data", mat_in)
 

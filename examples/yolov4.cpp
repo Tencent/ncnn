@@ -37,14 +37,6 @@ static int init_yolov4(ncnn::Net* yolov4, int* target_size)
 
     yolov4->opt.use_vulkan_compute = true; //You need to compile with libvulkan for gpu support
 
-    yolov4->opt.use_winograd_convolution = true;
-    yolov4->opt.use_sgemm_convolution = true;
-    yolov4->opt.use_fp16_packed = true;
-    yolov4->opt.use_fp16_storage = true;
-    yolov4->opt.use_fp16_arithmetic = true;
-    yolov4->opt.use_packing_layout = true;
-    yolov4->opt.use_shader_pack8 = false;
-
     /* --> End of setting params <-- */
     int ret = 0;
 

@@ -1,0 +1,61 @@
+// Copyright 2025 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const int affine = 0;
+layout (constant_id = 1) const int affine_size = 0;
+
+layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout (binding = 1) readonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
+layout (binding = 2) readonly buffer gamma_blob { sfp gamma_data[]; };
+layout (binding = 3) readonly buffer beta_blob { sfp beta_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.w || gy >= p.h || gz >= p.c)
+        return;
+
+    int group_id;
+    int inner_id;
+
+    if (affine_size == p.w)
+    {
+        group_id = gz * p.h + gy;
+        inner_id = gx;
+    }
+    else // if (affine_size == p.w * p.h)
+    {
+        group_id = gz;
+        inner_id = gy * p.w + gx;
+    }
+
+    afpvec4 a = buffer_ld4(coeffs_blob_data, group_id * 2);
+    afpvec4 b = buffer_ld4(coeffs_blob_data, group_id * 2 + 1);
+
+    int linear_index = gz * p.cstep + gy * p.w + gx;
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, linear_index);
+
+    v = v * a + b;
+
+    if (affine == 1)
+    {
+        afp gamma = buffer_ld1(gamma_data, inner_id);
+        afp beta  = buffer_ld1(beta_data, inner_id);
+        v = v * afpvec4(gamma) + afpvec4(beta);
+    }
+
+    buffer_st4(bottom_top_blob_data, linear_index, v);
+}
