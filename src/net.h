@@ -70,6 +70,9 @@ public:
     // return 0 if success
     int load_param(FILE* fp);
     int load_param(const char* protopath);
+
+    // load network structure from in-memory plain param string, must be NULL-terminated
+    // return 0 if success
     int load_param_mem(const char* mem);
 #endif // NCNN_STRING
     // load network structure from binary param file
