@@ -1,0 +1,195 @@
+name: Test NCNN RenderDoc Integration
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  test-renderdoc-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        build_type: [Release, Debug]
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake ninja-build \
+          libvulkan-dev vulkan-utils vulkan-validationlayers \
+          renderdoc \
+          libglfw3-dev libglm-dev \
+          libprotobuf-dev protobuf-compiler \
+          libopencv-dev
+
+    - name: Setup compiler
+      if: matrix.compiler == 'clang'
+      run: |
+        sudo apt-get install -y clang
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DNCNN_VULKAN=ON \
+          -DNCNN_SIMPLEVK=OFF \
+          -DNCNN_ENABLE_RENDERDOC_PROFILING=ON \
+          -DNCNN_BUILD_BENCHMARK=ON
+
+    - name: Build
+      run: cmake --build build --parallel
+
+    - name: Build benchncnn
+      run: cmake --build build --target benchncnn --parallel
+
+    - name: Copy benchmark param files
+      run: |
+        echo "Copying benchmark param files..."
+        mkdir -p build/benchmark
+        cp benchmark/*.param build/benchmark/ || echo "No param files found in benchmark directory"
+        ls -la build/benchmark/*.param || echo "No param files copied"
+
+    - name: Test RenderDoc capture with benchncnn
+      run: |
+        export NCNN_RENDERDOC_CAPTURE_PATH="./benchncnn_capture"
+        
+        echo "Running benchncnn with RenderDoc headless capture..."
+        renderdoccmd capture ./build/benchmark/benchncnn 10 4 0 0 1
+        
+        if [ -f "benchncnn_capture.rdc" ]; then
+          echo "RenderDoc capture file created successfully"
+          ls -la benchncnn_capture.rdc
+        else
+          echo "RenderDoc capture file not found"
+          exit 1
+        fi
+
+    - name: Upload RenderDoc capture
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: renderdoc-capture-linux-${{ matrix.compiler }}-${{ matrix.build_type }}
+        path: |
+          benchncnn_capture.rdc
+
+  test-renderdoc-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, x86]
+        build_type: [Release, Debug]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v1.3
+
+    - name: Install Vulkan SDK
+      run: |
+        $url = "https://sdk.lunarg.com/sdk/download/1.3.268.0/windows/VulkanSDK-1.3.268.0-Installer.exe"
+        $installer = "$env:TEMP\VulkanSDK-Installer.exe"
+        Invoke-WebRequest -Uri $url -OutFile $installer
+        Start-Process -FilePath $installer -ArgumentList "/S" -Wait
+        
+    - name: Install RenderDoc
+      run: |
+        $url = "https://renderdoc.org/stable/1.40/RenderDoc_1.40_64.msi"
+        $installer = "$env:TEMP\RenderDoc-Installer.msi"
+        Invoke-WebRequest -Uri $url -OutFile $installer
+        Start-Process -FilePath $installer -ArgumentList "/quiet" -Wait
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -A ${{ matrix.arch }} `
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
+          -DNCNN_VULKAN=ON `
+          -DNCNN_SIMPLEVK=OFF `
+          -DNCNN_ENABLE_RENDERDOC_PROFILING=ON `
+          -DNCNN_BUILD_BENCHMARK=ON
+
+    - name: Build
+      run: cmake --build build --config ${{ matrix.build_type }} --parallel
+
+    - name: Build benchncnn
+      run: cmake --build build --config ${{ matrix.build_type }} --target benchncnn --parallel
+
+    - name: Copy benchmark param files (Windows)
+      run: |
+        Write-Host "Copying benchmark param files..."
+        New-Item -ItemType Directory -Force -Path "build\benchmark"
+        if (Test-Path "benchmark\*.param") {
+          Copy-Item "benchmark\*.param" "build\benchmark\" -Force
+          Get-ChildItem "build\benchmark\*.param"
+        } else {
+          Write-Host "No param files found in benchmark directory"
+        }
+
+    - name: Test RenderDoc capture with benchncnn
+      run: |
+        $env:PATH += ";C:\VulkanSDK\1.3.268.0\Bin"
+        $env:PATH += ";C:\Program Files\RenderDoc"
+        $env:NCNN_RENDERDOC_CAPTURE_PATH = "benchncnn_capture.rdc"
+        
+        Write-Host "Running benchncnn with RenderDoc capture..."
+        & "C:\Program Files\RenderDoc\renderdoccmd.exe" capture .\build\benchmark\${{ matrix.build_type }}\benchncnn.exe 10 4 0 0 1
+        
+        if (Test-Path "benchncnn_capture.rdc") {
+          Write-Host "RenderDoc capture file created successfully"
+          Get-ChildItem benchncnn_capture.rdc
+        } else {
+          Write-Host "RenderDoc capture file not found"
+          exit 1
+        }
+
+    - name: Upload Windows RenderDoc capture
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: renderdoc-capture-windows-${{ matrix.arch }}-${{ matrix.build_type }}
+        path: |
+          benchncnn_capture.rdc
+
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: [test-renderdoc-linux, test-renderdoc-windows]
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: renderdoc-capture-*
+        merge-multiple: true
+
+    - name: Summary with capture analysis
+      run: |
+        echo "## NCNN RenderDoc Cross-Platform Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "Linux benchncnn RenderDoc capture completed" >> $GITHUB_STEP_SUMMARY
+        echo "Windows benchncnn RenderDoc capture completed" >> $GITHUB_STEP_SUMMARY  
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### Generated RenderDoc Captures:" >> $GITHUB_STEP_SUMMARY
+        for file in *.rdc; do
+          if [ -f "$file" ]; then
+            size=$(stat -c%s "$file" 2>/dev/null || echo "unknown")
+            echo "- $file (${size} bytes)" >> $GITHUB_STEP_SUMMARY
+          fi
+        done
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "RenderDoc integration with benchncnn successfully tested!" >> $GITHUB_STEP_SUMMARY
+        echo "Capture files are available in the artifacts for analysis." >> $GITHUB_STEP_SUMMARY
