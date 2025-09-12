@@ -36,7 +36,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input_0     0 1 input
-Flatten                 op_0        1 1 input out %*=%*
+Flatten                 op_0        1 1 input out axis=%axis
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -48,14 +48,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.axis") != captured_params.end())
-        {
-            op->params["start_dim"] = captured_params.at("op_0.axis");
-        }
-        else
-        {
-            op->params["start_dim"] = 1;
-        }
+        op->params["start_dim"] = captured_params.at("axis");
         op->params["end_dim"] = -1;
     }
 };

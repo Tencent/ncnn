@@ -100,9 +100,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             type = 2;
             int64_t i64 = value_node->i(torch::jit::attr::value);
             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-            if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
             if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-            if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
             i = (int)i64;
             break;
         }
@@ -143,9 +141,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                     type = 2;
                     int64_t i64 = t.item<int64_t>();
                     if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                    if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                     if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-                    if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                     i = (int)i64;
                 }
                 else if (t.scalar_type() == c10::ScalarType::Int)
@@ -197,9 +193,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                 for (auto i64 : i64s)
                 {
                     if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                    if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                     if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-                    if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                     ai.push_back(i64);
                 }
                 break;
@@ -583,6 +577,7 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
                      const std::string& device,
                      const std::vector<std::vector<int64_t> >& input_shapes,
                      const std::vector<std::string>& input_types,
+                     const std::vector<std::vector<float>>& input_tensors,  // 新增：npy数据参数
                      const std::vector<std::vector<int64_t> >& input_shapes2,
                      const std::vector<std::string>& input_types2,
                      const std::vector<std::string>& customop_modules,
@@ -645,18 +640,69 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
 #endif
     }
 
-    std::vector<at::Tensor> input_tensors;
+    // std::vector<at::Tensor> input_tensors;
+    // for (size_t i = 0; i < traced_input_shapes.size(); i++)
+    // {
+    //     const std::vector<int64_t>& shape = traced_input_shapes[i];
+    //     const std::string& type = traced_input_types[i];
+
+    //     at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+    //     if (device == "gpu")
+    //         t = t.cuda();
+
+    //     input_tensors.push_back(t);
+    // }
+
+    // 修改后代码：优先用npy数据，无npy则用全1张量
+    std::vector<at::Tensor> torch_input_tensors;  // 改名：避免与函数参数input_tensors（npy数据）冲突
     for (size_t i = 0; i < traced_input_shapes.size(); i++)
     {
         const std::vector<int64_t>& shape = traced_input_shapes[i];
         const std::string& type = traced_input_types[i];
+        at::Tensor t;
 
-        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+        // 关键逻辑：若外部传递了npy数据，且索引i有效、数据量匹配，则用npy数据
+        if (!input_tensors.empty() && i < input_tensors.size())
+        {
+            // 计算当前输入张量的总元素数（shape各维度乘积）
+            size_t total_elem = 1;  // 修正1：改为size_t类型，与vector::size()匹配
+            for (int64_t dim : shape) 
+                total_elem *= dim;
+
+            // 校验npy数据量与shape是否匹配（避免维度错误）
+            if (input_tensors[i].size() == total_elem)
+            {
+                // 用npy数据创建张量
+                t = torch::from_blob(
+                    const_cast<float*>(input_tensors[i].data()),  // 修正2：添加const_cast转换为非const指针
+                    shape,                                        // 输入形状
+                    torch::TensorOptions().dtype(input_type_to_c10_ScalarType(type))  // 数据类型
+                );
+                fprintf(stderr, "[INFO] Input %ld: Use npy data (shape: %ldD, elements: %ld)\n", 
+                        i, shape.size(), total_elem);
+            }
+            else
+            {
+                // 数据量不匹配时，降级用全1张量并报警
+                fprintf(stderr, "[WARN] Input %ld: npy size mismatch (need %ld, got %ld), use ones tensor\n",
+                        i, total_elem, input_tensors[i].size());
+                t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+            }
+        }
+        // 无npy数据时，保持原逻辑生成全1张量（兼容原有功能）
+        else
+        {
+            t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+            fprintf(stderr, "[INFO] Input %ld: No npy data, use ones tensor\n", i);
+        }
+
+        // 若设备是GPU，将张量移到CUDA上
         if (device == "gpu")
             t = t.cuda();
 
-        input_tensors.push_back(t);
+        torch_input_tensors.push_back(t);  // 存入改名后的内部张量变量
     }
+
 
     std::vector<at::Tensor> input_tensors2;
     for (size_t i = 0; i < input_shapes2.size(); i++)
@@ -720,7 +766,8 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
 
     fprintf(stderr, "############# pass_level0\n");
 
-    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
+    //pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
+    pnnx::pass_level0(mod, g, torch_input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
 
     // g->dump();
 

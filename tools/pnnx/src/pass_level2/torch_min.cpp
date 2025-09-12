@@ -147,16 +147,13 @@ pnnx.Output             output      2 0 out indices
         if (captured_params.find("op_1.keepdims") == captured_params.end())
             return false;
 
-        if (captured_params.at("op_0.axes").type != 2 && (captured_params.at("op_0.axes").type != 5 || captured_params.at("op_0.axes").ai.size() != 1))
+        if (captured_params.at("op_0.axes").type != 5 || captured_params.at("op_0.axes").ai.size() != 1)
             return false;
 
         if (captured_params.at("op_1.axis").type != 2)
             return false;
 
-        if (captured_params.at("op_0.axes").type == 2 && captured_params.at("op_0.axes").i != captured_params.at("op_1.axis").i)
-            return false;
-
-        if (captured_params.at("op_0.axes").type == 5 && captured_params.at("op_0.axes").ai[0] != captured_params.at("op_1.axis").i)
+        if (captured_params.at("op_0.axes").ai[0] != captured_params.at("op_1.axis").i)
             return false;
 
         if (captured_params.at("op_0.keepdims").i != captured_params.at("op_1.keepdims").i)
@@ -167,10 +164,7 @@ pnnx.Output             output      2 0 out indices
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.at("op_0.axes").type == 2)
-            op->params["dim"] = captured_params.at("op_0.axes").i;
-        else
-            op->params["dim"] = captured_params.at("op_0.axes").ai[0];
+        op->params["dim"] = captured_params.at("op_0.axes").ai[0];
         op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
     }
 };

@@ -157,11 +157,7 @@ pnnx.Output             output      1 0 out
             return false;
 
         // dim must be the last N dimensions
-        std::vector<int> dim;
-        if (captured_params.at("dim").type == 2)
-            dim.push_back(captured_params.at("dim").i);
-        else // if (captured_params.at("dim").type == 5)
-            dim = captured_params.at("dim").ai;
+        std::vector<int> dim = captured_params.at("dim").ai;
 
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
@@ -187,11 +183,7 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& inputshape = op->inputs[0]->shape;
-        std::vector<int> dim;
-        if (captured_params.at("dim").type == 2)
-            dim.push_back(captured_params.at("dim").i);
-        else // if (captured_params.at("dim").type == 5)
-            dim = captured_params.at("dim").ai;
+        const std::vector<int>& dim = captured_params.at("dim").ai;
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
 
@@ -248,11 +240,7 @@ pnnx.Output             output      1 0 out
             return false;
 
         // dim must be the last N dimensions
-        std::vector<int> dim;
-        if (captured_params.at("dim").type == 2)
-            dim.push_back(captured_params.at("dim").i);
-        else // if (captured_params.at("dim").type == 5)
-            dim = captured_params.at("dim").ai;
+        std::vector<int> dim = captured_params.at("dim").ai;
 
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
@@ -290,11 +278,7 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& inputshape = op->inputs[0]->shape;
-        std::vector<int> dim;
-        if (captured_params.at("dim").type == 2)
-            dim.push_back(captured_params.at("dim").i);
-        else // if (captured_params.at("dim").type == 5)
-            dim = captured_params.at("dim").ai;
+        const std::vector<int>& dim = captured_params.at("dim").ai;
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
 

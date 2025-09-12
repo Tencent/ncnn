@@ -875,9 +875,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                             i64 = tensor.int64_data().at(0);
                         }
                         if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                        if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                         if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-                        if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                         op_const->params["value"] = (int)i64;
                     }
                     else if (tensor.data_type() == onnx::TensorProto::FLOAT)
@@ -963,9 +961,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         {
                             int64_t i64 = ai[k];
                             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                            if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                             if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-                            if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                             expr += std::to_string(i64);
                             if (k != (int)ai.size() - 1)
                                 expr += ",";

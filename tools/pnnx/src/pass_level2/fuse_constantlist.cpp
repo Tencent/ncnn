@@ -103,8 +103,6 @@ void fuse_constantlist(Graph& graph)
             }
 
             op->inputs.clear();
-
-            break;
         }
 
         if (!need_eliminate)

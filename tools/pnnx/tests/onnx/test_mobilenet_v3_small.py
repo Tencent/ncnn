@@ -35,7 +35,7 @@ def test():
         return True
 
     # export dynamo onnx
-    torch.onnx.export(net, (x,), "test_mobilenet_v3_small_dynamo.onnx", dynamo=True, external_data=False)
+    torch.onnx.dynamo_export(net, x).save("test_mobilenet_v3_small_dynamo.onnx")
 
     # onnx to pnnx
     os.system("../../src/pnnx test_mobilenet_v3_small_dynamo.onnx inputshape=[1,3,224,224]")

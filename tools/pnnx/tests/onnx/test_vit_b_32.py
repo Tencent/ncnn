@@ -39,7 +39,7 @@ def test():
         return True
 
     # export dynamo onnx
-    torch.onnx.export(net, (x,), "test_vit_b_32_dynamo.onnx", dynamo=True, external_data=False)
+    torch.onnx.dynamo_export(net, x).save("test_vit_b_32_dynamo.onnx")
 
     # onnx to pnnx
     os.system("../../src/pnnx test_vit_b_32_dynamo.onnx inputshape=[1,3,224,224]")

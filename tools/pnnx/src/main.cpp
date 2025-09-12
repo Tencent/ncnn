@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "utils.h" 
+
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -71,6 +73,42 @@ static void parse_string_list(char* s, std::vector<std::string>& list)
         pch = strtok(NULL, ",");
     }
 }
+
+// 解析输入文件路径的函数
+static void parse_input_files(char* value, std::vector<std::string>& input_files)
+{
+    input_files.clear();
+    if (!value || *value == '\0') return; // 空值检查
+
+    // 调试用代码
+    // fprintf(stderr, "[DEBUG] parse_input_files: 进入函数，value='%s'\n", value);
+
+    // 复制 value 到可修改的缓冲区（避免修改原始字符串）
+    char* buf = strdup(value); 
+    if (!buf) {
+        // 调试用代码
+        // fprintf(stderr, "[DEBUG] parse_input_files: strdup 分配内存失败！\n");
+        return;
+    }
+    // 调试用代码
+    // fprintf(stderr, "[DEBUG] parse_input_files: 复制缓冲区 buf='%s'\n", buf);
+
+    // 分割逗号分隔的路径
+    char* saveptr;
+    char* pch = strtok_r(buf, ",", &saveptr); // 第一次调用：传 buf
+    while (pch != NULL)
+    {
+        // 调试用代码
+        // fprintf(stderr, "[DEBUG] parse_input_files: 分割到文件路径='%s'\n", pch);
+        input_files.push_back(std::string(pch));
+        pch = strtok_r(NULL, ",", &saveptr); // 后续调用：传 NULL
+    }
+
+    free(buf); // 释放副本内存
+    // 调试用代码
+    // fprintf(stderr, "[DEBUG] parse_input_files: 退出函数，input_files 大小=%ld\n", input_files.size());
+}
+
 
 static void print_string_list(const std::vector<std::string>& list)
 {
@@ -264,6 +302,8 @@ int main(int argc, char** argv)
     std::vector<std::string> input_types2;
     std::vector<std::string> customop_modules;
     std::vector<std::string> module_operators;
+    std::vector<std::string> input_files;
+    std::vector<std::vector<float>> input_tensors;
 
     for (int i = 2; i < argc; i++)
     {
@@ -301,11 +341,18 @@ int main(int argc, char** argv)
         if (strcmp(key, "optlevel") == 0)
             optlevel = atoi(value);
         if (strcmp(key, "device") == 0)
-            device = value;
+            device = value; 
         if (strcmp(key, "inputshape") == 0)
             parse_shape_list(value, input_shapes, input_types);
         if (strcmp(key, "inputshape2") == 0)
             parse_shape_list(value, input_shapes2, input_types2);
+        if (strcmp(key, "input") == 0) {
+            // 调试用代码
+            // fprintf(stderr, "[DEBUG] main: 匹配到 'input' 参数，key='%s', value='%s'\n", key, value);
+            parse_input_files(value, input_files);
+            // 调试用代码
+            // fprintf(stderr, "[DEBUG] main: parse_input_files 执行后，input_files 大小=%ld\n", input_files.size());
+        }
         if (strcmp(key, "customop") == 0)
             parse_string_list(value, customop_modules);
         if (strcmp(key, "moduleop") == 0)
@@ -338,6 +385,66 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
     }
 
+    // 打印input_files的大小和内容（调试用）
+    // fprintf(stderr, "[DEBUG] input_files size: %ld\n", input_files.size());
+    // if (!input_files.empty())
+    // {
+    //     fprintf(stderr, "[DEBUG] input_files content: ");
+    //     for (size_t k = 0; k < input_files.size(); k++)
+    //     {
+    //         fprintf(stderr, "'%s' ", input_files[k].c_str());
+    //     }
+    //     fprintf(stderr, "\n");
+    // }
+    // else
+    // {
+    //     fprintf(stderr, "[DEBUG] input_files is empty! No npy files to process\n");
+    // }
+
+    // 解析 npy 输入文件
+    if (!input_files.empty())
+    {
+        fprintf(stderr, ">> Found input npy files:\n");
+        input_shapes.clear();   // 清空原有shape（只保留npy的shape）
+        input_types.clear();    // 清空原有dtype（只保留npy的dtype）
+        input_tensors.clear();  // 清空原有数据（避免残留）
+
+        for (auto& f : input_files)
+        {
+            fprintf(stderr, "   Processing: %s\n", f.c_str());
+
+            std::vector<int64_t> shape;    // 单个npy的shape
+            std::string dtype;             // 单个npy的dtype
+            std::vector<float> tensor;     // 单个npy的数据（float）
+
+            // 调用load_npy_tensor读取完整信息（shape+dtype+数据）
+            if (pnnx::load_npy_tensor(f, shape, dtype, tensor) == 0)
+            {
+                // 读取成功：保存到全局变量
+                input_shapes.push_back(shape);
+                input_types.push_back(dtype);
+                input_tensors.push_back(tensor);
+
+                // 打印日志（方便调试）
+                fprintf(stderr, "   - Success! Shape: [");
+                for (size_t j = 0; j < shape.size(); j++)
+                {
+                    fprintf(stderr, "%ld", shape[j]);
+                    if (j != shape.size() - 1) fprintf(stderr, ",");
+                }
+                fprintf(stderr, "], Dtype: %s, Total elements: %ld\n", 
+                    dtype.c_str(), tensor.size());
+            }
+            else
+            {
+                // 读取失败：打印错误并终止（避免后续流程出错）
+                fprintf(stderr, "   [ERROR] Failed to load npy file: %s\n", f.c_str());
+                return -1;
+            }
+        }
+    }
+
+
     std::set<std::string> foldable_constants;
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
@@ -365,6 +472,7 @@ int main(int argc, char** argv)
     {
         load_torchscript(ptpath, pnnx_graph,
                          device, input_shapes, input_types,
+                         input_tensors, // 新增：传递npy数据
                          input_shapes2, input_types2,
                          customop_modules, module_operators,
                          foldable_constants_zippath, foldable_constants);

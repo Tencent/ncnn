@@ -12,6 +12,7 @@ int load_torchscript(const std::string& ptpath, Graph& g,
                      const std::string& device,
                      const std::vector<std::vector<int64_t> >& input_shapes,
                      const std::vector<std::string>& input_types,
+                     const std::vector<std::vector<float>>& input_tensors,  // 新增：npy数据参数
                      const std::vector<std::vector<int64_t> >& input_shapes2,
                      const std::vector<std::string>& input_types2,
                      const std::vector<std::string>& customop_modules,
