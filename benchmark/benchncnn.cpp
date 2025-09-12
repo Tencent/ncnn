@@ -242,7 +242,7 @@ static std::vector<ncnn::Mat> parse_shape_list(char* s)
             mats.push_back(ncnn::Mat(shape[0]));
             break;
         default:
-            fprintf(stderr, "unsupported input shape size %lld\n", shape.size());
+            fprintf(stderr, "unsupported input shape size %zu\n", shape.size());
             break;
         }
     }
