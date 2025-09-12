@@ -465,6 +465,46 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
             message(WARNING "The compiler does not support risc-v zfh extension. NCNN_ZFH will be OFF.")
         endif()
 
+    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(CMAKE_REQUIRED_FLAGS "-march=rv32gcv")
+        check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat32m8_t test(vfloat32m8_t s, vfloat32m8_t w, float v, size_t vl) { return __riscv_vfmacc_vf_f32m8(s, v, w, vl); }\nvfloat32m1x2_t test2(vfloat32m1_t x) { return __riscv_vcreate_v_f32m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_V)
+
+        set(CMAKE_REQUIRED_FLAGS "-march=rv32gc_zfh -D__fp16=_Float16")
+        check_cxx_source_compiles("__fp16 test(__fp16 a) { return a * a; }" NCNN_COMPILER_SUPPORT_RISCV_ZFH)
+
+        set(CMAKE_REQUIRED_FLAGS "-march=rv32gcv_zfh_zvfh -D__fp16=_Float16")
+        check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFH)
+
+        set(CMAKE_REQUIRED_FLAGS "-march=rv32gc_zfh_xtheadvector -D__fp16=_Float16")
+        check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
+
+        unset(CMAKE_REQUIRED_FLAGS)
+
+        if(NCNN_COMPILER_SUPPORT_RISCV_V OR NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
+            option(NCNN_RVV "optimize risc-v platform with v extension" ON)
+        else()
+            message(WARNING "The compiler does not support risc-v v or xtheadvector extension. NCNN_RVV will be OFF.")
+        endif()
+
+        if(NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
+            option(NCNN_XTHEADVECTOR "optimize risc-v platform with xtheadvector extension" ON)
+        else()
+            message(WARNING "The compiler does not support risc-v xtheadvector extension. NCNN_XTHEADVECTOR will be OFF.")
+        endif()
+
+        if(NCNN_COMPILER_SUPPORT_RISCV_ZFH)
+            option(NCNN_ZFH "optimize risc-v platform with zfh extension" ON)
+            if(NCNN_COMPILER_SUPPORT_RISCV_ZVFH OR NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
+                if(NCNN_RVV AND NCNN_ZFH)
+                    option(NCNN_ZVFH "optimize risc-v platform with zvfh extension" ON)
+                endif()
+            else()
+                message(WARNING "The compiler does not support zvfh extension. NCNN_ZVFH will be OFF.")
+            endif()
+        else()
+            message(WARNING "The compiler does not support risc-v zfh extension. NCNN_ZFH will be OFF.")
+        endif()
+
     endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)")
     set(NCNN_TARGET_ARCH powerpc)

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "allocator.h"
 
@@ -606,6 +595,12 @@ VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev, size_t preferred_bl
         d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.non_coherent_atom_size());
     }
 
+    if (vkdev->info.support_VK_KHR_robustness2() || vkdev->info.support_VK_EXT_robustness2())
+    {
+        size_t robust_storage_buffer_access_size_alignment = vkdev->info.queryRobustness2Properties().robustStorageBufferAccessSizeAlignment;
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, robust_storage_buffer_access_size_alignment);
+    }
+
     d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
 }
 
@@ -892,6 +887,13 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
         if (elempack == 4) format = VK_FORMAT_R16G16B16A16_SFLOAT;
         if (elempack == 8) format = VK_FORMAT_R16G16B16A16_SFLOAT;
     }
+    if (elemsize / elempack == 1)
+    {
+        // int8
+        if (elempack == 1) format = VK_FORMAT_R8_SINT;
+        if (elempack == 4) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 8) format = VK_FORMAT_R8G8B8A8_SINT;
+    }
 
     // resolve image width height depth
     int width = w;
@@ -1174,6 +1176,12 @@ VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, size_t preferre
         // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
         d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.memory_map_alignment());
         d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.non_coherent_atom_size());
+    }
+
+    if (vkdev->info.support_VK_KHR_robustness2() || vkdev->info.support_VK_EXT_robustness2())
+    {
+        size_t robust_storage_buffer_access_size_alignment = vkdev->info.queryRobustness2Properties().robustStorageBufferAccessSizeAlignment;
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, robust_storage_buffer_access_size_alignment);
     }
 
     d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
@@ -1467,6 +1475,16 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         if (elempack == 16) format = VK_FORMAT_R16G16B16A16_SFLOAT;
         if (elempack == 32) format = VK_FORMAT_R16G16B16A16_SFLOAT;
         if (elempack == 64) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    }
+    if (elemsize / elempack == 1)
+    {
+        // int8
+        if (elempack == 1) format = VK_FORMAT_R8_SINT;
+        if (elempack == 4) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 8) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 16) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 32) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 64) format = VK_FORMAT_R8G8B8A8_SINT;
     }
 
     // resolve image width height depth

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "gemm_x86.h"
 
@@ -47,7 +36,7 @@ Gemm_x86::Gemm_x86()
 static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     const int elempack = A.elempack;
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     float* pp = AT;
 
@@ -458,7 +447,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     const int elempack = A.elempack;
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     float* pp = AT;
 
@@ -537,14 +526,14 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 __m256 _rf = _mm256_load_ps(p0 + 8 * 15);
 
                 transpose8x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
-                __m512 _rr0 = _mm512_insertf32x8(_mm512_castps256_ps512(_r0), _r1, 1);
-                __m512 _rr1 = _mm512_insertf32x8(_mm512_castps256_ps512(_r2), _r3, 1);
-                __m512 _rr2 = _mm512_insertf32x8(_mm512_castps256_ps512(_r4), _r5, 1);
-                __m512 _rr3 = _mm512_insertf32x8(_mm512_castps256_ps512(_r6), _r7, 1);
-                __m512 _rr4 = _mm512_insertf32x8(_mm512_castps256_ps512(_r8), _r9, 1);
-                __m512 _rr5 = _mm512_insertf32x8(_mm512_castps256_ps512(_ra), _rb, 1);
-                __m512 _rr6 = _mm512_insertf32x8(_mm512_castps256_ps512(_rc), _rd, 1);
-                __m512 _rr7 = _mm512_insertf32x8(_mm512_castps256_ps512(_re), _rf, 1);
+                __m512 _rr0 = combine8x2_ps(_r0, _r1);
+                __m512 _rr1 = combine8x2_ps(_r2, _r3);
+                __m512 _rr2 = combine8x2_ps(_r4, _r5);
+                __m512 _rr3 = combine8x2_ps(_r6, _r7);
+                __m512 _rr4 = combine8x2_ps(_r8, _r9);
+                __m512 _rr5 = combine8x2_ps(_ra, _rb);
+                __m512 _rr6 = combine8x2_ps(_rc, _rd);
+                __m512 _rr7 = combine8x2_ps(_re, _rf);
 
                 _mm512_store_ps(pp, _rr0);
                 _mm512_store_ps(pp + 16 * 1, _rr1);
@@ -935,7 +924,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
     const int elempack = B.elempack;
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     float* pp = BT;
 
@@ -1578,7 +1567,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
     const int elempack = B.elempack;
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     float* pp = BT;
 
@@ -2033,7 +2022,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
     const float* pp = topT;
 
@@ -3561,7 +3550,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
     const float* pAT = AT_tile;
     const float* pBT = BT_tile;

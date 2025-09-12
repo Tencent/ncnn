@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -158,13 +147,16 @@ pnnx.Output             output      2 0 out indices
         if (captured_params.find("op_1.keepdims") == captured_params.end())
             return false;
 
-        if (captured_params.at("op_0.axes").type != 5 || captured_params.at("op_0.axes").ai.size() != 1)
+        if (captured_params.at("op_0.axes").type != 2 && (captured_params.at("op_0.axes").type != 5 || captured_params.at("op_0.axes").ai.size() != 1))
             return false;
 
         if (captured_params.at("op_1.axis").type != 2)
             return false;
 
-        if (captured_params.at("op_0.axes").ai[0] != captured_params.at("op_1.axis").i)
+        if (captured_params.at("op_0.axes").type == 2 && captured_params.at("op_0.axes").i != captured_params.at("op_1.axis").i)
+            return false;
+
+        if (captured_params.at("op_0.axes").type == 5 && captured_params.at("op_0.axes").ai[0] != captured_params.at("op_1.axis").i)
             return false;
 
         if (captured_params.at("op_0.keepdims").i != captured_params.at("op_1.keepdims").i)
@@ -175,7 +167,10 @@ pnnx.Output             output      2 0 out indices
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["dim"] = captured_params.at("op_0.axes").ai[0];
+        if (captured_params.at("op_0.axes").type == 2)
+            op->params["dim"] = captured_params.at("op_0.axes").i;
+        else
+            op->params["dim"] = captured_params.at("op_0.axes").ai[0];
         op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
     }
 };

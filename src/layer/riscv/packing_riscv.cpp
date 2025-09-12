@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "packing_riscv.h"
 
@@ -114,7 +103,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
         return 0;
@@ -845,7 +834,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
         return 0;
@@ -1569,7 +1558,7 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
         return 0;

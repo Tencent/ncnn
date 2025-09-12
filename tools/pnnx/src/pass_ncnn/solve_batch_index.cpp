@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "solve_batch_index.h"
 
@@ -400,13 +389,13 @@ static void solve_batch_index_forward(Operand* operand)
                 dim += input_rank0;
 
             int batch_index_squeezed = batch_index;
-            if (dim >= 0 && dim < batch_index)
-            {
-                batch_index_squeezed = batch_index - 1;
-            }
             if (dim >= 0 && dim == batch_index)
             {
                 batch_index_squeezed = 233;
+            }
+            else if (dim >= 0 && dim < batch_index)
+            {
+                batch_index_squeezed = batch_index - 1;
             }
 
             Operand* r = op->outputs[0];
@@ -423,6 +412,12 @@ static void solve_batch_index_forward(Operand* operand)
             int dim = op->params.at("dim").i;
             if (dim < 0)
                 dim += input_rank0;
+
+            if (batch_index == 233)
+            {
+                // give up
+                return;
+            }
 
             int batch_index_unsqueezed = batch_index;
             if (dim >= 0 && dim <= batch_index)
@@ -714,6 +709,12 @@ static void solve_batch_index_backward(Operand* operand)
         if (dim < 0)
             dim += input_rank0;
 
+        if (batch_index == 233)
+        {
+            // give up
+            return;
+        }
+
         int batch_index_unsqueezed = batch_index;
         if (dim >= 0 && dim <= batch_index)
         {
@@ -736,7 +737,11 @@ static void solve_batch_index_backward(Operand* operand)
             dim += input_rank0;
 
         int batch_index_squeezed = batch_index;
-        if (dim >= 0 && dim <= batch_index)
+        if (dim >= 0 && dim == batch_index)
+        {
+            batch_index_squeezed = 233;
+        }
+        else if (dim >= 0 && dim <= batch_index)
         {
             batch_index_squeezed = batch_index - 1;
         }
