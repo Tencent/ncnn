@@ -198,7 +198,7 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
         }
 
         size_t line_length = newline_pos ? newline_pos - (const char*)d->mem : (size_t)remain_length;
-        line = std::string((const char*)d->mem, remain_length);
+        line = std::string((const char*)d->mem, line_length);
     }
 
     int fmtlen = strlen(format);
