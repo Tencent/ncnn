@@ -2209,17 +2209,13 @@ int Extractor::input(int blob_index, const Mat& in)
     const Mat& shape = d->net->blobs()[blob_index].shape;
     if (shape.total())
     {
-        if ((in.dims == 3 || in.dims == 4) && (shape.w != in.w || shape.h != in.h || shape.d != in.d || shape.c != in.c * in.elempack))
-            return -1;
-
-        if (in.dims == 2 && (shape.w != in.w || shape.h != in.h * in.elempack))
-            return -1;
-
-        if (in.dims == 1 && (shape.w != in.w * in.elempack))
+        const Mat& in_shape = in.shape();
+        if (shape.dims != in_shape.dims || shape.w != in_shape.w || shape.h != in_shape.h || shape.d != in_shape.d || shape.c != in_shape.c)
             return -1;
     }
 
     d->blob_mats[blob_index] = in;
+
     return 0;
 }
 
