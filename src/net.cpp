@@ -2216,7 +2216,7 @@ int Extractor::input(int blob_index, const Mat& in)
             return -1;
 
         if (in.dims == 1 && (shape.w != in.w * in.elempack))
-            return -1;        
+            return -1;
     }
 
     d->blob_mats[blob_index] = in;
