@@ -11,6 +11,7 @@ env:
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
   ENABLE_VISIBILITY: OFF
+  CIBW_SKIP: "cp3??t-*"
 
 jobs:
   build_sdist:
