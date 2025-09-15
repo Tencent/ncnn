@@ -7,12 +7,29 @@
 #include <stddef.h>
 
 #if defined _WIN32
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#ifndef NCNN_MAX_CPU_COUNT
+#if defined(NCNN_WINDOWS_SERVER)
+#define NCNN_MAX_CPU_COUNT 4096
+#elif defined(_WIN32_WINNT) && (_WIN32_WINNT >= _WIN32_WINNT_WIN10)
+#define NCNN_MAX_CPU_COUNT 512
+#elif defined(_WIN32_WINNT) && (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#define NCNN_MAX_CPU_COUNT 256
+#else
+#define NCNN_MAX_CPU_COUNT 64
 #endif
+#endif
+
+#define NCNN_CPU_MASK_GROUPS ((NCNN_MAX_CPU_COUNT + sizeof(ULONG_PTR) * 8 - 1) / (sizeof(ULONG_PTR) * 8))
+
+#endif // _WIN32
+
 #if defined __ANDROID__ || defined __linux__
 #include <sched.h> // cpu_set_t
-#endif
+#endif //__ANDROID__ || __linux__
 
 #include "platform.h"
 
@@ -28,15 +45,21 @@ public:
     bool is_enabled(int cpu) const;
     int num_enabled() const;
 
+#if defined _WIN32
+    void set_group_mask(int group, ULONG_PTR mask);
+    ULONG_PTR get_group_mask(int group) const;
+    int get_group_count() const;
+#endif // defined _WIN32
+
 public:
 #if defined _WIN32
-    ULONG_PTR mask;
-#endif
-#if defined __ANDROID__ || defined __linux__
+    ULONG_PTR mask_groups[NCNN_CPU_MASK_GROUPS];
+#elif defined __ANDROID__ || defined __linux__
     cpu_set_t cpu_set;
-#endif
-#if __APPLE__
+#elif __APPLE__
     unsigned int policy;
+#else
+    int empty;
 #endif
 };
 
