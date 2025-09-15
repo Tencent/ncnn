@@ -3,9 +3,6 @@
 
 #version 450
 
-#extension GL_GOOGLE_include_directive: require
-#include "vulkan_activation.comp"
-
 #extension GL_EXT_control_flow_attributes: require
 
 #extension GL_KHR_shader_subgroup_basic: require
