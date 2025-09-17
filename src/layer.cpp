@@ -98,6 +98,11 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) cons
     return -1;
 }
 
+int Layer::forward_thread(void* /*info*/) const
+{
+    return -1;
+}
+
 #if NCNN_VULKAN
 int Layer::upload_model(VkTransfer& /*cmd*/, const Option& /*opt*/)
 {
