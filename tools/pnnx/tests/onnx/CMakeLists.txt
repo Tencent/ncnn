@@ -143,6 +143,8 @@ pnnx_onnx_add_test(squeezenet1_1)
 pnnx_onnx_add_test(swin_t)
 pnnx_onnx_add_test(vit_b_32)
 
+pnnx_onnx_add_test(onnx_channel_shuffle)
+
 pnnx_onnx_add_test(Tensor_expand)
 pnnx_onnx_add_test(Tensor_permute)
 pnnx_onnx_add_test(Tensor_repeat)
