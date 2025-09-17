@@ -5,6 +5,19 @@
 
 namespace pnnx {
 
+static bool NearlyEqual(float a, float b, float epsilon)
+{
+    if (a == b)
+        return true;
+
+    float diff = (float)fabs(a - b);
+    if (diff <= epsilon)
+        return true;
+
+    // relative error
+    return diff < epsilon * std::max(fabs(a), fabs(b));
+}
+
 class F_hardsigmoid : public GraphRewriterPass
 {
 public:
@@ -75,6 +88,39 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_2_1, 100)
+
+class F_hardsigmoid_2_2 : public F_hardsigmoid_2
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 9
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 410 value=3
+prim::Constant          op_1        0 1 412 value=1
+aten::add               op_2        3 1 input 410 412 a
+prim::Constant          op_3        0 1 413 value=0
+prim::Constant          op_4        0 1 414 value=6
+torch.clamp             op_5        3 1 a 413 414 b
+prim::Constant          op_6        0 1 409 value=%v1p6
+aten::mul               op_7        2 1 b 409 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        float v1p6 = captured_params.at("v1p6").f;
+        return NearlyEqual(v1p6, 1.f / 6, 0.001);
+    }
+
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_2_2, 100)
 
 class F_hardsigmoid_3 : public GraphRewriterPass
 {
@@ -155,19 +201,6 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_5, 100)
-
-static bool NearlyEqual(float a, float b, float epsilon)
-{
-    if (a == b)
-        return true;
-
-    float diff = (float)fabs(a - b);
-    if (diff <= epsilon)
-        return true;
-
-    // relative error
-    return diff < epsilon * std::max(fabs(a), fabs(b));
-}
 
 class F_hardsigmoid_onnx : public GraphRewriterPass
 {

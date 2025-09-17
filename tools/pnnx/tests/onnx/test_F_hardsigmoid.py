@@ -12,6 +12,9 @@ def hardsigmoid_forward_0(x):
 def hardsigmoid_forward_1(x):
     return x.add_(3.).clamp_(0., 6.).div_(6.)
 
+def hardsigmoid_forward_2(x):
+    return x.add_(3.).clamp_(0., 6.).mul_(1. / 6.)
+
 class h_sigmoid(nn.Module):
     def __init__(self, inplace=True):
         super(h_sigmoid, self).__init__()
@@ -36,7 +39,8 @@ class Model(nn.Module):
         z = self.h_sigmoid(z)
         w = hardsigmoid_forward_0(w)
         w = hardsigmoid_forward_1(w)
-        return x, y, z, w
+        x2 = hardsigmoid_forward_2(x)
+        return x, y, z, w, x2
 
 def test():
     if version.parse(torch.__version__) < version.parse('1.10'):
