@@ -6,6 +6,7 @@ macro(pnnx_onnx_add_test name)
 endmacro()
 
 pnnx_onnx_add_test(onnx_math_ops)
+pnnx_onnx_add_test(onnx_reduce_ops)
 
 pnnx_onnx_add_test(F_adaptive_avg_pool1d)
 pnnx_onnx_add_test(F_adaptive_avg_pool2d)

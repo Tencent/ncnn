@@ -11,10 +11,16 @@ from onnxscript import opset11 as op
 def Model(x: FLOAT[2,3,4], y: FLOAT[2,3,4]):
     return (op.Abs(x),
         op.Acos(x),
+        # op.Acosh(x),
         op.Asin(x),
+        # op.Asinh(x),
         op.Atan(x),
+        # op.Atanh(x),
+        op.Ceil(x),
         op.Cos(x),
+        # op.Cosh(x),
         op.Exp(x),
+        # op.Erf(x),
         op.Floor(x),
         op.Log(x),
         op.Neg(x),
@@ -22,6 +28,7 @@ def Model(x: FLOAT[2,3,4], y: FLOAT[2,3,4]):
         op.Relu(x),
         op.Sigmoid(x),
         op.Sin(x),
+        # op.Sinh(x),
         op.Sqrt(x),
         op.Tan(x),
         op.Tanh(x),
@@ -31,7 +38,7 @@ def Model(x: FLOAT[2,3,4], y: FLOAT[2,3,4]):
         op.Div(x, y),
         op.Min(x, y),
         op.Max(x, y),
-        op.Pow(x, op.Abs(y)),
+        op.Pow(x, op.Abs(y))
         )
 
 def test():
