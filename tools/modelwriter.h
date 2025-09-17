@@ -1112,7 +1112,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
-                fwrite_weight_data(op->bias_data, bp);
+                if (op->bias_term)
+                {
+                    fwrite_weight_data(op->bias_data, bp);
+                }
             }
 
             if (shape_ready)
@@ -1678,7 +1681,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 18=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->bias_term)
+            {
+                fwrite_weight_data(op->bias_data, bp);
+            }
 
 #if NCNN_INT8
             // write int8_scale data
