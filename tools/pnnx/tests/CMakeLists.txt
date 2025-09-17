@@ -336,14 +336,13 @@ pnnx_add_test(ir_complex)
 # TODO enable end2end quantization model test
 #pnnx_add_test(quantization_shufflenet_v2_x1_0)
 
-pnnx_add_test(pnnx_channel_shuffle)
-
 pnnx_add_test(pnnx_eliminate_noop_cat)
 pnnx_add_test(pnnx_eliminate_noop_expand)
 pnnx_add_test(pnnx_eliminate_noop_math)
 pnnx_add_test(pnnx_eliminate_noop_upsample)
 pnnx_add_test(pnnx_expression)
 pnnx_add_test(pnnx_fold_constant)
+pnnx_add_test(pnnx_fuse_channel_shuffle)
 pnnx_add_test(pnnx_fuse_conv1d_batchnorm1d)
 pnnx_add_test(pnnx_fuse_conv2d_batchnorm2d)
 pnnx_add_test(pnnx_fuse_conv3d_batchnorm3d)
@@ -361,6 +360,7 @@ pnnx_add_test(pnnx_fuse_slice_to_tensor_split)
 pnnx_add_test(pnnx_fuse_adjacent_reshape)
 pnnx_add_test(pnnx_fuse_pad_conv1d)
 pnnx_add_test(pnnx_fuse_pad_conv2d)
+pnnx_add_test(pnnx_fuse_pixel_shuffle)
 pnnx_add_test(pnnx_fuse_pixel_unshuffle)
 
 if(TorchVision_FOUND)
