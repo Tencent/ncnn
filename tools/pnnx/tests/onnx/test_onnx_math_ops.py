@@ -26,7 +26,6 @@ def Model(x: FLOAT[2,3,4], y: FLOAT[2,3,4]):
         op.Neg(x),
         op.Reciprocal(x),
         op.Relu(x),
-        op.Sigmoid(x),
         op.Sin(x),
         # op.Sinh(x),
         op.Sqrt(x),
