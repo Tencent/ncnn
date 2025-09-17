@@ -2660,6 +2660,23 @@ int cpu_support_arm_svef32mm()
 #endif
 }
 
+int cpu_support_arm_amx()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__ && __APPLE__
+    return g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM // M1
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD // M2
+           || g_hw_cpufamily == CPUFAMILY_ARM_IBIZA // M3
+           || g_hw_cpufamily == CPUFAMILY_ARM_LOBOS // M3 Pro
+           || g_hw_cpufamily == CPUFAMILY_ARM_PALMA // M3 Max
+           || g_hw_cpufamily == CPUFAMILY_ARM_DONAN // M4
+           || g_hw_cpufamily == CPUFAMILY_ARM_BRAVA; // M4 Pro / M4
+
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_x86_avx()
 {
     try_initialize_global_cpu_info();
