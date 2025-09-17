@@ -39,7 +39,7 @@ class Model(nn.Module):
         z = self.h_sigmoid(z)
         w = hardsigmoid_forward_0(w)
         w = hardsigmoid_forward_1(w)
-        x2 = hardsigmoid_forward_2(x)
+        x2 = hardsigmoid_forward_2(x + 8)
         return x, y, z, w, x2
 
 def test():
