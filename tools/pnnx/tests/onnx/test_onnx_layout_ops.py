@@ -43,6 +43,15 @@ def Model(x: FLOAT[1,12,13,14]):
         op.Slice(x, [1], [3], [1], [1]),
         op.Slice(x, [1,2], [5,-2], [1,-1], [1,1]),
 
+        op.Transpose(x, perm=[2,0,1,3]),
+
+        # op.Upsample(x, [1.0, 1.0, 2.0, 2.0], mode='nearest'),
+        # op.Upsample(x, [1.0, 1.0, 3.0, 4.0], mode='linear'),
+
+        op.Resize(x, None, [1.0, 1.0, 2.0, 2.0], None, mode='nearest'),
+        op.Resize(x, None, None, [1, 12, 13, 13], mode='linear', coordinate_transformation_mode="half_pixel"),
+        op.Resize(x, None, None, [1, 12, 16, 16], mode='linear', coordinate_transformation_mode='align_corners'),
+
         a0, a1,
         b0, b1, b2, b3, b4, b5, b6,
         )
