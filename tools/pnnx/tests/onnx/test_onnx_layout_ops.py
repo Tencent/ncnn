@@ -17,6 +17,9 @@ def Model(x: FLOAT[1,12,13,14]):
     a = op.Reshape(x, shape=[1,-1,1,1])
     b = op.Reshape(x, shape=[1,-1])
 
+    a0, a1 = op.Split(x, axis=1, num_outputs=2)
+    b0, b1, b2, b3, b4, b5, b6 = op.Split(x, axis=-1, num_outputs=7)
+
     return (
         # op.DepthToSpace(x, blocksize=2),
         op.DepthToSpace(x, blocksize=2, mode='CRD'),
@@ -28,13 +31,20 @@ def Model(x: FLOAT[1,12,13,14]):
         op.Pad(x, pads=[0, 0, 1, 1, 0, 0, 1, 1], mode='reflect'),
         op.Pad(x, pads=[0, 1, 0, 2, 0, 0, 3, 3], mode='edge'),
 
-        # op.Squeeze(a),
-        # op.Squeeze(a, axes=[-1]),
-        #
-        # op.Unsqueeze(b, axes=[2]),
-        # op.Unsqueeze(b, axes=[-1,1]),
+        op.Squeeze(a),
+        op.Squeeze(a, axes=[-1]),
 
-        # op.Concat(x),
+        op.Unsqueeze(b, axes=[2]),
+        op.Unsqueeze(b, axes=[-1,1]),
+
+        op.Concat(x, x, axis=1),
+        op.Concat(a, a, a, axis=-1),
+
+        op.Slice(x, [1], [3], [1], [1]),
+        op.Slice(x, [1,2], [5,-2], [1,-1], [1,1]),
+
+        a0, a1,
+        b0, b1, b2, b3, b4, b5, b6,
         )
 
 def test():
