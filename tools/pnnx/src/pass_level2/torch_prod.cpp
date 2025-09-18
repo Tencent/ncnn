@@ -51,7 +51,23 @@ pnnx.Output             output      1 0 out
     {
         if (captured_params.find("op_0.axes") != captured_params.end())
         {
-            op->params["dim"] = captured_params.at("op_0.axes");
+            if (captured_params.at("op_0.axes").type == 2)
+            {
+                op->params["dim"] = captured_params.at("op_0.axes");
+            }
+            else
+            {
+                const std::vector<int>& dim = captured_params.at("op_0.axes").ai;
+                if (dim.size() == 1)
+                {
+                    // prefer single dim for compatible with old torch
+                    op->params["dim"] = dim[0];
+                }
+                else
+                {
+                    op->params["dim"] = dim;
+                }
+            }
         }
         else
         {
