@@ -210,7 +210,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-HardSigmoid             op_0        1 1 input out alpha=%alpha
+HardSigmoid             op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -222,8 +222,19 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        float alpha = captured_params.at("alpha").f;
-        return NearlyEqual(alpha, 1.f / 6, 0.001);
+        float alpha = 0.2f;
+        if (captured_params.find("op_0.alpha") != captured_params.end())
+        {
+            alpha = captured_params.at("op_0.alpha").f;
+        }
+
+        float beta = 0.5f;
+        if (captured_params.find("op_0.beta") != captured_params.end())
+        {
+            beta = captured_params.at("op_0.beta").f;
+        }
+
+        return NearlyEqual(alpha, 1.f / 6, 0.001) && NearlyEqual(beta, 0.5f, 0.001);
     }
 
     void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
@@ -241,46 +252,15 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-HardSigmoid             op_0        1 1 input out alpha=%alpha beta=%beta
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "F.hardsigmoid";
-    }
-
-    bool match(const std::map<std::string, Parameter>& captured_params) const
-    {
-        float alpha = captured_params.at("alpha").f;
-        float beta = captured_params.at("beta").f;
-        return NearlyEqual(alpha, 1.f / 6, 0.001) && NearlyEqual(beta, 0.5f, 0.001);
-    }
-
-    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
-    {
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_1, 101)
-
-class F_hardsigmoid_onnx_2 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-HardSigmoid             op_0        1 1 input out alpha=%alpha
+HardSigmoid             op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* replace_pattern_graph() const
     {
-        return R"PNNXIR(7767517
+        if (alpha_scale && !beta_offset)
+            return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
 prim::Constant          alpha2      0 1 alpha2
@@ -288,44 +268,73 @@ aten::mul               mul         2 1 input alpha2 a
 F.hardsigmoid           hs          1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
-    }
-
-    bool match(const std::map<std::string, Parameter>& captured_params) const
-    {
-        float alpha = captured_params.at("alpha").f;
-        return !NearlyEqual(alpha, 1.f / 6, 0.001);
-    }
-
-    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params) const
-    {
-        const float alpha = captured_params.at("alpha").f;
-        ops.at("alpha2")->params["value"] = alpha / (1.f / 6);
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_2, 101)
-
-class F_hardsigmoid_onnx_3 : public F_hardsigmoid_onnx_2
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
+        else if (!alpha_scale && beta_offset)
+            return R"PNNXIR(7767517
+5 4
 pnnx.Input              input       0 1 input
-HardSigmoid             op_0        1 1 input out alpha=%alpha beta=%beta
+prim::Constant          beta2       0 1 beta2
+aten::add               add         2 1 input beta2 a
+F.hardsigmoid           hs          1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+        else // if (alpha_scale && beta_offset)
+            return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+prim::Constant          alpha2      0 1 alpha2
+aten::mul               mul         2 1 input alpha2 a
+prim::Constant          beta2       0 1 beta2
+aten::add               add         2 1 a beta2 b
+F.hardsigmoid           hs          1 1 b out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        float alpha = captured_params.at("alpha").f;
-        float beta = captured_params.at("beta").f;
-        return !NearlyEqual(alpha, 1.f / 6, 0.001) && NearlyEqual(beta, 0.5f, 0.001);
+        float alpha = 0.2f;
+        if (captured_params.find("op_0.alpha") != captured_params.end())
+        {
+            alpha = captured_params.at("op_0.alpha").f;
+        }
+
+        float beta = 0.5f;
+        if (captured_params.find("op_0.beta") != captured_params.end())
+        {
+            beta = captured_params.at("op_0.beta").f;
+        }
+
+        alpha_scale = !NearlyEqual(alpha, 1.f / 6, 0.001);
+        beta_offset = !NearlyEqual(beta, 0.5f, 0.001);
+
+        return alpha_scale || beta_offset;
     }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params) const
+    {
+        float alpha = 0.2f;
+        if (captured_params.find("op_0.alpha") != captured_params.end())
+        {
+            alpha = captured_params.at("op_0.alpha").f;
+        }
+
+        float beta = 0.5f;
+        if (captured_params.find("op_0.beta") != captured_params.end())
+        {
+            beta = captured_params.at("op_0.beta").f;
+        }
+
+        if (alpha_scale)
+            ops.at("alpha2")->params["value"] = alpha / (1.f / 6);
+        if (beta_offset)
+            ops.at("beta2")->params["value"] = (beta - 0.5f) / (1.f / 6);
+    }
+
+protected:
+    mutable bool alpha_scale;
+    mutable bool beta_offset;
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_3, 101)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_1, 101)
 
 } // namespace pnnx
