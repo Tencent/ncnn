@@ -1,6 +1,10 @@
 # Copyright 2025 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import sys
+if sys.version_info < (3, 9):
+    sys.exit(0)
+
 import torch
 import onnx
 import onnxruntime as ort
@@ -9,16 +13,26 @@ from onnxscript import opset19 as op
 
 @script()
 def Model(x: FLOAT[1,12,13,14]):
+
+    a = op.Reshape(x, shape=[1,-1,1,1])
+    b = op.Reshape(x, shape=[1,-1])
+
     return (
         # op.DepthToSpace(x, blocksize=2),
         op.DepthToSpace(x, blocksize=2, mode='CRD'),
 
         op.Flatten(x),
-        # op.Flatten(x, axis=-1),
+        op.Flatten(x, axis=-2),
 
-        # op.Pad(x, pads=[0, 0, 0, 0, 1, 1, 1, 1], mode='constant', constant_value=0.0),
-        # op.Pad(x, pads=[0, 0, 1, 1, 0, 0, 1, 1], mode='reflect'),
-        # op.Pad(x, pads=[1, 0, 0, 2, 0, 0, 3, 3], mode='edge'),
+        op.Pad(x, pads=[0, 0, 0, 0, 0, 1, 1, 1], mode='constant', constant_value=0.0),
+        op.Pad(x, pads=[0, 0, 1, 1, 0, 0, 1, 1], mode='reflect'),
+        op.Pad(x, pads=[0, 1, 0, 2, 0, 0, 3, 3], mode='edge'),
+
+        # op.Squeeze(a),
+        # op.Squeeze(a, axes=[-1]),
+        #
+        # op.Unsqueeze(b, axes=[2]),
+        # op.Unsqueeze(b, axes=[-1,1]),
 
         # op.Concat(x),
         )

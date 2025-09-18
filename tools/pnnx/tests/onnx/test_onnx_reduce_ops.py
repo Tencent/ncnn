@@ -1,6 +1,10 @@
 # Copyright 2025 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import sys
+if sys.version_info < (3, 9):
+    sys.exit(0)
+
 import torch
 import onnx
 import onnxruntime as ort
