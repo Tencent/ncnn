@@ -37,6 +37,8 @@ def Model(x: FLOAT["N",12,14,15]):
         op.InstanceNormalization(x, in_scale, in_bias),
         op.LayerNormalization(x, ln_scale, ln_bias, epsilon=0.1),
         op.LayerNormalization(x, ln_scale2, ln_bias2, axis=-2),
+        op.LRN(x, alpha=0.1, beta=0.5, bias=0.75, size=5),
+        op.LRN(x, size=3),
         )
 
 def test():
