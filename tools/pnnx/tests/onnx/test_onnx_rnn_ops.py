@@ -71,13 +71,7 @@ def test():
     c = test_onnx_rnn_ops_ncnn.test_inference()
 
     for a0, b0, c0 in zip(a, b, c):
-        print(a0.shape)
-        print(b0.shape)
-        print(c0.shape)
         if not torch.allclose(a0, b0, 1e-3, 1e-3) or not torch.allclose(a0, c0, 1e-3, 1e-3):
-            print(a0)
-            print(b0)
-            print(c0)
             return False
     return True
 
