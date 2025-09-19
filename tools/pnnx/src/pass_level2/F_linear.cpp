@@ -38,8 +38,8 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-aten::t                 op_0        1 1 weight 9
-aten::matmul            op_1        2 1 input 9 a
+torch.t                 op_0        1 1 weight 9
+torch.matmul            op_1        2 1 input 9 a
 prim::Constant          op_2        0 1 19 value=1
 aten::add               op_3        3 1 a bias 19 out
 pnnx.Output             output      1 0 out
@@ -63,8 +63,8 @@ public:
 5 4
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
-aten::t                 op_0        1 1 weight 9
-aten::matmul            op_1        2 1 input 9 out
+torch.t                 op_0        1 1 weight 9
+torch.matmul            op_1        2 1 input 9 out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -92,10 +92,10 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-aten::t                 op_0        1 1 weight 14
+torch.t                 op_0        1 1 weight 14
 prim::Constant          op_1        0 1 15 value=1
 prim::Constant          op_2        0 1 30 value=1
-aten::addmm             op_3        5 1 bias input 14 15 30 out
+torch.addmm             op_3        5 1 bias input 14 15 30 out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -114,11 +114,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+6 5
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-Gemm                    gemm        3 1 input weight bias out %*=%*
+torch.transpose         t           1 1 weight wt dim0=1 dim1=0
+torch.addmm             gemm        3 1 bias input wt out alpha=1.0 beta=1.0
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -126,39 +127,6 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.linear";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
-    {
-        if (captured_params.find("gemm.alpha") != captured_params.end())
-        {
-            if (captured_params.at("gemm.alpha").type != 3 || captured_params.at("gemm.alpha").f != 1.f)
-                return false;
-        }
-
-        if (captured_params.find("gemm.beta") != captured_params.end())
-        {
-            if (captured_params.at("gemm.beta").type != 3 || captured_params.at("gemm.beta").f != 1.f)
-                return false;
-        }
-
-        if (captured_params.find("gemm.transA") != captured_params.end())
-        {
-            if (captured_params.at("gemm.transA").type != 2 || captured_params.at("gemm.transA").i != 0)
-                return false;
-        }
-
-        if (captured_params.find("gemm.transB") == captured_params.end())
-            return false;
-
-        if (captured_params.at("gemm.transB").type != 2 || captured_params.at("gemm.transB").i != 1)
-            return false;
-
-        return true;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
-    {
     }
 };
 
@@ -174,7 +142,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 bias
 pnnx.Attribute          weight      0 1 weight @data=(%in_features,%out_features)f32
-Gemm                    gemm        3 1 input weight bias out %*=%*
+torch.addmm             gemm        3 1 bias input weight out alpha=1.0 beta=1.0
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -189,35 +157,6 @@ pnnx.Attribute          weight      0 1 weight
 F.linear                linear      3 1 input weight bias out $weight=weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
-    {
-        if (captured_params.find("gemm.alpha") != captured_params.end())
-        {
-            if (captured_params.at("gemm.alpha").type != 3 || captured_params.at("gemm.alpha").f != 1.f)
-                return false;
-        }
-
-        if (captured_params.find("gemm.beta") != captured_params.end())
-        {
-            if (captured_params.at("gemm.beta").type != 3 || captured_params.at("gemm.beta").f != 1.f)
-                return false;
-        }
-
-        if (captured_params.find("gemm.transA") != captured_params.end())
-        {
-            if (captured_params.at("gemm.transA").type != 2 || captured_params.at("gemm.transA").i != 0)
-                return false;
-        }
-
-        if (captured_params.find("gemm.transB") != captured_params.end())
-        {
-            if (captured_params.at("gemm.transB").type != 2 || captured_params.at("gemm.transB").i != 0)
-                return false;
-        }
-
-        return true;
     }
 
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const

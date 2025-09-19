@@ -41,7 +41,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-torch.flatten           op_0        1 1 input out start_dim=2 end_dim=-1
+torch.flatten           op_0        1 1 input out start_dim=%start_dim end_dim=-1
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -56,13 +56,18 @@ pnnx.Output             output      1 0 out
         return "flatten";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int input_rank = op->inputs[0]->shape.size();
+        int start_dim = captured_params.at("start_dim").i;
 
-        if (input_rank <= 2)
+        const int input_rank = op->inputs[0]->shape.size();
+
+        if (start_dim < 0)
+            start_dim += input_rank;
+
+        if (input_rank <= start_dim)
         {
-            fprintf(stderr, "flatten 2 to -1 not possible for %d-rank tensor\n", input_rank);
+            fprintf(stderr, "flatten %d to -1 not possible for %d-rank tensor\n", start_dim, input_rank);
             return;
         }
 

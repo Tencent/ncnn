@@ -1557,7 +1557,7 @@ Tensor.reshape          op_14       1 1 23 24 shape=(%qsize,%embed_dim)
 nn.Linear               out_proj    1 1 24 25 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_16       1 1 25 out shape=(%qsize,%batch,%embed_dim)
 Tensor.reshape          op_17       1 1 21 27 shape=(%batch,%num_heads,%qsize,%kvsize)
-torch.mean              op_18       1 1 27 outweight dim=(1) keepdim=False
+torch.mean              op_18       1 1 27 outweight dim=1 keepdim=False
 pnnx.Output             output      2 0 out outweight
 )PNNXIR";
     }
@@ -1858,7 +1858,7 @@ Tensor.reshape          op_17       1 1 31 32 shape=(%qsize,%embed_dim)
 nn.Linear               out_proj    1 1 32 33 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_19       1 1 33 out shape=(%qsize,1,%embed_dim)
 Tensor.reshape          op_20       1 1 29 35 shape=(1,%num_heads,%qsize,%kvsize)
-torch.mean              op_21       1 1 35 outweight dim=(1) keepdim=False
+torch.mean              op_21       1 1 35 outweight dim=1 keepdim=False
 pnnx.Output             output      2 0 out outweight
 )PNNXIR";
     }
@@ -1970,7 +1970,7 @@ Tensor.reshape          op_16       1 1 35 36 shape=(%qsize,%embed_dim)
 nn.Linear               out_proj    1 1 36 37 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_18       1 1 37 out shape=(%qsize,%batch,%embed_dim)
 Tensor.reshape          op_19       1 1 33 39 shape=(%batch,%num_heads,%qsize,%kvsize)
-torch.mean              op_20       1 1 39 outweight dim=(1) keepdim=False
+torch.mean              op_20       1 1 39 outweight dim=1 keepdim=False
 pnnx.Output             output      2 0 out outweight
 )PNNXIR";
     }
@@ -2019,7 +2019,7 @@ Tensor.reshape          op_15       1 1 36 37 shape=(%qsize,%embed_dim)
 nn.Linear               out_proj    1 1 37 38 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_16       1 1 38 out shape=(%qsize,%batch,%embed_dim)
 Tensor.reshape          op_18       1 1 34 40 shape=(%batch,%num_heads,%qsize,%kvsize)
-torch.mean              op_19       1 1 40 outweight dim=(1) keepdim=False
+torch.mean              op_19       1 1 40 outweight dim=1 keepdim=False
 pnnx.Output             output      2 0 out outweight
 )PNNXIR";
     }

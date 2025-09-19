@@ -66,7 +66,14 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = 0;
         op->params["7"] = 1;
-        op->params["8"] = captured_params.at("output_size").ai[0];
+        if (captured_params.at("output_size").type == 2)
+        {
+            op->params["8"] = captured_params.at("output_size").i;
+        }
+        else
+        {
+            op->params["8"] = captured_params.at("output_size").ai[0];
+        }
     }
 };
 

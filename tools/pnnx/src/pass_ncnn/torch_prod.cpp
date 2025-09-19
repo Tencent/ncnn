@@ -32,21 +32,42 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int dim = captured_params.at("dim").i;
-
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-
-        if (dim == batch_index)
+        std::vector<int> new_dims;
+        if (captured_params.at("dim").type == 2)
         {
-            fprintf(stderr, "prod along batch axis is not supported\n");
-            return;
-        }
+            int dim = captured_params.at("dim").i;
 
-        int new_dim = dim > batch_index ? dim - 1 : dim;
+            const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
+            if (dim == batch_index)
+            {
+                fprintf(stderr, "prod along batch axis is not supported\n");
+                return;
+            }
+
+            int new_dim = dim > batch_index ? dim - 1 : dim;
+            new_dims = std::vector<int>{new_dim};
+        }
+        else
+        {
+            const std::vector<int>& dims = captured_params.at("dim").ai;
+
+            const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
+            // drop batch index
+            for (int i = 0; i < (int)dims.size(); i++)
+            {
+                if (dims[i] == batch_index)
+                    continue;
+
+                int new_dim = dims[i] > batch_index ? dims[i] - 1 : dims[i];
+                new_dims.push_back(new_dim);
+            }
+        }
 
         op->params["0"] = 6;
         op->params["1"] = 0;
-        op->params["3"] = std::vector<int>{new_dim};
+        op->params["3"] = new_dims;
         op->params["4"] = captured_params.at("keepdim").b ? 1 : 0;
         op->params["5"] = 1;
     }
