@@ -1846,7 +1846,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     const std::vector<int>& shape = op->params.at("shape").ai;
                     for (size_t i = 0; i < shape.size(); i++)
                     {
-                        fprintf(pyfp, "%d", shape[i]);
+                        if (shape[i] == 0)
+                        {
+                            // torch does not support numpy style reference
+                            fprintf(pyfp, "v_%s.size(%d)", sanitize_identifier(op->inputs[0]->name).c_str(), (int)i);
+                        }
+                        else
+                        {
+                            fprintf(pyfp, "%d", shape[i]);
+                        }
                         if (i + 1 != shape.size())
                             fprintf(pyfp, ", ");
                     }
@@ -1907,6 +1915,34 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     fprintf(pyfp, ", v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
                 }
                 fprintf(pyfp, ")\n");
+            }
+            else if (op->type == "torch.unsqueeze")
+            {
+                fprintf(pyfp, "v_%s = v_%s", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str());
+
+                if (op->params.at("dim").type == 2)
+                {
+                    const int dim = op->params.at("dim").i;
+                    fprintf(pyfp, ".unsqueeze(%d)", dim);
+                }
+                else
+                {
+                    // multiple dims, sort to -1,-2,-3,...,0,1,2,3.... and unroll
+                    std::vector<int> dims = op->params.at("dim").ai;
+                    std::sort(dims.begin(), dims.end(), [](int a, int b) {
+                        if (a < 0 && b >= 0) return true;
+                        if (a >= 0 && b < 0) return false;
+                        if (a < 0 && b < 0) return a > b;
+                        return a < b;
+                    });
+                    for (size_t i = 0; i < dims.size(); i++)
+                    {
+                        int dim = dims[i];
+                        fprintf(pyfp, ".unsqueeze(%d)", dim);
+                    }
+                }
+
+                fprintf(pyfp, "\n");
             }
             else if (op->type == "prim::TupleUnpack")
             {

@@ -12,7 +12,7 @@ from onnxscript import FLOAT, script
 from onnxscript import opset19 as op
 
 @script()
-def Model(x: FLOAT[1,12,13,14]):
+def Model(x: FLOAT["N",12,"H","W"]):
 
     a = op.Reshape(x, shape=[1,-1,1,1])
     b = op.Reshape(x, shape=[1,-1])
@@ -31,11 +31,15 @@ def Model(x: FLOAT[1,12,13,14]):
         op.Pad(x, pads=[0, 0, 1, 1, 0, 0, 1, 1], mode='reflect'),
         op.Pad(x, pads=[0, 1, 0, 2, 0, 0, 3, 3], mode='edge'),
 
+        op.Reshape(x, shape=[0,2,-1,0]),
+
         op.Squeeze(a),
         op.Squeeze(a, axes=[-1]),
 
         op.Unsqueeze(b, axes=[2]),
         op.Unsqueeze(b, axes=[-1,1]),
+        op.Unsqueeze(b, axes=[2,3]),
+        op.Unsqueeze(b, axes=[-2,-1]),
 
         op.Concat(x, x, axis=1),
         op.Concat(a, a, a, axis=-1),
@@ -69,14 +73,18 @@ def test():
 
     # onnx to ncnn
     import os
-    os.system("../../src/pnnx test_onnx_layout_ops.onnx")
+    os.system("../../src/pnnx test_onnx_layout_ops.onnx inputshape=[1,12,13,14] inputshape2=[1,12,48,66]")
+
+    # pnnx inference
+    import test_onnx_layout_ops_pnnx
+    b = test_onnx_layout_ops_pnnx.test_inference()
 
     # ncnn inference
     import test_onnx_layout_ops_ncnn
-    b = test_onnx_layout_ops_ncnn.test_inference()
+    c = test_onnx_layout_ops_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+    for a0, b0, c0 in zip(a, b, c):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4) or not torch.allclose(a0, c0, 1e-4, 1e-4):
             return False
     return True
 

@@ -1704,10 +1704,6 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::ExpandDims* op = (ncnn::ExpandDims*)layer;
             ncnn::ExpandDims* op_default = (ncnn::ExpandDims*)layer_default;
 
-            fprintf_param_value(" 0=%d", expand_w)
-            fprintf_param_value(" 1=%d", expand_h)
-            fprintf_param_value(" 11=%d", expand_d)
-            fprintf_param_value(" 2=%d", expand_c)
             {
                 if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
             }
