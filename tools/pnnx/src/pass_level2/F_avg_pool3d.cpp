@@ -416,7 +416,6 @@ pnnx.Output             output      1 0 out
                 fprintf(stderr, "auto_pad %s with stride %d %d %d may lead to incorrect output shape\n", auto_pad.c_str(), stride_w, stride_h, stride_d);
             }
         }
-
     }
 };
 
