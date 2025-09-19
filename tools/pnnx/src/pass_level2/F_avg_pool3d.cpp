@@ -133,6 +133,16 @@ pnnx.Output             output      1 0 out
             }
         }
 
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            if (captured_params.at("op_0.auto_pad").type != 4)
+                return false;
+
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+            if (auto_pad == "SAME_UPPER" || auto_pad == "SAME_LOWER")
+                return false;
+        }
+
         return true;
     }
 
@@ -199,5 +209,217 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx, 120)
+
+class F_avg_pool3d_onnx_pad : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+AveragePool             op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+F.pad                   pad         1 1 input pad
+F.avg_pool3d            avgpool     1 1 pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        if (captured_params.find("op_0.kernel_shape") == captured_params.end())
+            return false;
+
+        if (captured_params.at("op_0.kernel_shape").type != 5 || captured_params.at("op_0.kernel_shape").ai.size() != 3)
+            return false;
+
+        if (captured_params.find("op_0.dilations") != captured_params.end())
+        {
+            if (captured_params.at("op_0.dilations").type != 5 || captured_params.at("op_0.dilations").ai.size() != 3)
+                return false;
+        }
+
+        if (captured_params.find("op_0.strides") != captured_params.end())
+        {
+            if (captured_params.at("op_0.strides").type != 5 || captured_params.at("op_0.strides").ai.size() != 3)
+                return false;
+        }
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            if (captured_params.at("op_0.pads").type != 5 || captured_params.at("op_0.pads").ai.size() != 6)
+                return false;
+
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            const int ceil_mode = captured_params.find("op_0.ceil_mode") != captured_params.end() ? captured_params.at("op_0.ceil_mode").i : 0;
+            if (pads[0] != pads[3] || pads[1] != pads[4] || pads[2] != pads[5])
+            {
+                // ceil_mode for opset9
+                const Operator* avgpool = matched_operators.at("op_0");
+                const std::vector<int>& in_shape = avgpool->inputs[0]->shape;
+                if (in_shape.size() < 2)
+                    return false;
+
+                const int ind = in_shape[in_shape.size() - 3];
+                const int inh = in_shape[in_shape.size() - 2];
+                const int inw = in_shape[in_shape.size() - 1];
+                const int kd = captured_params.at("op_0.kernel_shape").ai[0];
+                const int kh = captured_params.at("op_0.kernel_shape").ai[1];
+                const int kw = captured_params.at("op_0.kernel_shape").ai[2];
+                const int dd = captured_params.find("op_0.dilations") != captured_params.end() ? captured_params.at("op_0.dilations").ai[0] : 1;
+                const int dh = captured_params.find("op_0.dilations") != captured_params.end() ? captured_params.at("op_0.dilations").ai[1] : 1;
+                const int dw = captured_params.find("op_0.dilations") != captured_params.end() ? captured_params.at("op_0.dilations").ai[2] : 1;
+                const int sd = captured_params.find("op_0.strides") != captured_params.end() ? captured_params.at("op_0.strides").ai[0] : 1;
+                const int sh = captured_params.find("op_0.strides") != captured_params.end() ? captured_params.at("op_0.strides").ai[1] : 1;
+                const int sw = captured_params.find("op_0.strides") != captured_params.end() ? captured_params.at("op_0.strides").ai[2] : 1;
+
+                const int ked = dd * (kd - 1) + 1;
+                const int keh = dh * (kh - 1) + 1;
+                const int kew = dw * (kw - 1) + 1;
+
+                int ceil_padd = get_pool_ceil_padding(ind, ked, sd, pads[0]);
+                int ceil_padh = get_pool_ceil_padding(inh, keh, sh, pads[1]);
+                int ceil_padw = get_pool_ceil_padding(inw, kew, sw, pads[2]);
+
+                if (ceil_mode == 0 && pads[0] + ceil_padd == pads[3] && pads[1] + ceil_padh == pads[4] && pads[2] + ceil_padw == pads[5])
+                {
+                    // useless tail padding  :D
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            if (captured_params.at("op_0.auto_pad").type != 4)
+                return false;
+
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+            if (auto_pad == "VALID")
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params) const
+    {
+        Operator* op_pad = ops.at("pad");
+        Operator* op_avgpool = ops.at("avgpool");
+
+        op_pad->params["mode"] = "constant";
+        op_pad->params["value"] = 0.f;
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            op_pad->params["pad"] = std::vector<int>{pads[2], pads[5], pads[1], pads[4], pads[0], pads[3]};
+        }
+
+        op_avgpool->params["kernel_size"] = captured_params.at("op_0.kernel_shape");
+
+        if (captured_params.find("op_0.dilations") != captured_params.end())
+        {
+            op_avgpool->params["dilation"] = captured_params.at("op_0.dilations");
+        }
+
+        if (captured_params.find("op_0.strides") != captured_params.end())
+        {
+            op_avgpool->params["stride"] = captured_params.at("op_0.strides");
+        }
+        else
+        {
+            op_avgpool->params["stride"] = {1, 1, 1};
+        }
+
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            op_avgpool->params["padding"] = {pads[0], pads[1], pads[2]};
+        }
+        else
+        {
+            op_avgpool->params["padding"] = {0, 0, 0};
+        }
+
+        if (captured_params.find("op_0.count_include_pad") != captured_params.end())
+        {
+            int count_include_pad = captured_params.at("op_0.count_include_pad").i;
+            op_avgpool->params["count_include_pad"] = (count_include_pad != 0);
+        }
+        else
+        {
+            op_avgpool->params["count_include_pad"] = false;
+        }
+
+        if (captured_params.find("op_0.ceil_mode") != captured_params.end())
+        {
+            int ceil_mode = captured_params.at("op_0.ceil_mode").i;
+            op_avgpool->params["ceil_mode"] = (ceil_mode != 0);
+        }
+        else
+        {
+            op_avgpool->params["ceil_mode"] = false;
+        }
+
+        // ceil_mode for opset9
+        if (captured_params.find("op_0.pads") != captured_params.end())
+        {
+            const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
+            if (pads[0] != pads[3] || pads[1] != pads[4] || pads[2] != pads[5])
+            {
+                op_avgpool->params["ceil_mode"] = true;
+            }
+        }
+
+        op_avgpool->params["divisor_override"] = Parameter();
+
+        // resolve auto_pad
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+
+            const int kernel_d = op_avgpool->params.at("kernel_size").ai[0];
+            const int kernel_h = op_avgpool->params.at("kernel_size").ai[1];
+            const int kernel_w = op_avgpool->params.at("kernel_size").ai[2];
+            const int stride_d = op_avgpool->params.at("stride").ai[0];
+            const int stride_h = op_avgpool->params.at("stride").ai[1];
+            const int stride_w = op_avgpool->params.at("stride").ai[2];
+
+            const int wpad = kernel_w - 1;
+            const int hpad = kernel_h - 1;
+            const int dpad = kernel_d - 1;
+
+            if (auto_pad == "SAME_UPPER")
+            {
+                op_pad->params["pad"] = std::vector<int>{wpad / 2, wpad - wpad / 2, hpad / 2, hpad - hpad / 2, dpad / 2, dpad - dpad / 2};
+            }
+            if (auto_pad == "SAME_LOWER")
+            {
+                op_pad->params["pad"] = std::vector<int>{wpad - wpad / 2, wpad / 2, hpad - hpad / 2, hpad / 2, dpad - dpad / 2, dpad / 2};
+            }
+
+            if (stride_w != 1 || stride_w != 1 || stride_d != 1)
+            {
+                fprintf(stderr, "auto_pad %s with stride %d %d %d may lead to incorrect output shape\n", auto_pad.c_str(), stride_w, stride_h, stride_d);
+            }
+        }
+
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool3d_onnx_pad, 120)
 
 } // namespace pnnx
