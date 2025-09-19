@@ -71,7 +71,7 @@ def test():
     sess = ort.InferenceSession("test_onnx_layout_ops.onnx")
     a = tuple(torch.from_numpy(out) for out in sess.run(None, {"x": x.numpy()}))
 
-    # onnx to ncnn
+    # onnx to pnnx and ncnn
     import os
     os.system("../../src/pnnx test_onnx_layout_ops.onnx inputshape=[1,12,13,14] inputshape2=[1,12,48,66]")
 

@@ -12,7 +12,7 @@ from onnxscript import FLOAT, script
 from onnxscript import opset11 as op
 
 @script()
-def Model(x: FLOAT[2,3,4]):
+def Model(x: FLOAT["C","H","W"]):
     return (op.ReduceMax(x, axes=[1], keepdims=1),
         op.ReduceMax(x, axes=[2], keepdims=0),
         op.ReduceMax(x),
@@ -27,7 +27,7 @@ def Model(x: FLOAT[2,3,4]):
         op.ReduceSum(x),
         op.ReduceProd(x, axes=[1], keepdims=1),
         op.ReduceProd(x, axes=[2], keepdims=0),
-        op.ReduceProd(x),
+        # op.ReduceProd(x),
         # op.ReduceSumSquare(x, axes=[1], keepdims=1),
         # op.ReduceSumSquare(x, axes=[2], keepdims=0),
         # op.ReduceSumSquare(x),
@@ -44,22 +44,26 @@ def test():
     onnx.save(Model.to_model_proto(), "test_onnx_reduce_ops.onnx")
 
     torch.manual_seed(0)
-    x = torch.rand(2, 3, 4)
+    x = torch.rand(3, 4, 5)
 
     # ort inference
     sess = ort.InferenceSession("test_onnx_reduce_ops.onnx")
     a = tuple(torch.from_numpy(out) for out in sess.run(None, {"x": x.numpy()}))
 
-    # onnx to ncnn
+    # onnx to pnnx and ncnn
     import os
-    os.system("../../src/pnnx test_onnx_reduce_ops.onnx")
+    os.system("../../src/pnnx test_onnx_reduce_ops.onnx inputshape=[3,4,5] inputshape2=[13,14,15]")
+
+    # pnnx inference
+    import test_onnx_reduce_ops_pnnx
+    b = test_onnx_reduce_ops_pnnx.test_inference()
 
     # ncnn inference
     import test_onnx_reduce_ops_ncnn
-    b = test_onnx_reduce_ops_ncnn.test_inference()
+    c = test_onnx_reduce_ops_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+    for a0, b0, c0 in zip(a, b, c):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4) or not torch.allclose(a0, c0, 1e-4, 1e-4):
             return False
     return True
 

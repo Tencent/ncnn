@@ -2139,7 +2139,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         fprintf(pyfp, ", ");
                 }
 
-                if (op->type == "torch.max" || op->type == "torch.max")
+                if (op->type == "torch.max" || op->type == "torch.min")
                 {
                     if (op->has_param("dim") && op->outputs.size() == 1)
                     {
