@@ -101,7 +101,7 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_1     0 1 weight #weight=(?,?,?,?)f32
 pnnx.Input              input_2     0 1 bias
 ConvTranspose           op_0        3 1 input weight bias out %*=%*
 pnnx.Output             output      1 0 out
@@ -212,7 +212,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_1     0 1 weight #weight=(?,?,?,?)f32
 ConvTranspose           op_0        2 1 input weight out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
