@@ -149,6 +149,16 @@ pnnx.Output             output      1 0 out
                 return false;
         }
 
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            if (captured_params.at("op_0.auto_pad").type != 4)
+                return false;
+
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+            if (auto_pad != "NOTSET")
+                return false;
+        }
+
         return true;
     }
 
