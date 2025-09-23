@@ -162,10 +162,7 @@ pnnx.Output             output      1 0 out
         ops.at("bias")->outputs[0]->shape.resize(1);
 
         Operator* gn = ops.at("gn_affine");
-        gn->inputnames.resize(3);
-        gn->inputnames[0] = "input";
-        gn->inputnames[1] = "weight";
-        gn->inputnames[2] = "bias";
+        gn->inputnames = {"input", "weight", "bias"};
     }
 };
 

@@ -41,7 +41,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-LayerNormalization      op_0        3 1 input weight bias out axis=%axis epsilon=%epsilon
+LayerNormalization      op_0        3 1 input weight bias out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -55,7 +55,18 @@ pnnx.Output             output      1 0 out
     {
         const int input_rank = op->inputs[0]->shape.size();
 
-        int axis = captured_params.at("axis").i;
+        int axis = -1;
+        if (captured_params.find("op_0.axis") != captured_params.end())
+        {
+            axis = captured_params.at("op_0.axis").i;
+        }
+
+        float epsilon = 1e-05;
+        if (captured_params.find("op_0.epsilon") != captured_params.end())
+        {
+            epsilon = captured_params.at("op_0.epsilon").f;
+        }
+
         if (axis < 0)
         {
             axis = input_rank + axis;
@@ -68,7 +79,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["normalized_shape"] = normalized_shape;
-        op->params["eps"] = captured_params.at("epsilon");
+        op->params["eps"] = epsilon;
     }
 };
 
@@ -84,7 +95,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-LayerNormalization      op_0        3 3 input weight bias out Mean InvStdDev axis=%axis epsilon=%epsilon stash_type=%stash_type
+LayerNormalization      op_0        3 3 input weight bias out Mean InvStdDev %*=%*
 pnnx.Output             output      3 0 out Mean InvStdDev
 )PNNXIR";
     }
@@ -104,24 +115,6 @@ pnnx.Output             output      3 0 out Mean InvStdDev
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 130)
-
-class F_layer_norm_onnx_2 : public F_layer_norm_onnx
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-pnnx.Input              input_2     0 1 bias
-LayerNormalization      op_0        3 1 input weight bias out axis=%axis epsilon=%epsilon stash_type=%stash_type
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_2, 130)
 
 class F_layer_norm_onnx_3 : public GraphRewriterPass
 {

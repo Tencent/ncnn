@@ -670,11 +670,11 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        if (captured_params.find("op_0.coordinate_transformation_mode") == captured_params.end())
-            return false;
-
-        if (captured_params.at("op_0.coordinate_transformation_mode").type != 4)
-            return false;
+        if (captured_params.find("op_0.coordinate_transformation_mode") != captured_params.end())
+        {
+            if (captured_params.at("op_0.coordinate_transformation_mode").type != 4)
+                return false;
+        }
 
         if (captured_params.find("op_0.mode") == captured_params.end())
             return false;
@@ -731,7 +731,12 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const std::string& coordinate_transformation_mode = captured_params.at("op_0.coordinate_transformation_mode").s;
+        std::string coordinate_transformation_mode = "half_pixel";
+        if (captured_params.find("op_0.coordinate_transformation_mode") != captured_params.end())
+        {
+            coordinate_transformation_mode = captured_params.at("op_0.coordinate_transformation_mode").s;
+        }
+
         std::string mode = captured_params.at("op_0.mode").s;
 
         if (mode == "linear")

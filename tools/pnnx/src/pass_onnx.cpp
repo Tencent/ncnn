@@ -687,6 +687,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::einsum";
             }
 
+            if (op_type == "Sum")
+            {
+                sim_op_type = "aten::add";
+            }
+
             // unaryop
             if (op_type == "Abs") sim_op_type = "aten::abs";
             if (op_type == "Acos") sim_op_type = "aten::acos";
@@ -1108,6 +1113,39 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 opm1_out->consumers.push_back(op);
                 op->inputs.clear();
                 op->inputs.push_back(opm1_out);
+            }
+
+            if (op_type == "Sum")
+            {
+                // unroll sum
+                if (op->inputs.size() > 2)
+                {
+                    std::vector<Operand*> more_inputs(op->inputs.begin() + 2, op->inputs.end());
+                    op->inputs.resize(2);
+
+                    Operator* last_op = op;
+                    for (size_t j = 0; j < more_inputs.size(); j++)
+                    {
+                        Operand* x = more_inputs[j];
+
+                        Operator* op1 = pnnx_graph.new_operator_after("aten::add", op->name + "_sum" + std::to_string(j + 1), last_op);
+                        Operand* op1_in = pnnx_graph.new_operand(op->name + "_sum" + std::to_string(j));
+                        Operand* op1_out = last_op->outputs[0];
+                        op1_in->consumers.push_back(op1);
+                        op1_in->producer = last_op;
+                        last_op->outputs[0] = op1_in;
+                        op1_out->producer = op1;
+                        op1->inputs.push_back(op1_in);
+                        op1->inputs.push_back(x);
+                        x->consumers.clear();
+                        x->consumers.push_back(op1);
+                        op1->outputs.push_back(op1_out);
+
+                        last_op = op1;
+                    }
+
+                    op->name = op->name + "_sum0";
+                }
             }
         }
         else if (is_prim_op)
