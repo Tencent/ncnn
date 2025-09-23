@@ -77,10 +77,7 @@ pnnx.Output             output      1 0 out
 
         Operator* op_conv = ops.at("conv");
 
-        op_conv->inputnames.resize(3);
-        op_conv->inputnames[0] = "input";
-        op_conv->inputnames[1] = "weight";
-        op_conv->inputnames[2] = "bias";
+        op_conv->inputnames = {"input", "weight", "bias"};
 
         const int out_channels = captured_params.at("out_channels").i;
 
