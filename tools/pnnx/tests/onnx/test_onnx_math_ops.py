@@ -41,7 +41,10 @@ def Model(x: FLOAT["C","H","W"], y: FLOAT["C","H","W"]):
         op.Div(x, y),
         op.Min(x, y),
         op.Max(x, y),
-        op.Pow(x, op.Abs(y))
+        op.Pow(x, op.Abs(y)),
+
+        op.Sum(x, op.Relu(y)),
+        op.Sum(x, op.Floor(y), y, op.Sin(y)),
         )
 
 def test():
