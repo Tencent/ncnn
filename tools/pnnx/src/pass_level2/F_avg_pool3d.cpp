@@ -411,7 +411,7 @@ pnnx.Output             output      1 0 out
                 op_pad->params["pad"] = std::vector<int>{wpad - wpad / 2, wpad / 2, hpad - hpad / 2, hpad / 2, dpad - dpad / 2, dpad / 2};
             }
 
-            if (stride_w != 1 || stride_w != 1 || stride_d != 1)
+            if (stride_w != 1 || stride_h != 1 || stride_d != 1)
             {
                 fprintf(stderr, "auto_pad %s with stride %d %d %d may lead to incorrect output shape\n", auto_pad.c_str(), stride_w, stride_h, stride_d);
             }
