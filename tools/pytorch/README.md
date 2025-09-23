@@ -8,8 +8,9 @@ The recommended and most robust method is to use **[pnnx](https://github.com/pnn
 
 pnnx is the new-generation model converter that is actively developed and maintained. It offers a more robust and flexible solution for converting models from various deep learning frameworks into ncnn.
 
-* pnnx: [https://github.com/pnnx/pnnx](https://github.com/pnnx/pnnx)
-* ncnn: [https://github.com/Tencent/ncnn](https://github.com/Tencent/ncnn)
+* pnnx: https://github.com/pnnx/pnnx
+* ncnn: https://github.com/Tencent/ncnn
+* supported pytorch operators: https://github.com/Tencent/ncnn/tree/master/tools/pnnx#supported-pytorch-operator-status
 
 ## Quick Start: Direct Conversion with `pnnx.export` (Recommended)
 
