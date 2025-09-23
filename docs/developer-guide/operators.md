@@ -32,6 +32,7 @@
 * [ELU](#elu)
 * [Embed](#embed)
 * [Exp](#exp)
+* [ExpandDims](#expanddims)
 * [Flatten](#flatten)
 * [Flip](#flip)
 * [Fold](#fold)
@@ -85,6 +86,7 @@
 * [Softplus](#softplus)
 * [Spectrogram](#spectrogram)
 * [Split](#split)
+* [Squeeze](#squeeze)
 * [Swish](#swish)
 * [TanH](#tanh)
 * [Threshold](#threshold)
@@ -865,6 +867,14 @@ else            y = pow(base, (shift + x * scale))
 | 0         | base          | float | -1.f      |                   |
 | 1         | scale         | float | 1.f       |                   |
 | 2         | shift         | float | 0.f       |                   |
+
+# ExpandDims
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 3         | axes          | array | [ ]       |                   |
 
 # Flatten
 Reshape blob to 1 dimension
@@ -1896,6 +1906,18 @@ if power == 2 return square of magnitude
 ```
 y0, y1 ... = x
 ```
+
+# Squeeze
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | squeeze_w     | int   | 0         |                   |
+| 1         | squeeze_h     | int   | 0         |                   |
+| 11        | squeeze_d     | int   | 0         |                   |
+| 2         | squeeze_c     | int   | 0         |                   |
+| 3         | axes          | array | [ ]       |                   |
 
 # Swish
 ```
