@@ -13,7 +13,15 @@ from onnxscript import opset11 as op
 
 @script()
 def Model(x: FLOAT["C","H","W"]):
-    return (op.ReduceMax(x, axes=[1], keepdims=1),
+    return (
+        op.ReduceL1(x, axes=[1], keepdims=1),
+        op.ReduceL1(x, axes=[2], keepdims=0),
+        op.ReduceL1(x),
+        op.ReduceL2(x, axes=[1], keepdims=1),
+        op.ReduceL2(x, axes=[2], keepdims=0),
+        op.ReduceL2(x),
+
+        op.ReduceMax(x, axes=[1], keepdims=1),
         op.ReduceMax(x, axes=[2], keepdims=0),
         op.ReduceMax(x),
         op.ReduceMin(x, axes=[1], keepdims=1),
