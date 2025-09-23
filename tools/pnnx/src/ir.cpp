@@ -1944,6 +1944,41 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
                 fprintf(pyfp, "\n");
             }
+            else if (op->type == "torch.prod")
+            {
+                fprintf(pyfp, "v_%s = ", sanitize_identifier(op->outputs[0]->name).c_str());
+
+                if (op->params.at("dim").type == 2)
+                {
+                    const int dim = op->params.at("dim").i;
+                    const bool keepdim = op->params.at("keepdim").b;
+                    fprintf(pyfp, "torch.prod(input=v_%s, dim=%d, keepdim=%s)", sanitize_identifier(op->inputs[0]->name).c_str(), dim, keepdim ? "True" : "False");
+                }
+                else
+                {
+                    // multiple dims, sort to ...,-3,-2,-1,...,3,2,1,0 and unroll
+                    std::vector<int> dims = op->params.at("dim").ai;
+                    const bool keepdim = op->params.at("keepdim").b;
+                    std::sort(dims.begin(), dims.end(), [](int a, int b) {
+                        if (a < 0 && b >= 0) return true;
+                        if (a >= 0 && b < 0) return false;
+                        if (a < 0 && b < 0) return a < b;
+                        return a > b;
+                    });
+                    for (size_t i = 0; i < dims.size(); i++)
+                    {
+                        fprintf(pyfp, "torch.prod(input=");
+                    }
+                    fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
+                    for (size_t i = 0; i < dims.size(); i++)
+                    {
+                        int dim = dims[i];
+                        fprintf(pyfp, ", dim=%d, keepdim=%s)", dim, keepdim ? "True" : "False");
+                    }
+                }
+
+                fprintf(pyfp, "\n");
+            }
             else if (op->type == "prim::TupleUnpack")
             {
                 for (size_t i = 0; i < op->outputs.size(); i++)

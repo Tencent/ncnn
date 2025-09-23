@@ -20,7 +20,6 @@ def Model(x: FLOAT["C","H","W"]):
         op.ReduceL2(x, axes=[1], keepdims=1),
         op.ReduceL2(x, axes=[2], keepdims=0),
         op.ReduceL2(x),
-
         op.ReduceMax(x, axes=[1], keepdims=1),
         op.ReduceMax(x, axes=[2], keepdims=0),
         op.ReduceMax(x),
@@ -35,7 +34,7 @@ def Model(x: FLOAT["C","H","W"]):
         op.ReduceSum(x),
         op.ReduceProd(x, axes=[1], keepdims=1),
         op.ReduceProd(x, axes=[2], keepdims=0),
-        # op.ReduceProd(x),
+        op.ReduceProd(x),
         op.ReduceSumSquare(x, axes=[1], keepdims=1),
         op.ReduceSumSquare(x, axes=[2], keepdims=0),
         op.ReduceSumSquare(x),

@@ -60,7 +60,7 @@ pnnx.Output             output      1 0 out
                 const std::vector<int>& dim = captured_params.at("op_0.axes").ai;
                 if (dim.size() == 1)
                 {
-                    // prefer single dim for compatible with old torch
+                    // prefer single dim for compatible with torch
                     op->params["dim"] = dim[0];
                 }
                 else
